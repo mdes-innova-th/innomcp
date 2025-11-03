@@ -38,7 +38,7 @@ CREATE TABLE `apikey` (
   UNIQUE KEY `idapikey_id_UNIQUE` (`apikey_id`),
   UNIQUE KEY `apikey_UNIQUE` (`apikey`),
   KEY `idx_user_id` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=10 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -48,10 +48,9 @@ CREATE TABLE `apikey` (
 LOCK TABLES `apikey` WRITE;
 /*!40000 ALTER TABLE `apikey` DISABLE KEYS */;
 INSERT INTO `apikey` VALUES
-(2,'00b8518e7f2f18c7946797265ee15565:e69563760b201b9e4f6746787bdd82bc0afb92215ed39ffefb9d3771f25162a84ab46b0127091633efde575c8f2b3ccf1d16536ed349ee56a8bf12ab7b90b341','active','localhost','2025-06-22 12:11:05',NULL,'2025-08-09 07:22:12',10,NULL,NULL),
 (3,'bbc9bd99fbb1998d6f94c065824d3e5e:a2a17f221a8ffff2980192eeec842f2e849eba3ef77a6ec0db06cc516edf82b36a41ce7b238d109e9fd8f2aac23eee80af895545aa2bd34811084c8efa1c3f24','active','localhost','2025-07-15 15:50:39',NULL,'2025-08-11 10:52:48',50,NULL,26),
-(5,'46ede7369f45d2d233291644dd46d318:e71c0710b107300af79add646831b6055b6d33a7563cfc2e3896324ccf8a74c4e1b06b8fcdd958f179693709f19605828ffbb273273aac2a2f05b902bf136200','active','cct_c380b8611b44429889b975724172017e_key','2025-09-04 18:57:16',NULL,'2025-09-04 18:57:16',NULL,NULL,33),
-(6,'73415a547318091eda20a02b6539c2e5:8d73a2676df1a793c3ded48887a3747a2a0bc0bd425e30835a0949f5176ef64deb226aa3e643aa6b745f231225b67e11392f99849eb6e805a93149f65036e7cc','active','innomcp base api key','2025-09-08 09:27:14',NULL,'2025-09-08 09:27:14',100,NULL,NULL);
+(8,'a95af175be743d61c9bb9f58c0d8a47b:ef47c93e6e559b98e7018f351a42b644b68136e666412d43cfc6f494353a937651ae05b049a5e2fc8fb488ea4c705af59a77b9cd4e3ad5c03e2ab9093b410a3a','active','innomcp base api key','2025-11-03 16:22:06',NULL,'2025-11-03 16:22:59',NULL,NULL,NULL),
+(9,'92fde11bb9fd70f474ab6cf578e7f43a:90f428fae86fc6b64c9f232beddeab9bc553f9c7a900f5feb072e58b3aa5b1aaac5db0208ab8042e38f280f5a0a3c83f9325af9f9316fc4c982b5f7b67a4dc77','active','ADMIN','2025-11-03 16:24:26',NULL,'2025-11-03 16:24:26',NULL,NULL,26);
 /*!40000 ALTER TABLE `apikey` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -150,12 +149,8 @@ LOCK TABLES `user` WRITE;
 /*!40000 ALTER TABLE `user` DISABLE KEYS */;
 INSERT INTO `user` VALUES
 (26,'jlapps','$2b$10$LjoQz/d1dnZmK60AsJvDTO35ygxx2ORLBsF52Tjpm2vRF.FH4S9uO','lb2rock@gmail.com','Administrator',NULL,'1',NULL,NULL,0,NULL),
-(28,'jaran.l','$2b$10$LjoQz/d1dnZmK60AsJvDTO35ygxx2ORLBsF52Tjpm2vRF.FH4S9uO','jaran.x@gmail.com','Jaran Laothong',NULL,'1',NULL,NULL,1,'0876636364'),
-(29,'jaran.ltg','$2b$10$LjoQz/d1dnZmK60AsJvDTO35ygxx2ORLBsF52Tjpm2vRF.FH4S9uO','jaran.ltg@gmail.com','Lek',NULL,'1',NULL,NULL,1,'22222222'),
-(30,'officer','$2b$10$LjoQz/d1dnZmK60AsJvDTO35ygxx2ORLBsF52Tjpm2vRF.FH4S9uO','officer@gmail.com','ผู้ตรวจสอบ',NULL,'1',NULL,NULL,2,NULL),
-(31,'jaran.lao','$2b$10$LjoQz/d1dnZmK60AsJvDTO35ygxx2ORLBsF52Tjpm2vRF.FH4S9uO','jaran.lao@gmail.com','OXy',NULL,'1',NULL,NULL,1,''),
-(32,'officer2','$2b$10$jpKpG2shw7cT4T8MXPAUFeciKPcD81lL5e4gWnzmannc.uA38FvEG','offiicer2@gmail.com','ผู้ตรวจสอบ2',NULL,'1',NULL,NULL,2,'0876636364'),
-(33,'cct_c380b8611b44429889b975724172017e','$2b$10$FnWGDWQHp5MPj9gcL8roWuCd3reJ./s/BfyBpjhKuEwCL/iyh.NZS',NULL,'John Doe','1990-01-01','1',NULL,NULL,1,NULL);
+(28,'jaran.l','$2b$10$LjoQz/d1dnZmK60AsJvDTO35ygxx2ORLBsF52Tjpm2vRF.FH4S9uO','jaran.x@gmail.com','Jaran Laothong',NULL,'1',NULL,NULL,0,'0876636364'),
+(30,'officer','$2b$10$LjoQz/d1dnZmK60AsJvDTO35ygxx2ORLBsF52Tjpm2vRF.FH4S9uO','officer@gmail.com','ผู้ตรวจสอบ',NULL,'1',NULL,NULL,2,NULL);
 /*!40000 ALTER TABLE `user` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -175,7 +170,7 @@ CREATE TABLE `userlog` (
   PRIMARY KEY (`userlog_id`,`user_id`),
   KEY `fk_userlog_user1_idx` (`user_id`),
   CONSTRAINT `fk_userlog_user1` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=178 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=187 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_uca1400_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -361,7 +356,16 @@ INSERT INTO `userlog` VALUES
 (174,'::1','Login/Authenticated [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-10-29 09:00:04',26),
 (175,'::1','Login/Authenticated [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-10-29 17:51:57',26),
 (176,'::1','Login/Authenticated [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-11-01 23:32:03',26),
-(177,'::1','Login/Authenticated [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-11-03 02:06:30',26);
+(177,'::1','Login/Authenticated [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-11-03 02:06:30',26),
+(178,'::1','Login/Authenticated [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-11-03 23:13:05',26),
+(179,'::1','Login/Authenticated [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-11-03 23:20:09',26),
+(180,'::1','Login/Authenticated [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-11-03 23:20:32',26),
+(181,'::1','Login/Authenticated [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-11-03 23:20:47',26),
+(182,'::1','Deleted user user_id: 33 [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-11-03 23:25:18',26),
+(183,'::1','Deleted user user_id: 32 [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-11-03 23:25:27',26),
+(184,'::1','Deleted user user_id: 31 [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-11-03 23:25:31',26),
+(185,'::1','Deleted user user_id: 29 [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-11-03 23:25:40',26),
+(186,'::1','Updated user information (user_id: 28) [UA: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36]','2025-11-03 23:26:02',26);
 /*!40000 ALTER TABLE `userlog` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -409,4 +413,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-03 21:36:05
+-- Dump completed on 2025-11-03 23:29:34

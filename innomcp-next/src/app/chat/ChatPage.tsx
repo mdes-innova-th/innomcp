@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import HeaderChat from "../components/HeaderChat";
+import ThemeContext from "../context/ThemeContext";
+import { AiOutlinePlus } from "react-icons/ai";
 
 // Define the type for a chat message
 interface ChatMessage {
@@ -10,9 +12,11 @@ interface ChatMessage {
 }
 
 const ChatPage: React.FC = () => {
+  const { theme } = useContext(ThemeContext) as { theme: string };
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const ws = new WebSocket("ws://localhost:3001/api/wsurlstats");
@@ -46,32 +50,61 @@ const ChatPage: React.FC = () => {
     }
   };
 
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      console.log("Uploaded file:", files[0]);
+      // Handle file upload logic here
+    }
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const files = event.dataTransfer.files;
+    if (files && files.length > 0) {
+      console.log("Dropped file:", files[0]);
+      // Handle file upload logic here
+    }
+  };
+
   return (
-    <div className="flex flex-col h-screen">
+  <div className={`flex flex-col items-center overflow-hidden`}>
       <HeaderChat />
-      <div className="flex-1 overflow-y-auto p-4">
-        {messages.map((msg, index) => (
-          <div
-            key={index}
-            className={`p-2 rounded mb-2 ${
-              msg.sender === "user" ? "bg-blue-500 text-white" : "bg-gray-300"
-            }`}
-          >
-            {msg.text}
+      <div className="flex flex-col flex-1 w-full items-center mt-4">
+        <div className="w-full max-w-3xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-lg p-4 flex-shrink-0">
+          <div className="flex flex-col gap-2">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              className="rounded-xl border border-gray-300 dark:border-gray-700 p-3 text-base bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white resize-none w-full focus:border-indigo-500 focus:ring-0 min-h-[12] max-h-[32]"
+              placeholder="Type your message..."
+            />
+            <div className="flex gap-4 mt-2 justify-between">
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-lg px-6 py-2 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
+              >
+                <AiOutlinePlus /> Upload
+              </button>
+              <button
+                onClick={sendMessage}
+                className="bg-gradient-to-r from-indigo-500 to-blue-400 text-white rounded-lg px-6 py-2 font-semibold shadow hover:from-blue-400 hover:to-indigo-500 transition-colors"
+              >
+                Send
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </div>
           </div>
-        ))}
-      </div>
-      <div className="p-4 border-t border-gray-300">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className="border p-2 w-full"
-          placeholder="Type your message..."
-        />
-        <button onClick={sendMessage} className="mt-2 p-2 bg-blue-500 text-white rounded">
-          Send
-        </button>
+        </div>
       </div>
     </div>
   );
