@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useContext } from "react";
+import Image from "next/image";
 import HeaderChat from "../components/HeaderChat";
 import ThemeContext from "../context/ThemeContext";
 import { AiOutlinePlus } from "react-icons/ai";
@@ -17,6 +18,8 @@ const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   useEffect(() => {
     const ws = new WebSocket("ws://localhost:3001/api/wsurlstats");
@@ -53,22 +56,22 @@ const ChatPage: React.FC = () => {
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
-      console.log("Uploaded file:", files[0]);
-      // Handle file upload logic here
+      const file = files[0];
+      setSelectedFile(file);
+      if (file.type.startsWith("image/")) {
+        const imageUrl = URL.createObjectURL(file);
+        setSelectedImage(imageUrl);
+      } else {
+        setSelectedImage(null);
+      }
     }
   };
 
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-  };
+  // ลบ unused drag/drop handler
 
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const files = event.dataTransfer.files;
-    if (files && files.length > 0) {
-      console.log("Dropped file:", files[0]);
-      // Handle file upload logic here
-    }
+  const handleRemoveImage = () => {
+    setSelectedImage(null);
+    setSelectedFile(null);
   };
 
   return (
@@ -83,12 +86,24 @@ const ChatPage: React.FC = () => {
               className="rounded-xl border border-gray-300 dark:border-gray-700 p-3 text-base bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white resize-none w-full focus:border-indigo-500 focus:ring-0 min-h-[12] max-h-[32]"
               placeholder="Type your message..."
             />
+            {selectedImage && (
+              <div className="relative w-fit mt-2">
+                <Image src={selectedImage} alt="preview" width={160} height={96} className="max-w-[10rem] max-h-24 rounded-lg border object-contain" />
+                <button
+                  onClick={handleRemoveImage}
+                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow hover:bg-red-600"
+                  title="ลบรูป"
+                >
+                  &times;
+                </button>
+              </div>
+            )}
             <div className="flex gap-4 mt-2 justify-between">
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-lg px-6 py-2 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
               >
-                <AiOutlinePlus /> Upload
+                <AiOutlinePlus />
               </button>
               <button
                 onClick={sendMessage}
