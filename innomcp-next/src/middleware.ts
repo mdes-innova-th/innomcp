@@ -46,9 +46,9 @@ export async function middleware(request: NextRequest) {
     "default-src 'none'",
     `script-src ${scriptSrc.join(" ")}`,
     `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com https://cdnjs.cloudflare.com`,
-    "img-src 'self' data: https://wddsb.dataxo.info http://localhost:3001 http://127.0.0.1:3001 blob:",
+    "img-src 'self' data: https://innomcp.dataxo.info http://localhost:3001 http://127.0.0.1:3001 blob:",
     "font-src 'self' https://fonts.gstatic.com",
-    "connect-src 'self' https://wddsb.dataxo.info wss://wddsb.dataxo.info http://localhost:3001 ws://localhost:3001 http://127.0.0.1:3001 ws://127.0.0.1:3001 http://localhost:3010 ws://localhost:3010 http://127.0.0.1:3010 ws://127.0.0.1:3010 http://webddsb-node:3010 ws://webddsb-node:3010 blob:",
+    "connect-src 'self' https://innomcp.dataxo.info wss://innomcp.dataxo.info http://localhost:3001 ws://localhost:3001 http://127.0.0.1:3001 ws://127.0.0.1:3001 http://localhost:3010 ws://localhost:3010 http://127.0.0.1:3010 ws://127.0.0.1:3010 http://innomcp-node:3010 ws://innomcp-node:3010 blob:",
     "object-src blob:",
     "media-src 'self' blob:",
     "child-src 'none'",
@@ -66,7 +66,7 @@ export async function middleware(request: NextRequest) {
   if (request.nextUrl.pathname.startsWith("/api/")) {
     // Allow CORS for production and local development
     const allowedOrigins = [
-      "https://wddsb.dataxo.info",
+      "https://innomcp.dataxo.info",
       "http://localhost:3001",
       "http://127.0.0.1:3001",
     ];
@@ -76,7 +76,7 @@ export async function middleware(request: NextRequest) {
     } else {
       response.headers.set(
         "Access-Control-Allow-Origin",
-        "https://wddsb.dataxo.info"
+        "https://innomcp.dataxo.info"
       );
     }
     response.headers.set(

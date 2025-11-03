@@ -5,6 +5,8 @@ import apiRouter from "./routes/api";
 import apiCsrfRouter from "./routes/api/csrf";
 import { apiKeyMiddleware } from "./utils/apikey";
 import csrfMiddleware from "./utils/csrf";
+import { router as chatRouter, wss as chatWSS } from "./routes/api/chat";
+import url from "node:url";
 
 // Initialize Express application
 const app = express();
@@ -52,5 +54,25 @@ app.use("/api", apiKeyMiddleware, csrfMiddleware, apiRouter);
 
 // Router สำหรับ API endpoint CSRF
 app.use("/api-get/csrf", apiCsrfRouter);
+
+// Add the chat WebSocket route
+app.use("/api/chat", chatRouter);
+
+// Integrate WebSocket server for chat
+const httpServer = app.listen(3000, () => {
+  console.log("Server is running on port 3000");
+});
+
+httpServer.on("upgrade", (request, socket, head) => {
+  const pathname = url.parse(request.url || "").pathname;
+
+  if (pathname === "/api/chat/ws") {
+    chatWSS.handleUpgrade(request, socket, head, (ws) => {
+      chatWSS.emit("connection", ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
+});
 
 export default app;

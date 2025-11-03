@@ -7,12 +7,12 @@ interface HeaderDashboardProps {
   appname?: string;
 }
 
-export default function HeaderDashboard({ appname }: HeaderDashboardProps) {
+export default function HeaderChat({ appname }: HeaderDashboardProps) {
   const { theme } = useTheme();
   const router = useRouter();
   const pathname = usePathname();
   const displayAppname =
-    appname || process.env.NEXT_PUBLIC_APPNAME || "Dashboard";
+    appname || process.env.NEXT_PUBLIC_APPNAME || "InnoMCP";
 
   return (
     <header

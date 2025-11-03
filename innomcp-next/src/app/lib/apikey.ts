@@ -76,7 +76,7 @@ export function decryptApiKey(encryptedApiKey: string): string {
 }
 
 // สร้าง API Key ตามรูปแบบ prefix-random-suffix สำหรับแอปพลิเคชันหรือเว็บไซต์
-export function generateApiKey(prefix: string = "webd"): string {
+export function generateApiKey(prefix: string = "innomcp"): string {
   const randomBytes = crypto.randomBytes(24).toString("hex");
   console.log("[generateApiKey] Generated API Key.");
   return `${prefix}_${randomBytes}`;
