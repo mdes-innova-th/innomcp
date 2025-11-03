@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  webddsb-node:
+    container_name: webddsb-node
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    expose:
+      - "3010"
+    env_file:
+      - .env
+    environment:
+      - SERVER_HOST=webddsb-node
+      - SERVER_PORT=3010
+    networks:
+      - webd_network
+
+networks:
+  webd_network:
+    name: webd_network
+    external: true
