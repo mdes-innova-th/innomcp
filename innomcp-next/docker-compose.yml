@@ -1,11 +1,11 @@
 version: "3.8"
 
 services:
-  webddsb-next:
+  innomcp-next:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: webddsb-next
+    container_name: innomcp-next
     restart: unless-stopped
     expose:
       - "3004"
@@ -14,22 +14,22 @@ services:
     environment:
       - NODE_ENV=production
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://webddsb-next:3004/api/health"]
+      test: ["CMD", "curl", "-f", "http://innomcp-next:3004/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
     networks:
-      - webd_network
+      - innomcp_network
     volumes:
       - ./assets/images:/app/assets/images
-      - webddsb-uploads_volume:/app/assets/uploads
+      - innomcp-uploads_volume:/app/assets/uploads
     
 networks:
-  webd_network:
-    name: webd_network
+  innomcp_network:
+    name: innomcp_network
     external: true
 
 volumes:
-  webddsb-uploads_volume:
-    name: webddsb-uploads_volume
+  innomcp-uploads_volume:
+    name: innomcp-uploads_volume

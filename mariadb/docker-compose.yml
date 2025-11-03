@@ -2,15 +2,15 @@ version: "3.8"
 
 services:
   mariadb:
-    container_name: mariadb-webddsb
+    container_name: mariadb-innomcp
     image: mariadb:11.8.2-noble
     volumes:
-      - webd-db_volume:/var/lib/mysql
+      - innomcp-db_volume:/var/lib/mysql
     environment:
       - MARIADB_ROOT_PASSWORD=rockbottom
       - MARIADB_USER=jlapps
       - MARIADB_PASSWORD=rockbottom
-      - MARIADB_DATABASE=webd-db
+      - MARIADB_DATABASE=innomcp-db
     networks:
       - webd_network
     restart: always
@@ -35,11 +35,11 @@ services:
       - --log-bin=mysql-bin
       - --binlog-format=ROW
       - --server-id=1
-      - --binlog-do-db=webd-db
+      - --binlog-do-db=innomcp-db
 
 volumes:
-  webd-db_volume:
-    name: webd-db_volume
+  innomcp-db_volume:
+    name: innomcp-db_volume
 
 networks:
   webd_network:
