@@ -43,6 +43,23 @@ const nextConfig: NextConfig = {
   },
 
   webpack: (config) => {
+    config.module.rules.push({
+      test: /\.svg$/,
+      issuer: { and: [/[jt]sx?$/] },
+      use: [
+        {
+          loader: require.resolve('@svgr/webpack'),
+          options: {
+            prettier: false,
+            svgo: true,
+            svgoConfig: {
+              plugins: [{ removeViewBox: false }],
+            },
+            titleProp: true,
+          },
+        },
+      ],
+    });
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
       html2canvas: path.resolve(__dirname, "node_modules/html2canvas-pro"),

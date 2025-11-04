@@ -1,0 +1,41 @@
+<svg viewBox="0 0 400 140" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0066ff;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#00ccff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0066ff;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Main Symbol -->
+  <g transform="translate(70, 70)">
+    <!-- Outer hexagon frame -->
+    <path d="M 0,-40 L 35,-20 L 35,20 L 0,40 L -35,20 L -35,-20 Z" 
+          fill="none" stroke="url(#mainGrad)" stroke-width="3" stroke-linejoin="round"/>
+    
+    <!-- Connection lines between circles -->
+    <!-- From top to center -->
+    <line x1="0" y1="-20" x2="0" y2="0" stroke="#0088ff" stroke-width="4" stroke-linecap="round"/>
+    <!-- From top to left -->
+    <line x1="0" y1="-20" x2="-18" y2="0" stroke="#0088ff" stroke-width="3" stroke-linecap="round"/>
+    <!-- From top to right -->
+    <line x1="0" y1="-20" x2="18" y2="0" stroke="#0088ff" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- Circles on top of lines -->
+    <circle cx="0" cy="-20" r="7" fill="#0066ff"/>
+    <circle cx="-18" cy="0" r="7" fill="#0066ff"/>
+    <circle cx="18" cy="0" r="7" fill="#0066ff"/>
+    <circle cx="0" cy="0" r="8" fill="#00aaff"/>
+  </g>
+  
+  <!-- Text: Inno MCP -->
+  <g>
+    <text x="140" y="75" font-family="'SF Pro Display', -apple-system, sans-serif" 
+          font-size="42" font-weight="600" fill="#000" letter-spacing="-1">Inno</text>
+    <text x="140" y="105" font-family="'SF Pro Display', -apple-system, sans-serif" 
+          font-size="28" font-weight="400" fill="#666" letter-spacing="1">MCP</text>
+  </g>
+  
+  <!-- Subtle accent line -->
+  <line x1="140" y1="112" x2="230" y2="112" stroke="url(#mainGrad)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+</svg>

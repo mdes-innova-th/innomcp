@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Logo from "@/assets/images/logo.svg";
 import { useTheme } from "@/app/context/ThemeContext";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { FaHome } from "react-icons/fa";
@@ -81,7 +82,7 @@ export default function Header() {
           <div className="flex items-center justify-center">
             <div className="hidden sm:flex items-start">
               <Image
-                src={`/api/proxy-image?endpoint=assets/images/mdes-new-logo.png`}
+                src="/assets/images/mdes-new-logo.png"
                 className="w-auto h-auto m-1 p-0 max-h-[150px] max-w-[250px]"
                 alt="MDES Logo"
                 loading="eager"
@@ -91,15 +92,7 @@ export default function Header() {
               />
             </div>
             <div className="flex items-start">
-              <Image
-                src={`/api/proxy-image?endpoint=assets/images/webdlogo.png`}
-                className="w-auto h-auto m-1 p-0 max-h-[100px] max-w-[200px]"
-                alt="webD Logo"
-                loading="eager"
-                width={200}
-                height={100}
-                unoptimized
-              />
+              <Logo className="w-auto h-auto m-1 p-0 max-h-[100px] max-w-[200px]" aria-label="Logo" />
             </div>
           </div>
         </div>
