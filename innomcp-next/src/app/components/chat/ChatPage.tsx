@@ -26,7 +26,8 @@ const ChatPage: React.FC = () => {
 
   useEffect(() => {
     const ws = new WebSocket(
-      process.env.NEXT_PUBLIC_NODE_WS_HOST || "ws://localhost:3010"
+      (process.env.NEXT_PUBLIC_NODE_WS_HOST || "ws://localhost:3010") +
+        "/api/chat/ws"
     );
 
     ws.onopen = () => {
@@ -35,21 +36,47 @@ const ChatPage: React.FC = () => {
     };
 
     ws.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { sender: "ai", text: message.text },
-      ]);
-      setIsWaitingForResponse(false); // Allow sending new messages after receiving a response
+      try {
+        console.log("Received WebSocket message:", event.data);
+        const message = JSON.parse(event.data);
+
+        if (message.text) {
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            { sender: "ai", text: message.text },
+          ]);
+          setIsWaitingForResponse(false);
+        } else if (message.error) {
+          console.error("Server error:", message.error);
+          setIsWaitingForResponse(false);
+        }
+      } catch (error) {
+        console.error("Error parsing WebSocket message:", error);
+        setIsWaitingForResponse(false);
+      }
     };
 
     ws.onerror = (error) => {
       console.error("WebSocket error:", error);
+
+      // Log additional details if available
+      if (error instanceof Event && error.target instanceof WebSocket) {
+        console.error("WebSocket readyState:", error.target.readyState);
+        console.error("WebSocket URL:", error.target.url);
+      }
+
+      setIsSocketReady(false);
+      setIsWaitingForResponse(false);
     };
 
-    ws.onclose = () => {
-      console.log("WebSocket connection closed");
-      setIsSocketReady(false); // Set socket as not ready
+    ws.onclose = (event) => {
+      console.log("WebSocket connection closed:", {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean,
+      });
+      setIsSocketReady(false);
+      setIsWaitingForResponse(false);
     };
 
     setSocket(ws);
