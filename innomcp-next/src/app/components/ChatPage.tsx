@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef, useContext } from "react";
 import Image from "next/image";
-import HeaderChat from "../components/HeaderChat";
-import ThemeContext from "../context/ThemeContext";
+import HeaderChat from "@/app/components/HeaderChat";
+import ThemeContext from "@/app/context/ThemeContext";
 import { AiOutlinePlus } from "react-icons/ai";
 
 // Define the type for a chat message
@@ -30,7 +30,10 @@ const ChatPage: React.FC = () => {
 
     ws.onmessage = (event) => {
       const message = JSON.parse(event.data);
-      setMessages((prevMessages) => [...prevMessages, { sender: "ai", text: message.text }]);
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        { sender: "ai", text: message.text },
+      ]);
     };
 
     ws.onclose = () => {
@@ -75,10 +78,10 @@ const ChatPage: React.FC = () => {
   };
 
   return (
-  <div className={`flex flex-col items-center overflow-hidden`}>
+    <div className={`flex flex-col items-center overflow-hidden`}>
       <HeaderChat />
       <div className="flex flex-col flex-1 w-full items-center mt-4">
-        <div className="w-full max-w-3xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-lg p-4 flex-shrink-0">
+        <div className="w-full max-w-3xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-lg p-4 shrink-0">
           <div className="flex flex-col gap-2">
             <textarea
               value={input}
@@ -88,7 +91,13 @@ const ChatPage: React.FC = () => {
             />
             {selectedImage && (
               <div className="relative w-fit mt-2">
-                <Image src={selectedImage} alt="preview" width={160} height={96} className="max-w-[10rem] max-h-24 rounded-lg border object-contain" />
+                <Image
+                  src={selectedImage}
+                  alt="preview"
+                  width={160}
+                  height={96}
+                  className="max-w-40 max-h-24 rounded-lg border object-contain"
+                />
                 <button
                   onClick={handleRemoveImage}
                   className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow hover:bg-red-600"
@@ -107,7 +116,7 @@ const ChatPage: React.FC = () => {
               </button>
               <button
                 onClick={sendMessage}
-                className="bg-gradient-to-r from-indigo-500 to-blue-400 text-white rounded-lg px-6 py-2 font-semibold shadow hover:from-blue-400 hover:to-indigo-500 transition-colors"
+                className="bg-linear-to-r from-indigo-500 to-blue-400 text-white rounded-lg px-6 py-2 font-semibold shadow hover:from-blue-400 hover:to-indigo-500 transition-colors"
               >
                 Send
               </button>

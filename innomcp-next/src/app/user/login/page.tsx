@@ -581,12 +581,11 @@ export default function LoginPage() {
               <span className="items-center justify-center inline-flex">
                 เข้าใช้งานด้วย{" "}
                 <Image
-                  src={`/api/proxy-image?endpoint=assets/images/thaid.png`}
-                  className="object-contain rounded-md inline-flex"
-                  alt="ThaID"
-                  width={70}
-                  height={40}
-                  unoptimized
+                  src="/thaid.png"
+                  alt="ThaID Logo"
+                  width={80}
+                  height={24}
+                  className="ml-2 inline-block"
                 />
               </span>
             )}

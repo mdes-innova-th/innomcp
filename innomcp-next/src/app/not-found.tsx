@@ -11,7 +11,7 @@ export default function NotFound() {
       <div className="max-w-md w-full text-center">
         {/* 404 Icon */}
         <div className="mb-8">
-          <div className="text-8xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-pulse">
+          <div className="text-8xl font-bold text-transparent bg-clip-text bg-linear-to-r from-blue-500 via-purple-500 to-pink-500 animate-pulse">
             404
           </div>
           <div className="mb-4 text-red-400">
@@ -40,7 +40,7 @@ export default function NotFound() {
         <div className="space-y-4">
           <Link
             href="/"
-            className="inline-block px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+            className="inline-block px-8 py-3 bg-linear-to-r from-blue-500 to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
           >
             กลับสู่หน้าหลัก
           </Link>

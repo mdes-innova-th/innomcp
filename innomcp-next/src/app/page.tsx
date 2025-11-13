@@ -1,11 +1,11 @@
 "use client";
 
 import React from "react";
-import ChatPage from "./chat/ChatPage";
+import ChatPage from "@/app/components/ChatPage";
 
 export default function Page() {
   return (
-  <div className="flex flex-col w-full">
+    <div className="flex flex-col w-full">
       <ChatPage />
     </div>
   );
