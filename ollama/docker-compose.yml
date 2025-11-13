@@ -39,10 +39,7 @@ services:
       - OLLAMA_NUM_GPU=1
       # ใช้ GPU ตัวแรก
       - OLLAMA_GPU=0
-      
-      # development host mapping to localhost 
-    extra_hosts:
-      - "localhost:127.0.0.1"
+
 
 volumes:
   ollama_data:
