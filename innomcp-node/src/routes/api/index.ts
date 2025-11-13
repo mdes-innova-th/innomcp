@@ -1,5 +1,5 @@
 import { Router } from "express";
-import urlStatsRouter from "./urlstats";
+import { chatRouter } from "./chat";
 import csrfRouter from "./csrf";
 
 const apiRouter = Router();
@@ -9,6 +9,6 @@ const apiCsrfRouter = Router();
 apiCsrfRouter.use("/csrf", csrfRouter);
 
 // URL Stats API routes (middleware applied at app level in src/app.ts)
-apiRouter.use("/urlstats", urlStatsRouter);
+apiRouter.use("/chat", chatRouter);
 
 export default apiRouter;

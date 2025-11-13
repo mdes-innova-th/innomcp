@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { WebSocketServer } from "ws";
 
-const router = Router();
+const chatRouter = Router();
 
 // In-memory storage for chat messages
 const messages: { sender: string; text: string }[] = [];
@@ -36,8 +36,8 @@ wss.on("connection", (ws) => {
 });
 
 // HTTP endpoint to handle WebSocket upgrade
-router.get("/ws", (req, res) => {
+chatRouter.get("/ws", (req, res) => {
   res.status(400).send("WebSocket endpoint. Please connect via WebSocket.");
 });
 
-export { router, wss };
+export { chatRouter, wss };
