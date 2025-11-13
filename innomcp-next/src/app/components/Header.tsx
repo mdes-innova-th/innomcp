@@ -82,7 +82,7 @@ export default function Header() {
           <div className="flex items-center justify-center">
             <div className="hidden sm:flex items-start">
               <Image
-                src="/images/mdes-new-logo.png"
+                src="/mdes-new-logo.png"
                 className="w-auto h-auto m-1 p-0 max-h-[150px] max-w-[250px]"
                 alt="MDES Logo"
                 priority
@@ -92,7 +92,7 @@ export default function Header() {
             </div>
             <div className="flex items-start">
               <Image
-                src="/images/logo.png"
+                src="/logo.png"
                 className="w-auto h-auto m-1 p-0 max-h-[100px] max-w-[200px]"
                 alt="InnoMCP Logo"
                 priority
