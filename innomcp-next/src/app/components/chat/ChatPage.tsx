@@ -4,7 +4,8 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import Image from "next/image";
 import HeaderChat from "@/app/components/HeaderChat";
 import ThemeContext from "@/app/context/ThemeContext";
-import { AiOutlinePlus } from "react-icons/ai";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowUp, faPlus } from "@fortawesome/free-solid-svg-icons";
 
 // Define the type for a chat message
 interface ChatMessage {
@@ -19,6 +20,7 @@ const ChatPage: React.FC = () => {
   const [input, setInput] = useState("");
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [isSocketReady, setIsSocketReady] = useState(false);
+  const [dots, setDots] = useState(".");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -26,8 +28,7 @@ const ChatPage: React.FC = () => {
 
   useEffect(() => {
     const ws = new WebSocket(
-      (process.env.NEXT_PUBLIC_NODE_WS_HOST || "ws://localhost:3010") +
-        "/api/chat/ws"
+      (process.env.NEXT_PUBLIC_NODE_WS_HOST || "ws://localhost:3010") + "/chat"
     );
 
     ws.onopen = () => {
@@ -35,10 +36,18 @@ const ChatPage: React.FC = () => {
       setIsSocketReady(true); // Set socket as ready
     };
 
-    ws.onmessage = (event) => {
+    ws.onmessage = async (event) => {
       try {
         console.log("Received WebSocket message:", event.data);
-        const message = JSON.parse(event.data);
+
+        let data = event.data;
+
+        // Check if the data is a Blob and convert it to text
+        if (data instanceof Blob) {
+          data = await data.text();
+        }
+
+        const message = JSON.parse(data);
 
         if (message.text) {
           setMessages((prevMessages) => [
@@ -86,6 +95,17 @@ const ChatPage: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (isWaitingForResponse) {
+      const interval = setInterval(() => {
+        setDots((prev) => (prev.length < 3 ? prev + "." : "."));
+      }, 500);
+      return () => clearInterval(interval);
+    } else {
+      setDots(".");
+    }
+  }, [isWaitingForResponse]);
+
   const sendMessage = () => {
     if (
       socket &&
@@ -129,7 +149,6 @@ const ChatPage: React.FC = () => {
   const adjustTextarea = () => {
     const el = textareaRef.current;
     if (!el) return;
-    // Reset height so scrollHeight is measured correctly
     el.style.height = "auto";
     if (typeof window === "undefined") return;
     const computed = window.getComputedStyle(el);
@@ -139,7 +158,6 @@ const ChatPage: React.FC = () => {
     const maxHeight = lineHeight * 10 + paddingTop + paddingBottom;
     const newHeight = Math.min(el.scrollHeight, maxHeight);
 
-    // Apply new height only to the textarea
     el.style.height = `${newHeight}px`;
     el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
   };
@@ -154,7 +172,7 @@ const ChatPage: React.FC = () => {
   }, [input]);
 
   return (
-    <div className={`flex flex-col items-center overflow-hidden min-h-screen`}>
+    <div className="flex flex-col items-center overflow-hidden min-h-screen">
       <HeaderChat />
       <div className="flex flex-col flex-1 w-full items-center justify-center">
         <div className="w-full max-w-3xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-lg p-4">
@@ -180,10 +198,9 @@ const ChatPage: React.FC = () => {
                 setInput(e.target.value);
                 adjustTextarea();
               }}
-              rows={3} // Increase default height
-              className="rounded-xl border border-gray-300 dark:border-gray-700 p-3 text-base bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white resize-none w-full focus:ring-0 focus:outline-none" // Remove border on focus
+              rows={3}
+              className="rounded-xl border border-gray-300 dark:border-gray-700 p-3 text-base bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white resize-none w-full focus:ring-0 focus:outline-none"
               placeholder="Type your message..."
-              style={{ height: "auto", overflowY: "hidden" }}
             />
             {selectedImage && (
               <div className="relative w-fit mt-2">
@@ -208,18 +225,22 @@ const ChatPage: React.FC = () => {
                 onClick={() => fileInputRef.current?.click()}
                 className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-lg px-6 py-2 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
               >
-                <AiOutlinePlus />
+                <FontAwesomeIcon icon={faPlus} />
               </button>
               <button
                 onClick={sendMessage}
-                disabled={!isSocketReady || isWaitingForResponse} // Disable button if WebSocket is not ready or waiting for response
+                disabled={!isSocketReady || isWaitingForResponse}
                 className={`bg-linear-to-r from-indigo-500 to-blue-400 text-white rounded-lg px-6 py-2 font-semibold shadow transition-colors ${
                   !isSocketReady || isWaitingForResponse
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:from-blue-400 hover:to-indigo-500"
                 }`}
               >
-                {isSocketReady ? "Send" : "Connecting..."}
+                {isSocketReady ? (
+                  <FontAwesomeIcon icon={faArrowUp} className="font-bold" />
+                ) : (
+                  <span className="font-bold">กำลังติดต่อ AI{dots}</span>
+                )}
               </button>
               <input
                 type="file"

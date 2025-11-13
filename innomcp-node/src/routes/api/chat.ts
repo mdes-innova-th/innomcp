@@ -1,5 +1,9 @@
 import { Router } from "express";
 import { WebSocketServer } from "ws";
+import http from "http";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const chatRouter = Router();
 
@@ -68,6 +72,59 @@ wss.on("connection", (ws) => {
   ws.on("error", (error) => {
     console.error("[Chat API] WebSocket error:", error);
   });
+});
+
+const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
+
+// Define a route to handle chat messages
+chatRouter.post("/chat", async (req, res) => {
+  try {
+    const { message } = req.body;
+
+    if (!message) {
+      return res.status(400).json({ error: "Message is required" });
+    }
+
+    // Send the message to the AI via OLLAMA_HOST using native HTTP
+    const requestOptions = {
+      hostname: new URL(OLLAMA_HOST).hostname,
+      port: new URL(OLLAMA_HOST).port || 80,
+      path: "/api/chat",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    };
+
+    const reqToAI = http.request(requestOptions, (responseFromAI) => {
+      let responseData = "";
+
+      responseFromAI.on("data", (chunk) => {
+        responseData += chunk;
+      });
+
+      responseFromAI.on("end", () => {
+        try {
+          const aiResponse = JSON.parse(responseData);
+          res.json({ text: aiResponse.text });
+        } catch (error) {
+          console.error("Error parsing AI response:", error);
+          res.status(500).json({ error: "Invalid response from AI" });
+        }
+      });
+    });
+
+    reqToAI.on("error", (error) => {
+      console.error("Error communicating with AI:", error);
+      res.status(500).json({ error: "Failed to communicate with AI" });
+    });
+
+    reqToAI.write(JSON.stringify({ input: message }));
+    reqToAI.end();
+  } catch (error) {
+    console.error("Error handling chat message:", error);
+    res.status(500).json({ error: "Failed to process the message" });
+  }
 });
 
 // HTTP endpoint to handle WebSocket upgrade

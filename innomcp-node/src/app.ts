@@ -64,7 +64,7 @@ const host = process.env.SERVER_HOST || "localhost";
 
 const httpServer = app.listen(port, host, () => {
   console.log(`Server is running on http://${host}:${port}`);
-  console.log(`WebSocket available at ws://${host}:${port}/api/chat`);
+  console.log(`WebSocket available at ws://${host}:${port}/chat`);
 });
 
 httpServer.on("upgrade", (request, socket, head) => {
