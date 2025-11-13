@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import Logo from "@/assets/images/logo.svg";
 import { useTheme } from "@/app/context/ThemeContext";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { FaHome } from "react-icons/fa";
@@ -11,6 +10,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { FaSignOutAlt, FaKey, FaUser } from "react-icons/fa";
 import LoadingSpinner from "@/app/components/common/ui/loading-spinner";
 import Image from "next/image";
+
 import {
   buttonClass,
   logoutButtonClass,
@@ -82,17 +82,23 @@ export default function Header() {
           <div className="flex items-center justify-center">
             <div className="hidden sm:flex items-start">
               <Image
-                src="/assets/images/mdes-new-logo.png"
+                src="/images/mdes-new-logo.png"
                 className="w-auto h-auto m-1 p-0 max-h-[150px] max-w-[250px]"
                 alt="MDES Logo"
-                loading="eager"
+                priority
                 width={250}
                 height={150}
-                unoptimized
               />
             </div>
             <div className="flex items-start">
-              <Logo className="w-auto h-auto m-1 p-0 max-h-[100px] max-w-[200px]" aria-label="Logo" />
+              <Image
+                src="/images/logo.png"
+                className="w-auto h-auto m-1 p-0 max-h-[100px] max-w-[200px]"
+                alt="InnoMCP Logo"
+                priority
+                width={200}
+                height={100}
+              />
             </div>
           </div>
         </div>
@@ -108,7 +114,7 @@ export default function Header() {
               <span
                 className="text-lg font-semibold mr-2"
                 style={{
-                  color: theme === 'dark' ? '#ffffff' : '#374151'
+                  color: theme === "dark" ? "#ffffff" : "#374151",
                 }}
                 title={userDispName || undefined}
               >
@@ -120,14 +126,16 @@ export default function Header() {
                   href="/"
                   className="rounded-0 mb-2 flex items-center justify-center cursor-pointer transition-colors"
                   style={{
-                    color: theme === 'dark' ? '#ffffff' : '#374151'
+                    color: theme === "dark" ? "#ffffff" : "#374151",
                   }}
                   aria-label="หน้าแรก"
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.color = theme === 'dark' ? '#60a5fa' : '#3b82f6';
+                    e.currentTarget.style.color =
+                      theme === "dark" ? "#60a5fa" : "#3b82f6";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.color = theme === 'dark' ? '#ffffff' : '#374151';
+                    e.currentTarget.style.color =
+                      theme === "dark" ? "#ffffff" : "#374151";
                   }}
                 >
                   <FaHome size={23} />

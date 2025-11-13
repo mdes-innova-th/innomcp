@@ -36,8 +36,8 @@ const nextConfig: NextConfig = {
     const backendUrl = process.env.NODE_BACKEND_HOST || "http://localhost:3010";
     return [
       {
-        source: "/api/url-stats/:path*",
-        destination: `${backendUrl}/api/url-stats/:path*`,
+        source: "/api/chat/:path*",
+        destination: `${backendUrl}/api/chat/:path*`,
       },
     ];
   },
