@@ -1,0 +1,52 @@
+version: "3.8"
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: always
+    networks:
+      - innomcp_network
+    # เพิ่มการเข้าถึง GPU
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # เพิ่ม environment variables สำหรับ GPU
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility,video
+      - OLLAMA_KEEP_ALIVE=1
+      - OLLAMA_HOST=0.0.0.0
+      # จำนวน threads ที่ใช้สำหรับ CPU (ตั้งค่าตามจำนวน CPU cores)
+      - OLLAMA_NUM_CPU_THREADS=12
+      # กำหนดหน่วยความจำที่ใช้ (เพิ่มตามความเหมาะสมกับฮาร์ดแวร์)
+      - OLLAMA_GPU_LAYERS=35
+      # เพิ่มประสิทธิภาพ CUDA
+      - CUDA_VISIBLE_DEVICES=0
+      - CUDA_MODULE_LOADING=LAZY
+      # เพิ่มการตั้งค่าเฉพาะสำหรับ RTX 3070
+      - OLLAMA_GPU_MEMORY_ FRACTION=0.9
+      - OLLAMA_MAX_VRAM=7500
+      # บังคับใช้ GPU
+      - OLLAMA_NUM_GPU=1
+      # ใช้ GPU ตัวแรก
+      - OLLAMA_GPU=0
+
+volumes:
+  ollama_data:
+    driver: local
+
+networks:
+  innomcp_network:
+    name: innomcp_network
+    external: true
+# remote run command
+# docker-compose up -d && docker exec ollama ollama pull nomic-embed-text && docker exec ollama ollama run gemma3:12b && docker exec ollama ollama run llava

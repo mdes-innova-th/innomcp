@@ -12,7 +12,7 @@ services:
       - MARIADB_PASSWORD=rockbottom
       - MARIADB_DATABASE=innomcp-db
     networks:
-      - webd_network
+      - innomcp_network
     restart: always
     command:
       - --performance_schema=OFF
@@ -42,6 +42,6 @@ volumes:
     name: innomcp-db_volume
 
 networks:
-  webd_network:
-    name: webd_network
+  innomcp_network:
+    name: innomcp_network
     driver: bridge
