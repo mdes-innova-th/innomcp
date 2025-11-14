@@ -5,19 +5,24 @@ import "dotenv/config";
 import express from "express";
 import http from "http";
 import dotenv from "dotenv";
+import net from "net";
 
 dotenv.config();
 
 const host = process.env.SERVER_HOST || "0.0.0.0";
-const port = parseInt(process.env.SERVER_PORT || "3001", 10);
+const port = parseInt(process.env.SERVER_PORT || "3010", 10);
 const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
 
 console.log(`[server] Starting WebSocket server on ws://${host}:${port}`);
 
-// Create HTTP server
-const httpServer = createHttpServer();
+// Ensure 'app' is properly defined
 const app = express();
-app.use(express.json()); // Middleware to parse JSON request bodies
+
+// Create HTTP server
+const httpServer = app.listen(port, host, () => {
+  console.log(`Server is running on http://localhost:${port}`);
+  console.log(`[server] WebSocket server is listening on ws://${host}:${port}/chat`);
+});
 
 // Create WebSocket server
 const wss = new WebSocketServer({
@@ -88,7 +93,7 @@ wss.on("connection", (ws: WebSocket) => {
   });
 });
 
-httpServer.on("upgrade", (request, socket, head) => {
+httpServer.on("upgrade", (request: http.IncomingMessage, socket: net.Socket, head: Buffer) => {
   const pathname = url.parse(request.url || "").pathname;
   if (pathname === "/chat") {
     wss.handleUpgrade(request, socket, head, (ws) => {
@@ -99,19 +104,13 @@ httpServer.on("upgrade", (request, socket, head) => {
   }
 });
 
-httpServer.listen(port, host, () => {
-  console.log(
-    `[server] WebSocket server is listening on ws://${host}:${port}/chat`
-  );
-});
-
 // Express fallback route
-app.get("/", (req, res) => {
+app.get("/", (req: express.Request, res: express.Response) => {
   res.send("WebSocket server is running.");
 });
 
 // Define a route to handle chat messages via HTTP POST
-app.post("/api/chat", (req, res) => {
+app.post("/api/chat", (req: express.Request, res: express.Response) => {
   try {
     const { message } = req.body;
 
@@ -162,9 +161,4 @@ app.post("/api/chat", (req, res) => {
     console.error("Error handling chat message:", error);
     res.status(500).json({ error: "Failed to process the message" });
   }
-});
-
-// Create an HTTP server
-const server = app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
 });
