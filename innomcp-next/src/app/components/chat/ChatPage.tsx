@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useContext } from "react";
 import Image from "next/image";
-import HeaderChat from "@/app/components/HeaderChat";
+import HeaderChat from "@/app/components/chat/HeaderChat";
 import ThemeContext from "@/app/context/ThemeContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowUp, faPlus, faEdit, faCopy, faSave, faTimes } from "@fortawesome/free-solid-svg-icons";
