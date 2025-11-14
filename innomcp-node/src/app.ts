@@ -5,8 +5,7 @@ import apiRouter from "./routes/api";
 import apiCsrfRouter from "./routes/api/csrf";
 import { apiKeyMiddleware } from "./utils/apikey";
 import csrfMiddleware from "./utils/csrf";
-import { chatRouter, wss as chatWSS } from "./routes/api/chat";
-import url from "node:url";
+import { chatRouter } from "./routes/api/chat";
 
 // Initialize Express application
 const app = express();
@@ -57,29 +56,5 @@ app.use("/api-get/csrf", apiCsrfRouter);
 
 // Add the chat WebSocket route
 app.use("/api/chat", chatRouter);
-
-// Integrate WebSocket server for chat
-const port = parseInt(process.env.SERVER_PORT || "3010", 10);
-const host = process.env.SERVER_HOST || "localhost";
-
-const httpServer = app.listen(port, host, () => {
-  console.log(`Server is running on http://${host}:${port}`);
-  console.log(`WebSocket available at ws://${host}:${port}/chat`);
-});
-
-httpServer.on("upgrade", (request, socket, head) => {
-  const pathname = url.parse(request.url || "").pathname;
-
-  console.log(`[WebSocket] Upgrade request for: ${pathname}`);
-
-  if (pathname === "/api/chat") {
-    chatWSS.handleUpgrade(request, socket, head, (ws) => {
-      chatWSS.emit("connection", ws, request);
-    });
-  } else {
-    console.log(`[WebSocket] Rejected upgrade request for: ${pathname}`);
-    socket.destroy();
-  }
-});
 
 export default app;
