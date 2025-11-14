@@ -42,6 +42,13 @@ wss.on("connection", (ws) => {
       const message = JSON.parse(data.toString());
       console.log("[Chat API] Received message:", message);
 
+      // Validate message structure
+      if (!message.text || typeof message.text !== "string") {
+        console.warn("[Chat API] Invalid message structure:", message);
+        ws.send(JSON.stringify({ error: "Invalid message structure" }));
+        return;
+      }
+
       // Add the user message to the in-memory storage
       messages.push(message);
 
@@ -51,11 +58,12 @@ wss.on("connection", (ws) => {
           sender: "ai",
           text: `AI Response to: "${message.text}". This is a simulated response from the AI system.`
         };
-        
+
         // Add AI response to messages
         messages.push(aiResponse);
-        
+
         // Send AI response back to the client in the expected format
+        console.log("[Chat API] Sending AI response:", aiResponse);
         ws.send(JSON.stringify({ text: aiResponse.text }));
       }, 1000); // 1 second delay to simulate AI processing
       

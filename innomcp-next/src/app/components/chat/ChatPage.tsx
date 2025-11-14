@@ -20,7 +20,6 @@ const ChatPage: React.FC = () => {
   const [input, setInput] = useState("");
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [isSocketReady, setIsSocketReady] = useState(false);
-  const [dots, setDots] = useState(".");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -48,6 +47,13 @@ const ChatPage: React.FC = () => {
         }
 
         const message = JSON.parse(data);
+
+        // Log when message is empty
+        if (!data || Object.keys(data).length === 0) {
+          console.warn("Received empty message from WebSocket:", data);
+          setIsWaitingForResponse(false);
+          return;
+        }
 
         if (message.text) {
           setMessages((prevMessages) => [
@@ -95,17 +101,6 @@ const ChatPage: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (isWaitingForResponse) {
-      const interval = setInterval(() => {
-        setDots((prev) => (prev.length < 3 ? prev + "." : "."));
-      }, 500);
-      return () => clearInterval(interval);
-    } else {
-      setDots(".");
-    }
-  }, [isWaitingForResponse]);
-
   const sendMessage = () => {
     if (
       socket &&
@@ -114,6 +109,7 @@ const ChatPage: React.FC = () => {
       !isWaitingForResponse
     ) {
       const message: ChatMessage = { sender: "user", text: input };
+      console.log("Sending message to WebSocket:", message); // Debug log
       socket.send(JSON.stringify(message));
       setMessages([...messages, message]);
       setInput("");
@@ -171,6 +167,26 @@ const ChatPage: React.FC = () => {
     return () => window.removeEventListener("resize", handler);
   }, [input]);
 
+  // Add animation dots when waiting for AI response
+  const DotsAnimation: React.FC = () => {
+    const [dots, setDots] = useState(".");
+
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setDots((prev) => (prev.length < 3 ? prev + "." : "."));
+      }, 500);
+      return () => clearInterval(interval);
+    }, []);
+
+    return <span>{dots}</span>;
+  };
+
+  // Add debug logs to check WebSocket and waiting state
+  useEffect(() => {
+    console.log("isSocketReady:", isSocketReady);
+    console.log("isWaitingForResponse:", isWaitingForResponse);
+  }, [isSocketReady, isWaitingForResponse]);
+
   return (
     <div className="flex flex-col items-center overflow-hidden min-h-screen">
       <HeaderChat />
@@ -181,10 +197,10 @@ const ChatPage: React.FC = () => {
               {messages.map((message, index) => (
                 <div
                   key={index}
-                  className={`p-2 rounded-lg max-w-xs ${
+                  className={`p-2 rounded-lg max-w-xs self-start ${
                     message.sender === "user"
-                      ? "bg-blue-500 text-white self-end"
-                      : "bg-gray-300 text-black self-start"
+                      ? "bg-blue-500 text-white text-left rounded-bl-none"
+                      : "bg-gray-300 text-black text-center rounded-br-none"
                   }`}
                 >
                   {message.text}
@@ -239,7 +255,10 @@ const ChatPage: React.FC = () => {
                 {isSocketReady ? (
                   <FontAwesomeIcon icon={faArrowUp} className="font-bold" />
                 ) : (
-                  <span className="font-bold">กำลังติดต่อ AI{dots}</span>
+                  <span className="font-bold">
+                    กำลังติดต่อ AI
+                    <DotsAnimation />
+                  </span>
                 )}
               </button>
               <input
