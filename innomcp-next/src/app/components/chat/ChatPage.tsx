@@ -484,7 +484,7 @@ const ChatPage: React.FC = () => {
                         />
                         <div className="flex gap-2 justify-end">
                           <button
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-blue-600 hover:text-blue-800 cursor-pointer"
                             title="บันทึก"
                             onClick={() => {
                               setMessages((msgs) => {
@@ -503,7 +503,7 @@ const ChatPage: React.FC = () => {
                             <FontAwesomeIcon icon={faCopy} />
                           </button>
                           <button
-                            className="text-gray-500 hover:text-red-600"
+                            className="text-gray-500 hover:text-red-600 cursor-pointer"
                             title="ยกเลิก"
                             onClick={() => setEditingIndex(null)}
                           >
@@ -545,7 +545,7 @@ const ChatPage: React.FC = () => {
                 />
                 <button
                   onClick={handleRemoveImage}
-                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow hover:bg-red-600"
+                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow hover:bg-red-600 cursor-pointer"
                   title="ลบรูป"
                 >
                   &times;
@@ -556,14 +556,14 @@ const ChatPage: React.FC = () => {
               <div className="flex gap-2">
                 <button
                   onClick={handleNewChat}
-                  className="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200 rounded-lg px-4 py-2 font-semibold shadow flex items-center gap-2 hover:bg-green-200 dark:hover:bg-green-800 transition-colors"
+                  className="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200 rounded-lg px-4 py-2 font-semibold shadow flex items-center gap-2 hover:bg-green-200 dark:hover:bg-green-800 transition-colors cursor-pointer"
                   title="เริ่มการแชทใหม่"
                 >
                   <FontAwesomeIcon icon={faRefresh} />
                 </button>
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-lg px-4 py-2 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
+                  className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-lg px-4 py-2 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors cursor-pointer"
                 >
                   <FontAwesomeIcon icon={faPlus} />
                 </button>
@@ -571,7 +571,7 @@ const ChatPage: React.FC = () => {
               <button
                 onClick={sendMessage}
                 disabled={!isSocketReady || isWaitingForResponse}
-                className={`bg-linear-to-r from-indigo-500 to-blue-400 text-white rounded-lg px-6 py-2 font-semibold shadow transition-colors ${
+                className={`bg-linear-to-r from-indigo-500 to-blue-400 text-white rounded-lg px-6 py-2 font-semibold shadow transition-colors cursor-pointer ${
                   !isSocketReady || isWaitingForResponse
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:from-blue-400 hover:to-indigo-500"

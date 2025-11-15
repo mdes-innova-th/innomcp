@@ -83,7 +83,7 @@ export default function Header() {
             <div className="hidden sm:flex items-start">
               <Image
                 src="/mdes-new-logo.png"
-                className="w-auto h-auto m-1 p-0 max-h-[150px] max-w-[250px]"
+                className="w-auto h-auto m-5 p-0 max-h-[150px] max-w-[250px]"
                 alt="MDES Logo"
                 priority
                 width={250}
@@ -93,7 +93,7 @@ export default function Header() {
             <div className="flex items-start">
               <Image
                 src="/logo.png"
-                className="w-auto h-auto m-1 p-0 max-h-[100px] max-w-[200px]"
+                className="w-auto h-auto m-5 p-0 max-h-[100px] max-w-[200px]"
                 alt="InnoMCP Logo"
                 priority
                 width={200}
