@@ -210,7 +210,7 @@ wss.on("connection", (ws) => {
         ];
 
         console.log(
-          `[Chat API] Sending ${ollamaMessages.length} messages to Ollama (including system prompt)`
+          `[Chat API] Sending ${ollamaMessages.length} messages to Ollama with models=${ollamaModel} (including system prompt)`
         );
 
         // Call Ollama with streaming

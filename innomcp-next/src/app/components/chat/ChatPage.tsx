@@ -75,8 +75,6 @@ const ChatPage: React.FC = () => {
     const wsRef = { current: socket } as { current: WebSocket | null };
     const reconnectAttemptsRef = { current: 0 } as { current: number };
     let reconnectTimer: number | null = null;
-    let heartbeatTimer: number | null = null;
-    let lastMessageAt = Date.now();
 
     const createWebSocket = () => {
       const url =
@@ -111,13 +109,10 @@ const ChatPage: React.FC = () => {
         console.log("WebSocket open", ws.url);
         reconnectAttemptsRef.current = 0;
         setIsSocketReady(true);
-        // update lastMessageAt so heartbeat doesn't immediately disconnect
-        lastMessageAt = Date.now();
       };
 
       ws.onmessage = async (event) => {
         try {
-          lastMessageAt = Date.now();
           console.log("Received WebSocket message:", event.data);
 
           let data = event.data;
@@ -248,28 +243,8 @@ const ChatPage: React.FC = () => {
     // start initial connection
     createWebSocket();
 
-    // heartbeat: if no message seen in 60s, close socket to trigger reconnect
-    // check every 20s
-    heartbeatTimer = window.setInterval(() => {
-      const now = Date.now();
-      if (now - lastMessageAt > 60000) {
-        console.warn("No messages for 60s, forcing reconnect");
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          try {
-            wsRef.current.close();
-          } catch (e) {
-            console.warn("Error closing websocket during heartbeat", e);
-          }
-        }
-      } else {
-        // connection is healthy
-        console.log("WebSocket connection healthy");
-      }
-    }, 20000) as unknown as number;
-
     return () => {
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
-      if (heartbeatTimer) window.clearInterval(heartbeatTimer);
       if (wsRef.current) {
         try {
           wsRef.current.close();
@@ -386,7 +361,7 @@ const ChatPage: React.FC = () => {
     const lineHeight = parseFloat(computed.lineHeight) || 20;
     const paddingTop = parseFloat(computed.paddingTop) || 0;
     const paddingBottom = parseFloat(computed.paddingBottom) || 0;
-    const maxHeight = lineHeight * 10 + paddingTop + paddingBottom;
+    const maxHeight = lineHeight * 15 + paddingTop + paddingBottom;
     const newHeight = Math.min(el.scrollHeight, maxHeight);
 
     el.style.height = `${newHeight}px`;
