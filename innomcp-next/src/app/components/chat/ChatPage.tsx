@@ -377,7 +377,7 @@ const ChatPage: React.FC = () => {
                     className={`relative group p-2 rounded-lg ${
                       message.sender === "user"
                         ? "max-w-xs self-start bg-blue-500 text-white text-left rounded-bl-none"
-                        : "max-w-full self-start ml-6 bg-gray-300 text-black text-left rounded-br-none mb-4 p-4 m-4"
+                        : "max-w-full self-start ml-6 mb-5 bg-gray-300 text-black text-left rounded-br-none"
                     }`}
                   >
                     {/* AI message: show copy icon on hover without overlapping text */}
