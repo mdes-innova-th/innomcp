@@ -14,16 +14,15 @@ const ollamaModel = process.env.OLLAMA_MODEL || "llama2";
 
 const chatRouter = Router();
 
-// In-memory storage for chat messages
-const messages: { sender: string; text: string }[] = [];
+// In-memory storage for chat messages keyed by sessionId (string).
+const sessionMessagesById: Map<string, { sender: string; text: string }[]> =
+  new Map();
+const connectionSessionMap: Map<number, string> = new Map();
 
-// WebSocket connection id counter
 let wsConnectionIdCounter = 0;
-
-// Initialize intelligent MCP client
 let mcpClient: IntelligentMCPClient | null = null;
 
-// Initialize MCP Client (returns immediately; initialization runs in background)
+// Initialize MCP Client
 mcpClient = InitMcpClient(ollama, ollamaModel);
 console.log("[Chat API] MCP client created (initializing in background)");
 
@@ -52,8 +51,6 @@ if (mcpClient) {
     );
   });
 
-  // Also log the current connected clients immediately so we see state
-  // even if some clients connected before listeners were attached.
   try {
     console.log(
       "[Chat API] Connected clients (initial):",
@@ -64,16 +61,14 @@ if (mcpClient) {
   }
 }
 
-// WebSocket server for chat with proper configuration
+// WebSocket server
 const wss = new WebSocketServer({
   noServer: true,
   verifyClient: (info: any) => {
-    // Allow connections from allowed origins
     const origin = info.origin;
     const allowedOrigins = process.env.ALLOWED_ORIGIN?.split(",") || [
       "http://localhost:3000",
     ];
-
     console.log(`[WebSocket] Connection attempt from origin: ${origin}`);
 
     if (!origin || allowedOrigins.includes(origin)) {
@@ -85,14 +80,12 @@ const wss = new WebSocketServer({
   },
 });
 
-// Server-side heartbeat: ping clients periodically and terminate dead ones.
-// This helps keep connections alive across proxies and lets us detect dead peers.
-const heartbeatInterval = 30000; // 30s
+// Heartbeat
+const heartbeatInterval = 30000;
 const pingInterval = setInterval(() => {
   wss.clients.forEach((client: any) => {
-    // If client has no isAlive flag or it is false, terminate it
     if (client.isAlive === false) {
-      console.log('[WebSocket] Terminating unresponsive client');
+      console.log("[WebSocket] Terminating unresponsive client");
       try {
         client.terminate();
       } catch (e) {
@@ -100,18 +93,15 @@ const pingInterval = setInterval(() => {
       }
       return;
     }
-
-    // Mark as not alive and send a ping; a healthy browser client will automatically reply with a pong
     client.isAlive = false;
     try {
       client.ping();
     } catch (e) {
-      // ignore ping errors
+      // ignore
     }
   });
 }, heartbeatInterval);
 
-// Clear interval on process exit to avoid leaks
 process.on("exit", () => clearInterval(pingInterval));
 process.on("SIGINT", () => {
   clearInterval(pingInterval);
@@ -119,7 +109,6 @@ process.on("SIGINT", () => {
 });
 
 wss.on("connection", (ws) => {
-  // mark connection as alive; will be toggled by the ping interval
   (ws as any).isAlive = true;
   ws.on("pong", () => {
     try {
@@ -128,13 +117,19 @@ wss.on("connection", (ws) => {
       // ignore
     }
   });
+
   const connectionId = ++wsConnectionIdCounter;
-  // Log connection id and current connected clients count
+  const ephemeralSessionId = `conn-${connectionId}`;
+  connectionSessionMap.set(connectionId, ephemeralSessionId);
+  sessionMessagesById.set(ephemeralSessionId, []);
+
   console.log(
-    `[Chat API] New WebSocket connection established (id=${connectionId}) - total=${wss.clients.size}`
+    `[Chat API] New WebSocket connection (id=${connectionId}) - total=${wss.clients.size}`
   );
 
-  // Send existing messages to the new client
+  // Send existing messages
+  const currentSessionId = connectionSessionMap.get(connectionId) as string;
+  const messages = sessionMessagesById.get(currentSessionId) || [];
   if (messages.length > 0) {
     ws.send(JSON.stringify({ type: "history", messages }));
   }
@@ -144,20 +139,66 @@ wss.on("connection", (ws) => {
       const message = JSON.parse(data.toString());
       console.log("[Chat API] Received message:", message);
 
-      // Validate message structure
+      // Handle init message
+      if (
+        message.type === "init" &&
+        message.sessionId &&
+        typeof message.sessionId === "string"
+      ) {
+        const providedId = message.sessionId.trim();
+        console.log(
+          `[Chat API] Client requested sessionId=${providedId} (conn=${connectionId})`
+        );
+
+        const currentEphemeralId =
+          connectionSessionMap.get(connectionId) || ephemeralSessionId;
+        const ephemeralHistory =
+          sessionMessagesById.get(currentEphemeralId) || [];
+        const existing = sessionMessagesById.get(providedId) || [];
+
+        if (ephemeralHistory.length > 0 && existing.length === 0) {
+          sessionMessagesById.set(providedId, ephemeralHistory.slice());
+        } else {
+          sessionMessagesById.set(providedId, existing);
+        }
+
+        connectionSessionMap.set(connectionId, providedId);
+
+        const hist = sessionMessagesById.get(providedId) || [];
+        if (hist.length > 0) {
+          ws.send(JSON.stringify({ type: "history", messages: hist }));
+        }
+
+        ws.send(JSON.stringify({ type: "init-ack", sessionId: providedId }));
+        return;
+      }
+
+      // Validate message
       if (!message.text || typeof message.text !== "string") {
         console.warn("[Chat API] Invalid message structure:", message);
         ws.send(JSON.stringify({ error: "Invalid message structure" }));
         return;
       }
 
-      // Add the user message to the in-memory storage
-      messages.push(message);
+      // ✅ Get session and history
+      const sessionId =
+        connectionSessionMap.get(connectionId) || ephemeralSessionId;
+      let sessionHistory = sessionMessagesById.get(sessionId);
+      if (!sessionHistory) {
+        sessionHistory = [];
+        sessionMessagesById.set(sessionId, sessionHistory);
+      }
+
+      // ✅ Add user message
+      sessionHistory.push({ sender: "user", text: message.text });
+      console.log(
+        `[Chat API] Session ${sessionId} history: ${sessionHistory.length} messages (before AI response)`
+      );
 
       let finalMessage = message.text;
       let mcpContext = "";
 
-      // Process message with intelligent MCP client
+      // Process with MCP
       if (mcpClient) {
         console.log("[Chat API] Processing message with MCP client...");
         try {
@@ -169,7 +210,6 @@ wss.on("connection", (ws) => {
               mcpResult.toolResults?.length
             );
 
-            // Send MCP processing status to client
             ws.send(
               JSON.stringify({
                 type: "mcp-status",
@@ -178,7 +218,6 @@ wss.on("connection", (ws) => {
               })
             );
 
-            // Use enhanced context for Ollama
             if (mcpResult.enhancedContext) {
               finalMessage = mcpResult.enhancedContext;
               mcpContext = " (ใช้ข้อมูลจาก MCP tools)";
@@ -186,15 +225,38 @@ wss.on("connection", (ws) => {
           }
         } catch (mcpError) {
           console.error("[Chat API] MCP processing error:", mcpError);
-          // Continue with original message if MCP fails
         }
       }
 
-      // Use Ollama for AI response (send word by word)
+      // ✅ Use Ollama with full history
       try {
+        // Map history to Ollama format
+        const ollamaMessages = sessionHistory.map((m) => ({
+          role: m.sender === "ai" ? "assistant" : "user",
+          content: m.text,
+        }));
+
+        // Update last message if MCP enhanced it
+        if (finalMessage !== message.text && ollamaMessages.length > 0) {
+          const lastMsg = ollamaMessages[ollamaMessages.length - 1];
+          if (lastMsg.role === "user") {
+            lastMsg.content = finalMessage;
+          }
+        }
+
+        console.log(
+          `[Chat API] 📤 Sending ${ollamaMessages.length} messages to Ollama`
+        );
+        console.log(
+          `[Chat API] Messages breakdown:`,
+          ollamaMessages.map(
+            (m) => `${m.role}: ${m.content.substring(0, 50)}...`
+          )
+        );
+
         const responseStream = await ollama.chat({
           model: ollamaModel,
-          messages: [{ role: "user", content: finalMessage }],
+          messages: ollamaMessages,
           stream: true,
         });
 
@@ -205,22 +267,26 @@ wss.on("connection", (ws) => {
         for await (const chunk of responseStream) {
           if (!chunk.message || !chunk.message.content) continue;
 
-          // Add MCP context indicator to first chunk
           if (isFirstChunk && mcpContext) {
             ws.send(JSON.stringify({ type: "mcp-context", text: mcpContext }));
             isFirstChunk = false;
           }
 
           aiResponse += chunk.message.content;
-          // แยกคำใหม่ที่เพิ่งเพิ่ม
-          const words = aiResponse.split(/(\s+)/); // split by whitespace, keep spaces
+          const words = aiResponse.split(/(\s+)/);
           const newWords = words.slice(lastWordIndex);
           lastWordIndex = words.length;
-          // ส่งเฉพาะคำใหม่ (รวมเว้นวรรค) ไปยัง client
+
           if (newWords.length > 0) {
             ws.send(JSON.stringify({ type: "word", text: newWords.join("") }));
           }
         }
+
+        // ✅ Add AI response to history
+        sessionHistory.push({ sender: "ai", text: aiResponse });
+        console.log(
+          `[Chat API] ✅ Session ${sessionId} now has ${sessionHistory.length} messages (after AI response)`
+        );
       } catch (ollamaError) {
         console.error("[Chat API] Ollama error:", ollamaError);
         ws.send(
@@ -236,8 +302,9 @@ wss.on("connection", (ws) => {
 
   ws.on("close", () => {
     console.log(
-      `[Chat API] WebSocket connection closed (id=${connectionId}) - total=${wss.clients.size}`
+      `[Chat API] WebSocket closed (id=${connectionId}) - total=${wss.clients.size}`
     );
+    connectionSessionMap.delete(connectionId);
   });
 
   ws.on("error", (error) => {
@@ -245,9 +312,10 @@ wss.on("connection", (ws) => {
   });
 });
 
+// POST endpoint with history support
 chatRouter.post("/chat", async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, sessionId } = req.body;
 
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
@@ -255,10 +323,22 @@ chatRouter.post("/chat", async (req, res) => {
 
     console.log(">>>>>Received chat message:", message);
 
+    const effectiveSessionId = sessionId || `http-${Date.now()}`;
+
+    let sessionHistory = sessionMessagesById.get(effectiveSessionId);
+    if (!sessionHistory) {
+      sessionHistory = [];
+      sessionMessagesById.set(effectiveSessionId, sessionHistory);
+    }
+
+    sessionHistory.push({ sender: "user", text: message });
+    console.log(
+      `[Chat API] POST: Session ${effectiveSessionId} history: ${sessionHistory.length} messages (before AI)`
+    );
+
     let finalMessage = message;
     let mcpResults = null;
 
-    // Process message with intelligent MCP client
     if (mcpClient) {
       try {
         const mcpResult = await mcpClient.processMessage(message);
@@ -270,26 +350,49 @@ chatRouter.post("/chat", async (req, res) => {
           );
           mcpResults = mcpResult.toolResults;
 
-          // Use enhanced context for Ollama
           if (mcpResult.enhancedContext) {
             finalMessage = mcpResult.enhancedContext;
           }
         }
       } catch (mcpError) {
         console.error("[Chat API] MCP processing error in POST:", mcpError);
-        // Continue with original message if MCP fails
       }
     }
 
+    const ollamaMessages = sessionHistory.map((m) => ({
+      role: m.sender === "ai" ? "assistant" : "user",
+      content: m.text,
+    }));
+
+    if (finalMessage !== message && ollamaMessages.length > 0) {
+      const lastMsg = ollamaMessages[ollamaMessages.length - 1];
+      if (lastMsg.role === "user") {
+        lastMsg.content = finalMessage;
+      }
+    }
+
+    console.log(
+      `[Chat API] POST: 📤 Sending ${ollamaMessages.length} messages to Ollama`
+    );
+
     const response = await ollama.chat({
       model: ollamaModel,
-      messages: [{ role: "user", content: finalMessage }],
+      messages: ollamaMessages,
     });
 
-    console.log("<<<<<Ollama response:", response);
+    console.log(
+      "<<<<<Ollama response:",
+      response.message.content.substring(0, 100)
+    );
+
+    sessionHistory.push({ sender: "ai", text: response.message.content });
+    console.log(
+      `[Chat API] POST: ✅ Session ${effectiveSessionId} now has ${sessionHistory.length} messages`
+    );
 
     res.json({
       text: response.message.content,
+      sessionId: effectiveSessionId,
       mcpUsed: mcpResults ? true : false,
       mcpResults: mcpResults,
     });
@@ -299,12 +402,10 @@ chatRouter.post("/chat", async (req, res) => {
   }
 });
 
-// HTTP endpoint to handle WebSocket upgrade
 chatRouter.get("/ws", (req, res) => {
   res.status(400).send("WebSocket endpoint. Please connect via WebSocket.");
 });
 
-// Endpoint to get available MCP tools
 chatRouter.get("/mcp/tools", (req, res) => {
   if (!mcpClient) {
     return res.status(503).json({
