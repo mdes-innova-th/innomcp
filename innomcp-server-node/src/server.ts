@@ -44,12 +44,12 @@ mcpserver.registerResource(
 
 // Register a new tool to interact with the API
 mcpserver.registerTool(
-  "violationGroupsCountTool",
+  "webdCountOnInputAndGroupTool",
   {
-    title: "Violation Groups Count Tool",
-    description: "นับจำนวนกลุ่มเว็บไซต์ที่ละเมิดออนไลน์ สำหรับตรวจสอบสถิติเว็บไซต์ผิดกฎหมาย",
-    inputSchema: z.object({ 
-      query: z.string().describe("คำค้นหาหรือหมวดหมู่ที่ต้องการตรวจสอบ")
+    title: "Count all input violation records on webD Project",
+    description: "นับจำนวนรายการนำเข้าเว็บไซต์ผิดกฎหมาย",
+    inputSchema: z.object({
+      query: z.string().describe("คำค้นหาหรือหมวดหมู่ที่ต้องการตรวจสอบ"),
     }),
     outputSchema: z.object({ count: z.number() }),
   },
@@ -94,7 +94,11 @@ mcpserver.registerTool(
     title: "Calculator Tool",
     description: "เครื่องคิดเลขสำหรับคำนวณทางคณิตศาสตร์ รองรับการคำนวณพื้นฐาน",
     inputSchema: z.object({
-      expression: z.string().describe("นิพจน์ทางคณิตศาสตร์ที่ต้องการคำนวณ เช่น 2+2, 10*5, sqrt(16)")
+      expression: z
+        .string()
+        .describe(
+          "นิพจน์ทางคณิตศาสตร์ที่ต้องการคำนวณ เช่น 2+2, 10*5, sqrt(16)"
+        ),
     }),
     outputSchema: z.object({ result: z.number() }),
   },
@@ -102,11 +106,11 @@ mcpserver.registerTool(
     try {
       // Simple safe math evaluation
       const safeExpression = expression
-        .replace(/[^0-9+\-*/.()sqrt\s]/g, '')
-        .replace(/sqrt\(/g, 'Math.sqrt(');
-      
+        .replace(/[^0-9+\-*/.()sqrt\s]/g, "")
+        .replace(/sqrt\(/g, "Math.sqrt(");
+
       const result = eval(safeExpression);
-      
+
       return {
         content: [
           { type: "text", text: `คำนวณ "${expression}" = ${result}` } as {
@@ -127,10 +131,13 @@ mcpserver.registerTool(
 mcpserver.registerTool(
   "dateTimeTool",
   {
-    title: "Date Time Tool", 
+    title: "Date Time Tool",
     description: "เครื่องมือสำหรับแสดงเวลาและวันที่ในรูปแบบต่างๆ",
     inputSchema: z.object({
-      format: z.string().optional().describe("รูปแบบการแสดงผล เช่น 'thai', 'iso', 'timestamp'")
+      format: z
+        .string()
+        .optional()
+        .describe("รูปแบบการแสดงผล เช่น 'thai', 'iso', 'timestamp'"),
     }),
     outputSchema: z.object({ datetime: z.string() }),
   },
@@ -138,16 +145,16 @@ mcpserver.registerTool(
     try {
       const now = new Date();
       let result = "";
-      
+
       switch (format.toLowerCase()) {
         case "thai":
           result = now.toLocaleDateString("th-TH", {
             year: "numeric",
-            month: "long", 
+            month: "long",
             day: "numeric",
             hour: "2-digit",
             minute: "2-digit",
-            second: "2-digit"
+            second: "2-digit",
           });
           break;
         case "iso":
@@ -159,7 +166,7 @@ mcpserver.registerTool(
         default:
           result = now.toString();
       }
-      
+
       return {
         content: [
           { type: "text", text: `วันเวลาปัจจุบัน: ${result}` } as {
@@ -181,32 +188,41 @@ mcpserver.registerTool(
   "textAnalysisTool",
   {
     title: "Text Analysis Tool",
-    description: "เครื่องมือวิเคราะห์ข้อความ นับคำ นับตัวอักษร และวิเคราะห์เนื้อหา",
+    description:
+      "เครื่องมือวิเคราะห์ข้อความ นับคำ นับตัวอักษร และวิเคราะห์เนื้อหา",
     inputSchema: z.object({
-      text: z.string().describe("ข้อความที่ต้องการวิเคราะห์")
+      text: z.string().describe("ข้อความที่ต้องการวิเคราะห์"),
     }),
     outputSchema: z.object({
       wordCount: z.number(),
       charCount: z.number(),
-      sentences: z.number()
+      sentences: z.number(),
     }),
   },
   async ({ text }, _extra) => {
     try {
-      const wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
+      const wordCount = text
+        .split(/\s+/)
+        .filter((word) => word.length > 0).length;
       const charCount = text.length;
-      const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
-      
+      const sentences = text
+        .split(/[.!?]+/)
+        .filter((s) => s.trim().length > 0).length;
+
       const analysis = {
         wordCount,
         charCount,
         sentences,
-        avgWordsPerSentence: sentences > 0 ? Math.round(wordCount / sentences * 100) / 100 : 0
+        avgWordsPerSentence:
+          sentences > 0 ? Math.round((wordCount / sentences) * 100) / 100 : 0,
       };
-      
+
       return {
         content: [
-          { type: "text", text: `วิเคราะห์ข้อความ: ${wordCount} คำ, ${charCount} ตัวอักษร, ${sentences} ประโยค` } as {
+          {
+            type: "text",
+            text: `วิเคราะห์ข้อความ: ${wordCount} คำ, ${charCount} ตัวอักษร, ${sentences} ประโยค`,
+          } as {
             type: "text";
             text: string;
           },

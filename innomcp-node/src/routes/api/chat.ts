@@ -85,7 +85,49 @@ const wss = new WebSocketServer({
   },
 });
 
+// Server-side heartbeat: ping clients periodically and terminate dead ones.
+// This helps keep connections alive across proxies and lets us detect dead peers.
+const heartbeatInterval = 30000; // 30s
+const pingInterval = setInterval(() => {
+  wss.clients.forEach((client: any) => {
+    // If client has no isAlive flag or it is false, terminate it
+    if (client.isAlive === false) {
+      console.log('[WebSocket] Terminating unresponsive client');
+      try {
+        client.terminate();
+      } catch (e) {
+        // ignore
+      }
+      return;
+    }
+
+    // Mark as not alive and send a ping; a healthy browser client will automatically reply with a pong
+    client.isAlive = false;
+    try {
+      client.ping();
+    } catch (e) {
+      // ignore ping errors
+    }
+  });
+}, heartbeatInterval);
+
+// Clear interval on process exit to avoid leaks
+process.on("exit", () => clearInterval(pingInterval));
+process.on("SIGINT", () => {
+  clearInterval(pingInterval);
+  process.exit();
+});
+
 wss.on("connection", (ws) => {
+  // mark connection as alive; will be toggled by the ping interval
+  (ws as any).isAlive = true;
+  ws.on("pong", () => {
+    try {
+      (ws as any).isAlive = true;
+    } catch (e) {
+      // ignore
+    }
+  });
   const connectionId = ++wsConnectionIdCounter;
   // Log connection id and current connected clients count
   console.log(

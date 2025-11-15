@@ -179,11 +179,12 @@ const ChatPage: React.FC = () => {
     // start initial connection
     createWebSocket();
 
-    // heartbeat: if no message seen in 35s, close socket to trigger reconnect
+    // heartbeat: if no message seen in 60s, close socket to trigger reconnect
+    // check every 20s
     heartbeatTimer = window.setInterval(() => {
       const now = Date.now();
-      if (now - lastMessageAt > 35000) {
-        console.warn("No messages for 35s, forcing reconnect");
+      if (now - lastMessageAt > 60000) {
+        console.warn("No messages for 60s, forcing reconnect");
         if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
           try {
             wsRef.current.close();
@@ -195,7 +196,7 @@ const ChatPage: React.FC = () => {
         // connection is healthy
         console.log("WebSocket connection healthy");
       }
-    }, 15000) as unknown as number;
+    }, 20000) as unknown as number;
 
     return () => {
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
