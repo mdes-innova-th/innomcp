@@ -347,9 +347,9 @@ const ChatPage: React.FC = () => {
     <div className="flex flex-col items-center overflow-hidden min-h-screen">
       <HeaderChat />
       <div className="flex flex-col flex-1 w-full items-center justify-center">
-        <div className="w-full max-w-3xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-lg p-2">
+        <div className="w-full max-w-3xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-lg px-6 py-4">
           <div className="flex flex-col gap-2">
-            <div className="flex items-center">
+            <div className="flex items-center justify-end w-full">
               <div
                 className="text-sm"
                 title={isSocketReady ? "เชื่อมต่อ" : "ตัดการเชื่อมต่อ"}
@@ -357,8 +357,8 @@ const ChatPage: React.FC = () => {
                 <span
                   className={
                     isSocketReady
-                      ? "inline-block w-3 h-3 rounded-full bg-green-500 animate-[pulse_2s_ease-in-out_infinite]"
-                      : "inline-block w-3 h-3 rounded-full bg-red-500 animate-[pulse_0.5s_ease-in-out_infinite]"
+                      ? "inline-block w-2.5 h-2.5 rounded-full bg-green-500 animate-[pulse_2s_ease-in-out_infinite]"
+                      : "inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-[pulse_0.5s_ease-in-out_infinite]"
                   }
                 />
               </div>
