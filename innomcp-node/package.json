@@ -2,12 +2,12 @@
   "name": "innomcp-node",
   "version": "1.0.0",
   "private": true,
-  "main": "dist/server.js",
+  "main": "dist/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon --exec ts-node src/server.ts",
+    "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/index.js"
   },
   "keywords": [],
   "author": "",

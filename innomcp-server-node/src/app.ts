@@ -5,7 +5,6 @@ import apiRouter from "./routes/api";
 import apiCsrfRouter from "./routes/api/csrf";
 import { apiKeyMiddleware } from "./utils/apikey";
 import csrfMiddleware from "./utils/csrf";
-import { chatRouter } from "./routes/api/chat";
 
 // Initialize Express application
 const app = express();
@@ -53,8 +52,5 @@ app.use("/api", apiKeyMiddleware, csrfMiddleware, apiRouter);
 
 // Router สำหรับ API endpoint CSRF
 app.use("/api-get/csrf", apiCsrfRouter);
-
-// Add the chat WebSocket route
-app.use("/api/chat", chatRouter);
 
 export default app;
