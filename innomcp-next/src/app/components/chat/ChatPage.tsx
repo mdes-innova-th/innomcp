@@ -361,7 +361,7 @@ const ChatPage: React.FC = () => {
     const lineHeight = parseFloat(computed.lineHeight) || 20;
     const paddingTop = parseFloat(computed.paddingTop) || 0;
     const paddingBottom = parseFloat(computed.paddingBottom) || 0;
-    const maxHeight = lineHeight * 15 + paddingTop + paddingBottom;
+    const maxHeight = lineHeight * 12 + paddingTop + paddingBottom;
     const newHeight = Math.min(el.scrollHeight, maxHeight);
 
     el.style.height = `${newHeight}px`;
