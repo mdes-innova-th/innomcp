@@ -5,7 +5,12 @@ import Image from "next/image";
 import HeaderChat from "@/app/components/chat/HeaderChat";
 import ThemeContext from "@/app/context/ThemeContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowUp, faPlus, faCopy } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowUp,
+  faPlus,
+  faCopy,
+  faRefresh,
+} from "@fortawesome/free-solid-svg-icons";
 
 // Define the type for a chat message
 interface ChatMessage {
@@ -34,6 +39,29 @@ const ChatPage: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Load messages from localStorage on mount
+  useEffect(() => {
+    const savedMessages = localStorage.getItem("chatMessages");
+    if (savedMessages) {
+      try {
+        const parsedMessages = JSON.parse(savedMessages);
+        setMessages(parsedMessages);
+      } catch (error) {
+        console.error("Error loading messages from localStorage:", error);
+      }
+    }
+  }, []);
+
+  // Save messages to localStorage whenever messages change
+  useEffect(() => {
+    if (messages.length > 0) {
+      // Limit to last 50 messages to prevent storage bloat
+      const limitedMessages = messages.slice(-50);
+      localStorage.setItem("chatMessages", JSON.stringify(limitedMessages));
+    }
+  }, [messages]);
+
   // Scroll chat to bottom when messages change
   useEffect(() => {
     const chatDiv = chatContainerRef.current;
@@ -105,7 +133,48 @@ const ChatPage: React.FC = () => {
             return;
           }
 
-          if (message.text) {
+          // Handle word-by-word response
+          if (message.type === "word" && message.text) {
+            setMessages((prevMessages) => {
+              if (
+                prevMessages.length > 0 &&
+                prevMessages[prevMessages.length - 1].sender === "ai"
+              ) {
+                const updatedMessages = [...prevMessages];
+                const last = updatedMessages[updatedMessages.length - 1];
+                const newFullText = (last.fullText || last.text) + message.text;
+                updatedMessages[updatedMessages.length - 1] = {
+                  ...last,
+                  fullText: newFullText,
+                  isAnimating: true,
+                };
+                return updatedMessages;
+              } else {
+                return [
+                  ...prevMessages,
+                  {
+                    sender: "ai",
+                    text: "",
+                    fullText: message.text,
+                    isAnimating: true,
+                  },
+                ];
+              }
+            });
+            setIsWaitingForResponse(false);
+          }
+          // Handle history update from server
+          else if (message.type === "history-update" && message.messages) {
+            console.log("Received history update:", message.messages);
+            setMessages(message.messages);
+            setIsWaitingForResponse(false);
+          }
+          // Handle regular text response
+          else if (
+            message.text &&
+            message.type !== "mcp-status" &&
+            message.type !== "mcp-context"
+          ) {
             setMessages((prevMessages) => {
               if (
                 prevMessages.length > 0 &&
@@ -265,10 +334,10 @@ const ChatPage: React.FC = () => {
       input.trim() !== "" &&
       !isWaitingForResponse
     ) {
-      const message: ChatMessage = { sender: "user", text: input };
+      const message = { text: input, messages };
       console.log("Sending message to WebSocket:", message); // Debug log
       socket.send(JSON.stringify(message));
-      setMessages([...messages, message]);
+      setMessages([...messages, { sender: "user", text: input }]);
       setInput("");
       setIsWaitingForResponse(true); // Prevent sending new messages until a response is received
     } else if (socket && !isSocketReady) {
@@ -297,6 +366,15 @@ const ChatPage: React.FC = () => {
   const handleRemoveImage = () => {
     setSelectedImage(null);
     setSelectedFile(null);
+  };
+
+  const handleNewChat = () => {
+    setMessages([]);
+    localStorage.removeItem("chatMessages");
+    setInput("");
+    setSelectedImage(null);
+    setSelectedFile(null);
+    console.log("Started new chat, history cleared");
   };
 
   const adjustTextarea = () => {
@@ -475,12 +553,21 @@ const ChatPage: React.FC = () => {
               </div>
             )}
             <div className="flex gap-4 mt-2 justify-between">
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-lg px-6 py-2 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
-              >
-                <FontAwesomeIcon icon={faPlus} />
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleNewChat}
+                  className="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200 rounded-lg px-4 py-2 font-semibold shadow flex items-center gap-2 hover:bg-green-200 dark:hover:bg-green-800 transition-colors"
+                  title="เริ่มการแชทใหม่"
+                >
+                  <FontAwesomeIcon icon={faRefresh} />
+                </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-lg px-4 py-2 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
+                >
+                  <FontAwesomeIcon icon={faPlus} />
+                </button>
+              </div>
               <button
                 onClick={sendMessage}
                 disabled={!isSocketReady || isWaitingForResponse}
