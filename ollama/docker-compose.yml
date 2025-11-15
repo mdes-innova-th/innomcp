@@ -40,7 +40,6 @@ services:
       # ใช้ GPU ตัวแรก
       - OLLAMA_GPU=0
 
-
 volumes:
   ollama_data:
     driver: local
@@ -48,6 +47,7 @@ volumes:
 networks:
   innomcp_network:
     name: innomcp_network
-    external: true
+    # external: true
+    
 # remote run command
 # docker-compose up -d && docker exec ollama ollama pull nomic-embed-text && docker exec ollama ollama run gemma3:12b && docker exec ollama ollama run llava
