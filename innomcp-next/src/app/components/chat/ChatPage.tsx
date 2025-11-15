@@ -400,7 +400,7 @@ const ChatPage: React.FC = () => {
   return (
     <div className="flex flex-col items-center overflow-hidden min-h-screen">
       <HeaderChat />
-      <div className="flex flex-col flex-1 w-full items-center justify-center">
+      <div className="flex flex-col flex-1 w-full items-center justify-start pt-8">
         <div className="w-full max-w-3xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-lg px-6 py-4">
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-end w-full">
@@ -487,12 +487,12 @@ const ChatPage: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <>
+                      <div className="whitespace-pre-wrap wrap-break-word">
                         {message.text}
                         {isAI && message.isAnimating && (
                           <span className="animate-pulse">|</span>
                         )}
-                      </>
+                      </div>
                     )}
                   </div>
                 );
