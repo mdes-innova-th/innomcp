@@ -44,12 +44,14 @@ mcpserver.registerResource(
 
 // Register a new tool to interact with the API
 mcpserver.registerTool(
-  "violationGroupsCount",
+  "violationGroupsCountTool",
   {
     title: "Violation Groups Count Tool",
-    description: "Fetch violation groups count from an external API",
-    inputSchema: { query: z.string() },
-    outputSchema: { count: z.number() },
+    description: "นับจำนวนกลุ่มเว็บไซต์ที่ละเมิดออนไลน์ สำหรับตรวจสอบสถิติเว็บไซต์ผิดกฎหมาย",
+    inputSchema: z.object({ 
+      query: z.string().describe("คำค้นหาหรือหมวดหมู่ที่ต้องการตรวจสอบ")
+    }),
+    outputSchema: z.object({ count: z.number() }),
   },
   async ({ query }, _extra) => {
     try {
@@ -80,6 +82,139 @@ mcpserver.registerTool(
       };
     } catch (error) {
       console.error("Error fetching violation groups count:", error);
+      throw error;
+    }
+  }
+);
+
+// Register a calculator tool
+mcpserver.registerTool(
+  "calculatorTool",
+  {
+    title: "Calculator Tool",
+    description: "เครื่องคิดเลขสำหรับคำนวณทางคณิตศาสตร์ รองรับการคำนวณพื้นฐาน",
+    inputSchema: z.object({
+      expression: z.string().describe("นิพจน์ทางคณิตศาสตร์ที่ต้องการคำนวณ เช่น 2+2, 10*5, sqrt(16)")
+    }),
+    outputSchema: z.object({ result: z.number() }),
+  },
+  async ({ expression }, _extra) => {
+    try {
+      // Simple safe math evaluation
+      const safeExpression = expression
+        .replace(/[^0-9+\-*/.()sqrt\s]/g, '')
+        .replace(/sqrt\(/g, 'Math.sqrt(');
+      
+      const result = eval(safeExpression);
+      
+      return {
+        content: [
+          { type: "text", text: `คำนวณ "${expression}" = ${result}` } as {
+            type: "text";
+            text: string;
+          },
+        ],
+        structuredContent: { result, expression },
+      };
+    } catch (error) {
+      console.error("Error in calculator:", error);
+      throw new Error("ไม่สามารถคำนวณนิพจน์นี้ได้");
+    }
+  }
+);
+
+// Register a time/date tool
+mcpserver.registerTool(
+  "dateTimeTool",
+  {
+    title: "Date Time Tool", 
+    description: "เครื่องมือสำหรับแสดงเวลาและวันที่ในรูปแบบต่างๆ",
+    inputSchema: z.object({
+      format: z.string().optional().describe("รูปแบบการแสดงผล เช่น 'thai', 'iso', 'timestamp'")
+    }),
+    outputSchema: z.object({ datetime: z.string() }),
+  },
+  async ({ format = "thai" }, _extra) => {
+    try {
+      const now = new Date();
+      let result = "";
+      
+      switch (format.toLowerCase()) {
+        case "thai":
+          result = now.toLocaleDateString("th-TH", {
+            year: "numeric",
+            month: "long", 
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit"
+          });
+          break;
+        case "iso":
+          result = now.toISOString();
+          break;
+        case "timestamp":
+          result = now.getTime().toString();
+          break;
+        default:
+          result = now.toString();
+      }
+      
+      return {
+        content: [
+          { type: "text", text: `วันเวลาปัจจุบัน: ${result}` } as {
+            type: "text";
+            text: string;
+          },
+        ],
+        structuredContent: { datetime: result, format },
+      };
+    } catch (error) {
+      console.error("Error in datetime tool:", error);
+      throw error;
+    }
+  }
+);
+
+// Register a text analysis tool
+mcpserver.registerTool(
+  "textAnalysisTool",
+  {
+    title: "Text Analysis Tool",
+    description: "เครื่องมือวิเคราะห์ข้อความ นับคำ นับตัวอักษร และวิเคราะห์เนื้อหา",
+    inputSchema: z.object({
+      text: z.string().describe("ข้อความที่ต้องการวิเคราะห์")
+    }),
+    outputSchema: z.object({
+      wordCount: z.number(),
+      charCount: z.number(),
+      sentences: z.number()
+    }),
+  },
+  async ({ text }, _extra) => {
+    try {
+      const wordCount = text.split(/\s+/).filter(word => word.length > 0).length;
+      const charCount = text.length;
+      const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0).length;
+      
+      const analysis = {
+        wordCount,
+        charCount,
+        sentences,
+        avgWordsPerSentence: sentences > 0 ? Math.round(wordCount / sentences * 100) / 100 : 0
+      };
+      
+      return {
+        content: [
+          { type: "text", text: `วิเคราะห์ข้อความ: ${wordCount} คำ, ${charCount} ตัวอักษร, ${sentences} ประโยค` } as {
+            type: "text";
+            text: string;
+          },
+        ],
+        structuredContent: analysis,
+      };
+    } catch (error) {
+      console.error("Error in text analysis:", error);
       throw error;
     }
   }
