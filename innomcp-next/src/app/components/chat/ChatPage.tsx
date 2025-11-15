@@ -28,6 +28,7 @@ const ChatPage: React.FC = () => {
   const [input, setInput] = useState("");
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [isSocketReady, setIsSocketReady] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -42,103 +43,168 @@ const ChatPage: React.FC = () => {
   }, [messages]);
 
   useEffect(() => {
-    const ws = new WebSocket(
-      (process.env.NEXT_PUBLIC_NODE_WS_HOST || "ws://localhost:3011") + "/chat"
-    );
+    // Use refs for mutable objects so closures see latest
+    const wsRef = { current: socket } as { current: WebSocket | null };
+    const reconnectAttemptsRef = { current: 0 } as { current: number };
+    let reconnectTimer: number | null = null;
+    let heartbeatTimer: number | null = null;
+    let lastMessageAt = Date.now();
 
-    console.log("Attempting to connect to WebSocket at:", ws.url); // Debug log
-
-    ws.onopen = () => {
-      console.log("WebSocket connection established with Node.js server");
-      setIsSocketReady(true); // Set socket as ready
-    };
-
-    ws.onmessage = async (event) => {
+    const createWebSocket = () => {
+      const url =
+        (process.env.NEXT_PUBLIC_NODE_WS_HOST || "ws://localhost:3011") +
+        "/chat";
+      console.log("Attempting to connect to WebSocket at:", url);
+      let ws: WebSocket;
       try {
-        console.log("Received WebSocket message:", event.data);
+        ws = new WebSocket(url);
+      } catch (err) {
+        console.error("Failed to create WebSocket:", err);
+        // schedule reconnect
+        reconnectAttemptsRef.current++;
+        const baseDelay =
+          1000 * Math.min(30, Math.pow(2, reconnectAttemptsRef.current));
+        const jitter = Math.floor(Math.random() * 300);
+        const delay = Math.min(30000, baseDelay) + jitter;
+        console.log(
+          `Retrying WebSocket create in ${delay}ms (attempt ${reconnectAttemptsRef.current})`
+        );
+        if (reconnectTimer) window.clearTimeout(reconnectTimer);
+        reconnectTimer = window.setTimeout(
+          () => createWebSocket(),
+          delay
+        ) as unknown as number;
+        return null as any;
+      }
+      wsRef.current = ws;
+      setSocket(ws);
 
-        let data = event.data;
+      ws.onopen = () => {
+        console.log("WebSocket open", ws.url);
+        reconnectAttemptsRef.current = 0;
+        setIsSocketReady(true);
+        // update lastMessageAt so heartbeat doesn't immediately disconnect
+        lastMessageAt = Date.now();
+      };
 
-        // Check if the data is a Blob and convert it to text
-        if (data instanceof Blob) {
-          data = await data.text();
-        }
+      ws.onmessage = async (event) => {
+        try {
+          lastMessageAt = Date.now();
+          console.log("Received WebSocket message:", event.data);
 
-        const message = JSON.parse(data);
+          let data = event.data;
+          if (data instanceof Blob) {
+            data = await data.text();
+          }
 
-        // Log when message is empty
-        if (!data || Object.keys(data).length === 0) {
-          console.warn("Received empty message from WebSocket:", data);
-          setIsWaitingForResponse(false);
-          return;
-        }
+          const message = JSON.parse(data);
 
-        if (message.text) {
-          setMessages((prevMessages) => {
-            // ถ้า message ล่าสุดเป็น ai ให้รวมข้อความ (typewriter: update fullText, text)
-            if (
-              prevMessages.length > 0 &&
-              prevMessages[prevMessages.length - 1].sender === "ai"
-            ) {
-              const updatedMessages = [...prevMessages];
-              const last = updatedMessages[updatedMessages.length - 1];
-              const newFullText = (last.fullText || last.text) + message.text;
-              updatedMessages[updatedMessages.length - 1] = {
-                ...last,
-                fullText: newFullText,
-                isAnimating: true,
-              };
-              return updatedMessages;
-            } else {
-              return [
-                ...prevMessages,
-                {
-                  sender: "ai",
-                  text: "",
-                  fullText: message.text,
+          if (!data || Object.keys(message || {}).length === 0) {
+            console.warn("Received empty message from WebSocket:", data);
+            setIsWaitingForResponse(false);
+            return;
+          }
+
+          if (message.text) {
+            setMessages((prevMessages) => {
+              if (
+                prevMessages.length > 0 &&
+                prevMessages[prevMessages.length - 1].sender === "ai"
+              ) {
+                const updatedMessages = [...prevMessages];
+                const last = updatedMessages[updatedMessages.length - 1];
+                const newFullText = (last.fullText || last.text) + message.text;
+                updatedMessages[updatedMessages.length - 1] = {
+                  ...last,
+                  fullText: newFullText,
                   isAnimating: true,
-                },
-              ];
-            }
-          });
-          setIsWaitingForResponse(false);
-        } else if (message.error) {
-          console.error("Server error:", message.error);
+                };
+                return updatedMessages;
+              } else {
+                return [
+                  ...prevMessages,
+                  {
+                    sender: "ai",
+                    text: "",
+                    fullText: message.text,
+                    isAnimating: true,
+                  },
+                ];
+              }
+            });
+            setIsWaitingForResponse(false);
+          } else if (message.error) {
+            console.error("Server error:", message.error);
+            setIsWaitingForResponse(false);
+          }
+        } catch (error) {
+          console.error("Error parsing WebSocket message:", error);
           setIsWaitingForResponse(false);
         }
-      } catch (error) {
-        console.error("Error parsing WebSocket message:", error);
+      };
+
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        setIsSocketReady(false);
         setIsWaitingForResponse(false);
+      };
+
+      ws.onclose = (event) => {
+        console.log("WebSocket closed", {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+        });
+        setIsSocketReady(false);
+        setIsWaitingForResponse(false);
+
+        // schedule reconnect with exponential backoff + jitter
+        reconnectAttemptsRef.current++;
+        const baseDelay =
+          1000 * Math.min(30, Math.pow(2, reconnectAttemptsRef.current));
+        const jitter = Math.floor(Math.random() * 300);
+        const delay = Math.min(30000, baseDelay) + jitter;
+        console.log(
+          `Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current})`
+        );
+        if (reconnectTimer) window.clearTimeout(reconnectTimer);
+        reconnectTimer = window.setTimeout(() => {
+          createWebSocket();
+        }, delay) as unknown as number;
+      };
+
+      return ws;
+    };
+
+    // start initial connection
+    createWebSocket();
+
+    // heartbeat: if no message seen in 35s, close socket to trigger reconnect
+    heartbeatTimer = window.setInterval(() => {
+      const now = Date.now();
+      if (now - lastMessageAt > 35000) {
+        console.warn("No messages for 35s, forcing reconnect");
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+          try {
+            wsRef.current.close();
+          } catch (e) {
+            console.warn("Error closing websocket during heartbeat", e);
+          }
+        }
+      } else {
+        // connection is healthy
+        console.log("WebSocket connection healthy");
       }
-    };
-
-    ws.onerror = (error) => {
-      console.error("WebSocket error:", error);
-
-      // Log additional details if available
-      if (error instanceof Event && error.target instanceof WebSocket) {
-        console.error("WebSocket readyState:", error.target.readyState);
-        console.error("WebSocket URL:", error.target.url);
-      }
-
-      setIsSocketReady(false);
-      setIsWaitingForResponse(false);
-    };
-
-    ws.onclose = (event) => {
-      console.log("WebSocket connection closed:", {
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean,
-      });
-      setIsSocketReady(false);
-      setIsWaitingForResponse(false);
-    };
-
-    setSocket(ws);
+    }, 15000) as unknown as number;
 
     return () => {
-      ws.close();
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      if (heartbeatTimer) window.clearInterval(heartbeatTimer);
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch (e) {}
+      }
     };
   }, []);
 
@@ -281,8 +347,22 @@ const ChatPage: React.FC = () => {
     <div className="flex flex-col items-center overflow-hidden min-h-screen">
       <HeaderChat />
       <div className="flex flex-col flex-1 w-full items-center justify-center">
-        <div className="w-full max-w-3xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-lg p-4">
+        <div className="w-full max-w-3xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-lg p-2">
           <div className="flex flex-col gap-2">
+            <div className="flex items-center">
+              <div
+                className="text-sm"
+                title={isSocketReady ? "เชื่อมต่อ" : "ตัดการเชื่อมต่อ"}
+              >
+                <span
+                  className={
+                    isSocketReady
+                      ? "inline-block w-3 h-3 rounded-full bg-green-500 animate-[pulse_2s_ease-in-out_infinite]"
+                      : "inline-block w-3 h-3 rounded-full bg-red-500 animate-[pulse_0.5s_ease-in-out_infinite]"
+                  }
+                />
+              </div>
+            </div>
             <div
               className="flex flex-col gap-2 overflow-y-auto max-h-96"
               ref={chatContainerRef}
@@ -296,7 +376,7 @@ const ChatPage: React.FC = () => {
                     className={`relative group p-2 rounded-lg ${
                       message.sender === "user"
                         ? "max-w-xs self-start bg-blue-500 text-white text-left rounded-bl-none"
-                        : "max-w-2xl self-start ml-4 bg-gray-300 text-black text-left rounded-br-none mb-4"
+                        : "max-w-full self-start ml-6 bg-gray-300 text-black text-left rounded-br-none mb-4 p-4 m-4"
                     }`}
                   >
                     {/* AI message: show copy icon on hover without overlapping text */}
@@ -373,7 +453,7 @@ const ChatPage: React.FC = () => {
               }}
               rows={3}
               className="rounded-xl border border-gray-300 dark:border-gray-700 p-3 text-base bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white resize-none w-full focus:ring-0 focus:outline-none"
-              placeholder="Type your message..."
+              placeholder="พิมพ์ข้อความที่นี่..."
             />
             {selectedImage && (
               <div className="relative w-fit mt-2">

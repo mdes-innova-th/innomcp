@@ -17,26 +17,52 @@ const chatRouter = Router();
 // In-memory storage for chat messages
 const messages: { sender: string; text: string }[] = [];
 
+// WebSocket connection id counter
+let wsConnectionIdCounter = 0;
+
 // Initialize intelligent MCP client
 let mcpClient: IntelligentMCPClient | null = null;
 
-// Initialize MCP Client
-(async () => {
-  try {
-    mcpClient = await InitMcpClient(ollama, ollamaModel);
-    console.log("[Chat API] Intelligent MCP Client initialized");
-    console.log(
-      "[Chat API] Available tools:",
-      mcpClient.getAvailableTools().length
-    );
+// Initialize MCP Client (returns immediately; initialization runs in background)
+mcpClient = InitMcpClient(ollama, ollamaModel);
+console.log("[Chat API] MCP client created (initializing in background)");
+
+if (mcpClient) {
+  mcpClient.on("clientConnected", (name: string) => {
+    console.log("[Chat API] MCP client connected:", name);
     console.log(
       "[Chat API] Connected clients:",
+      mcpClient?.getConnectedClients()
+    );
+  });
+
+  mcpClient.on("connectedClients", (clients: string[]) => {
+    console.log("[Chat API] Connected clients (update):", clients);
+  });
+
+  mcpClient.on("toolLoaded", (info: { client: string; tool: string }) => {
+    console.log(`[Chat API] Tool loaded from ${info.client}: ${info.tool}`);
+  });
+
+  mcpClient.on("ready", () => {
+    console.log("[Chat API] Intelligent MCP Client initialization completed");
+    console.log(
+      "[Chat API] Available tools:",
+      mcpClient?.getAvailableTools().length
+    );
+  });
+
+  // Also log the current connected clients immediately so we see state
+  // even if some clients connected before listeners were attached.
+  try {
+    console.log(
+      "[Chat API] Connected clients (initial):",
       mcpClient.getConnectedClients()
     );
-  } catch (error) {
-    console.error("[Chat API] Failed to initialize MCP client:", error);
+  } catch (e) {
+    // ignore
   }
-})();
+}
 
 // WebSocket server for chat with proper configuration
 const wss = new WebSocketServer({
@@ -60,7 +86,11 @@ const wss = new WebSocketServer({
 });
 
 wss.on("connection", (ws) => {
-  console.log("[Chat API] New WebSocket connection established");
+  const connectionId = ++wsConnectionIdCounter;
+  // Log connection id and current connected clients count
+  console.log(
+    `[Chat API] New WebSocket connection established (id=${connectionId}) - total=${wss.clients.size}`
+  );
 
   // Send existing messages to the new client
   if (messages.length > 0) {
@@ -87,6 +117,7 @@ wss.on("connection", (ws) => {
 
       // Process message with intelligent MCP client
       if (mcpClient) {
+        console.log("[Chat API] Processing message with MCP client...");
         try {
           const mcpResult = await mcpClient.processMessage(message.text);
 
@@ -162,7 +193,9 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
-    console.log("[Chat API] WebSocket connection closed");
+    console.log(
+      `[Chat API] WebSocket connection closed (id=${connectionId}) - total=${wss.clients.size}`
+    );
   });
 
   ws.on("error", (error) => {

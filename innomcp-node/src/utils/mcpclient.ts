@@ -1,6 +1,9 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { Ollama } from "ollama";
+import EventEmitter from "events";
+import path from "path";
+import fs from "fs";
 
 // Interface for MCP Tool Definition
 interface MCPTool {
@@ -23,13 +26,14 @@ interface MCPClientConfig {
   serverUrl?: string;
 }
 
-class IntelligentMCPClient {
+class IntelligentMCPClient extends EventEmitter {
   private clients: Map<string, Client> = new Map();
   private tools: Map<string, MCPTool> = new Map();
   private ollama: Ollama;
   private ollamaModel: string;
 
   constructor(ollama: Ollama, ollamaModel: string) {
+    super();
     this.ollama = ollama;
     this.ollamaModel = ollamaModel;
   }
@@ -50,13 +54,20 @@ class IntelligentMCPClient {
 
         await client.connect(transport);
         this.clients.set(config.name, client);
-        console.log(`[MCPClient] Connected to ${config.name}`);
+        console.log(`[MCP Client] Connected to ${config.name}`);
+        // Emit event so callers can react when a client connects
+        try {
+          this.emit("clientConnected", config.name);
+          this.emit("connectedClients", this.getConnectedClients());
+        } catch (e) {
+          // ignore emitter errors
+        }
 
         // Load tools from this client
         await this.loadToolsFromClient(config.name, client);
       } catch (error) {
         console.error(
-          `[MCPClient] Failed to connect to ${config.name}:`,
+          `[MCP Client] Failed to connect to ${config.name}:`,
           error
         );
       }
@@ -79,11 +90,17 @@ class IntelligentMCPClient {
         };
 
         this.tools.set(`${clientName}:${tool.name}`, mcpTool);
-        console.log(`[MCPClient] Loaded tool: ${clientName}:${tool.name}`);
+        console.log(`[MCP Client] Loaded tool: ${clientName}:${tool.name}`);
+        // notify listeners about tools being loaded
+        try {
+          this.emit("toolLoaded", { client: clientName, tool: tool.name });
+        } catch (e) {
+          // ignore
+        }
       }
     } catch (error) {
       console.error(
-        `[MCPClient] Failed to load tools from ${clientName}:`,
+        `[MCP Client] Failed to load tools from ${clientName}:`,
         error
       );
     }
@@ -149,8 +166,8 @@ class IntelligentMCPClient {
   private generateExamples(name: string, description?: string): string[] {
     const examples: string[] = [];
 
-    if (name.includes("violation")) {
-      examples.push("นับจำนวนเว็บไซต์ที่ละเมิด");
+    if (name.includes("webd")) {
+      examples.push("นับจำนวนเว็บไซต์ผิดกฎหมาย");
       examples.push("ตรวจสอบสถิติเว็บไซต์ผิดกฎหมาย");
       examples.push("รายงานการละเมิดเว็บไซต์");
       examples.push("เว็บไซต์ผิดกฎหมายมีกี่ url");
@@ -193,18 +210,18 @@ ${toolDescriptions}
       });
 
       const selectedTools = response.message.content.trim();
-      console.log(`[MCPClient] Ollama selected tools: ${selectedTools}`);
+      console.log(`[MCP Client] Ollama selected tools: ${selectedTools}`);
 
       if (selectedTools === "none" || selectedTools === "") {
         return [];
       }
 
       return selectedTools
-        .split(",")
+        .split(/\s*,\s*|\s+/)
         .map((tool) => tool.trim())
         .filter((tool) => this.tools.has(tool));
     } catch (error) {
-      console.error("[MCPClient] Error in tool selection:", error);
+      console.error("[MCP Client] Error in tool selection:", error);
       return [];
     }
   }
@@ -220,14 +237,17 @@ ${toolDescriptions}
         const tool = this.tools.get(toolName);
 
         if (!client || !tool) {
-          console.warn(`[MCPClient] Tool or client not found: ${toolName}`);
+          console.warn(`[MCP Client] Tool or client not found: ${toolName}`);
           continue;
         }
 
         // Generate tool arguments using Ollama
         const args = await this.generateToolArguments(tool, userMessage);
 
-        console.log(`[MCPClient] Executing tool: ${toolName} with args:`, args);
+        console.log(
+          `[MCP Client] Executing tool: ${toolName} with args:`,
+          args
+        );
 
         const result = await client.callTool({
           name: actualToolName,
@@ -239,7 +259,7 @@ ${toolDescriptions}
           result: result.content,
         });
       } catch (error) {
-        console.error(`[MCPClient] Error executing tool ${toolName}:`, error);
+        console.error(`[MCP Client] Error executing tool ${toolName}:`, error);
         results.push({
           toolName,
           error: error instanceof Error ? error.message : String(error),
@@ -279,7 +299,7 @@ Input Schema: ${schemaStr}
       const jsonStr = response.message.content.trim();
       return JSON.parse(jsonStr);
     } catch (error) {
-      console.error(`[MCPClient] Error generating tool arguments:`, error);
+      console.error(`[MCP Client] Error generating tool arguments:`, error);
       return {};
     }
   }
@@ -345,26 +365,59 @@ Input Schema: ${schemaStr}
 }
 
 // Initialize default MCP client with multiple servers
-async function InitMcpClient(
-  ollama: Ollama,
-  ollamaModel: string
-): Promise<IntelligentMCPClient> {
-  const mcpClient = new IntelligentMCPClient(ollama, ollamaModel);
-
-  // Configure multiple MCP servers
-  const configs: MCPClientConfig[] = [
+function createDefaultConfigs(serverScript: string): MCPClientConfig[] {
+  return [
     {
       name: "innomcp-server",
       version: "1.0.0",
       transport: {
         command: "node",
-        args: ["../server.js"],
+        args: [serverScript, "--stdio"],
       },
     },
-    // Add more MCP servers here as needed
   ];
+}
 
-  await mcpClient.initializeClients(configs);
+// Initialize default MCP client with multiple servers.
+// This function returns the client immediately and starts connection in background
+// so callers can attach event listeners first to receive connection events.
+function InitMcpClient(ollama: Ollama, ollamaModel: string): IntelligentMCPClient {
+  const mcpClient = new IntelligentMCPClient(ollama, ollamaModel);
+
+  // Resolve the expected path to the innomcp-server-node built script.
+  const serverScript = path.resolve(
+    __dirname,
+    "..",
+    "..",
+    "..",
+    "innomcp-server-node",
+    "dist",
+    "index.js"
+  );
+
+  if (!fs.existsSync(serverScript)) {
+    console.warn(
+      `[MCP Client] Expected server script not found at ${serverScript}. ` +
+        "Ensure `innomcp-server-node` is built (run its `build` script)."
+    );
+  }
+
+  const configs = createDefaultConfigs(serverScript);
+
+  // Start initializing in background so callers get the client immediately
+  mcpClient
+    .initializeClients(configs)
+    .then(() => {
+      console.log("[MCP Client] Initialization completed");
+      try {
+        mcpClient.emit("ready");
+      } catch (e) {
+        // ignore
+      }
+    })
+    .catch((err) => {
+      console.error("[MCP Client] Initialization error:", err);
+    });
 
   return mcpClient;
 }
