@@ -13,7 +13,7 @@ import app from "./app";
 dotenv.config();
 
 const host = process.env.SERVER_HOST || "0.0.0.0";
-const port = parseInt(process.env.SERVER_PORT || "3011", 10);
+const port = parseInt(process.env.SERVER_PORT || "3012", 10);
 
 // Create HTTP server /////////////////////////////////////
 const server = http.createServer(app);
@@ -23,24 +23,6 @@ const mcpserver = new McpServer({
   name: "innomcp-server",
   version: "1.0.0",
 });
-
-// Add an addition tool
-mcpserver.registerTool(
-  "add",
-  {
-    title: "webD Database Tool",
-    description: "Query webD database for information retrieval",
-    inputSchema: { a: z.number(), b: z.number() },
-    outputSchema: { result: z.number() },
-  },
-  async ({ a, b }) => {
-    const output = { result: a + b };
-    return {
-      content: [{ type: "text", text: JSON.stringify(output) }],
-      structuredContent: output,
-    };
-  }
-);
 
 // Add a dynamic greeting resource
 mcpserver.registerResource(
@@ -58,6 +40,49 @@ mcpserver.registerResource(
       },
     ],
   })
+);
+
+// Register a new tool to interact with the API
+mcpserver.registerTool(
+  "violationGroupsCount",
+  {
+    title: "Violation Groups Count Tool",
+    description: "Fetch violation groups count from an external API",
+    inputSchema: { query: z.string() },
+    outputSchema: { count: z.number() },
+  },
+  async ({ query }, _extra) => {
+    try {
+      const response = await fetch(
+        "http://localhost:3010/api/violation-groups-count",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ query }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+
+      const data = await response.json();
+      return {
+        content: [
+          { type: "text", text: JSON.stringify(data) } as {
+            type: "text";
+            text: string;
+          },
+        ],
+        structuredContent: data,
+      };
+    } catch (error) {
+      console.error("Error fetching violation groups count:", error);
+      throw error;
+    }
+  }
 );
 
 // Handle incoming MCP requests /////////////////////////////

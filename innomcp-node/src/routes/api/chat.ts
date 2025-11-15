@@ -23,7 +23,7 @@ const wss = new WebSocketServer({
     // Allow connections from allowed origins
     const origin = info.origin;
     const allowedOrigins = process.env.ALLOWED_ORIGIN?.split(",") || [
-      "http://localhost:3001",
+      "http://localhost:3000",
     ];
 
     console.log(`[WebSocket] Connection attempt from origin: ${origin}`);

@@ -5,7 +5,7 @@ import Image from "next/image";
 import HeaderChat from "@/app/components/chat/HeaderChat";
 import ThemeContext from "@/app/context/ThemeContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowUp, faPlus, faEdit, faCopy, faSave, faTimes } from "@fortawesome/free-solid-svg-icons";
+import { faArrowUp, faPlus, faCopy } from "@fortawesome/free-solid-svg-icons";
 
 // Define the type for a chat message
 interface ChatMessage {
@@ -43,8 +43,10 @@ const ChatPage: React.FC = () => {
 
   useEffect(() => {
     const ws = new WebSocket(
-      (process.env.NEXT_PUBLIC_NODE_WS_HOST || "ws://localhost:3010") + "/chat"
+      (process.env.NEXT_PUBLIC_NODE_WS_HOST || "ws://localhost:3011") + "/chat"
     );
+
+    console.log("Attempting to connect to WebSocket at:", ws.url); // Debug log
 
     ws.onopen = () => {
       console.log("WebSocket connection established with Node.js server");
@@ -90,7 +92,12 @@ const ChatPage: React.FC = () => {
             } else {
               return [
                 ...prevMessages,
-                { sender: "ai", text: "", fullText: message.text, isAnimating: true },
+                {
+                  sender: "ai",
+                  text: "",
+                  fullText: message.text,
+                  isAnimating: true,
+                },
               ];
             }
           });
@@ -179,7 +186,8 @@ const ChatPage: React.FC = () => {
     }, 120); // 120ms per word
     // Cleanup on unmount
     return () => {
-      if (animationTimeoutRef.current) clearTimeout(animationTimeoutRef.current);
+      if (animationTimeoutRef.current)
+        clearTimeout(animationTimeoutRef.current);
     };
   }, [messages]);
 
@@ -291,22 +299,12 @@ const ChatPage: React.FC = () => {
                         : "max-w-2xl self-start ml-4 bg-gray-300 text-black text-left rounded-br-none"
                     }`}
                   >
-                    {/* AI message: show edit/copy icons */}
-                    {isAI && !isEditing && (
-                      <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          title="แก้ไขข้อความ"
-                          className="text-gray-500 hover:text-blue-600"
-                          onClick={() => {
-                            setEditingIndex(index);
-                            setEditValue(message.text);
-                          }}
-                        >
-                          <FontAwesomeIcon icon={faEdit} />
-                        </button>
+                    {/* AI message: show copy icon on hover without overlapping text */}
+                    {isAI && !message.isAnimating && (
+                      <div className="absolute top-1 right-0 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                         <button
                           title="คัดลอกข้อความ"
-                          className="text-gray-500 hover:text-green-600"
+                          className="text-gray-500 hover:text-green-600 pointer-events-auto cursor-pointer"
                           onClick={() => {
                             navigator.clipboard.writeText(message.text);
                           }}
@@ -322,7 +320,7 @@ const ChatPage: React.FC = () => {
                           className="w-full rounded border border-gray-400 p-2 text-black bg-white mb-2"
                           value={editValue}
                           rows={Math.max(2, editValue.split("\n").length)}
-                          onChange={e => setEditValue(e.target.value)}
+                          onChange={(e) => setEditValue(e.target.value)}
                           autoFocus
                         />
                         <div className="flex gap-2 justify-end">
@@ -330,29 +328,36 @@ const ChatPage: React.FC = () => {
                             className="text-blue-600 hover:text-blue-800"
                             title="บันทึก"
                             onClick={() => {
-                              setMessages(msgs => {
+                              setMessages((msgs) => {
                                 const updated = [...msgs];
-                                updated[index] = { ...updated[index], text: editValue, fullText: editValue, isAnimating: false };
+                                updated[index] = {
+                                  ...updated[index],
+                                  text: editValue,
+                                  fullText: editValue,
+                                  isAnimating: false,
+                                };
                                 return updated;
                               });
                               setEditingIndex(null);
                             }}
                           >
-                            <FontAwesomeIcon icon={faSave} />
+                            <FontAwesomeIcon icon={faCopy} />
                           </button>
                           <button
                             className="text-gray-500 hover:text-red-600"
                             title="ยกเลิก"
                             onClick={() => setEditingIndex(null)}
                           >
-                            <FontAwesomeIcon icon={faTimes} />
+                            <FontAwesomeIcon icon={faCopy} />
                           </button>
                         </div>
                       </div>
                     ) : (
                       <>
                         {message.text}
-                        {isAI && message.isAnimating && <span className="animate-pulse">|</span>}
+                        {isAI && message.isAnimating && (
+                          <span className="animate-pulse">|</span>
+                        )}
                       </>
                     )}
                   </div>

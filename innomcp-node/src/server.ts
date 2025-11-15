@@ -10,7 +10,7 @@ import { wss as chatWSS } from "./routes/api/chat";
 dotenv.config();
 
 const host = process.env.SERVER_HOST || "0.0.0.0";
-const port = parseInt(process.env.SERVER_PORT || "3010", 10);
+const port = parseInt(process.env.SERVER_PORT || "3011", 10);
 
 const server = http.createServer(app);
 
