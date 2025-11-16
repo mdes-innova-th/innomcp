@@ -349,7 +349,7 @@ class IntelligentMCPClient extends EventEmitter {
       }
 
       // Text analysis patterns
-      if (/วิเคราะห์|analyze|นับคำ|word\s+count/i.test(userMessage)) {
+      if (/วิเคราะห์|analyze|นับคำ|นับตัวอักษร|word\s+count/i.test(userMessage)) {
         const textTool = Array.from(this.tools.keys()).find((key) =>
           /text|analyze/i.test(key)
         );
@@ -489,18 +489,12 @@ ${toolDescriptions}
               validation.errors
             );
 
-            // Try with empty args as fallback
-            const emptyArgs = {};
-            const emptyValidation = this.validateArguments(
-              emptyArgs,
-              tool.inputSchema
-            );
-            if (!emptyValidation.valid) {
-              throw new Error(
-                `Invalid arguments: ${validation.errors?.join(", ")}`
-              );
+            // Modify arguments to include required properties
+            for (const key of tool.inputSchema.required || []) {
+              if (!(key in args)) {
+                args[key] = tool.inputSchema.properties[key]?.default || "";
+              }
             }
-            console.log(`[MCP Client] Using empty args for ${toolName}`);
           }
 
           console.log(
@@ -611,6 +605,14 @@ JSON:`;
 
       try {
         const parsed = JSON.parse(jsonStr);
+
+        // Ensure required properties are present
+        for (const key of required) {
+          if (!(key in parsed)) {
+            parsed[key] = properties[key]?.default || ""; // Use default or empty string
+          }
+        }
+
         console.log(`[MCP Client] Generated args for ${tool.name}:`, parsed);
         return parsed;
       } catch (parseError) {
@@ -618,7 +620,14 @@ JSON:`;
           `[MCP Client] Failed to parse JSON, using default args:`,
           parseError
         );
-        return {};
+
+        // Generate default arguments based on schema
+        const defaultArgs: any = {};
+        for (const key of required) {
+          defaultArgs[key] = properties[key]?.default || "";
+        }
+
+        return defaultArgs;
       }
     } catch (error) {
       console.error(`[MCP Client] Error generating tool arguments:`, error);

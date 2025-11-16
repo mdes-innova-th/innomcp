@@ -60,6 +60,9 @@ mcpserver.registerTool(
     outputSchema: z.object({ result: z.number() }),
   },
   async ({ expression }, _extra) => {
+    console.log(
+      `[MCP Server] Calculator tool request received at ${new Date().toLocaleString()}`
+    ); // Log when a request is received
     try {
       // Simple safe math evaluation
       const safeExpression = expression
@@ -116,6 +119,9 @@ mcpserver.registerTool(
     outputSchema: z.object({ datetime: z.string(), format: z.string() }),
   },
   async ({ format = "thai" }, _extra) => {
+    console.log(
+      `[MCP Server] DateTime tool request received at ${new Date().toLocaleString()}`
+    ); // Log when a request is received
     try {
       const now = new Date();
       let result = "";
@@ -163,7 +169,7 @@ mcpserver.registerTool(
   {
     title: "Text Analysis Tool (plain text)",
     description:
-      "เครื่องมือวิเคราะห์ข้อความทั่วไป: นับคำ นับตัวอักษร และวิเคราะห์เนื้อหาแบบข้อความธรรมดา",
+      "เครื่องมือวิเคราะห์ข้อความทั่วไป: นับคำ นับตัวอักษร และวิเคราะห์เนื้อหาแบบข้อความธรรมดา รองรับทั้งภาษาไทยและภาษาอังกฤษ",
     _meta: {
       keywords: [
         "text analysis",
@@ -177,44 +183,94 @@ mcpserver.registerTool(
       text: z.string().describe("ข้อความที่ต้องการวิเคราะห์"),
     }),
     outputSchema: z.object({
-      wordCount: z.number(),
-      charCount: z.number(),
-      sentences: z.number(),
+      content: z.array(
+        z.object({
+          type: z.literal("text"),
+          text: z.string(),
+        })
+      ),
+      structuredContent: z
+        .object({
+          wordCount: z.number(),
+          charCount: z.number(),
+          charCountNoSpaces: z.number(),
+          sentences: z.number(),
+          avgWordsPerSentence: z.number(),
+          lines: z.number(),
+        })
+        .optional(),
     }),
   },
   async ({ text }, _extra) => {
+    console.log(
+      `[MCP Server] Text analysis tool request received at ${new Date().toLocaleString()}`
+    ); // Log when a request is received
     try {
-      const wordCount = text
-        .split(/\s+/)
-        .filter((word) => word.length > 0).length;
+      console.log("[MCP Server] Input text:", text);
+      // นับคำ (รองรับทั้งภาษาอังกฤษและภาษาไทย)
+      // สำหรับภาษาอังกฤษใช้ whitespace, สำหรับภาษาไทยนับอักขระที่ไม่ใช่ whitespace
+      const hasThaiChars = /[\u0E00-\u0E7F]/.test(text);
+      let wordCount: number;
+
+      if (hasThaiChars) {
+        // สำหรับข้อความภาษาไทย: นับกลุ่มอักขระที่ไม่ใช่ whitespace
+        const thaiWords = text.match(/[\u0E00-\u0E7F]+/g) || [];
+        const englishWords = text.match(/[a-zA-Z]+/g) || [];
+        wordCount = thaiWords.length + englishWords.length;
+        console.log("[MCP Server] Thai words:", thaiWords);
+        console.log("[MCP Server] English words:", englishWords);
+      } else {
+        // สำหรับภาษาอังกฤษ: แยกด้วย whitespace
+        wordCount = text.split(/\s+/).filter((word) => word.length > 0).length;
+      }
+
       const charCount = text.length;
+      const charCountNoSpaces = text.replace(/\s/g, "").length;
+
+      // นับประโยค (รองรับเครื่องหมายภาษาไทยและอังกฤษ)
       const sentences = text
-        .split(/[.!?]+/)
+        .split(/[.!?।]+/)
         .filter((s) => s.trim().length > 0).length;
+
+      // นับบรรทัด
+      const lines = text.split(/\n/).length;
 
       const analysis = {
         wordCount,
         charCount,
+        charCountNoSpaces,
         sentences,
         avgWordsPerSentence:
           sentences > 0 ? Math.round((wordCount / sentences) * 100) / 100 : 0,
+        lines,
       };
 
       return {
         content: [
           {
-            type: "text",
-            text: `วิเคราะห์ข้อความ: ${wordCount} คำ, ${charCount} ตัวอักษร, ${sentences} ประโยค`,
-          } as {
-            type: "text";
-            text: string;
+            type: "text" as const,
+            text: `Text Analysis Results:
+- Words: ${analysis.wordCount}
+- Characters: ${analysis.charCount} (${analysis.charCountNoSpaces} without spaces)
+- Sentences: ${analysis.sentences}
+- Average words per sentence: ${analysis.avgWordsPerSentence}
+- Lines: ${analysis.lines}`,
           },
         ],
         structuredContent: analysis,
       };
     } catch (error) {
-      console.error("Error in text analysis:", error);
-      throw error;
+      console.error("[MCP Server] Error in text analysis:", error);
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: `Error analyzing text: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+          },
+        ],
+      };
     }
   }
 );
@@ -254,6 +310,9 @@ mcpserver.registerTool(
     outputSchema: z.object({ count: z.number() }),
   },
   async ({ query }, _extra) => {
+    console.log(
+      `[MCP Server] Webd count input and group tool request received at ${new Date().toLocaleString()}`
+    ); // Log when a request is received
     try {
       const response = await fetch(
         "http://localhost:3010/api/violation-groups-count",
@@ -298,8 +357,6 @@ app.post("/mcp", async (req, res) => {
   res.on("close", () => {
     transport.close();
   });
-
-  console.log(`MCP client request received at ${new Date().toLocaleString()}`); // Log when a request is received
 
   await mcpserver.connect(transport);
   await transport.handleRequest(req, res, req.body);
