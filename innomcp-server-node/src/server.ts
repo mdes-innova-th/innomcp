@@ -44,7 +44,7 @@ mcpserver.registerResource(
 
 // Register a new tool to interact with the API
 mcpserver.registerTool(
-  "webdCountOnInputAndGroupTool",
+  "webdCountInputAndGroupTool",
   {
     title: "Count all input violation records on webD Project",
     description: "นับจำนวนรายการนำเข้าเว็บไซต์ผิดกฎหมาย",

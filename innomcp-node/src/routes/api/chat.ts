@@ -45,6 +45,11 @@ if (mcpClient) {
       "[Chat API] Available tools:",
       mcpClient?.getAvailableTools().length
     );
+    // list all tools
+    console.log(
+      "[Chat API] Tools:",
+      mcpClient?.getAvailableTools().map((t) => t.name)
+    );
   });
 
   try {

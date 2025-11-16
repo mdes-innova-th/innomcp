@@ -1,5 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { Ollama } from "ollama";
 import EventEmitter from "events";
 import path from "path";
@@ -19,7 +20,8 @@ interface MCPTool {
 interface MCPClientConfig {
   name: string;
   version: string;
-  transport: {
+  // Either provide a stdio transport `command`/`args` or an HTTP `serverUrl`.
+  transport?: {
     command: string;
     args: string[];
   };
@@ -42,17 +44,30 @@ class IntelligentMCPClient extends EventEmitter {
   async initializeClients(configs: MCPClientConfig[]) {
     for (const config of configs) {
       try {
-        const transport = new StdioClientTransport({
-          command: config.transport.command,
-          args: config.transport.args,
-        });
+        let transport: any = null;
+
+        // Prefer stdio transport when command/args provided, otherwise use HTTP transport
+        if (config.transport && config.transport.command) {
+          transport = new StdioClientTransport({
+            command: config.transport.command,
+            args: config.transport.args,
+          });
+        } else if (config.serverUrl) {
+          transport = new StreamableHTTPClientTransport(
+            new URL(config.serverUrl)
+          );
+        } else {
+          throw new Error(
+            "No transport or serverUrl provided for MCP client config"
+          );
+        }
 
         const client = new Client({
           name: config.name,
           version: config.version,
         });
 
-        await client.connect(transport);
+        await client.connect(transport as any);
         this.clients.set(config.name, client);
         console.log(`[MCP Client] Connected to ${config.name}`);
         // Emit event so callers can react when a client connects
@@ -370,10 +385,10 @@ function createDefaultConfigs(serverScript: string): MCPClientConfig[] {
     {
       name: "innomcp-server",
       version: "1.0.0",
-      transport: {
-        command: "node",
-        args: [serverScript, "--stdio"],
-      },
+      // Prefer connecting to the HTTP MCP endpoint provided by `innomcp-server-node`.
+      // If you want to run the server as a stdio subprocess, the existing
+      // `transport` (command/args) can be used instead.
+      serverUrl: process.env.MCP_SERVER_URL || "http://localhost:3012/mcp",
     },
   ];
 }
@@ -381,7 +396,10 @@ function createDefaultConfigs(serverScript: string): MCPClientConfig[] {
 // Initialize default MCP client with multiple servers.
 // This function returns the client immediately and starts connection in background
 // so callers can attach event listeners first to receive connection events.
-function InitMcpClient(ollama: Ollama, ollamaModel: string): IntelligentMCPClient {
+function InitMcpClient(
+  ollama: Ollama,
+  ollamaModel: string
+): IntelligentMCPClient {
   const mcpClient = new IntelligentMCPClient(ollama, ollamaModel);
 
   // Resolve the expected path to the innomcp-server-node built script.
