@@ -6,7 +6,7 @@ import {
   ResourceTemplate,
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { z } from "zod";
+import { set, z } from "zod";
 
 import app from "./app";
 
@@ -280,9 +280,9 @@ mcpserver.registerTool(
 mcpserver.registerTool(
   "webdCountInputAndGroupTool",
   {
-    title: "Count all input violation records on webd Project (webd)",
+    title: "Count all input violation records on webD Project",
     description:
-      "นับจำนวนรายการนำเข้าเว็บไซต์ผิดกฎหมาย บนโปรเจกต์ webd — ค้นหาโดยคำค้นหรือหมวดหมู่ (keyword: webd, เว็บไซต์ผิดกฎหมาย, สถิติ)",
+      "นับจำนวนรายการนำเข้าเว็บไซต์ผิดกฎหมาย บนโปรเจกต์ webD — ค้นหาโดยคำค้นหรือหมวดหมู่ (keyword: webd, เว็บไซต์ผิดกฎหมาย, สถิติ)",
     // Helpful keywords to aid model/tool-selection heuristics (put under annotations/_meta)
     _meta: {
       keywords: [
@@ -315,23 +315,78 @@ mcpserver.registerTool(
     console.log(
       `[MCP Server] Webd count input and group tool request received at ${new Date().toLocaleString()}`
     ); // Log when a request is received
+    const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
+    const webddsbPort = process.env.WEBDDSB_PORT || "3010";
+    const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
     try {
-      const response = await fetch(
-        "http://localhost:3010/api/violation-groups-count",
+      // Fetch CSRF token first (needed by the API)
+      const csrfRes = await fetch(
+        `http://${webddsbHost}:${webddsbPort}/api-get/csrf`,
+        {
+          method: "GET",
+          headers: { "x-api-key": webddsbApiKey },
+        }
+      );
+
+      if (!csrfRes.ok) throw new Error(`csrf GET failed ${csrfRes.status}`);
+
+      const csrfBody = await csrfRes.json();
+      // endpoint in repo returns { csrfToken: "<hash>" }
+      const csrfToken = csrfBody.csrfToken;
+      if (!csrfToken) throw new Error("No csrfToken in response");
+
+      console.log("[MCP Server] CSRF token obtained");
+
+      // Read Set-Cookie header(s)
+      // different fetch impl expose headers differently; try both patterns
+      let setCookieHeaders: string[] = [];
+      const cookiehdr =
+        csrfRes.headers.get && csrfRes.headers.get("set-cookie");
+      if (cookiehdr) {
+        // Node's undici may return single header string
+        setCookieHeaders = [cookiehdr];
+        console.log("[MCP Server] Set-Cookie header");
+      } else {
+        // Try to get all 'set-cookie' headers (Fetch API may not support multiple, so fallback to single)
+        const cookies = csrfRes.headers.get("set-cookie");
+        if (cookies) {
+          setCookieHeaders = Array.isArray(cookies) ? cookies : [cookies];
+          console.log("[MCP Server] Set-Cookie headers array");
+        }
+      }
+
+      // Build Cookie header: take only name=value from each Set-Cookie
+      let cookieHeader = "";
+      if (setCookieHeaders.length) {
+        cookieHeader = setCookieHeaders
+          .map((s) => s.split(";")[0].trim()) // NOTE: simple split; ok for normal cookies
+          .join("; ");
+      }
+
+      // POST forwarding cookie + x-csrf-token
+      const postRes = await fetch(
+        `http://${webddsbHost}:${webddsbPort}/api/urlstats/violation-groups-count`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            "x-api-key": webddsbApiKey,
+            "x-csrf-token": csrfToken,
+            ...(cookieHeader ? { Cookie: cookieHeader } : {}),
           },
           body: JSON.stringify({ query }),
         }
       );
 
-      if (!response.ok) {
-        throw new Error(`API request failed with status ${response.status}`);
+      if (!postRes.ok) {
+        throw new Error(`API request failed with status ${postRes.status}`);
       }
 
-      const data = await response.json();
+      console.log("[MCP Server] POST request successful... fetching data");
+
+      const data = await postRes.json();
+      console.log("[MCP Server] Violation groups count data:", data);
+
       return {
         content: [
           { type: "text", text: JSON.stringify(data) } as {
