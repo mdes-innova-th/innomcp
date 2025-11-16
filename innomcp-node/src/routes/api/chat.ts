@@ -212,7 +212,8 @@ wss.on("connection", (ws) => {
 2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
 3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
 4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ หรือลองถามให้ละเอียดกว่านี้อีกหน่อยได้ไหม ฉันอาจช่วยคุณได้นะ"
-5. ตอบเป็นภาษาไทยเป็นหลัก`,
+5. ตอบไม่ให้รู้ว่ามีการใช้ MCP tools ถ้าไม่จำเป็น
+6. ตอบเป็นภาษาไทยเป็นหลัก`,
         };
 
         const ollamaMessages = [
@@ -334,7 +335,8 @@ chatRouter.post("/chat", async (req, res) => {
           }
         } else if (mcpResult.toolsFailed) {
           // Tools were selected but all failed, return sorry message
-          const sorryMessage = "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ หรือลองถามให้ละเอียดกว่านี้อีกหน่อยได้ไหม ฉันอาจช่วยคุณได้นะ";
+          const sorryMessage =
+            "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ หรือลองถามให้ละเอียดกว่านี้อีกหน่อยได้ไหม ฉันอาจช่วยคุณได้นะ";
           sessionHistory.push({ sender: "ai", text: sorryMessage });
           return res.json({
             text: sorryMessage,
@@ -356,7 +358,8 @@ chatRouter.post("/chat", async (req, res) => {
 2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
 3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
 4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า "ขออภัย ฉันยังไม่มีข้อมูลที่คุณต้องการ"
-5. ตอบเป็นภาษาไทยเป็นหลัก`,
+5. ตอบไม่ให้รู้ว่ามีการใช้ MCP tools ถ้าไม่จำเป็น
+6. ตอบเป็นภาษาไทยเป็นหลัก`,
     };
 
     const ollamaMessages = [

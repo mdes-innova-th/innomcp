@@ -50,7 +50,8 @@ const SYSTEM_PROMPT = `คุณเป็น AI ผู้ช่วยที่�
 2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
 3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
 4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า \"ขออภัย ฉันยังไม่มีข้อมูลที่คุณต้องการ\"
-5. ตอบเป็นภาษาไทยเป็นหลัก`;
+5. ตอบไม่ให้รู้ว่ามีการใช้ MCP tools ถ้าไม่จำเป็น
+6. ตอบเป็นภาษาไทยเป็นหลัก`;
 
 class IntelligentMCPClient extends EventEmitter {
   private clients: Map<string, Client> = new Map();
@@ -83,9 +84,14 @@ class IntelligentMCPClient extends EventEmitter {
       if (response && response.message) return response;
 
       // Unexpected shape, fall through to streaming fallback
-      console.warn('[MCP Client] Ollama returned unexpected response shape, trying stream fallback');
+      console.warn(
+        "[MCP Client] Ollama returned unexpected response shape, trying stream fallback"
+      );
     } catch (err) {
-      console.warn('[MCP Client] Ollama sync chat failed, attempting stream fallback:', String(err));
+      console.warn(
+        "[MCP Client] Ollama sync chat failed, attempting stream fallback:",
+        String(err)
+      );
     }
 
     // Streaming fallback: accumulate chunks
@@ -108,7 +114,7 @@ class IntelligentMCPClient extends EventEmitter {
           content += chunk.message.content;
         } else if (chunk.content) {
           content += chunk.content;
-        } else if (typeof chunk === 'string') {
+        } else if (typeof chunk === "string") {
           content += chunk;
         } else if (chunk.delta && chunk.delta.content) {
           content += chunk.delta.content;
@@ -117,7 +123,7 @@ class IntelligentMCPClient extends EventEmitter {
 
       return { message: { content } };
     } catch (err) {
-      console.error('[MCP Client] Ollama stream fallback failed:', err);
+      console.error("[MCP Client] Ollama stream fallback failed:", err);
       throw err;
     }
   }
@@ -220,7 +226,10 @@ class IntelligentMCPClient extends EventEmitter {
             `[MCP Client] Loaded resource: ${clientName}:${res.name}`
           );
           try {
-            this.emit("resourceLoaded", { client: clientName, resource: res.name });
+            this.emit("resourceLoaded", {
+              client: clientName,
+              resource: res.name,
+            });
           } catch (e) {
             // ignore
           }
@@ -229,7 +238,9 @@ class IntelligentMCPClient extends EventEmitter {
     } catch (err) {
       // Not fatal — resources may not be supported by this client/SDK transport
       // Keep silent except for debug logging
-      console.debug(`[MCP Client] listResources not available for ${clientName}`);
+      console.debug(
+        `[MCP Client] listResources not available for ${clientName}`
+      );
     }
   }
 
@@ -444,7 +455,9 @@ class IntelligentMCPClient extends EventEmitter {
       }
 
       // Text analysis patterns
-      if (/วิเคราะห์|analyze|นับคำ|นับตัวอักษร|word\s+count/i.test(userMessage)) {
+      if (
+        /วิเคราะห์|analyze|นับคำ|นับตัวอักษร|word\s+count/i.test(userMessage)
+      ) {
         const textTool = Array.from(this.tools.keys()).find((key) =>
           /text|analyze/i.test(key)
         );
@@ -476,7 +489,8 @@ class IntelligentMCPClient extends EventEmitter {
           const greetingTool = Array.from(this.tools.keys()).find((k) =>
             /greeting|สวัสดี|ทักทาย/i.test(k)
           );
-          if (greetingTool) patternMatches.push({ tool: greetingTool, score: 9 });
+          if (greetingTool)
+            patternMatches.push({ tool: greetingTool, score: 9 });
         }
       }
 
@@ -598,7 +612,14 @@ ${toolDescriptions}
           // For resources, use resource.inputSchema if available
           const args = resource
             ? await this.generateToolArguments(
-                { name: resource.name, description: resource.description, inputSchema: resource.inputSchema, category: "resource", keywords: [], examples: [] } as MCPTool,
+                {
+                  name: resource.name,
+                  description: resource.description,
+                  inputSchema: resource.inputSchema,
+                  category: "resource",
+                  keywords: [],
+                  examples: [],
+                } as MCPTool,
                 userMessage
               )
             : await this.generateToolArguments(tool!, userMessage);
@@ -633,20 +654,34 @@ ${toolDescriptions}
             // Try several possible resource invocation methods depending on SDK
             try {
               if (typeof (client as any).callResource === "function") {
-                result = await (client as any).callResource({ name: resource.name, arguments: args });
+                result = await (client as any).callResource({
+                  name: resource.name,
+                  arguments: args,
+                });
               } else if (typeof (client as any).getResource === "function") {
                 result = await (client as any).getResource(resource.name, args);
-              } else if (typeof (client as any).requestResource === "function") {
-                result = await (client as any).requestResource(resource.name, args);
+              } else if (
+                typeof (client as any).requestResource === "function"
+              ) {
+                result = await (client as any).requestResource(
+                  resource.name,
+                  args
+                );
               } else {
                 // Last resort: try calling as a tool name (some servers may expose resources as tools)
-                result = await client.callTool({ name: resource.name, arguments: args });
+                result = await client.callTool({
+                  name: resource.name,
+                  arguments: args,
+                });
               }
             } catch (err) {
               throw err;
             }
           } else {
-            result = await client.callTool({ name: actualToolName, arguments: args });
+            result = await client.callTool({
+              name: actualToolName,
+              arguments: args,
+            });
           }
 
           results.push({
@@ -720,10 +755,13 @@ ${schemaStr}
 
 JSON:`;
 
-      const response = await this.chatWithOllama([{ role: "user", content: prompt }], {
-        temperature: 0.1,
-        num_predict: 200,
-      });
+      const response = await this.chatWithOllama(
+        [{ role: "user", content: prompt }],
+        {
+          temperature: 0.1,
+          num_predict: 200,
+        }
+      );
 
       let jsonStr = response.message?.content?.trim() || "";
       console.log(`[MCP Client] Raw args response: ${jsonStr}`);
