@@ -43,7 +43,6 @@ mcpserver.registerResource(
 );
 
 // Register a new tool to interact with the API
-
 // Register a calculator tool
 mcpserver.registerTool(
   "calculatorTool",

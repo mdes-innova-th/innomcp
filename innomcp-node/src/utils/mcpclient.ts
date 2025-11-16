@@ -17,6 +17,15 @@ interface MCPTool {
   examples: string[];
 }
 
+// Interface for MCP Resource Definition
+interface MCPResource {
+  name: string; // resource logical name (e.g. greeting)
+  title?: string;
+  description?: string;
+  uriTemplate?: string;
+  inputSchema?: any;
+}
+
 // Interface for MCP Client Configuration
 interface MCPClientConfig {
   name: string;
@@ -46,6 +55,7 @@ const SYSTEM_PROMPT = `คุณเป็น AI ผู้ช่วยที่�
 class IntelligentMCPClient extends EventEmitter {
   private clients: Map<string, Client> = new Map();
   private tools: Map<string, MCPTool> = new Map();
+  private resources: Map<string, MCPResource> = new Map();
   private ollama: Ollama;
   private ollamaModel: string;
   private ajv: Ajv; // JSON Schema validator
@@ -57,6 +67,59 @@ class IntelligentMCPClient extends EventEmitter {
     this.ollama = ollama;
     this.ollamaModel = ollamaModel;
     this.ajv = new Ajv({ allErrors: true });
+  }
+
+  // Robust Ollama chat wrapper: try non-streaming first, then fall back to streaming
+  private async chatWithOllama(messages: any[], options?: any): Promise<any> {
+    try {
+      const response = await this.ollama.chat({
+        model: this.ollamaModel,
+        messages,
+        stream: false,
+        options: options || {},
+      });
+
+      // If response looks valid, return it
+      if (response && response.message) return response;
+
+      // Unexpected shape, fall through to streaming fallback
+      console.warn('[MCP Client] Ollama returned unexpected response shape, trying stream fallback');
+    } catch (err) {
+      console.warn('[MCP Client] Ollama sync chat failed, attempting stream fallback:', String(err));
+    }
+
+    // Streaming fallback: accumulate chunks
+    try {
+      const stream = await this.ollama.chat({
+        model: this.ollamaModel,
+        messages,
+        stream: true,
+        options: options || {},
+      });
+
+      let content = "";
+
+      // The stream is an async iterator
+      for await (const chunk of stream as any) {
+        if (!chunk) continue;
+
+        // Try common shapes
+        if (chunk.message && chunk.message.content) {
+          content += chunk.message.content;
+        } else if (chunk.content) {
+          content += chunk.content;
+        } else if (typeof chunk === 'string') {
+          content += chunk;
+        } else if (chunk.delta && chunk.delta.content) {
+          content += chunk.delta.content;
+        }
+      }
+
+      return { message: { content } };
+    } catch (err) {
+      console.error('[MCP Client] Ollama stream fallback failed:', err);
+      throw err;
+    }
   }
 
   // Initialize multiple MCP clients
@@ -135,6 +198,38 @@ class IntelligentMCPClient extends EventEmitter {
         `[MCP Client] Failed to load tools from ${clientName}:`,
         error
       );
+    }
+
+    // Also try to load resources (if the client/SDK supports it)
+    try {
+      // some SDKs expose listResources, some may not — guard with try/catch
+      const resourcesList = await (client as any).listResources?.();
+
+      if (resourcesList && Array.isArray(resourcesList.resources)) {
+        for (const r of resourcesList.resources) {
+          const res: MCPResource = {
+            name: r.name || r.template || "unknown",
+            title: r.title,
+            description: r.description,
+            uriTemplate: r.template || r.uriTemplate,
+            inputSchema: r.inputSchema,
+          };
+
+          this.resources.set(`${clientName}:${res.name}`, res);
+          console.log(
+            `[MCP Client] Loaded resource: ${clientName}:${res.name}`
+          );
+          try {
+            this.emit("resourceLoaded", { client: clientName, resource: res.name });
+          } catch (e) {
+            // ignore
+          }
+        }
+      }
+    } catch (err) {
+      // Not fatal — resources may not be supported by this client/SDK transport
+      // Keep silent except for debug logging
+      console.debug(`[MCP Client] listResources not available for ${clientName}`);
     }
   }
 
@@ -368,6 +463,23 @@ class IntelligentMCPClient extends EventEmitter {
         }
       }
 
+      // Greeting/resource patterns (prefer resources when present)
+      if (/สวัสดี|ทักทาย|greeting|hello/i.test(userMessage)) {
+        const greetingKey = Array.from(this.resources.keys()).find((k) =>
+          /greeting|สวัสดี|ทักทาย/i.test(k)
+        );
+
+        if (greetingKey) {
+          patternMatches.push({ tool: greetingKey, score: 11 });
+        } else {
+          // fallback to a tool named greeting if exists
+          const greetingTool = Array.from(this.tools.keys()).find((k) =>
+            /greeting|สวัสดี|ทักทาย/i.test(k)
+          );
+          if (greetingTool) patternMatches.push({ tool: greetingTool, score: 9 });
+        }
+      }
+
       // If we have high-confidence pattern matches, use them
       if (patternMatches.length > 0) {
         const topMatches = patternMatches
@@ -409,17 +521,12 @@ ${toolDescriptions}
         { role: "user", content: prompt },
       ];
 
-      const response = await this.ollama.chat({
-        model: this.ollamaModel,
-        messages: ollamaMessages,
-        stream: false,
-        options: {
-          temperature: 0.1, // Lower temperature for more consistent results
-          num_predict: 100, // Limit response length
-        },
+      const response = await this.chatWithOllama(ollamaMessages, {
+        temperature: 0.1,
+        num_predict: 100,
       });
 
-      const selectedTools = response.message.content.trim();
+      const selectedTools = response.message?.content?.trim() || "";
       console.log(`[MCP Client] Ollama selected tools: ${selectedTools}`);
 
       if (selectedTools === "none" || selectedTools === "") {
@@ -429,13 +536,21 @@ ${toolDescriptions}
 
       const tools = selectedTools
         .split(/\s*,\s*|\n/)
-        .map((tool) => tool.trim())
-        .filter((tool) => this.tools.has(tool));
+        .map((tool: string) => tool.trim())
+        .filter((tool: string) => this.tools.has(tool));
 
-      this.cacheSelection(userMessage, tools);
+      // include resources if Ollama returned a resource-like name
+      const resourceCandidates = selectedTools
+        .split(/\s*,\s*|\n/)
+        .map((s: string) => s.trim())
+        .filter((s: string) => this.resources.has(s));
+
+      const final = [...new Set([...tools, ...resourceCandidates])];
+
+      this.cacheSelection(userMessage, final);
       this.cleanCache(); // Clean expired cache
 
-      return tools;
+      return final;
     } catch (error) {
       console.error("[MCP Client] Error in tool selection:", error);
       return [];
@@ -473,26 +588,36 @@ ${toolDescriptions}
           const [clientName, actualToolName] = toolName.split(":");
           const client = this.clients.get(clientName);
           const tool = this.tools.get(toolName);
+          const resource = this.resources.get(toolName);
 
-          if (!client || !tool) {
-            console.warn(`[MCP Client] Tool or client not found: ${toolName}`);
+          if (!client) {
+            console.warn(`[MCP Client] Client not found for: ${toolName}`);
             break;
           }
 
-          const args = await this.generateToolArguments(tool, userMessage);
+          // For resources, use resource.inputSchema if available
+          const args = resource
+            ? await this.generateToolArguments(
+                { name: resource.name, description: resource.description, inputSchema: resource.inputSchema, category: "resource", keywords: [], examples: [] } as MCPTool,
+                userMessage
+              )
+            : await this.generateToolArguments(tool!, userMessage);
 
-          // Validate arguments
-          const validation = this.validateArguments(args, tool.inputSchema);
-          if (!validation.valid) {
-            console.warn(
-              `[MCP Client] Invalid arguments for ${toolName}:`,
-              validation.errors
-            );
+          // Validate arguments using either tool schema or resource schema
+          const schema = tool ? tool.inputSchema : resource?.inputSchema;
+          if (schema) {
+            const validation = this.validateArguments(args, schema);
+            if (!validation.valid) {
+              console.warn(
+                `[MCP Client] Invalid arguments for ${toolName}:`,
+                validation.errors
+              );
 
-            // Modify arguments to include required properties
-            for (const key of tool.inputSchema.required || []) {
-              if (!(key in args)) {
-                args[key] = tool.inputSchema.properties[key]?.default || "";
+              // Modify arguments to include required properties
+              for (const key of schema.required || []) {
+                if (!(key in args)) {
+                  args[key] = schema.properties?.[key]?.default || "";
+                }
               }
             }
           }
@@ -502,10 +627,27 @@ ${toolDescriptions}
             JSON.stringify(args)
           );
 
-          const result = await client.callTool({
-            name: actualToolName,
-            arguments: args,
-          });
+          let result: any;
+
+          if (resource) {
+            // Try several possible resource invocation methods depending on SDK
+            try {
+              if (typeof (client as any).callResource === "function") {
+                result = await (client as any).callResource({ name: resource.name, arguments: args });
+              } else if (typeof (client as any).getResource === "function") {
+                result = await (client as any).getResource(resource.name, args);
+              } else if (typeof (client as any).requestResource === "function") {
+                result = await (client as any).requestResource(resource.name, args);
+              } else {
+                // Last resort: try calling as a tool name (some servers may expose resources as tools)
+                result = await client.callTool({ name: resource.name, arguments: args });
+              }
+            } catch (err) {
+              throw err;
+            }
+          } else {
+            result = await client.callTool({ name: actualToolName, arguments: args });
+          }
 
           results.push({
             toolName,
@@ -578,17 +720,12 @@ ${schemaStr}
 
 JSON:`;
 
-      const response = await this.ollama.chat({
-        model: this.ollamaModel,
-        messages: [{ role: "user", content: prompt }],
-        stream: false,
-        options: {
-          temperature: 0.1,
-          num_predict: 200,
-        },
+      const response = await this.chatWithOllama([{ role: "user", content: prompt }], {
+        temperature: 0.1,
+        num_predict: 200,
       });
 
-      let jsonStr = response.message.content.trim();
+      let jsonStr = response.message?.content?.trim() || "";
       console.log(`[MCP Client] Raw args response: ${jsonStr}`);
 
       // Clean up response
@@ -695,6 +832,11 @@ JSON:`;
   // Get available tools info
   getAvailableTools(): MCPTool[] {
     return Array.from(this.tools.values());
+  }
+
+  // Get available resources info
+  getAvailableResources(): MCPResource[] {
+    return Array.from(this.resources.values());
   }
 
   // Get clients info

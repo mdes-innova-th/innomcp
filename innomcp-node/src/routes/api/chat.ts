@@ -415,18 +415,26 @@ chatRouter.get("/mcp/tools", (req, res) => {
   }
 
   const tools = mcpClient.getAvailableTools();
+  const resources = mcpClient.getAvailableResources();
   const clients = mcpClient.getConnectedClients();
 
   res.json({
     available: true,
     clients: clients,
     toolsCount: tools.length,
+    resourcesCount: resources.length,
     tools: tools.map((tool) => ({
       name: tool.name,
       description: tool.description,
       category: tool.category,
       keywords: tool.keywords,
       examples: tool.examples,
+    })),
+    resources: resources.map((r) => ({
+      name: r.name,
+      title: r.title,
+      description: r.description,
+      uriTemplate: r.uriTemplate,
     })),
   });
 });
