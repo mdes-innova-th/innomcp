@@ -113,7 +113,7 @@ mcpserver.registerTool(
         .optional()
         .describe("รูปแบบการแสดงผล เช่น 'thai', 'iso', 'timestamp'"),
     }),
-    outputSchema: z.object({ datetime: z.string() }),
+    outputSchema: z.object({ datetime: z.string(), format: z.string() }),
   },
   async ({ format = "thai" }, _extra) => {
     try {
@@ -298,6 +298,8 @@ app.post("/mcp", async (req, res) => {
   res.on("close", () => {
     transport.close();
   });
+
+  console.log("MCP client request received"); // Log when a request is received
 
   await mcpserver.connect(transport);
   await transport.handleRequest(req, res, req.body);

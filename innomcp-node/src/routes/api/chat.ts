@@ -182,11 +182,6 @@ wss.on("connection", (ws) => {
             if (mcpResult.enhancedContext) {
               finalMessage = mcpResult.enhancedContext;
               mcpContext = " (ใช้ข้อมูลจาก MCP tools)";
-              // Update last user message with enhanced context
-              sessionHistory[sessionHistory.length - 1] = {
-                sender: "user",
-                text: finalMessage,
-              };
             }
           } else if (mcpResult.toolsFailed) {
             // Tools were selected but all failed, send sorry message
@@ -216,16 +211,17 @@ wss.on("connection", (ws) => {
 1. จำประวัติการสนทนาที่ผ่านมา
 2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
 3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
-4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า "ขออภัย ฉันยังไม่มีข้อมูลที่คุณต้องการ"
+4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ หรือลองถามให้ละเอียดกว่านี้อีกหน่อยได้ไหม ฉันอาจช่วยคุณได้นะ"
 5. ตอบเป็นภาษาไทยเป็นหลัก`,
         };
 
         const ollamaMessages = [
           systemPrompt,
-          ...sessionHistory.map((m) => ({
+          ...sessionHistory.slice(0, -1).map((m) => ({
             role: m.sender === "ai" ? "assistant" : "user",
             content: m.text,
           })),
+          { role: "user", content: finalMessage },
         ];
 
         console.log(
@@ -335,14 +331,10 @@ chatRouter.post("/chat", async (req, res) => {
 
           if (mcpResult.enhancedContext) {
             finalMessage = mcpResult.enhancedContext;
-            sessionHistory[sessionHistory.length - 1] = {
-              sender: "user",
-              text: finalMessage,
-            };
           }
         } else if (mcpResult.toolsFailed) {
           // Tools were selected but all failed, return sorry message
-          const sorryMessage = "ขออภัย ฉันยังไม่มีข้อมูลที่คุณต้องการ";
+          const sorryMessage = "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ หรือลองถามให้ละเอียดกว่านี้อีกหน่อยได้ไหม ฉันอาจช่วยคุณได้นะ";
           sessionHistory.push({ sender: "ai", text: sorryMessage });
           return res.json({
             text: sorryMessage,
@@ -369,10 +361,11 @@ chatRouter.post("/chat", async (req, res) => {
 
     const ollamaMessages = [
       systemPrompt,
-      ...sessionHistory.map((m: ChatMessage) => ({
+      ...sessionHistory.slice(0, -1).map((m: ChatMessage) => ({
         role: m.sender === "ai" ? "assistant" : "user",
         content: m.text,
       })),
+      { role: "user", content: finalMessage },
     ];
 
     console.log(
