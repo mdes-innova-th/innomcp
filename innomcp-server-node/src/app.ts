@@ -1,10 +1,6 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import apiRouter from "./routes/api";
-import apiCsrfRouter from "./routes/api/csrf";
-import { apiKeyMiddleware } from "./utils/apikey";
-import csrfMiddleware from "./utils/csrf";
 
 // Initialize Express application
 const app = express();
@@ -39,7 +35,7 @@ app.use(express.json({ limit: "50mb" }));
 
 // Default route
 app.get("/", (req, res) => {
-  res.send("webddsb API Server is running");
+  res.send("innomcp Server is running");
 });
 
 // Health check endpoint for Docker
@@ -47,10 +43,5 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Router สำหรับ API endpoint ทั้งหมดที่ต้องการ API key
-app.use("/api", apiKeyMiddleware, csrfMiddleware, apiRouter);
-
-// Router สำหรับ API endpoint CSRF
-app.use("/api-get/csrf", apiCsrfRouter);
 
 export default app;
