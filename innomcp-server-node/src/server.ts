@@ -46,8 +46,32 @@ mcpserver.registerResource(
 mcpserver.registerTool(
   "webdCountInputAndGroupTool",
   {
-    title: "Count all input violation records on webD Project",
-    description: "นับจำนวนรายการนำเข้าเว็บไซต์ผิดกฎหมาย",
+    title: "Count all input violation records on webd Project (webd)",
+    description:
+      "นับจำนวนรายการนำเข้าเว็บไซต์ผิดกฎหมาย บนโปรเจกต์ webd — ค้นหาโดยคำค้นหรือหมวดหมู่ (keyword: webd, เว็บไซต์ผิดกฎหมาย, สถิติ)",
+    // Helpful keywords to aid model/tool-selection heuristics (put under annotations/_meta)
+    _meta: {
+      keywords: [
+        "webd",
+        "webd project",
+        "เว็บไซต์ผิดกฎหมาย",
+        "จำนวน",
+        "นับ",
+        "สถิติ",
+        "violation",
+        "violation count",
+        "สถิติการนำเข้า",
+        "นับรายการนำเข้า",
+        "จำนวนรายการนำเข้า",
+        "รายการนำเข้า",
+        "จำนวนเว็บไซต์ผิดกฎหมาย",
+      ],
+      examples: [
+        "ฉันต้องการสถิติเว็บไซต์ผิดกฎหมายบน webd",
+        "นับจำนวนรายการนำเข้าเกี่ยวกับเว็บการพนัน ใน webd",
+        "แสดงจำนวนเว็บไซต์ผิดกฎหมาย ที่พบใน webd โดยกลุ่มหมวดหมู่ 'การพนัน'",
+      ],
+    },
     inputSchema: z.object({
       query: z.string().describe("คำค้นหาหรือหมวดหมู่ที่ต้องการตรวจสอบ"),
     }),
@@ -183,13 +207,16 @@ mcpserver.registerTool(
   }
 );
 
-// Register a text analysis tool
+// Register a text analysis tool (for generic/plain text only — not website statistics/webd)
 mcpserver.registerTool(
   "textAnalysisTool",
   {
-    title: "Text Analysis Tool",
+    title: "Text Analysis Tool (plain text)",
     description:
-      "เครื่องมือวิเคราะห์ข้อความ นับคำ นับตัวอักษร และวิเคราะห์เนื้อหา",
+      "เครื่องมือวิเคราะห์ข้อความทั่วไป: นับคำ นับตัวอักษร และวิเคราะห์เนื้อหาแบบข้อความธรรมดา — ไม่ใช้สำหรับสถิติเว็บไซต์หรือข้อมูลเชิงโดเมน เช่น 'webd'",
+    _meta: {
+      keywords: ["text analysis", "word count", "char count", "ข้อความ", "วิเคราะห์ข้อความ"],
+    },
     inputSchema: z.object({
       text: z.string().describe("ข้อความที่ต้องการวิเคราะห์"),
     }),
@@ -238,6 +265,55 @@ mcpserver.registerTool(
 
 // Handle incoming MCP requests /////////////////////////////
 app.post("/mcp", async (req, res) => {
+  // Non-invasive pre-filter: if user's message mentions 'webd', inject a short system hint
+  // to bias the model toward the `webdCountInputAndGroupTool` without forcing selection.
+  try {
+    const body = req.body as any;
+    const textCandidates: string[] = [];
+    if (typeof body?.text === "string") textCandidates.push(body.text);
+    if (Array.isArray(body?.messages)) {
+      for (const m of body.messages) {
+        if (typeof m?.text === "string") textCandidates.push(m.text);
+        if (typeof m?.content === "string") textCandidates.push(m.content);
+      }
+    }
+
+    const joined = textCandidates.join(" ").toLowerCase();
+
+    if (joined.includes("webd")) {
+      // Forced pre-filter: call the webd API directly and return its result immediately.
+      // This bypasses MCP tool-selection but guarantees correct handling for 'webd' queries.
+      try {
+        console.log("Pre-filter (forced): detected 'webd' — calling webd API and returning result.");
+        const queryText = (body.text && String(body.text)) || joined || "";
+        const apiResp = await fetch("http://localhost:3010/api/violation-groups-count", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: queryText }),
+        });
+
+        if (!apiResp.ok) {
+          const errText = await apiResp.text().catch(() => "");
+          console.error("webd API error status:", apiResp.status, errText);
+          return res.status(502).json({ error: `webd API failed with status ${apiResp.status}` });
+        }
+
+        const data = await apiResp.json();
+        // Return a simple JSON payload compatible with tool-style responses
+        return res.status(200).json({
+          content: [
+            { type: "text", text: JSON.stringify(data) } as { type: "text"; text: string },
+          ],
+          structuredContent: data,
+        });
+      } catch (err) {
+        console.error("Pre-filter webd API call error:", err);
+        // Fall back to normal MCP processing below
+      }
+    }
+  } catch (e) {
+    console.error("Pre-filter error:", e);
+  }
   // Create a new transport for each request to prevent request ID collisions
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
