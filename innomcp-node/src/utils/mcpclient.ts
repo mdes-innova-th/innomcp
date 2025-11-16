@@ -230,7 +230,82 @@ class IntelligentMCPClient extends EventEmitter {
   // Intelligent tool selection using Ollama
   async selectTools(userMessage: string): Promise<string[]> {
     try {
-      // First, try keyword-based filtering
+      // First, check for specific patterns that should directly select certain tools
+      const lowerMessage = userMessage.toLowerCase();
+
+      // Direct pattern matching for common queries
+      if (
+        lowerMessage.includes("วันนี้") ||
+        lowerMessage.includes("วันที่") ||
+        lowerMessage.includes("เวลา") ||
+        lowerMessage.includes("ตอนนี้") ||
+        lowerMessage.includes("ปัจจุบัน") ||
+        lowerMessage.includes("now") ||
+        lowerMessage.includes("today") ||
+        lowerMessage.includes("time") ||
+        lowerMessage.includes("date")
+      ) {
+        console.log(
+          `[MCP Client] Direct match for datetime tool: ${userMessage}`
+        );
+        const datetimeTool = Array.from(this.tools.keys()).find((key) =>
+          key.includes("dateTimeTool")
+        );
+        if (datetimeTool) {
+          return [datetimeTool];
+        }
+      }
+
+      if (
+        lowerMessage.includes("คำนวณ") ||
+        lowerMessage.includes("calculate") ||
+        lowerMessage.includes("math") ||
+        /[\d+\-*/=]/.test(lowerMessage)
+      ) {
+        console.log(
+          `[MCP Client] Direct match for calculator tool: ${userMessage}`
+        );
+        const calcTool = Array.from(this.tools.keys()).find((key) =>
+          key.includes("calculatorTool")
+        );
+        if (calcTool) {
+          return [calcTool];
+        }
+      }
+
+      if (
+        lowerMessage.includes("วิเคราะห์") ||
+        lowerMessage.includes("analyze") ||
+        lowerMessage.includes("นับคำ") ||
+        lowerMessage.includes("word count")
+      ) {
+        console.log(
+          `[MCP Client] Direct match for text analysis tool: ${userMessage}`
+        );
+        const textTool = Array.from(this.tools.keys()).find((key) =>
+          key.includes("textAnalysisTool")
+        );
+        if (textTool) {
+          return [textTool];
+        }
+      }
+
+      if (
+        lowerMessage.includes("webd") ||
+        lowerMessage.includes("เว็บไซต์ผิดกฎหมาย") ||
+        lowerMessage.includes("violation") ||
+        lowerMessage.includes("สถิติ")
+      ) {
+        console.log(`[MCP Client] Direct match for webd tool: ${userMessage}`);
+        const webdTool = Array.from(this.tools.keys()).find((key) =>
+          key.includes("webdCountInputAndGroupTool")
+        );
+        if (webdTool) {
+          return [webdTool];
+        }
+      }
+
+      // Then, try keyword-based filtering
       const userKeywords = this.extractKeywords("", userMessage);
       const candidateTools: string[] = [];
 
@@ -273,7 +348,12 @@ ${toolDescriptions}
 ตอบเฉพาะชื่อ tools ที่เลือก คั่นด้วยเครื่องหมายจุลภาค เช่น: "client1:tool1,client2:tool2"
 หรือ "none" หากไม่มี tools ที่เหมาะสม
 
-คำแนะนำ: เลือก tool ที่ตรงกับความต้องการของผู้ใช้มากที่สุด เช่น ถ้าถามเวลาให้เลือก dateTimeTool ถ้าถามคำนวณให้เลือก calculatorTool`;
+คำแนะนำสำคัญ:
+- ถ้าถามเกี่ยวกับเวลา วันที่ หรือวันนี้: เลือก dateTimeTool
+- ถ้าถามเกี่ยวกับการคำนวณทางคณิตศาสตร์: เลือก calculatorTool  
+- ถ้าถามเกี่ยวกับการวิเคราะห์ข้อความ: เลือก textAnalysisTool
+- ถ้าถามเกี่ยวกับสถิติเว็บไซต์ผิดกฎหมาย: เลือก webdCountInputAndGroupTool
+- เลือกเฉพาะ tools ที่จำเป็น ไม่ต้องเลือกหลายตัวถ้าไม่จำเป็น`;
 
       const response = await this.ollama.chat({
         model: this.ollamaModel,
@@ -360,7 +440,11 @@ Input Schema: ${schemaStr}
 
 กรุณาสร้างพารามิเตอร์ที่เหมาะสมสำหรับ tool นี้ตามข้อความของผู้ใช้
 ตอบเป็น JSON object ที่ตรงตาม input schema เท่านั้น
-ตอบเฉพาะ JSON ไม่ต้องมีคำอธิบายเพิ่มเติม`;
+ตอบเฉพาะ JSON ไม่ต้องมีคำอธิบายเพิ่มเติม
+
+ตัวอย่างสำหรับ dateTimeTool: {}
+ตัวอย่างสำหรับ calculatorTool: {"expression": "2+2"}
+ตัวอย่างสำหรับ textAnalysisTool: {"text": "ข้อความที่ต้องการวิเคราะห์"}`;
 
       const response = await this.ollama.chat({
         model: this.ollamaModel,
@@ -369,7 +453,17 @@ Input Schema: ${schemaStr}
       });
 
       const jsonStr = response.message.content.trim();
-      return JSON.parse(jsonStr);
+      console.log(`[MCP Client] Generated args for ${tool.name}: ${jsonStr}`);
+
+      try {
+        return JSON.parse(jsonStr);
+      } catch (parseError) {
+        console.warn(
+          `[MCP Client] Failed to parse generated JSON for ${tool.name}, using default args:`,
+          parseError
+        );
+        return {}; // Return empty object as fallback
+      }
     } catch (error) {
       console.error(`[MCP Client] Error generating tool arguments:`, error);
       return {};
@@ -381,6 +475,7 @@ Input Schema: ${schemaStr}
     needsTools: boolean;
     toolResults?: any[];
     enhancedContext?: string;
+    toolsFailed?: boolean;
   }> {
     // Select appropriate tools
     const selectedTools = await this.selectTools(userMessage);
@@ -392,15 +487,22 @@ Input Schema: ${schemaStr}
     // Execute selected tools
     const toolResults = await this.executeTools(selectedTools, userMessage);
 
+    // Check if any tools executed successfully
+    const successfulResults = toolResults.filter((result) => !result.error);
+    if (successfulResults.length === 0) {
+      console.log("[MCP Client] All tools failed, skipping tool usage");
+      return { needsTools: false, toolsFailed: true };
+    }
+
     // Create enhanced context for Ollama
     const enhancedContext = this.createEnhancedContext(
       userMessage,
-      toolResults
+      successfulResults
     );
 
     return {
       needsTools: true,
-      toolResults,
+      toolResults: successfulResults,
       enhancedContext,
     };
   }

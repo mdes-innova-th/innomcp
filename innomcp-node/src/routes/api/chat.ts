@@ -188,6 +188,19 @@ wss.on("connection", (ws) => {
                 text: finalMessage,
               };
             }
+          } else if (mcpResult.toolsFailed) {
+            // Tools were selected but all failed, send sorry message
+            const sorryMessage =
+              "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ หรือลองถามให้ละเอียดกว่านี้อีกหน่อยได้ไหม ฉันอาจช่วยคุณได้นะ";
+            sessionHistory.push({ sender: "ai", text: sorryMessage });
+            ws.send(JSON.stringify({ type: "word", text: sorryMessage }));
+            ws.send(
+              JSON.stringify({
+                type: "history-update",
+                messages: sessionHistory,
+              })
+            );
+            return; // Don't proceed to Ollama
           }
         } catch (mcpError) {
           console.error("[Chat API] MCP processing error:", mcpError);
@@ -203,7 +216,8 @@ wss.on("connection", (ws) => {
 1. จำประวัติการสนทนาที่ผ่านมา
 2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
 3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
-4. ตอบเป็นภาษาไทยเป็นหลัก`,
+4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า "ขออภัย ฉันยังไม่มีข้อมูลที่คุณต้องการ"
+5. ตอบเป็นภาษาไทยเป็นหลัก`,
         };
 
         const ollamaMessages = [
@@ -250,6 +264,7 @@ wss.on("connection", (ws) => {
 
         // Add AI response to history and send back to client
         sessionHistory.push({ sender: "ai", text: aiResponse });
+        console.log(`[Chat API] AI response: >>>>>>>>> ${aiResponse}`);
         console.log(
           `[Chat API] Session now has ${sessionHistory.length} messages (after AI response)`
         );
@@ -325,6 +340,16 @@ chatRouter.post("/chat", async (req, res) => {
               text: finalMessage,
             };
           }
+        } else if (mcpResult.toolsFailed) {
+          // Tools were selected but all failed, return sorry message
+          const sorryMessage = "ขออภัย ฉันยังไม่มีข้อมูลที่คุณต้องการ";
+          sessionHistory.push({ sender: "ai", text: sorryMessage });
+          return res.json({
+            text: sorryMessage,
+            messages: sessionHistory,
+            mcpUsed: false,
+            mcpResults: null,
+          });
         }
       } catch (mcpError) {
         console.error("[Chat API] MCP processing error in POST:", mcpError);
@@ -338,7 +363,8 @@ chatRouter.post("/chat", async (req, res) => {
 1. จำประวัติการสนทนาที่ผ่านมา
 2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
 3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
-4. ตอบเป็นภาษาไทยเป็นหลัก`,
+4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า "ขออภัย ฉันยังไม่มีข้อมูลที่คุณต้องการ"
+5. ตอบเป็นภาษาไทยเป็นหลัก`,
     };
 
     const ollamaMessages = [
