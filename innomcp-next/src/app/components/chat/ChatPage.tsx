@@ -436,8 +436,8 @@ const ChatPage: React.FC = () => {
                     key={index}
                     className={`relative group p-2 rounded-lg ${
                       message.sender === "user"
-                        ? "max-w-xs self-start pr-6 bg-blue-500 text-white text-left rounded-bl-none"
-                        : "max-w-full self-start pr-6 ml-6 mb-5 bg-gray-300 text-black text-left rounded-br-none"
+                        ? "max-w-xs self-start pr-5 bg-blue-500 text-white text-left rounded-bl-none"
+                        : "max-w-full self-start pr-5 ml-6 mb-5 bg-gray-300 text-black text-left rounded-br-none"
                     }`}
                   >
                     {/* Show copy icon on hover for both user and AI messages */}
