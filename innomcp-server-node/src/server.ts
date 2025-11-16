@@ -8,12 +8,37 @@ import {
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { set, z } from "zod";
 
+// Per-method parameter schemas (JSON-RPC method name -> zod schema)
+const methodParamSchemas: Record<string, z.ZodTypeAny> = {
+  // calculator tool via RPC: expects { expression: string }
+  "calculator.evaluate": z.object({ expression: z.string().min(1) }),
+  // datetime tool: optional format
+  "dateTime.get": z.object({ format: z.string().optional() }),
+  // text analysis: requires non-empty text
+  "textAnalysis.analyze": z.object({ text: z.string().min(1) }),
+  // webd count: expects query string
+  "webd.violationGroupsCount": z.object({ query: z.string().min(1) }),
+};
+
 import app from "./app";
 
 dotenv.config();
 
 const host = process.env.SERVER_HOST || "0.0.0.0";
 const port = parseInt(process.env.SERVER_PORT || "3012", 10);
+
+// Helper: send a JSON-RPC error response (default: -32602 Invalid params)
+function sendJsonRpcError(
+  res: any,
+  id: unknown,
+  code = -32602,
+  message = "Invalid params",
+  data?: any
+) {
+  res
+    .status(400)
+    .json({ jsonrpc: "2.0", error: { code, message, data }, id: id ?? null });
+}
 
 // Create HTTP server /////////////////////////////////////
 const server = http.createServer(app);
@@ -278,7 +303,7 @@ mcpserver.registerTool(
 );
 
 mcpserver.registerTool(
-  "webdCountInputAndGroupTool",
+  "webdTool_count_input_by_group",
   {
     title: "Count all input violation records on webD Project",
     description:
@@ -288,17 +313,22 @@ mcpserver.registerTool(
       keywords: [
         "webd",
         "webd project",
-        "เว็บไซต์ผิดกฎหมาย",
+        "url",
+        "เว็บ",
+        "เว็บไซต์",
+        "เว็บพนัน",
+        "พนัน",
+        "เว็บลามก",
+        "ลามก",
+        "ประเภท",
+        "หมวดหมู่",
+        "ผิดกฎหมาย",
         "จำนวน",
         "นับ",
         "สถิติ",
         "violation",
         "violation count",
-        "สถิติการนำเข้า",
-        "นับรายการนำเข้า",
-        "จำนวนรายการนำเข้า",
-        "รายการนำเข้า",
-        "จำนวนเว็บไซต์ผิดกฎหมาย",
+        "การนำเข้า",
       ],
       examples: [
         "ฉันต้องการสถิติเว็บไซต์ผิดกฎหมายบน webd",
@@ -309,7 +339,16 @@ mcpserver.registerTool(
     inputSchema: z.object({
       query: z.string().describe("คำค้นหาหรือหมวดหมู่ที่ต้องการตรวจสอบ"),
     }),
-    outputSchema: z.object({ count: z.number() }),
+    // The external API returns an object like: { success: boolean, data: [{ group_name, url_count }, ...] }
+    outputSchema: z.object({
+      success: z.boolean(),
+      data: z.array(
+        z.object({
+          group_name: z.string(),
+          url_count: z.number(),
+        })
+      ),
+    }),
   },
   async ({ query }, _extra) => {
     console.log(
@@ -403,8 +442,225 @@ mcpserver.registerTool(
   }
 );
 
+// นับจำนวนรายการนำเข้าเว็บไซต์ผิดกฎหมาย บนโปรเจกต์ webD ที่มีคำสั่งศาล
+mcpserver.registerTool(
+  "webdTool_count_court_by_group",
+  {
+    title: "Count all input violation records on webD Project",
+    description:
+      "นับจำนวนรายการนำเข้าเว็บไซต์ผิดกฎหมาย บนโปรเจกต์ webD ที่มีคำสั่งศาล",
+    // Helpful keywords to aid model/tool-selection heuristics (put under annotations/_meta)
+    _meta: {
+      keywords: [
+        "webd",
+        "webd project",
+        "court",
+        "คำสั่งศาล",
+        "url",
+        "เว็บ",
+        "เว็บไซต์",
+        "เว็บพนัน",
+        "พนัน",
+        "เว็บลามก",
+        "ลามก",
+        "ประเภท",
+        "หมวดหมู่",
+        "ผิดกฎหมาย",
+        "จำนวน",
+        "นับ",
+        "สถิติ",
+      ],
+      examples: [
+        "ฉันต้องการสถิติเว็บไซต์ผิดกฎหมายบน webd ที่มีคำสั่งศาล",
+        "นับจำนวนรายการนำเข้าเกี่ยวกับเว็บการพนัน ใน webd ที่มีคำสั่งศาล",
+        "แสดงจำนวนเว็บไซต์ผิดกฎหมายการพนันที่มีคำสั่งศาล ใน webd",
+      ],
+    },
+    inputSchema: z.object({
+      query: z.string().describe("คำค้นหาหรือหมวดหมู่ที่ต้องการตรวจสอบ"),
+    }),
+    // The external API returns an object like: { success: boolean, data: [{ group_name, url_count }, ...] }
+    outputSchema: z.object({
+      success: z.boolean(),
+      data: z.array(
+        z.object({
+          group_name: z.string(),
+          url_count: z.number(),
+        })
+      ),
+    }),
+  },
+  async ({ query }, _extra) => {
+    console.log(
+      `[MCP Server] Webd count input and group tool request received at ${new Date().toLocaleString()}`
+    ); // Log when a request is received
+    const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
+    const webddsbPort = process.env.WEBDDSB_PORT || "3010";
+    const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
+    try {
+      // Fetch CSRF token first (needed by the API)
+      const csrfRes = await fetch(
+        `http://${webddsbHost}:${webddsbPort}/api-get/csrf`,
+        {
+          method: "GET",
+          headers: { "x-api-key": webddsbApiKey },
+        }
+      );
+
+      if (!csrfRes.ok) throw new Error(`csrf GET failed ${csrfRes.status}`);
+
+      const csrfBody = await csrfRes.json();
+      // endpoint in repo returns { csrfToken: "<hash>" }
+      const csrfToken = csrfBody.csrfToken;
+      if (!csrfToken) throw new Error("No csrfToken in response");
+
+      console.log("[MCP Server] CSRF token obtained");
+
+      // Read Set-Cookie header(s)
+      // different fetch impl expose headers differently; try both patterns
+      let setCookieHeaders: string[] = [];
+      const cookiehdr =
+        csrfRes.headers.get && csrfRes.headers.get("set-cookie");
+      if (cookiehdr) {
+        // Node's undici may return single header string
+        setCookieHeaders = [cookiehdr];
+        console.log("[MCP Server] Set-Cookie header");
+      } else {
+        // Try to get all 'set-cookie' headers (Fetch API may not support multiple, so fallback to single)
+        const cookies = csrfRes.headers.get("set-cookie");
+        if (cookies) {
+          setCookieHeaders = Array.isArray(cookies) ? cookies : [cookies];
+          console.log("[MCP Server] Set-Cookie headers array");
+        }
+      }
+
+      // Build Cookie header: take only name=value from each Set-Cookie
+      let cookieHeader = "";
+      if (setCookieHeaders.length) {
+        cookieHeader = setCookieHeaders
+          .map((s) => s.split(";")[0].trim()) // NOTE: simple split; ok for normal cookies
+          .join("; ");
+      }
+
+      // POST forwarding cookie + x-csrf-token
+      const postRes = await fetch(
+        `http://${webddsbHost}:${webddsbPort}/api/urlstats/court-count`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": webddsbApiKey,
+            "x-csrf-token": csrfToken,
+            ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+          },
+          body: JSON.stringify({ query }),
+        }
+      );
+
+      if (!postRes.ok) {
+        throw new Error(`API request failed with status ${postRes.status}`);
+      }
+
+      console.log("[MCP Server] POST request successful... fetching data");
+
+      const data = await postRes.json();
+      console.log("[MCP Server] Violation groups count data:", data);
+
+      return {
+        content: [
+          { type: "text", text: JSON.stringify(data) } as {
+            type: "text";
+            text: string;
+          },
+        ],
+        structuredContent: data,
+      };
+    } catch (error) {
+      console.error("Error fetching violation groups count:", error);
+      throw error;
+    }
+  }
+);
+
 // Handle incoming MCP requests /////////////////////////////
 app.post("/mcp", async (req, res) => {
+  // Basic validation for JSON-RPC request body
+  const body = req.body;
+  if (!body || (typeof body !== "object" && !Array.isArray(body))) {
+    return res.status(400).json({
+      jsonrpc: "2.0",
+      error: {
+        code: -32600,
+        message: "Invalid Request",
+        data: "request body must be an object or array",
+      },
+      id: null,
+    });
+  }
+
+  // If single request object includes params, ensure params is object or array
+  if (
+    !Array.isArray(body) &&
+    Object.prototype.hasOwnProperty.call(body, "params")
+  ) {
+    const params = (body as any).params;
+    if (
+      params !== undefined &&
+      typeof params !== "object" &&
+      !Array.isArray(params)
+    ) {
+      return sendJsonRpcError(
+        res,
+        (body as any).id ?? null,
+        -32602,
+        "Invalid params",
+        "params must be an object or array"
+      );
+    }
+  }
+
+  // If this is a single JSON-RPC request with a method, run per-method schema validation
+  if (!Array.isArray(body) && typeof (body as any).method === "string") {
+    const methodName = (body as any).method as string;
+    const schema = methodParamSchemas[methodName];
+    const params = (body as any).params;
+
+    if (schema) {
+      try {
+        // For positional params (array), don't attempt object parse — require named params for these methods
+        if (Array.isArray(params)) {
+          return sendJsonRpcError(
+            res,
+            (body as any).id ?? null,
+            -32602,
+            "Invalid params",
+            "Positional params are not supported for this method; use named params (object)"
+          );
+        }
+
+        schema.parse(params ?? {});
+      } catch (err) {
+        // zod error -> include details in data for better debugging
+        if (err instanceof z.ZodError) {
+          return sendJsonRpcError(
+            res,
+            (body as any).id ?? null,
+            -32602,
+            "Invalid params",
+            err.errors
+          );
+        }
+        return sendJsonRpcError(
+          res,
+          (body as any).id ?? null,
+          -32602,
+          "Invalid params",
+          String(err)
+        );
+      }
+    }
+  }
+
   // Create a new transport for each request to prevent request ID collisions
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
