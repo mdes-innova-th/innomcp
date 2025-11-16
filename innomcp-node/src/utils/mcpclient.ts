@@ -125,38 +125,26 @@ class IntelligentMCPClient extends EventEmitter {
   private categorizeTools(name: string, description?: string): string {
     const text = `${name} ${description || ""}`.toLowerCase();
 
-    if (
-      text.includes("database") ||
-      text.includes("sql") ||
-      text.includes("query")
-    ) {
-      return "database";
-    } else if (
-      text.includes("file") ||
-      text.includes("read") ||
-      text.includes("write")
-    ) {
-      return "file";
-    } else if (
-      text.includes("api") ||
-      text.includes("http") ||
-      text.includes("request")
-    ) {
-      return "api";
-    } else if (
-      text.includes("math") ||
-      text.includes("calculate") ||
-      text.includes("compute")
-    ) {
-      return "computation";
-    } else if (
-      text.includes("text") ||
-      text.includes("process") ||
-      text.includes("analyze")
-    ) {
-      return "text-processing";
+    // Mapping of category -> keywords. This is easier to extend
+    // and avoids a long if/else chain or a less-idiomatic switch(true).
+    const categories: { category: string; keywords: string[] }[] = [
+      { category: "database", keywords: ["database", "sql", "query"] },
+      { category: "file", keywords: ["file", "read", "write"] },
+      { category: "api", keywords: ["api", "http", "request"] },
+      { category: "computation", keywords: ["math", "calculate", "compute"] },
+      { category: "text-processing", keywords: ["text", "process", "analyze"] },
+    ];
+
+    for (const c of categories) {
+      if (c.keywords.some((k) => text.includes(k))) {
+        console.log(
+          `[MCP Client] Tool categorized as '${c.category}': ${name}`
+        );
+        return c.category;
+      }
     }
 
+    console.log(`[MCP Client] Tool categorized as 'general': ${name}`);
     return "general";
   }
 
@@ -180,16 +168,41 @@ class IntelligentMCPClient extends EventEmitter {
   // Generate example usage for tools
   private generateExamples(name: string, description?: string): string[] {
     const examples: string[] = [];
+    const key = `${name} ${description || ""}`.toLowerCase();
 
-    if (name.includes("webd")) {
-      examples.push("นับจำนวนเว็บไซต์ผิดกฎหมาย");
-      examples.push("ตรวจสอบสถิติเว็บไซต์ผิดกฎหมาย");
-      examples.push("รายงานการละเมิดเว็บไซต์");
-      examples.push("เว็บไซต์ผิดกฎหมายมีกี่ url");
-      examples.push("เว็บไซต์ผิดกฎหมายมีกี่ domain");
-    } else if (name.includes("greeting")) {
-      examples.push("สร้างข้อความทักทาย");
-      examples.push("สวัสดีภาษาไทย");
+    // Use switch(true) to allow boolean/regex checks per case
+    switch (true) {
+      case /webd/.test(key): {
+        console.log(`[MCP Client] Generating examples for webd tool: ${name}`);
+        examples.push("นับจำนวนเว็บไซต์ผิดกฎหมาย");
+        examples.push("ตรวจสอบสถิติเว็บไซต์ผิดกฎหมาย");
+        examples.push("รายงานการละเมิดเว็บไซต์");
+        examples.push("เว็บไซต์ผิดกฎหมายมีกี่ url");
+        examples.push("เว็บไซต์ผิดกฎหมายมีกี่ domain");
+        break;
+      }
+      case /greeting/.test(key): {
+        console.log(
+          `[MCP Client] Generating examples for greeting tool: ${name}`
+        );
+        examples.push("สร้างข้อความทักทาย");
+        examples.push("สวัสดีภาษาไทย");
+        break;
+      }
+      default: {
+        console.log(
+          `[MCP Client] Generating examples for general tool: ${name}`
+        );
+        // Small fallback: prefer a short example derived from the description if available,
+        // otherwise add a generic example to help the model.
+        if (description && description.trim().length > 0) {
+          const short = description.trim().split(/\.|\n/)[0];
+          examples.push(`ตัวอย่างการใช้งาน: ${short}`);
+        } else {
+          examples.push("ตัวอย่าง: ขอข้อมูลโดยใช้ tool นี้");
+        }
+        break;
+      }
     }
 
     return examples;
