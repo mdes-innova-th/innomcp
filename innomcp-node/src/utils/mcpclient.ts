@@ -172,6 +172,32 @@ class IntelligentMCPClient extends EventEmitter {
 
     // Use switch(true) to allow boolean/regex checks per case
     switch (true) {
+      case /greeting/.test(key): {
+        console.log(
+          `[MCP Client] Generating examples for greeting tool: ${name}`
+        );
+        examples.push("สร้างข้อความทักทาย");
+        examples.push("สวัสดีภาษาไทย");
+        break;
+      }
+
+      case /datetime|time|date/.test(key): {
+        console.log(
+          `[MCP Client] Generating examples for datetime tool: ${name}`
+        );
+        examples.push("แสดงวันเวลาปัจจุบัน");
+        examples.push("วันที่และเวลาปัจจุบัน");
+        examples.push("วันนี้วันที่เท่าไหร่");
+        examples.push("วันนี้วันอะไร");
+        examples.push("เวลาปัจจุบัน");
+        examples.push("เวลาตอนนี้");
+        examples.push("เวลาตอนนี้ที่ประเทศไทย");
+        examples.push("เวลาปัจจุบันในรูปแบบ ISO");
+        examples.push("เวลาปัจจุบันในรูปแบบ timestamp");
+        examples.push("เวลาปัจจุบันในรูปแบบไทย");
+        break;
+      }
+
       case /webd/.test(key): {
         console.log(`[MCP Client] Generating examples for webd tool: ${name}`);
         examples.push("นับจำนวนเว็บไซต์ผิดกฎหมาย");
@@ -181,14 +207,7 @@ class IntelligentMCPClient extends EventEmitter {
         examples.push("เว็บไซต์ผิดกฎหมายมีกี่ domain");
         break;
       }
-      case /greeting/.test(key): {
-        console.log(
-          `[MCP Client] Generating examples for greeting tool: ${name}`
-        );
-        examples.push("สร้างข้อความทักทาย");
-        examples.push("สวัสดีภาษาไทย");
-        break;
-      }
+
       default: {
         console.log(
           `[MCP Client] Generating examples for general tool: ${name}`
