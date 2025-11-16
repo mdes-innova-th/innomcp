@@ -230,8 +230,31 @@ class IntelligentMCPClient extends EventEmitter {
   // Intelligent tool selection using Ollama
   async selectTools(userMessage: string): Promise<string[]> {
     try {
-      const toolDescriptions = Array.from(this.tools.entries())
-        .map(([key, tool]) => {
+      // First, try keyword-based filtering
+      const userKeywords = this.extractKeywords("", userMessage);
+      const candidateTools: string[] = [];
+
+      for (const [toolKey, tool] of this.tools.entries()) {
+        const overlap = userKeywords.filter((keyword) =>
+          tool.keywords.some(
+            (toolKeyword) =>
+              toolKeyword.includes(keyword) || keyword.includes(toolKeyword)
+          )
+        );
+        if (overlap.length > 0) {
+          candidateTools.push(toolKey);
+        }
+      }
+
+      // If no candidates from keywords, use all tools
+      const toolsToConsider =
+        candidateTools.length > 0
+          ? candidateTools
+          : Array.from(this.tools.keys());
+
+      const toolDescriptions = toolsToConsider
+        .map((key) => {
+          const tool = this.tools.get(key)!;
           return `${key}: ${tool.description} (คำสำคัญ: ${tool.keywords.join(
             ", "
           )}) (ตัวอย่าง: ${tool.examples.join(", ")})`;
@@ -246,9 +269,11 @@ class IntelligentMCPClient extends EventEmitter {
 MCP Tools ที่มีอยู่:
 ${toolDescriptions}
 
-กรุณาวิเคราะห์ข้อความของผู้ใช้และเลือก MCP tools ที่เหมาะสม หากไม่มี tools ที่เหมาะสม ให้ตอบว่า "none"
+กรุณาวิเคราะห์ข้อความของผู้ใช้และเลือก MCP tools ที่เหมาะสมที่สุด หากไม่มี tools ที่เหมาะสม ให้ตอบว่า "none"
 ตอบเฉพาะชื่อ tools ที่เลือก คั่นด้วยเครื่องหมายจุลภาค เช่น: "client1:tool1,client2:tool2"
-หรือ "none" หากไม่มี tools ที่เหมาะสม`;
+หรือ "none" หากไม่มี tools ที่เหมาะสม
+
+คำแนะนำ: เลือก tool ที่ตรงกับความต้องการของผู้ใช้มากที่สุด เช่น ถ้าถามเวลาให้เลือก dateTimeTool ถ้าถามคำนวณให้เลือก calculatorTool`;
 
       const response = await this.ollama.chat({
         model: this.ollamaModel,

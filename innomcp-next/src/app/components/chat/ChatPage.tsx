@@ -130,6 +130,7 @@ const ChatPage: React.FC = () => {
 
           // Handle word-by-word response
           if (message.type === "word" && message.text) {
+            console.log("[Frontend] Received word response:", message.text);
             setMessages((prevMessages) => {
               if (
                 prevMessages.length > 0 &&
@@ -160,7 +161,11 @@ const ChatPage: React.FC = () => {
           }
           // Handle history update from server
           else if (message.type === "history-update" && message.messages) {
-            console.log("Received history update:", message.messages);
+            console.log(
+              "[Frontend] Received history update with",
+              message.messages.length,
+              "messages"
+            );
             setMessages(message.messages);
             setIsWaitingForResponse(false);
           }
@@ -170,6 +175,7 @@ const ChatPage: React.FC = () => {
             message.type !== "mcp-status" &&
             message.type !== "mcp-context"
           ) {
+            console.log("[Frontend] Received text response:", message.text);
             setMessages((prevMessages) => {
               if (
                 prevMessages.length > 0 &&
@@ -198,6 +204,7 @@ const ChatPage: React.FC = () => {
             });
             setIsWaitingForResponse(false);
           } else if (message.error) {
+            console.log("[Frontend] Received error response:", message.error);
             console.error("Server error:", message.error);
             setIsWaitingForResponse(false);
           }
@@ -429,16 +436,20 @@ const ChatPage: React.FC = () => {
                     key={index}
                     className={`relative group p-2 rounded-lg ${
                       message.sender === "user"
-                        ? "max-w-xs self-start bg-blue-500 text-white text-left rounded-bl-none"
-                        : "max-w-full self-start ml-6 mb-5 bg-gray-300 text-black text-left rounded-br-none"
+                        ? "max-w-xs self-start pr-6 bg-blue-500 text-white text-left rounded-bl-none"
+                        : "max-w-full self-start pr-6 ml-6 mb-5 bg-gray-300 text-black text-left rounded-br-none"
                     }`}
                   >
-                    {/* AI message: show copy icon on hover without overlapping text */}
-                    {isAI && !message.isAnimating && (
+                    {/* Show copy icon on hover for both user and AI messages */}
+                    {!message.isAnimating && (
                       <div className="absolute top-1 right-0 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                         <button
                           title="คัดลอกข้อความ"
-                          className="text-gray-500 hover:text-green-600 pointer-events-auto cursor-pointer"
+                          className={`pointer-events-auto cursor-pointer ${
+                            message.sender === "user"
+                              ? "text-white hover:text-black"
+                              : "text-gray-500 hover:text-black"
+                          }`}
                           onClick={() => {
                             navigator.clipboard.writeText(message.text);
                           }}
