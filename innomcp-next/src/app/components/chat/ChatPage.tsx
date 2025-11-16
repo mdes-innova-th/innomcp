@@ -391,11 +391,31 @@ const ChatPage: React.FC = () => {
     useEffect(() => {
       const interval = setInterval(() => {
         setDots((prev) => (prev.length < 3 ? prev + "." : "."));
-      }, 500);
+      }, 300);
       return () => clearInterval(interval);
     }, []);
 
     return <span>{dots}</span>;
+  };
+
+  // Typing dots for AI balloon (three bouncing dots)
+  const TypingDots: React.FC = () => {
+    return (
+      <span className="inline-flex items-center gap-1">
+        <span
+          className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-[bounce_0.45s_linear_infinite]"
+          style={{ animationDelay: "0s" }}
+        />
+        <span
+          className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-[bounce_0.45s_linear_infinite]"
+          style={{ animationDelay: "0.08s" }}
+        />
+        <span
+          className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-[bounce_0.45s_linear_infinite]"
+          style={{ animationDelay: "0.16s" }}
+        />
+      </span>
+    );
   };
 
   // Add debug logs to check WebSocket and waiting state
@@ -501,13 +521,25 @@ const ChatPage: React.FC = () => {
                       <div className="whitespace-pre-wrap wrap-break-word">
                         {message.text}
                         {isAI && message.isAnimating && (
-                          <span className="animate-pulse">|</span>
+                          <span className="ml-2 inline-block align-middle text-gray-600">
+                            <TypingDots />
+                          </span>
                         )}
                       </div>
                     )}
                   </div>
                 );
               })}
+              {/* When waiting for AI response (no message yet), show a typing balloon */}
+              {isWaitingForResponse && (
+                <div
+                  className={`relative p-2 rounded-lg max-w-full self-start pr-5 ml-6 mb-5 bg-gray-300 text-black text-left rounded-br-none`}
+                >
+                  <div className="whitespace-pre-wrap flex items-center">
+                    <TypingDots />
+                  </div>
+                </div>
+              )}
             </div>
             <textarea
               ref={textareaRef}

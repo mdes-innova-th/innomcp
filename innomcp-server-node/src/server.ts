@@ -307,7 +307,7 @@ mcpserver.registerTool(
   {
     title: "Count all input violation records on webD Project",
     description:
-      "นับจำนวนรายการนำเข้าเว็บไซต์ผิดกฎหมาย บนโปรเจกต์ webD — ค้นหาโดยคำค้นหรือหมวดหมู่ (keyword: webd, เว็บไซต์ผิดกฎหมาย, สถิติ)",
+      "แสดงจำนวนเว็บไซต์ผิดกฎหมายแยกตามกลุ่ม",
     // Helpful keywords to aid model/tool-selection heuristics (put under annotations/_meta)
     _meta: {
       keywords: [
@@ -333,7 +333,7 @@ mcpserver.registerTool(
       examples: [
         "ฉันต้องการสถิติเว็บไซต์ผิดกฎหมายบน webd",
         "นับจำนวนรายการนำเข้าเกี่ยวกับเว็บการพนัน ใน webd",
-        "แสดงจำนวนเว็บไซต์ผิดกฎหมาย ที่พบใน webd โดยกลุ่มหมวดหมู่ 'การพนัน'",
+        "แสดงจำนวนเว็บไซต์ผิดกฎหมาย ที่พบใน webd โดยแยกกลุ่ม 'การพนัน'",
       ],
     },
     inputSchema: z.object({
