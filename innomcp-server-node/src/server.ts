@@ -299,7 +299,7 @@ app.post("/mcp", async (req, res) => {
     transport.close();
   });
 
-  console.log("MCP client request received"); // Log when a request is received
+  console.log(`MCP client request received at ${new Date().toLocaleString()}`); // Log when a request is received
 
   await mcpserver.connect(transport);
   await transport.handleRequest(req, res, req.body);

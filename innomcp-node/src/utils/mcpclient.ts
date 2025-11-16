@@ -7,14 +7,6 @@ import path from "path";
 import fs from "fs";
 import Ajv from "ajv"; // เพิ่ม JSON Schema validator
 
-// Define the system prompt for Ollama
-const SYSTEM_PROMPT = `คุณเป็น AI ผู้ช่วยที่มีความสำคัญ:
-1. จำประวัติการสนทนาที่ผ่านมา
-2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
-3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
-4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า \"ขออภัย ฉันยังไม่มีข้อมูลที่คุณต้องการ\"
-5. ตอบเป็นภาษาไทยเป็นหลัก`;
-
 // Interface for MCP Tool Definition
 interface MCPTool {
   name: string;
@@ -42,6 +34,14 @@ interface ToolSelectionCache {
   tools: string[];
   timestamp: number;
 }
+
+// Define the system prompt for Ollama
+const SYSTEM_PROMPT = `คุณเป็น AI ผู้ช่วยที่มีความสำคัญ:
+1. จำประวัติการสนทนาที่ผ่านมา
+2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
+3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
+4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า \"ขออภัย ฉันยังไม่มีข้อมูลที่คุณต้องการ\"
+5. ตอบเป็นภาษาไทยเป็นหลัก`;
 
 class IntelligentMCPClient extends EventEmitter {
   private clients: Map<string, Client> = new Map();
@@ -703,7 +703,9 @@ JSON:`;
 function getToolDescriptions(tools: Map<string, MCPTool>): string {
   return Array.from(tools.values())
     .map((tool) => {
-      return `- ${tool.name}\n  คำอธิบาย: ${tool.description}\n  หมวดหมู่: ${tool.category}\n  ตัวอย่าง: ${tool.examples.slice(0, 3).join(", ")}`;
+      return `- ${tool.name}\n  คำอธิบาย: ${tool.description}\n  หมวดหมู่: ${
+        tool.category
+      }\n  ตัวอย่าง: ${tool.examples.slice(0, 3).join(", ")}`;
     })
     .join("\n\n");
 }
