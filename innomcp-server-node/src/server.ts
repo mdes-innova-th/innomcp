@@ -180,7 +180,10 @@ mcpserver.registerTool(
       ],
     },
     inputSchema: z.object({
-      text: z.string().describe("ข้อความที่ต้องการวิเคราะห์"),
+      text: z
+        .string()
+        .min(1, "ข้อความต้องไม่ว่าง")
+        .describe("ข้อความที่ต้องการวิเคราะห์"),
     }),
     outputSchema: z.object({
       content: z.array(
