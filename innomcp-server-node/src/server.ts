@@ -306,9 +306,20 @@ mcpserver.registerTool(
   "webdTool_count_input_by_group",
   {
     title: "Count all input violation records on webD Project",
-    description:
-      "ดึงจำนวนเว็บไซต์ผิดกฎหมายแยกตามกลุ่ม",
-    // Helpful keywords to aid model/tool-selection heuristics (put under annotations/_meta)
+    description: `ดึงจำนวนเว็บไซต์ผิดกฎหมายแยกตามกลุ่ม (Count violation URLs by category)
+    
+Returns statistics with these fields:
+- group_name (ชื่อกลุ่ม/หมวดหมู่/ประเภท): Category of violation (e.g., "hate speech", "gambling", "pornography")
+- url_count (จำนวน URL/จำนวนเว็บไซต์/จำนวนรายการ): Number of URLs in each category
+
+Example response:
+{
+  "success": true,
+  "data": [
+    { "group_name": "hate speech", "url_count": 618 },
+    { "group_name": "gambling", "url_count": 1523 }
+  ]
+}`,
     _meta: {
       keywords: [
         "webd",
@@ -337,17 +348,24 @@ mcpserver.registerTool(
       ],
     },
     inputSchema: z.object({
-      query: z.string().describe("คำค้นหาหรือหมวดหมู่ที่ต้องการตรวจสอบ"),
+      query: z
+        .string()
+        .describe(
+          "คำค้นหาหรือหมวดหมู่ที่ต้องการตรวจสอบ (Search term or category name)"
+        ),
     }),
-    // The external API returns an object like: { success: boolean, data: [{ group_name, url_count }, ...] }
     outputSchema: z.object({
-      success: z.boolean(),
-      data: z.array(
-        z.object({
-          group_name: z.string(),
-          url_count: z.number(),
-        })
-      ),
+      success: z.boolean().describe("สถานะการดึงข้อมูล (Operation status)"),
+      data: z
+        .array(
+          z.object({
+            group_name: z
+              .string()
+              .describe("ชื่อกลุ่ม/หมวดหมู่ (Category name)"),
+            url_count: z.number().describe("จำนวน URL (Number of URLs)"),
+          })
+        )
+        .describe("รายการสถิติแยกตามกลุ่ม (Statistics by category)"),
     }),
   },
   async ({ query }, _extra) => {
@@ -681,10 +699,12 @@ mcpserver.registerTool(
     }),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        group_name: z.string(),
-        url_count: z.number(),
-      })),
+      data: z.array(
+        z.object({
+          group_name: z.string(),
+          url_count: z.number(),
+        })
+      ),
     }),
   },
   async ({ startDate, endDate, sourceType, selectedGroups }, _extra) => {
@@ -712,7 +732,8 @@ mcpserver.registerTool(
 
       // Read Set-Cookie header(s)
       let setCookieHeaders: string[] = [];
-      const cookiehdr = csrfRes.headers.get && csrfRes.headers.get("set-cookie");
+      const cookiehdr =
+        csrfRes.headers.get && csrfRes.headers.get("set-cookie");
       if (cookiehdr) {
         setCookieHeaders = [cookiehdr];
       } else {
@@ -1070,11 +1091,13 @@ mcpserver.registerTool(
     }),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        date: z.string(),
-        group_name: z.string(),
-        url_count: z.number(),
-      })),
+      data: z.array(
+        z.object({
+          date: z.string(),
+          group_name: z.string(),
+          url_count: z.number(),
+        })
+      ),
     }),
   },
   async ({ startDate, endDate, sourceType, selectedGroups }, _extra) => {
@@ -1102,7 +1125,8 @@ mcpserver.registerTool(
 
       // Read Set-Cookie header(s)
       let setCookieHeaders: string[] = [];
-      const cookiehdr = csrfRes.headers.get && csrfRes.headers.get("set-cookie");
+      const cookiehdr =
+        csrfRes.headers.get && csrfRes.headers.get("set-cookie");
       if (cookiehdr) {
         setCookieHeaders = [cookiehdr];
       } else {
@@ -1193,11 +1217,13 @@ mcpserver.registerTool(
     }),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        month: z.string(),
-        group_name: z.string(),
-        url_count: z.number(),
-      })),
+      data: z.array(
+        z.object({
+          month: z.string(),
+          group_name: z.string(),
+          url_count: z.number(),
+        })
+      ),
     }),
   },
   async ({ startMonth, endMonth, sourceType, selectedGroups }, _extra) => {
@@ -1225,7 +1251,8 @@ mcpserver.registerTool(
 
       // Read Set-Cookie header(s)
       let setCookieHeaders: string[] = [];
-      const cookiehdr = csrfRes.headers.get && csrfRes.headers.get("set-cookie");
+      const cookiehdr =
+        csrfRes.headers.get && csrfRes.headers.get("set-cookie");
       if (cookiehdr) {
         setCookieHeaders = [cookiehdr];
       } else {
@@ -1314,12 +1341,14 @@ mcpserver.registerTool(
     }),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        date: z.string(),
-        avg_processing_time: z.number(),
-        min_processing_time: z.number(),
-        max_processing_time: z.number(),
-      })),
+      data: z.array(
+        z.object({
+          date: z.string(),
+          avg_processing_time: z.number(),
+          min_processing_time: z.number(),
+          max_processing_time: z.number(),
+        })
+      ),
     }),
   },
   async ({ startDate, endDate, sourceType, durationType }, _extra) => {
@@ -1347,7 +1376,8 @@ mcpserver.registerTool(
 
       // Read Set-Cookie header(s)
       let setCookieHeaders: string[] = [];
-      const cookiehdr = csrfRes.headers.get && csrfRes.headers.get("set-cookie");
+      const cookiehdr =
+        csrfRes.headers.get && csrfRes.headers.get("set-cookie");
       if (cookiehdr) {
         setCookieHeaders = [cookiehdr];
       } else {
@@ -1437,10 +1467,12 @@ mcpserver.registerTool(
     }),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        date: z.string(),
-        ai_url_count: z.number(),
-      })),
+      data: z.array(
+        z.object({
+          date: z.string(),
+          ai_url_count: z.number(),
+        })
+      ),
     }),
   },
   async ({ startDate, endDate, sourceType }, _extra) => {
@@ -1468,7 +1500,8 @@ mcpserver.registerTool(
 
       // Read Set-Cookie header(s)
       let setCookieHeaders: string[] = [];
-      const cookiehdr = csrfRes.headers.get && csrfRes.headers.get("set-cookie");
+      const cookiehdr =
+        csrfRes.headers.get && csrfRes.headers.get("set-cookie");
       if (cookiehdr) {
         setCookieHeaders = [cookiehdr];
       } else {
@@ -1558,10 +1591,12 @@ mcpserver.registerTool(
     }),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        month: z.string(),
-        ai_url_count: z.number(),
-      })),
+      data: z.array(
+        z.object({
+          month: z.string(),
+          ai_url_count: z.number(),
+        })
+      ),
     }),
   },
   async ({ startMonth, endMonth, sourceType, selectedGroups }, _extra) => {
@@ -1589,7 +1624,8 @@ mcpserver.registerTool(
 
       // Read Set-Cookie header(s)
       let setCookieHeaders: string[] = [];
-      const cookiehdr = csrfRes.headers.get && csrfRes.headers.get("set-cookie");
+      const cookiehdr =
+        csrfRes.headers.get && csrfRes.headers.get("set-cookie");
       if (cookiehdr) {
         setCookieHeaders = [cookiehdr];
       } else {
@@ -1674,10 +1710,12 @@ mcpserver.registerTool(
     inputSchema: z.object({}),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        office_name: z.string(),
-        url_count: z.number(),
-      })),
+      data: z.array(
+        z.object({
+          office_name: z.string(),
+          url_count: z.number(),
+        })
+      ),
     }),
   },
   async (_params, _extra) => {
@@ -1724,7 +1762,8 @@ mcpserver.registerTool(
   "webdTool_top_category",
   {
     title: "Get top categories by compliance rate on webD Project",
-    description: "ดึงหมวดหมู่ที่มีอัตราการปฏิบัติตามสัญญาสูงสุดจากโปรเจกต์ webD",
+    description:
+      "ดึงหมวดหมู่ที่มีอัตราการปฏิบัติตามสัญญาสูงสุดจากโปรเจกต์ webD",
     _meta: {
       keywords: [
         "webd",
@@ -1745,10 +1784,12 @@ mcpserver.registerTool(
     inputSchema: z.object({}),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        category_name: z.string(),
-        compliance_rate: z.number(),
-      })),
+      data: z.array(
+        z.object({
+          category_name: z.string(),
+          compliance_rate: z.number(),
+        })
+      ),
     }),
   },
   async (_params, _extra) => {
@@ -1815,10 +1856,12 @@ mcpserver.registerTool(
     inputSchema: z.object({}),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        court_category: z.string(),
-        court_order_count: z.number(),
-      })),
+      data: z.array(
+        z.object({
+          court_category: z.string(),
+          court_order_count: z.number(),
+        })
+      ),
     }),
   },
   async (_params, _extra) => {
@@ -1889,11 +1932,13 @@ mcpserver.registerTool(
     }),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        year: z.string(),
-        total_urls: z.number(),
-        popular_categories: z.array(z.string()),
-      })),
+      data: z.array(
+        z.object({
+          year: z.string(),
+          total_urls: z.number(),
+          popular_categories: z.array(z.string()),
+        })
+      ),
     }),
   },
   async ({ yearsBack, toprank }, _extra) => {
@@ -1905,11 +1950,15 @@ mcpserver.registerTool(
     const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
     try {
       const queryParams = new URLSearchParams();
-      if (yearsBack !== undefined) queryParams.append('yearsBack', yearsBack.toString());
-      if (toprank !== undefined) queryParams.append('toprank', toprank.toString());
-      
-      const url = `http://${webddsbHost}:${webddsbPort}/api/urlstats/yearly-trends${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-      
+      if (yearsBack !== undefined)
+        queryParams.append("yearsBack", yearsBack.toString());
+      if (toprank !== undefined)
+        queryParams.append("toprank", toprank.toString());
+
+      const url = `http://${webddsbHost}:${webddsbPort}/api/urlstats/yearly-trends${
+        queryParams.toString() ? "?" + queryParams.toString() : ""
+      }`;
+
       const res = await fetch(url, {
         method: "GET",
         headers: { "x-api-key": webddsbApiKey },
@@ -1967,11 +2016,13 @@ mcpserver.registerTool(
     }),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        month: z.string(),
-        total_urls: z.number(),
-        popular_categories: z.array(z.string()),
-      })),
+      data: z.array(
+        z.object({
+          month: z.string(),
+          total_urls: z.number(),
+          popular_categories: z.array(z.string()),
+        })
+      ),
     }),
   },
   async ({ monthsBack, toprank }, _extra) => {
@@ -1983,11 +2034,15 @@ mcpserver.registerTool(
     const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
     try {
       const queryParams = new URLSearchParams();
-      if (monthsBack !== undefined) queryParams.append('monthsBack', monthsBack.toString());
-      if (toprank !== undefined) queryParams.append('toprank', toprank.toString());
-      
-      const url = `http://${webddsbHost}:${webddsbPort}/api/urlstats/monthly-trends${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-      
+      if (monthsBack !== undefined)
+        queryParams.append("monthsBack", monthsBack.toString());
+      if (toprank !== undefined)
+        queryParams.append("toprank", toprank.toString());
+
+      const url = `http://${webddsbHost}:${webddsbPort}/api/urlstats/monthly-trends${
+        queryParams.toString() ? "?" + queryParams.toString() : ""
+      }`;
+
       const res = await fetch(url, {
         method: "GET",
         headers: { "x-api-key": webddsbApiKey },
@@ -2043,11 +2098,13 @@ mcpserver.registerTool(
     }),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        year: z.string(),
-        avg_processing_time: z.number(),
-        total_processed: z.number(),
-      })),
+      data: z.array(
+        z.object({
+          year: z.string(),
+          avg_processing_time: z.number(),
+          total_processed: z.number(),
+        })
+      ),
     }),
   },
   async ({ yearsBack }, _extra) => {
@@ -2059,10 +2116,13 @@ mcpserver.registerTool(
     const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
     try {
       const queryParams = new URLSearchParams();
-      if (yearsBack !== undefined) queryParams.append('yearsBack', yearsBack.toString());
-      
-      const url = `http://${webddsbHost}:${webddsbPort}/api/urlstats/yearly-process-times${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-      
+      if (yearsBack !== undefined)
+        queryParams.append("yearsBack", yearsBack.toString());
+
+      const url = `http://${webddsbHost}:${webddsbPort}/api/urlstats/yearly-process-times${
+        queryParams.toString() ? "?" + queryParams.toString() : ""
+      }`;
+
       const res = await fetch(url, {
         method: "GET",
         headers: { "x-api-key": webddsbApiKey },
@@ -2117,11 +2177,13 @@ mcpserver.registerTool(
     inputSchema: z.object({}),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        office_name: z.string(),
-        today_count: z.number(),
-        total_count: z.number(),
-      })),
+      data: z.array(
+        z.object({
+          office_name: z.string(),
+          today_count: z.number(),
+          total_count: z.number(),
+        })
+      ),
     }),
   },
   async (_params, _extra) => {
@@ -2188,11 +2250,13 @@ mcpserver.registerTool(
     inputSchema: z.object({}),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        platform: z.string(),
-        url_count: z.number(),
-        percentage: z.number(),
-      })),
+      data: z.array(
+        z.object({
+          platform: z.string(),
+          url_count: z.number(),
+          percentage: z.number(),
+        })
+      ),
     }),
   },
   async (_params, _extra) => {
@@ -2259,11 +2323,13 @@ mcpserver.registerTool(
     inputSchema: z.object({}),
     outputSchema: z.object({
       success: z.boolean(),
-      data: z.array(z.object({
-        country: z.string(),
-        url_count: z.number(),
-        percentage: z.number(),
-      })),
+      data: z.array(
+        z.object({
+          country: z.string(),
+          url_count: z.number(),
+          percentage: z.number(),
+        })
+      ),
     }),
   },
   async (_params, _extra) => {

@@ -767,7 +767,6 @@ JSON:`;
       );
 
       let jsonStr = response.message?.content?.trim() || "";
-      console.log(`[MCP Client] Raw args response: ${jsonStr}`);
 
       // Clean up response
       jsonStr = jsonStr
@@ -780,6 +779,8 @@ JSON:`;
       if (jsonMatch) {
         jsonStr = jsonMatch[0];
       }
+
+      console.log(`[MCP Client] Generated JSON string for ${tool.name}:`, jsonStr);
 
       try {
         const parsed = JSON.parse(jsonStr);
