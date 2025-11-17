@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import Image from "next/image";
 import HeaderChat from "@/app/components/chat/HeaderChat";
+import ChatMessage from "@/app/components/chat/ChatMessage";
 import ThemeContext from "@/app/context/ThemeContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -128,9 +129,9 @@ const ChatPage: React.FC = () => {
             return;
           }
 
-          // Handle word-by-word response
-          if (message.type === "word" && message.text) {
-            console.log("[Frontend] Received word response:", message.text);
+          // Handle incoming streaming chunk (append as-is)
+          if (message.type === "chunk" && message.text) {
+            console.log("[Frontend] Received chunk response:", message.text);
             setMessages((prevMessages) => {
               if (
                 prevMessages.length > 0 &&
@@ -157,7 +158,7 @@ const ChatPage: React.FC = () => {
                 ];
               }
             });
-            setIsWaitingForResponse(false);
+            // keep isWaitingForResponse=true until final history-update arrives
           }
           // Handle history update from server
           else if (message.type === "history-update" && message.messages) {
@@ -519,7 +520,11 @@ const ChatPage: React.FC = () => {
                       </div>
                     ) : (
                       <div className="whitespace-pre-wrap wrap-break-word">
-                        {message.text}
+                        {isAI ? (
+                          <ChatMessage html={message.text} />
+                        ) : (
+                          message.text
+                        )}
                         {isAI && message.isAnimating && (
                           <span className="ml-2 inline-block align-middle text-gray-600">
                             <TypingDots />
@@ -531,7 +536,7 @@ const ChatPage: React.FC = () => {
                 );
               })}
               {/* When waiting for AI response (no message yet), show a typing balloon */}
-              {isWaitingForResponse && (
+              {isWaitingForResponse && (!messages.length || messages[messages.length - 1].sender !== "ai" || !messages[messages.length - 1].isAnimating) && (
                 <div
                   className={`relative p-2 rounded-lg max-w-full self-start pr-5 ml-6 mb-5 bg-gray-300 text-black text-left rounded-br-none`}
                 >

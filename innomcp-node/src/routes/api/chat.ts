@@ -186,9 +186,9 @@ wss.on("connection", (ws) => {
           } else if (mcpResult.toolsFailed) {
             // Tools were selected but all failed, send sorry message
             const sorryMessage =
-              "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ หรือลองถามให้ละเอียดกว่านี้อีกหน่อยได้ไหม ฉันอาจช่วยคุณได้นะ";
+              "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ หรือลองถามให้ละเอียดกว่านี้อีก";
             sessionHistory.push({ sender: "ai", text: sorryMessage });
-            ws.send(JSON.stringify({ type: "word", text: sorryMessage }));
+            ws.send(JSON.stringify({ type: "chunk", text: sorryMessage }));
             ws.send(
               JSON.stringify({
                 type: "history-update",
@@ -211,7 +211,7 @@ wss.on("connection", (ws) => {
 1. จำประวัติการสนทนาที่ผ่านมา
 2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
 3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
-4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ หรือลองถามให้ละเอียดกว่านี้อีกหน่อยได้ไหม ฉันอาจช่วยคุณได้นะ"
+4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ หรือลองถามให้ละเอียดกว่านี้อีก"
 5. ตอบไม่ให้รู้ว่ามีการใช้ MCP tools ถ้าไม่จำเป็น
 6. ตอบเป็นภาษาไทยเป็นหลัก`,
         };
@@ -249,14 +249,11 @@ wss.on("connection", (ws) => {
           }
 
           aiResponse += chunk.message.content;
-          const words = aiResponse.split(/(\s+)/);
-          const newWords = words.slice(lastWordIndex);
-          lastWordIndex = words.length;
 
-          // Send response word-by-word
-          if (newWords.length > 0) {
-            ws.send(JSON.stringify({ type: "word", text: newWords.join("") }));
-          }
+          // Send the incoming chunk as-is to the client (frontend will append)
+          ws.send(
+            JSON.stringify({ type: "chunk", text: chunk.message.content })
+          );
         }
 
         // Add AI response to history and send back to client
@@ -336,7 +333,7 @@ chatRouter.post("/chat", async (req, res) => {
         } else if (mcpResult.toolsFailed) {
           // Tools were selected but all failed, return sorry message
           const sorryMessage =
-            "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ หรือลองถามให้ละเอียดกว่านี้อีกหน่อยได้ไหม ฉันอาจช่วยคุณได้นะ";
+            "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ หรือลองถามให้ละเอียดกว่านี้อีก";
           sessionHistory.push({ sender: "ai", text: sorryMessage });
           return res.json({
             text: sorryMessage,

@@ -102,7 +102,8 @@ mcpserver.registerTool(
             text: string;
           },
         ],
-        structuredContent: { result, expression },
+        // Only return properties that match the declared outputSchema
+        structuredContent: { result },
       };
     } catch (error) {
       console.error("Error in calculator:", error);
@@ -303,10 +304,10 @@ mcpserver.registerTool(
 );
 
 mcpserver.registerTool(
-  "webdTool_count_input_by_group",
+  "webdTool_count_by_group",
   {
-    title: "Count all input violation records on webD Project",
-    description: `ดึงจำนวนเว็บไซต์ผิดกฎหมายแยกตามกลุ่ม (Count violation URLs by category)
+    title: "ดึงจำนวนเว็บไซต์ผิดกฎหมายแยกตามกลุ่ม",
+    description: `ดึงจำนวนเว็บไซต์ผิดกฎหมายแยกตามกลุ่ม
     
 Returns statistics with these fields:
 - group_name (ชื่อกลุ่ม/หมวดหมู่/ประเภท): Category of violation (e.g., "hate speech", "gambling", "pornography")
@@ -327,10 +328,6 @@ Example response:
         "url",
         "เว็บ",
         "เว็บไซต์",
-        "เว็บพนัน",
-        "พนัน",
-        "เว็บลามก",
-        "ลามก",
         "ประเภท",
         "หมวดหมู่",
         "ผิดกฎหมาย",
@@ -460,34 +457,14 @@ Example response:
   }
 );
 
-// นับจำนวนรายการนำเข้าเว็บไซต์ผิดกฎหมาย บนโปรเจกต์ webD ที่มีคำสั่งศาล
+// ดึงนับจำนวนรายการนำเข้าเว็บไซต์ผิดกฎหมายที่มีคำสั่งศาล
 mcpserver.registerTool(
   "webdTool_count_court_by_group",
   {
-    title: "Count all input violation records on webD Project",
-    description:
-      "แสดงจำนวนรายการนำเข้าเว็บไซต์ผิดกฎหมาย บนโปรเจกต์ webD ที่มีคำสั่งศาล",
-    // Helpful keywords to aid model/tool-selection heuristics (put under annotations/_meta)
+    title: "ดึงจำนวนรายการเว็บไซต์ผิดกฎหมายที่มีคำสั่งศาล",
+    description: "ดึงจำนวนรายการเว็บไซต์ผิดกฎหมายที่มีคำสั่งศาล",
     _meta: {
-      keywords: [
-        "webd",
-        "webd project",
-        "court",
-        "คำสั่งศาล",
-        "url",
-        "เว็บ",
-        "เว็บไซต์",
-        "เว็บพนัน",
-        "พนัน",
-        "เว็บลามก",
-        "ลามก",
-        "ประเภท",
-        "หมวดหมู่",
-        "ผิดกฎหมาย",
-        "จำนวน",
-        "นับ",
-        "สถิติ",
-      ],
+      keywords: ["webd", "court", "คำสั่งศาล", "ระงับ", "ปิดกั้น"],
       examples: [
         "ฉันต้องการสถิติเว็บไซต์ผิดกฎหมายบน webd ที่มีคำสั่งศาล",
         "นับจำนวนรายการนำเข้าเกี่ยวกับเว็บการพนัน ใน webd ที่มีคำสั่งศาล",
@@ -600,21 +577,20 @@ mcpserver.registerTool(
   }
 );
 
-// Register webdTool_violation_groups
+// Register webdTool_groups_names
 mcpserver.registerTool(
-  "webdTool_violation_groups",
+  "webdTool_groups_names",
   {
-    title: "Get all violation groups on webD Project",
-    description: "ดึงรายชื่อประเภทความผิดทั้งหมดจากโปรเจกต์ webD",
+    title: "ดึงรายชื่อประเภทความผิดทั้งหมด",
+    description: "ดึงรายชื่อประเภทความผิดทั้งหมด",
     _meta: {
       keywords: [
         "webd",
-        "violation groups",
         "ประเภทความผิด",
         "หมวดหมู่",
-        "ผิดกฎหมาย",
-        "violation",
-        "groups",
+        "กลุ่ม",
+        "ประเภท",
+        "group",
         "categories",
       ],
       examples: [
@@ -631,7 +607,7 @@ mcpserver.registerTool(
   },
   async (_params, _extra) => {
     console.log(
-      `[MCP Server] Webd violation groups tool request received at ${new Date().toLocaleString()}`
+      `[MCP Server] Webd groups names tool request received at ${new Date().toLocaleString()}`
     );
     const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
     const webddsbPort = process.env.WEBDDSB_PORT || "3010";
@@ -668,213 +644,14 @@ mcpserver.registerTool(
   }
 );
 
-// Register webdTool_violation_groups_count
-mcpserver.registerTool(
-  "webdTool_violation_groups_count",
-  {
-    title: "Count URLs by violation groups on webD Project",
-    description: "ดึงจำนวน URL แยกตามประเภทความผิดจากโปรเจกต์ webD",
-    _meta: {
-      keywords: [
-        "webd",
-        "violation groups count",
-        "นับ URL",
-        "ประเภทความผิด",
-        "สถิติ",
-        "violation",
-        "count",
-        "statistics",
-      ],
-      examples: [
-        "นับจำนวน URL แยกตามประเภทความผิด",
-        "แสดงสถิติ URL ตามหมวดหมู่การละเมิด",
-        "ฉันต้องการจำนวนเว็บไซต์ผิดกฎหมายแยกตามประเภท",
-      ],
-    },
-    inputSchema: z.object({
-      startDate: z.string().optional().describe("วันที่เริ่มต้น (YYYY-MM-DD)"),
-      endDate: z.string().optional().describe("วันที่สิ้นสุด (YYYY-MM-DD)"),
-      sourceType: z.string().optional().describe("ประเภทแหล่งที่มา"),
-      selectedGroups: z.array(z.string()).optional().describe("กลุ่มที่เลือก"),
-    }),
-    outputSchema: z.object({
-      success: z.boolean(),
-      data: z.array(
-        z.object({
-          group_name: z.string(),
-          url_count: z.number(),
-        })
-      ),
-    }),
-  },
-  async ({ startDate, endDate, sourceType, selectedGroups }, _extra) => {
-    console.log(
-      `[MCP Server] Webd violation groups count tool request received at ${new Date().toLocaleString()}`
-    );
-    const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
-    const webddsbPort = process.env.WEBDDSB_PORT || "3010";
-    const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
-    try {
-      // Fetch CSRF token first
-      const csrfRes = await fetch(
-        `http://${webddsbHost}:${webddsbPort}/api-get/csrf`,
-        {
-          method: "GET",
-          headers: { "x-api-key": webddsbApiKey },
-        }
-      );
-
-      if (!csrfRes.ok) throw new Error(`csrf GET failed ${csrfRes.status}`);
-
-      const csrfBody = await csrfRes.json();
-      const csrfToken = csrfBody.csrfToken;
-      if (!csrfToken) throw new Error("No csrfToken in response");
-
-      // Read Set-Cookie header(s)
-      let setCookieHeaders: string[] = [];
-      const cookiehdr =
-        csrfRes.headers.get && csrfRes.headers.get("set-cookie");
-      if (cookiehdr) {
-        setCookieHeaders = [cookiehdr];
-      } else {
-        const cookies = csrfRes.headers.get("set-cookie");
-        if (cookies) {
-          setCookieHeaders = Array.isArray(cookies) ? cookies : [cookies];
-        }
-      }
-
-      let cookieHeader = "";
-      if (setCookieHeaders.length) {
-        cookieHeader = setCookieHeaders
-          .map((s) => s.split(";")[0].trim())
-          .join("; ");
-      }
-
-      // POST request
-      const postRes = await fetch(
-        `http://${webddsbHost}:${webddsbPort}/api/urlstats/violation-groups-count`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": webddsbApiKey,
-            "x-csrf-token": csrfToken,
-            ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-          },
-          body: JSON.stringify({
-            startDate,
-            endDate,
-            sourceType,
-            selectedGroups,
-          }),
-        }
-      );
-
-      if (!postRes.ok) {
-        throw new Error(`API request failed with status ${postRes.status}`);
-      }
-
-      const data = await postRes.json();
-      console.log("[MCP Server] Violation groups count data:", data);
-
-      return {
-        content: [
-          { type: "text", text: JSON.stringify(data) } as {
-            type: "text";
-            text: string;
-          },
-        ],
-        structuredContent: data,
-      };
-    } catch (error) {
-      console.error("Error fetching violation groups count:", error);
-      throw error;
-    }
-  }
-);
-
-// Register webdTool_total_count
-mcpserver.registerTool(
-  "webdTool_total_count",
-  {
-    title: "Get total URL count on webD Project",
-    description: "ดึงจำนวน URL ทั้งหมดสำหรับ donut chart จากโปรเจกต์ webD",
-    _meta: {
-      keywords: [
-        "webd",
-        "total count",
-        "จำนวนทั้งหมด",
-        "donut chart",
-        "สถิติ",
-        "URL",
-        "count",
-      ],
-      examples: [
-        "แสดงจำนวน URL ทั้งหมด",
-        "ดึงสถิติรวมสำหรับ donut chart",
-        "ฉันต้องการจำนวนเว็บไซต์ทั้งหมดในระบบ",
-      ],
-    },
-    inputSchema: z.object({}),
-    outputSchema: z.object({
-      success: z.boolean(),
-      data: z.number(),
-    }),
-  },
-  async (_params, _extra) => {
-    console.log(
-      `[MCP Server] Webd total count tool request received at ${new Date().toLocaleString()}`
-    );
-    const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
-    const webddsbPort = process.env.WEBDDSB_PORT || "3010";
-    const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
-    try {
-      const res = await fetch(
-        `http://${webddsbHost}:${webddsbPort}/api/urlstats/total-count`,
-        {
-          method: "GET",
-          headers: { "x-api-key": webddsbApiKey },
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`API request failed with status ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log("[MCP Server] Total count data:", data);
-
-      return {
-        content: [
-          { type: "text", text: JSON.stringify(data) } as {
-            type: "text";
-            text: string;
-          },
-        ],
-        structuredContent: data,
-      };
-    } catch (error) {
-      console.error("Error fetching total count:", error);
-      throw error;
-    }
-  }
-);
-
 // Register webdTool_petition_count
 mcpserver.registerTool(
   "webdTool_petition_count",
   {
-    title: "Get petition URL count on webD Project",
-    description: "ดึงจำนวน URL จากคำร้องจากโปรเจกต์ webD",
+    title: "ดึงจำนวน URL จากคำร้อง",
+    description: "ดึงจำนวน URL จากคำร้อง",
     _meta: {
-      keywords: [
-        "webd",
-        "petition count",
-        "คำร้อง",
-        "จำนวน URL",
-        "สถิติ",
-        "petition",
-      ],
+      keywords: ["webd", "คำร้อง", "petition"],
       examples: [
         "แสดงจำนวน URL จากคำร้อง",
         "นับเว็บไซต์ที่มาจากคำร้อง",
@@ -926,93 +703,28 @@ mcpserver.registerTool(
   }
 );
 
-// Register webdTool_court_count
-mcpserver.registerTool(
-  "webdTool_court_count",
-  {
-    title: "Get court URL count on webD Project",
-    description: "ดึงจำนวน URL จากศาลจากโปรเจกต์ webD",
-    _meta: {
-      keywords: [
-        "webd",
-        "court count",
-        "ศาล",
-        "คำสั่งศาล",
-        "จำนวน URL",
-        "สถิติ",
-        "court",
-      ],
-      examples: [
-        "แสดงจำนวน URL จากศาล",
-        "นับเว็บไซต์ที่มีคำสั่งศาล",
-        "สถิติคำสั่งศาลในระบบ",
-      ],
-    },
-    inputSchema: z.object({}),
-    outputSchema: z.object({
-      success: z.boolean(),
-      data: z.number(),
-    }),
-  },
-  async (_params, _extra) => {
-    console.log(
-      `[MCP Server] Webd court count tool request received at ${new Date().toLocaleString()}`
-    );
-    const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
-    const webddsbPort = process.env.WEBDDSB_PORT || "3010";
-    const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
-    try {
-      const res = await fetch(
-        `http://${webddsbHost}:${webddsbPort}/api/urlstats/court-count`,
-        {
-          method: "GET",
-          headers: { "x-api-key": webddsbApiKey },
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`API request failed with status ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log("[MCP Server] Court count data:", data);
-
-      return {
-        content: [
-          { type: "text", text: JSON.stringify(data) } as {
-            type: "text";
-            text: string;
-          },
-        ],
-        structuredContent: data,
-      };
-    } catch (error) {
-      console.error("Error fetching court count:", error);
-      throw error;
-    }
-  }
-);
-
 // Register webdTool_ai_count
 mcpserver.registerTool(
   "webdTool_ai_count",
   {
     title: "Get AI imported URL count on webD Project",
-    description: "ดึงจำนวน URL ที่นำเข้าโดย AI จากโปรเจกต์ webD",
+    description: "ดึงจำนวน URL ที่นำเข้าโดย AI ",
     _meta: {
       keywords: [
         "webd",
         "ai count",
         "AI",
         "นำเข้าโดย AI",
-        "จำนวน URL",
-        "สถิติ",
         "artificial intelligence",
+        "ระบบ AI",
+        "AI นำเข้า",
+        "สถิติ AI",
       ],
       examples: [
         "แสดงจำนวน URL ที่ AI นำเข้า",
         "นับเว็บไซต์จาก AI",
         "สถิติการนำเข้าจาก AI",
+        "จำนวน URL ที่นำเข้าโดย AI",
       ],
     },
     inputSchema: z.object({}),
@@ -1064,18 +776,23 @@ mcpserver.registerTool(
 mcpserver.registerTool(
   "webdTool_by_date_count",
   {
-    title: "Count URLs by date and violation groups on webD Project",
-    description: "นับจำนวน URL แยกตามวันที่และประเภทความผิดจากโปรเจกต์ webD",
+    title: "ดึงจำนวน URL แยกตามวันที่และประเภทความผิด",
+    description: "ดึงจำนวน URL แยกตามวันที่และประเภทความผิด",
     _meta: {
       keywords: [
         "webd",
-        "by date count",
-        "นับตามวันที่",
-        "ประเภทความผิด",
-        "สถิติ",
         "date",
-        "count",
-        "statistics",
+        "by date count",
+        "วัน",
+        "นับตามวันที่",
+        "ระหว่างวันที่",
+        "ตั้งแต่วันที่",
+        "ถึงวันที่",
+        "วันที่เริ่มต้น",
+        "วันที่สิ้นสุด",
+        "วันนี้",
+        "ปัจจุบัน",
+        "เมื่อวาน",
       ],
       examples: [
         "นับจำนวน URL แยกตามวันที่และหมวดหมู่",
@@ -1190,18 +907,21 @@ mcpserver.registerTool(
 mcpserver.registerTool(
   "webdTool_by_month_count",
   {
-    title: "Count URLs by month and violation groups on webD Project",
-    description: "นับจำนวน URL แยกตามเดือนและประเภทความผิดจากโปรเจกต์ webD",
+    title: "ดึงจำนวน URL แยกตามเดือนและประเภทความผิด",
+    description: "ดึงจำนวน URL แยกตามเดือนและประเภทความผิด",
     _meta: {
       keywords: [
         "webd",
         "by month count",
+        "เดือน",
         "นับตามเดือน",
-        "ประเภทความผิด",
-        "สถิติ",
-        "month",
-        "count",
-        "statistics",
+        "ระหว่างเดือน",
+        "ตั้งแต่เดือน",
+        "ถึงเดือน",
+        "เดือนเริ่มต้น ",
+        "เดือนสิ้นสุด",
+        "ปัจจุบัน",
+        "เดือนนี้",
       ],
       examples: [
         "นับจำนวน URL แยกตามเดือนและหมวดหมู่",
@@ -1312,152 +1032,31 @@ mcpserver.registerTool(
   }
 );
 
-// Register webdTool_processing_time
-mcpserver.registerTool(
-  "webdTool_processing_time",
-  {
-    title: "Get URL processing time statistics on webD Project",
-    description: "ดึงเวลาที่ใช้ในการประมวลผล URL จากโปรเจกต์ webD",
-    _meta: {
-      keywords: [
-        "webd",
-        "processing time",
-        "เวลาประมวลผล",
-        "สถิติ",
-        "performance",
-        "duration",
-      ],
-      examples: [
-        "แสดงเวลาประมวลผล URL",
-        "ดึงสถิติเวลาที่ใช้ในการประมวลผล",
-        "ฉันต้องการดูเวลาที่ใช้ในการทำงาน",
-      ],
-    },
-    inputSchema: z.object({
-      startDate: z.string().optional().describe("วันที่เริ่มต้น (YYYY-MM-DD)"),
-      endDate: z.string().optional().describe("วันที่สิ้นสุด (YYYY-MM-DD)"),
-      sourceType: z.string().optional().describe("ประเภทแหล่งที่มา"),
-      durationType: z.string().optional().describe("ประเภทระยะเวลา"),
-    }),
-    outputSchema: z.object({
-      success: z.boolean(),
-      data: z.array(
-        z.object({
-          date: z.string(),
-          avg_processing_time: z.number(),
-          min_processing_time: z.number(),
-          max_processing_time: z.number(),
-        })
-      ),
-    }),
-  },
-  async ({ startDate, endDate, sourceType, durationType }, _extra) => {
-    console.log(
-      `[MCP Server] Webd processing time tool request received at ${new Date().toLocaleString()}`
-    );
-    const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
-    const webddsbPort = process.env.WEBDDSB_PORT || "3010";
-    const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
-    try {
-      // Fetch CSRF token first
-      const csrfRes = await fetch(
-        `http://${webddsbHost}:${webddsbPort}/api-get/csrf`,
-        {
-          method: "GET",
-          headers: { "x-api-key": webddsbApiKey },
-        }
-      );
-
-      if (!csrfRes.ok) throw new Error(`csrf GET failed ${csrfRes.status}`);
-
-      const csrfBody = await csrfRes.json();
-      const csrfToken = csrfBody.csrfToken;
-      if (!csrfToken) throw new Error("No csrfToken in response");
-
-      // Read Set-Cookie header(s)
-      let setCookieHeaders: string[] = [];
-      const cookiehdr =
-        csrfRes.headers.get && csrfRes.headers.get("set-cookie");
-      if (cookiehdr) {
-        setCookieHeaders = [cookiehdr];
-      } else {
-        const cookies = csrfRes.headers.get("set-cookie");
-        if (cookies) {
-          setCookieHeaders = Array.isArray(cookies) ? cookies : [cookies];
-        }
-      }
-
-      let cookieHeader = "";
-      if (setCookieHeaders.length) {
-        cookieHeader = setCookieHeaders
-          .map((s) => s.split(";")[0].trim())
-          .join("; ");
-      }
-
-      // POST request
-      const postRes = await fetch(
-        `http://${webddsbHost}:${webddsbPort}/api/urlstats/processing-time`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": webddsbApiKey,
-            "x-csrf-token": csrfToken,
-            ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-          },
-          body: JSON.stringify({
-            startDate,
-            endDate,
-            sourceType,
-            durationType,
-          }),
-        }
-      );
-
-      if (!postRes.ok) {
-        throw new Error(`API request failed with status ${postRes.status}`);
-      }
-
-      const data = await postRes.json();
-      console.log("[MCP Server] Processing time data:", data);
-
-      return {
-        content: [
-          { type: "text", text: JSON.stringify(data) } as {
-            type: "text";
-            text: string;
-          },
-        ],
-        structuredContent: data,
-      };
-    } catch (error) {
-      console.error("Error fetching processing time:", error);
-      throw error;
-    }
-  }
-);
-
 // Register webdTool_by_date_ai_count
 mcpserver.registerTool(
   "webdTool_by_date_ai_count",
   {
-    title: "Count AI URLs by date on webD Project",
-    description: "นับ URL จาก AI แยกตามวันที่จากโปรเจกต์ webD",
+    title: "นับจำนวนที่นำเข้าจากระบบ AI แยกตามวันที่",
+    description: "นับจำนวนที่นำเข้าจากระบบ AI แยกตามวันที่",
     _meta: {
       keywords: [
         "webd",
         "by date ai count",
         "AI ตามวันที่",
         "นับ AI",
-        "สถิติ",
-        "artificial intelligence",
-        "date",
-        "count",
+        "วัน",
+        "วันที่",
+        "วันนี้",
+        "เมื่อวาน",
+        "ระหว่างวันที่",
+        "ตั้งแต่วันที่",
+        "ถึงวันที่",
       ],
       examples: [
         "นับ URL จาก AI แยกตามวันที่",
         "แสดงสถิติ AI ตามวัน",
         "ฉันต้องการจำนวนเว็บไซต์จาก AI แยกตามวันที่",
+        "นับจำนวนที่นำเข้าจาก AI ในวันนี้",
       ],
     },
     inputSchema: z.object({
@@ -1565,7 +1164,7 @@ mcpserver.registerTool(
   "webdTool_by_month_ai_count",
   {
     title: "Count AI URLs by month on webD Project",
-    description: "นับ URL จาก AI แยกตามเดือนจากโปรเจกต์ webD",
+    description: "นับ URL จาก AI แยกตามเดือน",
     _meta: {
       keywords: [
         "webd",
@@ -1690,15 +1289,18 @@ mcpserver.registerTool(
   "webdTool_top_office",
   {
     title: "Get top offices by URL count on webD Project",
-    description: "ดึงหน่วยงานที่มี URL มากที่สุดจากโปรเจกต์ webD",
+    description: "ดึงหน่วยงานที่มี URL มากที่สุด",
     _meta: {
       keywords: [
         "webd",
-        "top office",
         "หน่วยงาน",
         "มากที่สุด",
-        "สถิติ",
-        "office",
+        "น้อยที่สุด",
+        "นำเข้ามากที่สุด",
+        "นำเข้าน้อยที่สุด",
+        "อันดับ",
+        "มากสุด",
+        "อันดับที่",
         "ranking",
       ],
       examples: [
@@ -1757,165 +1359,22 @@ mcpserver.registerTool(
   }
 );
 
-// Register webdTool_top_category
-mcpserver.registerTool(
-  "webdTool_top_category",
-  {
-    title: "Get top categories by compliance rate on webD Project",
-    description:
-      "ดึงหมวดหมู่ที่มีอัตราการปฏิบัติตามสัญญาสูงสุดจากโปรเจกต์ webD",
-    _meta: {
-      keywords: [
-        "webd",
-        "top category",
-        "หมวดหมู่",
-        "อัตราการปฏิบัติตามสัญญา",
-        "สถิติ",
-        "category",
-        "compliance",
-        "ranking",
-      ],
-      examples: [
-        "แสดงหมวดหมู่ที่มีอัตราการปฏิบัติตามสัญญาสูงสุด",
-        "ดึงอันดับหมวดหมู่ตามการปฏิบัติตาม",
-        "ฉันต้องการหมวดหมู่ที่มีการปฏิบัติตามสัญญาดีที่สุด",
-      ],
-    },
-    inputSchema: z.object({}),
-    outputSchema: z.object({
-      success: z.boolean(),
-      data: z.array(
-        z.object({
-          category_name: z.string(),
-          compliance_rate: z.number(),
-        })
-      ),
-    }),
-  },
-  async (_params, _extra) => {
-    console.log(
-      `[MCP Server] Webd top category tool request received at ${new Date().toLocaleString()}`
-    );
-    const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
-    const webddsbPort = process.env.WEBDDSB_PORT || "3010";
-    const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
-    try {
-      const res = await fetch(
-        `http://${webddsbHost}:${webddsbPort}/api/urlstats/topcategory`,
-        {
-          method: "GET",
-          headers: { "x-api-key": webddsbApiKey },
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`API request failed with status ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log("[MCP Server] Top category data:", data);
-
-      return {
-        content: [
-          { type: "text", text: JSON.stringify(data) } as {
-            type: "text";
-            text: string;
-          },
-        ],
-        structuredContent: data,
-      };
-    } catch (error) {
-      console.error("Error fetching top category:", error);
-      throw error;
-    }
-  }
-);
-
-// Register webdTool_top_court
-mcpserver.registerTool(
-  "webdTool_top_court",
-  {
-    title: "Get top court categories by court order count on webD Project",
-    description: "ดึงหมวดหมู่ศาลที่มีคำสั่งศาลมากที่สุดจากโปรเจกต์ webD",
-    _meta: {
-      keywords: [
-        "webd",
-        "top court",
-        "หมวดหมู่ศาล",
-        "คำสั่งศาล",
-        "สถิติ",
-        "court",
-        "ranking",
-      ],
-      examples: [
-        "แสดงหมวดหมู่ศาลที่มีคำสั่งศาลมากที่สุด",
-        "ดึงอันดับหมวดหมู่ศาล",
-        "ฉันต้องการหมวดหมู่ศาลที่มีคำสั่งศาลเยอะที่สุด",
-      ],
-    },
-    inputSchema: z.object({}),
-    outputSchema: z.object({
-      success: z.boolean(),
-      data: z.array(
-        z.object({
-          court_category: z.string(),
-          court_order_count: z.number(),
-        })
-      ),
-    }),
-  },
-  async (_params, _extra) => {
-    console.log(
-      `[MCP Server] Webd top court tool request received at ${new Date().toLocaleString()}`
-    );
-    const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
-    const webddsbPort = process.env.WEBDDSB_PORT || "3010";
-    const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
-    try {
-      const res = await fetch(
-        `http://${webddsbHost}:${webddsbPort}/api/urlstats/topcourt`,
-        {
-          method: "GET",
-          headers: { "x-api-key": webddsbApiKey },
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`API request failed with status ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log("[MCP Server] Top court data:", data);
-
-      return {
-        content: [
-          { type: "text", text: JSON.stringify(data) } as {
-            type: "text";
-            text: string;
-          },
-        ],
-        structuredContent: data,
-      };
-    } catch (error) {
-      console.error("Error fetching top court:", error);
-      throw error;
-    }
-  }
-);
-
 // Register webdTool_yearly_trends
 mcpserver.registerTool(
   "webdTool_yearly_trends",
   {
-    title: "Get yearly trends with popular categories on webD Project",
-    description: "ดึงแนวโน้มรายปีพร้อมหมวดหมู่ยอดนิยมจากโปรเจกต์ webD",
+    title: "ดึงแนวโน้มรายปีพร้อมหมวดหมู่ยอดนิยม",
+    description: "ดึงแนวโน้มรายปีพร้อมหมวดหมู่ยอดนิยม",
     _meta: {
       keywords: [
         "webd",
         "yearly trends",
         "แนวโน้มรายปี",
         "หมวดหมู่ยอดนิยม",
-        "สถิติ",
+        "แต่ละปี",
+        "ประจำปี",
+        "ปีที่ผ่านมา",
+        "ปีที่แล้ว",
         "trends",
         "yearly",
         "popular categories",
@@ -1991,15 +1450,16 @@ mcpserver.registerTool(
 mcpserver.registerTool(
   "webdTool_monthly_trends",
   {
-    title: "Get monthly trends with popular categories on webD Project",
-    description: "ดึงแนวโน้มรายเดือนพร้อมหมวดหมู่ยอดนิยมจากโปรเจกต์ webD",
+    title: "ดึงแนวโน้มรายเดือนพร้อมหมวดหมู่ยอดนิยม",
+    description: "ดึงแนวโน้มรายเดือนพร้อมหมวดหมู่ยอดนิยม",
     _meta: {
       keywords: [
         "webd",
         "monthly trends",
         "แนวโน้มรายเดือน",
         "หมวดหมู่ยอดนิยม",
-        "สถิติ",
+        "เดือนที่ผ่านมา",
+        "เดือนที่แล้ว",
         "trends",
         "monthly",
         "popular categories",
@@ -2071,173 +1531,17 @@ mcpserver.registerTool(
   }
 );
 
-// Register webdTool_yearly_process_times
-mcpserver.registerTool(
-  "webdTool_yearly_process_times",
-  {
-    title: "Get yearly processing times on webD Project",
-    description: "ดึงเวลาประมวลผลแยกตามปีจากโปรเจกต์ webD",
-    _meta: {
-      keywords: [
-        "webd",
-        "yearly process times",
-        "เวลาประมวลผลรายปี",
-        "สถิติ",
-        "processing time",
-        "yearly",
-        "performance",
-      ],
-      examples: [
-        "แสดงเวลาประมวลผลแยกตามปี",
-        "ดึงสถิติเวลาประมวลผลรายปี",
-        "ฉันต้องการดูเวลาที่ใช้ในการประมวลผลตามปี",
-      ],
-    },
-    inputSchema: z.object({
-      yearsBack: z.number().optional().describe("จำนวนปีที่ย้อนกลับ"),
-    }),
-    outputSchema: z.object({
-      success: z.boolean(),
-      data: z.array(
-        z.object({
-          year: z.string(),
-          avg_processing_time: z.number(),
-          total_processed: z.number(),
-        })
-      ),
-    }),
-  },
-  async ({ yearsBack }, _extra) => {
-    console.log(
-      `[MCP Server] Webd yearly process times tool request received at ${new Date().toLocaleString()}`
-    );
-    const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
-    const webddsbPort = process.env.WEBDDSB_PORT || "3010";
-    const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
-    try {
-      const queryParams = new URLSearchParams();
-      if (yearsBack !== undefined)
-        queryParams.append("yearsBack", yearsBack.toString());
-
-      const url = `http://${webddsbHost}:${webddsbPort}/api/urlstats/yearly-process-times${
-        queryParams.toString() ? "?" + queryParams.toString() : ""
-      }`;
-
-      const res = await fetch(url, {
-        method: "GET",
-        headers: { "x-api-key": webddsbApiKey },
-      });
-
-      if (!res.ok) {
-        throw new Error(`API request failed with status ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log("[MCP Server] Yearly process times data:", data);
-
-      return {
-        content: [
-          { type: "text", text: JSON.stringify(data) } as {
-            type: "text";
-            text: string;
-          },
-        ],
-        structuredContent: data,
-      };
-    } catch (error) {
-      console.error("Error fetching yearly process times:", error);
-      throw error;
-    }
-  }
-);
-
-// Register webdTool_today_by_office
-mcpserver.registerTool(
-  "webdTool_today_by_office",
-  {
-    title: "Get today's statistics by office on webD Project",
-    description: "ดึงสถิติของวันนี้แยกตามหน่วยงานจากโปรเจกต์ webD",
-    _meta: {
-      keywords: [
-        "webd",
-        "today by office",
-        "สถิติวันนี้",
-        "หน่วยงาน",
-        "สถิติ",
-        "today",
-        "office",
-        "daily stats",
-      ],
-      examples: [
-        "แสดงสถิติของวันนี้แยกตามหน่วยงาน",
-        "ดึงข้อมูลวันนี้ตามหน่วยงาน",
-        "ฉันต้องการสถิติประจำวันแยกตามหน่วยงาน",
-      ],
-    },
-    inputSchema: z.object({}),
-    outputSchema: z.object({
-      success: z.boolean(),
-      data: z.array(
-        z.object({
-          office_name: z.string(),
-          today_count: z.number(),
-          total_count: z.number(),
-        })
-      ),
-    }),
-  },
-  async (_params, _extra) => {
-    console.log(
-      `[MCP Server] Webd today by office tool request received at ${new Date().toLocaleString()}`
-    );
-    const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
-    const webddsbPort = process.env.WEBDDSB_PORT || "3010";
-    const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
-    try {
-      const res = await fetch(
-        `http://${webddsbHost}:${webddsbPort}/api/urlstats/today-by-office`,
-        {
-          method: "GET",
-          headers: { "x-api-key": webddsbApiKey },
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`API request failed with status ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log("[MCP Server] Today by office data:", data);
-
-      return {
-        content: [
-          { type: "text", text: JSON.stringify(data) } as {
-            type: "text";
-            text: string;
-          },
-        ],
-        structuredContent: data,
-      };
-    } catch (error) {
-      console.error("Error fetching today by office:", error);
-      throw error;
-    }
-  }
-);
-
 // Register webdTool_platforms
 mcpserver.registerTool(
   "webdTool_platforms",
   {
-    title: "Get URL statistics by platform on webD Project",
-    description: "ดึงสถิติ URL แยกตามแพลตฟอร์มจากโปรเจกต์ webD",
+    title: "ดึงสถิติ URL แยกตามแพลตฟอร์ม",
+    description: "ดึงสถิติ URL แยกตามแพลตฟอร์ม",
     _meta: {
       keywords: [
         "webd",
         "platforms",
-        "สถิติแพลตฟอร์ม",
         "แพลตฟอร์ม",
-        "สถิติ",
         "platform",
         "statistics",
       ],
@@ -2302,8 +1606,8 @@ mcpserver.registerTool(
 mcpserver.registerTool(
   "webdTool_register_country",
   {
-    title: "Get URL statistics by registered country on webD Project",
-    description: "ดึงสถิติ URL แยกตามประเทศที่จดทะเบียนจากโปรเจกต์ webD",
+    title: "ดึงสถิติ URL แยกตามประเทศที่จดทะเบียน",
+    description: "ดึงสถิติ URL แยกตามประเทศที่จดทะเบียน",
     _meta: {
       keywords: [
         "webd",
@@ -2311,6 +1615,9 @@ mcpserver.registerTool(
         "ประเทศที่จดทะเบียน",
         "สถิติ",
         "country",
+        "ประเทศ",
+        "ที่ตั้ง",
+        "จดทะเบียน",
         "registration",
         "statistics",
       ],
