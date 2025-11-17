@@ -687,6 +687,8 @@ ${toolDescriptions}
             });
           }
 
+          console.log("[MCP Client] Server response JSON:", JSON.stringify(result, null, 2));
+
           results.push({
             toolName,
             result: result.content,

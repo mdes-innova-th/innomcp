@@ -425,7 +425,7 @@ const ChatPage: React.FC = () => {
   }, [isSocketReady, isWaitingForResponse]);
 
   return (
-    <div className="flex flex-col items-center overflow-hidden min-h-screen">
+    <div className="flex flex-col items-center overflow-hidden max-h-screen">
       <HeaderChat />
       <div className="flex flex-col flex-1 w-full items-center justify-start pt-8">
         <div className="w-full max-w-3xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-lg px-6 py-4">

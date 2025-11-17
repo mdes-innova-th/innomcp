@@ -57,10 +57,8 @@ export default async function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             <Header />
-            <main className="flex-1 flex flex-col">{children}</main>
-            <div className="hidden md:block">
+            <main>{children}</main>
               <Footer />
-            </div>
           </ThemeProvider>
         </AuthProvider>
       </body>
