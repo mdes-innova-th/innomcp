@@ -458,7 +458,7 @@ const ChatPage: React.FC = () => {
                     className={`relative group p-2 rounded-lg ${
                       message.sender === "user"
                         ? "max-w-xs self-start pr-5 bg-blue-500 text-white text-left rounded-bl-none"
-                        : "max-w-full self-start pr-5 ml-6 mb-5 bg-gray-300 text-black text-left rounded-br-none"
+                        : "max-w-full self-start pr-5 mb-5 text-left"
                     }`}
                   >
                     {/* Show copy icon on hover for both user and AI messages */}
@@ -540,9 +540,7 @@ const ChatPage: React.FC = () => {
                 (!messages.length ||
                   messages[messages.length - 1].sender !== "ai" ||
                   !messages[messages.length - 1].isAnimating) && (
-                  <div
-                    className={`relative p-2 rounded-lg max-w-full self-start pr-5 ml-6 mb-5 bg-gray-300 text-black text-left rounded-br-none`}
-                  >
+                  <div className={`relative p-2 max-w-full self-start pr-5 mb-5 text-left`}>
                     <div className="whitespace-pre-wrap flex items-center">
                       <TypingDots />
                     </div>
