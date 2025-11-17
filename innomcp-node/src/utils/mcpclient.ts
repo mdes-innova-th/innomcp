@@ -1391,7 +1391,10 @@ JSON:`;
     options?: any
   ): Promise<string> {
     try {
-      const contextPart = extraContext && extraContext.trim().length > 0 ? `${extraContext}\n\n` : "";
+      const contextPart =
+        extraContext && extraContext.trim().length > 0
+          ? `${extraContext}\n\n`
+          : "";
 
       const fullPrompt = `${AI_HTML_PROMPT}\n\n${contextPart}${userInstruction}`;
 

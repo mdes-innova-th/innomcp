@@ -536,15 +536,18 @@ const ChatPage: React.FC = () => {
                 );
               })}
               {/* When waiting for AI response (no message yet), show a typing balloon */}
-              {isWaitingForResponse && (!messages.length || messages[messages.length - 1].sender !== "ai" || !messages[messages.length - 1].isAnimating) && (
-                <div
-                  className={`relative p-2 rounded-lg max-w-full self-start pr-5 ml-6 mb-5 bg-gray-300 text-black text-left rounded-br-none`}
-                >
-                  <div className="whitespace-pre-wrap flex items-center">
-                    <TypingDots />
+              {isWaitingForResponse &&
+                (!messages.length ||
+                  messages[messages.length - 1].sender !== "ai" ||
+                  !messages[messages.length - 1].isAnimating) && (
+                  <div
+                    className={`relative p-2 rounded-lg max-w-full self-start pr-5 ml-6 mb-5 bg-gray-300 text-black text-left rounded-br-none`}
+                  >
+                    <div className="whitespace-pre-wrap flex items-center">
+                      <TypingDots />
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
             <textarea
               ref={textareaRef}

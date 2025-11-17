@@ -439,7 +439,7 @@ Example response:
       console.log("[MCP Server] POST request successful... fetching data");
 
       const data = await postRes.json();
-      console.log("[MCP Server] Violation groups count data:", data);
+      console.log("[MCP Server] Groups count data:", data);
 
       return {
         content: [
@@ -451,7 +451,7 @@ Example response:
         structuredContent: data,
       };
     } catch (error) {
-      console.error("Error fetching violation groups count:", error);
+      console.error("Error fetching groups count:", error);
       throw error;
     }
   }
@@ -487,7 +487,7 @@ mcpserver.registerTool(
   },
   async ({ query }, _extra) => {
     console.log(
-      `[MCP Server] Webd count input and group tool request received at ${new Date().toLocaleString()}`
+      `[MCP Server] Webd count by group tool request received at ${new Date().toLocaleString()}`
     ); // Log when a request is received
     const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
     const webddsbPort = process.env.WEBDDSB_PORT || "3010";
@@ -559,7 +559,7 @@ mcpserver.registerTool(
       console.log("[MCP Server] POST request successful... fetching data");
 
       const data = await postRes.json();
-      console.log("[MCP Server] Violation groups count data:", data);
+      console.log("[MCP Server]  count data:", data);
 
       return {
         content: [
@@ -571,7 +571,7 @@ mcpserver.registerTool(
         structuredContent: data,
       };
     } catch (error) {
-      console.error("Error fetching violation groups count:", error);
+      console.error("Error fetching court count:", error);
       throw error;
     }
   }
@@ -626,7 +626,7 @@ mcpserver.registerTool(
       }
 
       const data = await res.json();
-      console.log("[MCP Server] Violation groups data:", data);
+      console.log("[MCP Server] Groups names data:", data);
 
       return {
         content: [
@@ -638,7 +638,7 @@ mcpserver.registerTool(
         structuredContent: data,
       };
     } catch (error) {
-      console.error("Error fetching violation groups:", error);
+      console.error("Error fetching groups names:", error);
       throw error;
     }
   }
@@ -1538,13 +1538,7 @@ mcpserver.registerTool(
     title: "ดึงสถิติ URL แยกตามแพลตฟอร์ม",
     description: "ดึงสถิติ URL แยกตามแพลตฟอร์ม",
     _meta: {
-      keywords: [
-        "webd",
-        "platforms",
-        "แพลตฟอร์ม",
-        "platform",
-        "statistics",
-      ],
+      keywords: ["webd", "platforms", "แพลตฟอร์ม", "platform", "statistics"],
       examples: [
         "แสดงสถิติ URL แยกตามแพลตฟอร์ม",
         "ดึงข้อมูลตามแพลตฟอร์ม",
