@@ -521,7 +521,8 @@ const ChatPage: React.FC = () => {
                     ) : (
                       <div className="whitespace-pre-wrap wrap-break-word">
                         {isAI ? (
-                          <ChatMessage html={message.text} />
+                          // Prefer fullText (complete markdown) if available, otherwise show the animated text
+                          <ChatMessage html={message.fullText || message.text} />
                         ) : (
                           message.text
                         )}
