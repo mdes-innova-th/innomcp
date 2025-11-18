@@ -35,6 +35,19 @@ const ChatPage: React.FC = () => {
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [isSocketReady, setIsSocketReady] = useState(false);
 
+  // Track which message was recently copied (index) to show transient feedback
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const copiedTimeoutRef = useRef<number | null>(null);
+
+  // Clear any pending copy timeout when component unmounts
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current) {
+        window.clearTimeout(copiedTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -463,20 +476,62 @@ const ChatPage: React.FC = () => {
                   >
                     {/* Show copy icon on hover for both user and AI messages */}
                     {!message.isAnimating && (
-                      <div className="absolute top-1 right-0 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                        <button
-                          title="คัดลอกข้อความ"
-                          className={`pointer-events-auto cursor-pointer ${
-                            message.sender === "user"
-                              ? "text-white hover:text-black"
-                              : "text-gray-500 hover:text-black"
-                          }`}
-                          onClick={() => {
-                            navigator.clipboard.writeText(message.text);
-                          }}
-                        >
-                          <FontAwesomeIcon icon={faCopy} />
-                        </button>
+                      <div
+                        className={`absolute top-1 right-0 flex gap-2 transition-opacity pointer-events-none ${
+                          copiedIndex === index ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                        }`}
+                      >
+                        <div className="relative">
+                          <button
+                            title="คัดลอกข้อความ"
+                            className={`pointer-events-auto cursor-pointer ${
+                              message.sender === "user"
+                                ? "text-white hover:text-black"
+                                : "text-gray-500 hover:text-black"
+                            }`}
+                            onClick={() => {
+                              // copy with fallback and show transient feedback
+                              const doCopy = async (text: string) => {
+                                try {
+                                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                                    await navigator.clipboard.writeText(text);
+                                  } else {
+                                    // fallback for older browsers
+                                    const ta = document.createElement("textarea");
+                                    ta.value = text;
+                                    ta.style.position = "fixed";
+                                    ta.style.left = "-9999px";
+                                    document.body.appendChild(ta);
+                                    ta.select();
+                                    document.execCommand("copy");
+                                    document.body.removeChild(ta);
+                                  }
+                                } catch (err) {
+                                  console.error("Copy failed:", err);
+                                }
+                              };
+                              void doCopy(message.text);
+                              setCopiedIndex(index);
+                              if (copiedTimeoutRef.current) window.clearTimeout(copiedTimeoutRef.current);
+                              copiedTimeoutRef.current = window.setTimeout(() => {
+                                setCopiedIndex(null);
+                              }, 1500) as unknown as number;
+                            }}
+                          >
+                            <FontAwesomeIcon icon={faCopy} />
+                          </button>
+
+                          {/* tooltip box shown above the button */}
+                          {copiedIndex === index && (
+                            <div
+                              className={"pointer-events-none absolute top-0 right-0"}
+                            >
+                              <div className="bg-black text-white text-xs rounded-md px-2 py-1 shadow-md dark:bg-gray-800 whitespace-nowrap inline-block">
+                                คัดลอกแล้ว
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                     {/* AI message: editing mode */}

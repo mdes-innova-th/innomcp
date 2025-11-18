@@ -167,6 +167,12 @@ class IntelligentMCPClient extends EventEmitter {
         "illegal",
         "ระงับ",
         "สถิติ",
+        "เว็บไซต์ผิดกฎหมาย",
+        "เว็บไซต์ผิด",
+        "เว็บผิดกฎหมาย",
+        "สถิติเว็บไซต์",
+        "แยกตามกลุ่ม",
+        "แยกตาม",
         "นับ",
         "จำนวน",
       ],
@@ -748,7 +754,7 @@ class IntelligentMCPClient extends EventEmitter {
 
     const selected = matches
       .sort((a, b) => b.score - a.score)
-      .filter((m) => m.score > 0.25) // Threshold
+      .filter((m) => m.score > 0.15) // Lowered threshold to improve matching for short/Thai queries
       .slice(0, 2)
       .map((m) => m.tool);
 
