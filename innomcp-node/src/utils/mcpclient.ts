@@ -1188,11 +1188,19 @@ Tool/Resource นี้เหมาะสมกับคำถามหรือ
             JSON.stringify(result, null, 2)
           );
 
-          results.push({
-            toolName,
-            result: result.content,
-            success: true,
-          });
+          if (result.isError) {
+            results.push({
+              toolName,
+              error: result.content && result.content.length > 0 ? result.content[0].text : "Tool execution error",
+              success: false,
+            });
+          } else {
+            results.push({
+              toolName,
+              result: result.content,
+              success: true,
+            });
+          }
 
           break; // Success, exit retry loop
         } catch (error) {
