@@ -459,7 +459,7 @@ Example response:
 
 // ดึงนับจำนวนรายการนำเข้าเว็บไซต์ผิดกฎหมายที่มีคำสั่งศาล
 mcpserver.registerTool(
-  "webdTool_count_court_by_group",
+  "webdTool_count_court",
   {
     title: "ดึงจำนวนรายการเว็บไซต์ผิดกฎหมายที่มีคำสั่งศาล",
     description: "ดึงจำนวนรายการเว็บไซต์ผิดกฎหมายที่มีคำสั่งศาล",
@@ -487,7 +487,7 @@ mcpserver.registerTool(
   },
   async ({ query }, _extra) => {
     console.log(
-      `[MCP Server] Webd count by group tool request received at ${new Date().toLocaleString()}`
+      `[MCP Server] Webd count by court tool request received at ${new Date().toLocaleString()}`
     ); // Log when a request is received
     const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
     const webddsbPort = process.env.WEBDDSB_PORT || "3010";

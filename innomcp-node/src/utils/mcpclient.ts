@@ -794,7 +794,7 @@ ${toolDescriptions}
 - "วันนี้วันที่เท่าไหร่" → innomcp-server:dateTimeTool
 - "คำนวณ 5+3" → innomcp-server:calculatorTool  
 - "สวัสดี" → innomcp-server:greeting (resource)
-- "นับจำนวน URL ผิดกฎหมาย" → innomcp-server:webdTool_countCourtOrderedUrls
+- "นับจำนวน URL ผิดกฎหมาย" → innomcp-server:webdTool_count_by_group
 - "สบายดีไหม" → none (ไม่ต้องใช้ tool)
 - "ขอบคุณ" → none
 
