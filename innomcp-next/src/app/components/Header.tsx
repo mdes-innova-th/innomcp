@@ -76,7 +76,8 @@ export default function Header() {
   };
 
   return (
-    <header className="w-full text-gray-700 dark:text-gray-200">
+    <>
+      <header className="w-full text-gray-700 dark:text-gray-200">
       <div className="w-full flex justify-between items-center p-1 ms-5 sm:px-1 app-name-section">
         <div className="w-full h-full m-1 flex items-center justify-center">
           <div className="flex items-center justify-center">
@@ -93,7 +94,7 @@ export default function Header() {
             <div className="flex items-start">
               <Image
                 src="/logo.png"
-                className="w-auto h-auto m-5 p-0 max-h-[100px] max-w-[200px]"
+                className="w-auto h-auto m-5 p-0 max-h-[150px] max-w-[250px]"
                 alt="InnoMCP Logo"
                 priority
                 width={200}
@@ -140,21 +141,7 @@ export default function Header() {
                 >
                   <FaHome size={23} />
                 </Link>
-                <button
-                  onClick={toggleTheme}
-                  aria-label={
-                    theme === "dark"
-                      ? "เปลี่ยนเป็นโหมดสว่าง"
-                      : "เปลี่ยนเป็นโหมดมืด"
-                  }
-                  className="mx-2 px-3 py-1 rounded-lg border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-700 text-gray-700 dark:text-gray-200 flex items-center gap-2 shadow hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-                >
-                  {theme === "dark" ? (
-                    <FaSun size={18} />
-                  ) : (
-                    <FaMoon size={18} />
-                  )}
-                </button>
+                {/* Theme toggle removed from inline header — now rendered as a fixed bottom-left button below */}
               </div>
             </div>
             {/* ปุ่มสำหรับ userRoleId 0 (admin) */}
@@ -200,6 +187,22 @@ export default function Header() {
           </>
         ) : null}
       </div>
-    </header>
+      </header>
+
+      {/* Fixed theme toggle button at bottom-left */}
+      <button
+        onClick={toggleTheme}
+        aria-label={
+          theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด"
+        }
+        title={theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด"}
+        className="fixed left-2 bottom-2 z-50 w-11 h-11 p-2 rounded-full border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-700 text-gray-700 dark:text-gray-200 shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-transform transform hover:scale-105 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+      >
+        {theme === "dark" ? <FaSun size={20} /> : <FaMoon size={20} />}
+        <span className="sr-only">
+          {theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด"}
+        </span>
+      </button>
+    </>
   );
 }
