@@ -442,7 +442,7 @@ const ChatPage: React.FC = () => {
     <div className="flex flex-col items-center overflow-hidden max-h-screen">
       <HeaderChat />
       <div className="flex flex-col flex-1 w-full items-center justify-start pt-8">
-        <div className="w-full max-w-3xl bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-lg px-6 py-4">
+  <div className={`w-full max-w-3xl ${theme === "light" ? "bg-white" : "bg-gray-900/95"} rounded-2xl shadow-lg px-6 py-4`}>
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-end w-full">
               <div
@@ -611,7 +611,7 @@ const ChatPage: React.FC = () => {
                 adjustTextarea();
               }}
               rows={3}
-              className="rounded-xl border border-gray-300 dark:border-gray-700 p-3 text-base bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white resize-none w-full focus:ring-0 focus:outline-none"
+              className={`rounded-xl border ${theme === "light" ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-800 text-white"} p-3 text-base resize-none w-full focus:ring-0 focus:outline-none`}
               placeholder="พิมพ์ข้อความที่นี่..."
             />
             {selectedImage && (

@@ -97,8 +97,8 @@ export default function Header() {
                 className="w-auto h-auto m-5 p-0 max-h-[150px] max-w-[250px]"
                 alt="InnoMCP Logo"
                 priority
-                width={200}
-                height={100}
+                width={250}
+                height={150}
               />
             </div>
           </div>
