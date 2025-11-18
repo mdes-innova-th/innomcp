@@ -82,24 +82,26 @@ export default function Header() {
         <div className="w-full h-full m-1 flex items-center justify-center">
           <div className="flex items-center justify-center">
             <div className="hidden sm:flex items-start">
-              <Image
-                src="/mdes-new-logo.png"
-                className="w-auto h-auto m-5 p-0 max-h-[150px] max-w-[250px]"
-                alt="MDES Logo"
-                priority
-                width={250}
-                height={150}
-              />
+              <div className="relative m-5 w-[250px] h-[150px]">
+                <Image
+                  src="/mdes-new-logo.png"
+                  className="object-contain"
+                  alt="MDES Logo"
+                  priority
+                  fill
+                />
+              </div>
             </div>
             <div className="flex items-start">
-              <Image
-                src="/logo.png"
-                className="w-auto h-auto m-5 p-0 max-h-[150px] max-w-[250px]"
-                alt="InnoMCP Logo"
-                priority
-                width={250}
-                height={150}
-              />
+              <div className="relative m-5 pt-5 w-[250px] h-[200px]">
+                <Image
+                  src="/logo.png"
+                  className="object-contain"
+                  alt="InnoMCP Logo"
+                  priority
+                  fill
+                />
+              </div>
             </div>
           </div>
         </div>
