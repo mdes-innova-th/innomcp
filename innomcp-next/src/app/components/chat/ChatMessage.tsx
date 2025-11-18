@@ -33,6 +33,36 @@ export default function ChatMessage({ html, className }: Props) {
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeRaw, [rehypeSanitize, schema]]}
           components={{
+            h1: ({ children }) => (
+              <h1 className="text-4xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+                {children}
+              </h1>
+            ),
+            h2: ({ children }) => (
+              <h2 className="text-3xl font-bold mb-3 text-gray-900 dark:text-gray-100">
+                {children}
+              </h2>
+            ),
+            h3: ({ children }) => (
+              <h3 className="text-2xl font-bold mb-2 text-gray-900 dark:text-gray-100">
+                {children}
+              </h3>
+            ),
+            h4: ({ children }) => (
+              <h4 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
+                {children}
+              </h4>
+            ),
+            h5: ({ children }) => (
+              <h5 className="text-lg font-bold mb-1 text-gray-900 dark:text-gray-100">
+                {children}
+              </h5>
+            ),
+            h6: ({ children }) => (
+              <h6 className="text-base font-bold mb-1 text-gray-900 dark:text-gray-100">
+                {children}
+              </h6>
+            ),
             table: ({ children }) => (
               <table className="border-collapse border border-gray-300 dark:border-gray-600">
                 {children}

@@ -442,7 +442,11 @@ const ChatPage: React.FC = () => {
     <div className="flex flex-col items-center overflow-hidden max-h-screen">
       <HeaderChat />
       <div className="flex flex-col flex-1 w-full items-center justify-start pt-8">
-  <div className={`w-full max-w-3xl ${theme === "light" ? "bg-white" : "bg-gray-900/95"} rounded-2xl shadow-lg px-6 py-4`}>
+        <div
+          className={`w-full max-w-3xl ${
+            theme === "light" ? "bg-white" : "bg-gray-900/95"
+          } rounded-2xl shadow-lg px-6 py-4`}
+        >
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-end w-full">
               <div
@@ -478,7 +482,9 @@ const ChatPage: React.FC = () => {
                     {!message.isAnimating && (
                       <div
                         className={`absolute top-1 right-0 flex gap-2 transition-opacity pointer-events-none ${
-                          copiedIndex === index ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                          copiedIndex === index
+                            ? "opacity-100"
+                            : "opacity-0 group-hover:opacity-100"
                         }`}
                       >
                         <div className="relative">
@@ -493,11 +499,15 @@ const ChatPage: React.FC = () => {
                               // copy with fallback and show transient feedback
                               const doCopy = async (text: string) => {
                                 try {
-                                  if (navigator.clipboard && navigator.clipboard.writeText) {
+                                  if (
+                                    navigator.clipboard &&
+                                    navigator.clipboard.writeText
+                                  ) {
                                     await navigator.clipboard.writeText(text);
                                   } else {
                                     // fallback for older browsers
-                                    const ta = document.createElement("textarea");
+                                    const ta =
+                                      document.createElement("textarea");
                                     ta.value = text;
                                     ta.style.position = "fixed";
                                     ta.style.left = "-9999px";
@@ -512,10 +522,14 @@ const ChatPage: React.FC = () => {
                               };
                               void doCopy(message.text);
                               setCopiedIndex(index);
-                              if (copiedTimeoutRef.current) window.clearTimeout(copiedTimeoutRef.current);
-                              copiedTimeoutRef.current = window.setTimeout(() => {
-                                setCopiedIndex(null);
-                              }, 1500) as unknown as number;
+                              if (copiedTimeoutRef.current)
+                                window.clearTimeout(copiedTimeoutRef.current);
+                              copiedTimeoutRef.current = window.setTimeout(
+                                () => {
+                                  setCopiedIndex(null);
+                                },
+                                1500
+                              ) as unknown as number;
                             }}
                           >
                             <FontAwesomeIcon icon={faCopy} />
@@ -524,7 +538,9 @@ const ChatPage: React.FC = () => {
                           {/* tooltip box shown above the button */}
                           {copiedIndex === index && (
                             <div
-                              className={"pointer-events-none absolute top-0 right-0"}
+                              className={
+                                "pointer-events-none absolute top-0 right-0"
+                              }
                             >
                               <div className="bg-black text-white text-xs rounded-md px-2 py-1 shadow-md dark:bg-gray-800 whitespace-nowrap inline-block">
                                 คัดลอกแล้ว
@@ -577,7 +593,9 @@ const ChatPage: React.FC = () => {
                       <div className="whitespace-pre-wrap wrap-break-word">
                         {isAI ? (
                           // Prefer fullText (complete markdown) if available, otherwise show the animated text
-                          <ChatMessage html={message.fullText || message.text} />
+                          <ChatMessage
+                            html={message.fullText || message.text}
+                          />
                         ) : (
                           message.text
                         )}
@@ -596,7 +614,9 @@ const ChatPage: React.FC = () => {
                 (!messages.length ||
                   messages[messages.length - 1].sender !== "ai" ||
                   !messages[messages.length - 1].isAnimating) && (
-                  <div className={`relative p-2 max-w-full self-start pr-5 mb-5 text-left`}>
+                  <div
+                    className={`relative p-2 max-w-full self-start pr-5 mb-5 text-left`}
+                  >
                     <div className="whitespace-pre-wrap flex items-center">
                       <TypingDots />
                     </div>
@@ -611,7 +631,11 @@ const ChatPage: React.FC = () => {
                 adjustTextarea();
               }}
               rows={3}
-              className={`rounded-xl border ${theme === "light" ? "border-gray-300 bg-white text-gray-900" : "border-gray-700 bg-gray-800 text-white"} p-3 text-base resize-none w-full focus:ring-0 focus:outline-none`}
+              className={`rounded-xl border ${
+                theme === "light"
+                  ? "border-gray-300 bg-white text-gray-900"
+                  : "border-gray-700 bg-gray-800 text-white"
+              } p-3 text-base resize-none w-full focus:ring-0 focus:outline-none`}
               placeholder="พิมพ์ข้อความที่นี่..."
             />
             {selectedImage && (
