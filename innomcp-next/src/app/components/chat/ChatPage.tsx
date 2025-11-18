@@ -8,7 +8,7 @@ import ThemeContext from "@/app/context/ThemeContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowUp,
-  faPlus,
+  faPaperclip,
   faCopy,
   faRefresh,
 } from "@fortawesome/free-solid-svg-icons";
@@ -643,9 +643,10 @@ const ChatPage: React.FC = () => {
                 </button>
                 <button
                   onClick={() => fileInputRef.current?.click()}
+                  title="แนบไฟล์"
                   className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-lg px-4 py-2 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors cursor-pointer"
                 >
-                  <FontAwesomeIcon icon={faPlus} />
+                  <FontAwesomeIcon icon={faPaperclip} />
                 </button>
               </div>
               <button
