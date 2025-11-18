@@ -6,6 +6,8 @@ import EventEmitter from "events";
 import path from "path";
 import fs from "fs";
 import Ajv from "ajv";
+import { remark } from 'remark';
+import remarkHtml from 'remark-html';
 
 // Interface for MCP Tool Definition
 interface MCPTool {
@@ -1555,3 +1557,16 @@ function InitMcpClient(
 }
 
 export { InitMcpClient, IntelligentMCPClient, MCPTool, MCPClientConfig };
+
+// Function to convert Markdown to HTML using remark and rehype
+export function markdownToHtml(markdown: string): string {
+  try {
+    const result = remark()
+      .use(remarkHtml)
+      .processSync(markdown);
+    return result.toString();
+  } catch (error) {
+    console.error('Error converting Markdown to HTML:', error);
+    return markdown; // Return original markdown if conversion fails
+  }
+}
