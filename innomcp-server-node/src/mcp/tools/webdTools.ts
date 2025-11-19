@@ -22,22 +22,7 @@ Example response:
   ]
 }`,
       _meta: {
-        keywords: [
-          "webd",
-          "webd project",
-          "url",
-          "เว็บ",
-          "เว็บไซต์",
-          "ประเภท",
-          "หมวดหมู่",
-          "ผิดกฎหมาย",
-          "จำนวน",
-          "นับ",
-          "สถิติ",
-          "violation",
-          "violation count",
-          "การนำเข้า",
-        ],
+        keywords: ["webd", "หมวดหมู่", "กลุ่ม", "ประเภท"],
         examples: [
           "ฉันต้องการสถิติเว็บไซต์ผิดกฎหมายบน webd",
           "นับจำนวนรายการนำเข้าเกี่ยวกับเว็บการพนัน ใน webd",
@@ -90,7 +75,8 @@ Example response:
         console.log("[MCP Server] CSRF token obtained");
 
         let setCookieHeaders: string[] = [];
-        const cookiehdr = csrfRes.headers.get && csrfRes.headers.get("set-cookie");
+        const cookiehdr =
+          csrfRes.headers.get && csrfRes.headers.get("set-cookie");
         if (cookiehdr) {
           setCookieHeaders = [cookiehdr];
           console.log("[MCP Server] Set-Cookie header");
@@ -155,7 +141,7 @@ Example response:
       title: "ดึงจำนวนรายการเว็บไซต์ผิดกฎหมายที่มีคำสั่งศาล",
       description: "ดึงจำนวนรายการเว็บไซต์ผิดกฎหมายที่มีคำสั่งศาล",
       _meta: {
-        keywords: ["webd", "court", "คำสั่งศาล", "ระงับ", "ปิดกั้น"],
+        keywords: ["webd", "มีคำสั่งศาล", "ปิดกั้น"],
         examples: [
           "ฉันต้องการสถิติเว็บไซต์ผิดกฎหมายบน webd ที่มีคำสั่งศาล",
           "นับจำนวนรายการนำเข้าเกี่ยวกับเว็บการพนัน ใน webd ที่มีคำสั่งศาล",
@@ -200,7 +186,8 @@ Example response:
         console.log("[MCP Server] CSRF token obtained");
 
         let setCookieHeaders: string[] = [];
-        const cookiehdr = csrfRes.headers.get && csrfRes.headers.get("set-cookie");
+        const cookiehdr =
+          csrfRes.headers.get && csrfRes.headers.get("set-cookie");
         if (cookiehdr) {
           setCookieHeaders = [cookiehdr];
           console.log("[MCP Server] Set-Cookie header");
@@ -265,7 +252,7 @@ Example response:
       title: "ดึงจำนวน URL จากคำร้อง",
       description: "ดึงจำนวน URL จากคำร้อง",
       _meta: {
-        keywords: ["webd", "คำร้อง", "petition"],
+        keywords: ["webd", "คำร้อง", "มีคำร้อง", "ยื่นคำร้อง"],
         examples: [
           "แสดงจำนวน URL จากคำร้อง",
           "นับเว็บไซต์ที่มาจากคำร้อง",
@@ -324,21 +311,7 @@ Example response:
       title: "ดึงจำนวน URL แยกตามวันที่และประเภทความผิด",
       description: "ดึงจำนวน URL แยกตามวันที่และประเภทความผิด",
       _meta: {
-        keywords: [
-          "webd",
-          "date",
-          "by date count",
-          "วัน",
-          "นับตามวันที่",
-          "ระหว่างวันที่",
-          "ตั้งแต่วันที่",
-          "ถึงวันที่",
-          "วันที่เริ่มต้น",
-          "วันที่สิ้นสุด",
-          "วันนี้",
-          "ปัจจุบัน",
-          "เมื่อวาน",
-        ],
+        keywords: ["webd", "รายวัน"],
         examples: [
           "นับจำนวน URL แยกตามวันที่และหมวดหมู่",
           "แสดงสถิติ URL ตามวันและประเภทการละเมิด",
@@ -346,10 +319,16 @@ Example response:
         ],
       },
       inputSchema: z.object({
-        startDate: z.string().optional().describe("วันที่เริ่มต้น (YYYY-MM-DD)"),
+        startDate: z
+          .string()
+          .optional()
+          .describe("วันที่เริ่มต้น (YYYY-MM-DD)"),
         endDate: z.string().optional().describe("วันที่สิ้นสุด (YYYY-MM-DD)"),
         sourceType: z.string().optional().describe("ประเภทแหล่งที่มา"),
-        selectedGroups: z.array(z.string()).optional().describe("กลุ่มที่เลือก"),
+        selectedGroups: z
+          .array(z.string())
+          .optional()
+          .describe("กลุ่มที่เลือก"),
       }),
       outputSchema: z.object({
         success: z.boolean(),
@@ -385,7 +364,8 @@ Example response:
         if (!csrfToken) throw new Error("No csrfToken in response");
 
         let setCookieHeaders: string[] = [];
-        const cookiehdr = csrfRes.headers.get && csrfRes.headers.get("set-cookie");
+        const cookiehdr =
+          csrfRes.headers.get && csrfRes.headers.get("set-cookie");
         if (cookiehdr) {
           setCookieHeaders = [cookiehdr];
         } else {
@@ -451,19 +431,7 @@ Example response:
       title: "ดึงจำนวน URL แยกตามเดือนและประเภทความผิด",
       description: "ดึงจำนวน URL แยกตามเดือนและประเภทความผิด",
       _meta: {
-        keywords: [
-          "webd",
-          "by month count",
-          "เดือน",
-          "นับตามเดือน",
-          "ระหว่างเดือน",
-          "ตั้งแต่เดือน",
-          "ถึงเดือน",
-          "เดือนเริ่มต้น ",
-          "เดือนสิ้นสุด",
-          "ปัจจุบัน",
-          "เดือนนี้",
-        ],
+        keywords: ["webd", "รายเดือน"],
         examples: [
           "นับจำนวน URL แยกตามเดือนและหมวดหมู่",
           "แสดงสถิติ URL ตามเดือนและประเภทการละเมิด",
@@ -474,7 +442,10 @@ Example response:
         startMonth: z.string().optional().describe("เดือนเริ่มต้น (YYYY-MM)"),
         endMonth: z.string().optional().describe("เดือนสิ้นสุด (YYYY-MM)"),
         sourceType: z.string().optional().describe("ประเภทแหล่งที่มา"),
-        selectedGroups: z.array(z.string()).optional().describe("กลุ่มที่เลือก"),
+        selectedGroups: z
+          .array(z.string())
+          .optional()
+          .describe("กลุ่มที่เลือก"),
       }),
       outputSchema: z.object({
         success: z.boolean(),
@@ -510,7 +481,8 @@ Example response:
         if (!csrfToken) throw new Error("No csrfToken in response");
 
         let setCookieHeaders: string[] = [];
-        const cookiehdr = csrfRes.headers.get && csrfRes.headers.get("set-cookie");
+        const cookiehdr =
+          csrfRes.headers.get && csrfRes.headers.get("set-cookie");
         if (cookiehdr) {
           setCookieHeaders = [cookiehdr];
         } else {
@@ -576,7 +548,7 @@ Example response:
       title: "ดึงสถิติ URL แยกตามแพลตฟอร์ม",
       description: "ดึงสถิติ URL แยกตามแพลตฟอร์ม",
       _meta: {
-        keywords: ["webd", "platforms", "แพลตฟอร์ม", "platform", "statistics"],
+        keywords: ["webd", "platforms", "แพลตฟอร์ม", "platform"],
         examples: [
           "แสดงสถิติ URL แยกตามแพลตฟอร์ม",
           "ดึงข้อมูลตามแพลตฟอร์ม",
@@ -623,26 +595,38 @@ Example response:
           const items = Array.isArray(data?.data) ? data.data : null;
           if (items) {
             // Compute total url_count if any item has missing percentage
-            const needsCompute = items.some((it: any) => typeof it.percentage !== "number");
+            const needsCompute = items.some(
+              (it: any) => typeof it.percentage !== "number"
+            );
             if (needsCompute) {
-              const total = items.reduce((s: number, it: any) => s + (Number(it.url_count) || 0), 0) || 0;
+              const total =
+                items.reduce(
+                  (s: number, it: any) => s + (Number(it.url_count) || 0),
+                  0
+                ) || 0;
               if (total > 0) {
                 data.data = items.map((it: any) => ({
                   ...it,
                   url_count: Number(it.url_count) || 0,
                   percentage: Number.isFinite(Number(it.percentage))
                     ? Number(it.percentage)
-                    : Math.round(((Number(it.url_count) || 0) / total) * 10000) / 100,
+                    : Math.round(
+                        ((Number(it.url_count) || 0) / total) * 10000
+                      ) / 100,
                 }));
               } else {
                 // No counts available, set percentage to 0 for each
                 data.data = items.map((it: any) => ({
                   ...it,
                   url_count: Number(it.url_count) || 0,
-                  percentage: typeof it.percentage === "number" ? it.percentage : 0,
+                  percentage:
+                    typeof it.percentage === "number" ? it.percentage : 0,
                 }));
               }
-              console.log("[MCP Server] Platforms data normalized with percentages:", data);
+              console.log(
+                "[MCP Server] Platforms data normalized with percentages:",
+                data
+              );
             }
           }
         } catch (err) {
@@ -672,18 +656,7 @@ Example response:
       title: "ดึงสถิติ URL แยกตามประเทศที่จดทะเบียน",
       description: "ดึงสถิติ URL แยกตามประเทศที่จดทะเบียน",
       _meta: {
-        keywords: [
-          "webd",
-          "register country",
-          "ประเทศที่จดทะเบียน",
-          "สถิติ",
-          "country",
-          "ประเทศ",
-          "ที่ตั้ง",
-          "จดทะเบียน",
-          "registration",
-          "statistics",
-        ],
+        keywords: ["webd", "จดทะเบียน", "ประเทศที่จดทะเบียน"],
         examples: [
           "แสดงสถิติ URL แยกตามประเทศที่จดทะเบียน",
           "ดึงข้อมูลตามประเทศ",
@@ -729,29 +702,44 @@ Example response:
         try {
           const items = Array.isArray(data?.data) ? data.data : null;
           if (items) {
-            const needsCompute = items.some((it: any) => typeof it.percentage !== "number");
+            const needsCompute = items.some(
+              (it: any) => typeof it.percentage !== "number"
+            );
             if (needsCompute) {
-              const total = items.reduce((s: number, it: any) => s + (Number(it.url_count) || 0), 0) || 0;
+              const total =
+                items.reduce(
+                  (s: number, it: any) => s + (Number(it.url_count) || 0),
+                  0
+                ) || 0;
               if (total > 0) {
                 data.data = items.map((it: any) => ({
                   ...it,
                   url_count: Number(it.url_count) || 0,
                   percentage: Number.isFinite(Number(it.percentage))
                     ? Number(it.percentage)
-                    : Math.round(((Number(it.url_count) || 0) / total) * 10000) / 100,
+                    : Math.round(
+                        ((Number(it.url_count) || 0) / total) * 10000
+                      ) / 100,
                 }));
               } else {
                 data.data = items.map((it: any) => ({
                   ...it,
                   url_count: Number(it.url_count) || 0,
-                  percentage: typeof it.percentage === "number" ? it.percentage : 0,
+                  percentage:
+                    typeof it.percentage === "number" ? it.percentage : 0,
                 }));
               }
-              console.log("[MCP Server] Register country data normalized with percentages:", data);
+              console.log(
+                "[MCP Server] Register country data normalized with percentages:",
+                data
+              );
             }
           }
         } catch (err) {
-          console.warn("[MCP Server] Failed to normalize register country data:", err);
+          console.warn(
+            "[MCP Server] Failed to normalize register country data:",
+            err
+          );
         }
 
         return {
