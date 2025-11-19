@@ -1434,7 +1434,8 @@ ${schemaStr}
 1. ตอบเป็น JSON object เท่านั้น ไม่มีข้อความอื่น
 2. ไม่ต้องใช้ markdown code blocks
 3. ถ้าไม่แน่ใจให้ใช้ค่า default หรือ empty object {}
-4. สำหรับ expression ใน calculatorTool ให้แยกตัวเลขและเครื่องหมายชัดเจน
+
+
 
 ตัวอย่าง:
 - dateTimeTool: {}
