@@ -148,18 +148,10 @@ class IntelligentMCPClient extends EventEmitter {
         "webd",
         "ผิดกฎหมาย",
         "คำสั่งศาล",
-        "url",
-        "domain",
-        "domain",
-        "โดเมน",
-        "บล็อก",
-        "ปิดกั้น",
-        "ระงับ",
         "เว็บไซต์ผิดกฎหมาย",
-        "เว็บไซต์ผิด",
         "เว็บผิดกฎหมาย",
         "สถิติเว็บไซต์",
-        "แยกตามกลุ่ม",
+        "จำนวนเว็บไซต์",
       ],
       toolPattern: /^webdTool_/i,
       priority: "high",
@@ -475,7 +467,7 @@ class IntelligentMCPClient extends EventEmitter {
       },
       {
         category: "webd",
-        keywords: ["webd", "violation", "court", "ผิดกฎหมาย", "คำสั่งศาล"],
+        keywords: ["webd", "violation", "court", "เว็บไซต์ผิดกฎหมาย", "มีคำสั่งศาล"],
       },
     ];
 
@@ -572,12 +564,12 @@ class IntelligentMCPClient extends EventEmitter {
       {
         pattern: /webd|ผิดกฎหมาย|คำสั่งศาล|violation|court|url/,
         examples: [
-          "นับจำนวนเว็บไซต์ผิดกฎหมาย",
-          "สถิติเว็บไซต์ผิดกฎหมาย",
-          "เว็บไซต์ผิดกฎหมายมีกี่ url",
-          "เว็บไซต์ผิดกฎหมายที่มีคำสั่งศาล",
-          "URL ที่มีคำสั่งศาล",
-          "สถิติโดเมนที่มีคำสั่งศาล",
+          "นับจำนวนเว็บไซต์ผิดกฎหมายในระบบ webd",
+          "สถิติเว็บไซต์ผิดกฎหมายในระบบ webd",
+          "เว็บไซต์ผิดกฎหมายมีกี่ url ในระบบ webd",
+          "เว็บไซต์ผิดกฎหมายที่มีคำสั่งศาลในระบบ webd",
+          "URL ที่มีคำสั่งศาลในระบบ webd",
+          "สถิติโดเมนที่มีคำสั่งศาลในระบบ webd",
         ],
       },
     ];
@@ -834,7 +826,7 @@ ${toolDescriptions}
 **ตัวอย่างการเลือก**:
 - "วันนี้วันที่เท่าไหร่" → innomcp-server:dateTimeTool
 - "สวัสดี" → innomcp-server:greeting (resource)
-- "นับจำนวน URL ผิดกฎหมาย" → innomcp-server:webdTool_count_by_group
+- "จำนวน URL ผิดกฎหมายในระบบ webd" → เลิอก tool ที่มี prefix "webdTool_"
 - "สบายดีไหม" → none (ไม่ต้องใช้ tool)
 - "ขอบคุณ" → none
 
