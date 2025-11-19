@@ -137,6 +137,7 @@ class IntelligentMCPClient extends EventEmitter {
         "forecast",
         "สภาพอากาศ",
         "อากาศ",
+        "ฝนตกไหม่",
       ],
       toolPattern: /weather|forecast|อากาศ/i,
       priority: "high",
