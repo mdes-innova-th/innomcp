@@ -1088,6 +1088,26 @@ Tool/Resource นี้เหมาะสมกับคำถามหรือ
     return null; // no balanced JSON found
   }
 
+  // Parse validation errors JSON array from an arbitrary error message text
+  private parseValidationErrorsFromMessage(text: string): any[] | null {
+    if (!text || typeof text !== "string") return null;
+
+    // Try to locate a JSON array/object inside the message
+    const extracted = this.extractJsonFromText(text);
+    if (!extracted) return null;
+
+    try {
+      const parsed = JSON.parse(extracted);
+      // If it's an array of validation errors, return it
+      if (Array.isArray(parsed)) return parsed;
+      // If an object with `errors` or similar, try to return that
+      if (parsed && parsed.errors && Array.isArray(parsed.errors)) return parsed.errors;
+      return [parsed];
+    } catch (err) {
+      return null;
+    }
+  }
+
   // Execute selected tools with retry logic
   async executeTools(toolNames: string[], userMessage: string): Promise<any[]> {
     const results: any[] = [];
@@ -1189,15 +1209,53 @@ Tool/Resource นี้เหมาะสมกับคำถามหรือ
           );
 
           if (result.isError) {
+            const errText =
+              result.content && result.content.length > 0
+                ? result.content[0].text
+                : "Tool execution error";
+
+            // Try to parse validation errors embedded in the message
+            const validationErrors = this.parseValidationErrorsFromMessage(
+              errText
+            );
+
             results.push({
               toolName,
-              error: result.content && result.content.length > 0 ? result.content[0].text : "Tool execution error",
+              error: errText,
+              raw: result,
+              validationErrors: validationErrors || undefined,
               success: false,
             });
           } else {
+            // Try to normalize result.content: if the server returned text that contains JSON,
+            // extract and parse it so downstream code gets structured data when possible.
+            let payload: any = result.content;
+
+            try {
+              if (Array.isArray(result.content) && result.content.length > 0) {
+                const first = result.content[0] as any;
+                if (first && typeof first.text === "string") {
+                  const extracted = this.extractJsonFromText(first.text);
+                  if (extracted) {
+                    try {
+                      payload = JSON.parse(extracted);
+                    } catch (e) {
+                      payload = result.content; // keep original
+                    }
+                  } else {
+                    payload = result.content;
+                  }
+                } else {
+                  payload = result.content;
+                }
+              }
+            } catch (e) {
+              payload = result.content;
+            }
+
             results.push({
               toolName,
-              result: result.content,
+              result: payload,
               success: true,
             });
           }

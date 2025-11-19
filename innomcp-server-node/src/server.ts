@@ -1,12 +1,8 @@
 import "dotenv/config";
-import http from "http";
 import dotenv from "dotenv";
-import {
-  McpServer,
-  ResourceTemplate,
-} from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { set, z } from "zod";
+import { z } from "zod";
 
 // Per-method parameter schemas (JSON-RPC method name -> zod schema)
 const methodParamSchemas: Record<string, z.ZodTypeAny> = {
@@ -162,21 +158,13 @@ app.post("/mcp", async (req, res) => {
   await transport.handleRequest(req, res, req.body);
 });
 
-app
-  .listen(port, () => {
-    console.log(`MCP Server running on http://${host}:${port}/mcp`);
-  })
-  .on("error", (error) => {
-    console.error("Server error:", error);
-    process.exit(1);
-  });
+const server = app.listen(port, host, () => {
+  console.log(`MCP Server running on http://${host}:${port}/mcp`);
+});
+
+server.on("error", (error) => {
+  console.error("Server error:", error);
+  process.exit(1);
+});
 
 export { server, mcpserver };
-const server = app
-  .listen(port, () => {
-    console.log(`MCP Server running on http://${host}:${port}/mcp`);
-  })
-  .on("error", (error) => {
-    console.error("Server error:", error);
-    process.exit(1);
-  });

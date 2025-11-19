@@ -615,8 +615,39 @@ Example response:
           throw new Error(`API request failed with status ${res.status}`);
         }
 
-        const data = await res.json();
-        console.log("[MCP Server] Platforms data:", data);
+        let data = await res.json();
+        console.log("[MCP Server] Platforms raw data:", data);
+
+        // Normalize data to ensure `percentage` field exists and is a number
+        try {
+          const items = Array.isArray(data?.data) ? data.data : null;
+          if (items) {
+            // Compute total url_count if any item has missing percentage
+            const needsCompute = items.some((it: any) => typeof it.percentage !== "number");
+            if (needsCompute) {
+              const total = items.reduce((s: number, it: any) => s + (Number(it.url_count) || 0), 0) || 0;
+              if (total > 0) {
+                data.data = items.map((it: any) => ({
+                  ...it,
+                  url_count: Number(it.url_count) || 0,
+                  percentage: Number.isFinite(Number(it.percentage))
+                    ? Number(it.percentage)
+                    : Math.round(((Number(it.url_count) || 0) / total) * 10000) / 100,
+                }));
+              } else {
+                // No counts available, set percentage to 0 for each
+                data.data = items.map((it: any) => ({
+                  ...it,
+                  url_count: Number(it.url_count) || 0,
+                  percentage: typeof it.percentage === "number" ? it.percentage : 0,
+                }));
+              }
+              console.log("[MCP Server] Platforms data normalized with percentages:", data);
+            }
+          }
+        } catch (err) {
+          console.warn("[MCP Server] Failed to normalize platforms data:", err);
+        }
 
         return {
           content: [
@@ -691,8 +722,37 @@ Example response:
           throw new Error(`API request failed with status ${res.status}`);
         }
 
-        const data = await res.json();
-        console.log("[MCP Server] Register country data:", data);
+        let data = await res.json();
+        console.log("[MCP Server] Register country raw data:", data);
+
+        // Normalize to ensure percentage exists
+        try {
+          const items = Array.isArray(data?.data) ? data.data : null;
+          if (items) {
+            const needsCompute = items.some((it: any) => typeof it.percentage !== "number");
+            if (needsCompute) {
+              const total = items.reduce((s: number, it: any) => s + (Number(it.url_count) || 0), 0) || 0;
+              if (total > 0) {
+                data.data = items.map((it: any) => ({
+                  ...it,
+                  url_count: Number(it.url_count) || 0,
+                  percentage: Number.isFinite(Number(it.percentage))
+                    ? Number(it.percentage)
+                    : Math.round(((Number(it.url_count) || 0) / total) * 10000) / 100,
+                }));
+              } else {
+                data.data = items.map((it: any) => ({
+                  ...it,
+                  url_count: Number(it.url_count) || 0,
+                  percentage: typeof it.percentage === "number" ? it.percentage : 0,
+                }));
+              }
+              console.log("[MCP Server] Register country data normalized with percentages:", data);
+            }
+          }
+        } catch (err) {
+          console.warn("[MCP Server] Failed to normalize register country data:", err);
+        }
 
         return {
           content: [
