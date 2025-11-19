@@ -61,25 +61,25 @@ interface ToolPattern {
   category?: string;
 }
 
-// Define the system prompt for Ollama
-const SYSTEM_PROMPT = `คุณเป็น AI ผู้ช่วยที่มีความสำคัญ:
-1. จำประวัติการสนทนาที่ผ่านมา
-2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
-3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
-4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า "ขออภัย ฉันยังไม่มีข้อมูลที่คุณต้องการ"
-5. ตอบไม่ให้รู้ว่ามีการใช้ MCP tools ถ้าไม่จำเป็น
-6. ตอบเป็นภาษาไทยเป็นหลัก
-8. ใช้ markdown headings สำหรับหัวข้อ เช่น:
-   # หัวข้อหลัก
-   เนื้อหา...
-   ## หัวข้อย่อย
-   เนื้อหา...
-   หลีกเลี่ยงการส่งข้อความธรรมดาโดยไม่มีการจัดรูปแบบ
-9. ใช้ markdown table เมื่อเหมาะสม เช่น แสดงข้อมูลในรูปแบบตาราง
-10. ใช้สีตัวอักษรเพื่อเน้นข้อความสำคัญหรือแยกส่วนต่างๆ ห้ามฝังสไตล์แบบ inline ใช้ Tailwind CSS classes ในการตกแต่งแทน
-11. ใช้สีเพื่อทำให้คำตอบน่าสนใจและอ่านง่ายขึ้น
-12. ใช้ขนาดตัวอักษรเพื่อเน้นหัวข้อหรือข้อความสำคัญ ห้ามฝังสไตล์แบบ inline ใช้ Tailwind CSS classes ในการตกแต่งแทน
-13. โครงสร้างคำตอบ: เริ่มด้วยหัวข้อหลัก, ตามด้วยเนื้อหา, ใช้ bullet points (- หรือ *) หรือ numbering (1. 2.) สำหรับรายการ`;
+// Define the system prompt for Ollama (JSON-only enforcement with Markdown field)
+// IMPORTANT: This prompt strongly instructs the model to reply with valid JSON only.
+// The JSON MUST include a top-level field named "markdown" (string) that contains
+// the human-facing answer formatted in Markdown. Do NOT produce HTML, code fences
+// or any text outside the JSON object/array.
+const SYSTEM_PROMPT = `คุณเป็น AI ที่จะตอบกลับเป็น JSON เท่านั้น:
+1. ตอบกลับเฉพาะ JSON ที่ถูกต้อง (valid JSON) เท่านั้น — ไม่มี HTML, ไม่มี code fence, ไม่มีข้อความนอก JSON
+2. JSON ต้องมีฟิลด์ระดับบนสุดชื่อ "markdown" ซึ่งเป็นข้อความสตริงที่มีคำตอบสำหรับผู้ใช้ในรูปแบบ Markdown (เช่น ใช้ #, ##, -, *, 
+  รายการ, ตาราง Markdown เป็นต้น)
+3. โครงสร้าง JSON สามารถมีฟิลด์เพิ่มเติมได้ เช่น "success", "data", "meta" ฯลฯ แต่ต้องมี "markdown" เสมอ
+4. หากไม่สามารถให้ข้อมูลตามคำขอ ให้ตอบเป็น JSON เช่น:
+  {"success": false, "error": "สาเหตุที่ไม่สามารถตอบได้", "markdown":""}
+5. ห้ามส่งคำอธิบายเพิ่มเติมใดๆ นอก JSON (เช่น "หมายเหตุ:", "หมายเหตุเพิ่มเติม:")
+6. อย่าใส่ styling หรือ HTML tags ใดๆ ในฟิลด์ markdown — ให้ใช้ Markdown ธรรมดาเท่านั้น
+7. หากต้องการถามเพื่อขอข้อมูลเพิ่มเติม ให้ตอบด้วย JSON ที่ชัดเจนเช่น:
+  {"success": false, "error": "missing_required_field", "missing":["field1"], "markdown":"โปรดยืนยัน field1"}
+8. ภาษาในการคืนค่าควรเป็นไทยเป็นหลัก แต่ข้อความในฟิลด์อื่นๆ สามารถเป็นภาษาอังกฤษได้ตามสมควร
+9. ตัวอย่างการตอบที่ถูกต้อง:
+  {"success": true, "data": {"count": 3}, "markdown": "# ผลลัพธ์\n- จำนวน: 3\n- สถานะ: สำเร็จ"}`
 
 class IntelligentMCPClient extends EventEmitter {
   private clients: Map<string, Client> = new Map();
@@ -250,6 +250,81 @@ class IntelligentMCPClient extends EventEmitter {
       console.error("[MCP Client] Ollama stream fallback failed:", err);
       throw err;
     }
+  }
+
+  // JSON-enforcing wrapper around chatWithOllama
+  // Tries to parse the model output as JSON. If parsing fails, will attempt to extract
+  // a JSON substring, and retry the model with a short system instruction up to `maxRetries` times.
+  private async chatWithOllamaJSON(
+    messages: any[],
+    options?: any,
+    maxRetries = 2,
+    requiredMarkdownField = "markdown"
+  ): Promise<any> {
+    const retryInstruction = {
+      role: "system",
+      content:
+        `สำคัญ: ตอบกลับเป็น JSON เท่านั้น และต้องมีฟิลด์ระดับบนสุดชื่อ "${requiredMarkdownField}" ซึ่งเป็นสตริง Markdown สำหรับผู้ใช้. ห้ามส่ง HTML หรือข้อความนอก JSON.`
+    };
+
+    // Use a working copy so we don't mutate the caller's array unexpectedly
+    let msgList = Array.isArray(messages) ? [...messages] : [messages];
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const resp = await this.chatWithOllama(msgList, options);
+      let content = resp?.message?.content ?? (typeof resp === "string" ? resp : JSON.stringify(resp));
+
+      if (typeof content !== "string") content = String(content || "");
+      content = content.replace(/^\uFEFF/, "").trim();
+
+      // Try direct parse
+      let parsed: any;
+      try {
+        parsed = JSON.parse(content);
+      } catch (err) {
+        // Attempt to extract JSON substring
+        const match = content.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+        if (match) {
+          try {
+            parsed = JSON.parse(match[0]);
+          } catch (e) {
+            parsed = null;
+          }
+        }
+      }
+
+      // If we have parsed JSON, validate presence of markdown field
+      if (parsed && typeof parsed === "object") {
+        const hasMarkdown = Object.prototype.hasOwnProperty.call(parsed, requiredMarkdownField) && typeof parsed[requiredMarkdownField] === "string";
+        if (hasMarkdown) {
+          return parsed;
+        }
+
+        // If missing markdown, attempt to extract a human-facing part from content and set it
+        if (parsed && attempt < maxRetries) {
+          // Ask model to provide the required markdown field only
+          msgList = [...messages, retryInstruction];
+          continue;
+        }
+
+        // Final attempt: if parsed but no markdown, create a wrapper that preserves parsed data and set markdown to empty
+        if (parsed) {
+          parsed[requiredMarkdownField] = parsed[requiredMarkdownField] || "";
+          return parsed;
+        }
+      }
+
+      // No valid JSON after extraction and retries
+      if (attempt < maxRetries) {
+        msgList = [...messages, retryInstruction];
+        continue;
+      }
+
+      const preview = content.slice(0, 1000);
+      throw new Error(`Invalid JSON response from Ollama after ${attempt + 1} attempts: ${preview}`);
+    }
+
+    throw new Error("Unexpected error in chatWithOllamaJSON");
   }
 
   // Initialize multiple MCP clients
