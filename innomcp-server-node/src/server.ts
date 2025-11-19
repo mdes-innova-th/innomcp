@@ -50,8 +50,7 @@ function sendJsonRpcError(
   return res.status(200).json(payload);
 }
 
-// Register tools from separate modules (calculator, datetime, and webd group)
-import { registerCalculatorTool } from "./mcp/tools/calculatorTool";
+// Register tools from separate modules (datetime, and webd group)
 import { registerDateTimeTool } from "./mcp/tools/dateTimeTool";
 import { registerWebdTools } from "./mcp/tools/webdTools";
 
@@ -61,7 +60,6 @@ const mcpserver = new McpServer({
   version: "1.0.0",
 });
 
-registerCalculatorTool(mcpserver);
 registerDateTimeTool(mcpserver);
 registerWebdTools(mcpserver);
 

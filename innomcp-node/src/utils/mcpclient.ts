@@ -127,26 +127,6 @@ class IntelligentMCPClient extends EventEmitter {
     },
     {
       keywords: [
-        "คำนวณ",
-        "calculate",
-        "math",
-        "หาร",
-        "คูณ",
-        "บวก",
-        "ลบ",
-        "plus",
-        "minus",
-        "multiply",
-        "divide",
-        "เท่ากับ",
-        "ผลลัพธ์",
-      ],
-      toolPattern: /calculator|calculate|math/i,
-      priority: "high",
-      category: "computation",
-    },
-    {
-      keywords: [
         "webd",
         "ผิดกฎหมาย",
         "คำสั่งศาล",
@@ -604,25 +584,6 @@ class IntelligentMCPClient extends EventEmitter {
           "สถิติโดเมนที่มีคำสั่งศาล",
         ],
       },
-      {
-        pattern: /calculator|calculate|คำนวณ|math/,
-        examples: [
-          "คำนวณ 2+2",
-          "หาผลบวก",
-          "คำนวณทางคณิตศาสตร์",
-          "5 คูณ 3",
-          "10 หาร 2",
-        ],
-      },
-      {
-        pattern: /text|analyze|วิเคราะห์|ข้อความ/,
-        examples: [
-          "วิเคราะห์ข้อความ",
-          "นับคำ",
-          "วิเคราะห์เนื้อหา",
-          "นับตัวอักษร",
-        ],
-      },
     ];
 
     for (const { pattern, examples: exs } of exampleMap) {
@@ -759,17 +720,6 @@ class IntelligentMCPClient extends EventEmitter {
       }
     }
 
-    // Check for arithmetic expressions (e.g., "2+2", "5*3")
-    if (/\d+\s*[\+\-\*\/]\s*\d+/.test(userMessage)) {
-      const calcTool = Array.from(this.tools.keys()).find((key) =>
-        /calculator|calculate/i.test(key)
-      );
-      if (calcTool) {
-        const currentScore = toolScores.get(calcTool) || 0;
-        toolScores.set(calcTool, currentScore + 15); // High score for arithmetic
-      }
-    }
-
     // Sort by score and return top matches
     const sortedTools = Array.from(toolScores.entries())
       .sort((a, b) => b[1] - a[1])
@@ -887,7 +837,6 @@ ${toolDescriptions}
 
 **ตัวอย่างการเลือก**:
 - "วันนี้วันที่เท่าไหร่" → innomcp-server:dateTimeTool
-- "คำนวณ 5+3" → innomcp-server:calculatorTool  
 - "สวัสดี" → innomcp-server:greeting (resource)
 - "นับจำนวน URL ผิดกฎหมาย" → innomcp-server:webdTool_count_by_group
 - "สบายดีไหม" → none (ไม่ต้องใช้ tool)
@@ -1439,9 +1388,6 @@ ${schemaStr}
 
 ตัวอย่าง:
 - dateTimeTool: {}
-- calculatorTool สำหรับ "5+3": {"expression": "5+3"}
-- calculatorTool สำหรับ "10 คูณ 2": {"expression": "10*2"}
-- textAnalysisTool: {"text": "sample text"}
 
 JSON:`;
 
@@ -1492,10 +1438,30 @@ JSON:`;
       try {
         const parsed = JSON.parse(jsonStr);
 
-        // Ensure required properties are present
+        // If the model returned a nested `data` object (common pattern), promote its fields
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          parsed.data &&
+          typeof parsed.data === "object"
+        ) {
+          for (const prop of Object.keys(parsed.data)) {
+            // Prefer non-empty nested values over empty top-level values
+            if (!(prop in parsed) || parsed[prop] === "") {
+              parsed[prop] = parsed.data[prop];
+            }
+          }
+        }
+
+        // Ensure required properties are present (use promoted values or defaults)
         for (const key of required) {
-          if (!(key in parsed)) {
-            parsed[key] = properties[key]?.default || "";
+          if (!(key in parsed) || parsed[key] === "") {
+            const nested = parsed.data?.[key];
+            if (nested !== undefined && nested !== "") {
+              parsed[key] = nested;
+            } else {
+              parsed[key] = properties[key]?.default || "";
+            }
           }
         }
 
