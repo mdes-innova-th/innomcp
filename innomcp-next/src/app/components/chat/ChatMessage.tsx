@@ -3,7 +3,6 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 
 type Props = {
@@ -15,7 +14,7 @@ const schema = {
   ...defaultSchema,
   attributes: {
     ...defaultSchema.attributes,
-    "*": [...(defaultSchema.attributes?.["*"] || []), "style", "class"], // Allow style and class attributes on all elements for color and styling support
+    "*": [...(defaultSchema.attributes?.["*"] || []), "class"], // Allow class attributes on all elements for styling; do NOT allow inline `style` to reduce XSS risk
   },
 };
 
@@ -24,14 +23,16 @@ export default function ChatMessage({ html, className }: Props) {
     <div className={className ?? ""}>
       <div className="prose prose-sm wrap-break-word dark:prose-invert">
         {/*
-            Render markdown to React elements. We enable remark-gfm for GitHub Flavored Markdown,
-            rehype-raw so any HTML embedded in the Markdown is parsed, but we immediately
-            sanitize that HTML with rehype-sanitize to avoid XSS. We allow style attributes
-            to support color text and other styling.
+            Render markdown to React elements. We enable remark-gfm for GitHub Flavored Markdown.
+            IMPORTANT: We DO NOT enable `rehype-raw` (do not parse raw HTML inside markdown)
+            to avoid the risk of executing or injecting unsafe HTML. Any HTML-like text will
+            be rendered as literal text. We still include `rehype-sanitize` for defense-in-depth
+            if other rehype plugins are used, and to ensure nodes are safe should you enable
+            additional rehype processing later.
           */}
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
-          rehypePlugins={[rehypeRaw, [rehypeSanitize, schema]]}
+          rehypePlugins={[[rehypeSanitize, schema]]}
           components={{
             h1: ({ children }) => (
               <h1 className="text-4xl font-bold mb-4 text-gray-900 dark:text-gray-100">

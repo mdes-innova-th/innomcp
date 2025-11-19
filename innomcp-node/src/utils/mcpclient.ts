@@ -6,8 +6,11 @@ import EventEmitter from "events";
 import path from "path";
 import fs from "fs";
 import Ajv from "ajv";
-import { remark } from "remark";
-import remarkHtml from "remark-html";
+import { unified } from "unified";
+import remarkParse from "remark-parse";
+import remarkRehype from "remark-rehype";
+import rehypeStringify from "rehype-stringify";
+import rehypeSanitize from "rehype-sanitize";
 
 // Interface for MCP Tool Definition
 interface MCPTool {
@@ -1727,8 +1730,21 @@ export { InitMcpClient, IntelligentMCPClient, MCPTool, MCPClientConfig };
 // Function to convert Markdown to HTML using remark and rehype
 export function markdownToHtml(markdown: string): string {
   try {
-    const result = remark().use(remarkHtml).processSync(markdown);
-    return result.toString();
+    // Pipeline: markdown -> mdast -> hast -> sanitized HTML
+    // - `remarkRehype` converts mdast to hast. We explicitly disable parsing
+    //   embedded/raw HTML via `allowDangerousHtml: false`.
+    // - `rehypeSanitize` runs a strict sanitizer (defense-in-depth).
+    // - `rehypeStringify` serializes hast to an HTML string. We explicitly
+    //   set `allowDangerousHtml: false` here too to ensure raw HTML nodes are
+    //   not emitted even if they somehow appear.
+    const processed = unified()
+      .use(remarkParse as any)
+      .use(remarkRehype as any, { allowDangerousHtml: false } as any)
+      .use(rehypeSanitize as any)
+      .use(rehypeStringify as any, { allowDangerousHtml: false } as any)
+      .processSync(markdown as any);
+
+    return String(processed);
   } catch (error) {
     console.error("Error converting Markdown to HTML:", error);
     return markdown; // Return original markdown if conversion fails
