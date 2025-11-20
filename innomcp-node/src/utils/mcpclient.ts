@@ -463,7 +463,7 @@ class IntelligentMCPClient extends EventEmitter {
       },
       {
         category: "statistics",
-        keywords: ["stats", "count", "statistics", "สถิติ", "นับ"],
+        keywords: ["stats", "count", "statistics", "สถิติ", "เปรียบเทียบ"],
       },
       {
         category: "webd",
