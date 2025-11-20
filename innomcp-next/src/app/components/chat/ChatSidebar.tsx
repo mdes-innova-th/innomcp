@@ -95,7 +95,11 @@ const ChatSidebar: React.FC<Props> = ({
                 onClick={() => onLoad(s)}
                 className={`w-full text-left p-2 transition-colors flex items-center gap-2 cursor-pointer hover:border-l-5 ${
                   s.id === activeId
-                    ? "bg-indigo-100 border border-indigo-500"
+                    ? `border-l-5 ${
+                        safeTheme === "light"
+                          ? "border-indigo-500 bg-indigo-100"
+                          : "border-indigo-400 bg-indigo-900/30"
+                      }`
                     : ""
                 }`}
                 title={s.title}
@@ -112,7 +116,7 @@ const ChatSidebar: React.FC<Props> = ({
                         day: "2-digit",
                         hour: "2-digit",
                         minute: "2-digit",
-                        hour12: false
+                        hour12: false,
                       });
                     })()}
                   </div>
