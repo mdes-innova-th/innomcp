@@ -4,6 +4,7 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import { useTheme } from "@/app/context/ThemeContext";
 
 type Props = {
   html: string;
@@ -35,32 +36,32 @@ export default function ChatMessage({ html, className }: Props) {
           rehypePlugins={[[rehypeSanitize, schema]]}
           components={{
             h1: ({ children }) => (
-              <h1 className="text-4xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+              <h1 className={`text-4xl font-bold mb-4 ${useTheme().theme === "dark" ? "text-gray-100" : "text-black"}`}>
                 {children}
               </h1>
             ),
             h2: ({ children }) => (
-              <h2 className="text-3xl font-bold mb-3 text-gray-900 dark:text-gray-100">
+              <h2 className={`text-3xl font-bold mb-3 ${useTheme().theme === "dark" ? "text-gray-100" : "text-black"}`}>
                 {children}
               </h2>
             ),
             h3: ({ children }) => (
-              <h3 className="text-2xl font-bold mb-2 text-gray-900 dark:text-gray-100">
+              <h3 className={`text-2xl font-bold mb-2 ${useTheme().theme === "dark" ? "text-gray-100" : "text-black"}`}>
                 {children}
               </h3>
             ),
             h4: ({ children }) => (
-              <h4 className="text-xl font-bold mb-2 text-gray-900 dark:text-gray-100">
+              <h4 className={`text-xl font-bold mb-2 ${useTheme().theme === "dark" ? "text-gray-100" : "text-black"}`}>
                 {children}
               </h4>
             ),
             h5: ({ children }) => (
-              <h5 className="text-lg font-bold mb-1 text-gray-900 dark:text-gray-100">
+              <h5 className={`text-lg font-bold mb-1 ${useTheme().theme === "dark" ? "text-gray-100" : "text-black"}`}>
                 {children}
               </h5>
             ),
             h6: ({ children }) => (
-              <h6 className="text-base font-bold mb-1 text-gray-900 dark:text-gray-100">
+              <h6 className={`text-base font-bold mb-1 ${useTheme().theme === "dark" ? "text-gray-100" : "text-black"}`}>
                 {children}
               </h6>
             ),

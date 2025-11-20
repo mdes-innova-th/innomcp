@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faColumns } from "@fortawesome/free-solid-svg-icons";
 
@@ -35,6 +35,15 @@ const ChatSidebar: React.FC<Props> = ({
   onLoad,
   theme,
 }) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Use default light theme during SSR to prevent hydration mismatches
+  const safeTheme = mounted ? theme : "light";
+
   return (
     <aside
       className="fixed left-0 top-20 z-40 flex flex-col transition-all"
@@ -43,14 +52,14 @@ const ChatSidebar: React.FC<Props> = ({
       {/* Header / Toggle */}
       <div
         className={`p-2 flex items-center justify-between ${
-          theme === "light"
+          safeTheme === "light"
             ? isCollapsed
               ? ""
               : "bg-neutral-400/20"
             : isCollapsed
             ? ""
             : "bg-neutral-500/10"
-        } rounded-tr-2xl`}
+        } rounded-tr-lg`}
       >
         {!isCollapsed && (
           <h3 className="text-sm font-semibold">ประวัติการแชท</h3>
@@ -59,7 +68,9 @@ const ChatSidebar: React.FC<Props> = ({
           title="ย่อ/ขยาย"
           onClick={onToggle}
           className={`p-2 rounded-md ${
-            theme === "light" ? "hover:bg-gray-200" : "dark:hover:bg-gray-900"
+            safeTheme === "light"
+              ? "hover:bg-gray-200"
+              : "dark:hover:bg-gray-900"
           } cursor-pointer`}
         >
           {" "}
@@ -71,8 +82,8 @@ const ChatSidebar: React.FC<Props> = ({
       {!isCollapsed && (
         <div
           className={`p-3 overflow-y-auto ${
-            theme === "light" ? "bg-gray-200" : "bg-gray-900/70"
-          } flex-1  rounded-br-2xl`}
+            safeTheme === "light" ? "bg-gray-200" : "bg-gray-900/70"
+          } flex-1  rounded-br-lg`}
         >
           {summaries.length === 0 && (
             <div className="text-xs text-gray-400">ยังไม่มีประวัติการแชท</div>
@@ -82,20 +93,28 @@ const ChatSidebar: React.FC<Props> = ({
               <button
                 key={s.id}
                 onClick={() => onLoad(s)}
-                className={`w-full text-left p-2 rounded-md transition-colors flex items-center gap-2 cursor-pointer hover:border-2 ${
+                className={`w-full text-left p-2 transition-colors flex items-center gap-2 cursor-pointer hover:border-l-5 ${
                   s.id === activeId
                     ? "bg-indigo-100 border border-indigo-500"
                     : ""
                 }`}
                 title={s.title}
               >
-                <div className="w-8 shrink-0 text-center text-sm text-indigo-600">
-                  •
-                </div>
                 <div className="flex-1">
                   <div className="text-sm truncate">{s.title}</div>
                   <div className="text-xs text-gray-500 mt-0.5">
-                    {new Date(s.time).toLocaleString()}
+                    {(() => {
+                      const date = new Date(s.time);
+                      return date.toLocaleString("th-TH", {
+                        timeZone: "Asia/Bangkok",
+                        year: "numeric",
+                        month: "2-digit",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        hour12: false
+                      });
+                    })()}
                   </div>
                 </div>
               </button>

@@ -10,8 +10,10 @@ const ThemeContext = createContext({
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [theme, setTheme] = useState("light");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     // Load theme from localStorage or system preference
     const savedTheme = localStorage.getItem("theme");
     if (savedTheme === "dark" || savedTheme === "light") {
@@ -29,10 +31,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   useEffect(() => {
-    document.documentElement.classList.remove("dark", "light");
-    document.documentElement.classList.add(theme);
-    localStorage.setItem("theme", theme);
-  }, [theme]);
+    if (mounted) {
+      document.documentElement.classList.remove("dark", "light");
+      document.documentElement.classList.add(theme);
+      localStorage.setItem("theme", theme);
+    }
+  }, [theme, mounted]);
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === "light" ? "dark" : "light"));

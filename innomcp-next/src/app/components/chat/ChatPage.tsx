@@ -27,13 +27,8 @@ const ChatPage: React.FC = () => {
   const [chatSummaries, setChatSummaries] = useState<SidebarSummary[]>([]);
   const [activeSummaryId, setActiveSummaryId] = useState<string | null>(null);
   // Sidebar collapsed state (persisted)
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem("isSidebarCollapsed") === "true";
-    } catch (e) {
-      return false;
-    }
-  });
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [mounted, setMounted] = useState(false);
   // For typewriter effect
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // For editing AI message
@@ -68,8 +63,20 @@ const ChatPage: React.FC = () => {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
-  // Load messages from localStorage on mount
+  // Load data from localStorage on mount
   useEffect(() => {
+    setMounted(true);
+    
+    // Load sidebar collapsed state
+    try {
+      const savedCollapsed = localStorage.getItem("isSidebarCollapsed");
+      if (savedCollapsed !== null) {
+        setIsSidebarCollapsed(savedCollapsed === "true");
+      }
+    } catch (e) {
+      // ignore localStorage errors
+    }
+    
     const savedMessages = localStorage.getItem("chatMessages");
     if (savedMessages) {
       try {
@@ -110,12 +117,14 @@ const ChatPage: React.FC = () => {
 
   // persist sidebar collapsed state
   useEffect(() => {
-    try {
-      localStorage.setItem("isSidebarCollapsed", isSidebarCollapsed ? "true" : "false");
-    } catch (e) {
-      // ignore
+    if (mounted) {
+      try {
+        localStorage.setItem("isSidebarCollapsed", isSidebarCollapsed ? "true" : "false");
+      } catch (e) {
+        // ignore
+      }
     }
-  }, [isSidebarCollapsed]);
+  }, [isSidebarCollapsed, mounted]);
 
   // Scroll chat to bottom when messages change
   useEffect(() => {
