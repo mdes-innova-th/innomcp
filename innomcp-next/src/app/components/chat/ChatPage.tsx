@@ -38,12 +38,18 @@ const ChatPage: React.FC = () => {
   // Track which message was recently copied (index) to show transient feedback
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const copiedTimeoutRef = useRef<number | null>(null);
+  // Show the copy button when a message is tapped (mobile) for a short period
+  const [showCopyIndex, setShowCopyIndex] = useState<number | null>(null);
+  const showCopyTimeoutRef = useRef<number | null>(null);
 
   // Clear any pending copy timeout when component unmounts
   useEffect(() => {
     return () => {
       if (copiedTimeoutRef.current) {
         window.clearTimeout(copiedTimeoutRef.current);
+      }
+      if (showCopyTimeoutRef.current) {
+        window.clearTimeout(showCopyTimeoutRef.current);
       }
     };
   }, []);
@@ -469,6 +475,8 @@ const ChatPage: React.FC = () => {
               {messages.map((message, index) => {
                 const isAI = message.sender === "ai";
                 const isEditing = editingIndex === index;
+                const isCopyVisible =
+                  copiedIndex === index || showCopyIndex === index;
                 return (
                   <div
                     key={index}
@@ -477,14 +485,22 @@ const ChatPage: React.FC = () => {
                         ? "max-w-xs self-start pr-5 bg-blue-500 text-white text-left rounded-bl-none"
                         : "max-w-full self-start pr-5 mb-5 text-left"
                     }`}
+                    // On mobile/tap: show the copy button for 3s
+                    onClick={() => {
+                      // clear any existing show timeout
+                      if (showCopyTimeoutRef.current)
+                        window.clearTimeout(showCopyTimeoutRef.current);
+                      setShowCopyIndex(index);
+                      showCopyTimeoutRef.current = window.setTimeout(() => {
+                        setShowCopyIndex(null);
+                      }, 3000) as unknown as number;
+                    }}
                   >
                     {/* Show copy icon on hover for both user and AI messages */}
                     {!message.isAnimating && (
                       <div
                         className={`absolute top-1 right-0 flex gap-2 transition-opacity pointer-events-none ${
-                          copiedIndex === index
-                            ? "opacity-100"
-                            : "opacity-0 group-hover:opacity-100"
+                          isCopyVisible ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                         }`}
                       >
                         <div className="relative">
@@ -495,7 +511,8 @@ const ChatPage: React.FC = () => {
                                 ? "text-white hover:text-black"
                                 : "text-gray-500 hover:text-black"
                             }`}
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               // copy with fallback and show transient feedback
                               const doCopy = async (text: string) => {
                                 try {
