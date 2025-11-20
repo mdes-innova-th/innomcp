@@ -7,23 +7,6 @@ export function registerDateTimeTool(mcpserver: McpServer) {
     {
       title: "Date Time Tool",
       description: "เครื่องมือสำหรับแสดงเวลาและวันที่ในรูปแบบต่างๆ",
-      _meta: {
-        keywords: [
-          "date",
-          "time",
-          "datetime",
-          "current time",
-          "current date",
-          "today",
-          "now",
-          "วันเวลา",
-          "วันที่",
-          "เวลา",
-          "วันนี้",
-          "ปัจจุบัน",
-          "ตอนนี้",
-        ],
-      },
       inputSchema: z.object({
         format: z
           .string()

@@ -4,31 +4,21 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 export function registerWebdTools(mcpserver: McpServer) {
   // webdTool_count_by_group
   mcpserver.registerTool(
-    "webdTool_count_by_group",
+    "webdTool_count_all_input_by_group",
     {
-      title: "ดึงจำนวนเว็บไซต์ผิดกฎหมายแยกตามกลุ่ม",
-      description: `ดึงจำนวนเว็บไซต์ผิดกฎหมายแยกตามกลุ่ม
-    
-Returns statistics with these fields:
-- group_name (ชื่อกลุ่ม/หมวดหมู่/ประเภท): Category of violation (e.g., "hate speech", "gambling", "pornography")
-- url_count (จำนวน URL/จำนวนเว็บไซต์/จำนวนรายการ): Number of URLs in each category
-
-Example response:
-{
-  "success": true,
-  "data": [
-    { "group_name": "hate speech", "url_count": 618 },
-    { "group_name": "gambling", "url_count": 1523 }
-  ]
-}`,
-      _meta: {
-        keywords: ["webd", "หมวดหมู่", "กลุ่ม", "ประเภท"],
-        examples: [
-          "ฉันต้องการสถิติเว็บไซต์ผิดกฎหมายบน webd",
-          "นับจำนวนรายการนำเข้าเกี่ยวกับเว็บการพนัน ใน webd",
-          "แสดงจำนวนเว็บไซต์ผิดกฎหมาย ที่พบใน webd โดยแยกกลุ่ม 'การพนัน'",
-        ],
-      },
+      title: "ดึงจำนวนเว็บไซต์ผิดกฎหมายที่นำเข้าทั้งหมด",
+      description: `ดึงจำนวนเว็บไซต์ผิดกฎหมายที่นำเข้าทั้งหมด แยกตามกลุ่ม
+      ใช้เมื่อ: ต้องการดึงสถิติจำนวนเว็บไซต์ผิดกฎหมายที่ถูกจัดหมวดหมู่ตามกลุ่มต่างๆ ที่นำเข้าทั้งหมด, คำถามไม่ได้ระบุเฉพาะเจาะจงว่าต้องการแยกตามวัน/เดือน/ปี/แพลตฟอร์ม/ประเทศ/มีคำสั่งศาลหรือไม่
+      ไม่ใช้เมื่อ: ต้องการดึงข้อมูลที่มีคำสั่งศาล หรือแยกตามวัน/เดือน/ปี หรือต้องการจำนวนแยกตามแพลตฟอร์ม หรือระบุแพลตฟอร์มเฉพาะ (Facebook, Instagram ฯลฯ) หรือแยกตามประเทศ
+      ข้อมูลที่ได้รับ: group_name (กลุ่ม/หมวดหมู่/ประเภท) และ url_count (จำนวน URL/จำนวนเว็บไซต์/จำนวนรายการ)
+      Example response:
+      {
+      "success": true,
+      "data": [
+        { "group_name": "hate speech", "url_count": 618 },
+        { "group_name": "gambling", "url_count": 1523 }
+      ]
+    }`,
       inputSchema: z.object({
         query: z
           .string()
@@ -43,7 +33,7 @@ Example response:
             z.object({
               group_name: z
                 .string()
-                .describe("ชื่อกลุ่ม/หมวดหมู่ (Category name)"),
+                .describe("กลุ่ม/หมวดหมู่/ประเภท (Category name)"),
               url_count: z.number().describe("จำนวน URL (Number of URLs)"),
             })
           )
@@ -140,14 +130,6 @@ Example response:
     {
       title: "ดึงจำนวนรายการเว็บไซต์ผิดกฎหมายที่มีคำสั่งศาล",
       description: "ดึงจำนวนรายการเว็บไซต์ผิดกฎหมายที่มีคำสั่งศาล",
-      _meta: {
-        keywords: ["webd", "มีคำสั่งศาล", "ปิดกั้น"],
-        examples: [
-          "ฉันต้องการสถิติเว็บไซต์ผิดกฎหมายบน webd ที่มีคำสั่งศาล",
-          "นับจำนวนรายการนำเข้าเกี่ยวกับเว็บการพนัน ใน webd ที่มีคำสั่งศาล",
-          "แสดงจำนวนเว็บไซต์ผิดกฎหมายการพนันที่มีคำสั่งศาล ใน webd",
-        ],
-      },
       inputSchema: z.object({
         query: z.string().describe("คำค้นหาหรือหมวดหมู่ที่ต้องการตรวจสอบ"),
       }),
@@ -251,14 +233,6 @@ Example response:
     {
       title: "ดึงจำนวน URL จากคำร้อง",
       description: "ดึงจำนวน URL จากคำร้อง",
-      _meta: {
-        keywords: ["webd", "คำร้อง", "มีคำร้อง", "ยื่นคำร้อง"],
-        examples: [
-          "แสดงจำนวน URL จากคำร้อง",
-          "นับเว็บไซต์ที่มาจากคำร้อง",
-          "สถิติคำร้องในระบบ",
-        ],
-      },
       inputSchema: z.object({}),
       outputSchema: z.object({
         success: z.boolean(),
@@ -310,14 +284,6 @@ Example response:
     {
       title: "ดึงจำนวน URL แยกตามวันที่และประเภทความผิด",
       description: "ดึงจำนวน URL แยกตามวันที่และประเภทความผิด",
-      _meta: {
-        keywords: ["webd", "รายวัน"],
-        examples: [
-          "นับจำนวน URL แยกตามวันที่และหมวดหมู่",
-          "แสดงสถิติ URL ตามวันและประเภทการละเมิด",
-          "ฉันต้องการจำนวนเว็บไซต์ผิดกฎหมายแยกตามวันที่",
-        ],
-      },
       inputSchema: z.object({
         startDate: z
           .string()
@@ -430,14 +396,6 @@ Example response:
     {
       title: "ดึงจำนวน URL แยกตามเดือนและประเภทความผิด",
       description: "ดึงจำนวน URL แยกตามเดือนและประเภทความผิด",
-      _meta: {
-        keywords: ["webd", "รายเดือน"],
-        examples: [
-          "นับจำนวน URL แยกตามเดือนและหมวดหมู่",
-          "แสดงสถิติ URL ตามเดือนและประเภทการละเมิด",
-          "ฉันต้องการจำนวนเว็บไซต์ผิดกฎหมายแยกตามเดือน",
-        ],
-      },
       inputSchema: z.object({
         startMonth: z.string().optional().describe("เดือนเริ่มต้น (YYYY-MM)"),
         endMonth: z.string().optional().describe("เดือนสิ้นสุด (YYYY-MM)"),
@@ -546,16 +504,16 @@ Example response:
     "webdTool_platforms",
     {
       title: "ดึงสถิติ URL แยกตามแพลตฟอร์ม",
-      description: "ดึงสถิติ URL แยกตามแพลตฟอร์ม",
-      _meta: {
-        keywords: ["webd", "platforms", "แพลตฟอร์ม", "platform"],
-        examples: [
-          "แสดงสถิติ URL แยกตามแพลตฟอร์ม",
-          "ดึงข้อมูลตามแพลตฟอร์ม",
-          "ฉันต้องการสถิติแพลตฟอร์ม",
-        ],
-      },
-      inputSchema: z.object({}),
+      description: `ดึงสถิติ URL แยกตามแพลตฟอร์ม (เช่น Facebook, Instagram, TikTok, YouTube)
+      ใช้เมื่อ: ผู้ใช้ถามเฉพาะเจาะจงเกี่ยวกับแพลตฟอร์มโซเชียลมีเดีย หรือ platform หรือต้องการดูสัดส่วนการกระจายตัวของเว็บไซต์ตามแพลตฟอร์ม
+      ไม่ใช้เมื่อ: ถามเกี่ยวกับหมวดหมู่/กลุ่ม, วันที่/เดือน, ประเทศ, หรือคำถามทั่วไปเกี่ยวกับสถิติ
+      ข้อมูลที่ได้รับ: platform (ชื่อแพลตฟอร์ม), url_count (จำนวน), percentage (เปอร์เซ็นต์)`,
+      inputSchema: z.object({
+        requestType: z
+          .string()
+          .optional()
+          .describe("ประเภทการขอข้อมูลแพลตฟอร์ม (Platform data request type)"),
+      }),
       outputSchema: z.object({
         success: z.boolean(),
         data: z.array(
@@ -567,9 +525,11 @@ Example response:
         ),
       }),
     },
-    async (_params, _extra) => {
+    async ({ requestType }, _extra) => {
       console.log(
-        `[MCP Server] Webd platforms tool request received at ${new Date().toLocaleString()}`
+        `[MCP Server] Webd platforms tool request received at ${new Date().toLocaleString()}, requestType: ${
+          requestType || "default"
+        }`
       );
       const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
       const webddsbPort = process.env.WEBDDSB_PORT || "3010";
@@ -655,14 +615,6 @@ Example response:
     {
       title: "ดึงสถิติ URL แยกตามประเทศที่จดทะเบียน",
       description: "ดึงสถิติ URL แยกตามประเทศที่จดทะเบียน",
-      _meta: {
-        keywords: ["webd", "จดทะเบียน", "ประเทศที่จดทะเบียน"],
-        examples: [
-          "แสดงสถิติ URL แยกตามประเทศที่จดทะเบียน",
-          "ดึงข้อมูลตามประเทศ",
-          "ฉันต้องการสถิติประเทศที่จดทะเบียน",
-        ],
-      },
       inputSchema: z.object({}),
       outputSchema: z.object({
         success: z.boolean(),

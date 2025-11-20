@@ -41,18 +41,6 @@ export function registerWeatherTool(mcpserver: McpServer) {
     {
       title: "Weather By Province",
       description: "ดึงข้อมูลสภาพอากาศ 3 ชั่วโมงจากกรมอุตุฯ ตามชื่อจังหวัด",
-      _meta: {
-        keywords: [
-          "weather",
-          "forecast",
-          "สภาพอากาศ",
-          "อากาศวันนี้",
-          "พยากรณ์อากาศ",
-          "อุณหภูมิวันนี้",
-          "จังหวัด",
-          "weather3hours",
-        ],
-      },
       inputSchema: z.object({
         province: z.string().describe("ชื่อจังหวัด (ภาษาไทยหรืออังกฤษ)"),
       }),
