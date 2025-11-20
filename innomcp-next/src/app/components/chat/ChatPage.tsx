@@ -4,14 +4,10 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import Image from "next/image";
 import HeaderChat from "@/app/components/chat/HeaderChat";
 import ChatMessage from "@/app/components/chat/ChatMessage";
+import ChatSidebar, { ChatSummary as SidebarSummary } from "@/app/components/chat/ChatSidebar";
 import ThemeContext from "@/app/context/ThemeContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faArrowUp,
-  faPaperclip,
-  faCopy,
-  faRefresh,
-} from "@fortawesome/free-solid-svg-icons";
+import { faArrowUp, faPaperclip, faCopy, faRefresh } from "@fortawesome/free-solid-svg-icons";
 
 // Define the type for a chat message
 interface ChatMessage {
@@ -26,6 +22,18 @@ const ChatPage: React.FC = () => {
   const { theme } = useContext(ThemeContext) as { theme: string };
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Stored compact chat summaries (keeps up to last 10)
+  // Use the SidebarSummary type for compatibility
+  const [chatSummaries, setChatSummaries] = useState<SidebarSummary[]>([]);
+  const [activeSummaryId, setActiveSummaryId] = useState<string | null>(null);
+  // Sidebar collapsed state (persisted)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("isSidebarCollapsed") === "true";
+    } catch (e) {
+      return false;
+    }
+  });
   // For typewriter effect
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // For editing AI message
@@ -71,6 +79,15 @@ const ChatPage: React.FC = () => {
         console.error("Error loading messages from localStorage:", error);
       }
     }
+    // load summaries
+    const savedSummaries = localStorage.getItem("chatSummaries");
+    if (savedSummaries) {
+      try {
+        setChatSummaries(JSON.parse(savedSummaries));
+      } catch (err) {
+        console.error("Error loading chat summaries:", err);
+      }
+    }
   }, []);
 
   // Save messages to localStorage whenever messages change
@@ -81,6 +98,24 @@ const ChatPage: React.FC = () => {
       localStorage.setItem("chatMessages", JSON.stringify(limitedMessages));
     }
   }, [messages]);
+
+  // Persist summaries when changed
+  useEffect(() => {
+    try {
+      localStorage.setItem("chatSummaries", JSON.stringify(chatSummaries));
+    } catch (err) {
+      console.error("Error saving chat summaries:", err);
+    }
+  }, [chatSummaries]);
+
+  // persist sidebar collapsed state
+  useEffect(() => {
+    try {
+      localStorage.setItem("isSidebarCollapsed", isSidebarCollapsed ? "true" : "false");
+    } catch (e) {
+      // ignore
+    }
+  }, [isSidebarCollapsed]);
 
   // Scroll chat to bottom when messages change
   useEffect(() => {
@@ -371,12 +406,46 @@ const ChatPage: React.FC = () => {
   };
 
   const handleNewChat = () => {
+    // If there is an active conversation, save a compact summary before clearing
+    if (messages && messages.length > 0) {
+      const makeTitle = (msgs: ChatMessage[]) => {
+        // Prefer the first user message, else first AI message, else fallback to timestamp
+        const firstUser = msgs.find((m) => m.sender === "user" && m.text?.trim());
+        const firstAI = msgs.find((m) => m.sender === "ai" && (m.fullText || m.text));
+        const raw = (firstUser && firstUser.text) || (firstAI && (firstAI.fullText || firstAI.text)) || "การแชท";
+        // single-line, limit length
+        const single = raw.replace(/\s+/g, " ").trim();
+        return single.length > 40 ? single.slice(0, 37) + "..." : single;
+      };
+
+      const summary: SidebarSummary = {
+        id: String(Date.now()),
+        time: Date.now(),
+        title: makeTitle(messages),
+        messages: messages.slice(-50),
+      };
+
+      // prepend and keep max 10
+      setChatSummaries((prev) => {
+        const updated = [summary, ...prev.filter((s) => s.title !== summary.title)];
+        return updated.slice(0, 10);
+      });
+    }
+
     setMessages([]);
     localStorage.removeItem("chatMessages");
     setInput("");
     setSelectedImage(null);
     setSelectedFile(null);
-    console.log("Started new chat, history cleared");
+    setActiveSummaryId(null);
+    console.log("Started new chat, history cleared (and summary saved)");
+  };
+
+  const loadSummary = (summary: SidebarSummary) => {
+    setMessages(summary.messages || []);
+    setActiveSummaryId(summary.id);
+    // persist messages to storage as current active
+    localStorage.setItem("chatMessages", JSON.stringify(summary.messages || []));
   };
 
   const adjustTextarea = () => {
@@ -447,12 +516,24 @@ const ChatPage: React.FC = () => {
   return (
     <div className="flex flex-col items-center overflow-hidden max-h-screen">
       <HeaderChat />
-      <div className="flex flex-col flex-1 w-full items-center justify-start pt-8">
-        <div
-          className={`w-full max-w-3xl ${
-            theme === "light" ? "bg-white" : "bg-gray-900/95"
-          } rounded-2xl shadow-lg px-6 py-4`}
-        >
+      <div className="flex flex-1 w-full items-start justify-center pt-8 px-4">
+        <ChatSidebar
+          summaries={chatSummaries}
+          activeId={activeSummaryId}
+          isCollapsed={isSidebarCollapsed}
+          onToggle={() => setIsSidebarCollapsed((v) => !v)}
+          onLoad={loadSummary}
+          theme={theme}
+        />
+
+        <div className="w-full max-w-6xl flex gap-6">
+
+          {/* Right: main chat box */}
+          <div
+            className={`w-full ${
+              theme === "light" ? "bg-white" : "bg-gray-900/95"
+            } rounded-2xl shadow-lg px-6 py-4`}
+          >
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-end w-full">
               <div
@@ -715,6 +796,7 @@ const ChatPage: React.FC = () => {
                 className="hidden"
               />
             </div>
+          </div>
           </div>
         </div>
       </div>
