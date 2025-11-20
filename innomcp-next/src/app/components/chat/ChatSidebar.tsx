@@ -82,8 +82,10 @@ const ChatSidebar: React.FC<Props> = ({
               <button
                 key={s.id}
                 onClick={() => onLoad(s)}
-                className={`w-full text-left p-2 rounded-md transition-colors flex items-center gap-2 hover:bg-indigo-100 dark:hover:bg-indigo-900 ${
-                  activeId === s.id ? "bg-indigo-100 dark:bg-indigo-900" : ""
+                className={`w-full text-left p-2 rounded-md transition-colors flex items-center gap-2 cursor-pointer hover:border-2 ${
+                  s.id === activeId
+                    ? "bg-indigo-100 border border-indigo-500"
+                    : ""
                 }`}
                 title={s.title}
               >
