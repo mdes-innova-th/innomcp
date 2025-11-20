@@ -1372,8 +1372,6 @@ ${schemaStr}
 2. ไม่ต้องใช้ markdown code blocks
 3. ถ้าไม่แน่ใจให้ใช้ค่า default หรือ empty object {}
 
-
-
 ตัวอย่าง:
 - dateTimeTool: {}
 

@@ -82,7 +82,7 @@ export default function Header() {
         <div className="w-full h-full m-1 flex items-center justify-center">
           <div className="flex items-center justify-center">
             <div className="hidden sm:flex items-start">
-              <div className="relative m-5 w-[250px] h-[150px]">
+              <div className="relative m-2 w-40 h-[60px]">
                 <Image
                   src="/mdes-new-logo.png"
                   className="object-contain"
@@ -93,7 +93,7 @@ export default function Header() {
               </div>
             </div>
             <div className="flex items-start">
-              <div className="relative m-5 pt-5 w-[250px] h-[200px]">
+              <div className="relative m-2 w-40 h-[60px]">
                 <Image
                   src="/logo.png"
                   className="object-contain"
