@@ -7,18 +7,15 @@ export function registerWebdTools(mcpserver: McpServer) {
     "webdTool_count_all_input_by_group",
     {
       title: "ดึงจำนวนเว็บไซต์ผิดกฎหมายที่นำเข้าทั้งหมด",
-      description: `ดึงจำนวนเว็บไซต์ผิดกฎหมายที่นำเข้าทั้งหมด แยกตามกลุ่ม
-      ใช้เมื่อ: ต้องการดึงสถิติจำนวนเว็บไซต์ผิดกฎหมายที่ถูกจัดหมวดหมู่ตามกลุ่มต่างๆ ที่นำเข้าทั้งหมด, คำถามไม่ได้ระบุเฉพาะเจาะจงว่าต้องการแยกตามวัน/เดือน/ปี/แพลตฟอร์ม/ประเทศ/มีคำสั่งศาลหรือไม่
-      ไม่ใช้เมื่อ: ต้องการดึงข้อมูลที่มีคำสั่งศาล หรือแยกตามวัน/เดือน/ปี หรือต้องการจำนวนแยกตามแพลตฟอร์ม หรือระบุแพลตฟอร์มเฉพาะ (Facebook, Instagram ฯลฯ) หรือแยกตามประเทศ
-      ข้อมูลที่ได้รับ: group_name (กลุ่ม/หมวดหมู่/ประเภท) และ url_count (จำนวน URL/จำนวนเว็บไซต์/จำนวนรายการ)
-      Example response:
-      {
-      "success": true,
-      "data": [
-        { "group_name": "hate speech", "url_count": 618 },
-        { "group_name": "gambling", "url_count": 1523 }
-      ]
-    }`,
+      description: `หน้าที่: คืนสถิติจำนวนเว็บไซต์/URL ที่นำเข้าทั้งหมด แยกตามกลุ่มความผิด (category/group)
+ใช้เมื่อ: ต้องการสถิติเชิงรวมแยกตามกลุ่มโดยไม่จำเป็นต้องกรองตามวันที่ แพลตฟอร์ม หรือสถานะคำสั่งศาล
+ไม่ใช้เมื่อ: ต้องการข้อมูลที่กรองตามคำสั่งศาล, ช่วงวันที่, แพลตฟอร์มเฉพาะ หรือประเทศ
+พารามิเตอร์: { query: string } (optional) — คำค้นหรือชื่อกลุ่มเพื่อกรองผล
+ตัวอย่าง request: POST /api/urlstats/violation-groups-count { "query": "hate" }
+ตัวอย่าง response:
+  { "success": true, "data": [{ "group_name": "hate speech", "url_count": 618 }] }
+ข้อผิดพลาดที่คาดได้: 401 (missing/invalid API key), 400 (invalid payload), 500 (internal error)
+หมายเหตุ: ผลลัพธ์เป็น aggregate counts; อ่าน field 'group_name' และ 'url_count' เพื่อใช้งานต่อ`,
       inputSchema: z.object({
         query: z
           .string()
@@ -129,7 +126,15 @@ export function registerWebdTools(mcpserver: McpServer) {
     "webdTool_count_court",
     {
       title: "ดึงจำนวนรายการเว็บไซต์ผิดกฎหมายที่มีคำสั่งศาล",
-      description: "ดึงจำนวนรายการเว็บไซต์ผิดกฎหมายที่มีคำสั่งศาล",
+      description: `หน้าที่: คืนสถิติจำนวน URL/เว็บไซต์ที่มีคำสั่งศาล แยกตามกลุ่มความผิด
+ใช้เมื่อ: ต้องการเฉพาะรายการที่มีคำสั่งศาล (court orders) เพื่อวิเคราะห์สัดส่วนหรือรายงาน
+ไม่ใช้เมื่อ: ต้องการสถิติทั้งหมดรวมทั้งรายการที่ไม่มีคำสั่งศาล หรือต้องการกรองตามวันที่/แพลตฟอร์มโดยละเอียด
+พารามิเตอร์: { query: string } (optional) — คำค้นหรือชื่อกลุ่มสำหรับการกรอง
+ตัวอย่าง request: POST /api/urlstats/court-count { "query": "gambling" }
+ตัวอย่าง response:
+  { "success": true, "data": [{ "group_name": "gambling", "url_count": 123 }] }
+ข้อผิดพลาดที่คาดได้: 401 (API key), 400 (invalid request body), 500 (server error)
+หมายเหตุ: รูปแบบ response จะมี fields 'group_name' และ 'url_count'`,
       inputSchema: z.object({
         query: z.string().describe("คำค้นหาหรือหมวดหมู่ที่ต้องการตรวจสอบ"),
       }),
@@ -232,7 +237,15 @@ export function registerWebdTools(mcpserver: McpServer) {
     "webdTool_petition_count",
     {
       title: "ดึงจำนวน URL จากคำร้อง",
-      description: "ดึงจำนวน URL จากคำร้อง",
+      description: `หน้าที่: คืนจำนวนรวมของ URL ที่มาจากคำร้อง (petition)
+ใช้เมื่อ: ต้องการตัวเลขรวมของ URL ที่ถูกส่งเข้ามาผ่านคำร้อง/รายงาน ไม่คืนรายละเอียด URL แต่เป็นสถิติรวม
+ไม่ใช้เมื่อ: ต้องการรายการ URL รายตัวหรือการแยกตามกลุ่ม/วันที่/แพลตฟอร์ม
+พารามิเตอร์: ไม่มี (GET)
+ตัวอย่าง request: GET /api/urlstats/petition-count
+ตัวอย่าง response:
+  { "success": true, "data": 452 }
+ข้อผิดพลาดที่คาดได้: 401 (missing API key), 500 (internal error)
+หมายเหตุ: endpoint นี้เป็น GET และไม่ต้องใช้ CSRF token`,
       inputSchema: z.object({}),
       outputSchema: z.object({
         success: z.boolean(),
@@ -283,7 +296,15 @@ export function registerWebdTools(mcpserver: McpServer) {
     "webdTool_by_date_count",
     {
       title: "ดึงจำนวน URL แยกตามวันที่และประเภทความผิด",
-      description: "ดึงจำนวน URL แยกตามวันที่และประเภทความผิด",
+      description: `หน้าที่: คืนสถิติจำนวน URL แยกตามวันที่และกลุ่มความผิด (date + group)
+ใช้เมื่อ: ต้องการสถิติแบบ time-series ในช่วงวันที่กำหนด (aggregate per date และกลุ่ม)
+ไม่ใช้เมื่อ: ต้องการสถิติแบบเดือนหรือกรองเฉพาะแพลตฟอร์ม/ประเทศโดยไม่สนใจวันที่
+พารามิเตอร์: { startDate?: string (YYYY-MM-DD), endDate?: string (YYYY-MM-DD), sourceType?: string, selectedGroups?: string[] }
+ตัวอย่าง request: POST /api/urlstats/by-date-count { "startDate": "2025-01-01", "endDate": "2025-01-31", "selectedGroups": ["hate speech"] }
+ตัวอย่าง response:
+  { "success": true, "data": [{ "date": "2025-01-01", "group_name": "hate speech", "url_count": 12 }] }
+ข้อผิดพลาดที่คาดได้: 400 (invalid date format), 401 (API key), 500 (server error)
+หมายเหตุ: วันที่คาดเป็นรูปแบบ YYYY-MM-DD; ผลรวมเป็น inclusive ของช่วงที่ส่งเข้ามา`,
       inputSchema: z.object({
         startDate: z
           .string()
@@ -395,7 +416,15 @@ export function registerWebdTools(mcpserver: McpServer) {
     "webdTool_by_month_count",
     {
       title: "ดึงจำนวน URL แยกตามเดือนและประเภทความผิด",
-      description: "ดึงจำนวน URL แยกตามเดือนและประเภทความผิด",
+      description: `หน้าที่: คืนสถิติจำนวน URL แยกตามเดือนและกลุ่มความผิด (month + group)
+ใช้เมื่อ: ต้องการภาพรวมเป็นรายเดือนของจำนวน URL สำหรับการรายงานหรือวิเคราะห์แนวโน้มเป็นเดือน
+ไม่ใช้เมื่อ: ต้องการข้อมูลแบบรายวัน หรือข้อมูลที่ละเอียดตามแพลตฟอร์ม/ประเทศ/คำสั่งศาล
+พารามิเตอร์: { startMonth?: string (YYYY-MM), endMonth?: string (YYYY-MM), sourceType?: string, selectedGroups?: string[] }
+ตัวอย่าง request: POST /api/urlstats/by-month-count { "startMonth": "2025-01", "endMonth": "2025-03" }
+ตัวอย่าง response:
+  { "success": true, "data": [{ "month": "2025-01", "group_name": "gambling", "url_count": 120 }] }
+ข้อผิดพลาดที่คาดได้: 400 (invalid month format), 401 (API key), 500 (server error)
+หมายเหตุ: เดือนอยู่ในรูปแบบ YYYY-MM; ผลรวมมักจะเป็น inclusive ของช่วงเดือนที่ระบุ`,
       inputSchema: z.object({
         startMonth: z.string().optional().describe("เดือนเริ่มต้น (YYYY-MM)"),
         endMonth: z.string().optional().describe("เดือนสิ้นสุด (YYYY-MM)"),
@@ -504,10 +533,15 @@ export function registerWebdTools(mcpserver: McpServer) {
     "webdTool_platforms",
     {
       title: "ดึงสถิติ URL แยกตามแพลตฟอร์ม",
-      description: `ดึงสถิติ URL แยกตามแพลตฟอร์ม (เช่น Facebook, Instagram, TikTok, YouTube)
-      ใช้เมื่อ: ผู้ใช้ถามเฉพาะเจาะจงเกี่ยวกับแพลตฟอร์มโซเชียลมีเดีย หรือ platform หรือต้องการดูสัดส่วนการกระจายตัวของเว็บไซต์ตามแพลตฟอร์ม
-      ไม่ใช้เมื่อ: ถามเกี่ยวกับหมวดหมู่/กลุ่ม, วันที่/เดือน, ประเทศ, หรือคำถามทั่วไปเกี่ยวกับสถิติ
-      ข้อมูลที่ได้รับ: platform (ชื่อแพลตฟอร์ม), url_count (จำนวน), percentage (เปอร์เซ็นต์)`,
+      description: `หน้าที่: คืนสัดส่วนและจำนวน URL แยกตามแพลตฟอร์ม (เช่น Facebook, Instagram, TikTok)
+ใช้เมื่อ: ต้องการทราบการกระจายตัวของรายการตามแพลตฟอร์มเพื่อวิเคราะห์ช่องทางที่พบปัญหามากที่สุด
+ไม่ใช้เมื่อ: ต้องการแยกตามวันที่ รายเดือน ประเทศ หรือคำสั่งศาล (ใช้ endpoints อื่นสำหรับ time-series หรือ court-filter)
+พารามิเตอร์: { requestType?: string } (optional) — คำอธิบายชนิดข้อมูลแพลตฟอร์มที่ต้องการ (summary/detail)
+ตัวอย่าง request: GET /api/urlstats/platforms
+ตัวอย่าง response:
+  { "success": true, "data": [{ "platform": "facebook", "url_count": 500, "percentage": 45.3 }] }
+ข้อผิดพลาดที่คาดได้: 401 (API key), 500 (internal error)
+หมายเหตุ: ฟิลด์ 'percentage' จะถูกคำนวณจาก 'url_count' หาก API ต้นทางไม่ส่งค่าเปอร์เซ็นต์มา`,
       inputSchema: z.object({
         requestType: z
           .string()
@@ -614,7 +648,15 @@ export function registerWebdTools(mcpserver: McpServer) {
     "webdTool_register_country",
     {
       title: "ดึงสถิติ URL แยกตามประเทศที่จดทะเบียน",
-      description: "ดึงสถิติ URL แยกตามประเทศที่จดทะเบียน",
+      description: `หน้าที่: คืนสถิติจำนวนและสัดส่วนของ URL แยกตามประเทศที่ลงทะเบียนโดเมน
+ใช้เมื่อ: ต้องการวิเคราะห์การกระจายตามประเทศเพื่อตรวจสอบแหล่งที่มาของโดเมน/URL
+ไม่ใช้เมื่อ: ต้องการข้อมูลที่เป็นรายวัน/รายเดือนหรือการกรองตามแพลตฟอร์ม/คำสั่งศาล
+พารามิเตอร์: ไม่มี (GET)
+ตัวอย่าง request: GET /api/urlstats/register-country
+ตัวอย่าง response:
+  { "success": true, "data": [{ "country": "TH", "url_count": 300, "percentage": 30.0 }] }
+ข้อผิดพลาดที่คาดได้: 401 (API key), 500 (server error)
+หมายเหตุ: หาก API ต้นทางไม่ส่ง 'percentage' ฟังก์ชันจะคำนวณให้โดยอัตโนมัติ`,
       inputSchema: z.object({}),
       outputSchema: z.object({
         success: z.boolean(),
