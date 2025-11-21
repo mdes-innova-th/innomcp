@@ -169,13 +169,9 @@ class IntelligentMCPClient extends EventEmitter {
 
   // Robust Ollama chat wrapper
   private async chatWithOllama(messages: any[], options?: any): Promise<any> {
-    console.log("[MCP Client] chatWithOllama called", { messages, options });
+  console.log("[MCP Client] chatWithOllama called");
     try {
-      console.log("[MCP Client] Calling ollama.chat (sync)", {
-        model: this.ollamaModel,
-        messages,
-        options,
-      });
+      console.log("[MCP Client] Calling ollama.chat (sync)");
       const response = await this.ollama.chat({
         model: this.ollamaModel,
         messages,
@@ -183,7 +179,8 @@ class IntelligentMCPClient extends EventEmitter {
         options: options || {},
       });
 
-      console.log("[MCP Client] ollama.chat (sync) response", response);
+  console.log("[MCP Client] ollama.chat (sync) returned");
+
       if (response && response.message) return response;
 
       console.warn(
@@ -198,11 +195,7 @@ class IntelligentMCPClient extends EventEmitter {
 
     // Streaming fallback
     try {
-      console.log("[MCP Client] Calling ollama.chat (stream)", {
-        model: this.ollamaModel,
-        messages,
-        options,
-      });
+      console.log("[MCP Client] Calling ollama.chat (stream)");
       const stream = await this.ollama.chat({
         model: this.ollamaModel,
         messages,
@@ -226,7 +219,7 @@ class IntelligentMCPClient extends EventEmitter {
         }
       }
 
-      console.log("[MCP Client] ollama.chat (stream) result", { content });
+  console.log("[MCP Client] ollama.chat (stream) result");
       return { message: { content } };
     } catch (err) {
       console.error("[MCP Client] Ollama stream fallback failed:", err);
@@ -252,14 +245,11 @@ class IntelligentMCPClient extends EventEmitter {
     let msgList = Array.isArray(messages) ? [...messages] : [messages];
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      console.log(
-        `[MCP Client] chatWithOllamaJSON: attempt ${
-          attempt + 1
-        } calling chatWithOllama`,
-        { msgList, options }
-      );
+      console.log(`[MCP Client] chatWithOllamaJSON: attempt ${attempt + 1} calling chatWithOllama`);
       const resp = await this.chatWithOllama(msgList, options);
-      console.log(`[MCP Client] chatWithOllamaJSON: response`, resp);
+
+  console.log(`[MCP Client] chatWithOllamaJSON: response received`);
+
       let content =
         resp?.message?.content ??
         (typeof resp === "string" ? resp : JSON.stringify(resp));
@@ -833,9 +823,7 @@ ${toolDescriptions}
 
 **คำตอบของคุณ** (เขียนเฉพาะชื่อ tool/resource หรือ "none", ไม่ต้องมีคำอธิบาย):`;
 
-      console.log("[MCP Client] tryAISelection: calling chatWithOllama", {
-        prompt,
-      });
+  console.log("[MCP Client] tryAISelection: calling chatWithOllama");
       const response = await this.chatWithOllama(
         [
           { role: "system", content: SYSTEM_PROMPT },
@@ -846,10 +834,7 @@ ${toolDescriptions}
           num_predict: 100,
         }
       );
-      console.log(
-        "[MCP Client] tryAISelection: chatWithOllama response",
-        response
-      );
+      console.log("[MCP Client] tryAISelection: response received");
 
       const selectedTools = response.message?.content?.trim() || "";
       console.log(`[MCP Client] AI selected: ${selectedTools}`);
@@ -950,10 +935,7 @@ Tool/Resource: ${toolName}
 Tool/Resource นี้เหมาะสมกับคำถามหรือไม่? 
 ตอบเฉพาะ "yes" หรือ "no" เท่านั้น:`;
 
-        console.log(
-          "[MCP Client] validateToolSelection: calling chatWithOllama",
-          { validationPrompt }
-        );
+        console.log("[MCP Client] validateToolSelection: calling chatWithOllama");
         const response = await this.chatWithOllama(
           [
             { role: "system", content: SYSTEM_PROMPT },
@@ -964,10 +946,7 @@ Tool/Resource นี้เหมาะสมกับคำถามหรือ
             num_predict: 10,
           }
         );
-        console.log(
-          "[MCP Client] validateToolSelection: chatWithOllama response",
-          response
-        );
+        console.log("[MCP Client] validateToolSelection: response received");
 
         const answer = response.message?.content?.trim().toLowerCase() || "";
 
@@ -1378,10 +1357,7 @@ ${schemaStr}
 
 JSON:`;
 
-      console.log(
-        "[MCP Client] generateToolArguments: calling chatWithOllama",
-        { prompt }
-      );
+      console.log("[MCP Client] generateToolArguments: calling chatWithOllama");
       const response = await this.chatWithOllama(
         [
           { role: "system", content: SYSTEM_PROMPT },
@@ -1392,10 +1368,7 @@ JSON:`;
           num_predict: 200,
         }
       );
-      console.log(
-        "[MCP Client] generateToolArguments: chatWithOllama response",
-        response
-      );
+      console.log("[MCP Client] generateToolArguments: response received");
 
       let jsonStr = response.message?.content?.trim() || "";
 
@@ -1417,10 +1390,7 @@ JSON:`;
         }
       }
 
-      console.log(
-        `[MCP Client] Generated JSON string for ${tool.name}:`,
-        jsonStr
-      );
+      console.log(`[MCP Client] Generated JSON string for ${tool.name}`);
 
       try {
         const parsed = JSON.parse(jsonStr);
@@ -1551,18 +1521,12 @@ JSON:`;
 
       const fullPrompt = `${contextPart}${userInstruction}`;
 
-      console.log("[MCP Client] generateHtmlResponse: calling chatWithOllama", {
-        fullPrompt,
-        options,
-      });
+      console.log("[MCP Client] generateHtmlResponse: calling chatWithOllama");
       const response = await this.chatWithOllama(
         [{ role: "user", content: fullPrompt }],
         Object.assign({ temperature: 0.2, num_predict: 400 }, options || {})
       );
-      console.log(
-        "[MCP Client] generateHtmlResponse: chatWithOllama response",
-        response
-      );
+      console.log("[MCP Client] generateHtmlResponse: response received");
 
       const content = response?.message?.content || "";
       return String(content).trim();
