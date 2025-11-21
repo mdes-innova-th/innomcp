@@ -61,6 +61,37 @@ const mcpserver = new McpServer({
   version: "1.0.0",
 });
 
+// Wrap registerTool to add extra validation เพื่อเพิ่มการตรวจสอบพิเศษสำหรับตัวจัดการ webdTool_*
+const _originalRegisterTool = (mcpserver as any).registerTool.bind(mcpserver);
+(mcpserver as any).registerTool = function (name: string, def: any, handler: any) {
+  const wrappedHandler = async (params: any, extra: any) => {
+    if (/^webdTool_/i.test(name)) {
+      let ok = false;
+      try {
+        if (extra && typeof extra === "object" && extra.source === "webd") {
+          ok = true;
+        } else {
+          const s = typeof extra === "string" ? extra : JSON.stringify(extra || "");
+          if (/webd/i.test(s)) ok = true;
+        }
+      } catch (e) {
+        // ignore stringify errors and treat as not ok
+      }
+
+      if (!ok) {
+        throw new Error(
+          'webdTool_* handlers require the original request to include `extra.source === "webd"` or contain the substring "webd" (case-insensitive) in the extra object.'
+        );
+      }
+    }
+
+    return handler(params, extra);
+  };
+
+  return _originalRegisterTool(name, def, wrappedHandler);
+};
+
+// Register tools after wrapping registerTool so handlers get wrapped automatically
 registerDateTimeTool(mcpserver);
 registerWeatherTool(mcpserver);
 registerWebdTools(mcpserver);

@@ -2,9 +2,8 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerWebdTools(mcpserver: McpServer) {
-  // webdTool_count_by_group
   mcpserver.registerTool(
-    "webdTool_count_all_input_by_group",
+    "webdTool_count_all_by_group",
     {
       title: "ดึงจำนวนเว็บไซต์ผิดกฎหมายที่นำเข้าทั้งหมด",
       description: `หน้าที่: คืนสถิติจำนวนเว็บไซต์/URL ที่นำเข้าทั้งหมด แยกตามกลุ่มความผิด (category/group)
@@ -121,7 +120,6 @@ export function registerWebdTools(mcpserver: McpServer) {
     }
   );
 
-  // webdTool_count_court
   mcpserver.registerTool(
     "webdTool_count_court",
     {
@@ -232,7 +230,6 @@ export function registerWebdTools(mcpserver: McpServer) {
     }
   );
 
-  // webdTool_petition_count
   mcpserver.registerTool(
     "webdTool_petition_count",
     {
@@ -291,7 +288,6 @@ export function registerWebdTools(mcpserver: McpServer) {
     }
   );
 
-  // webdTool_by_date_count
   mcpserver.registerTool(
     "webdTool_by_date_count",
     {
@@ -411,7 +407,6 @@ export function registerWebdTools(mcpserver: McpServer) {
     }
   );
 
-  // webdTool_by_month_count
   mcpserver.registerTool(
     "webdTool_by_month_count",
     {

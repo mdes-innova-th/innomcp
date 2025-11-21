@@ -169,7 +169,7 @@ class IntelligentMCPClient extends EventEmitter {
 
   // Robust Ollama chat wrapper
   private async chatWithOllama(messages: any[], options?: any): Promise<any> {
-  console.log("[MCP Client] chatWithOllama called");
+  console.log("[MCP Client] chatWithOllama called", messages, options);
     try {
       console.log("[MCP Client] Calling ollama.chat (sync)");
       const response = await this.ollama.chat({
