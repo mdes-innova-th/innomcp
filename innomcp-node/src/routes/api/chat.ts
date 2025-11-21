@@ -7,10 +7,35 @@ import { InitMcpClient, IntelligentMCPClient } from "../../utils/mcpclient";
 dotenv.config();
 
 // --- 1. Ollama Configuration ---
-const OLLAMA_HOST = process.env.OLLAMA_HOST || "localhost";
-const OLLAMA_PORT = process.env.OLLAMA_PORT || "11434";
+// Support full URL in OLLAMA_HOST (including protocol) and optional OLLAMA_PORT.
+const rawHost = process.env.OLLAMA_HOST || "localhost";
+const rawPort = process.env.OLLAMA_PORT || "";
 
-const ollama = new Ollama({ host: `${OLLAMA_HOST}:${OLLAMA_PORT}` });
+// Build a clean host URL for the Ollama client.
+let ollamaHostUrl = rawHost;
+try {
+  // Ensure we have a protocol for URL parsing. If missing, assume http.
+  if (!/^https?:\/\//i.test(rawHost)) {
+    ollamaHostUrl = `http://${rawHost}`;
+  }
+
+  const parsed = new URL(ollamaHostUrl);
+
+  // If a port is provided via env, override/add it. If not, keep existing.
+  if (rawPort) parsed.port = rawPort;
+
+  // Remove any trailing slash
+  ollamaHostUrl = parsed.toString().replace(/\/$/, "");
+} catch (e) {
+  // Fallback: naive concatenation (shouldn't normally happen)
+  ollamaHostUrl = rawHost.replace(/\/$/, "");
+  if (rawPort) {
+    // Avoid duplicating colon
+    ollamaHostUrl = ollamaHostUrl.replace(/:$/, "") + ":" + rawPort;
+  }
+}
+
+const ollama = new Ollama({ host: ollamaHostUrl });
 const ollamaModel = process.env.OLLAMA_MODEL || "llama2";
 
 const chatRouter = Router();
