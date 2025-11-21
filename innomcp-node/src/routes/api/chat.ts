@@ -274,8 +274,11 @@ wss.on("connection", (ws) => {
         });
 
         let aiResponse = "";
-        let lastWordIndex = 0;
         let isFirstChunk = true;
+
+        console.log(
+          `[Chat API] Receiving streamed response from Ollama with models=${ollamaModel}...`
+        );
 
         for await (const chunk of responseStream) {
           if (!chunk.message || !chunk.message.content) continue;
@@ -359,7 +362,7 @@ chatRouter.post("/chat", async (req, res) => {
 
         if (mcpResult.needsTools) {
           console.log(
-            "[Chat API] MCP tools executed for POST:",
+            "[Chat API] Processed with MCP tools:",
             mcpResult.toolResults?.length
           );
           mcpResults = mcpResult.toolResults;
