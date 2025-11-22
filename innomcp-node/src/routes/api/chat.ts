@@ -263,7 +263,7 @@ wss.on("connection", (ws) => {
         ];
 
         console.log(
-          `[Chat API] Sending ${ollamaMessages.length} messages to Ollama with models=${ollamaModel} (including system prompt)`
+          `[Chat API] Sending ${ollamaMessages.length} messages to Ollama with models=${ollamaModel} (including system prompt) ✨`
         );
 
         // Call Ollama with streaming
@@ -277,7 +277,7 @@ wss.on("connection", (ws) => {
         let isFirstChunk = true;
 
         console.log(
-          `[Chat API] Receiving streamed response from Ollama with models=${ollamaModel}...`
+          `[Chat API] Receiving streamed response from Ollama with models=${ollamaModel}... ✨`
         );
 
         for await (const chunk of responseStream) {
@@ -298,7 +298,7 @@ wss.on("connection", (ws) => {
 
         // Add AI response to history and send back to client
         sessionHistory.push({ sender: "ai", text: aiResponse });
-        console.log(`[Chat API] AI response: >>>>>>>>> ${aiResponse}`);
+        console.log(`[Chat API] AI response: >>>>>>>>> ${aiResponse} ✨`);
         console.log(
           `[Chat API] Session now has ${sessionHistory.length} messages (after AI response)`
         );
@@ -421,7 +421,7 @@ chatRouter.post("/chat", async (req, res) => {
     ];
 
     console.log(
-      `[Chat API] POST: Sending ${ollamaMessages.length} messages to Ollama (including system prompt)`
+      `[Chat API] POST: Sending ${ollamaMessages.length} messages to Ollama (including system prompt) ✨`
     );
 
     // Call Ollama (non-streaming)
@@ -431,7 +431,7 @@ chatRouter.post("/chat", async (req, res) => {
     });
 
     console.log(
-      "[Chat API] Ollama response:",
+      "[Chat API] Ollama response ✨:",
       response.message.content.substring(0, 100)
     );
 
