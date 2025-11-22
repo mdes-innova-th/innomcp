@@ -1260,7 +1260,9 @@ ${toolDescriptions}
       );
 
       console.log(
-        `[MCP Client] ✅ Ollama final selection: ${validSelections.join(", ")} ✨`
+        `[MCP Client] ✅ Ollama final selection: ${validSelections.join(
+          ", "
+        )} ✨`
       );
       return validSelections.slice(0, 2); // Max 2 tools
     } catch (error) {

@@ -379,7 +379,9 @@ const ChatPage: React.FC = () => {
       input.trim() !== "" &&
       !isWaitingForResponse
     ) {
-      const message = { text: input, messages };
+      // include a unique messageId to allow server-side deduplication
+      const messageId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+      const message = { text: input, messages, messageId };
       console.log("Sending message to WebSocket:", message); // Debug log
       socket.send(JSON.stringify(message));
       setMessages([...messages, { sender: "user", text: input }]);

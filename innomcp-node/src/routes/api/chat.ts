@@ -148,6 +148,8 @@ interface ClientMessage {
 // --- 6. WebSocket Connection Handler ---
 wss.on("connection", (ws) => {
   (ws as any).isAlive = true;
+  // Track recently processed message IDs for this connection to avoid duplicates/loops
+  (ws as any).processedMessageIds = new Set<string>();
   ws.on("pong", () => {
     try {
       (ws as any).isAlive = true;
@@ -164,6 +166,23 @@ wss.on("connection", (ws) => {
   ws.on("message", async (data) => {
     try {
       const clientMessage: ClientMessage = JSON.parse(data.toString());
+      // optional messageId to deduplicate repeated sends from the same client
+      const incomingId = (clientMessage as any).messageId;
+      if (incomingId && (ws as any).processedMessageIds.has(incomingId)) {
+        console.log(`[Chat API] Duplicate messageId received, ignoring: ${incomingId}`);
+        return;
+      }
+      if (incomingId) {
+        (ws as any).processedMessageIds.add(incomingId);
+        // expire this id after 60 seconds to avoid memory leak
+        setTimeout(() => {
+          try {
+            (ws as any).processedMessageIds.delete(incomingId);
+          } catch (e) {
+            // ignore
+          }
+        }, 60000);
+      }
       console.log("[Chat API] Received message:", clientMessage);
 
       // Get full message history from client or initialize empty
@@ -209,10 +228,26 @@ wss.on("connection", (ws) => {
               mcpContext = " (ใช้ข้อมูลจาก MCP tools)";
             }
           } else if (mcpResult.toolsFailed) {
-            // Tools were selected but all failed, send sorry message
-            const sorryMessage =
-              "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง หรือลองแจ้งสิ่งที่ต้องการเพิ่มเติม";
+            // Tools were selected but all failed — ask Ollama to craft a short sorry message
+            let sorryMessage = "ขออภัย ขณะนี้ไม่สามารถให้ข้อมูลที่คุณต้องการได้";
+            try {
+              const apologyPrompt = `กรุณาสร้างข้อความขอโทษสั้นๆ (ภาษาไทย) ความยาวไม่เกิน 2 ประโยค อธิบายว่าไม่สามารถดึงข้อมูลหรือประมวลผลได้ในขณะนี้ และแนะนำทางเลือก เช่น ลองอีกครั้งภายหลัง หรือตรวจสอบรายละเอียดเพิ่มเติม ตอนจบให้สุภาพและกระชับ ตอบเฉพาะข้อความ ไม่ต้องมี markdown หรือข้อมูลเสริมอื่นๆ`;
+              const apologyResp = await ollama.chat({
+                model: ollamaModel,
+                messages: [
+                  { role: "system", content: "You are a concise and polite Thai assistant." },
+                  { role: "user", content: apologyPrompt },
+                ],
+                stream: false,
+              });
+              const candidate = String(apologyResp?.message?.content || "").trim();
+              if (candidate.length > 0) sorryMessage = candidate;
+            } catch (e) {
+              console.error("[Chat API] Failed to generate apology via Ollama:", e);
+            }
+
             sessionHistory.push({ sender: "ai", text: sorryMessage });
+            // Send as a final chunk and history update
             ws.send(JSON.stringify({ type: "chunk", text: sorryMessage }));
             ws.send(
               JSON.stringify({
@@ -236,7 +271,7 @@ wss.on("connection", (ws) => {
 1. จำประวัติการสนทนาที่ผ่านมา
 2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
 3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
-4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง หรือลองแจ้งสิ่งที่ต้องการเพิ่มเติม"
+4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า ""
 5. ห้ามอธิบายผู้ใช้ทราบว่ามีการใช้ MCP server, MCP tools หรือ tools ใดๆ — เพียงให้ผลลัพธ์สุดท้ายในฟิลด์ markdown เท่านั้น
 6. ตอบเป็นภาษาไทยเป็นหลัก
 7. ตอบในรูปแบบ markdown เสมอ
@@ -371,9 +406,24 @@ chatRouter.post("/chat", async (req, res) => {
             finalMessage = mcpResult.enhancedContext;
           }
         } else if (mcpResult.toolsFailed) {
-          // Tools were selected but all failed, return sorry message
-          const sorryMessage =
-            "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง หรือลองแจ้งสิ่งที่ต้องการเพิ่มเติม";
+          // Tools were selected but all failed — ask Ollama to craft a short sorry message
+          let sorryMessage = "ขออภัย ขณะนี้ไม่สามารถให้ข้อมูลที่คุณต้องการได้";
+          try {
+            const apologyPrompt = `กรุณาสร้างข้อความขอโทษสั้นๆ (ภาษาไทย) ความยาวไม่เกิน 2 ประโยค อธิบายว่าไม่สามารถดึงข้อมูลหรือประมวลผลได้ในขณะนี้ และแนะนำทางเลือก เช่น ลองอีกครั้งภายหลัง หรือตรวจสอบรายละเอียดเพิ่มเติม ตอนจบให้สุภาพและกระชับ ตอบเฉพาะข้อความ ไม่ต้องมี markdown หรือข้อมูลเสริมอื่นๆ`;
+            const apologyResp = await ollama.chat({
+              model: ollamaModel,
+              messages: [
+                { role: "system", content: "You are a concise and polite Thai assistant." },
+                { role: "user", content: apologyPrompt },
+              ],
+              stream: false,
+            });
+            const candidate = String(apologyResp?.message?.content || "").trim();
+            if (candidate.length > 0) sorryMessage = candidate;
+          } catch (e) {
+            console.error("[Chat API] Failed to generate apology via Ollama (POST):", e);
+          }
+
           sessionHistory.push({ sender: "ai", text: sorryMessage });
           return res.json({
             text: sorryMessage,
