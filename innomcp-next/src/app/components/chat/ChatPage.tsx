@@ -568,14 +568,11 @@ const ChatPage: React.FC = () => {
       <div
         className={`${
           hasMessages
-            ? "fixed z-99 w-full max-w-7xl mx-auto bottom-0 left-0 right-0 flex flex-col"
-            : "absolute z-99 w-full max-w-7xl mx-auto top-0 bottom-0 flex items-center justify-center"
+            ? "fixed z-50 w-full mx-auto bottom-0 left-0 right-0 justify-center items-center flex"
+            : "absolute z-50 w-full mx-auto top-0 bottom-0 left-0 right-0 justify-center items-center flex"
         }`}
       >
-        <div
-          className={`${
-            hasMessages ? "w-full max-w-7xl mx-auto px-4 py-0" : "w-full max-w-xl mx-auto px-4 py-0"
-          }`}
+        <div className="w-full max-w-3xl mx-auto"
         >
           <ChatInput
             input={input}
@@ -597,7 +594,7 @@ const ChatPage: React.FC = () => {
           />
         </div>
       </div>
-      <div className="absolute left-4 top-0">
+      <div className="absolute left-4 top-0 z-120">
         <ChatSidebar
           summaries={chatSummaries}
           activeId={activeSummaryId}

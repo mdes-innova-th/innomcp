@@ -10,7 +10,6 @@ import { useAuth } from "@/app/context/AuthContext";
 import { FaSignOutAlt, FaKey, FaUser } from "react-icons/fa";
 import LoadingSpinner from "@/app/components/common/ui/loading-spinner";
 import Image from "next/image";
-
 import {
   buttonClass,
   logoutButtonClass,
@@ -241,7 +240,7 @@ export default function Header() {
           theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด"
         }
         title={theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด"}
-        className="fixed left-2 bottom-2 z-50 w-11 h-11 p-2 rounded-full border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-700 text-gray-700 dark:text-gray-200 shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-transform transform hover:scale-105 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+        className="fixed left-2 bottom-2 z-99 w-11 h-11 p-2 rounded-full border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-700 text-gray-700 dark:text-gray-200 shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-transform transform hover:scale-105 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-pointer"
       >
         {theme === "dark" ? <FaSun size={20} /> : <FaMoon size={20} />}
         <span className="sr-only">
