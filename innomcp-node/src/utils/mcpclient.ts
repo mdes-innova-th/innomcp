@@ -11,6 +11,9 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
 import rehypeSanitize from "rehype-sanitize";
+import Fuse from "fuse.js";
+import * as natural from "natural";
+import { makeFuse, runSearch } from "./fuseSearch";
 
 // Interface for MCP Tool Definition
 interface MCPTool {
@@ -92,6 +95,11 @@ class IntelligentMCPClient extends EventEmitter {
   private cacheTTL: number = 300000; // 5 minutes cache TTL
   private conversationHistory: ConversationContext[] = [];
   private maxHistorySize: number = 10;
+
+  // Natural language processing components
+  private tfidf = new natural.TfIdf();
+  private stemmer = natural.PorterStemmer;
+  private tokenizer = new natural.WordTokenizer();
 
   // Tool patterns for enhanced matching
   private toolPatterns: ToolPattern[] = [
@@ -527,11 +535,14 @@ class IntelligentMCPClient extends EventEmitter {
     return "general";
   }
 
-  // Enhanced keyword extraction supporting Thai language
+  // Enhanced keyword extraction supporting Thai language with Natural
   private extractKeywords(name: string, description?: string): string[] {
     const text = `${name} ${description || ""}`;
 
-    const englishWords = text.toLowerCase().match(/[a-z]{3,}/g) || [];
+    // Use Natural tokenizer for better tokenization
+    const tokens = this.tokenizer.tokenize(text.toLowerCase()) || [];
+
+    const englishWords = tokens.filter((token) => /^[a-z]{3,}$/.test(token));
     const englishStopWords = [
       "tool",
       "function",
@@ -548,7 +559,9 @@ class IntelligentMCPClient extends EventEmitter {
       "were",
     ];
 
-    const thaiWords = text.match(/[\u0E00-\u0E7F]{2,}/g) || [];
+    const thaiWords = tokens.filter((token) =>
+      /[\u0E00-\u0E7F]{2,}/.test(token)
+    );
     const thaiStopWords = [
       "การ",
       "ของ",
@@ -575,7 +588,12 @@ class IntelligentMCPClient extends EventEmitter {
       (word) => !thaiStopWords.includes(word)
     );
 
-    const allWords = [...filteredEnglishWords, ...filteredThaiWords];
+    // Stem English words using Natural
+    const stemmedEnglish = filteredEnglishWords.map((word) =>
+      this.stemmer.stem(word)
+    );
+
+    const allWords = [...stemmedEnglish, ...filteredThaiWords];
 
     return [...new Set(allWords)].slice(0, 20);
   }
@@ -723,7 +741,7 @@ class IntelligentMCPClient extends EventEmitter {
   }
 
   // ============================================
-  // NEW: คำนวณคะแนนความเกี่ยวข้องของ tool
+  // ENHANCED: คำนวณคะแนนความเกี่ยวข้องของ tool ด้วย fuse.js + natural TF-IDF
   // ============================================
   private async scoreToolRelevance(
     toolName: string,
@@ -736,25 +754,65 @@ class IntelligentMCPClient extends EventEmitter {
 
     if (!tool && !resource) return 0;
 
-    const lowerMessage = userMessage.toLowerCase();
     const description = tool?.description || resource?.description || "";
     const keywords =
       tool?.keywords || this.extractKeywords(toolName, description);
+    const searchText = `${toolName} ${description} ${keywords.join(
+      " "
+    )}`.toLowerCase();
 
-    let score = 0;
+    // ===== NATURAL TF-IDF SCORING =====
+    let tfidfScore = 0;
+    try {
+      // Create a temporary TF-IDF instance for this tool
+      const tempTfidf = new natural.TfIdf();
+      tempTfidf.addDocument(searchText);
 
-    // คะแนนจาก keyword matching
-    const matchedKeywords = keywords.filter((keyword) =>
-      lowerMessage.includes(keyword.toLowerCase())
-    );
-    score += matchedKeywords.length * 2;
-    console.log(
-      `[MCP Client] Keyword matches for ${toolName}: ${matchedKeywords.join(
-        ", "
-      )} (+${matchedKeywords.length * 2})`
-    );
+      // Tokenize user message
+      const userTokens =
+        this.tokenizer.tokenize(userMessage.toLowerCase()) || [];
 
-    // คะแนนจาก category matching
+      // Calculate TF-IDF score for user tokens against this tool's document
+      userTokens.forEach((token) => {
+        tempTfidf.tfidfs(token, (i, measure) => {
+          tfidfScore += measure;
+        });
+      });
+
+      // Normalize TF-IDF score (0-50 range)
+      tfidfScore = Math.min(tfidfScore * 10, 50);
+      console.log(
+        `[MCP Client] TF-IDF score for ${toolName}: ${tfidfScore.toFixed(2)}`
+      );
+    } catch (error) {
+      console.warn(`[MCP Client] TF-IDF scoring error for ${toolName}:`, error);
+      tfidfScore = 0;
+    }
+
+    // ===== FUSE.JS FUZZY SCORING =====
+    const fuse = new Fuse([searchText], {
+      includeScore: true,
+      threshold: 0.4,
+      keys: [""],
+      ignoreLocation: true,
+      findAllMatches: true,
+    });
+
+    const results = fuse.search(userMessage.toLowerCase());
+    let fuseScore = 0;
+
+    if (results.length > 0) {
+      const bestScore = results[0].score || 1;
+      fuseScore = Math.max(0, (1 - bestScore) * 100);
+      console.log(
+        `[MCP Client] Fuse.js score for ${toolName}: ${fuseScore.toFixed(
+          2
+        )} (raw: ${bestScore.toFixed(2)})`
+      );
+    }
+
+    // ===== CATEGORY BONUS =====
+    let categoryScore = 0;
     if (tool?.category) {
       const categoryKeywords: Record<string, string[]> = {
         datetime: ["วันนี้", "เวลา", "วันที่", "time", "date"],
@@ -765,85 +823,71 @@ class IntelligentMCPClient extends EventEmitter {
 
       const categoryKeys = categoryKeywords[tool.category] || [];
       const categoryMatches = categoryKeys.filter((k) =>
-        lowerMessage.includes(k)
+        userMessage.toLowerCase().includes(k.toLowerCase())
       );
-      score += categoryMatches.length * 3;
+      categoryScore = categoryMatches.length * 5;
       console.log(
         `[MCP Client] Category matches for ${toolName}: ${categoryMatches.join(
           ", "
-        )} (+${categoryMatches.length * 3})`
+        )} (+${categoryScore})`
       );
     }
 
-    // คะแนนจาก pattern matching
+    // ===== PATTERN BONUS =====
+    let patternScore = 0;
     for (const pattern of this.toolPatterns) {
       if (pattern.toolPattern.test(toolName)) {
         const patternMatches = pattern.keywords.filter((k) =>
-          lowerMessage.includes(k.toLowerCase())
+          userMessage.toLowerCase().includes(k.toLowerCase())
         );
         if (patternMatches.length > 0) {
-          score +=
+          patternScore +=
             pattern.priority === "high"
-              ? 5
+              ? 10
               : pattern.priority === "medium"
-              ? 3
-              : 1;
+              ? 5
+              : 2;
           console.log(
             `[MCP Client] Pattern matches for ${toolName}: ${patternMatches.join(
               ", "
             )} (+${
               pattern.priority === "high"
-                ? 5
+                ? 10
                 : pattern.priority === "medium"
-                ? 3
-                : 1
+                ? 5
+                : 2
             })`
           );
         }
       }
     }
 
-    // คะแนนจากการ match คำในคำอธิบาย (description)
-    try {
-      const descKeywords = this.extractKeywords(
-        tool?.name || toolName,
-        description
-      );
-      const descMatches = descKeywords.filter((k) =>
-        lowerMessage.includes(k.toLowerCase())
-      );
-      score += descMatches.length * 2;
-      console.log(
-        `[MCP Client] Description matches for ${toolName}: ${descMatches.join(
-          ", "
-        )} (+${descMatches.length * 2})`
-      );
-    } catch (e) {
-      // ignore
+    // ===== WEBD BONUS =====
+    let webdBonus = 0;
+    if (
+      userMessage.toLowerCase().includes("webd") &&
+      toolName.toLowerCase().includes("webd")
+    ) {
+      const offset =
+        Array.from(toolName).reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 5;
+      webdBonus = 10 + offset;
+      console.log(`[MCP Client] Webd bonus for ${toolName}: +${webdBonus}`);
     }
 
-    // ที่คำนวณจากชื่อ tool แบบ deterministic (ไม่ใช้ random) เพื่อให้ผลต่างกัน
-    try {
-      if (
-        lowerMessage.includes("webd") &&
-        toolName.toLowerCase().includes("webd")
-      ) {
-        // deterministic small offset based on toolName to break ties (0-4)
-        const offset =
-          Array.from(toolName).reduce((acc, ch) => acc + ch.charCodeAt(0), 0) %
-          5;
-        // base bonus near previous value (10) but slightly varied: 8..12
-        score += 8 + offset;
-        console.log(
-          `[MCP Client] Deterministic bonus for ${toolName}: +${8 + offset}`
-        );
-      }
-    } catch (e) {
-      // ignore
-    }
+    // ===== COMBINED SCORE =====
+    const totalScore =
+      tfidfScore + fuseScore + categoryScore + patternScore + webdBonus;
+    console.log(
+      `[MCP Client] Total score for ${toolName}: TF-IDF(${tfidfScore.toFixed(
+        1
+      )}) + Fuse(${fuseScore.toFixed(
+        1
+      )}) + Category(${categoryScore}) + Pattern(${patternScore}) + Webd(${webdBonus}) = ${totalScore.toFixed(
+        2
+      )}`
+    );
 
-    console.log(`[MCP Client] Total score for ${toolName}: ${score}`);
-    return score;
+    return totalScore;
   }
 
   // ============================================
@@ -896,7 +940,7 @@ class IntelligentMCPClient extends EventEmitter {
   }
 
   // ============================================
-  // UPDATED: Strategy 1 - Pattern matching
+  // UPDATED: Strategy 1 - Pattern matching ด้วย fuse.js
   // ============================================
   private async tryPatternMatching(userMessage: string): Promise<string[]> {
     console.log("===== Starting tryPatternMatching =====");
@@ -918,50 +962,59 @@ class IntelligentMCPClient extends EventEmitter {
       }
     }
 
-    for (const pattern of this.toolPatterns) {
-      const matchedKeywords = pattern.keywords.filter((keyword) =>
-        lowerMessage.includes(keyword.toLowerCase())
+    // ใช้ Fuse เพียงอย่างเดียวในการหา pattern ที่ใกล้เคียงกับข้อความผู้ใช้
+    const patternData = this.toolPatterns.map((p) => ({
+      category: p.category,
+      keywords: p.keywords.join(" "),
+      priority: p.priority,
+      pattern: p,
+    }));
+
+    const patternFuse = makeFuse(patternData as any, {
+      keys: ["keywords", "category"],
+      threshold: 0.35,
+      distance: 100,
+      includeScore: true,
+    });
+
+    const patternResults = runSearch(patternFuse, lowerMessage) as any[];
+
+    // สำหรับ pattern ที่ match ให้แมปกลับเป็น tools/resources ตาม regex pattern.original
+    for (const pr of patternResults) {
+      const patternObj: any = pr.item || pr;
+      const origPattern: ToolPattern = patternObj.pattern;
+      const priorityScore =
+        origPattern.priority === "high"
+          ? 15
+          : origPattern.priority === "medium"
+          ? 8
+          : 3;
+
+      const matchedTools = Array.from(this.tools.keys()).filter((key) =>
+        origPattern.toolPattern.test(key)
       );
-      const matchCount = matchedKeywords.length;
+      const matchedResources = Array.from(this.resources.keys()).filter((key) =>
+        origPattern.toolPattern.test(key)
+      );
+
+      const allMatches = [...matchedTools, ...matchedResources];
+      const score = (1 - (pr.score ?? 0)) * 100 * (priorityScore / 10);
+
+      allMatches.forEach((tool) => {
+        const currentScore = toolScores.get(tool) || 0;
+        toolScores.set(tool, currentScore + score);
+      });
       console.log(
         `[MCP Client] Pattern "${
-          pattern.category
-        }" checked keywords: ${pattern.keywords.join(
-          ", "
-        )}, matched: ${matchedKeywords.join(", ")}, count: ${matchCount}`
+          origPattern.category
+        }" matched tools: ${allMatches.join(", ")}, score: ${score.toFixed(1)}`
       );
+    }
 
-      if (matchCount > 0) {
-        const matchedTools = Array.from(this.tools.keys()).filter((key) =>
-          pattern.toolPattern.test(key)
-        );
-        const matchedResources = Array.from(this.resources.keys()).filter(
-          (key) => pattern.toolPattern.test(key)
-        );
-
-        const allMatches = [...matchedTools, ...matchedResources];
-        const priorityScore =
-          pattern.priority === "high"
-            ? 10
-            : pattern.priority === "medium"
-            ? 5
-            : 2;
-        const score = matchCount * priorityScore;
-
-        allMatches.forEach((tool) => {
-          const currentScore = toolScores.get(tool) || 0;
-          toolScores.set(tool, currentScore + score);
-        });
-        console.log(
-          `[MCP Client] Pattern "${
-            pattern.category
-          }" matched tools: ${allMatches.join(", ")}, score: ${score}`
-        );
-      }
-    } // จัดเรียงและกรอง
+    // จัดเรียงและกรอง
     const candidates = Array.from(toolScores.entries())
       .sort((a, b) => b[1] - a[1])
-      .filter(([_, score]) => score >= 5)
+      .filter(([_, score]) => score >= 10)
       .map(([tool]) => tool);
 
     // ใช้ deduplicate และ ranking
@@ -969,118 +1022,106 @@ class IntelligentMCPClient extends EventEmitter {
   }
 
   // ============================================
-  // UPDATED: Strategy 2 - Keyword matching
+  // UPDATED: Strategy 2 - Keyword matching ด้วย fuse.js
   // ============================================
   private async tryKeywordMatching(userMessage: string): Promise<string[]> {
     console.log("===== Starting tryKeywordMatching =====");
     console.log(`[MCP Client] Trying keyword matching for: "${userMessage}"`);
 
-    const userKeywords = this.extractKeywords(userMessage);
-    console.log(
-      `[MCP Client] User keywords extracted: ${userKeywords.join(", ")}`
+    // สร้าง data สำหรับ Fuse จาก tools และ resources แล้วให้ Fuse จัดการ matching ทั้งหมด
+    const toolData = Array.from(this.tools.entries()).map(
+      ([toolName, tool]) => ({
+        id: toolName,
+        searchText: `${toolName} ${tool.description} ${tool.keywords.join(
+          " "
+        )} ${tool.category}`.toLowerCase(),
+      })
     );
-    if (userKeywords.length === 0) return [];
 
-    const matches: Array<{ tool: string; score: number }> = [];
+    const resourceData = Array.from(this.resources.entries()).map(
+      ([resourceName, resource]) => ({
+        id: resourceName,
+        searchText:
+          `${resourceName} ${resource.description} ${resource.title}`.toLowerCase(),
+      })
+    );
 
-    // Check tools
-    for (const [toolName, tool] of this.tools.entries()) {
-      const toolKeywords = tool.keywords;
-      const commonKeywords = userKeywords.filter((uk) =>
-        toolKeywords.some(
-          (tk) =>
-            tk.toLowerCase().includes(uk.toLowerCase()) ||
-            uk.toLowerCase().includes(tk.toLowerCase())
-        )
-      );
+    const combined = [...toolData, ...resourceData];
 
-      console.log(
-        `[MCP Client] Checking tool ${toolName} with keywords: ${toolKeywords.join(
-          ", "
-        )}, common: ${commonKeywords.join(", ")}`
-      );
+    const dataFuse = makeFuse(combined as any, {
+      keys: ["searchText"],
+      threshold: 0.6,
+      includeScore: true,
+      ignoreLocation: true,
+      findAllMatches: true,
+    });
 
-      if (commonKeywords.length > 0) {
-        const score =
-          commonKeywords.length /
-          Math.max(userKeywords.length, toolKeywords.length);
-        matches.push({ tool: toolName, score });
-        console.log(
-          `[MCP Client] Keyword match: ${toolName} (score: ${score.toFixed(
-            2
-          )}, keywords: ${commonKeywords.join(", ")})`
-        );
-      }
-    }
+    const results = runSearch(dataFuse, userMessage.toLowerCase()) as any[];
 
-    // Check resources
-    for (const [resourceName, resource] of this.resources.entries()) {
-      const resourceKeywords = this.extractKeywords(
-        resourceName,
-        resource.description
-      );
-      const commonKeywords = userKeywords.filter((uk) =>
-        resourceKeywords.some(
-          (rk) =>
-            rk.toLowerCase().includes(uk.toLowerCase()) ||
-            uk.toLowerCase().includes(rk.toLowerCase())
-        )
-      );
-
-      console.log(
-        `[MCP Client] Checking resource ${resourceName} with keywords: ${resourceKeywords.join(
-          ", "
-        )}, common: ${commonKeywords.join(", ")}`
-      );
-
-      if (commonKeywords.length > 0) {
-        const score =
-          commonKeywords.length /
-          Math.max(userKeywords.length, resourceKeywords.length);
-        matches.push({ tool: resourceName, score });
-        console.log(
-          `[MCP Client] Resource keyword match: ${resourceName} (score: ${score.toFixed(
-            2
-          )})`
-        );
-      }
-    }
-
-    const candidates = matches
+    const matches = results
+      .map((r) => ({
+        id: r.item.id,
+        score: Math.max(0, (1 - (r.score ?? 1)) * 100),
+      }))
+      .filter((m) => m.score >= 10)
       .sort((a, b) => b.score - a.score)
-      .filter((m) => m.score >= 0.01)
-      .map((m) => m.tool);
+      .map((m) => m.id);
 
-    // ใช้ deduplicate และ ranking
-    return await this.deduplicateAndRankTools(candidates, userMessage);
+    return await this.deduplicateAndRankTools(matches, userMessage);
   }
 
   // ============================================
-  // UPDATED: Strategy 3 - AI selection
+  // UPDATED: Strategy 3 - AI selection โดยตรง ไม่ใช้ fuse.js candidate
   // ============================================
   private async tryAISelection(userMessage: string): Promise<string[]> {
     console.log("===== Starting tryAISelection =====");
-    console.log(`[MCP Client] Trying AI selection for: "${userMessage}" ✨`);
+    console.log(
+      `[MCP Client] Trying AI selection directly without fuse.js candidates for: "${userMessage}" ✨`
+    );
 
     try {
-      const toolDescriptions = getToolDescriptions(this.tools, this.resources);
-      const contextStr = this.getConversationContext();
+      // สร้างรายการเครื่องมือทั้งหมดโดยไม่ใช้ fuse.js
+      const allTools = Array.from(this.tools.keys());
+      const allResources = Array.from(this.resources.keys());
+      const allItems = [...allTools, ...allResources];
 
-      const prompt = `คุณเป็น AI ที่เลือก MCP tools อย่างแม่นยำ
-${contextStr}
+      // เลือกเครื่องมือทั้งหมด แต่จำกัดจำนวนเพื่อความปลอดภัย
+      const maxTools = 50;
+      const selectedItems = allItems.slice(0, maxTools);
 
-**คำขอ**: "${userMessage}"
+      console.log(
+        `[MCP Client] Sending ${selectedItems.length} tools directly to AI (total available: ${allItems.length})`
+      );
 
-**Tools/Resources**:
+      // สร้าง descriptions สำหรับ selectedItems เท่านั้น
+      const selectedTools = new Map<string, MCPTool>();
+      const selectedResources = new Map<string, MCPResource>();
+
+      for (const itemName of selectedItems) {
+        if (this.tools.has(itemName)) {
+          selectedTools.set(itemName, this.tools.get(itemName)!);
+        } else if (this.resources.has(itemName)) {
+          selectedResources.set(itemName, this.resources.get(itemName)!);
+        }
+      }
+
+      const toolDescriptions = await getToolDescriptions(
+        selectedTools,
+        selectedResources
+      );
+
+      const prompt = `เลือก tool ที่เหมาะสมที่สุดสำหรับคำถามนี้
+
+คำถาม: "${userMessage}"
+
 ${toolDescriptions}
 
-**กฎการเลือก**:
-1. เลือกเฉพาะ 1 tool/resource ที่เหมาะสมที่สุดเท่านั้น
-2. ถ้าไม่แน่ใจ 100% ให้ตอบ "none"
-3. คำทักทาย → ใช้ resource (ไม่ใช้ tool)
-4. คำถามทั่วไป → ตอบ "none" (ไม่ต้องใช้ tool)
+กฎการเลือก:
+1. เลือก tool ที่เกี่ยวข้องมากที่สุด (1 ตัว)
+2. ถ้าไม่มี tool ที่เหมาะสมเลย ให้ตอบ "none"
+3. เลือกจากรายการที่ให้มาเท่านั้น
 
-**ตอบเฉพาะชื่อ tool/resource หรือ "none"**:`;
+ตอบเฉพาะชื่อ tool หรือ "none":`;
 
       console.log("[MCP Client] tryAISelection: calling chatWithOllama ✨");
       const response = await this.chatWithOllama(
@@ -1090,173 +1131,38 @@ ${toolDescriptions}
       console.log("[MCP Client] tryAISelection: response received ✨");
 
       const rawText = String(response.message?.content || "").trim();
-      console.log(
-        `[MCP Client] AI raw selection text: ${rawText.slice(0, 200)}`
+      console.log(`[MCP Client] AI raw selection: ${rawText}`);
+
+      // Parse AI response
+      let selectedItem = rawText.trim();
+      selectedItem = selectedItem
+        .replace(/```(?:json)?\s*/gi, "")
+        .replace(/\s*```/g, "")
+        .split("\n")[0]
+        .trim();
+
+      if (selectedItem.toLowerCase() === "none" || selectedItem === "") {
+        console.log("[MCP Client] AI selected none");
+        return [];
+      }
+
+      // หา item ที่ AI เลือก
+      const matched = selectedItems.find(
+        (item) =>
+          item === selectedItem ||
+          item.endsWith(`:${selectedItem}`) ||
+          item.includes(selectedItem)
       );
 
-      // Try to extract JSON first, then fall back to plain text parsing
-      let parsedJson: any = null;
-      const extracted = this.extractJsonFromText(rawText);
-      if (extracted) {
-        try {
-          parsedJson = JSON.parse(extracted);
-        } catch (e) {
-          parsedJson = null;
-        }
+      if (matched) {
+        console.log(`[MCP Client] ✅ AI selected directly: ${matched} ✨`);
+        return [matched];
       }
 
-      let rawCandidates: string[] = [];
-
-      if (parsedJson) {
-        if (typeof parsedJson === "string") {
-          rawCandidates = [parsedJson];
-        } else if (Array.isArray(parsedJson)) {
-          rawCandidates = parsedJson.map((s) => String(s));
-        } else if (typeof parsedJson === "object") {
-          const fromData = parsedJson.data;
-          const fromTool =
-            parsedJson.tool ||
-            parsedJson.tools ||
-            parsedJson.selected ||
-            parsedJson.selection ||
-            parsedJson.toolName ||
-            parsedJson.name;
-
-          if (fromData) {
-            if (typeof fromData === "string") rawCandidates = [fromData];
-            else if (Array.isArray(fromData))
-              rawCandidates = fromData.map((s) => String(s));
-            else if (typeof fromData === "object") {
-              const inner = fromData.tool || fromData.name;
-              if (inner)
-                rawCandidates = Array.isArray(inner)
-                  ? inner.map((s) => String(s))
-                  : [String(inner)];
-              else
-                rawCandidates = Object.values(fromData).map((v) => String(v));
-            }
-          } else if (fromTool) {
-            rawCandidates = Array.isArray(fromTool)
-              ? fromTool.map((s) => String(s))
-              : [String(fromTool)];
-          } else if (
-            parsedJson.markdown &&
-            typeof parsedJson.markdown === "string"
-          ) {
-            rawCandidates = parsedJson.markdown
-              .split(/\s*,\s*|\n/)
-              .map((s: string) => s.trim())
-              .filter(Boolean);
-          } else {
-            rawCandidates = [String(parsedJson)];
-          }
-        }
-      }
-
-      if (rawCandidates.length === 0) {
-        // fallback plain text split
-        rawCandidates = rawText
-          .split(/\s*,\s*|\n/)
-          .map((s) => s.trim())
-          .filter(Boolean);
-      }
-
-      rawCandidates = rawCandidates.slice(0, 1); // จำกัดแค่ 1 ตัว
-
-      const resolved: string[] = [];
-
-      for (const candidate of rawCandidates) {
-        if (this.tools.has(candidate) || this.resources.has(candidate)) {
-          resolved.push(candidate);
-          continue;
-        }
-
-        const suffixMatchTool = Array.from(this.tools.keys()).find((k) => {
-          const parts = k.split(":");
-          return parts[parts.length - 1] === candidate;
-        });
-
-        const suffixMatchRes = Array.from(this.resources.keys()).find((k) => {
-          const parts = k.split(":");
-          return parts[parts.length - 1] === candidate;
-        });
-
-        if (suffixMatchTool) {
-          resolved.push(suffixMatchTool);
-          continue;
-        }
-
-        if (suffixMatchRes) {
-          resolved.push(suffixMatchRes);
-          continue;
-        }
-
-        // fallback fuzzy contains match
-        const containsTool = Array.from(this.tools.keys()).find((k) =>
-          k.includes(candidate)
-        );
-        const containsRes = Array.from(this.resources.keys()).find((k) =>
-          k.includes(candidate)
-        );
-
-        if (containsTool) {
-          resolved.push(containsTool);
-          continue;
-        }
-
-        if (containsRes) {
-          resolved.push(containsRes);
-          continue;
-        }
-
-        // Log unknown candidate with detailed context to help debugging
-        console.error(
-          `[MCP Client] AI suggested unknown tool/resource: ${candidate}`
-        );
-        try {
-          console.error(`[MCP Client] AI raw selection: ${rawText}`);
-          try {
-            console.error(
-              `[MCP Client] AI response object: ${JSON.stringify(
-                response
-              ).slice(0, 2000)}`
-            );
-          } catch (e) {
-            console.error(
-              `[MCP Client] AI response object (stringify failed):`,
-              e
-            );
-          }
-
-          console.error(
-            `[MCP Client] Known tools (sample): ${Array.from(this.tools.keys())
-              .slice(0, 200)
-              .join(", ")}`
-          );
-          console.error(
-            `[MCP Client] Known resources (sample): ${Array.from(
-              this.resources.keys()
-            )
-              .slice(0, 200)
-              .join(", ")}`
-          );
-        } catch (logErr) {
-          console.error(
-            "[MCP Client] Failed to log AI unknown candidate context:",
-            logErr
-          );
-        }
-      }
-
-      // ถ้าไม่มี resolved candidates ให้บันทึกเพิ่มเติม
-      if (resolved.length === 0) {
-        console.error(
-          `[MCP Client] AI selection produced no resolvable candidates for query: "${userMessage}". AI raw selection: ${rawText}`
-        );
-      }
-
-      // ใช้ deduplicate และ ranking
-      return await this.deduplicateAndRankTools(resolved, userMessage);
+      console.log(
+        "[MCP Client] ⚠️ AI selected unknown item, no fallback available"
+      );
+      return [];
     } catch (error) {
       console.error("[MCP Client] AI selection error:", error);
       return [];
@@ -1264,160 +1170,114 @@ ${toolDescriptions}
   }
 
   // ============================================
-  // UPDATED: Validate tool selection
+  // NEW: Ollama Final Decision Making
   // ============================================
-  private async validateToolSelection(
+  private async makeFinalDecisionWithOllama(
     userMessage: string,
-    selectedTools: string[]
+    candidates: Array<{ toolName: string; score: number }>
   ): Promise<string[]> {
-    console.log("===== Starting validateToolSelection =====");
-    // แนวทาง 3: ใช้ AI validation เต็มรูปแบบ (พร้อม optimizations)
-    if (selectedTools.length === 0) return [];
+    console.log("===== Starting makeFinalDecisionWithOllama =====");
 
-    // Special case: greeting (ไม่ต้องถาม AI)
-    if (this.isGreetingQuery(userMessage)) {
-      const greetingResource = selectedTools.find(
-        (t) => t.includes("greeting") && this.resources.has(t)
-      );
-      if (greetingResource) {
-        console.log(
-          "[MCP Client] ✅ Validated greeting resource (no AI needed)"
-        );
-        return [greetingResource];
-      }
-    }
-
-    // Optimization: ถ้ามีแค่ tool เดี่ยว และคะแนนสูงมาก ไม่ต้องถาม AI
-    if (selectedTools.length === 1) {
-      const score = await this.scoreToolRelevance(
-        selectedTools[0],
-        userMessage
-      );
-      if (score >= 15) {
-        console.log(
-          `[MCP Client] ✅ Single tool with high score (${score}), no AI needed`
-        );
-        return selectedTools;
-      }
-    }
-
-    // เริ่ม AI validation
-    console.log(
-      `[MCP Client] Validating selected tools with AI: ${selectedTools.join(
-        ", "
-      )} ✨`
-    );
+    if (candidates.length === 0) return [];
+    if (candidates.length === 1) return [candidates[0].toolName];
 
     try {
-      // สร้าง description สำหรับแต่ละ tool
-      const toolDescriptions = await Promise.all(
-        selectedTools.map(async (toolName) => {
+      // Prepare tool descriptions for Ollama
+      const toolDescriptions = candidates
+        .map(({ toolName, score }) => {
           const tool = this.tools.get(toolName);
           const resource = this.resources.get(toolName);
-          const desc =
+
+          const description =
             tool?.description || resource?.description || "ไม่มีคำอธิบาย";
-          const score = await this.scoreToolRelevance(toolName, userMessage);
+          const category = tool?.category || "ไม่ระบุหมวดหมู่";
 
-          return {
-            toolName,
-            description: desc,
-            score,
-          };
+          return `${toolName}:
+- คะแนน: ${score.toFixed(1)}
+- หมวดหมู่: ${category}
+- คำอธิบาย: ${description}
+- ตัวอย่าง: ${tool?.examples?.slice(0, 2).join(", ") || "ไม่มีตัวอย่าง"}`;
         })
-      );
-
-      // เรียงตามคะแนน
-      toolDescriptions.sort((a, b) => b.score - a.score);
-
-      const toolList = toolDescriptions
-        .map(
-          (t, i) =>
-            `${i + 1}. ${t.toolName}\n   ${
-              t.description
-            }\n   (ความเกี่ยวข้อง: ${t.score})`
-        )
         .join("\n\n");
 
-      const prompt = `ตรวจสอบว่า tools ใดเหมาะสมกับคำถามนี้
+      const prompt = `วิเคราะห์คำถามและเลือกเครื่องมือที่เหมาะสมที่สุด
 
 คำถาม: "${userMessage}"
 
-Tools ที่เป็นไปได้:
-${toolList}
+เครื่องมือที่มีคะแนนสูงสุด:
+${toolDescriptions}
 
-กฎการตรวจสอบ:
-1. เลือกเฉพาะ tool ที่ตรงกับคำถามมากที่สุด (1 ตัว)
-2. ถ้าคำถามไม่ต้องการใช้ tool ให้ตอบ "none"
-3. ถ้าไม่แน่ใจ ให้เลือก tool ที่มีคะแนนความเกี่ยวข้องสูงสุด
+กฎการตัดสินใจ:
+1. เลือกเครื่องมือที่ตรงกับความต้องการมากที่สุด
+2. พิจารณาคะแนนและความเกี่ยวข้อง
+3. เลือกได้มากสุด 2 เครื่องมือ
+4. ถ้าไม่มีเครื่องมือที่เหมาะสมเลย ให้ตอบ "none"
 
-ตอบเฉพาะชื่อ tool (เช่น "innomcp-server:webdTool_count") หรือ "none":`;
+ตอบเฉพาะชื่อเครื่องมือที่เลือก (คั่นด้วย comma) หรือ "none":
+ตัวอย่าง: tool1,tool2 หรือ tool1 หรือ none`;
 
-      // เรียก AI ครั้งเดียว (ไม่ loop)
+      console.log(
+        "[MCP Client] makeFinalDecisionWithOllama: calling chatWithOllama ✨"
+      );
       const response = await this.chatWithOllama(
         [{ role: "user", content: prompt }],
         { temperature: 0.1, num_predict: 100 }
       );
+      console.log(
+        "[MCP Client] makeFinalDecisionWithOllama: response received ✨"
+      );
 
-      let selectedTool = response.message?.content?.trim() || "";
+      const rawText = String(response.message?.content || "").trim();
+      console.log(`[MCP Client] Ollama final decision: ${rawText}  ✨`);
 
-      // Clean up response
-      selectedTool = selectedTool
-        .replace(/```(?:json)?\s*/gi, "")
-        .replace(/\s*```/g, "")
-        .split("\n")[0] // เอาแค่บรรทัดแรก
-        .trim();
-
-      console.log(`[MCP Client] AI validation result: "${selectedTool}" ✨`);
-
-      if (selectedTool.toLowerCase() === "none" || selectedTool === "") {
-        console.log("[MCP Client] ❌ AI rejected all tools ✨");
+      if (rawText.toLowerCase().includes("none")) {
+        console.log("[MCP Client] Ollama decided no tools needed  ✨");
         return [];
       }
 
-      // หา tool ที่ AI เลือก
-      const matched = toolDescriptions.find(
-        (t) =>
-          t.toolName === selectedTool ||
-          t.toolName.endsWith(`:${selectedTool}`) ||
-          t.toolName.includes(selectedTool)
+      // Parse selected tools
+      const selectedTools = rawText
+        .split(",")
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0)
+        .map((t) => {
+          // Find the actual tool name from candidates
+          const candidate = candidates.find(
+            (c) =>
+              c.toolName === t ||
+              c.toolName.endsWith(`:${t}`) ||
+              c.toolName.includes(t)
+          );
+          return candidate?.toolName;
+        })
+        .filter((t) => t) as string[];
+
+      const validSelections = selectedTools.filter((toolName) =>
+        candidates.some((c) => c.toolName === toolName)
       );
 
-      if (matched) {
-        console.log(`[MCP Client] ✅ AI confirmed: ${matched.toolName} ✨`);
-        return [matched.toolName];
-      }
-
-      // Fallback: ถ้า AI ตอบผิด ใช้ tool ที่คะแนนสูงสุด
       console.log(
-        "[MCP Client] ⚠️ AI selected unknown tool, using highest score"
+        `[MCP Client] ✅ Ollama final selection: ${validSelections.join(", ")} ✨`
       );
-      const fallback = toolDescriptions.filter((t) => t.score >= 5);
-      return fallback.length > 0 ? [fallback[0].toolName] : [];
+      return validSelections.slice(0, 2); // Max 2 tools
     } catch (error) {
-      console.error("[MCP Client] AI validation error:", error);
+      console.error("[MCP Client] Ollama final decision error:", error);
 
-      // Fallback: ใช้ scoring
-      const scored = await Promise.all(
-        selectedTools.map(async (toolName) => ({
-          toolName,
-          score: await this.scoreToolRelevance(toolName, userMessage),
-        }))
-      );
-
-      scored.sort((a, b) => b.score - a.score);
-      const fallback = scored.filter((t) => t.score >= 5);
+      // Fallback: เลือก tool ที่มีคะแนนสูงสุด
+      const fallback = candidates
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 1)
+        .map((c) => c.toolName);
 
       console.log(
-        "[MCP Client] ⚠️ Using scoring fallback:",
-        fallback.map((t) => `${t.toolName} (${t.score})`)
+        `[MCP Client] ⚠️ Using fallback selection: ${fallback.join(", ")}`
       );
-
-      return fallback.length > 0 ? [fallback[0].toolName] : [];
+      return fallback;
     }
   }
 
   // ============================================
-  // UPDATED: Main tool selection
+  // ENHANCED: Main tool selection with Natural + Fuse.js + Ollama final decision
   // ============================================
   async selectTools(userMessage: string): Promise<string[]> {
     console.log("===== Starting selectTools =====");
@@ -1433,7 +1293,7 @@ ${toolList}
       let keywordMatched: string[] = [];
       let aiMatched: string[] = [];
 
-      // Strategy 1: Pattern matching
+      // Strategy 1: Pattern matching with Natural tokenization
       patternMatched = await this.tryPatternMatching(userMessage);
       if (patternMatched.length > 0) {
         console.log(
@@ -1442,7 +1302,7 @@ ${toolList}
         candidates = patternMatched;
       }
 
-      // Strategy 2: Keyword matching (ถ้ายังไม่ได้)
+      // Strategy 2: Keyword matching with Natural + Fuse.js
       if (candidates.length === 0) {
         console.log(
           `[MCP Client] Pattern matching found nothing, trying keyword matching...`
@@ -1456,7 +1316,7 @@ ${toolList}
         }
       }
 
-      // Strategy 3: AI selection (ถ้ายังไม่ได้)
+      // Strategy 3: AI selection (fallback)
       if (candidates.length === 0) {
         console.log(
           `[MCP Client] Keyword matching found nothing, trying AI selection... ✨`
@@ -1470,14 +1330,52 @@ ${toolList}
         }
       }
 
-      // Validate ผลลัพธ์สุดท้าย
-      const validated = await this.validateToolSelection(
-        userMessage,
-        candidates
-      );
+      // ===== OLLAMA FINAL DECISION =====
+      if (candidates.length > 0) {
+        console.log(
+          `[MCP Client] Found ${candidates.length} candidates, asking Ollama for final decision...`
+        );
 
-      // จำกัดผลลัพธ์สุดท้ายไม่เกิน 1 tool (ยกเว้นกรณีพิเศษ)
-      const finalSelection = validated.slice(0, 1);
+        // Get detailed scores for Ollama decision making
+        const scoredCandidates = await Promise.all(
+          candidates.map(async (toolName) => ({
+            toolName,
+            score: await this.scoreToolRelevance(toolName, userMessage),
+          }))
+        );
+
+        // Sort by score and take top candidates
+        const topCandidates = scoredCandidates
+          .sort((a, b) => b.score - a.score)
+          .filter((c) => c.score >= 10) // Minimum threshold
+          .slice(0, 5); // Max 5 for Ollama to consider
+
+        console.log(
+          `[MCP Client] Top ${topCandidates.length} candidates for Ollama:`,
+          topCandidates.map((c) => `${c.toolName}(${c.score.toFixed(1)})`)
+        );
+
+        // Let Ollama make final decision
+        const finalSelection = await this.makeFinalDecisionWithOllama(
+          userMessage,
+          topCandidates
+        );
+
+        if (finalSelection.length > 0) {
+          console.log(
+            `[MCP Client] 🎯 Ollama final decision: ${finalSelection.join(
+              ", "
+            )} ✨`
+          );
+          candidates = finalSelection;
+        } else {
+          console.log(`[MCP Client] Ollama decided no tools needed  ✨`);
+          candidates = [];
+        }
+      }
+
+      // Limit final result to 1 tool (except special cases)
+      const finalSelection = candidates.slice(0, 1);
 
       console.log(
         `[MCP Client] Final selection: ${
@@ -1493,7 +1391,6 @@ ${toolList}
           console.error(`  keywordMatched: ${JSON.stringify(keywordMatched)}`);
           console.error(`  aiMatched: ${JSON.stringify(aiMatched)}`);
           console.error(`  candidates: ${JSON.stringify(candidates)}`);
-          console.error(`  validated: ${JSON.stringify(validated)}`);
         } catch (logErr) {
           console.error(
             "[MCP Client] Failed to log final selection details:",
@@ -1980,7 +1877,6 @@ JSON:`;
     enhancedContext?: string;
     toolsFailed?: boolean;
   }> {
-    console.log("Starting processMessage");
     const selectedTools = await this.selectTools(userMessage);
 
     if (selectedTools.length === 0) {
@@ -2007,27 +1903,77 @@ JSON:`;
     };
   }
 
-  // Create enhanced context for Ollama response
+  // Create enhanced context for Ollama response with scoring
   private createEnhancedContext(
     userMessage: string,
     toolResults: any[]
   ): string {
     console.log("===== Starting createEnhancedContext =====");
-    let context = `คำถามเดิม: "${userMessage}"\n\nข้อมูลจาก MCP Tools:\n\n`;
 
-    for (const result of toolResults) {
+    // คำนวณคะแนนความสำเร็จของแต่ละ tool result
+    const scoredResults = toolResults.map((result) => {
+      let successScore = 0;
+
+      if (result.success) {
+        successScore += 10; // base success score
+
+        // เพิ่มคะแนนตามความซับซ้อนของ result
+        if (result.result) {
+          const resultStr = JSON.stringify(result.result);
+          const complexity = Math.min(resultStr.length / 100, 10); // max 10 points for complexity
+          successScore += complexity;
+        }
+
+        // เพิ่มคะแนนถ้าเป็น webd tool
+        if (this.isWebdTool(result.toolName)) {
+          successScore += 5;
+        }
+      } else {
+        successScore = -5; // penalty for failure
+      }
+
+      return {
+        ...result,
+        successScore,
+      };
+    });
+
+    // เรียงตามคะแนนความสำเร็จ
+    scoredResults.sort((a, b) => b.successScore - a.successScore);
+
+    let context = `คำถามเดิม: "${userMessage}"\n\nข้อมูลจาก MCP Tools (จัดอันดับตามความสำเร็จ):\n\n`;
+
+    for (const result of scoredResults) {
+      const scoreIndicator = result.success
+        ? `✅ (คะแนน: ${result.successScore.toFixed(1)})`
+        : `❌ (คะแนน: ${result.successScore.toFixed(1)})`;
+
       if (result.error) {
-        context += `❌ ${result.toolName}: เกิดข้อผิดพลาด - ${result.error}\n`;
+        context += `${scoreIndicator} ${result.toolName}: เกิดข้อผิดพลาด - ${result.error}\n`;
       } else {
         const resultStr =
           typeof result.result === "string"
             ? result.result
             : JSON.stringify(result.result, null, 2);
-        context += `✅ ${result.toolName}:\n${resultStr}\n\n`;
+        context += `${scoreIndicator} ${result.toolName}:\n${resultStr}\n\n`;
       }
     }
 
-    context += `\nคำแนะนำ: ใช้ข้อมูลจาก tools ข้างต้นตอบคำถามอย่างชัดเจนและเป็นธรรมชาติ`;
+    // เพิ่มคำแนะนำที่ปรับปรุงตามคะแนน
+    const avgScore =
+      scoredResults.reduce((sum, r) => sum + r.successScore, 0) /
+      scoredResults.length;
+    let advice = "ใช้ข้อมูลจาก tools ข้างต้นตอบคำถามอย่างชัดเจนและเป็นธรรมชาติ";
+
+    if (avgScore > 15) {
+      advice += "\n💡 ข้อมูลนี้มีความน่าเชื่อถือสูง ใช้เป็นหลักในการตอบ";
+    } else if (avgScore > 5) {
+      advice += "\n⚠️ ข้อมูลนี้พอใช้ได้ แต่ควรระวังความถูกต้อง";
+    } else {
+      advice += "\n❌ ข้อมูลมีปัญหา ควรตอบโดยไม่พึ่งพามันมาก";
+    }
+
+    context += `\nคำแนะนำ: ${advice}`;
 
     return context;
   }
@@ -2115,16 +2061,43 @@ JSON:`;
   }
 }
 
-// Helper function to generate tool descriptions from Maps
-function getToolDescriptions(
+// Helper function to generate tool descriptions from Maps with scoring
+async function getToolDescriptions(
   tools: Map<string, MCPTool>,
-  resources?: Map<string, MCPResource>
-): string {
+  resources?: Map<string, MCPResource>,
+  userMessage?: string,
+  scoreToolRelevance?: (toolName: string, message: string) => Promise<number>
+): Promise<string> {
   let descriptions = "**Tools**:\n";
 
-  descriptions += Array.from(tools.values())
-    .map((tool) => {
-      return `- ${tool.name}
+  const toolList = Array.from(tools.values());
+
+  // ถ้ามี userMessage และ scoreToolRelevance ให้คำนวณคะแนน
+  let scoredTools: Array<{ tool: MCPTool; score?: number }> = toolList.map(
+    (tool) => ({ tool })
+  );
+
+  if (userMessage && scoreToolRelevance) {
+    // คำนวณคะแนนพร้อมกัน
+    const scorePromises = toolList.map(async (tool) => {
+      const fullName =
+        Array.from(tools.entries()).find(([, t]) => t === tool)?.[0] ||
+        tool.name;
+      const score = await scoreToolRelevance(fullName, userMessage);
+      return { tool, score };
+    });
+
+    scoredTools = await Promise.all(scorePromises);
+
+    // เรียงตามคะแนน
+    scoredTools.sort((a, b) => (b.score || 0) - (a.score || 0));
+  }
+
+  descriptions += scoredTools
+    .map(({ tool, score }) => {
+      const scoreText =
+        score !== undefined ? ` (คะแนน: ${score.toFixed(2)})` : "";
+      return `- ${tool.name}${scoreText}
   คำอธิบาย: ${tool.description}
   หมวดหมู่: ${tool.category}
   ตัวอย่าง: ${tool.examples.slice(0, 3).join(", ")}`;
@@ -2133,9 +2106,30 @@ function getToolDescriptions(
 
   if (resources && resources.size > 0) {
     descriptions += "\n\n**Resources**:\n";
-    descriptions += Array.from(resources.values())
-      .map((resource) => {
-        return `- ${resource.name}
+
+    const resourceList = Array.from(resources.values());
+    let scoredResources: Array<{ resource: MCPResource; score?: number }> =
+      resourceList.map((resource) => ({ resource }));
+
+    if (userMessage && scoreToolRelevance) {
+      const scorePromises = resourceList.map(async (resource) => {
+        const fullName =
+          Array.from(resources.entries()).find(
+            ([, r]) => r === resource
+          )?.[0] || resource.name;
+        const score = await scoreToolRelevance(fullName, userMessage);
+        return { resource, score };
+      });
+
+      scoredResources = await Promise.all(scorePromises);
+      scoredResources.sort((a, b) => (b.score || 0) - (a.score || 0));
+    }
+
+    descriptions += scoredResources
+      .map(({ resource, score }) => {
+        const scoreText =
+          score !== undefined ? ` (คะแนน: ${score.toFixed(2)})` : "";
+        return `- ${resource.name}${scoreText}
   คำอธิบาย: ${resource.description || "ไม่มีคำอธิบาย"}
   ประเภท: Resource`;
       })
