@@ -288,16 +288,12 @@ class IntelligentMCPClient extends EventEmitter {
 
   // Robust Ollama chat wrapper
   private async chatWithOllama(messages: any[], options?: any): Promise<any> {
-    console.log(
-      `============ start chatWithOllama pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${
-        process.env.NODE_ENV || "unknown"
-      } ==============`
-    );
-    console.log("[MCP Client] chatWithOllama called ✨", messages, options);
+    console.log("===== Starting chatWithOllama =====");
+
     try {
-      console.log("[MCP Client] Calling ollama.chat (sync) ✨");
+      console.log(
+        `[MCP Client] Calling ollama.chat (sync) with model: ${this.ollamaModel} ✨`
+      );
       const response = await this.ollama.chat({
         model: this.ollamaModel,
         messages,
@@ -321,7 +317,11 @@ class IntelligentMCPClient extends EventEmitter {
 
     // Streaming fallback
     try {
-      console.log("[MCP Client] Calling ollama.chat (stream) ✨");
+      console.log(
+        "[MCP Client] Calling ollama.chat (stream) with model: " +
+          this.ollamaModel +
+          " ✨"
+      );
       const stream = await this.ollama.chat({
         model: this.ollamaModel,
         messages,
@@ -353,102 +353,9 @@ class IntelligentMCPClient extends EventEmitter {
     }
   }
 
-  // JSON-enforcing wrapper around chatWithOllama
-  private async chatWithOllamaJSON(
-    messages: any[],
-    options?: any,
-    maxRetries = 2,
-    requiredMarkdownField = "markdown"
-  ): Promise<any> {
-    console.log(
-      `============ start chatWithOllamaJSON pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${
-        process.env.NODE_ENV || "unknown"
-      } ==============`
-    );
-    const retryInstruction = {
-      role: "system",
-      content: `สำคัญ: ตอบกลับเป็น JSON เท่านั้น และต้องมีฟิลด์ระดับบนสุดชื่อ "${requiredMarkdownField}" ซึ่งเป็นสตริง Markdown สำหรับผู้ใช้. ห้ามส่ง HTML หรือข้อความนอก JSON.`,
-    };
-
-    let msgList = Array.isArray(messages) ? [...messages] : [messages];
-
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      console.log(
-        `[MCP Client] chatWithOllamaJSON: attempt ${
-          attempt + 1
-        } calling chatWithOllama ✨`
-      );
-      const resp = await this.chatWithOllama(msgList, options);
-
-      console.log(`[MCP Client] chatWithOllamaJSON: response received ✨`);
-
-      let content =
-        resp?.message?.content ??
-        (typeof resp === "string" ? resp : JSON.stringify(resp));
-
-      if (typeof content !== "string") content = String(content || "");
-      content = content.replace(/^\uFEFF/, "").trim();
-
-      let parsed: any;
-      try {
-        parsed = JSON.parse(content);
-      } catch (err) {
-        const match = content.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-        if (match) {
-          try {
-            parsed = JSON.parse(match[0]);
-          } catch (e) {
-            parsed = null;
-          }
-        }
-      }
-
-      if (parsed && typeof parsed === "object") {
-        const hasMarkdown =
-          Object.prototype.hasOwnProperty.call(parsed, requiredMarkdownField) &&
-          typeof parsed[requiredMarkdownField] === "string";
-        if (hasMarkdown) {
-          return parsed;
-        }
-
-        if (parsed && attempt < maxRetries) {
-          msgList = [...messages, retryInstruction];
-          continue;
-        }
-
-        if (parsed) {
-          parsed[requiredMarkdownField] = parsed[requiredMarkdownField] || "";
-          return parsed;
-        }
-      }
-
-      if (attempt < maxRetries) {
-        msgList = [...messages, retryInstruction];
-        continue;
-      }
-
-      const preview = content.slice(0, 1000);
-      throw new Error(
-        `Invalid JSON response from Ollama after ${
-          attempt + 1
-        } attempts: ${preview}`
-      );
-    }
-
-    throw new Error("Unexpected error in chatWithOllamaJSON");
-  }
-
   // Initialize multiple MCP clients
   async initializeClients(configs: MCPClientConfig[]) {
-    console.log(
-      `============ start initializeClients pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${
-        process.env.NODE_ENV || "unknown"
-      } ==============`
-    );
+    console.log("Starting initializeClients");
     for (const config of configs) {
       try {
         let transport: any = null;
@@ -496,13 +403,7 @@ class IntelligentMCPClient extends EventEmitter {
 
   // Load tools from a specific client
   private async loadToolsFromClient(clientName: string, client: Client) {
-    console.log(
-      `============ start loadToolsFromClient pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${
-        process.env.NODE_ENV || "unknown"
-      } ==============`
-    );
+    console.log("===== Starting loadToolsFromClient =====");
     try {
       const toolsList = await client.listTools();
 
@@ -828,6 +729,8 @@ class IntelligentMCPClient extends EventEmitter {
     toolName: string,
     userMessage: string
   ): Promise<number> {
+    console.log(`[MCP Client] Scoring ${toolName} for "${userMessage}"`);
+
     const tool = this.tools.get(toolName);
     const resource = this.resources.get(toolName);
 
@@ -845,6 +748,11 @@ class IntelligentMCPClient extends EventEmitter {
       lowerMessage.includes(keyword.toLowerCase())
     );
     score += matchedKeywords.length * 2;
+    console.log(
+      `[MCP Client] Keyword matches for ${toolName}: ${matchedKeywords.join(
+        ", "
+      )} (+${matchedKeywords.length * 2})`
+    );
 
     // คะแนนจาก category matching
     if (tool?.category) {
@@ -860,6 +768,11 @@ class IntelligentMCPClient extends EventEmitter {
         lowerMessage.includes(k)
       );
       score += categoryMatches.length * 3;
+      console.log(
+        `[MCP Client] Category matches for ${toolName}: ${categoryMatches.join(
+          ", "
+        )} (+${categoryMatches.length * 3})`
+      );
     }
 
     // คะแนนจาก pattern matching
@@ -875,6 +788,17 @@ class IntelligentMCPClient extends EventEmitter {
               : pattern.priority === "medium"
               ? 3
               : 1;
+          console.log(
+            `[MCP Client] Pattern matches for ${toolName}: ${patternMatches.join(
+              ", "
+            )} (+${
+              pattern.priority === "high"
+                ? 5
+                : pattern.priority === "medium"
+                ? 3
+                : 1
+            })`
+          );
         }
       }
     }
@@ -889,6 +813,11 @@ class IntelligentMCPClient extends EventEmitter {
         lowerMessage.includes(k.toLowerCase())
       );
       score += descMatches.length * 2;
+      console.log(
+        `[MCP Client] Description matches for ${toolName}: ${descMatches.join(
+          ", "
+        )} (+${descMatches.length * 2})`
+      );
     } catch (e) {
       // ignore
     }
@@ -905,11 +834,15 @@ class IntelligentMCPClient extends EventEmitter {
           5;
         // base bonus near previous value (10) but slightly varied: 8..12
         score += 8 + offset;
+        console.log(
+          `[MCP Client] Deterministic bonus for ${toolName}: +${8 + offset}`
+        );
       }
     } catch (e) {
       // ignore
     }
 
+    console.log(`[MCP Client] Total score for ${toolName}: ${score}`);
     return score;
   }
 
@@ -966,13 +899,7 @@ class IntelligentMCPClient extends EventEmitter {
   // UPDATED: Strategy 1 - Pattern matching
   // ============================================
   private async tryPatternMatching(userMessage: string): Promise<string[]> {
-    console.log(
-      `============ start tryPatternMatching pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${
-        process.env.NODE_ENV || "unknown"
-      } ==============`
-    );
+    console.log("===== Starting tryPatternMatching =====");
     const lowerMessage = userMessage.toLowerCase();
     const toolScores = new Map<string, number>();
 
@@ -992,9 +919,17 @@ class IntelligentMCPClient extends EventEmitter {
     }
 
     for (const pattern of this.toolPatterns) {
-      const matchCount = pattern.keywords.filter((keyword) =>
+      const matchedKeywords = pattern.keywords.filter((keyword) =>
         lowerMessage.includes(keyword.toLowerCase())
-      ).length;
+      );
+      const matchCount = matchedKeywords.length;
+      console.log(
+        `[MCP Client] Pattern "${
+          pattern.category
+        }" checked keywords: ${pattern.keywords.join(
+          ", "
+        )}, matched: ${matchedKeywords.join(", ")}, count: ${matchCount}`
+      );
 
       if (matchCount > 0) {
         const matchedTools = Array.from(this.tools.keys()).filter((key) =>
@@ -1017,10 +952,13 @@ class IntelligentMCPClient extends EventEmitter {
           const currentScore = toolScores.get(tool) || 0;
           toolScores.set(tool, currentScore + score);
         });
+        console.log(
+          `[MCP Client] Pattern "${
+            pattern.category
+          }" matched tools: ${allMatches.join(", ")}, score: ${score}`
+        );
       }
-    }
-
-    // จัดเรียงและกรอง
+    } // จัดเรียงและกรอง
     const candidates = Array.from(toolScores.entries())
       .sort((a, b) => b[1] - a[1])
       .filter(([_, score]) => score >= 5)
@@ -1034,16 +972,13 @@ class IntelligentMCPClient extends EventEmitter {
   // UPDATED: Strategy 2 - Keyword matching
   // ============================================
   private async tryKeywordMatching(userMessage: string): Promise<string[]> {
-    console.log(
-      `============ start tryKeywordMatching pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${
-        process.env.NODE_ENV || "unknown"
-      } ==============`
-    );
+    console.log("===== Starting tryKeywordMatching =====");
     console.log(`[MCP Client] Trying keyword matching for: "${userMessage}"`);
 
     const userKeywords = this.extractKeywords(userMessage);
+    console.log(
+      `[MCP Client] User keywords extracted: ${userKeywords.join(", ")}`
+    );
     if (userKeywords.length === 0) return [];
 
     const matches: Array<{ tool: string; score: number }> = [];
@@ -1057,6 +992,12 @@ class IntelligentMCPClient extends EventEmitter {
             tk.toLowerCase().includes(uk.toLowerCase()) ||
             uk.toLowerCase().includes(tk.toLowerCase())
         )
+      );
+
+      console.log(
+        `[MCP Client] Checking tool ${toolName} with keywords: ${toolKeywords.join(
+          ", "
+        )}, common: ${commonKeywords.join(", ")}`
       );
 
       if (commonKeywords.length > 0) {
@@ -1086,6 +1027,12 @@ class IntelligentMCPClient extends EventEmitter {
         )
       );
 
+      console.log(
+        `[MCP Client] Checking resource ${resourceName} with keywords: ${resourceKeywords.join(
+          ", "
+        )}, common: ${commonKeywords.join(", ")}`
+      );
+
       if (commonKeywords.length > 0) {
         const score =
           commonKeywords.length /
@@ -1112,13 +1059,7 @@ class IntelligentMCPClient extends EventEmitter {
   // UPDATED: Strategy 3 - AI selection
   // ============================================
   private async tryAISelection(userMessage: string): Promise<string[]> {
-    console.log(
-      `============ start tryAISelection pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${
-        process.env.NODE_ENV || "unknown"
-      } ==============`
-    );
+    console.log("===== Starting tryAISelection =====");
     console.log(`[MCP Client] Trying AI selection for: "${userMessage}" ✨`);
 
     try {
@@ -1329,13 +1270,7 @@ ${toolDescriptions}
     userMessage: string,
     selectedTools: string[]
   ): Promise<string[]> {
-    console.log(
-      `============ start validateToolSelection pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${
-        process.env.NODE_ENV || "unknown"
-      } ==============`
-    );
+    console.log("===== Starting validateToolSelection =====");
     // แนวทาง 3: ใช้ AI validation เต็มรูปแบบ (พร้อม optimizations)
     if (selectedTools.length === 0) return [];
 
@@ -1485,13 +1420,7 @@ ${toolList}
   // UPDATED: Main tool selection
   // ============================================
   async selectTools(userMessage: string): Promise<string[]> {
-    console.log(
-      `============ start selectTools pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${
-        process.env.NODE_ENV || "unknown"
-      } ==============`
-    );
+    console.log("===== Starting selectTools =====");
     try {
       const cached = this.getCachedSelection(userMessage);
       if (cached) return cached;
@@ -1669,13 +1598,7 @@ ${toolList}
 
   // Execute selected tools with retry logic
   async executeTools(toolNames: string[], userMessage: string): Promise<any[]> {
-    console.log(
-      `============ start executeTools pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${
-        process.env.NODE_ENV || "unknown"
-      } ==============`
-    );
+    console.log(" ===== Starting executeTools =====");
     const results: any[] = [];
 
     for (const toolName of toolNames) {
@@ -1872,13 +1795,7 @@ ${toolList}
     tool: MCPTool,
     userMessage: string
   ): Promise<any> {
-    console.log(
-      `============ start generateToolArguments pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${process.env.NODE_ENV || "unknown"} tool=${
-        tool?.name || "unknown"
-      } ==============`
-    );
+    console.log("===== Starting generateToolArguments =====");
     try {
       const schema = tool.inputSchema || {};
       const schemaStr = JSON.stringify(schema, null, 2);
@@ -2063,13 +1980,7 @@ JSON:`;
     enhancedContext?: string;
     toolsFailed?: boolean;
   }> {
-    console.log(
-      `============ start processMessage pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${
-        process.env.NODE_ENV || "unknown"
-      } ==============`
-    );
+    console.log("Starting processMessage");
     const selectedTools = await this.selectTools(userMessage);
 
     if (selectedTools.length === 0) {
@@ -2101,13 +2012,7 @@ JSON:`;
     userMessage: string,
     toolResults: any[]
   ): string {
-    console.log(
-      `============ start createEnhancedContext pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${
-        process.env.NODE_ENV || "unknown"
-      } ==============`
-    );
+    console.log("===== Starting createEnhancedContext =====");
     let context = `คำถามเดิม: "${userMessage}"\n\nข้อมูลจาก MCP Tools:\n\n`;
 
     for (const result of toolResults) {
@@ -2132,13 +2037,7 @@ JSON:`;
     extraContext?: string,
     options?: any
   ): Promise<string> {
-    console.log(
-      `============ start generateHtmlResponse pid=${
-        process.pid
-      } cwd=${process.cwd()} env=${
-        process.env.NODE_ENV || "unknown"
-      } ==============`
-    );
+    console.log("===== Starting generateHtmlResponse =====");
     try {
       const contextPart =
         extraContext && extraContext.trim().length > 0
