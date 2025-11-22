@@ -61,77 +61,7 @@ const mcpserver = new McpServer({
   version: "1.0.0",
 });
 
-// Wrap registerTool to add extra validation เพื่อเพิ่มการตรวจสอบพิเศษสำหรับตัวจัดการ webdTool_*
-const _originalRegisterTool = (mcpserver as any).registerTool.bind(mcpserver);
-(mcpserver as any).registerTool = function (name: string, def: any, handler: any) {
-  const wrappedHandler = async (params: any, extra: any) => {
-    if (/^webdTool_/i.test(name)) {
-      let ok = false;
-      try {
-        // 1) Prefer explicit extra.source === 'webd' or extra containing 'webd'
-        if (extra && typeof extra === "object") {
-          if (extra.source === "webd") ok = true;
-          else {
-            const s = JSON.stringify(extra || "");
-            if (/webd/i.test(s)) ok = true;
-          }
-        } else if (typeof extra === "string") {
-          if (/webd/i.test(extra)) ok = true;
-        }
-
-        // 2) If extra not present or did not indicate webd, inspect params for webd-like payloads
-        if (!ok) {
-          const paramsObj = params || {};
-          if (paramsObj && typeof paramsObj === "object") {
-            // Typical webd response bodies include success/data/markdown etc.
-            if (
-              paramsObj.success === true &&
-              Array.isArray(paramsObj.data) &&
-              paramsObj.data.length > 0
-            ) {
-              const first = paramsObj.data[0];
-              if (
-                first &&
-                (first.group_name !== undefined || first.url_count !== undefined || first.url !== undefined)
-              ) {
-                ok = true;
-              }
-            }
-
-            // Accept if markdown mentions webd keywords
-            if (!ok && typeof paramsObj.markdown === "string") {
-              if (/webd|เว็บไซต์|คำสั่งศาล|สถิติ|โดเมน|url/i.test(paramsObj.markdown)) {
-                ok = true;
-              }
-            }
-
-            // Final fallback: stringified params contain 'webd'
-            if (!ok) {
-              try {
-                const s2 = JSON.stringify(paramsObj || "");
-                if (/webd/i.test(s2)) ok = true;
-              } catch (e) {
-                // ignore
-              }
-            }
-          }
-        }
-      } catch (e) {
-        // ignore errors and continue to final check
-      }
-
-      if (!ok) {
-        throw new Error(
-          'webdTool_* handlers require the original request to include `extra.source === "webd"` or contain the substring "webd" (case-insensitive) in the extra object, or provide a webd-like payload in params (e.g. success/data/markdown).'
-        );
-      }
-    }
-
-    return handler(params, extra);
-  };
-
-  return _originalRegisterTool(name, def, wrappedHandler);
-};
+// No special validation for `webdTool_*` handlers — register tools directly.
 
 // Register tools after wrapping registerTool so handlers get wrapped automatically
 registerDateTimeTool(mcpserver);

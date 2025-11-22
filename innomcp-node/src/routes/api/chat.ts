@@ -240,8 +240,10 @@ wss.on("connection", (ws) => {
                 ],
                 stream: false,
               });
-              const candidate = String(apologyResp?.message?.content || "").trim();
-              if (candidate.length > 0) sorryMessage = candidate;
+              let candidate = String(apologyResp?.message?.content || "").trim();
+              // Clean up stray double-quote artifacts (e.g. trailing "" or surrounding quotes)
+              const cleanCandidate = candidate.replace(/"{2,}/g, "").replace(/^"+|"+$/g, "").trim();
+              if (cleanCandidate.length > 0) sorryMessage = cleanCandidate;
             } catch (e) {
               console.error("[Chat API] Failed to generate apology via Ollama:", e);
             }
@@ -271,7 +273,7 @@ wss.on("connection", (ws) => {
 1. จำประวัติการสนทนาที่ผ่านมา
 2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
 3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
-4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า ""
+4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบขอโทษ
 5. ห้ามอธิบายผู้ใช้ทราบว่ามีการใช้ MCP server, MCP tools หรือ tools ใดๆ — เพียงให้ผลลัพธ์สุดท้ายในฟิลด์ markdown เท่านั้น
 6. ตอบเป็นภาษาไทยเป็นหลัก
 7. ตอบในรูปแบบ markdown เสมอ
@@ -418,8 +420,10 @@ chatRouter.post("/chat", async (req, res) => {
               ],
               stream: false,
             });
-            const candidate = String(apologyResp?.message?.content || "").trim();
-            if (candidate.length > 0) sorryMessage = candidate;
+            let candidate = String(apologyResp?.message?.content || "").trim();
+            // Clean up stray double-quote artifacts (e.g. trailing "" or surrounding quotes)
+            const cleanCandidate = candidate.replace(/"{2,}/g, "").replace(/^"+|"+$/g, "").trim();
+            if (cleanCandidate.length > 0) sorryMessage = cleanCandidate;
           } catch (e) {
             console.error("[Chat API] Failed to generate apology via Ollama (POST):", e);
           }
