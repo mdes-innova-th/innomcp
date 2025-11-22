@@ -2,8 +2,14 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 
+// Define the context type
+type ThemeContextType = {
+  theme: string;
+  toggleTheme: () => void;
+};
+
 // Define the context
-const ThemeContext = createContext({
+const ThemeContext = createContext<ThemeContextType>({
   theme: "light",
   toggleTheme: () => {},
 });

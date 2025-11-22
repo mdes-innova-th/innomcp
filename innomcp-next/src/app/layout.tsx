@@ -52,15 +52,13 @@ export default async function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col bg-background text-foreground`}
       >
         <AuthProvider>
           <ThemeProvider>
             <Header />
-            <main>{children}</main>
-            <div className="mb-0 mt-auto">
-              <Footer />
-            </div>
+            <main className="pt-24 pb-16">{children}</main>
+            <Footer />
           </ThemeProvider>
         </AuthProvider>
       </body>
