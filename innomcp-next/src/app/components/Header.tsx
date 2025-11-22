@@ -4,7 +4,7 @@ import React from "react";
 import { useTheme } from "@/app/context/ThemeContext";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { FaHome } from "react-icons/fa";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
 import { FaSignOutAlt, FaKey, FaUser } from "react-icons/fa";
@@ -23,6 +23,7 @@ import { fetchWithCSRF } from "@/utils/csrf";
 export default function Header() {
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const {
     isLoggedIn,
     setIsLoggedIn,
@@ -104,6 +105,44 @@ export default function Header() {
                     alt="InnoMCP Logo"
                     priority
                     fill
+                  />
+                </div>
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push("https://wddsb.dataxo.info/complex-chart")
+                    }
+                    className={`px-4 py-2 ${
+                      pathname === "/complex-chart"
+                        ? "bg-indigo-500 border-2 border-indigo-400"
+                        : "bg-none"
+                    } text-white rounded-3xl hover:bg-indigo-500 transition flex items-center gap-2 cursor-pointer`}
+                  >
+                    <i className="fa-solid fa-chart-column text-2xl"></i>
+                    COMPLEX CHART
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push("https://wddsb.dataxo.info/search-url")
+                    }
+                    className={`px-4 py-2 ${
+                      pathname === "/search-url"
+                        ? "bg-indigo-500 border-2 border-indigo-400"
+                        : "bg-none"
+                    } text-white rounded-3xl hover:bg-indigo-500 transition flex items-center gap-2 cursor-pointer`}
+                  >
+                    <i className="fa-solid fa-search text-2xl"></i>
+                    ค้นหา URL
+                  </button>
+                  <Image
+                    src="/aoc-mule.png"
+                    alt="AOC Logo"
+                    width={50}
+                    height={24}
+                    onClick={() => router.push("https://aoc.dataxo.info")}
+                    className="cursor-pointer"
                   />
                 </div>
               </div>
