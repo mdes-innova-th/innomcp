@@ -187,6 +187,8 @@ class IntelligentMCPClient extends EventEmitter {
         "พายุจะมาเมื่อไร",
         "พายุจะมาไหม",
         "พายุเข้าไหม",
+        "กรมอุตุนิยมวิทยา",
+        "กรมอุตุ",
       ],
       toolPattern: /weather|forecast|อากาศ/i,
       priority: "high",
@@ -820,8 +822,8 @@ class IntelligentMCPClient extends EventEmitter {
       const categoryKeywords: Record<string, string[]> = {
         datetime: ["วันนี้", "เวลา", "วันที่", "time", "date"],
         greeting: ["สวัสดี", "ทักทาย", "hello", "hi"],
-        webd: ["webd", "ผิดกฎหมาย", "คำสั่งศาล", "url"],
-        weather: ["อากาศ", "weather", "ฝน"],
+        webd: ["webd", "เว็บไซต์ผิดกฎหมาย", "คำสั่งศาล", "url"],
+        weather: ["อากาศ", "weather", "ฝน", "พยากรณ์", "forecast", "temperature","อุณหภูมิ",],
       };
 
       const categoryKeys = categoryKeywords[tool.category] || [];
