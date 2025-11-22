@@ -189,8 +189,9 @@ class IntelligentMCPClient extends EventEmitter {
         "พายุเข้าไหม",
         "กรมอุตุนิยมวิทยา",
         "กรมอุตุ",
+        `tmd`,
       ],
-      toolPattern: /weather|forecast|อากาศ/i,
+      toolPattern: /^tmdTool_*/i,
       priority: "high",
       category: "weather",
     },
@@ -218,11 +219,10 @@ class IntelligentMCPClient extends EventEmitter {
         "url",
         "โดเมน",
       ],
-      toolPattern: /^webdTool_/i,
+      toolPattern: /^webdTool_groups/i,
       priority: "high",
       category: "webd",
     },
-
     {
       keywords: [
         "ระบบ webd",
@@ -251,7 +251,7 @@ class IntelligentMCPClient extends EventEmitter {
         "platform",
         "platforms",
       ],
-      toolPattern: /^webdTool_*platforms*/i,
+      toolPattern: /^webdTool_platforms/i,
       priority: "high",
       category: "webd",
     },
@@ -286,7 +286,7 @@ class IntelligentMCPClient extends EventEmitter {
         "ที่ตั้งเว็บไซต์",
         "ที่ตั้งของเว็บไซต์",
       ],
-      toolPattern: /^webdTool_*country*/i,
+      toolPattern: /^webdTool_register_country/i,
       priority: "high",
       category: "webd",
     },
@@ -737,15 +737,6 @@ class IntelligentMCPClient extends EventEmitter {
   }
 
   // ============================================
-  // NEW: ตรวจสอบว่าเป็น webdTool หรือไม่
-  // ============================================
-  private isWebdTool(toolName: string): boolean {
-    if (!toolName || typeof toolName !== "string") return false;
-    const n = toolName.toLowerCase();
-    return n.includes("webdtool");
-  }
-
-  // ============================================
   // ENHANCED: คำนวณคะแนนความเกี่ยวข้องของ tool ด้วย fuse.js + natural TF-IDF
   // ============================================
   private async scoreToolRelevance(
@@ -822,8 +813,30 @@ class IntelligentMCPClient extends EventEmitter {
       const categoryKeywords: Record<string, string[]> = {
         datetime: ["วันนี้", "เวลา", "วันที่", "time", "date"],
         greeting: ["สวัสดี", "ทักทาย", "hello", "hi"],
-        webd: ["webd", "เว็บไซต์ผิดกฎหมาย", "คำสั่งศาล", "url"],
-        weather: ["อากาศ", "weather", "ฝน", "พยากรณ์", "forecast", "temperature","อุณหภูมิ",],
+        webd: [
+          "webd",
+          "เว็บไซต์ผิดกฎหมาย",
+          "คำสั่งศาล",
+          "url",
+          "ประเภทความผิด",
+          "โดเมน",
+        ],
+        tmd: [
+          "กรมอุตุนิยมวิทยา",
+          "กรมอุตุ",
+          "tmd",
+          "weather",
+          "ฝน",
+          "ฝนตก",
+          "พยากรณ์",
+          "forecast",
+          "temperature",
+          "อุณหภูมิ",
+          "อากาศ",
+          "สภาพอากาศ",
+          "ลม",
+          "พายุ",
+        ],
       };
 
       const categoryKeys = categoryKeywords[tool.category] || [];
@@ -867,27 +880,14 @@ class IntelligentMCPClient extends EventEmitter {
       }
     }
 
-    // ===== WEBD BONUS =====
-    let webdBonus = 0;
-    if (
-      userMessage.toLowerCase().includes("webd") &&
-      toolName.toLowerCase().includes("webd")
-    ) {
-      const offset =
-        Array.from(toolName).reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 5;
-      webdBonus = 10 + offset;
-      console.log(`[MCP Client] Webd bonus for ${toolName}: +${webdBonus}`);
-    }
-
     // ===== COMBINED SCORE =====
-    const totalScore =
-      tfidfScore + fuseScore + categoryScore + patternScore + webdBonus;
+    const totalScore = tfidfScore + fuseScore + categoryScore + patternScore;
     console.log(
       `[MCP Client] Total score for ${toolName}: TF-IDF(${tfidfScore.toFixed(
         1
       )}) + Fuse(${fuseScore.toFixed(
         1
-      )}) + Category(${categoryScore}) + Pattern(${patternScore}) + Webd(${webdBonus}) = ${totalScore.toFixed(
+      )}) + Category(${categoryScore}) + Pattern(${patternScore}) = ${totalScore.toFixed(
         2
       )}`
     );
@@ -1536,26 +1536,9 @@ ${toolDescriptions}
               )
             : await this.generateToolArguments(tool!, userMessage);
 
-          // ตรวจสอบว่าเป็น webdTool หรือไม่ (เช็คทั้ง actualToolName และเต็ม toolName)
-          const isWebdTool =
-            this.isWebdTool(actualToolName) || this.isWebdTool(toolName);
-
-          // เพิ่ม extra.source สำหรับ webdTool (ถ้ายังไม่มี)
-          if (isWebdTool) {
-            args = Object.assign({}, args);
-            args.extra = Object.assign({}, args.extra, {
-              source: "webd",
-              query: userMessage,
-            });
-            console.log(
-              `[MCP Client] Added extra.source="webd" for ${toolName}`
-            );
-          }
-
           const schema = tool ? tool.inputSchema : resource?.inputSchema;
 
-          // ถ้าเป็น webdTool ให้ข้ามการ validate schema (บาง webd tools ไม่ต้องการ/รับ extra)
-          if (schema && !isWebdTool) {
+          if (schema) {
             const validation = this.validateArguments(args, schema);
             if (!validation.valid) {
               console.warn(
@@ -1706,9 +1689,6 @@ ${toolDescriptions}
       const required = schema.required || [];
       const properties = schema.properties || {};
 
-      // ตรวจสอบว่าเป็น webdTool หรือไม่ (ใช้ helper)
-      const isWebdTool = this.isWebdTool(tool.name);
-
       const prompt = `สร้างพารามิเตอร์ JSON สำหรับ tool ตามข้อมูลด้านล่าง
 
 คำขอ: "${userMessage}"
@@ -1725,7 +1705,6 @@ ${schemaStr}
 2. ห้ามส่งผลลัพธ์ (result) หรือข้อมูลที่ไม่ใช่ parameters
 3. ไม่ต้องใช้ markdown code blocks
 4. ถ้าไม่มี parameter ที่ต้องการให้ส่ง {} (empty object)
-${isWebdTool ? "5. สำหรับ webdTool ให้ส่ง empty object {} เสมอ" : ""}
 
 ตัวอย่างที่ถูกต้อง:
 - dateTimeTool: {}
@@ -1811,44 +1790,6 @@ JSON:`;
             delete parsed[key];
           }
         }
-
-        // หากเป็น webdTool ให้สร้าง args โดยพยายามเติม required fields
-        if (isWebdTool) {
-          const webdArgs: any = {};
-
-          // ถ้ามี required fields ให้ใช้มันเป็นตัวตั้งต้น
-          const requiredKeys: string[] =
-            required && required.length > 0
-              ? required
-              : Object.keys(properties || {});
-
-          for (const key of requiredKeys) {
-            const lower = String(key).toLowerCase();
-            if (
-              lower === "query" ||
-              lower.includes("query") ||
-              lower === "q" ||
-              lower.includes("search")
-            ) {
-              webdArgs[key] = userMessage;
-            } else {
-              webdArgs[key] = properties[key]?.default ?? "";
-            }
-          }
-
-          // ถ้าไม่มี required keys ให้เป็น empty object
-          if (requiredKeys.length === 0) {
-            parsed = {};
-          } else {
-            parsed = webdArgs;
-          }
-
-          console.log(
-            `[MCP Client] webdTool detected for ${
-              tool.name
-            }, generated args: ${JSON.stringify(parsed)}`
-          );
-        }
       } catch (parseError) {
         console.warn(
           `[MCP Client] Failed to parse JSON from AI, using empty object. Error: ${String(
@@ -1858,12 +1799,10 @@ JSON:`;
         parsed = {};
       }
 
-      // ตรวจสอบ required fields (ยกเว้น webdTool)
-      if (!isWebdTool) {
-        for (const key of required) {
-          if (!(key in parsed)) {
-            parsed[key] = properties[key]?.default ?? "";
-          }
+      // ตรวจสอบ required fields
+      for (const key of required) {
+        if (!(key in parsed)) {
+          parsed[key] = properties[key]?.default ?? "";
         }
       }
 
@@ -1929,11 +1868,6 @@ JSON:`;
           const resultStr = JSON.stringify(result.result);
           const complexity = Math.min(resultStr.length / 100, 10); // max 10 points for complexity
           successScore += complexity;
-        }
-
-        // เพิ่มคะแนนถ้าเป็น webd tool
-        if (this.isWebdTool(result.toolName)) {
-          successScore += 5;
         }
       } else {
         successScore = -5; // penalty for failure

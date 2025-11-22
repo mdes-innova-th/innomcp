@@ -52,7 +52,7 @@ function sendJsonRpcError(
 
 // Register tools from separate modules (datetime, and webd group)
 import { registerDateTimeTool } from "./mcp/tools/dateTimeTool";
-import { registerWeatherTool } from "./mcp/tools/weatherTool";
+import { registerTmdTool as registerTmdTool } from "./mcp/tools/tmdTool";
 import { registerWebdTools } from "./mcp/tools/webdTools";
 
 // Create MCP server instance and register tools
@@ -65,7 +65,7 @@ const mcpserver = new McpServer({
 
 // Register tools after wrapping registerTool so handlers get wrapped automatically
 registerDateTimeTool(mcpserver);
-registerWeatherTool(mcpserver);
+registerTmdTool(mcpserver);
 registerWebdTools(mcpserver);
 
 // Handle incoming MCP requests /////////////////////////////
