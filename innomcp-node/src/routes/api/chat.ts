@@ -237,7 +237,7 @@ wss.on("connection", (ws) => {
 2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
 3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
 4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า "ขออภัย ฉันไม่สามารถให้ข้อมูลได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง หรือลองแจ้งสิ่งที่ต้องการเพิ่มเติม"
-5. ตอบไม่ให้รู้ว่ามีการใช้ MCP tools ถ้าไม่จำเป็น
+5. ห้ามอธิบายผู้ใช้ทราบว่ามีการใช้ MCP server, MCP tools หรือ tools ใดๆ — เพียงให้ผลลัพธ์สุดท้ายในฟิลด์ markdown เท่านั้น
 6. ตอบเป็นภาษาไทยเป็นหลัก
 7. ตอบในรูปแบบ markdown เสมอ
 8. ใช้ markdown headings สำหรับหัวข้อ เช่น:
@@ -263,7 +263,7 @@ wss.on("connection", (ws) => {
         ];
 
         console.log(
-          `[Chat API] Sending ${ollamaMessages.length} messages to Ollama with models=${ollamaModel} (including system prompt)`
+          `[Chat API] Sending ${ollamaMessages.length} messages to Ollama with models=${ollamaModel} (including system prompt) ✨`
         );
 
         // Call Ollama with streaming
@@ -277,7 +277,7 @@ wss.on("connection", (ws) => {
         let isFirstChunk = true;
 
         console.log(
-          `[Chat API] Receiving streamed response from Ollama with models=${ollamaModel}...`
+          `[Chat API] Receiving streamed response from Ollama with models=${ollamaModel}... ✨`
         );
 
         for await (const chunk of responseStream) {
@@ -298,7 +298,7 @@ wss.on("connection", (ws) => {
 
         // Add AI response to history and send back to client
         sessionHistory.push({ sender: "ai", text: aiResponse });
-        console.log(`[Chat API] AI response: >>>>>>>>> ${aiResponse}`);
+        console.log(`[Chat API] AI response: >>>>>>>>> ${aiResponse} ✨`);
         console.log(
           `[Chat API] Session now has ${sessionHistory.length} messages (after AI response)`
         );
@@ -395,7 +395,7 @@ chatRouter.post("/chat", async (req, res) => {
 2. ใช้บริบทจากข้อความก่อนหน้าเพื่อให้คำตอบที่สอดคล้อง
 3. หากมีข้อมูลจาก MCP tools ให้นำมาใช้
 4. ไม่ตอบนอกเหนือจากที่ได้จาก MCP tools ถ้าไม่ทราบ หรือไม่สามารถเลือก MCP tools ได้ หรือ MCP tools failed หรือ MCP tools error ให้ตอบว่า "ขออภัย ฉันยังไม่มีข้อมูลที่คุณต้องการ"
-5. ตอบไม่ให้รู้ว่ามีการใช้ MCP tools ถ้าไม่จำเป็น
+5. ห้ามอธิบายผู้ใช้ทราบว่ามีการใช้ MCP server, MCP tools หรือ tools ใดๆ — เพียงให้ผลลัพธ์สุดท้ายในฟิลด์ markdown เท่านั้น
 6. ตอบเป็นภาษาไทยเป็นหลัก
 7. ตอบในรูปแบบ markdown เสมอ โดยใช้ headings สำหรับหัวข้อ เช่น:
    # หัวข้อหลัก
@@ -421,7 +421,7 @@ chatRouter.post("/chat", async (req, res) => {
     ];
 
     console.log(
-      `[Chat API] POST: Sending ${ollamaMessages.length} messages to Ollama (including system prompt)`
+      `[Chat API] POST: Sending ${ollamaMessages.length} messages to Ollama (including system prompt) ✨`
     );
 
     // Call Ollama (non-streaming)
@@ -431,7 +431,7 @@ chatRouter.post("/chat", async (req, res) => {
     });
 
     console.log(
-      "[Chat API] Ollama response:",
+      "[Chat API] Ollama response ✨:",
       response.message.content.substring(0, 100)
     );
 
