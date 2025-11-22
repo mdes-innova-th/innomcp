@@ -209,6 +209,74 @@ class IntelligentMCPClient extends EventEmitter {
       priority: "high",
       category: "webd",
     },
+
+    {
+      keywords: [
+        "ระบบ webd",
+        "ในระบบ webd",
+        "ใน webd",
+        "บน webd",
+        "บนระบบ webd",
+        "นำเข้า webd",
+        "ประเภทความผิด",
+        "เว็บไซต์ผิดกฎหมาย",
+        "เว็บผิดกฎหมาย",
+        "สถิติเว็บไซต์",
+        "จำนวนเว็บไซต์",
+        "จำนวน url",
+        "จำนวนโดเมน",
+        "จำนวน domain",
+        "สถิติเว็บไซต์ผิดกฎหมาย",
+        "url",
+        "โดเมน",
+        "แพลตฟอร์ม",
+        "ตามแพลตฟอร์ม",
+        "แยกตามแพลตฟอร์ม",
+        "กลุ่มเว็บไซต์",
+        "กลุ่มแพลตฟอร์ม",
+        "แพลตฟอร์มที่ระบุ",
+        "platform",
+        "platforms",
+      ],
+      toolPattern: /^webdTool_*platforms*/i,
+      priority: "high",
+      category: "webd",
+    },
+
+    {
+      keywords: [
+        "ระบบ webd",
+        "ในระบบ webd",
+        "ใน webd",
+        "บน webd",
+        "บนระบบ webd",
+        "นำเข้า webd",
+        "ประเภทความผิด",
+        "เว็บไซต์ผิดกฎหมาย",
+        "เว็บผิดกฎหมาย",
+        "สถิติเว็บไซต์",
+        "จำนวนเว็บไซต์",
+        "จำนวน url",
+        "จำนวนโดเมน",
+        "จำนวน domain",
+        "สถิติเว็บไซต์ผิดกฎหมาย",
+        "url",
+        "โดเมน",
+        "ประเทศ",
+        "ตามประเทศ",
+        "แยกตามประเทศ",
+        "ประเทศที่จดทะเบียน",
+        "ประเทศโดเมน",
+        "ประเทศของโดเมน",
+        "ที่ตั้งโดเมน",
+        "ที่ตั้งของโดเมน",
+        "ที่ตั้งเว็บไซต์",
+        "ที่ตั้งของเว็บไซต์",
+      ],
+      toolPattern: /^webdTool_*country*/i,
+      priority: "high",
+      category: "webd",
+    },
   ];
 
   constructor(ollama: Ollama, ollamaModel: string) {
@@ -220,6 +288,13 @@ class IntelligentMCPClient extends EventEmitter {
 
   // Robust Ollama chat wrapper
   private async chatWithOllama(messages: any[], options?: any): Promise<any> {
+    console.log(
+      `============ start chatWithOllama pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${
+        process.env.NODE_ENV || "unknown"
+      } ==============`
+    );
     console.log("[MCP Client] chatWithOllama called ✨", messages, options);
     try {
       console.log("[MCP Client] Calling ollama.chat (sync) ✨");
@@ -285,6 +360,13 @@ class IntelligentMCPClient extends EventEmitter {
     maxRetries = 2,
     requiredMarkdownField = "markdown"
   ): Promise<any> {
+    console.log(
+      `============ start chatWithOllamaJSON pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${
+        process.env.NODE_ENV || "unknown"
+      } ==============`
+    );
     const retryInstruction = {
       role: "system",
       content: `สำคัญ: ตอบกลับเป็น JSON เท่านั้น และต้องมีฟิลด์ระดับบนสุดชื่อ "${requiredMarkdownField}" ซึ่งเป็นสตริง Markdown สำหรับผู้ใช้. ห้ามส่ง HTML หรือข้อความนอก JSON.`,
@@ -360,6 +442,13 @@ class IntelligentMCPClient extends EventEmitter {
 
   // Initialize multiple MCP clients
   async initializeClients(configs: MCPClientConfig[]) {
+    console.log(
+      `============ start initializeClients pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${
+        process.env.NODE_ENV || "unknown"
+      } ==============`
+    );
     for (const config of configs) {
       try {
         let transport: any = null;
@@ -407,6 +496,13 @@ class IntelligentMCPClient extends EventEmitter {
 
   // Load tools from a specific client
   private async loadToolsFromClient(clientName: string, client: Client) {
+    console.log(
+      `============ start loadToolsFromClient pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${
+        process.env.NODE_ENV || "unknown"
+      } ==============`
+    );
     try {
       const toolsList = await client.listTools();
 
@@ -717,6 +813,15 @@ class IntelligentMCPClient extends EventEmitter {
   }
 
   // ============================================
+  // NEW: ตรวจสอบว่าเป็น webdTool หรือไม่
+  // ============================================
+  private isWebdTool(toolName: string): boolean {
+    if (!toolName || typeof toolName !== "string") return false;
+    const n = toolName.toLowerCase();
+    return n.includes("webdtool");
+  }
+
+  // ============================================
   // NEW: คำนวณคะแนนความเกี่ยวข้องของ tool
   // ============================================
   private async scoreToolRelevance(
@@ -788,13 +893,18 @@ class IntelligentMCPClient extends EventEmitter {
       // ignore
     }
 
-    // Bonus: ถ้าข้อความมี 'webd' และชื่อ tool มี 'webd' ให้ +10
+    // ที่คำนวณจากชื่อ tool แบบ deterministic (ไม่ใช้ random) เพื่อให้ผลต่างกัน
     try {
       if (
         lowerMessage.includes("webd") &&
         toolName.toLowerCase().includes("webd")
       ) {
-        score += 10;
+        // deterministic small offset based on toolName to break ties (0-4)
+        const offset =
+          Array.from(toolName).reduce((acc, ch) => acc + ch.charCodeAt(0), 0) %
+          5;
+        // base bonus near previous value (10) but slightly varied: 8..12
+        score += 8 + offset;
       }
     } catch (e) {
       // ignore
@@ -856,6 +966,13 @@ class IntelligentMCPClient extends EventEmitter {
   // UPDATED: Strategy 1 - Pattern matching
   // ============================================
   private async tryPatternMatching(userMessage: string): Promise<string[]> {
+    console.log(
+      `============ start tryPatternMatching pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${
+        process.env.NODE_ENV || "unknown"
+      } ==============`
+    );
     const lowerMessage = userMessage.toLowerCase();
     const toolScores = new Map<string, number>();
 
@@ -917,6 +1034,13 @@ class IntelligentMCPClient extends EventEmitter {
   // UPDATED: Strategy 2 - Keyword matching
   // ============================================
   private async tryKeywordMatching(userMessage: string): Promise<string[]> {
+    console.log(
+      `============ start tryKeywordMatching pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${
+        process.env.NODE_ENV || "unknown"
+      } ==============`
+    );
     console.log(`[MCP Client] Trying keyword matching for: "${userMessage}"`);
 
     const userKeywords = this.extractKeywords(userMessage);
@@ -988,6 +1112,13 @@ class IntelligentMCPClient extends EventEmitter {
   // UPDATED: Strategy 3 - AI selection
   // ============================================
   private async tryAISelection(userMessage: string): Promise<string[]> {
+    console.log(
+      `============ start tryAISelection pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${
+        process.env.NODE_ENV || "unknown"
+      } ==============`
+    );
     console.log(`[MCP Client] Trying AI selection for: "${userMessage}" ✨`);
 
     try {
@@ -1198,6 +1329,13 @@ ${toolDescriptions}
     userMessage: string,
     selectedTools: string[]
   ): Promise<string[]> {
+    console.log(
+      `============ start validateToolSelection pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${
+        process.env.NODE_ENV || "unknown"
+      } ==============`
+    );
     // แนวทาง 3: ใช้ AI validation เต็มรูปแบบ (พร้อม optimizations)
     if (selectedTools.length === 0) return [];
 
@@ -1277,7 +1415,7 @@ ${toolList}
 2. ถ้าคำถามไม่ต้องการใช้ tool ให้ตอบ "none"
 3. ถ้าไม่แน่ใจ ให้เลือก tool ที่มีคะแนนความเกี่ยวข้องสูงสุด
 
-ตอบเฉพาะชื่อ tool (เช่น "innomcp-server:webdTool_count_all_by_group") หรือ "none":`;
+ตอบเฉพาะชื่อ tool (เช่น "innomcp-server:webdTool_count") หรือ "none":`;
 
       // เรียก AI ครั้งเดียว (ไม่ loop)
       const response = await this.chatWithOllama(
@@ -1294,10 +1432,10 @@ ${toolList}
         .split("\n")[0] // เอาแค่บรรทัดแรก
         .trim();
 
-      console.log(`[MCP Client] AI validation result: "${selectedTool}"`);
+      console.log(`[MCP Client] AI validation result: "${selectedTool}" ✨`);
 
       if (selectedTool.toLowerCase() === "none" || selectedTool === "") {
-        console.log("[MCP Client] ❌ AI rejected all tools");
+        console.log("[MCP Client] ❌ AI rejected all tools ✨");
         return [];
       }
 
@@ -1310,7 +1448,7 @@ ${toolList}
       );
 
       if (matched) {
-        console.log(`[MCP Client] ✅ AI confirmed: ${matched.toolName}`);
+        console.log(`[MCP Client] ✅ AI confirmed: ${matched.toolName} ✨`);
         return [matched.toolName];
       }
 
@@ -1347,6 +1485,13 @@ ${toolList}
   // UPDATED: Main tool selection
   // ============================================
   async selectTools(userMessage: string): Promise<string[]> {
+    console.log(
+      `============ start selectTools pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${
+        process.env.NODE_ENV || "unknown"
+      } ==============`
+    );
     try {
       const cached = this.getCachedSelection(userMessage);
       if (cached) return cached;
@@ -1524,6 +1669,13 @@ ${toolList}
 
   // Execute selected tools with retry logic
   async executeTools(toolNames: string[], userMessage: string): Promise<any[]> {
+    console.log(
+      `============ start executeTools pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${
+        process.env.NODE_ENV || "unknown"
+      } ==============`
+    );
     const results: any[] = [];
 
     for (const toolName of toolNames) {
@@ -1542,7 +1694,8 @@ ${toolList}
             break;
           }
 
-          const args = resource
+          // สร้าง args จาก tool หรือ resource
+          let args = resource
             ? await this.generateToolArguments(
                 {
                   name: resource.name,
@@ -1556,8 +1709,26 @@ ${toolList}
               )
             : await this.generateToolArguments(tool!, userMessage);
 
+          // ตรวจสอบว่าเป็น webdTool หรือไม่ (เช็คทั้ง actualToolName และเต็ม toolName)
+          const isWebdTool =
+            this.isWebdTool(actualToolName) || this.isWebdTool(toolName);
+
+          // เพิ่ม extra.source สำหรับ webdTool (ถ้ายังไม่มี)
+          if (isWebdTool) {
+            args = Object.assign({}, args);
+            args.extra = Object.assign({}, args.extra, {
+              source: "webd",
+              query: userMessage,
+            });
+            console.log(
+              `[MCP Client] Added extra.source="webd" for ${toolName}`
+            );
+          }
+
           const schema = tool ? tool.inputSchema : resource?.inputSchema;
-          if (schema) {
+
+          // ถ้าเป็น webdTool ให้ข้ามการ validate schema (บาง webd tools ไม่ต้องการ/รับ extra)
+          if (schema && !isWebdTool) {
             const validation = this.validateArguments(args, schema);
             if (!validation.valid) {
               console.warn(
@@ -1701,16 +1872,27 @@ ${toolList}
     tool: MCPTool,
     userMessage: string
   ): Promise<any> {
+    console.log(
+      `============ start generateToolArguments pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${process.env.NODE_ENV || "unknown"} tool=${
+        tool?.name || "unknown"
+      } ==============`
+    );
     try {
-      const schemaStr = JSON.stringify(tool.inputSchema, null, 2);
-      const required = tool.inputSchema.required || [];
-      const properties = tool.inputSchema.properties || {};
+      const schema = tool.inputSchema || {};
+      const schemaStr = JSON.stringify(schema, null, 2);
+      const required = schema.required || [];
+      const properties = schema.properties || {};
+
+      // ตรวจสอบว่าเป็น webdTool หรือไม่ (ใช้ helper)
+      const isWebdTool = this.isWebdTool(tool.name);
 
       const prompt = `สร้างพารามิเตอร์ JSON สำหรับ tool ตามข้อมูลด้านล่าง
 
 คำขอ: "${userMessage}"
 Tool: ${tool.name}
-คำอธิบาย: ${tool.description}
+คำอธิบาย: ${tool.description || "ไม่มีคำอธิบาย"}
 
 Schema:
 ${schemaStr}
@@ -1718,12 +1900,20 @@ ${schemaStr}
 พารามิเตอร์ที่จำเป็น: ${required.length > 0 ? required.join(", ") : "ไม่มี"}
 
 กฎสำคัญ:
-1. ตอบเป็น JSON object เท่านั้น ไม่มีข้อความอื่น
-2. ไม่ต้องใช้ markdown code blocks
-3. ถ้าไม่แน่ใจให้ใช้ค่า default หรือ empty object {}
+1. ตอบเป็น JSON object ที่มีเฉพาะ INPUT PARAMETERS เท่านั้น
+2. ห้ามส่งผลลัพธ์ (result) หรือข้อมูลที่ไม่ใช่ parameters
+3. ไม่ต้องใช้ markdown code blocks
+4. ถ้าไม่มี parameter ที่ต้องการให้ส่ง {} (empty object)
+${isWebdTool ? "5. สำหรับ webdTool ให้ส่ง empty object {} เสมอ" : ""}
 
-ตัวอย่าง:
+ตัวอย่างที่ถูกต้อง:
 - dateTimeTool: {}
+- webdTool_count_all_by_group: {}
+- searchTool: {"query": "keyword"}
+
+ตัวอย่างที่ผิด (ห้ามทำ):
+- {"success": true, "data": [...]} ❌
+- {"0": {...}, "1": {...}} ❌
 
 JSON:`;
 
@@ -1742,7 +1932,7 @@ JSON:`;
       );
       console.log("[MCP Client] generateToolArguments: response received ✨");
 
-      let jsonStr = response.message?.content?.trim() || "";
+      let jsonStr = String(response?.message?.content || "").trim();
 
       jsonStr = jsonStr
         .replace(/^```(?:json)?\s*/i, "")
@@ -1753,57 +1943,113 @@ JSON:`;
       if (extracted) {
         jsonStr = extracted;
       } else {
-        const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          jsonStr = jsonMatch[0];
-        }
+        // try to pick a JSON object if present
+        const match = jsonStr.match(/\{[\s\S]*\}/);
+        if (match) jsonStr = match[0];
       }
 
-      console.log(`[MCP Client] Generated JSON string for ${tool.name}`);
+      console.log(
+        `[MCP Client] Generated JSON string for ${tool.name}: ${jsonStr.slice(
+          0,
+          500
+        )}`
+      );
+
+      let parsed: any = {};
 
       try {
-        const parsed = JSON.parse(jsonStr);
-
-        if (
-          parsed &&
-          typeof parsed === "object" &&
-          parsed.data &&
-          typeof parsed.data === "object"
-        ) {
-          for (const prop of Object.keys(parsed.data)) {
-            if (!(prop in parsed) || parsed[prop] === "") {
-              parsed[prop] = parsed.data[prop];
-            }
+        if (!jsonStr || jsonStr.length === 0) {
+          parsed = {};
+        } else {
+          parsed = JSON.parse(jsonStr);
+          if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+            // If AI returned non-object, fallback to empty object
+            parsed = {};
           }
         }
 
-        for (const key of required) {
-          if (!(key in parsed) || parsed[key] === "") {
-            const nested = parsed.data?.[key];
-            if (nested !== undefined && nested !== "") {
-              parsed[key] = nested;
+        // ลบฟิลด์ที่ไม่ใช่ parameters
+        const invalidFields = [
+          "success",
+          "data",
+          "markdown",
+          "error",
+          "result",
+          "meta",
+          "status",
+        ];
+        for (const field of invalidFields) {
+          if (Object.prototype.hasOwnProperty.call(parsed, field)) {
+            delete parsed[field];
+          }
+        }
+
+        // ลบ numeric keys (เช่น "0", "1", "2")
+        for (const key of Object.keys(parsed)) {
+          if (/^\d+$/.test(key)) {
+            delete parsed[key];
+          }
+        }
+
+        // หากเป็น webdTool ให้สร้าง args โดยพยายามเติม required fields
+        if (isWebdTool) {
+          const webdArgs: any = {};
+
+          // ถ้ามี required fields ให้ใช้มันเป็นตัวตั้งต้น
+          const requiredKeys: string[] =
+            required && required.length > 0
+              ? required
+              : Object.keys(properties || {});
+
+          for (const key of requiredKeys) {
+            const lower = String(key).toLowerCase();
+            if (
+              lower === "query" ||
+              lower.includes("query") ||
+              lower === "q" ||
+              lower.includes("search")
+            ) {
+              webdArgs[key] = userMessage;
             } else {
-              parsed[key] = properties[key]?.default || "";
+              webdArgs[key] = properties[key]?.default ?? "";
             }
           }
-        }
 
-        console.log(`[MCP Client] Generated args for ${tool.name}:`, parsed);
-        return parsed;
+          // ถ้าไม่มี required keys ให้เป็น empty object
+          if (requiredKeys.length === 0) {
+            parsed = {};
+          } else {
+            parsed = webdArgs;
+          }
+
+          console.log(
+            `[MCP Client] webdTool detected for ${
+              tool.name
+            }, generated args: ${JSON.stringify(parsed)}`
+          );
+        }
       } catch (parseError) {
         console.warn(
-          `[MCP Client] Failed to parse JSON, using default args. parseError: ${String(
+          `[MCP Client] Failed to parse JSON from AI, using empty object. Error: ${String(
             parseError
-          )}; snippet: ${jsonStr.slice(0, 200)}`
+          )}`
         );
-
-        const defaultArgs: any = {};
-        for (const key of required) {
-          defaultArgs[key] = properties[key]?.default || "";
-        }
-
-        return defaultArgs;
+        parsed = {};
       }
+
+      // ตรวจสอบ required fields (ยกเว้น webdTool)
+      if (!isWebdTool) {
+        for (const key of required) {
+          if (!(key in parsed)) {
+            parsed[key] = properties[key]?.default ?? "";
+          }
+        }
+      }
+
+      console.log(
+        `[MCP Client] Final args for ${tool.name}: ${JSON.stringify(parsed)}`
+      );
+      return parsed;
     } catch (error) {
       console.error(`[MCP Client] Error generating tool arguments:`, error);
       return {};
@@ -1817,6 +2063,13 @@ JSON:`;
     enhancedContext?: string;
     toolsFailed?: boolean;
   }> {
+    console.log(
+      `============ start processMessage pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${
+        process.env.NODE_ENV || "unknown"
+      } ==============`
+    );
     const selectedTools = await this.selectTools(userMessage);
 
     if (selectedTools.length === 0) {
@@ -1848,6 +2101,13 @@ JSON:`;
     userMessage: string,
     toolResults: any[]
   ): string {
+    console.log(
+      `============ start createEnhancedContext pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${
+        process.env.NODE_ENV || "unknown"
+      } ==============`
+    );
     let context = `คำถามเดิม: "${userMessage}"\n\nข้อมูลจาก MCP Tools:\n\n`;
 
     for (const result of toolResults) {
@@ -1872,6 +2132,13 @@ JSON:`;
     extraContext?: string,
     options?: any
   ): Promise<string> {
+    console.log(
+      `============ start generateHtmlResponse pid=${
+        process.pid
+      } cwd=${process.cwd()} env=${
+        process.env.NODE_ENV || "unknown"
+      } ==============`
+    );
     try {
       const contextPart =
         extraContext && extraContext.trim().length > 0

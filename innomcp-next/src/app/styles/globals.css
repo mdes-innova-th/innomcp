@@ -3,18 +3,6 @@
 /* Global background gradient*/
 html,
 body {
-  background: linear-gradient(
-    to bottom,
-    #bee4dc 0%,
-    #bde6e6 10%,
-    #b9d6e7 50%,
-    #80b1c0 70%,
-    #578794 90%,
-    #01040f 100%
-  );
-  background-attachment: fixed;
-  background-size: cover;
-  background-repeat: no-repeat;
   font-family: "Sarabun", Arial, sans-serif;
   min-height: 100vh;
   margin: 0;
@@ -22,20 +10,12 @@ body {
   width: 100%;
   max-width: none;
   scrollbar-gutter: stable;
+  background-color: var(--background);
 }
 
 html.dark,
 .dark html,
 .dark body {
-  background: linear-gradient(
-    to bottom,
-    #18181b 0%,
-    #23272f 10%,
-    #2d3748 50%,
-    #1a202c 70%,
-    #111827 90%,
-    #000000 100%
-  );
   color-scheme: dark;
 }
 
@@ -76,7 +56,7 @@ html.dark,
 
 :root {
   --radius: 0.625rem;
-  --background: rgb(255, 255, 255);
+  --background: rgb(228, 240, 243);
   --foreground: rgb(37, 37, 37);
   --card: rgb(255, 255, 255);
   --card-foreground: rgb(37, 37, 37);
@@ -105,7 +85,7 @@ html.dark,
 }
 
 html.dark {
-  --background: rgb(24, 24, 27);
+  --background: rgb(33, 36, 41);
   --foreground: rgb(220, 220, 220);
   --card: rgb(36, 36, 40);
   --card-foreground: rgb(220, 220, 220);
@@ -319,3 +299,6 @@ html.dark {
 .report-thai-subtitle {
   font-size: 1.3rem;
 }
+
+/* Previously: footer was hidden when `.has-chat-messages` was present.
+   That behavior was removed so the footer remains visible. */

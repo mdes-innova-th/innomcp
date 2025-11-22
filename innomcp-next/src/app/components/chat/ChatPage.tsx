@@ -3,18 +3,16 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import Image from "next/image";
 import HeaderChat from "@/app/components/chat/HeaderChat";
-import ChatMessage from "@/app/components/chat/ChatMessage";
+import ChatMessage, {
+  MessageView,
+  Message as MessageType,
+} from "@/app/components/chat/ChatMessage";
 import ChatSidebar, {
   ChatSummary as SidebarSummary,
 } from "@/app/components/chat/ChatSidebar";
+import ChatInput from "./ChatInput";
 import ThemeContext from "@/app/context/ThemeContext";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faArrowUp,
-  faPaperclip,
-  faCopy,
-  faRefresh,
-} from "@fortawesome/free-solid-svg-icons";
+// icons are used in ChatInput; not needed here
 
 // Define the type for a chat message
 interface ChatMessage {
@@ -38,37 +36,17 @@ const ChatPage: React.FC = () => {
   const [mounted, setMounted] = useState(false);
   // For typewriter effect
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  // For editing AI message
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editValue, setEditValue] = useState("");
+  // For editing AI message (handled inside MessageView)
   const [input, setInput] = useState("");
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [isSocketReady, setIsSocketReady] = useState(false);
 
-  // Track which message was recently copied (index) to show transient feedback
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
-  const copiedTimeoutRef = useRef<number | null>(null);
-  // Show the copy button when a message is tapped (mobile) for a short period
-  const [showCopyIndex, setShowCopyIndex] = useState<number | null>(null);
-  const showCopyTimeoutRef = useRef<number | null>(null);
-
-  // Clear any pending copy timeout when component unmounts
-  useEffect(() => {
-    return () => {
-      if (copiedTimeoutRef.current) {
-        window.clearTimeout(copiedTimeoutRef.current);
-      }
-      if (showCopyTimeoutRef.current) {
-        window.clearTimeout(showCopyTimeoutRef.current);
-      }
-    };
-  }, []);
+  // Chat input is always visible; removed scroll-hide logic
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -136,13 +114,22 @@ const ChatPage: React.FC = () => {
     }
   }, [isSidebarCollapsed, mounted]);
 
-  // Scroll chat to bottom when messages change
+  // Scroll page to bottom when messages change (use browser scrollbar)
   useEffect(() => {
-    const chatDiv = chatContainerRef.current;
-    if (chatDiv) {
-      chatDiv.scrollTop = chatDiv.scrollHeight;
+    if (typeof window === "undefined") return;
+    try {
+      const top =
+        document.documentElement.scrollHeight || document.body.scrollHeight;
+      window.scrollTo({ top, behavior: "auto" });
+    } catch (e) {
+      // ignore
     }
+    // no cleanup required
+    return;
   }, [messages]);
+
+  // (Previously: scroll detection and hiding input while scrolling.)
+  // That behavior was removed to keep the ChatInput always visible.
 
   useEffect(() => {
     // Use refs for mutable objects so closures see latest
@@ -506,15 +493,6 @@ const ChatPage: React.FC = () => {
     el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
   };
 
-  useEffect(() => {
-    // adjust when input changes (and on mount)
-    adjustTextarea();
-    // also adjust on window resize in case layout changes
-    const handler = () => adjustTextarea();
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
-  }, [input]);
-
   // Focus and select the textarea when the page mounts (mounted flag set)
   useEffect(() => {
     if (mounted && textareaRef.current) {
@@ -527,39 +505,15 @@ const ChatPage: React.FC = () => {
     }
   }, [mounted]);
 
-  // Add animation dots when waiting for AI response
-  const DotsAnimation: React.FC = () => {
-    const [dots, setDots] = useState(".");
-
-    useEffect(() => {
-      const interval = setInterval(() => {
-        setDots((prev) => (prev.length < 3 ? prev + "." : "."));
-      }, 300);
-      return () => clearInterval(interval);
-    }, []);
-
-    return <span>{dots}</span>;
+  const updateMessage = (idx: number, msg: MessageType) => {
+    setMessages((prev) => {
+      const updated = [...prev];
+      updated[idx] = msg;
+      return updated;
+    });
   };
 
-  // Typing dots for AI balloon (three bouncing dots)
-  const TypingDots: React.FC = () => {
-    return (
-      <span className="inline-flex items-center gap-1">
-        <span
-          className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-[bounce_0.45s_linear_infinite]"
-          style={{ animationDelay: "0s" }}
-        />
-        <span
-          className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-[bounce_0.45s_linear_infinite]"
-          style={{ animationDelay: "0.08s" }}
-        />
-        <span
-          className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-[bounce_0.45s_linear_infinite]"
-          style={{ animationDelay: "0.16s" }}
-        />
-      </span>
-    );
-  };
+  // Typing UI is handled inside MessageView
 
   // Add debug logs to check WebSocket and waiting state
   useEffect(() => {
@@ -568,9 +522,74 @@ const ChatPage: React.FC = () => {
   }, [isSocketReady, isWaitingForResponse]);
 
   return (
-    <div className="flex flex-col items-center overflow-hidden max-h-screen">
+    <div className="flex flex-col items-center max-h-screen">
       <HeaderChat />
-      <div className="flex flex-1 w-full items-start justify-center pt-8 px-4">
+      <div className="flex flex-col gap-2 flex-1 px-6 mx-auto w-2/3">
+        {messages.map((message, index) => (
+          <MessageView
+            key={index}
+            message={message as MessageType}
+            index={index}
+            onUpdate={updateMessage}
+          />
+        ))}
+        {/* When waiting for AI response (no message yet), show a typing balloon */}
+        {isWaitingForResponse &&
+          (!messages.length ||
+            messages[messages.length - 1].sender !== "ai" ||
+            !messages[messages.length - 1].isAnimating) && (
+            <div
+              className={`relative p-2 max-w-full self-start pr-5 mb-5 text-left`}
+            >
+              <div className="whitespace-pre-wrap flex items-center">
+                <span className="inline-flex items-center gap-1">
+                  <span
+                    className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce"
+                    style={{ animationDelay: "0s" }}
+                  />
+                  <span
+                    className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce"
+                    style={{ animationDelay: "0.08s" }}
+                  />
+                  <span
+                    className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce"
+                    style={{ animationDelay: "0.16s" }}
+                  />
+                </span>
+              </div>
+            </div>
+          )}
+      </div>
+      <div
+        className={`flex items-start justify-center pt-8 px-4 transition-opacity duration-700 ${
+          messages.length === 0
+            ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            : "fixed z-99 bottom-0 left-1/2 -translate-x-1/2"
+        } w-1/2 translate-y-0 opacity-100 pointer-events-auto`}
+      >
+        <div className="w-full max-w-6xl flex gap-6">
+          {/* Right: main input box */}
+          <ChatInput
+            input={input}
+            setInput={setInput}
+            selectedImage={selectedImage}
+            setSelectedImage={setSelectedImage}
+            selectedFile={selectedFile}
+            setSelectedFile={setSelectedFile}
+            handleNewChat={handleNewChat}
+            handleFileUpload={handleFileUpload}
+            handleRemoveImage={handleRemoveImage}
+            sendMessage={sendMessage}
+            isSocketReady={isSocketReady}
+            isWaitingForResponse={isWaitingForResponse}
+            textareaRef={textareaRef}
+            fileInputRef={fileInputRef}
+            adjustTextarea={adjustTextarea}
+            theme={theme}
+          />
+        </div>
+      </div>
+      <div className="absolute left-4 top-0">
         <ChatSidebar
           summaries={chatSummaries}
           activeId={activeSummaryId}
@@ -579,277 +598,6 @@ const ChatPage: React.FC = () => {
           onLoad={loadSummary}
           theme={theme}
         />
-
-        <div className="w-full max-w-6xl flex gap-6">
-          {/* Right: main chat box */}
-          <div
-            className={`w-full ${
-              theme === "light" ? "bg-white" : "bg-gray-900/95"
-            } rounded-2xl shadow-lg px-6 py-4`}
-          >
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-end w-full">
-                <div
-                  className="text-sm"
-                  title={isSocketReady ? "เชื่อมต่อ" : "ตัดการเชื่อมต่อ"}
-                >
-                  <span
-                    className={
-                      isSocketReady
-                        ? "inline-block w-2.5 h-2.5 rounded-full bg-green-500 animate-[pulse_2s_ease-in-out_infinite]"
-                        : "inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-[pulse_0.5s_ease-in-out_infinite]"
-                    }
-                  />
-                </div>
-              </div>
-              <div
-                className="flex flex-col gap-2 overflow-y-auto max-h-96"
-                ref={chatContainerRef}
-              >
-                {messages.map((message, index) => {
-                  const isAI = message.sender === "ai";
-                  const isEditing = editingIndex === index;
-                  const isCopyVisible =
-                    copiedIndex === index || showCopyIndex === index;
-                  return (
-                    <div
-                      key={index}
-                      className={`relative group p-2 rounded-lg ${
-                        message.sender === "user"
-                          ? "max-w-xs self-start pr-5 bg-blue-500 text-white text-left rounded-bl-none"
-                          : "max-w-full self-start pr-5 mb-5 text-left"
-                      }`}
-                      // On mobile/tap: show the copy button for 3s
-                      onClick={() => {
-                        // clear any existing show timeout
-                        if (showCopyTimeoutRef.current)
-                          window.clearTimeout(showCopyTimeoutRef.current);
-                        setShowCopyIndex(index);
-                        showCopyTimeoutRef.current = window.setTimeout(() => {
-                          setShowCopyIndex(null);
-                        }, 3000) as unknown as number;
-                      }}
-                    >
-                      {/* Show copy icon on hover for both user and AI messages */}
-                      {!message.isAnimating && (
-                        <div
-                          className={`absolute top-1 right-0 flex gap-2 transition-opacity pointer-events-none ${
-                            isCopyVisible
-                              ? "opacity-100"
-                              : "opacity-0 group-hover:opacity-100"
-                          }`}
-                        >
-                          <div className="relative">
-                            <button
-                              title="คัดลอกข้อความ"
-                              className={`pointer-events-auto cursor-pointer ${
-                                message.sender === "user"
-                                  ? "text-white hover:text-black"
-                                  : "text-gray-500 hover:text-black"
-                              }`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // copy with fallback and show transient feedback
-                                const doCopy = async (text: string) => {
-                                  try {
-                                    if (
-                                      navigator.clipboard &&
-                                      navigator.clipboard.writeText
-                                    ) {
-                                      await navigator.clipboard.writeText(text);
-                                    } else {
-                                      // fallback for older browsers
-                                      const ta =
-                                        document.createElement("textarea");
-                                      ta.value = text;
-                                      ta.style.position = "fixed";
-                                      ta.style.left = "-9999px";
-                                      document.body.appendChild(ta);
-                                      ta.select();
-                                      document.execCommand("copy");
-                                      document.body.removeChild(ta);
-                                    }
-                                  } catch (err) {
-                                    console.error("Copy failed:", err);
-                                  }
-                                };
-                                void doCopy(message.text);
-                                setCopiedIndex(index);
-                                if (copiedTimeoutRef.current)
-                                  window.clearTimeout(copiedTimeoutRef.current);
-                                copiedTimeoutRef.current = window.setTimeout(
-                                  () => {
-                                    setCopiedIndex(null);
-                                  },
-                                  1500
-                                ) as unknown as number;
-                              }}
-                            >
-                              <FontAwesomeIcon icon={faCopy} />
-                            </button>
-
-                            {/* tooltip box shown above the button */}
-                            {copiedIndex === index && (
-                              <div
-                                className={
-                                  "pointer-events-none absolute top-0 right-0"
-                                }
-                              >
-                                <div className="bg-black text-white text-xs rounded-md px-2 py-1 shadow-md dark:bg-gray-800 whitespace-nowrap inline-block">
-                                  คัดลอกแล้ว
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      {/* AI message: editing mode */}
-                      {isAI && isEditing ? (
-                        <div>
-                          <textarea
-                            className="w-full rounded border border-gray-400 p-2 text-black bg-white mb-2"
-                            value={editValue}
-                            rows={Math.max(2, editValue.split("\n").length)}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            autoFocus
-                          />
-                          <div className="flex gap-2 justify-end">
-                            <button
-                              className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                              title="บันทึก"
-                              onClick={() => {
-                                setMessages((msgs) => {
-                                  const updated = [...msgs];
-                                  updated[index] = {
-                                    ...updated[index],
-                                    text: editValue,
-                                    fullText: editValue,
-                                    isAnimating: false,
-                                  };
-                                  return updated;
-                                });
-                                setEditingIndex(null);
-                              }}
-                            >
-                              <FontAwesomeIcon icon={faCopy} />
-                            </button>
-                            <button
-                              className="text-gray-500 hover:text-red-600 cursor-pointer"
-                              title="ยกเลิก"
-                              onClick={() => setEditingIndex(null)}
-                            >
-                              <FontAwesomeIcon icon={faCopy} />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="whitespace-pre-wrap wrap-break-word">
-                          {isAI ? (
-                            // Prefer fullText (complete markdown) if available, otherwise show the animated text
-                            <ChatMessage
-                              html={message.fullText || message.text}
-                            />
-                          ) : (
-                            message.text
-                          )}
-                          {isAI && message.isAnimating && (
-                            <span className="ml-2 inline-block align-middle text-gray-600">
-                              <TypingDots />
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                {/* When waiting for AI response (no message yet), show a typing balloon */}
-                {isWaitingForResponse &&
-                  (!messages.length ||
-                    messages[messages.length - 1].sender !== "ai" ||
-                    !messages[messages.length - 1].isAnimating) && (
-                    <div
-                      className={`relative p-2 max-w-full self-start pr-5 mb-5 text-left`}
-                    >
-                      <div className="whitespace-pre-wrap flex items-center">
-                        <TypingDots />
-                      </div>
-                    </div>
-                  )}
-              </div>
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => {
-                  setInput(e.target.value);
-                  adjustTextarea();
-                }}
-                rows={3}
-                placeholder="มีอะไรให้ช่วยไหม?"
-                className="w-full resize-none focus:outline-none transition-all max-h-60 overflow-y-auto"
-              />
-              {selectedImage && (
-                <div className="relative w-fit mt-2">
-                  <Image
-                    src={selectedImage}
-                    alt="preview"
-                    width={160}
-                    height={96}
-                    className="max-w-40 max-h-24 rounded-lg border object-contain"
-                  />
-                  <button
-                    onClick={handleRemoveImage}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow hover:bg-red-600 cursor-pointer"
-                    title="ลบรูป"
-                  >
-                    &times;
-                  </button>
-                </div>
-              )}
-              <div className="flex gap-4 mt-2 justify-between">
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleNewChat}
-                    className="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200 rounded-lg px-4 py-2 font-semibold shadow flex items-center gap-2 hover:bg-green-200 dark:hover:bg-green-800 transition-colors cursor-pointer"
-                    title="เริ่มการแชทใหม่"
-                  >
-                    <FontAwesomeIcon icon={faRefresh} />
-                  </button>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    title="แนบไฟล์"
-                    className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-lg px-4 py-2 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors cursor-pointer"
-                  >
-                    <FontAwesomeIcon icon={faPaperclip} />
-                  </button>
-                </div>
-                <button
-                  onClick={sendMessage}
-                  disabled={!isSocketReady || isWaitingForResponse}
-                  className={`bg-linear-to-r from-indigo-500 to-blue-400 text-white rounded-lg px-6 py-2 font-semibold shadow transition-colors cursor-pointer ${
-                    !isSocketReady || isWaitingForResponse
-                      ? "opacity-50 cursor-not-allowed"
-                      : "hover:from-blue-400 hover:to-indigo-500"
-                  }`}
-                >
-                  {isSocketReady ? (
-                    <FontAwesomeIcon icon={faArrowUp} className="font-bold" />
-                  ) : (
-                    <span className="font-bold">
-                      กำลังติดต่อ AI
-                      <DotsAnimation />
-                    </span>
-                  )}
-                </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );

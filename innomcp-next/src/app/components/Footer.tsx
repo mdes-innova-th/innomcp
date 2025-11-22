@@ -11,12 +11,12 @@ export default function Footer() {
   }, []);
 
   return (
-    <footer className="w-full text-center py-1.5 mt-1 bg-transparent site-footer">
-      <h6 className=" text-white">by Digital Innovation, MDES</h6>
-      <p className=" text-white ">
-        © {currentYear || "2024"} กระทรวงดิจิทัลเพื่อเศรษฐกิจและสังคม Ministry
-        of Digital Economy and Society
-      </p>
+    <footer className="fixed z-5 w-full text-center bottom-0 p-2 text-gray-500 text-sm bg-transparent">
+      <div className="text-xs">
+        by Digital Innovation, MDES
+        <br />© {currentYear || "2025"} กระทรวงดิจิทัลเพื่อเศรษฐกิจและสังคม
+        Ministry of Digital Economy and Society
+      </div>
     </footer>
   );
 }

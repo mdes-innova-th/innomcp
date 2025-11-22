@@ -77,118 +77,122 @@ export default function Header() {
 
   return (
     <>
-      <header className="w-full text-gray-700 dark:text-gray-200">
-      <div className="w-full flex justify-between items-center p-1 ms-5 sm:px-1 app-name-section">
-        <div className="w-full h-full m-1 flex items-center justify-center">
-          <div className="flex items-center justify-center">
-            <div className="hidden sm:flex items-start">
-              <div className="relative m-2 w-40 h-[60px]">
-                <Image
-                  src="/mdes-new-logo.png"
-                  className="object-contain"
-                  alt="MDES Logo"
-                  priority
-                  fill
-                />
+      <header
+        className={`fixed top-0 w-full text-gray-700 dark:text-gray-200 z-50 ${
+          theme === "dark" ? "bg-gray-950/90" : "bg-indigo-100"
+        } shadow-md`}
+      >
+        <div className="w-full flex justify-between items-center p-1 ms-5 sm:px-1 app-name-section">
+          <div className="w-full h-full m-1 flex items-center justify-center">
+            <div className="flex items-center justify-center">
+              <div className="hidden sm:flex items-start">
+                <div className="relative m-2 w-40 h-10">
+                  <Image
+                    src="/mdes-new-logo.png"
+                    className="object-contain"
+                    alt="MDES Logo"
+                    priority
+                    fill
+                  />
+                </div>
               </div>
-            </div>
-            <div className="flex items-start">
-              <div className="relative m-2 w-40 h-[60px]">
-                <Image
-                  src="/logo.png"
-                  className="object-contain"
-                  alt="InnoMCP Logo"
-                  priority
-                  fill
-                />
+              <div className="flex items-start">
+                <div className="relative m-2 w-40 h-10">
+                  <Image
+                    src="/logo.png"
+                    className="object-contain h-12"
+                    alt="InnoMCP Logo"
+                    priority
+                    fill
+                  />
+                </div>
               </div>
             </div>
           </div>
+          <div className="invisible">{/* Placeholder for balance */}</div>
         </div>
-        <div className="invisible">{/* Placeholder for balance */}</div>
-      </div>
-      {/* Bottom row: user/login menu */}
-      <div className="w-full flex flex-wrap justify-center items-center py-1">
-        {isAuthLoading ? (
-          <LoadingSpinner color={theme === "dark" ? "white" : "black"} />
-        ) : isLoggedIn ? (
-          <>
-            <div className="items-center gap-2 inline-flex">
-              <span
-                className="text-lg font-semibold mr-2"
-                style={{
-                  color: theme === "dark" ? "#ffffff" : "#374151",
-                }}
-                title={userDispName || undefined}
-              >
-                สวัสดี {userDispName}
-                {", "}
-              </span>
-              <div className="flex items-center gap-2">
-                <Link
-                  href="/"
-                  className="rounded-0 mb-2 flex items-center justify-center cursor-pointer transition-colors"
+        {/* Bottom row: user/login menu */}
+        <div className="w-full flex flex-wrap justify-center items-center py-1">
+          {isAuthLoading ? (
+            <LoadingSpinner color={theme === "dark" ? "white" : "black"} />
+          ) : isLoggedIn ? (
+            <>
+              <div className="items-center gap-2 inline-flex">
+                <span
+                  className="text-lg font-semibold mr-2"
                   style={{
                     color: theme === "dark" ? "#ffffff" : "#374151",
                   }}
-                  aria-label="หน้าแรก"
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color =
-                      theme === "dark" ? "#60a5fa" : "#3b82f6";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color =
-                      theme === "dark" ? "#ffffff" : "#374151";
-                  }}
+                  title={userDispName || undefined}
                 >
-                  <FaHome size={23} />
-                </Link>
-                {/* Theme toggle removed from inline header — now rendered as a fixed bottom-left button below */}
-              </div>
-            </div>
-            {/* ปุ่มสำหรับ userRoleId 0 (admin) */}
-            {userRoleId === 0 && (
-              <>
-                <button
-                  onClick={() => {
-                    router.push("/apikey");
-                  }}
-                  className={`${buttonClass} ${desktopButtonClass} text-base mx-2`}
-                >
-                  <FaKey size={16} className="mr-1" />
-                  API Key
-                </button>
-                <button
-                  onClick={() => {
-                    router.push("/user");
-                  }}
-                  className={`${buttonClass} ${desktopButtonClass} text-base mx-2`}
-                >
-                  <FaUser size={16} className="mr-1" />
-                  จัดการผู้ใช้
-                </button>
-              </>
-            )}
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className={`${logoutButtonClass} ${desktopButtonClass} ${
-                isLoggingOut ? disabledButtonClass : ""
-              } text-base`}
-            >
-              <FaSignOutAlt size={16} className="mr-1" />
-              {isLoggingOut ? (
-                <span className="flex items-center">
-                  <LoadingSpinner color="red" />
-                  <span className="ml-1">ออกจากระบบ...</span>
+                  สวัสดี {userDispName}
+                  {", "}
                 </span>
-              ) : (
-                "ออกจากระบบ"
+                <div className="flex items-center gap-2">
+                  <Link
+                    href="/"
+                    className="rounded-0 mb-2 flex items-center justify-center cursor-pointer transition-colors"
+                    style={{
+                      color: theme === "dark" ? "#ffffff" : "#374151",
+                    }}
+                    aria-label="หน้าแรก"
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color =
+                        theme === "dark" ? "#60a5fa" : "#3b82f6";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color =
+                        theme === "dark" ? "#ffffff" : "#374151";
+                    }}
+                  >
+                    <FaHome size={23} />
+                  </Link>
+                  {/* Theme toggle removed from inline header — now rendered as a fixed bottom-left button below */}
+                </div>
+              </div>
+              {/* ปุ่มสำหรับ userRoleId 0 (admin) */}
+              {userRoleId === 0 && (
+                <>
+                  <button
+                    onClick={() => {
+                      router.push("/apikey");
+                    }}
+                    className={`${buttonClass} ${desktopButtonClass} text-base mx-2`}
+                  >
+                    <FaKey size={16} className="mr-1" />
+                    API Key
+                  </button>
+                  <button
+                    onClick={() => {
+                      router.push("/user");
+                    }}
+                    className={`${buttonClass} ${desktopButtonClass} text-base mx-2`}
+                  >
+                    <FaUser size={16} className="mr-1" />
+                    จัดการผู้ใช้
+                  </button>
+                </>
               )}
-            </button>
-          </>
-        ) : null}
-      </div>
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className={`${logoutButtonClass} ${desktopButtonClass} ${
+                  isLoggingOut ? disabledButtonClass : ""
+                } text-base`}
+              >
+                <FaSignOutAlt size={16} className="mr-1" />
+                {isLoggingOut ? (
+                  <span className="flex items-center">
+                    <LoadingSpinner color="red" />
+                    <span className="ml-1">ออกจากระบบ...</span>
+                  </span>
+                ) : (
+                  "ออกจากระบบ"
+                )}
+              </button>
+            </>
+          ) : null}
+        </div>
       </header>
 
       {/* Fixed theme toggle button at bottom-left */}
