@@ -172,6 +172,7 @@ class IntelligentMCPClient extends EventEmitter {
         "ฝนตกไหม",
         "ฝนจะตกไหม",
         "ฝน",
+        "ฟ้าฝน",
         "ร้อน",
         "หนาว",
         "เย็น",
@@ -240,6 +241,33 @@ class IntelligentMCPClient extends EventEmitter {
       toolPattern: /^webdTool_*/i,
       priority: "high",
       category: "webd",
+    },
+    {
+      keywords: [
+        "กราฟ",
+        "สร้างกราฟ",
+        "chart",
+        "graph",
+        "quickchart",
+        "quick chart",
+        "กราฟแท่ง",
+        "กราฟเส้น",
+        "กราฟวงกลม",
+        "bar chart",
+        "line chart",
+        "pie chart",
+        "donut chart",
+        "area chart",
+        "แกน x",
+        "แกน y",
+        "ชื่อแกน x",
+        "ชื่อแกน y",
+        "ชื่อกราฟ",
+        
+      ],
+      toolPattern: /^quickChartTool_*/i,
+      priority: "high",
+      category: "general",
     },
   ];
 
@@ -377,7 +405,7 @@ class IntelligentMCPClient extends EventEmitter {
           description: tool.description || "",
           inputSchema: tool.inputSchema,
           category: this.categorizeTools(tool.name, tool.description),
-          keywords: this.extractKeywords(tool.name, tool.description),
+          keywords: await this.extractKeywords(tool.name, tool.description),
           examples: this.generateExamples(tool.name, tool.description),
         };
 
@@ -529,14 +557,36 @@ class IntelligentMCPClient extends EventEmitter {
     return "general";
   }
 
-  // Enhanced keyword extraction supporting Thai language with Natural
-  private extractKeywords(name: string, description?: string): string[] {
+  // Enhanced keyword extraction supporting Thai language with Natural and Ollama
+  private async extractKeywords(
+    name: string,
+    description?: string
+  ): Promise<string[]> {
     const text = `${name} ${description || ""}`;
 
-    // Use Natural tokenizer for better tokenization
-    const tokens = this.tokenizer.tokenize(text.toLowerCase()) || [];
+    // Use tokenizeThaiWithOllama for Thai tokenization
+    let thaiTokens: string[] = [];
+    try {
+      thaiTokens = await this.tokenizeThaiWithOllama(text);
+      console.log(
+        `[MCP Client] Thai tokens from Ollama: ${thaiTokens.join(", ")}`
+      );
+    } catch (error) {
+      console.warn(
+        "[MCP Client] Thai tokenization failed, using fallback:",
+        error
+      );
+      thaiTokens = [];
+    }
 
-    const englishWords = tokens.filter((token) => /^[a-z]{3,}$/.test(token));
+    // Use Natural tokenizer for English tokenization
+    const englishTokens = this.tokenizer.tokenize(text.toLowerCase()) || [];
+
+    // Combine and deduplicate tokens
+    const allTokens = [...new Set([...thaiTokens, ...englishTokens])];
+
+    // Filter English words
+    const englishWords = allTokens.filter((token) => /^[a-z]{3,}$/.test(token));
     const englishStopWords = [
       "tool",
       "function",
@@ -552,8 +602,12 @@ class IntelligentMCPClient extends EventEmitter {
       "was",
       "were",
     ];
+    const filteredEnglishWords = englishWords.filter(
+      (word) => !englishStopWords.includes(word)
+    );
 
-    const thaiWords = tokens.filter((token) =>
+    // Filter Thai words
+    const thaiWords = allTokens.filter((token) =>
       /[\u0E00-\u0E7F]{2,}/.test(token)
     );
     const thaiStopWords = [
@@ -573,11 +627,6 @@ class IntelligentMCPClient extends EventEmitter {
       "มี",
       "ให้",
     ];
-
-    const filteredEnglishWords = englishWords.filter(
-      (word) => !englishStopWords.includes(word)
-    );
-
     const filteredThaiWords = thaiWords.filter(
       (word) => !thaiStopWords.includes(word)
     );
@@ -714,6 +763,49 @@ class IntelligentMCPClient extends EventEmitter {
   }
 
   // ============================================
+  // NEW: ใช้ Ollama ตัดคำภาษาไทย
+  // ============================================
+  private async tokenizeThaiWithOllama(text: string): Promise<string[]> {
+    console.log(`[MCP Client] Tokenizing Thai text with Ollama: "${text}"`);
+
+    try {
+      const prompt = `ตัดคำภาษาไทยจากข้อความต่อไปนี้ และตอบเฉพาะรายการคำที่ตัดแล้ว คั่นด้วย comma เท่านั้น ห้ามมีข้อความอื่น:
+
+ข้อความ: "${text}"
+
+ตัวอย่าง:
+- ข้อความ: "สวัสดีครับวันนี้วันอะไร"
+- ตอบ: สวัสดี,ครับ,วันนี้,วัน,อะไร
+
+คำที่ตัด:`;
+
+      const response = await this.chatWithOllama(
+        [{ role: "user", content: prompt }],
+        { temperature: 0.1, num_predict: 100 }
+      );
+
+      const rawText = String(response.message?.content || "").trim();
+      console.log(`[MCP Client] Ollama tokenization result: "${rawText}"`);
+
+      // Parse the comma-separated tokens
+      const tokens = rawText
+        .split(",")
+        .map((t) => t.trim())
+        .filter((t) => t.length > 0);
+
+      console.log(`[MCP Client] Parsed tokens: ${tokens.join(", ")}`);
+      return tokens;
+    } catch (error) {
+      console.warn(
+        `[MCP Client] Ollama tokenization failed, falling back to natural tokenizer:`,
+        error
+      );
+      // Fallback to natural tokenizer
+      return this.tokenizer.tokenize(text) || [];
+    }
+  }
+
+  // ============================================
   // NEW: ตรวจสอบว่าเป็นคำทักทายหรือไม่
   // ============================================
   private isGreetingQuery(query: string): boolean {
@@ -726,7 +818,7 @@ class IntelligentMCPClient extends EventEmitter {
   }
 
   // ============================================
-  // ENHANCED: คำนวณคะแนนความเกี่ยวข้องของ tool ด้วย fuse.js + natural TF-IDF
+  // ENHANCED: คำนวณคะแนนความเกี่ยวข้องของ tool ด้วย fuse.js + natural TF-IDF + Ollama tokenization
   // ============================================
   private async scoreToolRelevance(
     toolName: string,
@@ -741,10 +833,26 @@ class IntelligentMCPClient extends EventEmitter {
 
     const description = tool?.description || resource?.description || "";
     const keywords =
-      tool?.keywords || this.extractKeywords(toolName, description);
+      tool?.keywords || (await this.extractKeywords(toolName, description));
     const searchText = `${toolName} ${description} ${keywords.join(
       " "
     )}`.toLowerCase();
+
+    // ===== OLLAMA TOKENIZATION สำหรับ user message =====
+    let userTokens: string[] = [];
+    try {
+      userTokens = await this.tokenizeThaiWithOllama(userMessage);
+      // เพิ่ม English tokens
+      const englishTokens =
+        this.tokenizer.tokenize(userMessage.toLowerCase()) || [];
+      userTokens = [...new Set([...userTokens, ...englishTokens])];
+      console.log(
+        `[MCP Client] User tokens for scoring: ${userTokens.join(", ")}`
+      );
+    } catch (error) {
+      console.warn(`[MCP Client] Tokenization failed, using fallback:`, error);
+      userTokens = this.tokenizer.tokenize(userMessage.toLowerCase()) || [];
+    }
 
     // ===== NATURAL TF-IDF SCORING =====
     let tfidfScore = 0;
@@ -752,10 +860,6 @@ class IntelligentMCPClient extends EventEmitter {
       // Create a temporary TF-IDF instance for this tool
       const tempTfidf = new natural.TfIdf();
       tempTfidf.addDocument(searchText);
-
-      // Tokenize user message
-      const userTokens =
-        this.tokenizer.tokenize(userMessage.toLowerCase()) || [];
 
       // Calculate TF-IDF score for user tokens against this tool's document
       userTokens.forEach((token) => {
@@ -783,18 +887,21 @@ class IntelligentMCPClient extends EventEmitter {
       findAllMatches: true,
     });
 
-    const results = fuse.search(userMessage.toLowerCase());
     let fuseScore = 0;
-
-    if (results.length > 0) {
-      const bestScore = results[0].score || 1;
-      fuseScore = Math.max(0, (1 - bestScore) * 100);
-      console.log(
-        `[MCP Client] Fuse.js score for ${toolName}: ${fuseScore.toFixed(
-          2
-        )} (raw: ${bestScore.toFixed(2)})`
-      );
+    // ค้นหาด้วยแต่ละ token
+    for (const token of userTokens) {
+      if (token.length < 2) continue;
+      const results = fuse.search(token.toLowerCase());
+      if (results.length > 0) {
+        const bestScore = results[0].score || 1;
+        fuseScore += Math.max(0, (1 - bestScore) * 100);
+      }
     }
+    // Average fuse score
+    fuseScore = fuseScore / Math.max(userTokens.length, 1);
+    console.log(
+      `[MCP Client] Fuse.js score for ${toolName}: ${fuseScore.toFixed(2)}`
+    );
 
     // ===== CATEGORY BONUS =====
     let categoryScore = 0;
@@ -830,7 +937,9 @@ class IntelligentMCPClient extends EventEmitter {
 
       const categoryKeys = categoryKeywords[tool.category] || [];
       const categoryMatches = categoryKeys.filter((k) =>
-        userMessage.toLowerCase().includes(k.toLowerCase())
+        userTokens.some((token) =>
+          token.toLowerCase().includes(k.toLowerCase())
+        )
       );
       categoryScore = categoryMatches.length * 5;
       console.log(
@@ -845,7 +954,9 @@ class IntelligentMCPClient extends EventEmitter {
     for (const pattern of this.toolPatterns) {
       if (pattern.toolPattern.test(toolName)) {
         const patternMatches = pattern.keywords.filter((k) =>
-          userMessage.toLowerCase().includes(k.toLowerCase())
+          userTokens.some((token) =>
+            token.toLowerCase().includes(k.toLowerCase())
+          )
         );
         if (patternMatches.length > 0) {
           patternScore +=
@@ -1016,11 +1127,22 @@ class IntelligentMCPClient extends EventEmitter {
   }
 
   // ============================================
-  // UPDATED: Strategy 2 - Keyword matching ด้วย fuse.js
+  // UPDATED: Strategy 2 - Keyword matching ด้วย fuse.js และ Ollama tokenization
   // ============================================
   private async tryKeywordMatching(userMessage: string): Promise<string[]> {
     console.log("===== Starting tryKeywordMatching =====");
     console.log(`[MCP Client] Trying keyword matching for: "${userMessage}"`);
+
+    // ใช้ Ollama ตัดคำภาษาไทยก่อน
+    const thaiTokens = await this.tokenizeThaiWithOllama(userMessage);
+    console.log(`[MCP Client] Thai tokens: ${thaiTokens.join(", ")}`);
+
+    // รวมกับ English tokens จาก natural
+    const englishTokens =
+      this.tokenizer.tokenize(userMessage.toLowerCase()) || [];
+    const allTokens = [...new Set([...thaiTokens, ...englishTokens])];
+
+    console.log(`[MCP Client] All tokens for search: ${allTokens.join(", ")}`);
 
     // สร้าง data สำหรับ Fuse จาก tools และ resources แล้วให้ Fuse จัดการ matching ทั้งหมด
     const toolData = Array.from(this.tools.entries()).map(
@@ -1050,9 +1172,23 @@ class IntelligentMCPClient extends EventEmitter {
       findAllMatches: true,
     });
 
-    const results = runSearch(dataFuse, userMessage.toLowerCase()) as any[];
+    // ค้นหาด้วยแต่ละ token และรวมผล
+    const tokenResults: any[] = [];
+    for (const token of allTokens) {
+      if (token.length < 2) continue; // ข้าม token สั้นเกินไป
+      const results = runSearch(dataFuse, token) as any[];
+      tokenResults.push(...results);
+    }
 
-    const matches = results
+    // ลบ duplicates และจัดอันดับ
+    const seen = new Set<string>();
+    const uniqueResults = tokenResults.filter((r) => {
+      if (seen.has(r.item.id)) return false;
+      seen.add(r.item.id);
+      return true;
+    });
+
+    const matches = uniqueResults
       .map((r) => ({
         id: r.item.id,
         score: Math.max(0, (1 - (r.score ?? 1)) * 100),

@@ -52,8 +52,9 @@ function sendJsonRpcError(
 
 // Register tools from separate modules (datetime, and webd group)
 import { registerDateTimeTool } from "./mcp/tools/dateTimeTool";
-import { registerTmdTool as registerTmdTool } from "./mcp/tools/tmdTool";
+import { registerTmdTool as registerTmdTool } from "./mcp/tools/tmdTools";
 import { registerWebdTools } from "./mcp/tools/webdTools";
+import { registerQuickChartTool } from "./mcp/tools/quickChartTool";
 
 // Create MCP server instance and register tools
 const mcpserver = new McpServer({
@@ -61,12 +62,11 @@ const mcpserver = new McpServer({
   version: "1.0.0",
 });
 
-// No special validation for `webdTool_*` handlers — register tools directly.
-
 // Register tools after wrapping registerTool so handlers get wrapped automatically
 registerDateTimeTool(mcpserver);
 registerTmdTool(mcpserver);
 registerWebdTools(mcpserver);
+registerQuickChartTool(mcpserver);
 
 // Handle incoming MCP requests /////////////////////////////
 app.post("/mcp", async (req, res) => {
