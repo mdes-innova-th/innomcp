@@ -71,7 +71,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div
-      className={`w-full relative ${
+      className={`w-full max-w-3xl mx-auto relative ${
         theme === "light" ? "bg-white" : "dark:bg-gray-800"
       } rounded-2xl shadow-lg px-6 py-4`}
     >
@@ -95,7 +95,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             setInput(e.target.value);
             adjustTextarea();
           }}
-          rows={3}
+          rows={1}
           placeholder="มีอะไรให้ช่วยไหม?"
           className="w-full resize-none focus:outline-none transition-all max-h-60 overflow-y-auto"
         />

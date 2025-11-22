@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useContext } from "react";
-import Image from "next/image";
-import HeaderChat from "@/app/components/chat/HeaderChat";
 import ChatMessage, {
   MessageView,
   Message as MessageType,
@@ -41,12 +39,15 @@ const ChatPage: React.FC = () => {
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [isSocketReady, setIsSocketReady] = useState(false);
 
+  const hasMessages = messages.length > 0;
+
   // Chat input is always visible; removed scroll-hide logic
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -114,18 +115,19 @@ const ChatPage: React.FC = () => {
     }
   }, [isSidebarCollapsed, mounted]);
 
-  // Scroll page to bottom when messages change (use browser scrollbar)
+  // Scroll the messages container to bottom when messages change
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const top =
-        document.documentElement.scrollHeight || document.body.scrollHeight;
-      window.scrollTo({ top, behavior: "auto" });
-    } catch (e) {
-      // ignore
+    if (messagesRef.current) {
+      try {
+        messagesRef.current.scrollTo({
+          top: messagesRef.current.scrollHeight,
+          behavior: "auto",
+        });
+      } catch (e) {
+        // ignore
+        messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+      }
     }
-    // no cleanup required
-    return;
   }, [messages]);
 
   // (Previously: scroll detection and hiding input while scrolling.)
@@ -522,26 +524,28 @@ const ChatPage: React.FC = () => {
   }, [isSocketReady, isWaitingForResponse]);
 
   return (
-    <div className="flex flex-col items-center max-h-screen">
-      <HeaderChat />
-      <div className="flex flex-col gap-2 flex-1 px-6 mx-auto w-2/3">
-        {messages.map((message, index) => (
-          <MessageView
-            key={index}
-            message={message as MessageType}
-            index={index}
-            onUpdate={updateMessage}
-          />
-        ))}
-        {/* When waiting for AI response (no message yet), show a typing balloon */}
-        {isWaitingForResponse &&
-          (!messages.length ||
-            messages[messages.length - 1].sender !== "ai" ||
-            !messages[messages.length - 1].isAnimating) && (
-            <div
-              className={`relative p-2 max-w-full self-start pr-5 mb-5 text-left`}
-            >
-              <div className="whitespace-pre-wrap flex items-center">
+    <div className="max-w-6xl items-center mx-auto px-6">
+      <div
+        className={`mx-auto w-2/3 ${hasMessages ? "pb-32" : "pb-6"}`}
+        ref={messagesRef}
+      >
+        <div className="flex flex-col gap-2 pb-6">
+          {messages.map((message, index) => (
+            <MessageView
+              key={index}
+              message={message as MessageType}
+              index={index}
+              onUpdate={updateMessage}
+            />
+          ))}
+          {/* When waiting for AI response (no message yet), show a typing balloon */}
+          {isWaitingForResponse &&
+            (!messages.length ||
+              messages[messages.length - 1].sender !== "ai" ||
+              !messages[messages.length - 1].isAnimating) && (
+              <div
+                className={`relative p-2 max-w-full self-start pr-5 mb-5 text-left`}
+              >
                 <span className="inline-flex items-center gap-1">
                   <span
                     className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce"
@@ -557,18 +561,19 @@ const ChatPage: React.FC = () => {
                   />
                 </span>
               </div>
-            </div>
-          )}
+            )}
+        </div>
       </div>
+
       <div
-        className={`flex items-start justify-center pt-8 px-4 transition-opacity duration-700 ${
-          messages.length === 0
-            ? "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
-            : "fixed z-99 bottom-0 left-1/2 -translate-x-1/2"
-        } w-1/2 translate-y-0 opacity-100 pointer-events-auto`}
+        className={`${
+          hasMessages
+            ? "fixed z-50 w-full mx-auto bottom-0 left-0 right-0 justify-center items-center flex"
+            : "absolute z-50 w-full mx-auto top-0 bottom-0 left-0 right-0 justify-center items-center flex"
+        }`}
       >
-        <div className="w-full max-w-6xl flex gap-6">
-          {/* Right: main input box */}
+        <div className="w-full max-w-3xl mx-auto"
+        >
           <ChatInput
             input={input}
             setInput={setInput}
@@ -589,7 +594,7 @@ const ChatPage: React.FC = () => {
           />
         </div>
       </div>
-      <div className="absolute left-4 top-0">
+      <div className="absolute left-4 top-0 z-120">
         <ChatSidebar
           summaries={chatSummaries}
           activeId={activeSummaryId}

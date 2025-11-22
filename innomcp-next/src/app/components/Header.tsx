@@ -4,13 +4,12 @@ import React from "react";
 import { useTheme } from "@/app/context/ThemeContext";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { FaHome } from "react-icons/fa";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
 import { FaSignOutAlt, FaKey, FaUser } from "react-icons/fa";
 import LoadingSpinner from "@/app/components/common/ui/loading-spinner";
 import Image from "next/image";
-
 import {
   buttonClass,
   logoutButtonClass,
@@ -23,6 +22,7 @@ import { fetchWithCSRF } from "@/utils/csrf";
 export default function Header() {
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const {
     isLoggedIn,
     setIsLoggedIn,
@@ -104,6 +104,44 @@ export default function Header() {
                     alt="InnoMCP Logo"
                     priority
                     fill
+                  />
+                </div>
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push("https://wddsb.dataxo.info/complex-chart")
+                    }
+                    className={`px-4 py-2 ${
+                      pathname === "/complex-chart"
+                        ? "bg-indigo-500 border-2 border-indigo-400"
+                        : "bg-none"
+                    } text-white rounded-3xl hover:bg-indigo-500 transition flex items-center gap-2 cursor-pointer`}
+                  >
+                    <i className="fa-solid fa-chart-column text-2xl"></i>
+                    COMPLEX CHART
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      router.push("https://wddsb.dataxo.info/search-url")
+                    }
+                    className={`px-4 py-2 ${
+                      pathname === "/search-url"
+                        ? "bg-indigo-500 border-2 border-indigo-400"
+                        : "bg-none"
+                    } text-white rounded-3xl hover:bg-indigo-500 transition flex items-center gap-2 cursor-pointer`}
+                  >
+                    <i className="fa-solid fa-search text-2xl"></i>
+                    ค้นหา URL
+                  </button>
+                  <Image
+                    src="/aoc-mule.png"
+                    alt="AOC Logo"
+                    width={50}
+                    height={24}
+                    onClick={() => router.push("https://aoc.dataxo.info")}
+                    className="cursor-pointer"
                   />
                 </div>
               </div>
@@ -202,7 +240,7 @@ export default function Header() {
           theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด"
         }
         title={theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด"}
-        className="fixed left-2 bottom-2 z-50 w-11 h-11 p-2 rounded-full border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-700 text-gray-700 dark:text-gray-200 shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-transform transform hover:scale-105 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+        className="fixed left-2 bottom-2 z-99 w-11 h-11 p-2 rounded-full border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-700 text-gray-700 dark:text-gray-200 shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-transform transform hover:scale-105 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-pointer"
       >
         {theme === "dark" ? <FaSun size={20} /> : <FaMoon size={20} />}
         <span className="sr-only">
