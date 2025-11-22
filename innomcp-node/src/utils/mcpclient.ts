@@ -149,6 +149,10 @@ class IntelligentMCPClient extends EventEmitter {
         "เว็บผิดกฎหมาย",
         "สถิติเว็บไซต์",
         "จำนวนเว็บไซต์",
+        "นับ",
+        "สถิติ",
+        "url",
+        "โดเมน",
       ],
       toolPattern: /^webdTool_/i,
       priority: "high",
@@ -454,6 +458,10 @@ class IntelligentMCPClient extends EventEmitter {
           "court",
           "เว็บไซต์ผิดกฎหมาย",
           "มีคำสั่งศาล",
+          "นับ",
+          "สถิติ",
+          "url",
+          "โดเมน",
         ],
       },
     ];
@@ -547,7 +555,7 @@ class IntelligentMCPClient extends EventEmitter {
         ],
       },
       {
-        pattern: /webd|ผิดกฎหมาย|คำสั่งศาล|violation|court|url/,
+        pattern: /webd|ผิดกฎหมาย|คำสั่งศาล|violation|court|url|นับ|สถิติ|โดเมน/,
         examples: [
           "นับจำนวนเว็บไซต์ผิดกฎหมายในระบบ webd",
           "สถิติเว็บไซต์ผิดกฎหมายในระบบ webd",
@@ -715,6 +723,32 @@ class IntelligentMCPClient extends EventEmitter {
       }
     }
 
+    // คะแนนจากการ match คำในคำอธิบาย (description)
+    try {
+      const descKeywords = this.extractKeywords(
+        tool?.name || toolName,
+        description
+      );
+      const descMatches = descKeywords.filter((k) =>
+        lowerMessage.includes(k.toLowerCase())
+      );
+      score += descMatches.length * 2;
+    } catch (e) {
+      // ignore
+    }
+
+    // Bonus: ถ้าข้อความมี 'webd' และชื่อ tool มี 'webd' ให้ +10
+    try {
+      if (
+        lowerMessage.includes("webd") &&
+        toolName.toLowerCase().includes("webd")
+      ) {
+        score += 10;
+      }
+    } catch (e) {
+      // ignore
+    }
+
     return score;
   }
 
@@ -762,7 +796,7 @@ class IntelligentMCPClient extends EventEmitter {
       .filter(
         (t) => t.score >= topScore * 0.7 // เลือกเฉพาะที่คะแนนใกล้เคียงกับอันดับ 1
       )
-      .slice(0, 2); // จำกัดไม่เกิน 2 tools
+      .slice(0, 10); // จำกัดไม่เกิน 10 tools
 
     return selected.map((t) => t.toolName);
   }
@@ -892,7 +926,7 @@ class IntelligentMCPClient extends EventEmitter {
 
     const candidates = matches
       .sort((a, b) => b.score - a.score)
-      .filter((m) => m.score > 0.15)
+      .filter((m) => m.score >= 0.01)
       .map((m) => m.tool);
 
     // ใช้ deduplicate และ ranking
@@ -927,28 +961,84 @@ ${toolDescriptions}
 
       console.log("[MCP Client] tryAISelection: calling chatWithOllama ✨");
       const response = await this.chatWithOllama(
-        [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: prompt },
-        ],
+        [{ role: "user", content: prompt }],
         { temperature: 0.1, num_predict: 50 }
       );
       console.log("[MCP Client] tryAISelection: response received ✨");
 
-      const selectedTools = response.message?.content?.trim() || "";
-      
-      console.log(`[MCP Client] AI selected: ${selectedTools || "❌ none"} ✨`);
+      const rawText = String(response.message?.content || "").trim();
+      console.log(
+        `[MCP Client] AI raw selection text: ${rawText.slice(0, 200)}`
+      );
 
-      if (selectedTools.toLowerCase() === "none" || selectedTools === "") {
-        return [];
+      // Try to extract JSON first, then fall back to plain text parsing
+      let parsedJson: any = null;
+      const extracted = this.extractJsonFromText(rawText);
+      if (extracted) {
+        try {
+          parsedJson = JSON.parse(extracted);
+        } catch (e) {
+          parsedJson = null;
+        }
       }
 
-      // Parse และ resolve
-      const rawCandidates = selectedTools
-        .split(/\s*,\s*|\n/)
-        .map((tool: string) => tool.trim())
-        .filter((t: string) => t.length > 0)
-        .slice(0, 1); // จำกัดแค่ 1 ตัว
+      let rawCandidates: string[] = [];
+
+      if (parsedJson) {
+        if (typeof parsedJson === "string") {
+          rawCandidates = [parsedJson];
+        } else if (Array.isArray(parsedJson)) {
+          rawCandidates = parsedJson.map((s) => String(s));
+        } else if (typeof parsedJson === "object") {
+          const fromData = parsedJson.data;
+          const fromTool =
+            parsedJson.tool ||
+            parsedJson.tools ||
+            parsedJson.selected ||
+            parsedJson.selection ||
+            parsedJson.toolName ||
+            parsedJson.name;
+
+          if (fromData) {
+            if (typeof fromData === "string") rawCandidates = [fromData];
+            else if (Array.isArray(fromData))
+              rawCandidates = fromData.map((s) => String(s));
+            else if (typeof fromData === "object") {
+              const inner = fromData.tool || fromData.name;
+              if (inner)
+                rawCandidates = Array.isArray(inner)
+                  ? inner.map((s) => String(s))
+                  : [String(inner)];
+              else
+                rawCandidates = Object.values(fromData).map((v) => String(v));
+            }
+          } else if (fromTool) {
+            rawCandidates = Array.isArray(fromTool)
+              ? fromTool.map((s) => String(s))
+              : [String(fromTool)];
+          } else if (
+            parsedJson.markdown &&
+            typeof parsedJson.markdown === "string"
+          ) {
+            rawCandidates = parsedJson.markdown
+              .split(/\s*,\s*|\n/)
+              .map((s: string) => s.trim())
+              .filter(Boolean);
+          } else {
+            rawCandidates = [String(parsedJson)];
+          }
+        }
+      }
+
+      if (rawCandidates.length === 0) {
+        // fallback plain text split
+        rawCandidates = rawText
+          .split(/\s*,\s*|\n/)
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
+
+      rawCandidates = rawCandidates.slice(0, 1); // จำกัดแค่ 1 ตัว
 
       const resolved: string[] = [];
 
@@ -1001,7 +1091,7 @@ ${toolDescriptions}
           `[MCP Client] AI suggested unknown tool/resource: ${candidate}`
         );
         try {
-          console.error(`[MCP Client] AI raw selection: ${selectedTools}`);
+          console.error(`[MCP Client] AI raw selection: ${rawText}`);
           try {
             console.error(
               `[MCP Client] AI response object: ${JSON.stringify(
@@ -1038,7 +1128,7 @@ ${toolDescriptions}
       // ถ้าไม่มี resolved candidates ให้บันทึกเพิ่มเติม
       if (resolved.length === 0) {
         console.error(
-          `[MCP Client] AI selection produced no resolvable candidates for query: "${userMessage}". AI raw selection: ${selectedTools}`
+          `[MCP Client] AI selection produced no resolvable candidates for query: "${userMessage}". AI raw selection: ${rawText}`
         );
       }
 
@@ -1057,49 +1147,149 @@ ${toolDescriptions}
     userMessage: string,
     selectedTools: string[]
   ): Promise<string[]> {
+    // แนวทาง 3: ใช้ AI validation เต็มรูปแบบ (พร้อม optimizations)
     if (selectedTools.length === 0) return [];
 
-    console.log(`[MCP Client] Validating ${selectedTools.length} tools`);
-
-    // ถ้าเป็นคำทักทาย และมี greeting resource ให้ใช้แค่นั้น
+    // Special case: greeting (ไม่ต้องถาม AI)
     if (this.isGreetingQuery(userMessage)) {
       const greetingResource = selectedTools.find(
         (t) => t.includes("greeting") && this.resources.has(t)
       );
       if (greetingResource) {
-        console.log("[MCP Client] ✅ Validated greeting resource only");
+        console.log(
+          "[MCP Client] ✅ Validated greeting resource (no AI needed)"
+        );
         return [greetingResource];
       }
     }
 
-    const validatedTools: string[] = [];
-
-    for (const toolName of selectedTools) {
-      const tool = this.tools.get(toolName);
-      const resource = this.resources.get(toolName);
-
-      if (!tool && !resource) continue;
-
-      const relevanceScore = await this.scoreToolRelevance(
-        toolName,
+    // Optimization: ถ้ามีแค่ tool เดี่ยว และคะแนนสูงมาก ไม่ต้องถาม AI
+    if (selectedTools.length === 1) {
+      const score = await this.scoreToolRelevance(
+        selectedTools[0],
         userMessage
       );
-
-      // ใช้คะแนนความเกี่ยวข้องแทนการเรียก AI
-      if (relevanceScore >= 3) {
-        // threshold ขั้นต่ำ
-        validatedTools.push(toolName);
+      if (score >= 15) {
         console.log(
-          `[MCP Client] ✅ Validated: ${toolName} (score: ${relevanceScore})`
+          `[MCP Client] ✅ Single tool with high score (${score}), no AI needed`
         );
-      } else {
-        console.log(
-          `[MCP Client] ❌ Rejected: ${toolName} (score: ${relevanceScore})`
-        );
+        return selectedTools;
       }
     }
 
-    return validatedTools;
+    // เริ่ม AI validation
+    console.log(
+      `[MCP Client] Validating selected tools with AI: ${selectedTools.join(
+        ", "
+      )} ✨`
+    );
+
+    try {
+      // สร้าง description สำหรับแต่ละ tool
+      const toolDescriptions = await Promise.all(
+        selectedTools.map(async (toolName) => {
+          const tool = this.tools.get(toolName);
+          const resource = this.resources.get(toolName);
+          const desc =
+            tool?.description || resource?.description || "ไม่มีคำอธิบาย";
+          const score = await this.scoreToolRelevance(toolName, userMessage);
+
+          return {
+            toolName,
+            description: desc,
+            score,
+          };
+        })
+      );
+
+      // เรียงตามคะแนน
+      toolDescriptions.sort((a, b) => b.score - a.score);
+
+      const toolList = toolDescriptions
+        .map(
+          (t, i) =>
+            `${i + 1}. ${t.toolName}\n   ${
+              t.description
+            }\n   (ความเกี่ยวข้อง: ${t.score})`
+        )
+        .join("\n\n");
+
+      const prompt = `ตรวจสอบว่า tools ใดเหมาะสมกับคำถามนี้
+
+คำถาม: "${userMessage}"
+
+Tools ที่เป็นไปได้:
+${toolList}
+
+กฎการตรวจสอบ:
+1. เลือกเฉพาะ tool ที่ตรงกับคำถามมากที่สุด (1 ตัว)
+2. ถ้าคำถามไม่ต้องการใช้ tool ให้ตอบ "none"
+3. ถ้าไม่แน่ใจ ให้เลือก tool ที่มีคะแนนความเกี่ยวข้องสูงสุด
+
+ตอบเฉพาะชื่อ tool (เช่น "innomcp-server:webdTool_count_all_by_group") หรือ "none":`;
+
+      // เรียก AI ครั้งเดียว (ไม่ loop)
+      const response = await this.chatWithOllama(
+        [{ role: "user", content: prompt }],
+        { temperature: 0.1, num_predict: 100 }
+      );
+
+      let selectedTool = response.message?.content?.trim() || "";
+
+      // Clean up response
+      selectedTool = selectedTool
+        .replace(/```(?:json)?\s*/gi, "")
+        .replace(/\s*```/g, "")
+        .split("\n")[0] // เอาแค่บรรทัดแรก
+        .trim();
+
+      console.log(`[MCP Client] AI validation result: "${selectedTool}"`);
+
+      if (selectedTool.toLowerCase() === "none" || selectedTool === "") {
+        console.log("[MCP Client] ❌ AI rejected all tools");
+        return [];
+      }
+
+      // หา tool ที่ AI เลือก
+      const matched = toolDescriptions.find(
+        (t) =>
+          t.toolName === selectedTool ||
+          t.toolName.endsWith(`:${selectedTool}`) ||
+          t.toolName.includes(selectedTool)
+      );
+
+      if (matched) {
+        console.log(`[MCP Client] ✅ AI confirmed: ${matched.toolName}`);
+        return [matched.toolName];
+      }
+
+      // Fallback: ถ้า AI ตอบผิด ใช้ tool ที่คะแนนสูงสุด
+      console.log(
+        "[MCP Client] ⚠️ AI selected unknown tool, using highest score"
+      );
+      const fallback = toolDescriptions.filter((t) => t.score >= 5);
+      return fallback.length > 0 ? [fallback[0].toolName] : [];
+    } catch (error) {
+      console.error("[MCP Client] AI validation error:", error);
+
+      // Fallback: ใช้ scoring
+      const scored = await Promise.all(
+        selectedTools.map(async (toolName) => ({
+          toolName,
+          score: await this.scoreToolRelevance(toolName, userMessage),
+        }))
+      );
+
+      scored.sort((a, b) => b.score - a.score);
+      const fallback = scored.filter((t) => t.score >= 5);
+
+      console.log(
+        "[MCP Client] ⚠️ Using scoring fallback:",
+        fallback.map((t) => `${t.toolName} (${t.score})`)
+      );
+
+      return fallback.length > 0 ? [fallback[0].toolName] : [];
+    }
   }
 
   // ============================================
@@ -1144,7 +1334,7 @@ ${toolDescriptions}
       // Strategy 3: AI selection (ถ้ายังไม่ได้)
       if (candidates.length === 0) {
         console.log(
-          `[MCP Client] Keyword matching found nothing, trying AI selection...`
+          `[MCP Client] Keyword matching found nothing, trying AI selection... ✨`
         );
         aiMatched = await this.tryAISelection(userMessage);
         if (aiMatched.length > 0) {
