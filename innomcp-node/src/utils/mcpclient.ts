@@ -194,6 +194,15 @@ class IntelligentMCPClient extends EventEmitter {
     console.log("===== Starting chatWithOllama =====");
 
     try {
+      // Ensure messages is an array and prepend SYSTEM_PROMPT if no system role provided
+      if (!Array.isArray(messages)) messages = [];
+      const hasSystemRole = messages.some(
+        (m: any) => m && (m.role === "system" || m.name === "system")
+      );
+      if (!hasSystemRole) {
+        messages = [{ role: "system", content: SYSTEM_PROMPT }, ...messages];
+      }
+
       console.log(
         `[MCP Client] Calling ollama.chat with model: ${this.ollamaModel} ✨`
       );
@@ -438,7 +447,7 @@ class IntelligentMCPClient extends EventEmitter {
       return ["นับจำนวนเว็บไซต์ผิดกฎหมาย", "สถิติ URL ในระบบ webd"];
     }
     if (/chart|graph/.test(key)) {
-      return ["สร้างกราฟแท่ง", "สร้างกราฟวงกลม"];
+      return ["สร้างกราฟ", "สร้างกราฟแท่ง", "สร้างกราฟวงกลม"];
     }
 
     return ["ตัวอย่างการใช้งาน"];
