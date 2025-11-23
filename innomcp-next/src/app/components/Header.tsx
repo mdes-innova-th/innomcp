@@ -83,8 +83,8 @@ export default function Header() {
         } shadow-md`}
       >
         <div className="w-full flex justify-between items-center px-5 py-1 app-name-section">
-          <div className="w-full h-full m-1 flex items-center justify-center">
-            <div className="flex items-center justify-center">
+          <div className="w-full h-full m-1 flex items-center justify-between">
+            <div className="flex items-center justify-between w-full">
               <div className="hidden sm:flex items-start">
                 <div className="relative m-2 w-40 h-10">
                   <Image
