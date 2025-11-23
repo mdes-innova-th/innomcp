@@ -57,7 +57,7 @@ export default async function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             <Header />
-            <main className="pt-24 pb-16">{children}</main>
+            <main className="pt-24 pb-8">{children}</main>
             <Footer />
           </ThemeProvider>
         </AuthProvider>

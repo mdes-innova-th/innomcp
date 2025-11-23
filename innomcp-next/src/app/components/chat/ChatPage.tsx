@@ -13,12 +13,15 @@ import ThemeContext from "@/app/context/ThemeContext";
 // icons are used in ChatInput; not needed here
 
 // Define the type for a chat message
+// `structuredContent` can contain typed data returned by server tools (e.g. { chartSvg })
+// We preserve that structure so the UI can render rich content (images, charts, etc.)
 interface ChatMessage {
   sender: "user" | "ai";
   text: string;
   // For AI messages, store the full text for animation
   fullText?: string;
   isAnimating?: boolean;
+  structuredContent?: any;
 }
 
 const ChatPage: React.FC = () => {
@@ -38,6 +41,8 @@ const ChatPage: React.FC = () => {
   const [input, setInput] = useState("");
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [isSocketReady, setIsSocketReady] = useState(false);
+  const [isStopped, setIsStopped] = useState(false);
+  const isStoppedRef = useRef(false);
 
   const hasMessages = messages.length > 0;
 
@@ -175,6 +180,7 @@ const ChatPage: React.FC = () => {
       };
 
       ws.onmessage = async (event) => {
+        if (isStoppedRef.current) return;
         try {
           console.log("Received WebSocket message:", event.data);
 
@@ -194,6 +200,7 @@ const ChatPage: React.FC = () => {
           // Handle incoming streaming chunk (append as-is)
           if (message.type === "chunk" && message.text) {
             console.log("[Frontend] Received chunk response:", message.text);
+            console.log("[Frontend] Chunk structuredContent:", message.structuredContent);
             setMessages((prevMessages) => {
               if (
                 prevMessages.length > 0 &&
@@ -205,8 +212,11 @@ const ChatPage: React.FC = () => {
                 updatedMessages[updatedMessages.length - 1] = {
                   ...last,
                   fullText: newFullText,
+                  // preserve structuredContent if server sends it with this chunk
+                  structuredContent: message.structuredContent ?? last.structuredContent,
                   isAnimating: true,
                 };
+                console.log("[Frontend] Updated last AI message with structuredContent:", updatedMessages[updatedMessages.length - 1].structuredContent);
                 return updatedMessages;
               } else {
                 return [
@@ -215,6 +225,7 @@ const ChatPage: React.FC = () => {
                     sender: "ai",
                     text: "",
                     fullText: message.text,
+                    structuredContent: message.structuredContent,
                     isAnimating: true,
                   },
                 ];
@@ -229,7 +240,19 @@ const ChatPage: React.FC = () => {
               message.messages.length,
               "messages"
             );
-            setMessages(message.messages);
+            console.log("[Frontend] History update messages:", message.messages);
+            // Preserve structuredContent from previous messages if available
+            const messagesWithContent = message.messages.map((msg: any, idx: number) => {
+              if (msg.sender === "ai" && !msg.structuredContent && message.structuredContent) {
+                // If this is the last AI message and structuredContent is provided at the root level
+                if (idx === message.messages.length - 1) {
+                  return { ...msg, structuredContent: message.structuredContent };
+                }
+              }
+              return msg;
+            });
+            console.log("[Frontend] Messages with content:", messagesWithContent);
+            setMessages(messagesWithContent);
             setIsWaitingForResponse(false);
           }
           // Handle regular text response
@@ -241,15 +264,17 @@ const ChatPage: React.FC = () => {
             console.log("[Frontend] Received text response:", message.text);
             setMessages((prevMessages) => {
               if (
-                prevMessages.length > 0 &&
-                prevMessages[prevMessages.length - 1].sender === "ai"
-              ) {
+                  prevMessages.length > 0 &&
+                  prevMessages[prevMessages.length - 1].sender === "ai"
+                ) {
                 const updatedMessages = [...prevMessages];
                 const last = updatedMessages[updatedMessages.length - 1];
                 const newFullText = (last.fullText || last.text) + message.text;
                 updatedMessages[updatedMessages.length - 1] = {
                   ...last,
                   fullText: newFullText,
+                  // attach structured content (chartSvg etc.) if present
+                  structuredContent: message.structuredContent ?? last.structuredContent,
                   isAnimating: true,
                 };
                 return updatedMessages;
@@ -260,6 +285,7 @@ const ChatPage: React.FC = () => {
                     sender: "ai",
                     text: "",
                     fullText: message.text,
+                    structuredContent: message.structuredContent,
                     isAnimating: true,
                   },
                 ];
@@ -379,11 +405,15 @@ const ChatPage: React.FC = () => {
       input.trim() !== "" &&
       !isWaitingForResponse
     ) {
-      const message = { text: input, messages };
+      // include a unique messageId to allow server-side deduplication
+      const messageId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+      const message = { text: input, messages, messageId };
       console.log("Sending message to WebSocket:", message); // Debug log
       socket.send(JSON.stringify(message));
       setMessages([...messages, { sender: "user", text: input }]);
       setInput("");
+      setIsStopped(false);
+      isStoppedRef.current = false;
       setIsWaitingForResponse(true); // Prevent sending new messages until a response is received
     } else if (socket && !isSocketReady) {
       console.error(
@@ -414,6 +444,11 @@ const ChatPage: React.FC = () => {
   };
 
   const handleNewChat = () => {
+    // Stop any ongoing request (same as handleStop)
+    setIsWaitingForResponse(false);
+    setIsStopped(true);
+    isStoppedRef.current = true;
+    
     // If there is an active conversation, save a compact summary before clearing
     if (messages && messages.length > 0) {
       const makeTitle = (msgs: ChatMessage[]) => {
@@ -477,6 +512,22 @@ const ChatPage: React.FC = () => {
       "chatMessages",
       JSON.stringify(summary.messages || [])
     );
+  };
+
+  const handleStop = () => {
+    setIsWaitingForResponse(false);
+    setIsStopped(true);
+    isStoppedRef.current = true;
+    setMessages((prev) => {
+      if (
+        prev.length > 0 &&
+        prev[prev.length - 1].sender === "ai" &&
+        prev[prev.length - 1].isAnimating
+      ) {
+        return prev.slice(0, -1);
+      }
+      return prev;
+    });
   };
 
   const adjustTextarea = () => {
@@ -585,6 +636,7 @@ const ChatPage: React.FC = () => {
             handleFileUpload={handleFileUpload}
             handleRemoveImage={handleRemoveImage}
             sendMessage={sendMessage}
+            handleStop={handleStop}
             isSocketReady={isSocketReady}
             isWaitingForResponse={isWaitingForResponse}
             textareaRef={textareaRef}

@@ -7,6 +7,7 @@ import {
   faArrowUp,
   faPaperclip,
   faRefresh,
+  faStop,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface ChatInputProps {
@@ -20,6 +21,7 @@ interface ChatInputProps {
   handleFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleRemoveImage: () => void;
   sendMessage: () => void;
+  handleStop: () => void;
   isSocketReady: boolean;
   isWaitingForResponse: boolean;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -39,6 +41,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   handleFileUpload,
   handleRemoveImage,
   sendMessage,
+  handleStop,
   isSocketReady,
   isWaitingForResponse,
   textareaRef,
@@ -87,7 +90,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           }
         />
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col pt-4 pb-0">
         <textarea
           ref={textareaRef}
           value={input}
@@ -117,11 +120,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </button>
           </div>
         )}
-        <div className="flex gap-4 mt-2 justify-between">
+        <div className="flex gap-4 pt-8 pb-0 justify-between">
           <div className="flex gap-2">
             <button
               onClick={handleNewChat}
-              className="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200 rounded-lg px-4 py-2 font-semibold shadow flex items-center gap-2 hover:bg-green-200 dark:hover:bg-green-800 transition-colors cursor-pointer"
+              className="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200 rounded-full p-2 w- h-8 font-semibold shadow flex items-center gap-2 hover:bg-green-200 dark:hover:bg-green-800 transition-colors cursor-pointer"
               title="เริ่มการแชทใหม่"
             >
               <FontAwesomeIcon icon={faRefresh} />
@@ -129,21 +132,23 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <button
               onClick={() => fileInputRef.current?.click()}
               title="แนบไฟล์"
-              className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-lg px-4 py-2 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors cursor-pointer"
+              className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-full p-2 w- h-8 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors cursor-pointer"
             >
               <FontAwesomeIcon icon={faPaperclip} />
             </button>
           </div>
           <button
-            onClick={sendMessage}
-            disabled={!isSocketReady || isWaitingForResponse}
+            onClick={isWaitingForResponse ? handleStop : sendMessage}
+            disabled={!isSocketReady}
             className={`bg-linear-to-r from-indigo-500 to-blue-400 text-white rounded-lg px-6 py-2 font-semibold shadow transition-colors cursor-pointer ${
-              !isSocketReady || isWaitingForResponse
+              !isSocketReady
                 ? "opacity-50 cursor-not-allowed"
                 : "hover:from-blue-400 hover:to-indigo-500"
             }`}
           >
-            {isSocketReady ? (
+            {isWaitingForResponse ? (
+              <FontAwesomeIcon icon={faStop} className="font-bold" />
+            ) : isSocketReady ? (
               <FontAwesomeIcon icon={faArrowUp} className="font-bold" />
             ) : (
               <span className="font-bold">
