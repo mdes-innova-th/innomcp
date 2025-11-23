@@ -18,7 +18,6 @@ import {
 } from "@/app/components/common/ui/button-styles";
 
 import { fetchWithCSRF } from "@/utils/csrf";
-import styles from "./Header.module.css";
 
 export default function Header() {
   const { theme, toggleTheme } = useTheme();
@@ -79,7 +78,7 @@ export default function Header() {
   return (
     <>
       <header
-        className={`fixed top-0 w-full text-gray-700 dark:text-gray-200 z-50 ${
+        className={`fixed w-full flex flex-col text-gray-700 dark:text-gray-200 z-50 ${
           theme === "dark" ? "bg-gray-950/90" : "bg-indigo-900"
         } shadow-md`}
       >
