@@ -58,25 +58,32 @@ const schema = {
 };
 
 export default function ChatMessage({ html, className }: Props) {
+  const { theme } = useTheme();
+
   return (
     <div className={className ?? ""}>
       <div className="prose prose-sm wrap-break-word dark:prose-invert">
-        {/*
-            Render markdown to React elements. We enable remark-gfm for GitHub Flavored Markdown.
-            IMPORTANT: We DO NOT enable `rehype-raw` (do not parse raw HTML inside markdown)
-            to avoid the risk of executing or injecting unsafe HTML. Any HTML-like text will
-            be rendered as literal text. We still include `rehype-sanitize` for defense-in-depth
-            if other rehype plugins are used, and to ensure nodes are safe should you enable
-            additional rehype processing later.
-          */}
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           rehypePlugins={[rehypeRaw, [rehypeSanitize, schema]]}
           components={{
+            // 🐛 การแก้ไขหลัก 1: ป้องกันการเรนเดอร์ <p> ว่างเปล่า
+            p: ({ children }) => {
+              const hasContent = React.Children.toArray(children).some(
+                (child) =>
+                  typeof child === "string"
+                    ? child.trim().length > 0 // มีข้อความที่ไม่ใช่ช่องว่าง
+                    : child !== null // มี children ที่ไม่ใช่ null/false
+              );
+              return hasContent ? <p>{children}</p> : null;
+            },
+
+            // 🐛 การแก้ไขหลัก 2: ลด margin-bottom ของ H1 และ H2 เพื่อลดช่องว่างก่อนตาราง
             h1: ({ children }) => (
               <h1
-                className={`text-2xl font-bold mb-4 ${
-                  useTheme().theme === "dark" ? "text-gray-100" : "text-black"
+                className={`text-2xl font-bold mb-2 ${
+                  // ลด mb-4 เป็น mb-2
+                  theme === "dark" ? "text-gray-100" : "text-black"
                 }`}
               >
                 {children}
@@ -84,8 +91,9 @@ export default function ChatMessage({ html, className }: Props) {
             ),
             h2: ({ children }) => (
               <h2
-                className={`text-lg font-bold mb-3 ${
-                  useTheme().theme === "dark" ? "text-gray-100" : "text-black"
+                className={`text-lg font-bold mb-1 ${
+                  // ลด mb-3 เป็น mb-1
+                  theme === "dark" ? "text-gray-100" : "text-black"
                 }`}
               >
                 {children}
@@ -94,7 +102,7 @@ export default function ChatMessage({ html, className }: Props) {
             h3: ({ children }) => (
               <h3
                 className={`text-lg font-bold mb-2 ${
-                  useTheme().theme === "dark" ? "text-gray-100" : "text-black"
+                  theme === "dark" ? "text-gray-100" : "text-black"
                 }`}
               >
                 {children}
@@ -103,7 +111,7 @@ export default function ChatMessage({ html, className }: Props) {
             h4: ({ children }) => (
               <h4
                 className={`text-lg font-bold mb-2 ${
-                  useTheme().theme === "dark" ? "text-gray-100" : "text-black"
+                  theme === "dark" ? "text-gray-100" : "text-black"
                 }`}
               >
                 {children}
@@ -112,7 +120,7 @@ export default function ChatMessage({ html, className }: Props) {
             h5: ({ children }) => (
               <h5
                 className={`text-lg font-bold mb-1 ${
-                  useTheme().theme === "dark" ? "text-gray-100" : "text-black"
+                  theme === "dark" ? "text-gray-100" : "text-black"
                 }`}
               >
                 {children}
@@ -121,16 +129,23 @@ export default function ChatMessage({ html, className }: Props) {
             h6: ({ children }) => (
               <h6
                 className={`text-base font-bold mb-1 ${
-                  useTheme().theme === "dark" ? "text-gray-100" : "text-black"
+                  theme === "dark" ? "text-gray-100" : "text-black"
                 }`}
               >
                 {children}
               </h6>
             ),
+
+            // 🐛 การแก้ไขหลัก 3: ควบคุม margin-top ของตาราง
             table: ({ children }) => (
-              <table className="border-collapse border border-gray-300 dark:border-gray-600">
-                {children}
-              </table>
+              <div className="overflow-x-auto">
+                <table
+                  // เพิ่ม mt-2 เพื่อควบคุมช่องว่างด้านบน
+                  className="border-collapse border border-gray-300 dark:border-gray-600 mt-2"
+                >
+                  {children}
+                </table>
+              </div>
             ),
             th: ({ children }) => (
               <th className="border border-gray-300 dark:border-gray-600 px-4 py-2 bg-gray-100 dark:bg-gray-800">

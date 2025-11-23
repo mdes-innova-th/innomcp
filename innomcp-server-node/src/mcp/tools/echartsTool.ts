@@ -45,7 +45,10 @@ export function registerEchartsTool(mcpserver: McpServer) {
       }),
       outputSchema: z.object({ chartSvg: z.string() }),
     },
-    async ({ type, labels, datasets, dataJson, chartTitle: paramChartTitle }, _extra) => {
+    async (
+      { type, labels, datasets, dataJson, chartTitle: paramChartTitle },
+      _extra
+    ) => {
       console.log(
         `[MCP Server] echartsTool request received at ${new Date().toLocaleString()}`
       );
