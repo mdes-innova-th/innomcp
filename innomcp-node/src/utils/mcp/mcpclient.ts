@@ -15,84 +15,19 @@ import Fuse from "fuse.js";
 import * as natural from "natural";
 import { makeFuse, runSearch } from "./fuseSearch";
 import { ToolChainingEngine } from "./toolChaining";
-
-// ========================================
-// INTERFACES
-// ========================================
-
-interface MCPTool {
-  name: string;
-  description: string;
-  inputSchema: any;
-  category: string;
-  keywords: string[];
-  examples: string[];
-}
-
-interface MCPResource {
-  name: string;
-  title?: string;
-  description?: string;
-  uriTemplate?: string;
-  inputSchema?: any;
-}
-
-interface MCPClientConfig {
-  name: string;
-  version: string;
-  transport?: {
-    command: string;
-    args: string[];
-  };
-  serverUrl?: string;
-}
-
-interface ToolSelectionCache {
-  query: string;
-  tools: string[];
-  timestamp: number;
-}
-
-interface ConversationContext {
-  query: string;
-  tools: string[];
-  timestamp: number;
-}
-
-interface ToolPattern {
-  keywords: string[];
-  toolPattern: RegExp;
-  priority: "high" | "medium" | "low";
-  category?: string;
-}
-
-// ========================================
-// NEW: TOOL CHAINING INTERFACES
-// ========================================
-
-interface ToolChainStep {
-  toolName: string;
-  args?: any;
-  dependsOn?: number[]; // index ของ steps ก่อนหน้าที่ต้องรอ
-  description: string;
-  condition?: string; // เงื่อนไขในการ execute (optional)
-}
-
-interface ToolChainPlan {
-  steps: ToolChainStep[];
-  reasoning: string;
-  isChainable: boolean;
-}
-
-interface ChainExecutionResult {
-  step: number;
-  toolName: string;
-  description: string;
-  result?: any;
-  error?: string;
-  success: boolean;
-  executionTime?: number;
-}
+import {
+  MCPTool,
+  MCPResource,
+  MCPClientConfig,
+  ToolSelectionCache,
+  ConversationContext,
+  ToolPattern,
+  ToolChainStep,
+  ToolChainPlan,
+  ChainExecutionResult,
+  MessageClassification,
+} from "./types";
+import { ToolSelectionEngine } from "./toolSelection";
 
 // ========================================
 // SYSTEM PROMPT
@@ -358,33 +293,33 @@ class IntelligentMCPClient extends EventEmitter {
     const categories: { category: string; keywords: string[] }[] = [
       {
         category: "database",
-        keywords: ["database", "sql", "query", "ฐานข้อมูล"],
+        keywords: ["database", "sql", "query", "ฐานข้อมูล", "คิวรี", "ข้อมูล", "ดึงข้อมูล", "บันทึกข้อมูล", "อัปเดตข้อมูล"],
       },
-      { category: "file", keywords: ["file", "read", "write", "ไฟล์"] },
-      { category: "api", keywords: ["api", "http", "request"] },
+      { category: "file", keywords: ["file", "read", "write", "ไฟล์", "อ่านไฟล์", "เขียนไฟล์", "จัดการไฟล์", "เปิดไฟล์", "บันทึกไฟล์"] },
+      { category: "api", keywords: ["api", "http", "request", "เรียก api", "ส่งคำขอ", "รับข้อมูล", "เชื่อมต่อ", "เว็บเซอร์วิส"] },
       {
         category: "computation",
-        keywords: ["math", "calculate", "compute", "คำนวณ"],
+        keywords: ["math", "calculate", "compute", "คำนวณ", "คณิตศาสตร์", "หาค่า", "บวก", "ลบ", "คูณ", "หาร"],
       },
       {
         category: "datetime",
-        keywords: ["time", "date", "datetime", "เวลา", "วันที่"],
+        keywords: ["time", "date", "datetime", "เวลา", "วันที่", "วันเวลา", "วันที่ปัจจุบัน", "เวลาตอนนี้", "วันนี้", "พรุ่งนี้", "เมื่อวาน"],
       },
       {
         category: "statistics",
-        keywords: ["stats", "count", "statistics", "สถิติ"],
+        keywords: ["stats", "count", "statistics", "สถิติ", "นับจำนวน", "วิเคราะห์ข้อมูล", "เฉลี่ย", "รวม", "เปอร์เซ็นต์"],
       },
       {
         category: "webd",
-        keywords: ["webd", "violation", "ผิดกฎหมาย", "url", "โดเมน"],
+        keywords: ["webd", "violation", "ผิดกฎหมาย", "url", "โดเมน", "เว็บผิดกฎหมาย", "ตรวจสอบโดเมน", "บล็อกเว็บ", "เว็บไซต์ผิด"],
       },
       {
         category: "weather",
-        keywords: ["tmd", "weather", "ฝน", "พยากรณ์", "อากาศ"],
+        keywords: ["tmd", "weather", "ฝน", "พยากรณ์", "อากาศ", "สภาพอากาศ", "พยากรณ์อากาศ", "ฝนตก", "อุณหภูมิ", "ลม"],
       },
       {
         category: "visualization",
-        keywords: ["chart", "graph", "visualize", "กราฟ"],
+        keywords: ["chart", "graph", "visualize", "กราฟ", "แสดงกราฟ", "สร้างแผนภูมิ", "วิเคราะห์ภาพ", "แผนภูมิแท่ง", "แผนภูมิวงกลม", "แผนภูมิเส้น"],
       },
     ];
 
@@ -459,6 +394,46 @@ class IntelligentMCPClient extends EventEmitter {
   // ========================================
 
   /**
+   * ตรวจสอบว่าผู้ใช้ขอใช้ tool chaining หรือไม่
+   * ใช้ chaining เฉพาะเมื่อผู้ใช้ขอเป็นข้อๆ หรือใช้คำว่า "แล้ว", "จากนั้น"
+   */
+  private shouldUseChaining(userMessage: string): boolean {
+    const message = userMessage.toLowerCase().trim();
+
+    // ตรวจสอบคำว่า "แล้ว", "จากนั้น"
+    const chainingKeywords = ["แล้ว", "จากนั้น", "then", "after that"];
+    if (chainingKeywords.some((keyword) => message.includes(keyword))) {
+      return true;
+    }
+
+    // ตรวจสอบเป็นข้อๆ (bullet points หรือ numbering)
+    const bulletPatterns = [
+      /^\d+\./m, // 1. 2. 3.
+      /^-\s/m, // - item
+      /^\*\s/m, // * item
+      /^[a-z]\)/m, // a) b) c)
+      /^[A-Z]\)/m, // A) B) C)
+    ];
+
+    if (bulletPatterns.some((pattern) => pattern.test(message))) {
+      return true;
+    }
+
+    // ตรวจสอบว่ามีหลายประโยคและมี connector
+    const sentences = message
+      .split(/[.!?]+/)
+      .filter((s) => s.trim().length > 0);
+    if (sentences.length > 1) {
+      const connectors = ["และ", "แล้ว", "จากนั้น", "ต่อมา", "หลังจากนั้น"];
+      if (connectors.some((connector) => message.includes(connector))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
    * วิเคราะห์ว่าคำถามต้องใช้ tool chaining หรือไม่
    * และวางแผนลำดับการใช้ tools
    */
@@ -473,6 +448,125 @@ class IntelligentMCPClient extends EventEmitter {
       (messages, options) => this.chatWithOllama(messages, options),
       this.extractJsonFromText.bind(this)
     );
+  }
+
+  /**
+   * Classify ประเภทของข้อความและตรวจสอบว่าตอบได้ทันทีหรือไม่
+   */
+  private async classifyMessageType(
+    userMessage: string
+  ): Promise<MessageClassification> {
+    try {
+      console.log(`[Classify] Classifying message: "${userMessage}"`);
+
+      const prompt = `วิเคราะห์ประเภทของข้อความต่อไปนี้ และตอบเป็น JSON เท่านั้น
+
+ข้อความ: "${userMessage}"
+
+ประเภทที่เป็นไปได้:
+- greeting: การทักทาย เช่น สวัสดี, หวัดดี, hello
+- general_question: คำถามทั่วไปที่ตอบได้ทันที เช่น ถามเรื่องเวลา, สภาพอากาศทั่วไป, คำถามเกี่ยวกับระบบ
+- action_request: คำขอให้ดำเนินการ เช่น สร้างกราฟ, ค้นหาข้อมูล, ดึงข้อมูล, ประมวลผล
+- unknown: ไม่ทราบประเภท
+
+กฎ:
+1. ตอบเป็น JSON object ที่มีฟิลด์: type, canAnswerDirectly, confidence
+2. canAnswerDirectly: true ถ้าประเภท greeting หรือ general_question, false ถ้าประเภท action_request
+3. confidence: ความมั่นใจ 0-1 (เช่น 0.9 สำหรับแน่ใจมาก)
+4. ห้ามมีข้อความอื่นนอก JSON
+
+JSON:`;
+
+      const response = await this.chatWithOllama(
+        [{ role: "user", content: prompt }],
+        { temperature: 0.1, num_predict: 100 }
+      );
+
+      const rawText = String(response?.message?.content || "").trim();
+      const extracted = this.extractJsonFromText(rawText);
+      const jsonStr = extracted || rawText;
+
+      const parsed = JSON.parse(jsonStr);
+
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        parsed.type &&
+        typeof parsed.canAnswerDirectly === "boolean"
+      ) {
+        console.log(
+          `[Classify] Classified as: ${parsed.type}, canAnswerDirectly: ${
+            parsed.canAnswerDirectly
+          }, confidence: ${parsed.confidence || 0}`
+        );
+        return {
+          type: parsed.type,
+          canAnswerDirectly: parsed.canAnswerDirectly,
+          confidence: parsed.confidence || 0.5,
+        };
+      }
+
+      // Fallback
+      console.warn("[Classify] Failed to parse classification, using fallback");
+      return {
+        type: "unknown",
+        canAnswerDirectly: false,
+        confidence: 0.1,
+      };
+    } catch (error) {
+      console.error("[Classify] Error classifying message:", error);
+      return {
+        type: "unknown",
+        canAnswerDirectly: false,
+        confidence: 0.1,
+      };
+    }
+  }
+
+  /**
+   * สร้างคำตอบโดยตรงสำหรับข้อความที่ตอบได้ทันที
+   */
+  private async generateDirectResponse(
+    userMessage: string,
+    classification: MessageClassification
+  ): Promise<string> {
+    try {
+      console.log(
+        `[Direct] Generating direct response for type: ${classification.type}`
+      );
+
+      let prompt = "";
+
+      if (classification.type === "greeting") {
+        prompt = `ตอบคำทักทายนี้อย่างเป็นมิตรและเหมาะสม
+
+ข้อความผู้ใช้: "${userMessage}"
+
+ตอบสั้นๆ เป็นมิตร:`;
+      } else if (classification.type === "general_question") {
+        prompt = `ตอบคำถามทั่วไปนี้อย่างมีข้อมูลและเป็นมิตร
+
+คำถาม: "${userMessage}"
+
+ตอบเป็นภาษาไทย กระชับแต่ครบถ้วน:`;
+      } else {
+        prompt = `ตอบข้อความนี้อย่างเหมาะสม
+
+ข้อความ: "${userMessage}"
+
+ตอบ:`;
+      }
+
+      const response = await this.chatWithOllama(
+        [{ role: "user", content: prompt }],
+        { temperature: 0.3, num_predict: 200 }
+      );
+
+      return String(response?.message?.content || "").trim();
+    } catch (error) {
+      console.error("[Direct] Error generating direct response:", error);
+      return "ขออภัย เกิดข้อผิดพลาดในการสร้างคำตอบ";
+    }
   }
 
   /**
@@ -768,7 +862,7 @@ JSON:`;
   // ========================================
 
   /**
-   * ประมวลผลข้อความจากผู้ใช้ พร้อม tool chaining
+   * ประมวลผลข้อความจากผู้ใช้ พร้อม tool chaining เฉพาะเมื่อผู้ใช้ขอ
    */
   async processMessage(userMessage: string): Promise<{
     needsTools: boolean;
@@ -777,12 +871,25 @@ JSON:`;
     toolsFailed?: boolean;
     usedChaining?: boolean;
     chainPlan?: ToolChainPlan;
+    directResponse?: string;
   }> {
     console.log("===== Starting processMessage =====");
     console.log(
       "[Process] Conversation history size:",
       this.conversationHistory.length
     );
+
+    // Classify message type ก่อน
+    const classification = await this.classifyMessageType(userMessage);
+
+    if (classification.canAnswerDirectly) {
+      console.log(`[Process] Can answer directly: ${classification.type}`);
+      const directResponse = await this.generateDirectResponse(
+        userMessage,
+        classification
+      );
+      return { needsTools: false, directResponse };
+    }
 
     // เลือก tools
     const selectedTools = await this.selectTools(userMessage);
@@ -792,47 +899,56 @@ JSON:`;
       return { needsTools: false };
     }
 
-    // ลองวางแผน chain
-    const chainPlan = await this.planToolChain(userMessage, selectedTools);
+    // ตรวจสอบว่าผู้ใช้ขอใช้ chaining หรือไม่
+    const useChaining = this.shouldUseChaining(userMessage);
 
-    if (chainPlan && chainPlan.isChainable) {
-      console.log(
-        `[Process] 🔗 Using tool chain with ${chainPlan.steps.length} steps`
-      );
+    if (useChaining) {
+      // วางแผนและ execute chain
+      const chainPlan = await this.planToolChain(userMessage, selectedTools);
 
-      // Execute chain
-      const chainResults = await this.executeToolChain(chainPlan, userMessage);
+      if (chainPlan && chainPlan.isChainable) {
+        console.log(
+          `[Process] 🔗 Using tool chain with ${chainPlan.steps.length} steps`
+        );
 
-      const successfulResults = chainResults.filter((r) => r.success);
+        // Execute chain
+        const chainResults = await this.executeToolChain(
+          chainPlan,
+          userMessage
+        );
 
-      if (successfulResults.length === 0) {
-        console.log("[Process] All chain steps failed");
-        return { needsTools: false, toolsFailed: true, usedChaining: true };
+        const successfulResults = chainResults.filter((r) => r.success);
+
+        if (successfulResults.length === 0) {
+          console.log("[Process] All chain steps failed");
+          return { needsTools: false, toolsFailed: true, usedChaining: true };
+        }
+
+        // สร้าง enhanced context จาก chain
+        const enhancedContext = this.createChainContext(
+          userMessage,
+          chainResults
+        );
+
+        return {
+          needsTools: true,
+          toolResults: chainResults,
+          enhancedContext,
+          usedChaining: true,
+          chainPlan,
+        };
       }
-
-      // สร้าง enhanced context จาก chain
-      const enhancedContext = this.createChainContext(
-        userMessage,
-        chainResults
-      );
-
-      return {
-        needsTools: true,
-        toolResults: chainResults,
-        enhancedContext,
-        usedChaining: true,
-        chainPlan,
-      };
     }
 
-    // ถ้าไม่ต้อง chain ให้ execute ปกติ
-    console.log("[Process] No chaining needed, executing tools normally");
+    // ใช้ tool เดียวที่ดีที่สุด หรือ execute ปกติ
+    console.log("[Process] Using single best tool");
 
-    const toolResults = await this.executeTools(selectedTools, userMessage);
+    const bestTool = selectedTools[0]; // เลือก tool ที่ดีที่สุดอันดับ 1
+    const toolResults = await this.executeTools([bestTool], userMessage);
     const successfulResults = toolResults.filter((r) => r.success);
 
     if (successfulResults.length === 0) {
-      console.log("[Process] All tools failed");
+      console.log("[Process] Tool failed");
       return { needsTools: false, toolsFailed: true };
     }
 

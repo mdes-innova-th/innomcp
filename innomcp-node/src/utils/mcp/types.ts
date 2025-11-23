@@ -76,3 +76,9 @@ export interface ChainExecutionResult {
   success: boolean;
   executionTime?: number;
 }
+
+export interface MessageClassification {
+  type: "greeting" | "general_question" | "action_request" | "unknown";
+  canAnswerDirectly: boolean;
+  confidence: number;
+}
