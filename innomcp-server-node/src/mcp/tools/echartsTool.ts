@@ -7,13 +7,13 @@ export function registerEchartsTool(mcpserver: McpServer) {
     "echartsTool",
     {
       title: "สร้างกราฟด้วย ECharts (ECharts Tool)",
-      description: `หน้าที่: สร้างกราฟในรูปแบบต่างๆ ด้วย ECharts ตามโครงสร้าง option ของ ECharts
-        ใช้เมื่อ: ต้องการสร้างกราฟด้วยข้อมูลที่กำหนด
-ไม่ใช้เมื่อ: ไม่ต้องการสร้างกราฟ หรือใช้เครื่องมือกราฟอื่น
-พารามิเตอร์: { type: string, labels: string[], datasets: { label: string, data: number[] }[] }
-ตัวอย่าง request: { type: 'bar', labels: ['Shirts', 'Cardigans', 'Chiffons', 'Pants', 'Heels', 'Socks'], datasets: [{label:'sales',data:[5, 20, 36, 10, 10, 20]}] }
+      description: `หน้าที่: สร้างกราฟในรูปแบบต่างๆ ด้วย ECharts ตามโครงสร้าง option ของ ECharts โดยรับพารามิเตอร์เป็นประเภทกราฟ, ป้ายกำกับ, และชุดข้อมูล ที่ผู้ใช้กำหนด หรือ JSON string ของข้อมูลที่คุยกันไว้
+        ใช้เมื่อ: ต้องการสร้างกราฟด้วยข้อมูลกำหนด หรือข้อมูลจากแชท
+        ไม่ใช้เมื่อ: ไม่ต้องการสร้างกราฟ หรือใช้เครื่องมือกราฟอื่น
+พารามิเตอร์: { type: string, labels?: string[], datasets?: { label: string, data: number[] }[], dataJson?: string }
+ตัวอย่าง request: { type: 'bar', labels: ['Shirts', 'Cardigans', 'Chiffons', 'Pants', 'Heels', 'Socks'], datasets: [{label:'sales',data:[5, 20, 36, 10, 10, 20]}] } หรือ { type: 'bar', dataJson: '{"labels":["A","B"],"datasets":[{"label":"data","data":[1,2]}]}' }
 ตัวอย่าง response: SVG string ของกราฟ
-ข้อผิดพลาดที่คาดได้: ข้อผิดพลาดในการสร้างกราฟ
+ข้อผิดพลาดที่คาดได้: ข้อผิดพลาดในการสร้างกราฟ หรือ JSON ไม่ถูกต้อง
 หมายเหตุ: ใช้ ECharts สำหรับการสร้างกราฟ ตามวิธีการของ ECharts เช่น title, tooltip, legend, xAxis, yAxis, series
 
         `,
@@ -21,7 +21,7 @@ export function registerEchartsTool(mcpserver: McpServer) {
         type: z
           .string()
           .describe("ประเภทของกราฟ เช่น 'bar', 'line', 'pie', 'area', 'donut'"),
-        labels: z.array(z.string()).describe("ป้ายกำกับสำหรับแกน X"),
+        labels: z.array(z.string()).optional().describe("ป้ายกำกับสำหรับแกน X"),
         datasets: z
           .array(
             z.object({
@@ -29,28 +29,57 @@ export function registerEchartsTool(mcpserver: McpServer) {
               data: z.array(z.number()).describe("ข้อมูลตัวเลขสำหรับชุดข้อมูล"),
             })
           )
+          .optional()
           .describe("ชุดข้อมูลสำหรับกราฟ"),
+        dataJson: z
+          .string()
+          .optional()
+          .describe(
+            "JSON string ของข้อมูลที่คุยกันไว้ เพื่อใช้สร้างกราฟ โดยมีฟอร์แมต {labels: string[], datasets: {label: string, data: number[]}[]}"
+          ),
       }),
       outputSchema: z.object({ chartSvg: z.string() }),
     },
-    async ({ type, labels, datasets }, _extra) => {
+    async ({ type, labels, datasets, dataJson }, _extra) => {
       console.log(
         `[MCP Server] echartsTool request received at ${new Date().toLocaleString()}`
       );
       try {
+        let finalLabels = labels;
+        let finalDatasets = datasets;
+
+        if (dataJson) {
+          try {
+            const parsed = JSON.parse(dataJson);
+            if (parsed.labels) finalLabels = parsed.labels;
+            if (parsed.datasets) finalDatasets = parsed.datasets;
+          } catch (e) {
+            console.error("[MCP Server] echartsTool - Invalid dataJson:", e);
+          }
+        }
+
+        if (!finalLabels || !finalDatasets) {
+          throw new Error("Labels and datasets are required");
+        }
+
+        console.log(
+          "[MCP Server] echartsTool received data at " + new Date().toLocaleString(),
+          { type, finalLabels, finalDatasets }
+        );
+
         let option: any;
         if (type === "pie" || type === "donut") {
           option = {
             title: {
-              text: "ECharts Getting Started Example",
+              text: "ECharts",
             },
             tooltip: {},
             series: [
               {
                 type: "pie",
-                data: labels.map((label, i) => ({
+                data: finalLabels.map((label, i) => ({
                   name: label,
-                  value: datasets[0].data[i],
+                  value: finalDatasets[0].data[i],
                 })),
                 radius: type === "donut" ? ["40%", "70%"] : "50%",
               },
@@ -63,13 +92,13 @@ export function registerEchartsTool(mcpserver: McpServer) {
             },
             tooltip: {},
             legend: {
-              data: datasets.map((d) => d.label),
+              data: finalDatasets.map((d) => d.label),
             },
             xAxis: {
-              data: labels,
+              data: finalLabels,
             },
             yAxis: {},
-            series: datasets.map((d) => ({
+            series: finalDatasets.map((d) => ({
               name: d.label,
               type: type === "area" ? "line" : type,
               data: d.data,
@@ -92,7 +121,7 @@ export function registerEchartsTool(mcpserver: McpServer) {
           structuredContent: { chartSvg: svg },
         };
       } catch (error) {
-        console.error("Error in echartsTool:", error);
+        console.error("[MCP Server] Error in echartsTool:", error);
         throw error;
       }
     }
