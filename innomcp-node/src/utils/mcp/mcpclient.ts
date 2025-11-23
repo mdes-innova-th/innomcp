@@ -15,6 +15,7 @@ import Fuse from "fuse.js";
 import * as natural from "natural";
 import { makeFuse, runSearch } from "./fuseSearch";
 import { ToolChainingEngine } from "./toolChaining";
+import { CATEGORY_KEYWORDS } from "./constants";
 import {
   MCPTool,
   MCPResource,
@@ -97,19 +98,19 @@ class IntelligentMCPClient extends EventEmitter {
         "ฝน",
         "อุณหภูมิ",
       ],
-      toolPattern: /^tmdTool_*/i,
+      toolPattern: /^tmdTool/i,
       priority: "high",
       category: "weather",
     },
     {
       keywords: ["ระบบ webd", "webd", "ผิดกฎหมาย", "คำสั่งศาล", "url", "โดเมน"],
-      toolPattern: /^webdTool_*/i,
+      toolPattern: /^webdTool/i,
       priority: "high",
       category: "webd",
     },
     {
       keywords: ["กราฟ", "chart", "graph", "echarts", "visualize"],
-      toolPattern: /^echartsTool*/i,
+      toolPattern: /^echartsTool/i,
       priority: "high",
       category: "visualization",
     },
@@ -293,42 +294,177 @@ class IntelligentMCPClient extends EventEmitter {
     const categories: { category: string; keywords: string[] }[] = [
       {
         category: "database",
-        keywords: ["database", "sql", "query", "ฐานข้อมูล", "คิวรี", "ข้อมูล", "ดึงข้อมูล", "บันทึกข้อมูล", "อัปเดตข้อมูล"],
+        keywords: [
+          "database",
+          "sql",
+          "query",
+          "ฐานข้อมูล",
+          "คิวรี",
+          "ข้อมูล",
+          "ดึงข้อมูล",
+          "บันทึกข้อมูล",
+          "อัปเดตข้อมูล",
+        ],
       },
-      { category: "file", keywords: ["file", "read", "write", "ไฟล์", "อ่านไฟล์", "เขียนไฟล์", "จัดการไฟล์", "เปิดไฟล์", "บันทึกไฟล์"] },
-      { category: "api", keywords: ["api", "http", "request", "เรียก api", "ส่งคำขอ", "รับข้อมูล", "เชื่อมต่อ", "เว็บเซอร์วิส"] },
+      {
+        category: "file",
+        keywords: [
+          "file",
+          "read",
+          "write",
+          "ไฟล์",
+          "อ่านไฟล์",
+          "เขียนไฟล์",
+          "จัดการไฟล์",
+          "เปิดไฟล์",
+          "บันทึกไฟล์",
+        ],
+      },
+      {
+        category: "api",
+        keywords: [
+          "api",
+          "http",
+          "request",
+          "เรียก api",
+          "ส่งคำขอ",
+          "รับข้อมูล",
+          "เชื่อมต่อ",
+          "เว็บเซอร์วิส",
+        ],
+      },
       {
         category: "computation",
-        keywords: ["math", "calculate", "compute", "คำนวณ", "คณิตศาสตร์", "หาค่า", "บวก", "ลบ", "คูณ", "หาร"],
+        keywords: [
+          "math",
+          "calculate",
+          "compute",
+          "คำนวณ",
+          "คณิตศาสตร์",
+          "หาค่า",
+          "บวก",
+          "ลบ",
+          "คูณ",
+          "หาร",
+        ],
       },
       {
         category: "datetime",
-        keywords: ["time", "date", "datetime", "เวลา", "วันที่", "วันเวลา", "วันที่ปัจจุบัน", "เวลาตอนนี้", "วันนี้", "พรุ่งนี้", "เมื่อวาน"],
+        keywords: [
+          "time",
+          "date",
+          "datetime",
+          "เวลา",
+          "วันที่",
+          "วันเวลา",
+          "วันที่ปัจจุบัน",
+          "เวลาตอนนี้",
+          "วันนี้",
+          "พรุ่งนี้",
+          "เมื่อวาน",
+        ],
       },
       {
         category: "statistics",
-        keywords: ["stats", "count", "statistics", "สถิติ", "นับจำนวน", "วิเคราะห์ข้อมูล", "เฉลี่ย", "รวม", "เปอร์เซ็นต์"],
+        keywords: [
+          "stats",
+          "count",
+          "statistics",
+          "สถิติ",
+          "ข้อมูลชิงสถิติ",
+          "นับจำนวน",
+          "จำนวน",
+          "จำนวนรายการ",
+          "วิเคราะห์ข้อมูล",
+          "เฉลี่ย",
+          "รวม",
+          "เปอร์เซ็นต์",
+        ],
       },
       {
         category: "webd",
-        keywords: ["webd", "violation", "ผิดกฎหมาย", "url", "โดเมน", "เว็บผิดกฎหมาย", "ตรวจสอบโดเมน", "บล็อกเว็บ", "เว็บไซต์ผิด"],
+        keywords: [
+          "webd",
+          "violation",
+          "ผิดกฎหมาย",
+          "url",
+          "โดเมน",
+          "เว็บผิดกฎหมาย",
+          "ตรวจสอบโดเมน",
+          "บล็อกเว็บ",
+          "เว็บไซต์ผิด",
+        ],
       },
       {
         category: "weather",
-        keywords: ["tmd", "weather", "ฝน", "พยากรณ์", "อากาศ", "สภาพอากาศ", "พยากรณ์อากาศ", "ฝนตก", "อุณหภูมิ", "ลม"],
+        keywords: [
+          "tmd",
+          "weather",
+          "ฝน",
+          "พยากรณ์",
+          "อากาศ",
+          "สภาพอากาศ",
+          "พยากรณ์อากาศ",
+          "ฝนตก",
+          "อุณหภูมิ",
+          "ลม",
+          "ลมแรง",
+          "ร้อน",
+          "หนาว",
+          "พายุ",
+          "พายุฝน",
+          "พายุฝนฟ้าคะนอง",
+          "province",
+          "today",
+        ],
       },
       {
         category: "visualization",
-        keywords: ["chart", "graph", "visualize", "กราฟ", "แสดงกราฟ", "สร้างแผนภูมิ", "วิเคราะห์ภาพ", "แผนภูมิแท่ง", "แผนภูมิวงกลม", "แผนภูมิเส้น"],
+        keywords: [
+          "chart",
+          "graph",
+          "visualize",
+          "กราฟ",
+          "แสดงกราฟ",
+          "สร้างแผนภูมิ",
+          "วิเคราะห์ภาพ",
+          "แผนภูมิแท่ง",
+          "แผนภูมิวงกลม",
+          "แผนภูมิเส้น",
+        ],
+      },
+      {
+        category: "news",
+        keywords: [
+          "news",
+          "breaking",
+          "ข่าวสาร",
+          "ข้อมูลข่าว",
+          "ข่าว",
+          "ข่าวใหม่",
+          "ข่าวล่าสุด",
+          "ข่าวสายด่วน",
+          "breaking news",
+        ],
       },
     ];
 
     for (const c of categories) {
       if (c.keywords.some((k) => text.includes(k))) {
+        console.log(
+          `[MCP Client] Categorized "${name}" as "${
+            c.category
+          }" (description excerpt: "${
+            description?.substring(0, 50) || "none"
+          }")`
+        );
         return c.category;
       }
     }
 
+    console.log(
+      `[MCP Client] Tool "${name}" categorized as "general" (no matching category)`
+    );
     return "general";
   }
 
@@ -452,6 +588,12 @@ class IntelligentMCPClient extends EventEmitter {
 
   /**
    * Classify ประเภทของข้อความและตรวจสอบว่าตอบได้ทันทีหรือไม่
+   *
+   * ข้อมูลที่ต้องใช้ tools:
+   * - ข้อมูลชิงสถิติ (statistics)
+   * - จำนวนรายการ (count/number)
+   * - สภาพอากาศ/พยากรณ์อากาศ (weather/forecast)
+   * - ข่าวสาร (news)
    */
   private async classifyMessageType(
     userMessage: string
@@ -459,21 +601,43 @@ class IntelligentMCPClient extends EventEmitter {
     try {
       console.log(`[Classify] Classifying message: "${userMessage}"`);
 
+      // ตรวจสอบแบบ local ก่อน
+      const quickCheck = this.quickClassifyMessage(userMessage);
+      if (quickCheck) {
+        console.log(
+          `[Classify] Quick classified as: ${quickCheck.type}, canAnswerDirectly: ${quickCheck.canAnswerDirectly}`
+        );
+        return quickCheck;
+      }
+
       const prompt = `วิเคราะห์ประเภทของข้อความต่อไปนี้ และตอบเป็น JSON เท่านั้น
 
 ข้อความ: "${userMessage}"
 
 ประเภทที่เป็นไปได้:
 - greeting: การทักทาย เช่น สวัสดี, หวัดดี, hello
-- general_question: คำถามทั่วไปที่ตอบได้ทันที เช่น ถามเรื่องเวลา, สภาพอากาศทั่วไป, คำถามเกี่ยวกับระบบ
-- action_request: คำขอให้ดำเนินการ เช่น สร้างกราฟ, ค้นหาข้อมูล, ดึงข้อมูล, ประมวลผล
+- general_question: คำถามทั่วไปที่ตอบได้ทันที เช่น "คุณคือใคร", "ทำไมท้องฟ้าเป็นสีฟ้า"
+- action_request: คำขอที่ต้องใช้ tools เช่น:
+  * "ข้อมูลชิงสถิติ..." (statistics queries)
+  * "จำนวนรายการ..." (count queries)
+  * "สภาพอากาศ", "พยากรณ์อากาศ" (weather forecasts)
+  * "ข่าวสาร", "ข้อมูลข่าว" (news)
+  * "สร้างกราฟ", "ค้นหาข้อมูล", "ดึงข้อมูล", "ประมวลผล"
 - unknown: ไม่ทราบประเภท
 
 กฎ:
 1. ตอบเป็น JSON object ที่มีฟิลด์: type, canAnswerDirectly, confidence
-2. canAnswerDirectly: true ถ้าประเภท greeting หรือ general_question, false ถ้าประเภท action_request
-3. confidence: ความมั่นใจ 0-1 (เช่น 0.9 สำหรับแน่ใจมาก)
-4. ห้ามมีข้อความอื่นนอก JSON
+2. canAnswerDirectly: true ถ้าประเภท greeting หรือ general_question ที่ไม่ต้องเรียก tools
+3. canAnswerDirectly: false ถ้าต้องเรียก tools (action_request)
+4. confidence: ความมั่นใจ 0-1 (เช่น 0.9 สำหรับแน่ใจมาก)
+5. ห้ามมีข้อความอื่นนอก JSON
+
+ตัวอย่าง:
+- "วันนี้สภาพอากาศเป็นอย่างไร" → action_request (ต้อง tools)
+- "จำนวนเว็บไซต์ผิดกฎหมายในระบบ webd" → action_request (ต้อง tools)
+- "ข้อมูลชิงสถิติการกระทำผิด" → action_request (ต้อง tools)
+- "สวัสดี" → greeting (ตอบได้ทันที)
+- "ทำไมท้องฟ้าเป็นสีฟ้า" → general_question (ตอบได้ทันที)
 
 JSON:`;
 
@@ -521,6 +685,59 @@ JSON:`;
         confidence: 0.1,
       };
     }
+  }
+
+  /**
+   * ตรวจสอบแบบ local ก่อนเรียก AI
+   * เพื่อให้ตรวจจับ queries ที่ต้องใช้ tools ได้เร็ว
+   */
+  private quickClassifyMessage(
+    userMessage: string
+  ): MessageClassification | null {
+    const msg = userMessage.toLowerCase();
+
+    // Greeting patterns
+    const greetingPatterns = [
+      /^(สวัสดี|สวัสดีค่ะ|สวัสดีครับ|หวัดดี|ทักทาย|hello|hi|hey)/i,
+    ];
+    if (greetingPatterns.some((p) => p.test(msg))) {
+      return {
+        type: "greeting",
+        canAnswerDirectly: true,
+        confidence: 0.95,
+      };
+    }
+
+    // Action request patterns - ต้องใช้ tools
+    const actionPatterns = [
+      // Statistics/สถิติ
+      /ข้อมูลชิงสถิติ|สถิติ.*(?:จำนวน|นับ|รวม|เปอร์เซ็นต์)/i,
+      /จำนวน(?:รายการ|เว็บ|ข้อมูล|การกระทำ|ผู้ใช้)/i,
+      /นับ.*(?:จำนวน|ทั้งหมด)/i,
+
+      // Weather/สภาพอากาศ
+      /สภาพอากาศ|พยากรณ์อากาศ|weather|forecast/i,
+      /อากาศ.*(?:วันนี้|พรุ่งนี้|เมื่อวาน|จังหวัด)/i,
+      /ฝน|ลมแรง|ร้อน|หนาว|อุณหภูมิ/i,
+
+      // News/ข่าวสาร
+      /ข่าวสาร|ข้อมูลข่าว|ข่าว.*(?:สาย|ใหม่|ล่าสุด)/i,
+      /news|breaking/i,
+
+      // Data queries
+      /ดึงข้อมูล|ค้นหาข้อมูล|สร้างกราฟ|ประมวลผล/i,
+      /webd.*(?:จำนวน|สถิติ|ข้อมูล)/i,
+    ];
+
+    if (actionPatterns.some((p) => p.test(msg))) {
+      return {
+        type: "action_request",
+        canAnswerDirectly: false,
+        confidence: 0.9,
+      };
+    }
+
+    return null;
   }
 
   /**
@@ -1575,13 +1792,28 @@ JSON:`;
 
     console.log(`[MCP Client] ===== Tool Selection Start =====`);
     console.log(`[MCP Client] Query: "${userMessage}"`);
+    console.log(
+      `[MCP Client] Available tools: ${this.tools.size}, resources: ${this.resources.size}`
+    );
 
     let candidates: string[] = [];
 
-    // Pattern matching
-    candidates = await this.tryPatternMatching(userMessage);
+    // Direct keyword check (fast path for common queries)
+    candidates = this.directKeywordCheck(userMessage);
     if (candidates.length > 0) {
-      console.log(`[MCP Client] ✅ Pattern matching: ${candidates.join(", ")}`);
+      console.log(
+        `[MCP Client] ✅ Direct keyword match: ${candidates.join(", ")}`
+      );
+    }
+
+    // Pattern matching
+    if (candidates.length === 0) {
+      candidates = await this.tryPatternMatching(userMessage);
+      if (candidates.length > 0) {
+        console.log(
+          `[MCP Client] ✅ Pattern matching: ${candidates.join(", ")}`
+        );
+      }
     }
 
     // Keyword matching
@@ -1615,6 +1847,60 @@ JSON:`;
     return finalSelection;
   }
 
+  /**
+   * Direct keyword matching against category keywords
+   * This is a fast path to catch common queries before fuzzy matching
+   */
+  private directKeywordCheck(userMessage: string): string[] {
+    const msgLower = userMessage.toLowerCase();
+    const candidates = new Map<string, number>();
+    const matchedCategories = new Set<string>();
+
+    // Check each category's keywords
+    for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
+      for (const keyword of keywords) {
+        if (msgLower.includes(keyword.toLowerCase())) {
+          matchedCategories.add(category);
+          console.log(
+            `[MCP Client] Direct keyword match: category="${category}", keyword="${keyword}"`
+          );
+          // Find matching tools/resources for this category
+          for (const [toolName, tool] of this.tools.entries()) {
+            if (tool.category === category) {
+              candidates.set(toolName, (candidates.get(toolName) || 0) + 1);
+              console.log(
+                `[MCP Client] Added tool candidate: ${toolName} (category: ${category})`
+              );
+            }
+          }
+          for (const [resourceName, resource] of this.resources.entries()) {
+            if (resource.name.toLowerCase().includes(category)) {
+              candidates.set(
+                resourceName,
+                (candidates.get(resourceName) || 0) + 1
+              );
+            }
+          }
+          break; // Found a match for this category, move to next category
+        }
+      }
+    }
+
+    if (matchedCategories.size > 0) {
+      console.log(
+        `[MCP Client] Matched categories: ${Array.from(matchedCategories).join(
+          ", "
+        )}`
+      );
+    }
+
+    // Return sorted candidates by match count
+    return Array.from(candidates.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([name]) => name)
+      .slice(0, 3);
+  }
+
   private async tryPatternMatching(userMessage: string): Promise<string[]> {
     if (this.isGreetingQuery(userMessage)) {
       const greetingResources = Array.from(this.resources.keys()).filter((k) =>
@@ -1623,38 +1909,88 @@ JSON:`;
       if (greetingResources.length > 0) return [greetingResources[0]];
     }
 
-    const patternData = this.toolPatterns.map((p) => ({
-      category: p.category,
-      keywords: p.keywords.join(" "),
-      pattern: p,
-    }));
-
-    const patternFuse = makeFuse(patternData as any, {
-      keys: ["keywords", "category"],
-      threshold: 0.35,
-    });
-
-    const results = runSearch(patternFuse, userMessage.toLowerCase()) as any[];
+    const msgLower = userMessage.toLowerCase();
     const toolScores = new Map<string, number>();
 
-    for (const pr of results) {
-      const origPattern: ToolPattern = pr.item.pattern;
-      const priorityScore = origPattern.priority === "high" ? 15 : 8;
+    // Direct pattern matching for high-priority patterns
+    for (const pattern of this.toolPatterns) {
+      if (pattern.priority === "high") {
+        const keywordMatches = pattern.keywords.filter((k) =>
+          msgLower.includes(k.toLowerCase())
+        );
 
-      const matchedTools = Array.from(this.tools.keys()).filter((k) =>
-        origPattern.toolPattern.test(k)
-      );
-      const matchedResources = Array.from(this.resources.keys()).filter((k) =>
-        origPattern.toolPattern.test(k)
-      );
+        if (keywordMatches.length > 0) {
+          console.log(
+            `[MCP Client] Direct pattern match for "${
+              pattern.category
+            }": keywords=${keywordMatches.join(", ")}`
+          );
 
-      const allMatches = [...matchedTools, ...matchedResources];
-      const score = (1 - (pr.score ?? 0)) * 100 * (priorityScore / 10);
+          const matchedTools = Array.from(this.tools.keys()).filter((k) =>
+            pattern.toolPattern.test(k)
+          );
+          const matchedResources = Array.from(this.resources.keys()).filter(
+            (k) => pattern.toolPattern.test(k)
+          );
 
-      allMatches.forEach((tool) => {
-        const current = toolScores.get(tool) || 0;
-        toolScores.set(tool, current + score);
+          const allMatches = [...matchedTools, ...matchedResources];
+          const score = keywordMatches.length * 50; // Higher score for direct matches
+
+          console.log(
+            `[MCP Client] High-priority pattern "${pattern.category}" matched ${allMatches.length} tools (score: ${score})`
+          );
+
+          allMatches.forEach((tool) => {
+            const current = toolScores.get(tool) || 0;
+            toolScores.set(tool, current + score);
+          });
+        }
+      }
+    }
+
+    // Fuzzy pattern matching as fallback
+    if (toolScores.size === 0) {
+      const patternData = this.toolPatterns.map((p) => ({
+        category: p.category,
+        keywords: p.keywords.join(" "),
+        pattern: p,
+      }));
+
+      const patternFuse = makeFuse(patternData as any, {
+        keys: ["keywords", "category"],
+        threshold: 0.35,
       });
+
+      const results = runSearch(patternFuse, msgLower) as any[];
+      console.log(
+        `[MCP Client] Pattern matching found ${results.length} pattern matches`
+      );
+
+      for (const pr of results) {
+        const origPattern: ToolPattern = pr.item.pattern;
+        const priorityScore = origPattern.priority === "high" ? 15 : 8;
+
+        const matchedTools = Array.from(this.tools.keys()).filter((k) =>
+          origPattern.toolPattern.test(k)
+        );
+        const matchedResources = Array.from(this.resources.keys()).filter((k) =>
+          origPattern.toolPattern.test(k)
+        );
+
+        const allMatches = [...matchedTools, ...matchedResources];
+        const score = (1 - (pr.score ?? 0)) * 100 * (priorityScore / 10);
+
+        console.log(
+          `[MCP Client] Pattern "${origPattern.category}" matched ${
+            allMatches.length
+          } tools (score: ${score.toFixed(2)})`
+        );
+
+        allMatches.forEach((tool) => {
+          const current = toolScores.get(tool) || 0;
+          toolScores.set(tool, current + score);
+        });
+      }
     }
 
     const candidates = Array.from(toolScores.entries())
@@ -1662,6 +1998,9 @@ JSON:`;
       .filter(([_, score]) => score >= 10)
       .map(([tool]) => tool);
 
+    console.log(
+      `[MCP Client] Pattern matching candidates: ${candidates.join(", ")}`
+    );
     return await this.deduplicateAndRankTools(candidates, userMessage);
   }
 
@@ -1670,6 +2009,11 @@ JSON:`;
     const englishTokens =
       this.tokenizer.tokenize(userMessage.toLowerCase()) || [];
     const allTokens = [...new Set([...thaiTokens, ...englishTokens])];
+
+    console.log(
+      `[MCP Client] Keyword matching tokens (Thai: ${thaiTokens.length}, English: ${englishTokens.length}):`,
+      allTokens.slice(0, 10)
+    );
 
     const toolData = Array.from(this.tools.entries()).map(
       ([toolName, tool]) => ({
@@ -1689,9 +2033,13 @@ JSON:`;
     );
 
     const combined = [...toolData, ...resourceData];
+    console.log(
+      `[MCP Client] Searching across ${combined.length} tools/resources`
+    );
+
     const dataFuse = makeFuse(combined as any, {
       keys: ["searchText"],
-      threshold: 0.6,
+      threshold: 0.4,
       ignoreLocation: true,
     });
 
@@ -1699,6 +2047,9 @@ JSON:`;
     for (const token of allTokens) {
       if (token.length < 2) continue;
       const results = runSearch(dataFuse, token) as any[];
+      console.log(
+        `[MCP Client] Token "${token}" matched ${results.length} items`
+      );
       tokenResults.push(...results);
     }
 
@@ -1718,6 +2069,9 @@ JSON:`;
       .sort((a, b) => b.score - a.score)
       .map((m) => m.id);
 
+    console.log(
+      `[MCP Client] Keyword matching found ${matches.length} candidates`
+    );
     return await this.deduplicateAndRankTools(matches, userMessage);
   }
 

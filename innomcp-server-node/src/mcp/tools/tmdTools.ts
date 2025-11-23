@@ -7,7 +7,7 @@ const TMD_API_URL =
 
 export function registerTmdTool(mcpserver: McpServer) {
   mcpserver.registerTool(
-    "tmdTool_wheather_province_today_xml",
+    "tmdTool_weather_province_today_xml",
     {
       title: "ดึงข้อมูลสภาพอากาศวันนี้รายจังหวัดจากกรมอุตุนิยมวิทยา",
       description: `
