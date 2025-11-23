@@ -54,7 +54,7 @@ function sendJsonRpcError(
 import { registerDateTimeTool } from "./mcp/tools/dateTimeTool";
 import { registerTmdTool as registerTmdTool } from "./mcp/tools/tmdTools";
 import { registerWebdTools } from "./mcp/tools/webdTools";
-import { registerQuickChartTool } from "./mcp/tools/quickChartTool";
+import { registerEchartsTool } from "./mcp/tools/echartsTool";
 
 // Create MCP server instance and register tools
 const mcpserver = new McpServer({
@@ -66,7 +66,7 @@ const mcpserver = new McpServer({
 registerDateTimeTool(mcpserver);
 registerTmdTool(mcpserver);
 registerWebdTools(mcpserver);
-registerQuickChartTool(mcpserver);
+registerEchartsTool(mcpserver);
 
 // Handle incoming MCP requests /////////////////////////////
 app.post("/mcp", async (req, res) => {

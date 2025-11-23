@@ -121,7 +121,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           <div className="flex gap-2">
             <button
               onClick={handleNewChat}
-              className="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200 rounded-full px-4 py-2 w-12 h-10 font-semibold shadow flex items-center gap-2 hover:bg-green-200 dark:hover:bg-green-800 transition-colors cursor-pointer"
+              className="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200 rounded-full p-2 w- h-8 font-semibold shadow flex items-center gap-2 hover:bg-green-200 dark:hover:bg-green-800 transition-colors cursor-pointer"
               title="เริ่มการแชทใหม่"
             >
               <FontAwesomeIcon icon={faRefresh} />
@@ -129,7 +129,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <button
               onClick={() => fileInputRef.current?.click()}
               title="แนบไฟล์"
-              className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-full px-4 py-2 w-12 h-10 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors cursor-pointer"
+              className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-full p-2 w- h-8 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors cursor-pointer"
             >
               <FontAwesomeIcon icon={faPaperclip} />
             </button>
