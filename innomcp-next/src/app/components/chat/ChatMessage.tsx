@@ -198,7 +198,7 @@ export function MessageView({
     <div
       className={`relative group p-2 rounded-lg ${
         message.sender === "user"
-          ? "max-w-full self-end ml-auto pr-5 bg-blue-500 text-white text-right rounded-br-none"
+          ? "max-w-full self-end ml-auto pr-5 bg-blue-500 text-white rounded-br-none"
           : "max-w-full self-start pr-5 mb-5 text-left"
       } ${className || ""}`}
       onClick={() => {
