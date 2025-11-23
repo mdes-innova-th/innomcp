@@ -9,6 +9,7 @@ import { useTheme } from "@/app/context/ThemeContext";
 type Props = {
   html: string;
   className?: string;
+  structuredContent?: any;
 };
 
 const schema = {
@@ -19,10 +20,21 @@ const schema = {
   },
 };
 
-export default function ChatMessage({ html, className }: Props) {
+export default function ChatMessage({
+  html,
+  className,
+  structuredContent,
+}: Props) {
   return (
     <div className={className ?? ""}>
       <div className="prose prose-sm wrap-break-word dark:prose-invert">
+        {/* Display SVG chart if available */}
+        {structuredContent?.chartSvg && (
+          <div
+            className="mb-4 flex justify-center"
+            dangerouslySetInnerHTML={{ __html: structuredContent.chartSvg }}
+          />
+        )}
         {/*
             Render markdown to React elements. We enable remark-gfm for GitHub Flavored Markdown.
             IMPORTANT: We DO NOT enable `rehype-raw` (do not parse raw HTML inside markdown)
@@ -119,6 +131,7 @@ export type Message = {
   text: string;
   fullText?: string;
   isAnimating?: boolean;
+  structuredContent?: any;
 };
 
 type EnhancedProps = {
@@ -279,7 +292,10 @@ export function MessageView({
       ) : (
         <div className="whitespace-pre-wrap wrap-break-word">
           {message.sender === "ai" ? (
-            <ChatMessage html={message.fullText || message.text} />
+            <ChatMessage
+              html={message.fullText || message.text}
+              structuredContent={message.structuredContent}
+            />
           ) : (
             message.text
           )}

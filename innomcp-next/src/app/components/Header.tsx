@@ -18,6 +18,7 @@ import {
 } from "@/app/components/common/ui/button-styles";
 
 import { fetchWithCSRF } from "@/utils/csrf";
+import styles from "./Header.module.css";
 
 export default function Header() {
   const { theme, toggleTheme } = useTheme();
@@ -79,7 +80,7 @@ export default function Header() {
     <>
       <header
         className={`fixed top-0 w-full text-gray-700 dark:text-gray-200 z-50 ${
-          theme === "dark" ? "bg-gray-950/90" : "bg-indigo-100"
+          theme === "dark" ? "bg-gray-950/90" : "bg-indigo-900"
         } shadow-md`}
       >
         <div className="w-full flex justify-between items-center p-1 ms-5 sm:px-1 app-name-section">
@@ -157,10 +158,9 @@ export default function Header() {
             <>
               <div className="items-center gap-2 inline-flex">
                 <span
-                  className="text-lg font-semibold mr-2"
-                  style={{
-                    color: theme === "dark" ? "#ffffff" : "#374151",
-                  }}
+                  className={`text-lg font-semibold mr-2 ${
+                    theme === "dark" ? "text-white" : "text-gray-700"
+                  }`}
                   title={userDispName || undefined}
                 >
                   สวัสดี {userDispName}
@@ -169,19 +169,10 @@ export default function Header() {
                 <div className="flex items-center gap-2">
                   <Link
                     href="/"
-                    className="rounded-0 mb-2 flex items-center justify-center cursor-pointer transition-colors"
-                    style={{
-                      color: theme === "dark" ? "#ffffff" : "#374151",
-                    }}
+                    className={`rounded-0 mb-2 flex items-center justify-center cursor-pointer transition-colors ${
+                      theme === "dark" ? "text-white hover:text-blue-400" : "text-gray-700 hover:text-blue-500"
+                    }`}
                     aria-label="หน้าแรก"
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color =
-                        theme === "dark" ? "#60a5fa" : "#3b82f6";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color =
-                        theme === "dark" ? "#ffffff" : "#374151";
-                    }}
                   >
                     <FaHome size={23} />
                   </Link>

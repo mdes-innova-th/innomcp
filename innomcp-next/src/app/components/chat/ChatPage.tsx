@@ -444,6 +444,11 @@ const ChatPage: React.FC = () => {
   };
 
   const handleNewChat = () => {
+    // Stop any ongoing request (same as handleStop)
+    setIsWaitingForResponse(false);
+    setIsStopped(true);
+    isStoppedRef.current = true;
+    
     // If there is an active conversation, save a compact summary before clearing
     if (messages && messages.length > 0) {
       const makeTitle = (msgs: ChatMessage[]) => {

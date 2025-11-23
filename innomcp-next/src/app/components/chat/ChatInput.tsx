@@ -90,7 +90,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           }
         />
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col pt-4 pb-0">
         <textarea
           ref={textareaRef}
           value={input}
@@ -120,7 +120,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </button>
           </div>
         )}
-        <div className="flex gap-4 mt-2 justify-between">
+        <div className="flex gap-4 pt-8 pb-0 justify-between">
           <div className="flex gap-2">
             <button
               onClick={handleNewChat}

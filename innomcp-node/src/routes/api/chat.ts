@@ -2,7 +2,7 @@ import { Router } from "express";
 import { WebSocketServer } from "ws";
 import dotenv from "dotenv";
 import { Ollama } from "ollama";
-import { InitMcpClient, IntelligentMCPClient } from "../../utils/mcpclient";
+import { InitMcpClient, IntelligentMCPClient } from "../../utils/mcp/mcpclient";
 
 dotenv.config();
 
