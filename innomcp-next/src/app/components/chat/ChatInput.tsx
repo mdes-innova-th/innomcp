@@ -7,6 +7,7 @@ import {
   faArrowUp,
   faPaperclip,
   faRefresh,
+  faStop,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface ChatInputProps {
@@ -20,6 +21,7 @@ interface ChatInputProps {
   handleFileUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
   handleRemoveImage: () => void;
   sendMessage: () => void;
+  handleStop: () => void;
   isSocketReady: boolean;
   isWaitingForResponse: boolean;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
@@ -39,6 +41,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   handleFileUpload,
   handleRemoveImage,
   sendMessage,
+  handleStop,
   isSocketReady,
   isWaitingForResponse,
   textareaRef,
@@ -135,15 +138,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </button>
           </div>
           <button
-            onClick={sendMessage}
-            disabled={!isSocketReady || isWaitingForResponse}
+            onClick={isWaitingForResponse ? handleStop : sendMessage}
+            disabled={!isSocketReady}
             className={`bg-linear-to-r from-indigo-500 to-blue-400 text-white rounded-lg px-6 py-2 font-semibold shadow transition-colors cursor-pointer ${
-              !isSocketReady || isWaitingForResponse
+              !isSocketReady
                 ? "opacity-50 cursor-not-allowed"
                 : "hover:from-blue-400 hover:to-indigo-500"
             }`}
           >
-            {isSocketReady ? (
+            {isWaitingForResponse ? (
+              <FontAwesomeIcon icon={faStop} className="font-bold" />
+            ) : isSocketReady ? (
               <FontAwesomeIcon icon={faArrowUp} className="font-bold" />
             ) : (
               <span className="font-bold">

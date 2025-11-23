@@ -38,6 +38,8 @@ const ChatPage: React.FC = () => {
   const [input, setInput] = useState("");
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [isSocketReady, setIsSocketReady] = useState(false);
+  const [isStopped, setIsStopped] = useState(false);
+  const isStoppedRef = useRef(false);
 
   const hasMessages = messages.length > 0;
 
@@ -175,6 +177,7 @@ const ChatPage: React.FC = () => {
       };
 
       ws.onmessage = async (event) => {
+        if (isStoppedRef.current) return;
         try {
           console.log("Received WebSocket message:", event.data);
 
@@ -386,6 +389,8 @@ const ChatPage: React.FC = () => {
       socket.send(JSON.stringify(message));
       setMessages([...messages, { sender: "user", text: input }]);
       setInput("");
+      setIsStopped(false);
+      isStoppedRef.current = false;
       setIsWaitingForResponse(true); // Prevent sending new messages until a response is received
     } else if (socket && !isSocketReady) {
       console.error(
@@ -479,6 +484,22 @@ const ChatPage: React.FC = () => {
       "chatMessages",
       JSON.stringify(summary.messages || [])
     );
+  };
+
+  const handleStop = () => {
+    setIsWaitingForResponse(false);
+    setIsStopped(true);
+    isStoppedRef.current = true;
+    setMessages((prev) => {
+      if (
+        prev.length > 0 &&
+        prev[prev.length - 1].sender === "ai" &&
+        prev[prev.length - 1].isAnimating
+      ) {
+        return prev.slice(0, -1);
+      }
+      return prev;
+    });
   };
 
   const adjustTextarea = () => {
@@ -587,6 +608,7 @@ const ChatPage: React.FC = () => {
             handleFileUpload={handleFileUpload}
             handleRemoveImage={handleRemoveImage}
             sendMessage={sendMessage}
+            handleStop={handleStop}
             isSocketReady={isSocketReady}
             isWaitingForResponse={isWaitingForResponse}
             textareaRef={textareaRef}
