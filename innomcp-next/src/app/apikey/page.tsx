@@ -355,7 +355,7 @@ export default function ApiKeyManagement() {
     return (
       <div className="flex flex-col min-h-screen bg-gray-300 dark:bg-gray-500">
         <Header />
-        <div className="flex-grow flex items-center justify-center p-4">
+        <div className="grow flex items-center justify-center p-4">
           <div className="bg-red-600 text-white p-6 rounded-lg shadow-lg w-full max-w-md">
             <h1 className="text-xl md:text-2xl font-bold mb-4">
               ไม่มีสิทธิ์เข้าถึง
@@ -860,7 +860,7 @@ export default function ApiKeyManagement() {
             </div>
             {formError && (
               <div className="mb-4 p-3 bg-red-100 text-red-800 rounded-lg flex items-center text-base font-medium border border-red-300">
-                <FaExclamationTriangle className="mr-2 flex-shrink-0" />
+                <FaExclamationTriangle className="mr-2 shrink-0" />
                 {formError}
               </div>
             )}
@@ -993,7 +993,7 @@ export default function ApiKeyManagement() {
             </div>
             {formError && (
               <div className="mb-4 p-3 bg-red-100 text-red-800 rounded-lg flex items-center text-base font-medium border border-red-300">
-                <FaExclamationTriangle className="mr-2 flex-shrink-0" />
+                <FaExclamationTriangle className="mr-2 shrink-0" />
                 {formError}
               </div>
             )}
@@ -1142,7 +1142,7 @@ export default function ApiKeyManagement() {
                 )}
               </button>
               <p className="text-red-500 mt-4 flex items-start text-xs sm:text-sm">
-                <FaExclamationTriangle className="mr-1 mt-0.5 flex-shrink-0" />
+                <FaExclamationTriangle className="mr-1 mt-0.5 shrink-0" />
                 กรุณาจดบันทึก API Key นี้เนื่องจากคุณจะไม่สามารถเปิดดูได้อีก
               </p>
             </div>

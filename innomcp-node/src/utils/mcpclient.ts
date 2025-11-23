@@ -775,7 +775,7 @@ JSON:`;
       if (tool.name === "echartsTool") {
         const extractedData = this.extractChartDataFromHistory();
         if (extractedData) {
-          chatDataSuggestion = `\n\n⚠️ สำคัญ: มีข้อมูลจากแชทเก่า (${extractedData}) → ต้องส่งด้วย chatText parameter ในรูปแบบ: "${extractedData}"`;
+          chatDataSuggestion = `\n\nสำคัญ: มีข้อมูลจากแชทเก่า (${extractedData}) → ต้องส่งด้วย chatText parameter ในรูปแบบ: "${extractedData}"`;
         }
       }
 
@@ -926,7 +926,10 @@ JSON:`;
     chainPlan?: ToolChainPlan;
   }> {
     console.log("===== Starting processMessage =====");
-    console.log("[Process] Conversation history size:", this.conversationHistory.length);
+    console.log(
+      "[Process] Conversation history size:",
+      this.conversationHistory.length
+    );
 
     // เลือก tools
     const selectedTools = await this.selectTools(userMessage);
