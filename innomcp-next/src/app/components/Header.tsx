@@ -78,11 +78,11 @@ export default function Header() {
   return (
     <>
       <header
-        className={`fixed w-full flex flex-col text-gray-700 dark:text-gray-200 z-50 ${
+        className={`fixed inset-x-0 top-0 flex flex-col text-gray-700 dark:text-gray-200 z-50 ${
           theme === "dark" ? "bg-gray-950/90" : "bg-indigo-900"
         } shadow-md`}
       >
-        <div className="w-full flex justify-between items-center p-1 ms-5 sm:px-1 app-name-section">
+        <div className="w-full flex justify-between items-center px-5 py-1 app-name-section">
           <div className="w-full h-full m-1 flex items-center justify-center">
             <div className="flex items-center justify-center">
               <div className="hidden sm:flex items-start">
@@ -169,7 +169,9 @@ export default function Header() {
                   <Link
                     href="/"
                     className={`rounded-0 mb-2 flex items-center justify-center cursor-pointer transition-colors ${
-                      theme === "dark" ? "text-white hover:text-blue-400" : "text-gray-700 hover:text-blue-500"
+                      theme === "dark"
+                        ? "text-white hover:text-blue-400"
+                        : "text-gray-700 hover:text-blue-500"
                     }`}
                     aria-label="หน้าแรก"
                   >

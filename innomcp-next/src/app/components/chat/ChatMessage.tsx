@@ -25,15 +25,99 @@ export default function ChatMessage({
   className,
   structuredContent,
 }: Props) {
+  const [copiedChart, setCopiedChart] = React.useState(false);
+  const { theme } = useTheme();
+
+  const handleCopyChartCode = async () => {
+    try {
+      if (structuredContent?.chartSvg) {
+        await navigator.clipboard.writeText(structuredContent.chartSvg);
+        setCopiedChart(true);
+        setTimeout(() => setCopiedChart(false), 1500);
+      }
+    } catch (err) {
+      console.error("Failed to copy chart code:", err);
+    }
+  };
+
+  const handleDownloadChart = () => {
+    if (structuredContent?.chartSvg) {
+      const element = document.createElement("a");
+      const file = new Blob([structuredContent.chartSvg], {
+        type: "image/svg+xml",
+      });
+      element.href = URL.createObjectURL(file);
+      element.download = `chart-${Date.now()}.svg`;
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+      URL.revokeObjectURL(element.href);
+    }
+  };
+
   return (
     <div className={className ?? ""}>
       <div className="prose prose-sm wrap-break-word dark:prose-invert">
         {/* Display SVG chart if available */}
         {structuredContent?.chartSvg && (
-          <div
-            className="mb-4 flex justify-center"
-            dangerouslySetInnerHTML={{ __html: structuredContent.chartSvg }}
-          />
+          <div className="mb-4">
+            <div className="flex justify-center mb-2">
+              <div
+                className="relative inline-flex"
+                dangerouslySetInnerHTML={{ __html: structuredContent.chartSvg }}
+              />
+            </div>
+            <div className="flex justify-center gap-2">
+              <button
+                onClick={handleCopyChartCode}
+                title="คัดลอก SVG Code"
+                className={`flex items-center gap-1 px-3 py-1 rounded text-sm transition-all ${
+                  copiedChart
+                    ? theme === "dark"
+                      ? "bg-green-600 text-white"
+                      : "bg-green-500 text-white"
+                    : theme === "dark"
+                    ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                    : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                }`}
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden
+                >
+                  <path d="M16 1H4c-1.1 0-2 .9-2 2v12h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+                </svg>
+                {copiedChart ? "คัดลอกแล้ว" : "คัดลอก SVG"}
+              </button>
+              <button
+                onClick={handleDownloadChart}
+                title="ดาวน์โหลด SVG"
+                className={`flex items-center gap-1 px-3 py-1 rounded text-sm transition-all ${
+                  theme === "dark"
+                    ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                    : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                }`}
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                ดาวน์โหลด
+              </button>
+            </div>
+          </div>
         )}
         {/*
             Render markdown to React elements. We enable remark-gfm for GitHub Flavored Markdown.

@@ -160,6 +160,10 @@ D) chartTitle (ทางเลือก): ชื่อกราฟ
                   value: finalDatasets[0].data[i],
                 })),
                 radius: type === "donut" ? ["40%", "70%"] : "50%",
+                label: {
+                  show: true,
+                  formatter: "{b}: {c}",
+                },
               },
             ],
           };
@@ -185,6 +189,10 @@ D) chartTitle (ทางเลือก): ชื่อกราฟ
               data: d.data,
               areaStyle: type === "area" ? {} : undefined,
               smooth: true,
+              label: {
+                show: true,
+                position: "top",
+              },
             })),
           };
         } else if (type === "bar" || type === "column") {
@@ -207,6 +215,10 @@ D) chartTitle (ทางเลือก): ชื่อกราฟ
               name: d.label,
               type: chartType,
               data: d.data,
+              label: {
+                show: true,
+                position: "top",
+              },
             })),
           };
         } else if (type === "scatter") {
@@ -225,6 +237,10 @@ D) chartTitle (ทางเลือก): ชื่อกราฟ
               name: d.label,
               type: "scatter",
               data: d.data.map((val, i) => [i, val]),
+              label: {
+                show: true,
+                formatter: "{c}",
+              },
             })),
           };
         } else {
@@ -246,6 +262,10 @@ D) chartTitle (ทางเลือก): ชื่อกราฟ
               name: d.label,
               type: "bar",
               data: d.data,
+              label: {
+                show: true,
+                position: "top",
+              },
             })),
           };
         }
