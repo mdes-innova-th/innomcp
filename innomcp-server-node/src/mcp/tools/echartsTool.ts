@@ -38,10 +38,14 @@ export function registerEchartsTool(mcpserver: McpServer) {
           .describe(
             "JSON string ของข้อมูลที่คุยกันไว้ เพื่อใช้สร้างกราฟ โดยมีฟอร์แมต {labels: string[], datasets: {label: string, data: number[]}[]}"
           ),
+        chartTitle: z
+          .string()
+          .optional()
+          .describe("ชื่อของกราฟ (ค่าเริ่มต้น: MDES)"),
       }),
       outputSchema: z.object({ chartSvg: z.string() }),
     },
-    async ({ type, labels, datasets, dataJson }, _extra) => {
+    async ({ type, labels, datasets, dataJson, chartTitle: paramChartTitle }, _extra) => {
       console.log(
         `[MCP Server] echartsTool request received at ${new Date().toLocaleString()}`
       );
@@ -69,11 +73,12 @@ export function registerEchartsTool(mcpserver: McpServer) {
           { type, finalLabels, finalDatasets }
         );
 
+        const chartTitleValue = paramChartTitle || "MDES";
         let option: any;
         if (type === "pie" || type === "donut") {
           option = {
             title: {
-              text: "ECharts",
+              text: chartTitleValue,
             },
             tooltip: {},
             series: [
@@ -87,10 +92,12 @@ export function registerEchartsTool(mcpserver: McpServer) {
               },
             ],
           };
-        } else {
+        } else if (type === "line" || type === "area") {
+          // Line and Area charts
+          const seriesType = type === "area" ? "line" : "line";
           option = {
             title: {
-              text: "ECharts",
+              text: chartTitleValue,
             },
             tooltip: {},
             legend: {
@@ -98,20 +105,86 @@ export function registerEchartsTool(mcpserver: McpServer) {
             },
             xAxis: {
               data: finalLabels,
+              type: "category",
             },
             yAxis: {},
             series: finalDatasets.map((d) => ({
               name: d.label,
-              type: type === "area" ? "line" : type,
+              type: seriesType,
               data: d.data,
               areaStyle: type === "area" ? {} : undefined,
+              smooth: true,
+            })),
+          };
+        } else if (type === "bar" || type === "column") {
+          // Bar and Column charts
+          const chartType = type === "column" ? "bar" : "bar";
+          option = {
+            title: {
+              text: chartTitleValue,
+            },
+            tooltip: {},
+            legend: {
+              data: finalDatasets.map((d) => d.label),
+            },
+            xAxis: {
+              data: finalLabels,
+              type: "category",
+            },
+            yAxis: {},
+            series: finalDatasets.map((d) => ({
+              name: d.label,
+              type: chartType,
+              data: d.data,
+            })),
+          };
+        } else if (type === "scatter") {
+          // Scatter chart - expects datasets with [x, y] pairs
+          option = {
+            title: {
+              text: chartTitleValue,
+            },
+            tooltip: {},
+            legend: {
+              data: finalDatasets.map((d) => d.label),
+            },
+            xAxis: {},
+            yAxis: {},
+            series: finalDatasets.map((d) => ({
+              name: d.label,
+              type: "scatter",
+              data: d.data.map((val, i) => [i, val]),
+            })),
+          };
+        } else {
+          // Default to bar chart for unknown types
+          option = {
+            title: {
+              text: chartTitleValue,
+            },
+            tooltip: {},
+            legend: {
+              data: finalDatasets.map((d) => d.label),
+            },
+            xAxis: {
+              data: finalLabels,
+              type: "category",
+            },
+            yAxis: {},
+            series: finalDatasets.map((d) => ({
+              name: d.label,
+              type: "bar",
+              data: d.data,
             })),
           };
         }
 
         const browser = await puppeteer.launch({ headless: true });
         const page = await browser.newPage();
-        await page.setContent(`
+
+        try {
+          await page.setContent(
+            `
 <html>
 <head>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
@@ -125,21 +198,46 @@ window.chart.setOption(window.option);
 </script>
 </body>
 </html>
-        `);
-        const svg = await page.evaluate(() => {
-          return (window as any).chart.renderToSVGString();
-        });
-        await browser.close();
+          `,
+            { waitUntil: "networkidle2" }
+          );
 
-        return {
-          content: [
-            { type: "text", text: `กราฟถูกสร้างขึ้นเรียบร้อยแล้ว` } as {
-              type: "text";
-              text: string;
-            },
-          ],
-          structuredContent: { chartSvg: svg },
-        };
+          // Wait a bit for chart to render
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          const svg = await page.evaluate(() => {
+            const chart = (window as any).chart;
+            if (!chart) {
+              throw new Error("Chart not initialized");
+            }
+            return chart.renderToSVGString();
+          });
+
+          await browser.close();
+
+          if (!svg || svg.length === 0) {
+            throw new Error("SVG rendering failed - empty result");
+          }
+
+          return {
+            content: [
+              { type: "text", text: `กราฟถูกสร้างขึ้นเรียบร้อยแล้ว` } as {
+                type: "text";
+                text: string;
+              },
+            ],
+            structuredContent: { chartSvg: svg },
+          };
+        } catch (renderError) {
+          await browser.close();
+          throw new Error(
+            `Failed to render chart: ${
+              renderError instanceof Error
+                ? renderError.message
+                : String(renderError)
+            }`
+          );
+        }
       } catch (error) {
         console.error("[MCP Server] Error in echartsTool:", error);
         throw error;
