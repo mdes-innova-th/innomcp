@@ -770,20 +770,36 @@ JSON:`;
       const schemaStr = JSON.stringify(schema, null, 2);
       const required = schema.required || [];
 
+      // สำหรับ echartsTool เพิ่มข้อมูลจากแชท
+      let chatDataSuggestion = "";
+      if (tool.name === "echartsTool") {
+        const extractedData = this.extractChartDataFromHistory();
+        if (extractedData) {
+          chatDataSuggestion = `\n\n⚠️ สำคัญ: มีข้อมูลจากแชทเก่า (${extractedData}) → ต้องส่งด้วย chatText parameter ในรูปแบบ: "${extractedData}"`;
+        }
+      }
+
       const prompt = `สร้าง parameters JSON สำหรับ tool โดยใช้ข้อมูลจาก context
 
-${context}
+ชื่อ Tool: ${tool.name}
+คำอธิบาย Tool (อ่านให้ดี):
+${tool.description || "ไม่มี"}
+
+ข้อมูลจาก context (ใช้ข้อมูลนี้ในการสร้าง parameters):
+${context}${chatDataSuggestion}
 
 Schema ของ tool:
 ${schemaStr}
 
 Parameters ที่จำเป็น: ${required.length > 0 ? required.join(", ") : "ไม่มี"}
 
-กฎ:
+🎯 กฎ:
 1. ตอบเป็น JSON object ที่มีเฉพาะ parameters เท่านั้น
-2. ใช้ข้อมูลจาก context ข้างต้นในการสร้าง parameters
-3. ห้ามส่งผลลัพธ์ (result) หรือข้อมูลอื่นที่ไม่ใช่ parameters
-4. ถ้าไม่มี parameter ให้ส่ง {}
+2. ถ้า tool เป็น echartsTool ต้องส่ง type + (labels+datasets) หรือ dataJson หรือ chatText
+3. สำหรับ echartsTool ถ้ามีข้อมูลจากแชท ต้องใช้ chatText ไม่ใช่ labels+datasets (รูปแบบ 'A 10, B 20, C 30')
+4. ใช้ข้อมูลจาก context ข้างต้นในการสร้าง parameters
+5. ห้ามส่งผลลัพธ์ (result) หรือข้อมูลอื่นที่ไม่ใช่ parameters
+6. ถ้าไม่มี parameter ให้ส่ง {}
 
 JSON:`;
 
@@ -910,6 +926,7 @@ JSON:`;
     chainPlan?: ToolChainPlan;
   }> {
     console.log("===== Starting processMessage =====");
+    console.log("[Process] Conversation history size:", this.conversationHistory.length);
 
     // เลือก tools
     const selectedTools = await this.selectTools(userMessage);
@@ -1118,21 +1135,38 @@ JSON:`;
       const schemaStr = JSON.stringify(schema, null, 2);
       const required = schema.required || [];
 
+      // สำหรับ echartsTool ให้ส่งประวัติการสนทนาด้วย
+      let conversationContext = "";
+      let chatDataSuggestion = "";
+      if (tool.name === "echartsTool") {
+        // สร้าง context จากประวัติการสนทนา
+        const extractedData = this.extractChartDataFromHistory();
+        if (extractedData) {
+          conversationContext = `\n\nข้อมูลจากประวัติการสนทนา:\n${extractedData}`;
+          chatDataSuggestion = `\n\n⚠️ สำคัญ: มีข้อมูลจากแชทเก่า (${extractedData}) → ต้องส่งด้วย chatText parameter ในรูปแบบ: "${extractedData}"`;
+        }
+      }
+
       const prompt = `สร้าง parameters JSON สำหรับ tool
 
-คำขอ: "${userMessage}"
-Tool: ${tool.name}
-คำอธิบาย: ${tool.description || "ไม่มี"}
+คำขอผู้ใช้: "${userMessage}"${conversationContext}${chatDataSuggestion}
 
-Schema:
+Tool ที่จะใช้:
+ชื่อ: ${tool.name}
+คำอธิบาย (อ่านให้ดี):
+${tool.description || "ไม่มี"}
+
+Schema ของ parameters:
 ${schemaStr}
 
 Parameters ที่จำเป็น: ${required.length > 0 ? required.join(", ") : "ไม่มี"}
 
-กฎ:
+🎯 กฎสำคัญ:
 1. ตอบเป็น JSON object ที่มีเฉพาะ parameters เท่านั้น
-2. ห้ามส่งผลลัพธ์หรือข้อมูลอื่น
-3. ถ้าไม่มี parameter ให้ส่ง {}
+2. ถ้า tool เป็น echartsTool ต้องส่ง type + (labels+datasets) หรือ dataJson หรือ chatText
+3. สำหรับ echartsTool ถ้ามีข้อมูลจากแชท ต้องใช้ chatText ไม่ใช่ labels+datasets (รูปแบบ 'A 10, B 20, C 30')
+4. ห้ามส่งผลลัพธ์หรือข้อมูลอื่น
+5. ถ้าไม่มี parameter ให้ส่ง {}
 
 JSON:`;
 
@@ -1297,6 +1331,60 @@ JSON:`;
   // ========================================
   // UTILITY METHODS
   // ========================================
+
+  /**
+   * ดึงข้อมูลตัวเลขจากประวัติการสนทนาสำหรับกราฟ
+   */
+  private extractChartDataFromHistory(): string {
+    if (this.conversationHistory.length === 0) return "";
+
+    let dataContext = "";
+
+    // รวมข้อมูลจากประวัติการสนทนา (ค่าตัวเลข, ชื่อ เป็นต้น)
+    const textContent = this.conversationHistory
+      .map((ctx) => ctx.query)
+      .join("\n");
+
+    if (!textContent) return "";
+
+    // ค้นหาข้อมูลที่มีลักษณะเป็นตัวเลข (label value)
+    const patterns = [
+      /([A-Z][a-z]*(?:\s+[a-z]+)*)\s*[:|\s]+\s*(\d+(?:\.\d+)?)/gi, // "Sales: 100" หรือ "Bangkok 50"
+      /([ก-ฮ][ก-ฮะะ]*)\s*[:|\s]+\s*(\d+(?:\.\d+)?)/g, // ข้อมูลไทย
+    ];
+
+    const allMatches: Array<{ label: string; value: string }> = [];
+
+    for (const pattern of patterns) {
+      let match;
+      while ((match = pattern.exec(textContent)) !== null) {
+        allMatches.push({
+          label: match[1].trim(),
+          value: match[2],
+        });
+      }
+    }
+
+    // ลบค่าซ้ำและสร้าง context
+    if (allMatches.length > 0) {
+      const uniqueData = new Map<string, string>();
+      allMatches.forEach((m) => {
+        if (!uniqueData.has(m.label)) {
+          uniqueData.set(m.label, m.value);
+        }
+      });
+
+      dataContext = Array.from(uniqueData.entries())
+        .map(([label, value]) => `${label} ${value}`)
+        .join(", ");
+
+      console.log(
+        `[MCP Client] Extracted chart data from history: ${dataContext}`
+      );
+    }
+
+    return dataContext;
+  }
 
   getAvailableTools(): MCPTool[] {
     return Array.from(this.tools.values());

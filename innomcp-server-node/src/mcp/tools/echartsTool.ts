@@ -8,15 +8,41 @@ export function registerEchartsTool(mcpserver: McpServer) {
     "echartsTool",
     {
       title: "สร้างกราฟด้วย ECharts (ECharts Tool)",
-      description: `หน้าที่: สร้างกราฟในรูปแบบต่างๆ ด้วย ECharts ตามโครงสร้าง option ของ ECharts โดยรับพารามิเตอร์เป็นประเภทกราฟ, ป้ายกำกับ, และชุดข้อมูล ที่ผู้ใช้กำหนด หรือ JSON string ของข้อมูลที่คุยกันไว้
-        ใช้เมื่อ: ต้องการสร้างกราฟด้วยข้อมูลกำหนด หรือข้อมูลจากแชท
-        ไม่ใช้เมื่อ: ไม่ต้องการสร้างกราฟ หรือใช้เครื่องมือกราฟอื่น
-พารามิเตอร์: { type: string, labels?: string[], datasets?: { label: string, data: number[] }[], dataJson?: string }
-ตัวอย่าง request: { type: 'bar', labels: ['Shirts', 'Cardigans', 'Chiffons', 'Pants', 'Heels', 'Socks'], datasets: [{label:'sales',data:[5, 20, 36, 10, 10, 20]}] } หรือ { type: 'bar', dataJson: '{"labels":["A","B"],"datasets":[{"label":"data","data":[1,2]}]}' }
-ตัวอย่าง response: SVG string ของกราฟ
-ข้อผิดพลาดที่คาดได้: ข้อผิดพลาดในการสร้างกราฟ หรือ JSON ไม่ถูกต้อง
-หมายเหตุ: ใช้ ECharts สำหรับการสร้างกราฟ ตามวิธีการของ ECharts เช่น title, tooltip, legend, xAxis, yAxis, series
+      description: `🎯 หน้าที่: สร้างกราฟ/แผนภูมิ/ไดอะแกรม ในรูปแบบต่างๆ ด้วย ECharts จากข้อมูลที่มี
 
+⚡ ใช้เมื่อ:
+- ผู้ใช้ขอให้สร้างกราฟ, แผนภูมิ, ไดอะแกรม, visual
+- มีข้อมูลตัวเลข (sales, statistics, comparison, %) ที่สามารถแสดงเป็นกราฟ
+- ข้อมูลจากการสนทนา/แชทที่ผ่านมา
+
+📊 พารามิเตอร์ (ต้องส่ง 1 ในนี้):
+A) ใช้ labels + datasets (แนะนำ):
+   - type: 'bar', 'line', 'pie', 'area', 'donut', 'scatter'
+   - labels: ['A', 'B', 'C'] (ป้ายกำกับแกน X)
+   - datasets: [{label: 'ชื่อชุด', data: [10, 20, 30]}] (ข้อมูลตัวเลข)
+
+B) ใช้ dataJson (JSON string):
+   - type: 'bar' (หรือประเภทอื่น)
+   - dataJson: '{"labels":["A","B"],"datasets":[{"label":"data","data":[1,2]}]}'
+
+C) ใช้ chatText (ข้อความจากแชท):
+   - type: 'pie'
+   - chatText: 'A 10, B 20, C 30' (รูปแบบ 'label value' คั่นด้วย comma)
+
+D) chartTitle (ทางเลือก): ชื่อกราฟ
+
+✅ ตัวอย่างการใช้:
+1. bar chart: {type:'bar', labels:['Jan','Feb','Mar'], datasets:[{label:'Sales',data:[100,150,200]}], chartTitle:'Monthly Sales'}
+2. pie chart: {type:'pie', chatText:'Bangkok 40%, Chiang Mai 25%, Phuket 35%'}
+3. line chart: {type:'line', dataJson:'{"labels":["Q1","Q2","Q3"],"datasets":[{"label":"Revenue","data":[50000,75000,100000]}]}'}
+
+⚠️ กฎ:
+- MUST: ต้องส่ง type + (labels+datasets) หรือ dataJson หรือ chatText
+- MUST: ถ้าส่ง labels ต้องส่ง datasets ด้วย (จำนวน label ต้องเท่ากับจำนวนค่า data)
+- MUST: ใช้ chatText เมื่อมีข้อมูลจากแชท เช่น "A 10, B 20"
+- MUST: สำหรับ dataJson, datasets array ต้องมี label และ data
+- ห้าม: ส่งค่าว่างเปล่าหรือ undefined
+- ห้าม: ลืมส่ง labels เมื่อส่ง datasets
         `,
       inputSchema: z.object({
         type: z
@@ -38,6 +64,12 @@ export function registerEchartsTool(mcpserver: McpServer) {
           .describe(
             "JSON string ของข้อมูลที่คุยกันไว้ เพื่อใช้สร้างกราฟ โดยมีฟอร์แมต {labels: string[], datasets: {label: string, data: number[]}[]}"
           ),
+        chatText: z
+          .string()
+          .optional()
+          .describe(
+            "ข้อความจากแชทที่บรรจุข้อมูลสำหรับสร้างกราฟ ในรูปแบบ 'label1 value1, label2 value2, ...' เช่น 'Shirts 5, Cardigans 20'"
+          ),
         chartTitle: z
           .string()
           .optional()
@@ -46,7 +78,14 @@ export function registerEchartsTool(mcpserver: McpServer) {
       outputSchema: z.object({ chartSvg: z.string() }),
     },
     async (
-      { type, labels, datasets, dataJson, chartTitle: paramChartTitle },
+      {
+        type,
+        labels,
+        datasets,
+        dataJson,
+        chartTitle: paramChartTitle,
+        chatText,
+      },
       _extra
     ) => {
       console.log(
@@ -66,8 +105,31 @@ export function registerEchartsTool(mcpserver: McpServer) {
           }
         }
 
+        if (chatText) {
+          try {
+            const pairs = chatText.split(",").map((s) => s.trim());
+            finalLabels = pairs.map((p) => {
+              const parts = p.split(/\s+/);
+              return parts.slice(0, -1).join(" ");
+            });
+            finalDatasets = [
+              {
+                label: "data",
+                data: pairs.map((p) => {
+                  const parts = p.split(/\s+/);
+                  return parseFloat(parts[parts.length - 1]);
+                }),
+              },
+            ];
+          } catch (e) {
+            console.error("[MCP Server] echartsTool - Invalid chatText:", e);
+          }
+        }
+
         if (!finalLabels || !finalDatasets) {
-          throw new Error("Labels and datasets are required");
+          throw new Error(
+            "Labels and datasets are required, or provide dataJson or chatText"
+          );
         }
 
         console.log(
