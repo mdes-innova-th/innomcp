@@ -93,10 +93,19 @@ class IntelligentMCPClient extends EventEmitter {
       keywords: [
         "พยากรณ์อากาศ",
         "อากาศ",
+        "สภาพอากาศ",
         "weather",
         "forecast",
         "ฝน",
+        "ฝนตก",
+        "ฝนตกไหม",
+        "ที่ไหนฝนตก",
         "อุณหภูมิ",
+        "ลม",
+        "ลมแรง",
+        "ร้อน",
+        "หนาว",
+        "จังหวัดไหนฝนตก",
       ],
       toolPattern: /^tmdTool/i,
       priority: "high",
@@ -411,11 +420,6 @@ class IntelligentMCPClient extends EventEmitter {
           "ลมแรง",
           "ร้อน",
           "หนาว",
-          "พายุ",
-          "พายุฝน",
-          "พายุฝนฟ้าคะนอง",
-          "province",
-          "today",
         ],
       },
       {
@@ -451,20 +455,10 @@ class IntelligentMCPClient extends EventEmitter {
 
     for (const c of categories) {
       if (c.keywords.some((k) => text.includes(k))) {
-        console.log(
-          `[MCP Client] Categorized "${name}" as "${
-            c.category
-          }" (description excerpt: "${
-            description?.substring(0, 50) || "none"
-          }")`
-        );
         return c.category;
       }
     }
 
-    console.log(
-      `[MCP Client] Tool "${name}" categorized as "general" (no matching category)`
-    );
     return "general";
   }
 
@@ -588,7 +582,7 @@ class IntelligentMCPClient extends EventEmitter {
 
   /**
    * Classify ประเภทของข้อความและตรวจสอบว่าตอบได้ทันทีหรือไม่
-   *
+   * 
    * ข้อมูลที่ต้องใช้ tools:
    * - ข้อมูลชิงสถิติ (statistics)
    * - จำนวนรายการ (count/number)
@@ -1792,27 +1786,21 @@ JSON:`;
 
     console.log(`[MCP Client] ===== Tool Selection Start =====`);
     console.log(`[MCP Client] Query: "${userMessage}"`);
-    console.log(
-      `[MCP Client] Available tools: ${this.tools.size}, resources: ${this.resources.size}`
-    );
+    console.log(`[MCP Client] Available tools: ${this.tools.size}, resources: ${this.resources.size}`);
 
     let candidates: string[] = [];
 
     // Direct keyword check (fast path for common queries)
     candidates = this.directKeywordCheck(userMessage);
     if (candidates.length > 0) {
-      console.log(
-        `[MCP Client] ✅ Direct keyword match: ${candidates.join(", ")}`
-      );
+      console.log(`[MCP Client] ✅ Direct keyword match: ${candidates.join(", ")}`);
     }
 
     // Pattern matching
     if (candidates.length === 0) {
       candidates = await this.tryPatternMatching(userMessage);
       if (candidates.length > 0) {
-        console.log(
-          `[MCP Client] ✅ Pattern matching: ${candidates.join(", ")}`
-        );
+        console.log(`[MCP Client] ✅ Pattern matching: ${candidates.join(", ")}`);
       }
     }
 
@@ -1854,44 +1842,24 @@ JSON:`;
   private directKeywordCheck(userMessage: string): string[] {
     const msgLower = userMessage.toLowerCase();
     const candidates = new Map<string, number>();
-    const matchedCategories = new Set<string>();
 
     // Check each category's keywords
     for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
       for (const keyword of keywords) {
         if (msgLower.includes(keyword.toLowerCase())) {
-          matchedCategories.add(category);
-          console.log(
-            `[MCP Client] Direct keyword match: category="${category}", keyword="${keyword}"`
-          );
           // Find matching tools/resources for this category
           for (const [toolName, tool] of this.tools.entries()) {
             if (tool.category === category) {
               candidates.set(toolName, (candidates.get(toolName) || 0) + 1);
-              console.log(
-                `[MCP Client] Added tool candidate: ${toolName} (category: ${category})`
-              );
             }
           }
           for (const [resourceName, resource] of this.resources.entries()) {
             if (resource.name.toLowerCase().includes(category)) {
-              candidates.set(
-                resourceName,
-                (candidates.get(resourceName) || 0) + 1
-              );
+              candidates.set(resourceName, (candidates.get(resourceName) || 0) + 1);
             }
           }
-          break; // Found a match for this category, move to next category
         }
       }
-    }
-
-    if (matchedCategories.size > 0) {
-      console.log(
-        `[MCP Client] Matched categories: ${Array.from(matchedCategories).join(
-          ", "
-        )}`
-      );
     }
 
     // Return sorted candidates by match count
@@ -1909,88 +1877,42 @@ JSON:`;
       if (greetingResources.length > 0) return [greetingResources[0]];
     }
 
-    const msgLower = userMessage.toLowerCase();
+    const patternData = this.toolPatterns.map((p) => ({
+      category: p.category,
+      keywords: p.keywords.join(" "),
+      pattern: p,
+    }));
+
+    const patternFuse = makeFuse(patternData as any, {
+      keys: ["keywords", "category"],
+      threshold: 0.35,
+    });
+
+    const results = runSearch(patternFuse, userMessage.toLowerCase()) as any[];
+    console.log(`[MCP Client] Pattern matching found ${results.length} pattern matches`);
+    
     const toolScores = new Map<string, number>();
 
-    // Direct pattern matching for high-priority patterns
-    for (const pattern of this.toolPatterns) {
-      if (pattern.priority === "high") {
-        const keywordMatches = pattern.keywords.filter((k) =>
-          msgLower.includes(k.toLowerCase())
-        );
+    for (const pr of results) {
+      const origPattern: ToolPattern = pr.item.pattern;
+      const priorityScore = origPattern.priority === "high" ? 15 : 8;
 
-        if (keywordMatches.length > 0) {
-          console.log(
-            `[MCP Client] Direct pattern match for "${
-              pattern.category
-            }": keywords=${keywordMatches.join(", ")}`
-          );
-
-          const matchedTools = Array.from(this.tools.keys()).filter((k) =>
-            pattern.toolPattern.test(k)
-          );
-          const matchedResources = Array.from(this.resources.keys()).filter(
-            (k) => pattern.toolPattern.test(k)
-          );
-
-          const allMatches = [...matchedTools, ...matchedResources];
-          const score = keywordMatches.length * 50; // Higher score for direct matches
-
-          console.log(
-            `[MCP Client] High-priority pattern "${pattern.category}" matched ${allMatches.length} tools (score: ${score})`
-          );
-
-          allMatches.forEach((tool) => {
-            const current = toolScores.get(tool) || 0;
-            toolScores.set(tool, current + score);
-          });
-        }
-      }
-    }
-
-    // Fuzzy pattern matching as fallback
-    if (toolScores.size === 0) {
-      const patternData = this.toolPatterns.map((p) => ({
-        category: p.category,
-        keywords: p.keywords.join(" "),
-        pattern: p,
-      }));
-
-      const patternFuse = makeFuse(patternData as any, {
-        keys: ["keywords", "category"],
-        threshold: 0.35,
-      });
-
-      const results = runSearch(patternFuse, msgLower) as any[];
-      console.log(
-        `[MCP Client] Pattern matching found ${results.length} pattern matches`
+      const matchedTools = Array.from(this.tools.keys()).filter((k) =>
+        origPattern.toolPattern.test(k)
+      );
+      const matchedResources = Array.from(this.resources.keys()).filter((k) =>
+        origPattern.toolPattern.test(k)
       );
 
-      for (const pr of results) {
-        const origPattern: ToolPattern = pr.item.pattern;
-        const priorityScore = origPattern.priority === "high" ? 15 : 8;
+      const allMatches = [...matchedTools, ...matchedResources];
+      const score = (1 - (pr.score ?? 0)) * 100 * (priorityScore / 10);
 
-        const matchedTools = Array.from(this.tools.keys()).filter((k) =>
-          origPattern.toolPattern.test(k)
-        );
-        const matchedResources = Array.from(this.resources.keys()).filter((k) =>
-          origPattern.toolPattern.test(k)
-        );
+      console.log(`[MCP Client] Pattern "${origPattern.category}" matched ${allMatches.length} tools (score: ${score.toFixed(2)})`);
 
-        const allMatches = [...matchedTools, ...matchedResources];
-        const score = (1 - (pr.score ?? 0)) * 100 * (priorityScore / 10);
-
-        console.log(
-          `[MCP Client] Pattern "${origPattern.category}" matched ${
-            allMatches.length
-          } tools (score: ${score.toFixed(2)})`
-        );
-
-        allMatches.forEach((tool) => {
-          const current = toolScores.get(tool) || 0;
-          toolScores.set(tool, current + score);
-        });
-      }
+      allMatches.forEach((tool) => {
+        const current = toolScores.get(tool) || 0;
+        toolScores.set(tool, current + score);
+      });
     }
 
     const candidates = Array.from(toolScores.entries())
@@ -1998,9 +1920,7 @@ JSON:`;
       .filter(([_, score]) => score >= 10)
       .map(([tool]) => tool);
 
-    console.log(
-      `[MCP Client] Pattern matching candidates: ${candidates.join(", ")}`
-    );
+    console.log(`[MCP Client] Pattern matching candidates: ${candidates.join(", ")}`);
     return await this.deduplicateAndRankTools(candidates, userMessage);
   }
 
@@ -2010,10 +1930,7 @@ JSON:`;
       this.tokenizer.tokenize(userMessage.toLowerCase()) || [];
     const allTokens = [...new Set([...thaiTokens, ...englishTokens])];
 
-    console.log(
-      `[MCP Client] Keyword matching tokens (Thai: ${thaiTokens.length}, English: ${englishTokens.length}):`,
-      allTokens.slice(0, 10)
-    );
+    console.log(`[MCP Client] Keyword matching tokens (Thai: ${thaiTokens.length}, English: ${englishTokens.length}):`, allTokens.slice(0, 10));
 
     const toolData = Array.from(this.tools.entries()).map(
       ([toolName, tool]) => ({
@@ -2033,10 +1950,8 @@ JSON:`;
     );
 
     const combined = [...toolData, ...resourceData];
-    console.log(
-      `[MCP Client] Searching across ${combined.length} tools/resources`
-    );
-
+    console.log(`[MCP Client] Searching across ${combined.length} tools/resources`);
+    
     const dataFuse = makeFuse(combined as any, {
       keys: ["searchText"],
       threshold: 0.4,
@@ -2047,9 +1962,7 @@ JSON:`;
     for (const token of allTokens) {
       if (token.length < 2) continue;
       const results = runSearch(dataFuse, token) as any[];
-      console.log(
-        `[MCP Client] Token "${token}" matched ${results.length} items`
-      );
+      console.log(`[MCP Client] Token "${token}" matched ${results.length} items`);
       tokenResults.push(...results);
     }
 
@@ -2069,9 +1982,7 @@ JSON:`;
       .sort((a, b) => b.score - a.score)
       .map((m) => m.id);
 
-    console.log(
-      `[MCP Client] Keyword matching found ${matches.length} candidates`
-    );
+    console.log(`[MCP Client] Keyword matching found ${matches.length} candidates`);
     return await this.deduplicateAndRankTools(matches, userMessage);
   }
 

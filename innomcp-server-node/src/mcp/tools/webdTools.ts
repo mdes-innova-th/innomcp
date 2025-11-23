@@ -37,10 +37,10 @@ export function registerWebdTools(mcpserver: McpServer) {
                 .string()
                 .describe("กลุ่ม/หมวดหมู่/ประเภท (Category name)"),
               url_count: z.number().describe("จำนวน URL (Number of URLs)"),
-            })
+            }).passthrough()
           )
           .describe("รายการสถิติแยกตามกลุ่ม (Statistics by category)"),
-      }),
+      }).passthrough(),
     },
     async ({ query }, _extra) => {
       console.log(
@@ -159,9 +159,9 @@ export function registerWebdTools(mcpserver: McpServer) {
             platform: z.string(),
             url_count: z.number(),
             percentage: z.number(),
-          })
+          }).passthrough()
         ),
-      }),
+      }).passthrough(),
     },
     async ({ requestType }, _extra) => {
       console.log(
@@ -296,14 +296,14 @@ export function registerWebdTools(mcpserver: McpServer) {
   mcpserver.registerTool(
     "webdTool_register_country",
     {
-      title: "ดึงสถิติ URL แยกตามประเทศที่จดทะเบียน ในคำขอต้องมีคำว่า 'webd' พร้อมกับ 'ประเทศ', 'country', 'ที่ตั้ง', 'ที่อยู่', 'ที่ไหน' หรือชื่อประเทศ",
+      title: "ดึงสถิติ URL แยกตามประเทศที่จดทะเบียน ในคำขอต้องมีคำว่า 'webd' พร้อมกับ 'ประเทศ', 'country', 'ที่ตั้ง' หรือชื่อประเทศ",
       description: `
 หน้าที่: คืนสถิติจำนวนและสัดส่วนของ URL แยกตามประเทศที่ลงทะเบียนโดเมน
 ใช้เมื่อ:
-- ในคำขอของผู้ใช้ต้องมีคำว่า "webd" พร้อมกับ "ประเทศ", "country", "ที่ตั้ง", "ที่อยู่", "ที่ไหน" หรือชื่อประเทศ ยกตัวอย่างเช่น "Thailand", "สิงคโปร์", "มาเลเซีย" 
+- ในคำขอของผู้ใช้ต้องมีคำว่า "webd" พร้อมกับ "ประเทศ", "country", "ที่ตั้ง", หรือชื่อประเทศ ยกตัวอย่างเช่น "Thailand", "สิงคโปร์", "มาเลเซีย" 
 - ต้องการวิเคราะห์การกระจายตามประเทศเพื่อตรวจสอบแหล่งที่มาของโดเมน/URL
 ไม่ใช้เมื่อ: 
-- ในคำขอของผู้ใช้ไม่มีคำว่า "webd" พร้อมกับ "ประเทศ" หรือ "country" หรือ "ที่ตั้ง" หรือ "ที่อยู่" หรือ "ที่ไหน" หรือชื่อประเทศ
+- ในคำขอของผู้ใช้ไม่มีคำว่า "webd" พร้อมกับ "ประเทศ" หรือ "country" หรือ "ที่ตั้ง" หรือชื่อประเทศ
 - ต้องการข้อมูลที่เป็นรายวัน/รายเดือน หรือการกรองตามแพลตฟอร์ม/คำสั่งศาล
 พารามิเตอร์: ไม่มี (GET)
 ตัวอย่าง request: GET /api/urlstats/register-country
@@ -319,9 +319,9 @@ export function registerWebdTools(mcpserver: McpServer) {
             country: z.string(),
             url_count: z.number(),
             percentage: z.number(),
-          })
+          }).passthrough()
         ),
-      }),
+      }).passthrough(),
     },
     async (_params, _extra) => {
       console.log(

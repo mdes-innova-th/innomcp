@@ -15,6 +15,7 @@ export function registerTmdTool(mcpserver: McpServer) {
 ใช้เมื่อ:
 - มีคำขอของผู้ใช้เกี่ยวกับสภาพอากาศวันนี้ 
 - ต้องการข้อมูลสภาพอากาศวันนี้รายจังหวัด
+- ผู้ใช้ถามว่า "ฝนตกไหม" หรือ "ที่ไหนฝนตกบ้าง"
 ไม่ใช้เมื่อ: 
 - ไม่มีคำขอของผู้ใช้เกี่ยวกับสภาพอากาศวันนี้
 - ต้องการข้อมูลที่เป็นรายเดือน หรือรายปี
@@ -44,13 +45,16 @@ export function registerTmdTool(mcpserver: McpServer) {
  }
 ข้อผิดพลาดที่คาดได้: 401 (API key), 500 (server error)
 หมายเหตุ: ข้อมูลสภาพอากาศวันนี้จากกรมอุตุนิยมวิทยา`,
-      inputSchema: z.object({}),
+      inputSchema: z.object({
+        location: z.string().optional().describe("ชื่อจังหวัด (ไม่บังคับ)"),
+      }),
       outputSchema: z.object({
         weatherData: z.any(),
+        location: z.string().optional(),
       }),
     },
-    async ({}, _extra) => {
-      console.log(`[MCP Server] TMD Weather tool request for today`);
+    async ({ location }, _extra) => {
+      console.log(`[MCP Server] TMD Weather tool request for today, location: ${location || "all"}`);
       try {
         const resp = await fetch(TMD_API_URL, { method: "GET" });
         if (!resp.ok) {
@@ -63,15 +67,28 @@ export function registerTmdTool(mcpserver: McpServer) {
         const parser = new XMLParser();
         const jsonData = parser.parse(xmlData);
 
-        const text = `ข้อมูลสภาพอากาศวันนี้: ${JSON.stringify(
-          jsonData,
+        // Filter by location if provided
+        let filteredData = jsonData;
+        if (location) {
+          // Try to filter the data by province if it's structured
+          const locationLower = location.toLowerCase();
+          if (Array.isArray(jsonData)) {
+            filteredData = jsonData.filter((item: any) => {
+              const province = item.Province || item.province || item.ProvinceName || "";
+              return String(province).toLowerCase().includes(locationLower);
+            });
+          }
+        }
+
+        const text = `ข้อมูลสภาพอากาศวันนี้${location ? ` สำหรับ ${location}` : ""}: ${JSON.stringify(
+          filteredData,
           null,
           2
         )}`;
 
         return {
           content: [{ type: "text", text }],
-          structuredContent: { weatherData: jsonData },
+          structuredContent: { weatherData: filteredData, location },
         };
       } catch (error) {
         console.error("Error in weather tool:", error);
