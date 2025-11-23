@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as echarts from "echarts";
+import puppeteer from "puppeteer";
 
 export function registerEchartsTool(mcpserver: McpServer) {
   mcpserver.registerTool(
@@ -63,7 +64,8 @@ export function registerEchartsTool(mcpserver: McpServer) {
         }
 
         console.log(
-          "[MCP Server] echartsTool received data at " + new Date().toLocaleString(),
+          "[MCP Server] echartsTool received data at " +
+            new Date().toLocaleString(),
           { type, finalLabels, finalDatasets }
         );
 
@@ -107,13 +109,31 @@ export function registerEchartsTool(mcpserver: McpServer) {
           };
         }
 
-        const chart = echarts.init(null, null, { renderer: "svg" });
-        chart.setOption(option);
-        const svg = chart.renderToSVGString();
+        const browser = await puppeteer.launch({ headless: true });
+        const page = await browser.newPage();
+        await page.setContent(`
+<html>
+<head>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body>
+<div id="chart" style="width: 600px; height: 400px;"></div>
+<script>
+window.option = ${JSON.stringify(option)};
+window.chart = echarts.init(document.getElementById('chart'), null, { renderer: 'svg' });
+window.chart.setOption(window.option);
+</script>
+</body>
+</html>
+        `);
+        const svg = await page.evaluate(() => {
+          return (window as any).chart.renderToSVGString();
+        });
+        await browser.close();
 
         return {
           content: [
-            { type: "text", text: `SVG ของกราฟ: ${svg}` } as {
+            { type: "text", text: `กราฟถูกสร้างขึ้นเรียบร้อยแล้ว` } as {
               type: "text";
               text: string;
             },

@@ -13,12 +13,15 @@ import ThemeContext from "@/app/context/ThemeContext";
 // icons are used in ChatInput; not needed here
 
 // Define the type for a chat message
+// `structuredContent` can contain typed data returned by server tools (e.g. { chartSvg })
+// We preserve that structure so the UI can render rich content (images, charts, etc.)
 interface ChatMessage {
   sender: "user" | "ai";
   text: string;
   // For AI messages, store the full text for animation
   fullText?: string;
   isAnimating?: boolean;
+  structuredContent?: any;
 }
 
 const ChatPage: React.FC = () => {
@@ -197,6 +200,7 @@ const ChatPage: React.FC = () => {
           // Handle incoming streaming chunk (append as-is)
           if (message.type === "chunk" && message.text) {
             console.log("[Frontend] Received chunk response:", message.text);
+            console.log("[Frontend] Chunk structuredContent:", message.structuredContent);
             setMessages((prevMessages) => {
               if (
                 prevMessages.length > 0 &&
@@ -208,8 +212,11 @@ const ChatPage: React.FC = () => {
                 updatedMessages[updatedMessages.length - 1] = {
                   ...last,
                   fullText: newFullText,
+                  // preserve structuredContent if server sends it with this chunk
+                  structuredContent: message.structuredContent ?? last.structuredContent,
                   isAnimating: true,
                 };
+                console.log("[Frontend] Updated last AI message with structuredContent:", updatedMessages[updatedMessages.length - 1].structuredContent);
                 return updatedMessages;
               } else {
                 return [
@@ -218,6 +225,7 @@ const ChatPage: React.FC = () => {
                     sender: "ai",
                     text: "",
                     fullText: message.text,
+                    structuredContent: message.structuredContent,
                     isAnimating: true,
                   },
                 ];
@@ -232,7 +240,19 @@ const ChatPage: React.FC = () => {
               message.messages.length,
               "messages"
             );
-            setMessages(message.messages);
+            console.log("[Frontend] History update messages:", message.messages);
+            // Preserve structuredContent from previous messages if available
+            const messagesWithContent = message.messages.map((msg: any, idx: number) => {
+              if (msg.sender === "ai" && !msg.structuredContent && message.structuredContent) {
+                // If this is the last AI message and structuredContent is provided at the root level
+                if (idx === message.messages.length - 1) {
+                  return { ...msg, structuredContent: message.structuredContent };
+                }
+              }
+              return msg;
+            });
+            console.log("[Frontend] Messages with content:", messagesWithContent);
+            setMessages(messagesWithContent);
             setIsWaitingForResponse(false);
           }
           // Handle regular text response
@@ -244,15 +264,17 @@ const ChatPage: React.FC = () => {
             console.log("[Frontend] Received text response:", message.text);
             setMessages((prevMessages) => {
               if (
-                prevMessages.length > 0 &&
-                prevMessages[prevMessages.length - 1].sender === "ai"
-              ) {
+                  prevMessages.length > 0 &&
+                  prevMessages[prevMessages.length - 1].sender === "ai"
+                ) {
                 const updatedMessages = [...prevMessages];
                 const last = updatedMessages[updatedMessages.length - 1];
                 const newFullText = (last.fullText || last.text) + message.text;
                 updatedMessages[updatedMessages.length - 1] = {
                   ...last,
                   fullText: newFullText,
+                  // attach structured content (chartSvg etc.) if present
+                  structuredContent: message.structuredContent ?? last.structuredContent,
                   isAnimating: true,
                 };
                 return updatedMessages;
@@ -263,6 +285,7 @@ const ChatPage: React.FC = () => {
                     sender: "ai",
                     text: "",
                     fullText: message.text,
+                    structuredContent: message.structuredContent,
                     isAnimating: true,
                   },
                 ];

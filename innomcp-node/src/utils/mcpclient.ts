@@ -1746,11 +1746,19 @@ ${toolDescriptions}
             });
           } else {
             let payload: any = result.content;
+            let structuredContent: any = undefined;
 
             try {
               if (Array.isArray(result.content) && result.content.length > 0) {
                 const first = result.content[0] as any;
                 if (first && typeof first.text === "string") {
+                  // Preserve structuredContent from the tool response (e.g., chartSvg from echartsTool)
+                  // Check both at first level and in the first content item
+                  if (first.structuredContent) {
+                    structuredContent = first.structuredContent;
+                  } else if (result.structuredContent) {
+                    structuredContent = result.structuredContent;
+                  }
                   const extracted = this.extractJsonFromText(first.text);
                   if (extracted) {
                     try {
@@ -1764,16 +1772,26 @@ ${toolDescriptions}
                 } else {
                   payload = result.content;
                 }
+              } else if (result.structuredContent) {
+                // If no content array, try to get structuredContent directly
+                structuredContent = result.structuredContent;
               }
             } catch (e) {
               payload = result.content;
             }
 
-            results.push({
+            const resultObj: any = {
               toolName,
               result: payload,
               success: true,
-            });
+            };
+
+            // Include structuredContent if present
+            if (structuredContent) {
+              resultObj.structuredContent = structuredContent;
+            }
+
+            results.push(resultObj);
           }
 
           break;

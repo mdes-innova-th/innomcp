@@ -202,6 +202,7 @@ wss.on("connection", (ws) => {
 
       let finalMessage = currentText;
       let mcpContext = "";
+      let structuredContent: any = undefined;
 
       // **Process with MCP**
       if (mcpClient) {
@@ -222,6 +223,24 @@ wss.on("connection", (ws) => {
                 tools: mcpResult.toolResults?.map((r) => r.toolName) || [],
               })
             );
+
+            // Extract structuredContent from tool results (e.g., chartSvg from echartsTool)
+            if (mcpResult.toolResults && mcpResult.toolResults.length > 0) {
+              for (const result of mcpResult.toolResults) {
+                if (result.structuredContent) {
+                  structuredContent = result.structuredContent;
+                  console.log(
+                    "[Chat API] Found structured content from tool:",
+                    result.toolName
+                  );
+                  console.log(
+                    "[Chat API] Structured content keys:",
+                    Object.keys(structuredContent)
+                  );
+                  break; // Use first available structuredContent
+                }
+              }
+            }
 
             if (mcpResult.enhancedContext) {
               finalMessage = mcpResult.enhancedContext;
@@ -328,17 +347,27 @@ wss.on("connection", (ws) => {
           aiResponse += chunk.message.content;
 
           // Send the incoming chunk as-is to the client (frontend will append)
-          ws.send(
-            JSON.stringify({ type: "chunk", text: chunk.message.content })
-          );
+          // Include structuredContent if available (e.g., chartSvg)
+          const chunkMsg: any = { type: "chunk", text: chunk.message.content };
+          if (structuredContent) {
+            chunkMsg.structuredContent = structuredContent;
+            console.log("[Chat API] Sending chunk with structuredContent, keys:", Object.keys(structuredContent));
+          }
+          ws.send(JSON.stringify(chunkMsg));
         }
 
         // Add AI response to history and send back to client
-        sessionHistory.push({ sender: "ai", text: aiResponse });
+        const aiMessage: any = { sender: "ai", text: aiResponse };
+        if (structuredContent) {
+          aiMessage.structuredContent = structuredContent;
+          console.log("[Chat API] AI message has structuredContent, keys:", Object.keys(structuredContent));
+        }
+        sessionHistory.push(aiMessage);
         console.log(`[Chat API] AI response: >>>>>>>>> ${aiResponse} ✨`);
         console.log(
           `[Chat API] Session now has ${sessionHistory.length} messages (after AI response)`
         );
+        console.log("[Chat API] Last message in history:", JSON.stringify(sessionHistory[sessionHistory.length - 1], null, 2).substring(0, 200));
 
         // Send updated history back to client
         ws.send(
