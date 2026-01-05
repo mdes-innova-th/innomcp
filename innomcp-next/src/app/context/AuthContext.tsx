@@ -82,6 +82,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
+    // Check if auth is optional (for demo/chat-only mode)
+    const authMode = process.env.NEXT_PUBLIC_AUTH_MODE || 'required';
+    if (authMode === 'optional') {
+      // Skip auth check, allow anonymous access
+      setIsLoggedIn(false);
+      setIsAuthLoading(false);
+      return;
+    }
     checkAuth();
   }, []);
 

@@ -8,7 +8,9 @@ import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import rehypeStringify from "rehype-stringify";
 import rehypeSanitize from "rehype-sanitize";
+
 import { MCPTool, MCPResource } from "./types";
+import { logBoth } from "../mcpLogger";
 
 /**
  * ดึงเลขตัวเลขจากประวัติการสนทนาสำหรับกราฟ
@@ -58,7 +60,8 @@ export function extractChartDataFromHistory(
       .map(([label, value]) => `${label} ${value}`)
       .join(", ");
 
-    console.log(
+    logBoth(
+      "info",
       `[MCP Client] Extracted chart data from history: ${dataContext}`
     );
   }
@@ -128,7 +131,7 @@ export function markdownToHtml(markdown: string): string {
 
     return String(processed);
   } catch (error) {
-    console.error("Error converting Markdown to HTML:", error);
+    logBoth("error", `Error converting Markdown to HTML: ${error}`);
     return markdown;
   }
 }

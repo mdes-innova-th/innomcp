@@ -3,11 +3,13 @@
  * Handles pattern matching, keyword matching, and AI-based tool selection
  */
 
+
 import * as natural from "natural";
 import Fuse from "fuse.js";
 import { MCPTool, MCPResource, ToolPattern } from "./types";
 import { makeFuse, runSearch } from "./fuseSearch";
 import { CATEGORY_KEYWORDS } from "./constants";
+import { logBoth } from "../mcpLogger";
 
 export class ToolSelectionEngine {
   private tokenizer = new natural.WordTokenizer();
@@ -95,7 +97,8 @@ export class ToolSelectionEngine {
     }
 
     const totalScore = tfidfScore + fuseScore + categoryScore;
-    console.log(
+    logBoth(
+      "info",
       `[MCP Client] Score for ${toolName}: ${totalScore.toFixed(
         2
       )} (TF-IDF: ${tfidfScore.toFixed(1)}, Fuse: ${fuseScore.toFixed(
@@ -341,7 +344,7 @@ ${toolDescriptions}
       const rawText = String(response?.message?.content || "").trim();
 
       if (rawText.toLowerCase().includes("none")) {
-        console.log("[MCP Client] AI selection: no suitable tools");
+        logBoth("info", "[MCP Client] AI selection: no suitable tools");
         return [];
       }
 
@@ -366,7 +369,7 @@ ${toolDescriptions}
         }
       );
     } catch (error) {
-      console.error("[MCP Client] AI selection error:", error);
+      logBoth("error", `[MCP Client] AI selection error: ${error}`);
       return [];
     }
   }
@@ -387,7 +390,7 @@ ${toolDescriptions}
         thaiTokens = await tokenizeThaiWithOllama(text);
       }
     } catch (error) {
-      console.warn("[MCP Client] Thai tokenization failed:", error);
+      logBoth("warn", `[MCP Client] Thai tokenization failed: ${error}`);
     }
 
     const englishTokens = this.tokenizer.tokenize(text.toLowerCase()) || [];

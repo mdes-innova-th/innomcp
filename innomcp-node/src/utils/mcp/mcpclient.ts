@@ -16,6 +16,7 @@ import * as natural from "natural";
 import { makeFuse, runSearch } from "./fuseSearch";
 import { ToolChainingEngine } from "./toolChaining";
 import { CATEGORY_KEYWORDS } from "./constants";
+import logger from "../logger";
 import {
   MCPTool,
   MCPResource,
@@ -57,9 +58,21 @@ class IntelligentMCPClient extends EventEmitter {
   private clients: Map<string, Client> = new Map();
   private tools: Map<string, MCPTool> = new Map();
   private resources: Map<string, MCPResource> = new Map();
+  
+  // Multi-AI support
+  private localOllama: Ollama | null = null;
+  private remoteOllama: Ollama | null = null;
+  private aiMode: 'local' | 'remote' | 'hybrid' = 'local';
+  
+  // Backward compatibility
   private ollama: Ollama;
   private ollamaModel: string;
-  private ajv: Ajv;
+  
+  // AI Models
+  private localModel: string = '';
+  private remoteModel: string = '';
+  
+  private ajv: InstanceType<typeof Ajv>;
   private selectionCache: Map<string, ToolSelectionCache> = new Map();
   private cacheTTL: number = 300000; // 5 minutes
   private conversationHistory: ConversationContext[] = [];
@@ -69,6 +82,13 @@ class IntelligentMCPClient extends EventEmitter {
   private tfidf = new natural.TfIdf();
   private stemmer = natural.PorterStemmer;
   private tokenizer = new natural.WordTokenizer();
+  
+  // Tokenization cache to prevent repeated Ollama calls
+  private tokenCache: Map<string, { tokens: string[], timestamp: number }> = new Map();
+  private tokenCacheTTL: number = 3600000; // 1 hour
+  
+  // Performance tracking
+  private performanceMetrics: Map<string, { aiUsed: string; duration: number; timestamp: number }> = new Map();
 
   // Tool patterns for enhanced matching
   private toolPatterns: ToolPattern[] = [
@@ -88,10 +108,40 @@ class IntelligentMCPClient extends EventEmitter {
         "now",
         "time",
         "date",
+        "กี่โมง",
+        "วันอะไร",
+        "เดือนอะไร",
       ],
-      toolPattern: /datetime|time|date/i,
+      toolPattern: /dateTimeTool|datetime|time|date/i,
       priority: "high",
       category: "datetime",
+    },
+    {
+      keywords: [
+        "คำนวณ",
+        "หา",
+        "เท่ากับ",
+        "calculate",
+        "compute",
+        "math",
+        "บวก",
+        "ลบ",
+        "คูณ",
+        "หาร",
+        "ยกกำลัง",
+        "รากที่",
+        "เท่าไร",
+        "คิดเลข",
+        "calculator",
+        "เครื่องคิดเลข",
+        "sqrt",
+        "sin",
+        "cos",
+        "log",
+      ],
+      toolPattern: /calculatorTool|calculator|math|compute/i,
+      priority: "high",
+      category: "computation",
     },
     {
       keywords: [
@@ -110,38 +160,194 @@ class IntelligentMCPClient extends EventEmitter {
         "ร้อน",
         "หนาว",
         "จังหวัดไหนฝนตก",
+        "อากาศวันนี้",
+        "สภาพอากาศวันนี้",
       ],
-      toolPattern: /^tmdTool/i,
+      toolPattern: /tmdTool/i,
       priority: "high",
       category: "weather",
     },
+    // NEW: Session 8.8 Tools - Data Access & Advanced Calculation
     {
-      keywords: ["ระบบ webd", "webd", "ผิดกฎหมาย", "คำสั่งศาล", "url", "โดเมน"],
-      toolPattern: /^webdTool/i,
+      keywords: ["archive", "หนังสือ", "เพลง", "วิดีโอ", "dataset", "archive.org", "ค้นหาหนังสือ"],
+      toolPattern: /archive/i,
+      priority: "high",
+      category: "data_access",
+    },
+    {
+      keywords: ["nasa", "apod", "ดาราศาสตร์", "ดาว", "อวกาศ", "ภาพดาว", "astronomy"],
+      toolPattern: /nasa/i,
+      priority: "high",
+      category: "data_access",
+    },
+    {
+      keywords: ["พยากรณ์อากาศ", "forecast", "พรุ่งนี้ฝนตก", "อากาศพรุ่งนี้", "current weather"],
+      toolPattern: /weather/i,
+      priority: "high",
+      category: "weather_api",
+    },
+    {
+      keywords: ["gdp", "population", "ประชากร", "เศรษฐกิจ", "inflation", "world bank"],
+      toolPattern: /worldbank/i,
+      priority: "medium",
+      category: "data_access",
+    },
+    {
+      keywords: ["census", "government data", "ข้อมูลภาครัฐ", "data.gov"],
+      toolPattern: /govdata/i,
+      priority: "medium",
+      category: "data_access",
+    },
+    {
+      keywords: ["อนุพันธ์", "ปริพันธ์", "derivative", "integrate", "simplify", "factor"],
+      toolPattern: /newton/i,
+      priority: "high",
+      category: "calculation_fast",
+    },
+    {
+      keywords: ["ค่าเฉลี่ย", "mean", "median", "std", "สถิติ", "แปลงหน่วย", "convert"],
+      toolPattern: /calculatorTool/i,
+      priority: "high",
+      category: "calculation_fast",
+    },
+    {
+      keywords: ["ระบบ webd", "webd", "ผิดกฎหมาย", "คำสั่งศาล", "url", "โดเมน", "เว็บไซต์ผิดกฎหมาย"],
+      toolPattern: /webdTool/i,
       priority: "high",
       category: "webd",
     },
     {
-      keywords: ["กราฟ", "chart", "graph", "echarts", "visualize"],
-      toolPattern: /^echartsTool/i,
+      keywords: ["กราฟ", "chart", "graph", "echarts", "visualize", "แผนภูมิ", "สร้างกราฟ"],
+      toolPattern: /echartsTool/i,
       priority: "high",
       category: "visualization",
     },
   ];
 
-  constructor(ollama: Ollama, ollamaModel: string) {
+  constructor(ollama: Ollama, ollamaModel: string, config?: {
+    aiMode?: 'local' | 'remote' | 'hybrid';
+    localOllama?: Ollama;
+    remoteOllama?: Ollama;
+    localModel?: string;
+    remoteModel?: string;
+  }) {
     super();
     this.ollama = ollama;
     this.ollamaModel = ollamaModel;
     this.ajv = new Ajv({ allErrors: true });
+    
+    // Multi-AI configuration
+    if (config) {
+      this.aiMode = config.aiMode || 'local';
+      this.localOllama = config.localOllama || null;
+      this.remoteOllama = config.remoteOllama || null;
+      this.localModel = config.localModel || ollamaModel;
+      this.remoteModel = config.remoteModel || ollamaModel;
+      
+      console.log(`[MCP Client] 🚀 Initialized in ${this.aiMode.toUpperCase()} mode`);
+      if (this.aiMode === 'hybrid') {
+        console.log(`[MCP Client] 💡 Local AI: ${this.localModel} (fast tasks)`);
+        console.log(`[MCP Client] 🎯 Remote AI: ${this.remoteModel} (accuracy)`);
+      }
+    } else {
+      this.aiMode = 'local';
+      this.localModel = ollamaModel;
+    }
   }
 
   // ========================================
   // OLLAMA CHAT WRAPPER
   // ========================================
 
-  private async chatWithOllama(messages: any[], options?: any): Promise<any> {
-    console.log("===== Starting chatWithOllama =====");
+  /**
+   * เลือก AI ที่เหมาะสมตาม task type และ AI mode
+   * 
+   * Task Types:
+   * - fast: Tool selection, tokenization, classification (ใช้ local)
+   * - accurate: Final response, complex reasoning (ใช้ remote)
+   * - balanced: ปกติ (ใช้ตาม mode)
+   */
+  private selectAI(taskType: 'fast' | 'accurate' | 'balanced' = 'balanced'): {
+    ollama: Ollama;
+    model: string;
+    aiType: 'local' | 'remote';
+  } {
+    // Local mode: ใช้ local เสมอ
+    if (this.aiMode === 'local') {
+      return {
+        ollama: this.ollama,
+        model: this.ollamaModel,
+        aiType: 'local',
+      };
+    }
+    
+    // Remote mode: ใช้ remote เสมอ (fallback to local)
+    if (this.aiMode === 'remote') {
+      if (this.remoteOllama) {
+        return {
+          ollama: this.remoteOllama,
+          model: this.remoteModel,
+          aiType: 'remote',
+        };
+      }
+      // Fallback to local
+      return {
+        ollama: this.ollama,
+        model: this.ollamaModel,
+        aiType: 'local',
+      };
+    }
+    
+    // Hybrid mode: เลือกตาม task type
+    if (this.aiMode === 'hybrid') {
+      // Fast tasks → Local AI
+      if (taskType === 'fast' && this.localOllama) {
+        return {
+          ollama: this.localOllama,
+          model: this.localModel,
+          aiType: 'local',
+        };
+      }
+      
+      // Accurate tasks → Remote AI
+      if (taskType === 'accurate' && this.remoteOllama) {
+        return {
+          ollama: this.remoteOllama,
+          model: this.remoteModel,
+          aiType: 'remote',
+        };
+      }
+      
+      // Balanced or fallback → prefer remote
+      if (this.remoteOllama) {
+        return {
+          ollama: this.remoteOllama,
+          model: this.remoteModel,
+          aiType: 'remote',
+        };
+      }
+      if (this.localOllama) {
+        return {
+          ollama: this.localOllama,
+          model: this.localModel,
+          aiType: 'local',
+        };
+      }
+    }
+    
+    // Default fallback
+    return {
+      ollama: this.ollama,
+      model: this.ollamaModel,
+      aiType: 'local',
+    };
+  }
+
+  private async chatWithOllama(messages: any[], options?: any, taskType: 'fast' | 'accurate' | 'balanced' = 'balanced'): Promise<any> {
+    const startTime = Date.now();
+    const { ollama, model, aiType } = this.selectAI(taskType);
+    
+    logger.info(`Starting chatWithOllama`, { aiType: aiType.toUpperCase(), taskType, model });
 
     try {
       // Ensure messages is an array and prepend SYSTEM_PROMPT if no system role provided
@@ -153,15 +359,39 @@ class IntelligentMCPClient extends EventEmitter {
         messages = [{ role: "system", content: SYSTEM_PROMPT }, ...messages];
       }
 
-      console.log(
-        `[MCP Client] Calling ollama.chat with model: ${this.ollamaModel} ✨`
-      );
-      const response = await this.ollama.chat({
-        model: this.ollamaModel,
+      logger.info(`Calling ollama.chat`, { model, aiType, options: JSON.stringify(options || {}) });
+      const response = await ollama.chat({
+        model: model,
         messages,
         stream: false,
+        keep_alive: '30m',
         options: options || {},
       });
+
+      const duration = Date.now() - startTime;
+      
+      // Track performance
+      if (process.env.ENABLE_PERFORMANCE_METRICS === 'true') {
+        this.performanceMetrics.set(`chat_${Date.now()}`, {
+          aiUsed: aiType,
+          duration,
+          timestamp: Date.now(),
+        });
+      }
+      
+      // Performance warning for slow responses
+      if (duration > 5000) {
+        logger.warn(`⚠️ SLOW AI RESPONSE`, { 
+          aiType, 
+          duration, 
+          taskType, 
+          model,
+          threshold: '5000ms',
+          options: JSON.stringify(options || {})
+        });
+      } else {
+        logger.info(`⚡ AI Response received`, { aiType, duration, taskType });
+      }
 
       if (response && response.message) return response;
 
@@ -169,18 +399,45 @@ class IntelligentMCPClient extends EventEmitter {
         "[MCP Client] Ollama returned unexpected response, trying stream fallback"
       );
     } catch (err) {
+      const duration = Date.now() - startTime;
       console.warn(
-        "[MCP Client] Ollama sync chat failed, attempting stream fallback:",
+        `[MCP Client] ${aiType} AI failed (${duration}ms), attempting fallback:`,
         String(err)
       );
+      
+      // Hybrid/Remote mode: fallback to local
+      if ((this.aiMode === 'hybrid' || this.aiMode === 'remote') && 
+          aiType === 'remote' && 
+          this.localOllama &&
+          (process.env.FALLBACK_TO_LOCAL_ON_ERROR === 'true' || taskType === 'fast')) {
+        console.log('[MCP Client] 🔄 Falling back to local AI...');
+        try {
+          const fallbackResponse = await this.localOllama.chat({
+            model: this.localModel,
+            messages,
+            stream: false,
+            keep_alive: '30m',
+            options: options || {},
+          });
+          
+          if (fallbackResponse && fallbackResponse.message) {
+            console.log('[MCP Client] ✅ Fallback successful');
+            return fallbackResponse;
+          }
+        } catch (fallbackErr) {
+          console.error('[MCP Client] Fallback also failed:', fallbackErr);
+        }
+      }
     }
 
     // Streaming fallback
     try {
-      const stream = await this.ollama.chat({
-        model: this.ollamaModel,
+      console.log(`[MCP Client] Trying stream with ${aiType} AI...`);
+      const stream = await ollama.chat({
+        model: model,
         messages,
         stream: true,
+        keep_alive: '30m',
         options: options || {},
       });
 
@@ -472,17 +729,10 @@ class IntelligentMCPClient extends EventEmitter {
   ): Promise<string[]> {
     const text = `${name} ${description || ""}`;
 
-    let thaiTokens: string[] = [];
-    try {
-      thaiTokens = await this.tokenizeThaiWithOllama(text);
-    } catch (error) {
-      console.warn("[MCP Client] Thai tokenization failed:", error);
-    }
+    // Use cached tokenization
+    const allTokens = await this.tokenizeThaiWithOllama(text);
 
-    const englishTokens = this.tokenizer.tokenize(text.toLowerCase()) || [];
-    const allTokens = [...new Set([...thaiTokens, ...englishTokens])];
-
-    const englishWords = allTokens.filter((token) => /^[a-z]{3,}$/.test(token));
+    const englishWords = allTokens.filter((token) => /^[a-z]{3,}$/i.test(token));
     const englishStopWords = [
       "tool",
       "function",
@@ -493,7 +743,7 @@ class IntelligentMCPClient extends EventEmitter {
       "with",
     ];
     const filteredEnglish = englishWords.filter(
-      (w) => !englishStopWords.includes(w)
+      (w) => !englishStopWords.includes(w.toLowerCase())
     );
 
     const thaiWords = allTokens.filter((token) =>
@@ -602,53 +852,72 @@ class IntelligentMCPClient extends EventEmitter {
       // ตรวจสอบแบบ local ก่อน
       const quickCheck = this.quickClassifyMessage(userMessage);
       if (quickCheck) {
-        console.log(
-          `[Classify] Quick classified as: ${quickCheck.type}, canAnswerDirectly: ${quickCheck.canAnswerDirectly}`
-        );
+        logger.info(`Quick classified message`, { 
+          type: quickCheck.type, 
+          canAnswerDirectly: quickCheck.canAnswerDirectly,
+          confidence: quickCheck.confidence 
+        });
         return quickCheck;
       }
 
-      const prompt = `วิเคราะห์ประเภทของข้อความต่อไปนี้ และตอบเป็น JSON เท่านั้น
+      const prompt = `วิเคราะห์ประเภทของข้อความนี้อย่างแม่นยำ และตอบเป็น JSON เท่านั้น
 
 ข้อความ: "${userMessage}"
 
-ประเภทที่เป็นไปได้:
-- greeting: การทักทาย เช่น สวัสดี, หวัดดี, hello
-- general_question: คำถามทั่วไปที่ตอบได้ทันที เช่น "คุณคือใคร", "ทำไมท้องฟ้าเป็นสีฟ้า"
-- action_request: คำขอที่ต้องใช้ tools เช่น:
-  * "ข้อมูลชิงสถิติ..." (statistics queries)
-  * "จำนวนรายการ..." (count queries)
-  * "สภาพอากาศ", "พยากรณ์อากาศ" (weather forecasts)
-  * "ข่าวสาร", "ข้อมูลข่าว" (news)
-  * "สร้างกราฟ", "ค้นหาข้อมูล", "ดึงข้อมูล", "ประมวลผล"
-- unknown: ไม่ทราบประเภท
+ประเภท:
+- greeting: การทักทาย (สวัสดี, hello, hi) ไม่มีคำถามหรือคำสั่งอื่น
+- general_question: คำถามทั่วไป (คุณคือใคร, ทำไง, อธิบาย) ที่ไม่ต้องใช้ tools
+- calculation_request: คำขอคำนวณ (มีตัวเลขและเครื่องหมาย +,-,*,/,^) หรือ factorial (!!,!)
+- datetime_request: ถามเวลา/วันที่ (กี่โมง, วันนี้, เวลา, taskbar)
+- weather_request: ถามอากาศ (อากาศ, อุณหภูมิ, ฝน, weather)
+- data_request: ถามข้อมูล/สถิติ (webd, จำนวน, สถิติ, ip)
+- unknown: ไม่ทราบ
 
-กฎ:
-1. ตอบเป็น JSON object ที่มีฟิลด์: type, canAnswerDirectly, confidence
-2. canAnswerDirectly: true ถ้าประเภท greeting หรือ general_question ที่ไม่ต้องเรียก tools
-3. canAnswerDirectly: false ถ้าต้องเรียก tools (action_request)
-4. confidence: ความมั่นใจ 0-1 (เช่น 0.9 สำหรับแน่ใจมาก)
-5. ห้ามมีข้อความอื่นนอก JSON
+กฎสำคัญ:
+1. greeting → ต้องเป็นการทักทายอย่างเดียว ไม่มีคำถามหรือคำสั่งอื่น
+2. calculation_request → ต้องมีตัวเลขหรือสูตรคณิตศาสตร์ชัดเจน
+3. ถ้าสงสัย → เลือก general_question แทน action_request
+4. ตอบ JSON: {"type": "...", "canAnswerDirectly": true/false, "confidence": 0.9}
 
 ตัวอย่าง:
-- "วันนี้สภาพอากาศเป็นอย่างไร" → action_request (ต้อง tools)
-- "จำนวนเว็บไซต์ผิดกฎหมายในระบบ webd" → action_request (ต้อง tools)
-- "ข้อมูลชิงสถิติการกระทำผิด" → action_request (ต้อง tools)
-- "สวัสดี" → greeting (ตอบได้ทันที)
-- "ทำไมท้องฟ้าเป็นสีฟ้า" → general_question (ตอบได้ทันที)
+- "สวัสดี" → {"type":"greeting","canAnswerDirectly":true,"confidence":0.95}
+- "สวัสดี นายคือใคร" → {"type":"general_question","canAnswerDirectly":true,"confidence":0.9}
+- "21+12" → {"type":"calculation_request","canAnswerDirectly":false,"confidence":0.95}
+- "ตอนนี้กี่โมง" → {"type":"datetime_request","canAnswerDirectly":false,"confidence":0.95}
+- "ไทยอากาศ" → {"type":"weather_request","canAnswerDirectly":false,"confidence":0.9}
+- "webd สถิติ" → {"type":"data_request","canAnswerDirectly":false,"confidence":0.9}
 
 JSON:`;
 
       const response = await this.chatWithOllama(
         [{ role: "user", content: prompt }],
-        { temperature: 0.1, num_predict: 100 }
+        { 
+          temperature: 0.1,
+          num_predict: 25,
+          num_ctx: 128,
+          num_gpu_layers: 50,
+          num_thread: 8,
+          top_p: 0.9,
+          top_k: 20,
+        },
+        'fast'
       );
 
       const rawText = String(response?.message?.content || "").trim();
+      console.log(`[Classify] Raw response length: ${rawText.length} chars`);
+      
       const extracted = this.extractJsonFromText(rawText);
       const jsonStr = extracted || rawText;
+      
+      console.log(`[Classify] Extracted JSON: ${jsonStr.substring(0, 100)}...`);
 
-      const parsed = JSON.parse(jsonStr);
+      let parsed;
+      try {
+        parsed = JSON.parse(jsonStr);
+      } catch (parseError) {
+        console.error(`[Classify] JSON parse failed. Raw text preview: ${rawText.substring(0, 200)}`);
+        throw parseError;
+      }
 
       if (
         parsed &&
@@ -677,6 +946,10 @@ JSON:`;
       };
     } catch (error) {
       console.error("[Classify] Error classifying message:", error);
+      logger.error("MCP classification error", { 
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined 
+      });
       return {
         type: "unknown",
         canAnswerDirectly: false,
@@ -692,31 +965,155 @@ JSON:`;
   private quickClassifyMessage(
     userMessage: string
   ): MessageClassification | null {
-    const msg = userMessage.toLowerCase();
+    const msg = userMessage.toLowerCase().trim();
 
-    // Greeting patterns
-    const greetingPatterns = [
-      /^(สวัสดี|สวัสดีค่ะ|สวัสดีครับ|หวัดดี|ทักทาย|hello|hi|hey)/i,
+    // ===== ULTRA FAST: คำทักทายสั้นๆ (ตอบทันที ไม่ต้อง classify ต่อ) =====
+    // คำทักทายอย่างเดียว หรือสั้นมาก (≤15 ตัวอักษร)
+    if (msg.length <= 15) {
+      const ultraShortGreetings = [
+        /^(สวัสดี|หวัดดี|hi|hello|hey|ทักทาย)[\s\!\?]*$/i,
+        /^(สวัสดี|hello|hi)[\s\!\?]+$/i,
+      ];
+      
+      if (ultraShortGreetings.some((p) => p.test(msg))) {
+        console.log('[Quick Classify] ⚡ ULTRA FAST: Short greeting detected');
+        return {
+          type: "greeting",
+          canAnswerDirectly: true,
+          confidence: 0.98,
+        };
+      }
+    }
+    
+    // ===== FAST: Greeting + คำถามง่ายๆ (≤30 ตัวอักษร) =====
+    if (msg.length <= 30) {
+      const shortGreetingWithQuestion = [
+        /^(สวัสดี|hello|hi).*(?:คือใคร|ชื่ออะไร|เป็นใคร|who are you)/i,
+        /^(สวัสดี|hello|hi).*(?:ช่วย|help|สบายดี)/i,
+      ];
+      
+      // ตรวจสอบว่าไม่มี action keywords
+      const hasActionKeywords = 
+        /(?:กี่โมง|เวลา|วันที่|อากาศ|คำนวณ|สถิติ|ค้นหา|gdp|archive|nasa)/i.test(msg) ||
+        /\d+[\+\-\*\/\×\÷\^]/.test(msg);
+      
+      if (shortGreetingWithQuestion.some((p) => p.test(msg)) && !hasActionKeywords) {
+        console.log('[Quick Classify] ⚡ FAST: Short greeting with simple question');
+        return {
+          type: "general_question",
+          canAnswerDirectly: true,
+          confidence: 0.95,
+        };
+      }
+    }
+
+    // ===== TODO 1 FIX: Check GREETING FIRST (highest priority) =====
+    // Greeting patterns - เช็คก่อนสุด (ถ้าไม่ใช่ action request)
+    // เฉพาะคำทักทายอย่างเดียว หรือมีคำถามง่ายๆ ต่อท้าย
+    const greetingOnlyPatterns = [
+      /^(สวัสดี|สวัสดีค่ะ|สวัสดีครับ|หวัดดี|ทักทาย|hello|hi|hey|good morning|good evening)[\s\!]*$/i,
     ];
-    if (greetingPatterns.some((p) => p.test(msg))) {
+    
+    // ===== CRITICAL FIX: ตรวจสอบว่ามี action keywords หรือไม่ =====
+    // ถ้ามี greeting แต่มี datetime/calculation/weather → ต้องใช้ tools!
+    const hasActionKeywords = 
+      /(?:กี่โมง|เวลา|วันที่|พรุ่งนี้|อากาศ|ฝน|ร้อน|หนาว|คำนวณ|หาร|คูณ|แปลง|เฉลี่ย|ดึงข้อมูล|สถิติ|ค้นหา|สร้างกราฟ|gdp|archive|nasa|อวกาศ)/i.test(msg) ||
+      /\d+[\+\-\*\/\×\÷\^]/.test(msg) || // มีการคำนวณ
+      /\d+!!?/.test(msg); // factorial
+    
+    // Greeting + simple identity question (ไม่มี action keywords)
+    const greetingWithIdentityQuestion = [
+      /^(สวัสดี|hello|hi).*(?:คือใคร|ชื่ออะไร|เป็นใคร|who are you|เป็นยังไง|สบายดี)/i,
+    ];
+    
+    if (greetingOnlyPatterns.some((p) => p.test(msg))) {
+      console.log('[Quick Classify] ✅ Greeting detected (greeting only)');
       return {
         type: "greeting",
         canAnswerDirectly: true,
         confidence: 0.95,
       };
     }
+    
+    // ถ้ามี greeting + action keywords → ไม่ถือว่า "can answer directly"
+    if (greetingWithIdentityQuestion.some((p) => p.test(msg)) && !hasActionKeywords) {
+      console.log('[Quick Classify] ✅ Greeting with identity question detected (no action)');
+      return {
+        type: "general_question",
+        canAnswerDirectly: true,
+        confidence: 0.9,
+      };
+    }
+    
+    // ถ้ามี greeting + action keywords → ต้องดูว่าเป็น action อะไร
+    if (/^(สวัสดี|hello|hi)/i.test(msg) && hasActionKeywords) {
+      console.log('[Quick Classify] ⚠️ Greeting with action keywords - will check action type');
+      // ไม่ return ตรงนี้ ให้ไปเช็ค action patterns ด้านล่างต่อ
+    }
 
-    // Action request patterns - ต้องใช้ tools
+    // DateTime patterns - ต้องเช็คหลังจาก greeting เพราะอาจมี "สวัสดี" นำหน้า
+    const dateTimePatterns = [
+      // กี่โมง queries
+      /กี่โมง/i,
+      /ตอนนี้.*(?:เวลา|time)/i,
+      /เวลา.*(?:เท่าไร|อะไร|ตอนนี้)/i,
+      
+      // วันที่ queries
+      /วันที่.*(?:เท่าไร|เท่าไหร่|อะไร|กี่)/i,
+      /(?:วันนี้|พรุ่งนี้|เมื่อวาน).*วันที่/i,
+      
+      // Combined patterns (คำถามที่ซับซ้อนกว่า)
+      /(?:ตอนนี้|เดี๋ยวนี้|ปัจจุบัน|ขณะนี้).*(?:กี่โมง|เวลา|วันที่)/i,
+      /(?:วันนี้|พรุ่งนี้|เมื่อวาน).*(?:วันที่|เท่าไร|กี่|เดือน|ปี)/i,
+      
+      // English patterns
+      /what.*time|current.*time|time.*now/i,
+      /what.*date|current.*date|today.*date/i,
+      /taskbar.*เวลา|เครื่อง.*เวลา|window.*เวลา/i,
+    ];
+    if (dateTimePatterns.some((p) => p.test(msg))) {
+      console.log('[Quick Classify] ✅ DateTime pattern detected');
+      return {
+        type: "action_request", // ต้องใช้ dateTimeTool
+        canAnswerDirectly: false,
+        confidence: 0.95,
+      };
+    }
+
+    // Calculation patterns - ต้องใช้ calculatorTool (เช็คเข้มงวด)
+    const hasNumbers = /\d+/.test(msg);
+    const hasMathSymbols = /[\+\-\*\/\×\÷\^]/.test(msg);
+    const hasFactorial = /\d+!+/.test(msg); // 99!! หรือ 5!
+    const hasMathKeywords = /(?:คำนวณ|หาร|คูณ|บวก|ลบ|ยกกำลัง|factorial|calculate|compute|หาค่า|แปลง|เฉลี่ย|average|convert)/i.test(msg);
+    const hasEquation = /[=]/.test(msg); // มีสมการ
+    
+    // ต้องมีตัวเลข + (สัญลักษณ์คณิตศาสตร์ หรือ factorial หรือ keywords)
+    const isCalculation = hasNumbers && (hasMathSymbols || hasFactorial || hasMathKeywords || hasEquation);
+    
+    if (isCalculation) {
+      console.log('[Quick Classify] ✅ Calculation pattern detected');
+      return {
+        type: "action_request", // ต้องใช้ calculatorTool
+        canAnswerDirectly: false,
+        confidence: 0.95,
+      };
+    }
+
+    // Action request patterns - ต้องใช้ tools อื่นๆ
     const actionPatterns = [
       // Statistics/สถิติ
       /ข้อมูลชิงสถิติ|สถิติ.*(?:จำนวน|นับ|รวม|เปอร์เซ็นต์)/i,
       /จำนวน(?:รายการ|เว็บ|ข้อมูล|การกระทำ|ผู้ใช้)/i,
       /นับ.*(?:จำนวน|ทั้งหมด)/i,
 
-      // Weather/สภาพอากาศ
-      /สภาพอากาศ|พยากรณ์อากาศ|weather|forecast/i,
-      /อากาศ.*(?:วันนี้|พรุ่งนี้|เมื่อวาน|จังหวัด)/i,
-      /ฝน|ลมแรง|ร้อน|หนาว|อุณหภูมิ/i,
+      // Weather/สภาพอากาศ - แยกเป็น simple patterns
+      /พยากรณ์.*อากาศ|พยากรณ์อากาศ/i,
+      /สภาพอากาศ|weather|forecast/i,
+      /อากาศ.*(?:วันนี้|พรุ่งนี้|เมื่อวาน|เป็นอย่างไร|ยังไง)/i,
+      /(?:วันนี้|พรุ่งนี้).*อากาศ/i,
+      /(?:กรุงเทพฯ?|กรุงเทพมหานคร|bangkok).*(?:อากาศ|ร้อน|หนาว)/i,
+      /อากาศ.*(?:ร้อน|หนาว).*(?:ไหม|มั้ย)/i,
+      /ฝน|ลมแรง|อุณหภูมิ/i,
 
       // News/ข่าวสาร
       /ข่าวสาร|ข้อมูลข่าว|ข่าว.*(?:สาย|ใหม่|ล่าสุด)/i,
@@ -725,15 +1122,46 @@ JSON:`;
       // Data queries
       /ดึงข้อมูล|ค้นหาข้อมูล|สร้างกราฟ|ประมวลผล/i,
       /webd.*(?:จำนวน|สถิติ|ข้อมูล)/i,
+      
+      // Search/Archive
+      /ค้นหา.*(?:หนังสือ|เอกสาร|ข้อมูล).*(?:archive|internet|library)/i,
+      /internet.*archive|archive.*search/i,
+      
+      // NASA/Space
+      /ภาพ.*(?:อวกาศ|ดาว|ดวงจันทร์|ดวงอาทิตย์)|space.*(?:image|photo|picture)/i,
+      /nasa|apod|astronomy/i,
+      
+      // World Bank/Economics  
+      /gdp|ผลิตภัณฑ์.*(?:มวล|รวม)|เศรษฐกิจ.*(?:ไทย|ประเทศ)|world.*bank/i,
     ];
 
     if (actionPatterns.some((p) => p.test(msg))) {
+      console.log('[Quick Classify] ✅ Action pattern detected');
       return {
         type: "action_request",
         canAnswerDirectly: false,
         confidence: 0.9,
       };
     }
+    
+    // ✅ NEW: General knowledge questions (no tools needed)
+    const generalQuestionPatterns = [
+      /(?:คืออะไร|หมายถึงอะไร|ความหมาย|คือ|ยังไง)/i,
+      /(?:AI|ปัญญาประดิษฐ์|machine learning|deep learning|neural network).*(?:คือ|หมายถึง|ยังไง)/i,
+      /(?:อธิบาย|บอก|แนะนำ).*(?:คือ|เกี่ยวกับ)/i,
+      /(?:what is|who is|how does|explain|tell me about)/i,
+    ];
+    
+    if (generalQuestionPatterns.some((p) => p.test(msg)) && !hasActionKeywords) {
+      console.log('[Quick Classify] ✅ General question detected (no tools needed)');
+      return {
+        type: "general_question",
+        canAnswerDirectly: true,
+        confidence: 0.9,
+      };
+    }
+
+    // ===== Greeting already checked at top - this is removed =====
 
     return null;
   }
@@ -774,7 +1202,14 @@ JSON:`;
 
       const response = await this.chatWithOllama(
         [{ role: "user", content: prompt }],
-        { temperature: 0.3, num_predict: 200 }
+        { 
+          temperature: 0.5,
+          num_predict: 150,
+          num_ctx: 512,
+          num_gpu_layers: 50,
+          num_thread: 8,
+        },
+        'fast'
       );
 
       return String(response?.message?.content || "").trim();
@@ -872,11 +1307,16 @@ JSON:`;
           }
         }
 
-        // Execute tool
-        console.log(`[Chain] Executing tool...`);
+        // Execute tool with pre-generated args (create map)
+        console.log(`[Chain] Executing tool with args:`, step.args);
+        const argsMap: Record<string, any> = {};
+        if (step.args) {
+          argsMap[step.toolName] = step.args;
+        }
         const toolResults = await this.executeTools(
           [step.toolName],
-          userMessage
+          userMessage,
+          argsMap // ส่ง map แทน single object
         );
 
         if (toolResults.length === 0) {
@@ -969,6 +1409,20 @@ JSON:`;
       const schemaStr = JSON.stringify(schema, null, 2);
       const required = schema.required || [];
 
+      // Extract parameter names from description if schema is empty
+      let parameterHints = "";
+      let exampleArgs = "";
+      if (Object.keys(schema).length === 0 && tool.description) {
+        parameterHints = this.extractParameterHintsFromDescription(tool.description);
+        
+        // Add examples for known tools
+        if (tool.name === "calculatorTool") {
+          exampleArgs = `\n📝 ตัวอย่าง: {"expression": "2+2"}`;
+        } else if (tool.name === "echartsTool") {
+          exampleArgs = `\n📝 ตัวอย่าง: {"type": "pie", "chatText": "A 10, B 20"}`;
+        }
+      }
+
       // สำหรับ echartsTool เพิ่มข้อมูลจากแชท
       let chatDataSuggestion = "";
       if (tool.name === "echartsTool") {
@@ -983,28 +1437,38 @@ JSON:`;
 ชื่อ Tool: ${tool.name}
 คำอธิบาย Tool (อ่านให้ดี):
 ${tool.description || "ไม่มี"}
+${parameterHints ? `\n📋 Parameters ที่ต้องมี:\n${parameterHints}` : ''}
+${exampleArgs}
 
 ข้อมูลจาก context (ใช้ข้อมูลนี้ในการสร้าง parameters):
 ${context}${chatDataSuggestion}
+${schemaStr !== '{}' ? `\nSchema ของ tool:\n${schemaStr}` : ''}
 
-Schema ของ tool:
-${schemaStr}
-
-Parameters ที่จำเป็น: ${required.length > 0 ? required.join(", ") : "ไม่มี"}
+Parameters ที่จำเป็น: ${required.length > 0 ? required.join(", ") : "ดูจาก description ข้างบน"}
 
 🎯 กฎ:
-1. ตอบเป็น JSON object ที่มีเฉพาะ parameters เท่านั้น
-2. ถ้า tool เป็น echartsTool ต้องส่ง type + (labels+datasets) หรือ dataJson หรือ chatText
-3. สำหรับ echartsTool ถ้ามีข้อมูลจากแชท ต้องใช้ chatText ไม่ใช่ labels+datasets (รูปแบบ 'A 10, B 20, C 30')
-4. ใช้ข้อมูลจาก context ข้างต้นในการสร้าง parameters
-5. ห้ามส่งผลลัพธ์ (result) หรือข้อมูลอื่นที่ไม่ใช่ parameters
-6. ถ้าไม่มี parameter ให้ส่ง {}
+1. ตอบเป็น JSON object เท่านั้น - ห้ามมีข้อความอื่น
+2. สำหรับ calculatorTool: **ต้องมี expression field** - ดึงจาก context
+3. สำหรับ echartsTool: ต้องส่ง type + (labels+datasets) หรือ chatText
+4. ถ้ามีข้อมูลจากแชท echartsTool ใช้ chatText
+5. ห้ามส่งผลลัพธ์ (result)
+6. ห้ามตอบ {} ถ้า tool ต้องการ parameters
 
-JSON:`;
+ตอบเฉพาะ JSON:
+`;
 
       const response = await this.chatWithOllama(
         [{ role: "user", content: prompt }],
-        { temperature: 0.1, num_predict: 300 }
+        { 
+          temperature: 0.3,
+          num_predict: 50,
+          num_ctx: 512,
+          num_gpu_layers: 50,
+          num_thread: 8,
+          repeat_penalty: 1.0,
+          keep_alive: '30m',
+        },
+        'fast'
       );
 
       let jsonStr = String(response?.message?.content || "").trim();
@@ -1058,8 +1522,42 @@ JSON:`;
       return parsed;
     } catch (error) {
       console.error("[Chain] Error generating args with context:", error);
+      logger.error("MCP args generation error", { 
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined 
+      });
       return {};
     }
+  }
+
+  /**
+   * Extract parameter hints from tool description
+   */
+  private extractParameterHintsFromDescription(description: string): string {
+    const hints: string[] = [];
+    
+    // Look for "Parameter:" or "Parameters:" sections
+    const paramMatch = description.match(/Parameters?:\s*\n([\s\S]*?)(?:\n\n|$)/i);
+    if (paramMatch) {
+      const paramSection = paramMatch[1];
+      // Extract lines that start with - or •
+      const lines = paramSection.split('\n').filter(line => /^[\s-•]/.test(line));
+      hints.push(...lines.map(l => l.trim()));
+    }
+    
+    // Special hints for known tools
+    if (description.includes('calculatorTool') || description.includes('expression')) {
+      hints.push('- expression (required): นิพจน์คณิตศาสตร์ที่ต้องการคำนวณ');
+    }
+    
+    if (description.includes('echartsTool') || description.includes('กราฟ')) {
+      hints.push('- type (required): ประเภทกราฟ (bar, line, pie)');
+      hints.push('- labels (optional): array ของ label');
+      hints.push('- datasets (optional): array ของข้อมูล');
+      hints.push('- chatText (optional): ข้อมูลจากแชทในรูปแบบ "A 10, B 20"');
+    }
+    
+    return hints.length > 0 ? hints.join('\n') : '';
   }
 
   /**
@@ -1088,29 +1586,121 @@ JSON:`;
     chainPlan?: ToolChainPlan;
     directResponse?: string;
   }> {
-    console.log("===== Starting processMessage =====");
-    console.log(
-      "[Process] Conversation history size:",
-      this.conversationHistory.length
-    );
+    const processStartTime = Date.now();
+    logger.info(`Starting processMessage`, { 
+      messageLength: userMessage.length,
+      historySize: this.conversationHistory.length
+    });
 
     // Classify message type ก่อน
     const classification = await this.classifyMessageType(userMessage);
+    logger.info(`[Process] Classification result`, {
+      type: classification.type,
+      canAnswerDirectly: classification.canAnswerDirectly,
+      confidence: classification.confidence
+    });
 
     if (classification.canAnswerDirectly) {
-      console.log(`[Process] Can answer directly: ${classification.type}`);
+      logger.info(`[Process] Can answer directly`, { type: classification.type, confidence: classification.confidence });
       const directResponse = await this.generateDirectResponse(
         userMessage,
         classification
       );
+      logger.info(`[Process] ✅ Returning direct response (needsTools: false)`);
       return { needsTools: false, directResponse };
     }
 
-    // เลือก tools
-    const selectedTools = await this.selectTools(userMessage);
+    // เลือก tools - ใช้ direct pattern matching ก่อน AI (Fast Path)
+    logger.info(`[Process] ⚠️ Cannot answer directly - will select tools`);
+    
+    // FAST PATH: Direct pattern matching (ไม่ต้องรอ AI)
+    let selectedTools: string[] = [];
+    const msg = userMessage.toLowerCase();
+    
+    // ===== PRIORITY 1: Complex queries (multiple tools) - เช็คก่อนเป็นอันดับแรก =====
+    const hasComplexConnector = /(?:แล้ว|จากนั้น|ต่อ|และ|พร้อม|ด้วย|หลังจากนั้น|ตามด้วย|รวมถึง)/.test(msg);
+    if (hasComplexConnector) {
+      const hasDateTime = /(?:กี่โมง|เวลา|วันที่|ตอนนี้|now|time)/.test(msg);
+      const hasWeather = /(?:อากาศ|weather|ฝน|ร้อน|หนาว|พยากรณ์|อุณหภูมิ|เป็นอย่างไร|ยังไง)/.test(msg);
+      const hasCalculator = /\d+.*[\+\-\*\/\×\÷\^]|(?:คำนวณ|calculate)/.test(msg);
+      const hasNewton = /(?:อนุพันธ์|ปริพันธ์|derivative|integral)/.test(msg);
+      
+      // Collect all matching tools
+      const multiTools: string[] = [];
+      if (hasDateTime) multiTools.push("innomcp-server:dateTimeTool");
+      if (hasWeather) multiTools.push("innomcp-server:weather");
+      if (hasNewton) multiTools.push("innomcp-server:newton");
+      else if (hasCalculator) multiTools.push("innomcp-server:calculatorTool");
+      
+      if (multiTools.length >= 2) {
+        selectedTools = multiTools;
+        logger.info(`[Process] ✅ Fast path matched: COMPLEX QUERY with ${multiTools.length} tools: ${multiTools.join(', ')}`);
+      } else if (multiTools.length === 1) {
+        selectedTools = multiTools;
+        logger.info(`[Process] ✅ Fast path matched: ${multiTools[0]} (complex connector but single tool)`);
+      } else {
+        // Has connector but no clear tools - continue to individual checks
+        logger.info(`[Process] Complex connector found but no clear tools - continuing to individual checks`);
+      }
+    }
+    
+    // ===== PRIORITY 2: Individual tool patterns =====
+    // DateTime patterns
+    if (selectedTools.length === 0 && /(?:กี่โมง|เวลา|ตอนนี้.*(?:time|เวลา)|วันที่|what.*time|current.*time)/.test(msg)) {
+      selectedTools = ["innomcp-server:dateTimeTool"];
+      logger.info(`[Process] ✅ Fast path matched: dateTimeTool`);
+    }
+    // Newton patterns (อนุพันธ์, ปริพันธ์) - ต้องเช็คก่อน Calculator
+    else if (selectedTools.length === 0 && /(?:อนุพันธ์|ปริพันธ์|อินทิเกรต|อินทิกรัล|derivative|integral|integrate|differentiate|หาอนุพันธ์|หาปริพันธ์)/.test(msg)) {
+      selectedTools = ["innomcp-server:newton"];
+      logger.info(`[Process] ✅ Fast path matched: newton`);
+    }
+    // Calculator patterns - ปรับปรุงให้จับ "คูณ", "หาร" ได้
+    else if (selectedTools.length === 0 && /\d+.*[\+\-\*\/\×\÷\^]|(?:คำนวณ|calculate|factorial|คูณ|หาร|บวก|ลบ|ยกกำลัง)/.test(msg)) {
+      selectedTools = ["innomcp-server:calculatorTool"];
+      logger.info(`[Process] ✅ Fast path matched: calculatorTool`);
+    }
+    // GovData patterns - เช็คก่อน weather เพราะ "สถิติ" อาจสับสน  
+    else if (selectedTools.length === 0 && /(?:data\.gov|govdata|gov\s*data|สถิติ.*(?:ภาครัฐ|รัฐ)|ข้อมูล.*(?:รัฐ|ภาครัฐ|government)|government.*(?:data|statistics)|census|ข้อมูล.*สาธารณะ)/.test(msg)) {
+      selectedTools = ["innomcp-server:govdata"];
+      logger.info(`[Process] ✅ Fast path matched: govdata`);
+    }
+    // Weather patterns - ขยาย keywords
+    else if (selectedTools.length === 0 && /(?:พยากรณ์.*อากาศ|สภาพอากาศ|weather|forecast|อากาศ.*(?:ร้อน|หนาว|วันนี้|พรุ่งนี้|เป็นอย่างไร|ยังไง|ตอนนี้|ขณะนี้)|ฝน.*(?:ตก|วันนี้|พรุ่งนี้)|อุณหภูมิ|ลม.*แรง)/.test(msg)) {
+      selectedTools = ["innomcp-server:weather"];
+      logger.info(`[Process] ✅ Fast path matched: weather`);
+    }
+    // Archive patterns - ปรับให้ match หลากหลายขึ้น
+    else if (selectedTools.length === 0 && /(?:internet\s*archive|archive\.org|archive|ค้นหา.*(?:หนังสือ|เอกสาร|ข้อมูล)|หา.*(?:เอกสาร|หนังสือ)|เอกสาร.*(?:เก่า|โบราณ)|หนังสือ.*(?:ใน|จาก|archive))/.test(msg)) {
+      selectedTools = ["innomcp-server:archive"];
+      logger.info(`[Process] ✅ Fast path matched: archive`);
+    }
+    // NASA patterns - เพิ่ม "นาซ่า" และ keywords เกี่ยวกับอวกาศ
+    else if (selectedTools.length === 0 && /(?:nasa|นาซ่า|ภาพอวกาศ|ดาว.*(?:nasa|นาซ่า)|รูปดาว|ภาพ.*ดาว|อวกาศ.*(?:nasa|นาซ่า|ภาพ)|ค้นพบ.*(?:นอกโลก|อวกาศ)|สิ่งมีชีวิต.*นอกโลก|apod)/.test(msg)) {
+      selectedTools = ["innomcp-server:nasa"];
+      logger.info(`[Process] ✅ Fast path matched: nasa`);
+    }
+    // World Bank patterns - ปรับให้ครอบคลุมมากขึ้น
+    else if (selectedTools.length === 0 && /(?:world\s*bank|worldbank|ธนาคาร.*โลก|gdp|เศรษฐกิจ.*(?:ไทย|โลก|world)|ข้อมูล.*เศรษฐกิจ|ประชากร.*(?:โลก|ไทย|world|bank)|inflation|อัตรา.*เงินเฟ้อ|economic.*data|growth.*rate)/.test(msg)) {
+      selectedTools = ["innomcp-server:worldbank"];
+      logger.info(`[Process] ✅ Fast path matched: worldbank`);
+    }
+    // ECharts patterns - ปรับให้ครอบคลุมการขอกราฟทุกแบบ
+    else if (selectedTools.length === 0 && /(?:กราฟ|แผนภูมิ|chart|graph|plot|visualize|visualization|แสดงผล.*กราฟ|สร้าง.*(?:กราฟ|แผนภูมิ|chart)|วาด.*(?:กราฟ|chart)|line\s*chart|bar\s*chart|pie\s*chart|scatter|heatmap|treemap|วงกลม.*สัดส่วน)/.test(msg)) {
+      selectedTools = ["innomcp-server:echartsTool"];
+      logger.info(`[Process] ✅ Fast path matched: echartsTool`);
+    }
+    
+    // ===== FALLBACK: AI Selection =====
+    if (selectedTools.length === 0) {
+      logger.info(`[Process] No fast path match - using AI selection`);
+      selectedTools = await this.selectTools(userMessage);
+    }
+    
+    logger.info(`[Process] selectTools() returned tools`, { count: selectedTools.length, tools: selectedTools });
 
     if (selectedTools.length === 0) {
-      console.log("[Process] No tools selected");
+      logger.info(`[Process] ⚠️ No tools selected - returning needsTools: false`);
       return { needsTools: false };
     }
 
@@ -1159,11 +1749,18 @@ JSON:`;
     console.log("[Process] Using single best tool");
 
     const bestTool = selectedTools[0]; // เลือก tool ที่ดีที่สุดอันดับ 1
+    console.log(`[Process] Selected tool: ${bestTool}`);
+    
     const toolResults = await this.executeTools([bestTool], userMessage);
     const successfulResults = toolResults.filter((r) => r.success);
 
+    console.log(`[Process] Tool results: ${toolResults.length} total, ${successfulResults.length} successful`);
+    
     if (successfulResults.length === 0) {
       console.log("[Process] Tool failed");
+      if (toolResults.length > 0 && toolResults[0].error) {
+        console.error("[Process] Tool error:", toolResults[0].error);
+      }
       return { needsTools: false, toolsFailed: true };
     }
 
@@ -1184,7 +1781,11 @@ JSON:`;
   // TOOL EXECUTION
   // ========================================
 
-  async executeTools(toolNames: string[], userMessage: string): Promise<any[]> {
+  async executeTools(
+    toolNames: string[],
+    userMessage: string,
+    preGeneratedArgsMap?: Record<string, any>
+  ): Promise<any[]> {
     console.log("===== Starting executeTools =====");
     const results: any[] = [];
 
@@ -1204,19 +1805,27 @@ JSON:`;
             break;
           }
 
-          let args = resource
-            ? await this.generateToolArguments(
-                {
-                  name: resource.name,
-                  description: resource.description,
-                  inputSchema: resource.inputSchema,
-                  category: "resource",
-                  keywords: [],
-                  examples: [],
-                } as MCPTool,
-                userMessage
-              )
-            : await this.generateToolArguments(tool!, userMessage);
+          // ใช้ pre-generated args ถ้ามี (map by toolName), ถ้าไม่มีค่อย generate ใหม่
+          const preGeneratedArgs = preGeneratedArgsMap?.[toolName];
+          let args: any;
+          if (preGeneratedArgs !== undefined && preGeneratedArgs !== null) {
+            console.log(`[MCP Client] Using pre-generated args for ${toolName}:`, preGeneratedArgs);
+            args = preGeneratedArgs;
+          } else if (resource) {
+            args = await this.generateToolArguments(
+              {
+                name: resource.name,
+                description: resource.description,
+                inputSchema: resource.inputSchema,
+                category: "resource",
+                keywords: [],
+                examples: [],
+              } as MCPTool,
+              userMessage
+            );
+          } else {
+            args = await this.generateToolArguments(tool!, userMessage);
+          }
 
           const schema = tool ? tool.inputSchema : resource?.inputSchema;
 
@@ -1236,6 +1845,7 @@ JSON:`;
           }
 
           console.log(`[MCP Client] Executing: ${toolName}`);
+          console.log(`[MCP Client] Arguments:`, JSON.stringify(args, null, 2));
 
           let result: any;
 
@@ -1251,11 +1861,16 @@ JSON:`;
             });
           }
 
+          console.log(`[MCP Client] Result isError:`, result.isError);
+          console.log(`[MCP Client] Result content:`, JSON.stringify(result.content, null, 2));
+
           if (result.isError) {
             const errText =
               result.content && result.content.length > 0
                 ? result.content[0].text
                 : "Tool execution error";
+
+            console.error(`[MCP Client] Tool ${toolName} failed with error:`, errText);
 
             results.push({
               toolName,
@@ -1285,12 +1900,16 @@ JSON:`;
               structuredContent: result.structuredContent,
               success: true,
             });
+            
+            console.log(`[MCP Client] Tool ${toolName} executed successfully`);
           }
 
           break;
         } catch (error) {
           lastError = error;
           retries--;
+
+          console.error(`[MCP Client] Exception executing ${toolName}:`, error);
 
           if (retries > 0) {
             console.warn(`[MCP Client] Retry ${toolName}, ${retries} left`);
@@ -1322,6 +1941,20 @@ JSON:`;
       const schemaStr = JSON.stringify(schema, null, 2);
       const required = schema.required || [];
 
+      // Extract parameter hints from description if schema is empty
+      let parameterHints = "";
+      let exampleArgs = "";
+      if (Object.keys(schema).length === 0 && tool.description) {
+        parameterHints = this.extractParameterHintsFromDescription(tool.description);
+        
+        // Add specific examples for known tools
+        if (tool.name === "calculatorTool") {
+          exampleArgs = `\n\n📝 ตัวอย่าง JSON:\n{"expression": "2+2"}\n{"expression": "100/5"}\n{"expression": "sqrt(16)"}\n{"expression": "(3^3+1)*(4^3+1)*(5^3+1)"}`;
+        } else if (tool.name === "echartsTool") {
+          exampleArgs = `\n\n📝 ตัวอย่าง JSON ที่ถูกต้อง:\n{"type": "bar", "labels": ["A","B"], "datasets": [{"label":"Sales", "data":[10,20]}]}\n{"type": "pie", "chatText": "A 10, B 20, C 30"}`;
+        }
+      }
+
       // สำหรับ echartsTool ให้ส่งประวัติการสนทนาด้วย
       let conversationContext = "";
       let chatDataSuggestion = "";
@@ -1342,24 +1975,38 @@ Tool ที่จะใช้:
 ชื่อ: ${tool.name}
 คำอธิบาย (อ่านให้ดี):
 ${tool.description || "ไม่มี"}
+${parameterHints ? `\n📋 Parameters ที่ต้องมี:\n${parameterHints}` : ''}
+${exampleArgs}
+${schemaStr !== '{}' ? `\nSchema ของ parameters:\n${schemaStr}` : ''}
 
-Schema ของ parameters:
-${schemaStr}
-
-Parameters ที่จำเป็น: ${required.length > 0 ? required.join(", ") : "ไม่มี"}
+Parameters ที่จำเป็น: ${required.length > 0 ? required.join(", ") : "ดูจาก description ข้างบน"}
 
 🎯 กฎสำคัญ:
-1. ตอบเป็น JSON object ที่มีเฉพาะ parameters เท่านั้น
-2. ถ้า tool เป็น echartsTool ต้องส่ง type + (labels+datasets) หรือ dataJson หรือ chatText
-3. สำหรับ echartsTool ถ้ามีข้อมูลจากแชท ต้องใช้ chatText ไม่ใช่ labels+datasets (รูปแบบ 'A 10, B 20, C 30')
-4. ห้ามส่งผลลัพธ์หรือข้อมูลอื่น
-5. ถ้าไม่มี parameter ให้ส่ง {}
+1. ตอบ JSON object เท่านั้น - ห้ามมีข้อความอื่น
+2. calculatorTool: **ต้องมี expression field**
+   - ใช้ * สำหรับคูณ: (3^3+1)*(4^3+1)*(5^3+1)
+   - ใช้ / สำหรับหาร
+   - ใช้ ^ สำหรับยกกำลัง
+   - ตัวอย่าง: "หาร A ด้วย B" → {"expression": "A/B"}
+3. echartsTool: ต้องส่ง type + (labels+datasets) หรือ chatText
+4. ถ้ามีข้อมูลจากแชท echartsTool ใช้ chatText (รูปแบบ 'A 10, B 20')
+5. ห้ามส่งผลลัพธ์ (result, answer) หรือข้อมูลอื่น
+6. ห้ามตอบ {} ถ้า tool ต้องการ parameters
 
-JSON:`;
+ตอบเฉพาะ JSON เท่านั้น:
+`;
 
       const response = await this.chatWithOllama(
         [{ role: "user", content: prompt }],
-        { temperature: 0.1, num_predict: 200 }
+        { 
+          temperature: 0.3,
+          num_predict: 50,
+          num_ctx: 512,
+          num_gpu_layers: 50,
+          num_thread: 8,
+          repeat_penalty: 1.0,
+        },
+        'fast'
       );
 
       let jsonStr = String(response?.message?.content || "").trim();
@@ -1421,7 +2068,7 @@ JSON:`;
     if (!valid && validate.errors) {
       return {
         valid: false,
-        errors: validate.errors.map((e) => `${e.instancePath} ${e.message}`),
+        errors: validate.errors.map((e: any) => `${e.instancePath} ${e.message}`),
       };
     }
 
@@ -1431,18 +2078,48 @@ JSON:`;
   private extractJsonFromText(text: string): string | null {
     if (!text || typeof text !== "string") return null;
 
-    const firstIdx = text.search(/[\{\[]/);
+    // Remove markdown code blocks first (```json ... ``` or ``` ... ```)
+    let cleanText = text.trim();
+    
+    // 1. Match ```json...``` or ```...``` (handle various formats including inline)
+    const codeBlockMatch = cleanText.match(/```(?:json)?\s*\r?\n?([\s\S]*?)\r?\n?```/);
+    if (codeBlockMatch) {
+      cleanText = codeBlockMatch[1].trim();
+      console.log('[extractJsonFromText] Removed markdown code block (multiline)');
+    }
+    
+    // 2. Handle backticks at start/end: `{"type": ...}` or `json {...}`
+    if (cleanText.startsWith('`') && cleanText.endsWith('`')) {
+      cleanText = cleanText.slice(1, -1).trim();
+      console.log('[extractJsonFromText] Removed surrounding backticks');
+    }
+    
+    // 3. Remove "json" prefix if present: json {"type": ...}
+    const jsonPrefixMatch = cleanText.match(/^json\s*({[\s\S]*})$/i);
+    if (jsonPrefixMatch) {
+      cleanText = jsonPrefixMatch[1].trim();
+      console.log('[extractJsonFromText] Removed "json" prefix');
+    }
+    
+    // 4. Remove any remaining leading/trailing non-JSON characters
+    const firstBrace = cleanText.search(/[\{\[]/);
+    if (firstBrace > 0) {
+      cleanText = cleanText.substring(firstBrace);
+      console.log('[extractJsonFromText] Stripped leading non-JSON text');
+    }
+
+    const firstIdx = cleanText.search(/[\{\[]/);
     if (firstIdx === -1) return null;
 
-    const openChar = text[firstIdx];
+    const openChar = cleanText[firstIdx];
     const closeChar = openChar === "{" ? "}" : "]";
 
     let depth = 0;
     let inString = false;
     let escape = false;
 
-    for (let i = firstIdx; i < text.length; i++) {
-      const ch = text[i];
+    for (let i = firstIdx; i < cleanText.length; i++) {
+      const ch = cleanText[i];
 
       if (escape) {
         escape = false;
@@ -1465,7 +2142,7 @@ JSON:`;
       else if (ch === closeChar) {
         depth--;
         if (depth === 0) {
-          return text.slice(firstIdx, i + 1).trim();
+          return cleanText.slice(firstIdx, i + 1).trim();
         }
       }
     }
@@ -1505,7 +2182,8 @@ JSON:`;
 
       const response = await this.chatWithOllama(
         [{ role: "user", content: fullPrompt }],
-        Object.assign({ temperature: 0.2, num_predict: 400 }, options || {})
+        Object.assign({ temperature: 0.2, num_predict: 400 }, options || {}),
+        'accurate'  // Final HTML response needs accuracy
       );
 
       return String(response?.message?.content || "").trim();
@@ -1573,8 +2251,56 @@ JSON:`;
     return dataContext;
   }
 
+  // ✅ 2025 OPTIMIZATION: Only enable essential tools for speed & accuracy
+  private readonly ALLOWED_TOOLS = [
+    'dateTimeTool',
+    'calculatorTool', 
+    'MathTool',
+    'archive',
+    'tmd_seismic_daily_events',
+    'tmd_thailand_climate_normal_1981_2010',
+    'tmd_thailand_monthly_rainfall',
+    'tmd_rain_regions',
+    'tmd_station_list',
+    'tmd_daily_forecast_4_times',
+    'tmd_weather_today_07am_all_stations',
+    'tmd_weather_3hours_all_stations',   
+    'tmd_weather_forecast_7days_by_province',
+    'tmd_weather_warning_news',
+    'tmd_weather_forecast_7days_by_region',
+    'tmd_weather_3hours_by_hydro',       
+    'tmd_weather_3hours_by_agro',        
+    'tmd_weather_3hours_by_synop',       
+    'tmd_weather_today_by_hydro_07am',   
+    'tmd_weather_today_by_agro_07am',    
+    'tmd_weather_today_by_synop_07am',
+    'nasa',
+    'weather',
+    'worldbank',
+    'govdata',
+    'newton',
+    'echartsTool'
+  ];
+
   getAvailableTools(): MCPTool[] {
-    return Array.from(this.tools.values());
+    const allTools = Array.from(this.tools.values());
+    
+    // Filter only allowed tools
+    const filteredTools = allTools.filter(tool => {
+      const toolBaseName = tool.name.split(':').pop() || tool.name;
+      const isAllowed = this.ALLOWED_TOOLS.some(allowed => 
+        toolBaseName.toLowerCase().includes(allowed.toLowerCase())
+      );
+      
+      if (!isAllowed) {
+        console.log(`[Tools] ⚠️ Disabled tool: ${tool.name} (not in allowed list)`);
+      }
+      
+      return isAllowed;
+    });
+    
+    console.log(`[Tools] Active: ${filteredTools.length}/${allTools.length} tools`);
+    return filteredTools;
   }
 
   getAvailableResources(): MCPResource[] {
@@ -1603,14 +2329,42 @@ JSON:`;
   }
 
   getStatistics() {
-    return {
+    const stats = {
       connectedClients: this.clients.size,
       availableTools: this.tools.size,
       availableResources: this.resources.size,
       cachedQueries: this.selectionCache.size,
       historySize: this.conversationHistory.length,
       patterns: this.toolPatterns.length,
+      aiMode: this.aiMode,
     };
+    
+    // Add performance metrics if enabled
+    if (process.env.ENABLE_PERFORMANCE_METRICS === 'true' && this.performanceMetrics.size > 0) {
+      const metrics = Array.from(this.performanceMetrics.values());
+      const localCount = metrics.filter(m => m.aiUsed === 'local').length;
+      const remoteCount = metrics.filter(m => m.aiUsed === 'remote').length;
+      const avgLocalTime = metrics
+        .filter(m => m.aiUsed === 'local')
+        .reduce((sum, m) => sum + m.duration, 0) / (localCount || 1);
+      const avgRemoteTime = metrics
+        .filter(m => m.aiUsed === 'remote')
+        .reduce((sum, m) => sum + m.duration, 0) / (remoteCount || 1);
+      
+      return {
+        ...stats,
+        performance: {
+          totalCalls: metrics.length,
+          localCalls: localCount,
+          remoteCalls: remoteCount,
+          avgLocalTime: Math.round(avgLocalTime),
+          avgRemoteTime: Math.round(avgRemoteTime),
+          cacheSize: this.tokenCache.size,
+        },
+      };
+    }
+    
+    return stats;
   }
 
   // ========================================
@@ -1675,6 +2429,44 @@ JSON:`;
 
     if (!tool && !resource) return 0;
 
+    // === BLACKLIST FILTERING ===
+    // Calculator tool - ต้องมีตัวเลขหรือสัญลักษณ์คณิตศาสตร์
+    // ===== TODO 3 FIX: Stricter calculator validation =====
+    if (toolName.includes('calculator')) {
+      const hasNumbers = /\d/.test(userMessage);
+      const hasMathSymbols = /[\+\-\*\/\×\÷\^=]/.test(userMessage);
+      const hasFactorial = /\d+!/.test(userMessage);
+      const hasMathKeywords = /(?:คำนวณ|หาร|คูณ|บวก|ลบ|ยกกำลัง|factorial|calculate|compute)/i.test(userMessage);
+      
+      // STRICT: Must have numbers AND (symbols OR keywords OR factorial)
+      const isValidMath = hasNumbers && (hasMathSymbols || hasFactorial || hasMathKeywords);
+      
+      // ถ้าไม่มีอะไรเลย → คะแนน 0
+      if (!isValidMath) {
+        console.log(`[Score] ${toolName} BLACKLISTED: No valid math expression (has numbers: ${hasNumbers}, symbols: ${hasMathSymbols}, keywords: ${hasMathKeywords})`);
+        return 0;
+      }
+    }
+    
+    // DateTime tool - ต้องมีคำเกี่ยวกับเวลา/วันที่
+    // ===== TODO 7 FIX: Better datetime keyword detection =====
+    if (toolName.includes('dateTime')) {
+      const hasDateTimeKeywords = /(?:กี่โมง|เวลา|วันที่|วันนี้|พรุ่งนี้|เมื่อวาน|ตอนนี้|เดี๋ยวนี้|ปัจจุบัน|ขณะนี้|time|date|today|tomorrow|yesterday|now|current|taskbar)/i.test(userMessage);
+      if (!hasDateTimeKeywords) {
+        console.log(`[Score] ${toolName} BLACKLISTED: No datetime keywords`);
+        return 0;
+      }
+    }
+    
+    // Weather tool - ต้องมีคำเกี่ยวกับอากาศ
+    if (toolName.includes('tmd') || toolName.includes('weather')) {
+      const hasWeatherKeywords = /(?:อากาศ|ฝน|อุณหภูมิ|weather|temperature|forecast)/i.test(userMessage);
+      if (!hasWeatherKeywords) {
+        console.log(`[Score] ${toolName} BLACKLISTED: No weather keywords`);
+        return 0;
+      }
+    }
+
     const description = tool?.description || resource?.description || "";
     const keywords =
       tool?.keywords || (await this.extractKeywords(toolName, description));
@@ -1682,15 +2474,8 @@ JSON:`;
       " "
     )}`.toLowerCase();
 
-    let userTokens: string[] = [];
-    try {
-      userTokens = await this.tokenizeThaiWithOllama(userMessage);
-      const englishTokens =
-        this.tokenizer.tokenize(userMessage.toLowerCase()) || [];
-      userTokens = [...new Set([...userTokens, ...englishTokens])];
-    } catch (error) {
-      userTokens = this.tokenizer.tokenize(userMessage.toLowerCase()) || [];
-    }
+    // Use cached tokenization for user message
+    const userTokens = await this.tokenizeThaiWithOllama(userMessage);
 
     // TF-IDF scoring
     let tfidfScore = 0;
@@ -1738,6 +2523,9 @@ JSON:`;
     }
 
     const totalScore = tfidfScore + fuseScore + categoryScore;
+    
+    // ===== TODO 8 FIX: Detailed logging for debugging =====
+    const MINIMUM_SCORE_THRESHOLD = 5; // Define minimum acceptable score
     console.log(
       `[MCP Client] Score for ${toolName}: ${totalScore.toFixed(
         2
@@ -1745,6 +2533,7 @@ JSON:`;
         1
       )}, Category: ${categoryScore})`
     );
+    console.log(`  → Threshold: ${MINIMUM_SCORE_THRESHOLD}, Selected: ${totalScore >= MINIMUM_SCORE_THRESHOLD ? '✅ YES' : '❌ NO (score too low)'}`);
 
     return totalScore;
   }
@@ -1776,21 +2565,45 @@ JSON:`;
       if (greetingResource) return [greetingResource.toolName];
     }
 
+    // ===== TODO 5 FIX: Minimum score threshold =====
+    const MINIMUM_SCORE_THRESHOLD = 10; // Tools below this score are rejected
     const topScore = sorted[0]?.score || 0;
+    
+    console.log(`[MCP Client] Top score: ${topScore.toFixed(2)}, Minimum threshold: ${MINIMUM_SCORE_THRESHOLD}`);
+    
     const selected = sorted
-      .filter((t) => t.score >= topScore * 0.7)
+      .filter((t) => {
+        const passesMinimum = t.score >= MINIMUM_SCORE_THRESHOLD;
+        const passesRelative = t.score >= topScore * 0.7;
+        const passes = passesMinimum && passesRelative;
+        
+        if (!passes) {
+          console.log(`[MCP Client] ❌ Rejected ${t.toolName}: score ${t.score.toFixed(2)} (min: ${passesMinimum}, relative: ${passesRelative})`);
+        }
+        
+        return passes;
+      })
       .slice(0, 10);
 
     return selected.map((t) => t.toolName);
   }
 
   async selectTools(userMessage: string): Promise<string[]> {
+    // ===== TODO 2 FIX: Early exit for greetings =====
+    if (this.isGreetingQuery(userMessage)) {
+      console.log('[MCP Client] 👋 Greeting detected - skipping tool selection');
+      return [];
+    }
+
     const cached = this.getCachedSelection(userMessage);
     if (cached) return cached;
 
     console.log(`[MCP Client] ===== Tool Selection Start =====`);
     console.log(`[MCP Client] Query: "${userMessage}"`);
-    console.log(`[MCP Client] Available tools: ${this.tools.size}, resources: ${this.resources.size}`);
+    
+    // ✅ FIX: ใช้ getAvailableTools() แทน this.tools.size เพื่อนับเฉพาะ tools ที่ active
+    const availableTools = this.getAvailableTools();
+    console.log(`[MCP Client] Available tools: ${availableTools.length}/${this.tools.size}, resources: ${this.resources.size}`);
 
     let candidates: string[] = [];
 
@@ -1846,6 +2659,10 @@ JSON:`;
   private directKeywordCheck(userMessage: string): string[] {
     const msgLower = userMessage.toLowerCase();
     const candidates = new Map<string, number>();
+    
+    // ✅ FIX: ใช้เฉพาะ tools ที่ active
+    const availableTools = this.getAvailableTools();
+    const availableToolNames = new Set(availableTools.map(t => t.name));
 
     // Check each category's keywords
     for (const [category, keywords] of Object.entries(CATEGORY_KEYWORDS)) {
@@ -1853,6 +2670,11 @@ JSON:`;
         if (msgLower.includes(keyword.toLowerCase())) {
           // Find matching tools/resources for this category
           for (const [toolName, tool] of this.tools.entries()) {
+            // ✅ ข้ามถ้า tool ถูกปิดใช้งาน
+            if (!availableToolNames.has(toolName)) {
+              continue;
+            }
+            
             if (tool.category === category) {
               candidates.set(toolName, (candidates.get(toolName) || 0) + 1);
             }
@@ -1896,17 +2718,28 @@ JSON:`;
     console.log(`[MCP Client] Pattern matching found ${results.length} pattern matches`);
     
     const toolScores = new Map<string, number>();
+    
+    // ✅ FIX: ใช้เฉพาะ tools ที่ active
+    const availableTools = this.getAvailableTools();
+    const availableToolNames = new Set(availableTools.map(t => t.name));
 
     for (const pr of results) {
       const origPattern: ToolPattern = pr.item.pattern;
       const priorityScore = origPattern.priority === "high" ? 15 : 8;
 
-      const matchedTools = Array.from(this.tools.keys()).filter((k) =>
-        origPattern.toolPattern.test(k)
-      );
-      const matchedResources = Array.from(this.resources.keys()).filter((k) =>
-        origPattern.toolPattern.test(k)
-      );
+      // ✅ กรองเฉพาะ active tools
+      const matchedTools = Array.from(this.tools.entries()).filter(([k, tool]) => {
+        if (!availableToolNames.has(k)) return false; // ข้าม disabled tools
+        
+        return origPattern.toolPattern.test(k) || 
+          origPattern.toolPattern.test(tool.description || "") ||
+          origPattern.category === tool.category;
+      }).map(([k]) => k);
+
+      const matchedResources = Array.from(this.resources.entries()).filter(([k, resource]) =>
+        origPattern.toolPattern.test(k) ||
+        origPattern.toolPattern.test(resource.description || "")
+      ).map(([k]) => k);
 
       const allMatches = [...matchedTools, ...matchedResources];
       const score = (1 - (pr.score ?? 0)) * 100 * (priorityScore / 10);
@@ -1929,21 +2762,23 @@ JSON:`;
   }
 
   private async tryKeywordMatching(userMessage: string): Promise<string[]> {
-    const thaiTokens = await this.tokenizeThaiWithOllama(userMessage);
-    const englishTokens =
-      this.tokenizer.tokenize(userMessage.toLowerCase()) || [];
-    const allTokens = [...new Set([...thaiTokens, ...englishTokens])];
+    // Use cached tokenization
+    const allTokens = await this.tokenizeThaiWithOllama(userMessage);
 
-    console.log(`[MCP Client] Keyword matching tokens (Thai: ${thaiTokens.length}, English: ${englishTokens.length}):`, allTokens.slice(0, 10));
+    console.log(`[MCP Client] Keyword matching with ${allTokens.length} tokens`);
 
-    const toolData = Array.from(this.tools.entries()).map(
-      ([toolName, tool]) => ({
+    // ✅ FIX: ใช้เฉพาะ active tools
+    const availableTools = this.getAvailableTools();
+    const availableToolNames = new Set(availableTools.map(t => t.name));
+
+    const toolData = Array.from(this.tools.entries())
+      .filter(([toolName]) => availableToolNames.has(toolName)) // ✅ กรอง
+      .map(([toolName, tool]) => ({
         id: toolName,
         searchText: `${toolName} ${tool.description} ${tool.keywords.join(
           " "
         )}`.toLowerCase(),
-      })
-    );
+      }));
 
     const resourceData = Array.from(this.resources.entries()).map(
       ([resourceName, resource]) => ({
@@ -1954,11 +2789,12 @@ JSON:`;
     );
 
     const combined = [...toolData, ...resourceData];
-    console.log(`[MCP Client] Searching across ${combined.length} tools/resources`);
+    console.log(`[MCP Client] Searching across ${combined.length} tools/resources (${toolData.length} active tools)`);
     
+    // ===== TODO 4 FIX: Stricter threshold for better matching =====
     const dataFuse = makeFuse(combined as any, {
       keys: ["searchText"],
-      threshold: 0.4,
+      threshold: 0.3,  // Changed from 0.4 to 0.3 for stricter matching
       ignoreLocation: true,
     });
 
@@ -1992,9 +2828,15 @@ JSON:`;
 
   private async tryAISelection(userMessage: string): Promise<string[]> {
     try {
-      const allTools = Array.from(this.tools.keys());
+      // ✅ FIX: ใช้เฉพาะ active tools
+      const availableTools = this.getAvailableTools();
+      const availableToolNames = new Set(availableTools.map(t => t.name));
+      
+      const allTools = Array.from(this.tools.keys()).filter(name => availableToolNames.has(name));
       const allResources = Array.from(this.resources.keys());
       const allItems = [...allTools, ...allResources].slice(0, 50);
+
+      console.log(`[MCP Client] AI selection using ${allTools.length}/${this.tools.size} active tools`);
 
       const selectedTools = new Map<string, MCPTool>();
       const selectedResources = new Map<string, MCPResource>();
@@ -2012,22 +2854,31 @@ JSON:`;
         selectedResources
       );
 
-      const prompt = `เลือก tool ที่เหมาะสมสำหรับคำถาม (สูงสุด 3 tools)
+      const prompt = `Select the most appropriate tool(s) for this query (max 3 tools).
 
-คำถาม: "${userMessage}"
+Query: "${userMessage}"
 
+Available tools:
 ${toolDescriptions}
 
-กฎ:
-1. เลือก 1-3 tools ที่เกี่ยวข้อง
-2. ถ้าไม่มี tool ที่เหมาะสม ตอบ "none"
-3. ถ้าต้องการหลาย tools (เช่น ดึงข้อมูลแล้วสร้างกราฟ) ให้เลือกหลายตัว
+Rules:
+1. Select 1-3 relevant tools
+2. If no suitable tool exists, respond with: none
+3. For multiple steps (e.g., fetch data then visualize), select multiple tools
 
-ตอบเฉพาะชื่อ tool คั่นด้วย comma หรือ "none":`;
+IMPORTANT: Respond with ONLY tool names separated by commas, or "none". Do NOT add any explanation, greeting, or extra text.
+
+Examples:
+- "dateTimeTool"
+- "calculatorTool, archive"
+- "none"
+
+Your answer:`;
 
       const response = await this.chatWithOllama(
         [{ role: "user", content: prompt }],
-        { temperature: 0.1, num_predict: 100 }
+        { temperature: 0.05, num_predict: 50 },  // Lower temp for deterministic output
+        'fast'  // Tool selection is fast
       );
 
       const rawText = String(response?.message?.content || "").trim();
@@ -2051,37 +2902,77 @@ ${toolDescriptions}
       return await this.deduplicateAndRankTools(selectedItems, userMessage);
     } catch (error) {
       console.error("[MCP Client] AI selection error:", error);
+      
+      // FALLBACK: Use direct pattern matching for common queries
+      console.log("[MCP Client] Falling back to pattern matching...");
+      
+      const msg = userMessage.toLowerCase();
+      
+      // DateTime patterns
+      if (/(?:กี่โมง|เวลา|ตอนนี้.*(?:time|เวลา)|วันที่|what.*time|current.*time)/.test(msg)) {
+        console.log("[MCP Client] Fallback matched: dateTimeTool");
+        return ["innomcp-server:dateTimeTool"];
+      }
+      
+      // Calculator patterns
+      if (/\d+.*[\+\-\*\/\×\÷\^]|(?:คำนวณ|calculate|factorial)/.test(msg)) {
+        console.log("[MCP Client] Fallback matched: calculatorTool");
+        return ["innomcp-server:calculatorTool"];
+      }
+      
+      // Weather patterns
+      if (/(?:พยากรณ์.*อากาศ|สภาพอากาศ|weather|forecast|อากาศ.*ร้อน|อากาศ.*หนาว)/.test(msg)) {
+        console.log("[MCP Client] Fallback matched: weather");
+        return ["innomcp-server:weather"];
+      }
+      
+      // Newton (calculus) patterns
+      if (/(?:อนุพันธ์|ปริพันธ์|อินทิเกรต|derivative|integral|integrate)/.test(msg)) {
+        console.log("[MCP Client] Fallback matched: newton");
+        return ["innomcp-server:newton"];
+      }
+      
       return [];
     }
   }
 
   private async tokenizeThaiWithOllama(text: string): Promise<string[]> {
+    // Check cache first
+    const cached = this.tokenCache.get(text);
+    if (cached && Date.now() - cached.timestamp < this.tokenCacheTTL) {
+      return cached.tokens;
+    }
+
     try {
-      console.log(`[MCP Client] Tokenizing Thai text: "${text}"`);
-      const prompt = `ตัดคำภาษาไทยจากข้อความต่อไปนี้ และตอบเฉพาะรายการคำที่ตัดแล้ว คั่นด้วย comma:
-
-ข้อความ: "${text}"
-
-คำที่ตัด:`;
-
-      const response = await this.chatWithOllama(
-        [{ role: "user", content: prompt }],
-        { temperature: 0.1, num_predict: 100 }
-      );
-
-      const rawText = String(response.message?.content || "").trim();
-
-      if (rawText.toLowerCase().includes("none")) return [];
-
-      const tokens = rawText
-        .split(",")
-        .map((t) => t.trim())
+      // Use simple regex-based tokenization for Thai instead of Ollama
+      // This is much faster and accurate enough for keyword matching
+      const thaiPattern = /[ก-๙]+/g;
+      const englishPattern = /[a-zA-Z]+/g;
+      const numberPattern = /[0-9]+/g;
+      
+      const thaiTokens = text.match(thaiPattern) || [];
+      const englishTokens = text.match(englishPattern) || [];
+      const numberTokens = text.match(numberPattern) || [];
+      
+      const tokens = [...new Set([...thaiTokens, ...englishTokens, ...numberTokens])]
         .filter((t) => t.length > 0);
 
-      console.log(`[MCP Client] Tokenized tokens: ${tokens.join(", ")}`);
+      // Cache the result
+      this.tokenCache.set(text, { tokens, timestamp: Date.now() });
+      
+      // Clean old cache entries
+      if (this.tokenCache.size > 1000) {
+        const now = Date.now();
+        for (const [key, value] of this.tokenCache.entries()) {
+          if (now - value.timestamp > this.tokenCacheTTL) {
+            this.tokenCache.delete(key);
+          }
+        }
+      }
+
       return tokens;
     } catch (error) {
-      console.warn("[MCP Client] Ollama tokenization failed:", error);
+      console.warn("[MCP Client] Tokenization failed:", error);
       return this.tokenizer.tokenize(text) || [];
     }
   }
@@ -2166,50 +3057,47 @@ async function getToolDescriptions(
   return descriptions;
 }
 
-function createDefaultConfigs(serverScript: string): MCPClientConfig[] {
-  return [
+function InitMcpClient(
+  ollama: Ollama,
+  ollamaModel: string,
+  multiAIConfig?: {
+    aiMode?: 'local' | 'remote' | 'hybrid';
+    localOllama?: Ollama;
+    remoteOllama?: Ollama;
+    localModel?: string;
+    remoteModel?: string;
+  }
+): IntelligentMCPClient {
+  // Create MCP client with multi-AI support
+  const mcpClient = new IntelligentMCPClient(ollama, ollamaModel, multiAIConfig);
+
+  console.log("[MCP Client] Initializing with HTTP transport to MCP server...");
+  const mcpServerUrl = process.env.MCPSERVER_URL || "http://localhost:3012/mcp";
+  console.log("[MCP Client] MCPSERVER_URL:", mcpServerUrl);
+
+  // Use HTTP-based configs instead of stdio
+  const configs: MCPClientConfig[] = [
     {
       name: "innomcp-server",
       version: "1.0.0",
-      serverUrl: process.env.MCP_SERVER_URL || "http://localhost:3012/mcp",
+      serverUrl: mcpServerUrl,
     },
   ];
-}
 
-function InitMcpClient(
-  ollama: Ollama,
-  ollamaModel: string
-): IntelligentMCPClient {
-  const mcpClient = new IntelligentMCPClient(ollama, ollamaModel);
-
-  const serverScript = path.resolve(
-    __dirname,
-    "..",
-    "..",
-    "..",
-    "innomcp-server-node",
-    "dist",
-    "index.js"
-  );
-
-  if (!fs.existsSync(serverScript)) {
-    console.warn(
-      `[MCP Client] Expected server script not found at ${serverScript}. ` +
-        "Ensure innomcp-server-node is built."
-    );
-  }
-
-  const configs = createDefaultConfigs(serverScript);
+  console.log("[MCP Client] Starting initialization with configs:", JSON.stringify(configs, null, 2));
 
   mcpClient
     .initializeClients(configs)
     .then(() => {
       console.log("[MCP Client] Initialization completed");
       console.log("[MCP Client] Statistics:", mcpClient.getStatistics());
+      console.log("[MCP Client] Available tools:", mcpClient.getAvailableTools().length);
+      console.log("[MCP Client] Tool names:", mcpClient.getAvailableTools().map(t => t.name));
       mcpClient.emit("ready");
     })
     .catch((err) => {
       console.error("[MCP Client] Initialization error:", err);
+      console.error("[MCP Client] Stack:", err.stack);
     });
 
   return mcpClient;

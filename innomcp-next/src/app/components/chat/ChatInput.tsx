@@ -9,6 +9,7 @@ import {
   faRefresh,
   faStop,
 } from "@fortawesome/free-solid-svg-icons";
+import AIModelSelector from "./AIModelSelector";
 
 interface ChatInputProps {
   input: string;
@@ -98,9 +99,19 @@ const ChatInput: React.FC<ChatInputProps> = ({
             setInput(e.target.value);
             adjustTextarea();
           }}
+          onKeyDown={(e) => {
+            // Shift+Enter to send message
+            if (e.key === "Enter" && e.shiftKey && !e.ctrlKey && !e.altKey) {
+              e.preventDefault();
+              if (input.trim() && isSocketReady && !isWaitingForResponse) {
+                sendMessage();
+              }
+            }
+          }}
           rows={1}
-          placeholder="มีอะไรให้ช่วยไหม?"
+          placeholder="มีอะไรให้ช่วยไหม? (Shift+Enter เพื่อส่ง)"
           className="w-full resize-none focus:outline-none transition-all max-h-60 overflow-y-auto"
+          data-testid="chat-input"
         />
         {selectedImage && (
           <div className="relative w-fit mt-2">
@@ -137,26 +148,31 @@ const ChatInput: React.FC<ChatInputProps> = ({
               <FontAwesomeIcon icon={faPaperclip} />
             </button>
           </div>
-          <button
-            onClick={isWaitingForResponse ? handleStop : sendMessage}
-            disabled={!isSocketReady}
-            className={`bg-linear-to-r from-indigo-500 to-blue-400 text-white rounded-lg px-6 py-2 font-semibold shadow transition-colors cursor-pointer ${
-              !isSocketReady
-                ? "opacity-50 cursor-not-allowed"
-                : "hover:from-blue-400 hover:to-indigo-500"
-            }`}
-          >
-            {isWaitingForResponse ? (
-              <FontAwesomeIcon icon={faStop} className="font-bold" />
-            ) : isSocketReady ? (
-              <FontAwesomeIcon icon={faArrowUp} className="font-bold" />
-            ) : (
-              <span className="font-bold">
-                กำลังติดต่อ AI
-                <DotsAnimation />
-              </span>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <AIModelSelector theme={theme} />
+            <button
+              onClick={isWaitingForResponse ? handleStop : sendMessage}
+              disabled={!isSocketReady}
+              className={`bg-linear-to-r from-indigo-500 to-blue-400 text-white rounded-lg px-6 py-2 font-semibold shadow transition-colors cursor-pointer ${
+                !isSocketReady
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:from-blue-400 hover:to-indigo-500"
+              }`}
+              data-testid="send-btn"
+              title={isWaitingForResponse ? "หยุดการตอบ" : "ส่งข้อความ (Shift+Enter)"}
+            >
+              {isWaitingForResponse ? (
+                <FontAwesomeIcon icon={faStop} className="font-bold" />
+              ) : isSocketReady ? (
+                <FontAwesomeIcon icon={faArrowUp} className="font-bold" />
+              ) : (
+                <span className="font-bold">
+                  กำลังติดต่อ AI
+                  <DotsAnimation />
+                </span>
+              )}
+            </button>
+          </div>
           <input
             type="file"
             ref={fileInputRef}

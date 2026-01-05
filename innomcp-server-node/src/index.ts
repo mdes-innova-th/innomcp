@@ -1,4 +1,2 @@
-import { server } from "./server";
-
-// Start the server
-server;
+import "./server";
+// Server is automatically started when the module is imported

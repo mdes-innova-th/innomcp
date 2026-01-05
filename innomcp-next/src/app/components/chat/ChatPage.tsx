@@ -123,17 +123,33 @@ const ChatPage: React.FC = () => {
   // Scroll the messages container to bottom when messages change
   useEffect(() => {
     if (messagesRef.current) {
-      try {
-        messagesRef.current.scrollTo({
-          top: messagesRef.current.scrollHeight,
-          behavior: "auto",
-        });
-      } catch (e) {
-        // ignore
-        messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
-      }
+      // Use setTimeout to ensure DOM is updated
+      setTimeout(() => {
+        if (messagesRef.current) {
+          try {
+            messagesRef.current.scrollTo({
+              top: messagesRef.current.scrollHeight,
+              behavior: "smooth",
+            });
+          } catch (e) {
+            // Fallback for older browsers
+            messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+          }
+        }
+      }, 100);
     }
   }, [messages]);
+
+  // Additional scroll during animation
+  useEffect(() => {
+    const scrollInterval = setInterval(() => {
+      if (messagesRef.current && isWaitingForResponse) {
+        messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+      }
+    }, 300);
+
+    return () => clearInterval(scrollInterval);
+  }, [isWaitingForResponse]);
 
   // (Previously: scroll detection and hiding input while scrolling.)
   // That behavior was removed to keep the ChatInput always visible.
@@ -653,6 +669,7 @@ const ChatPage: React.FC = () => {
           isCollapsed={isSidebarCollapsed}
           onToggle={() => setIsSidebarCollapsed((v) => !v)}
           onLoad={loadSummary}
+          onNewChat={handleNewChat}
           theme={theme}
         />
       </div>

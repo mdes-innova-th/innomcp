@@ -4,6 +4,12 @@ import { cookies } from "next/headers";
 import { generateNonce } from "@/utils/nonce";
 
 export async function middleware(request: NextRequest) {
+  const requestStartTime = Date.now(); // ⏱️ Track request start time
+  const method = request.method;
+  const url = request.nextUrl.pathname;
+
+  console.log(`[⏱️  START] ${method} ${url}`);
+
   const response = NextResponse.next();
 
   // Get or generate nonce using cookies for better performance
@@ -42,12 +48,29 @@ export async function middleware(request: NextRequest) {
   if (isDev) {
     scriptSrc.push("'unsafe-eval'");
   }
+  
+  // Style source - In dev mode, Next.js injects many inline styles, so we need unsafe-inline
+  // In production, we should use nonce-based approach
+  const styleSrc = ["'self'"];
+  if (isDev) {
+    styleSrc.push("'unsafe-inline'"); // Dev: allow all inline styles for HMR and debugging
+  } else {
+    styleSrc.push(`'nonce-${nonce}'`); // Prod: require nonce for inline styles
+  }
+  
+  // Style-src-elem for external stylesheets (Font Awesome CDN, Google Fonts)
+  const styleSrcElem = ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"];
+  if (isDev) {
+    styleSrcElem.push("'unsafe-inline'"); // Dev: allow inline <style> tags
+  }
+  
   const csp = [
     "default-src 'none'",
     `script-src ${scriptSrc.join(" ")}`,
-    `style-src 'self' 'nonce-${nonce}'`,
+    `style-src ${styleSrc.join(" ")}`,
+    `style-src-elem ${styleSrcElem.join(" ")}`,
     "img-src 'self' data: https://innomcp.dataxo.info http://localhost:3001 http://127.0.0.1:3001 blob:",
-    "font-src 'self' https://fonts.gstatic.com",
+    "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com",
     "connect-src 'self' https://innomcp.dataxo.info wss://innomcp.dataxo.info http://localhost:3000 ws://localhost:3000 http://127.0.0.1:3000 ws://127.0.0.1:3000 http://localhost:3011 ws://localhost:3011 http://127.0.0.1:3011 ws://127.0.0.1:3011 http://innomcp-node:3010 ws://innomcp-node:3010 blob:",
     "object-src blob:",
     "media-src 'self' blob:",
@@ -129,6 +152,10 @@ export async function middleware(request: NextRequest) {
     "X-Robots-Tag",
     "noindex, nofollow, noarchive, nosnippet, noimageindex"
   );
+
+  // ⏱️ Log response time
+  const duration = Date.now() - requestStartTime;
+  console.log(`[⏱️  ${duration}ms] ${method} ${url}`);
 
   return response;
 }

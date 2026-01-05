@@ -216,6 +216,9 @@ export type Message = {
   fullText?: string;
   isAnimating?: boolean;
   structuredContent?: any;
+  timestamp?: number; // Unix timestamp
+  tokenCount?: number; // Number of tokens
+  responseTime?: number; // Response time in ms
 };
 
 type EnhancedProps = {
@@ -223,6 +226,8 @@ type EnhancedProps = {
   index: number;
   className?: string;
   onUpdate: (index: number, msg: Message) => void;
+  onDelete?: (index: number) => void;
+  onRetry?: (index: number) => void;
 };
 
 export function MessageView({
@@ -230,9 +235,11 @@ export function MessageView({
   index,
   className,
   onUpdate,
+  onDelete,
+  onRetry,
 }: EnhancedProps) {
   const [copied, setCopied] = React.useState(false);
-  const [showCopy, setShowCopy] = React.useState(false);
+  const [showActions, setShowActions] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
   const [editValue, setEditValue] = React.useState("");
   const { theme } = useTheme();
@@ -264,6 +271,22 @@ export function MessageView({
     }
   };
 
+  const formatTimestamp = (timestamp?: number) => {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    return date.toLocaleString("th-TH", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
+
+  const formatResponseTime = (ms?: number) => {
+    if (!ms) return "";
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(1)}s`;
+  };
+
   const TypingDots: React.FC = () => (
     <span className="inline-flex items-center gap-1">
       <span
@@ -281,45 +304,62 @@ export function MessageView({
     </span>
   );
 
+  const startEdit = () => {
+    setEditValue(message.text);
+    setIsEditing(true);
+  };
+
   const saveEdit = () => {
     onUpdate(index, {
       ...message,
       text: editValue,
       fullText: editValue,
       isAnimating: false,
+      timestamp: Date.now(),
     });
     setIsEditing(false);
   };
 
+  const handleDelete = () => {
+    if (onDelete && confirm("ต้องการลบข้อความนี้?")) {
+      onDelete(index);
+    }
+  };
+
+  const handleRetry = () => {
+    if (onRetry) {
+      onRetry(index);
+    }
+  };
+
   return (
     <div
-      className={`relative group p-2 rounded-lg ${
+      className={`relative group p-3 rounded-lg ${
         message.sender === "user"
           ? "max-w-full self-end ml-auto pr-5 bg-blue-500 text-white rounded-br-none"
           : "max-w-full self-start pr-5 mb-5 text-left"
       } ${className || ""}`}
-      onClick={() => {
-        setShowCopy(true);
-        window.setTimeout(() => setShowCopy(false), 3000);
-      }}
+      onMouseEnter={() => setShowActions(true)}
+      onMouseLeave={() => setShowActions(false)}
+      data-testid={message.sender === "user" ? "message-user" : "message-assistant"}
     >
+      {/* Action buttons */}
       {!message.isAnimating && (
         <div
-          className={`absolute top-1 right-0 flex gap-2 transition-opacity pointer-events-none ${
-            showCopy ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          className={`absolute top-1 right-1 flex gap-1 transition-opacity ${
+            showActions ? "opacity-100" : "opacity-0"
           }`}
         >
+          {/* Copy button */}
           <div className="relative">
             <button
               title="คัดลอกข้อความ"
-              className={`pointer-events-auto cursor-pointer ${
+              className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
                 message.sender === "user"
-                  ? theme === "light"
-                    ? "text-white hover:text-gray-200"
-                    : "text-gray-300 hover:text-white"
+                  ? "text-white hover:bg-blue-600"
                   : theme === "light"
-                  ? "text-gray-600 hover:text-gray-800"
-                  : "text-gray-400 hover:text-white"
+                  ? "text-gray-600"
+                  : "text-gray-400"
               }`}
               onClick={(e) => {
                 e.stopPropagation();
@@ -329,28 +369,107 @@ export function MessageView({
               <svg
                 className="w-4 h-4"
                 viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
               >
-                <path d="M16 1H4c-1.1 0-2 .9-2 2v12h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
               </svg>
             </button>
-
             {copied && (
-              <div className="pointer-events-none absolute top-0 right-0">
-                <div className="bg-black text-white text-xs rounded-md px-2 py-1 shadow-md dark:bg-gray-800 whitespace-nowrap inline-block">
-                  คัดลอกแล้ว
-                </div>
+              <div className="absolute -top-8 right-0 bg-black text-white text-xs rounded px-2 py-1 whitespace-nowrap">
+                คัดลอกแล้ว
               </div>
             )}
           </div>
+
+          {/* Edit button (user messages only) */}
+          {message.sender === "user" && (
+            <button
+              title="แก้ไขข้อความ"
+              className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+                message.sender === "user"
+                  ? "text-white hover:bg-blue-600"
+                  : theme === "light"
+                  ? "text-gray-600"
+                  : "text-gray-400"
+              }`}
+              onClick={startEdit}
+            >
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
+          )}
+
+          {/* Retry button (AI messages only) */}
+          {message.sender === "ai" && onRetry && (
+            <button
+              title="ลองใหม่"
+              className={`p-1 rounded ${
+                theme === "light"
+                  ? "text-gray-600 hover:bg-gray-200"
+                  : "text-gray-400 hover:bg-gray-700"
+              }`}
+              onClick={handleRetry}
+            >
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <polyline points="1 20 1 14 7 14"></polyline>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+              </svg>
+            </button>
+          )}
+
+          {/* Delete button */}
+          {onDelete && (
+            <button
+              title="ลบข้อความ"
+              className={`p-1 rounded ${
+                message.sender === "user"
+                  ? "text-white hover:bg-red-600"
+                  : theme === "light"
+                  ? "text-gray-600 hover:bg-red-100"
+                  : "text-gray-400 hover:bg-red-900"
+              }`}
+              onClick={handleDelete}
+            >
+              <svg
+                className="w-4 h-4"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+            </button>
+          )}
         </div>
       )}
 
-      {message.sender === "ai" && isEditing ? (
+      {/* Edit mode */}
+      {isEditing ? (
         <div>
           <textarea
-            className="w-full rounded border border-gray-400 p-2 text-black bg-white mb-2"
+            className="w-full rounded border border-gray-400 p-2 text-black dark:text-white bg-white dark:bg-gray-800 mb-2"
             value={editValue}
             rows={Math.max(2, editValue.split("\n").length)}
             onChange={(e) => setEditValue(e.target.value)}
@@ -358,15 +477,13 @@ export function MessageView({
           />
           <div className="flex gap-2 justify-end">
             <button
-              className="text-blue-600 hover:text-blue-800 cursor-pointer"
-              title="บันทึก"
+              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
               onClick={saveEdit}
             >
               บันทึก
             </button>
             <button
-              className="text-gray-500 hover:text-red-600 cursor-pointer"
-              title="ยกเลิก"
+              className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
               onClick={() => setIsEditing(false)}
             >
               ยกเลิก
@@ -374,21 +491,87 @@ export function MessageView({
           </div>
         </div>
       ) : (
-        <div className="whitespace-pre-wrap wrap-break-word">
-          {message.sender === "ai" ? (
-            <ChatMessage
-              html={message.fullText || message.text}
-              structuredContent={message.structuredContent}
-            />
-          ) : (
-            message.text
-          )}
-          {message.sender === "ai" && message.isAnimating && (
-            <span className="ml-2 inline-block align-middle text-gray-600">
-              <TypingDots />
-            </span>
-          )}
-        </div>
+        <>
+          {/* Message content */}
+          <div className="whitespace-pre-wrap wrap-break-word">
+            {message.sender === "ai" ? (
+              <ChatMessage
+                html={message.fullText || message.text}
+                structuredContent={message.structuredContent}
+              />
+            ) : (
+              message.text
+            )}
+            {message.sender === "ai" && message.isAnimating && (
+              <span className="ml-2 inline-block align-middle text-gray-600">
+                <TypingDots />
+              </span>
+            )}
+          </div>
+
+          {/* Metadata footer */}
+          <div
+            className={`mt-2 pt-2 border-t flex flex-wrap gap-3 text-xs ${
+              message.sender === "user"
+                ? "border-blue-400 text-blue-100"
+                : theme === "light"
+                ? "border-gray-200 text-gray-500"
+                : "border-gray-700 text-gray-400"
+            }`}
+          >
+            {/* Timestamp */}
+            {message.timestamp && (
+              <span className="flex items-center gap-1">
+                <svg
+                  className="w-3 h-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                {formatTimestamp(message.timestamp)}
+              </span>
+            )}
+
+            {/* Token count (AI messages only) */}
+            {message.sender === "ai" && message.tokenCount && (
+              <span className="flex items-center gap-1">
+                <svg
+                  className="w-3 h-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                {message.tokenCount} tokens
+              </span>
+            )}
+
+            {/* Response time (AI messages only) */}
+            {message.sender === "ai" && message.responseTime && (
+              <span className="flex items-center gap-1">
+                <svg
+                  className="w-3 h-3"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                </svg>
+                {formatResponseTime(message.responseTime)}
+              </span>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
