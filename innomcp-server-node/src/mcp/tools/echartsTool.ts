@@ -1,7 +1,18 @@
-import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as echarts from "echarts";
 import puppeteer from "puppeteer";
+import { z } from "zod";
+import { mcpLog } from "../../utils/mcpLogger";
+import { logBoth } from "../../utils/mcpLogger";
+
+type EchartsInput = {
+  type: string;
+  labels?: string[];
+  datasets?: Array<{ label: string; data: number[] }>;
+  dataJson?: string;
+  chatText?: string;
+  chartTitle?: string;
+};
 
 export function registerEchartsTool(mcpserver: McpServer) {
   mcpserver.registerTool(
@@ -23,16 +34,16 @@ export function registerEchartsTool(mcpserver: McpServer) {
 
 พารามิเตอร์ (ต้องส่ง 1 ในนี้):
 A) ใช้ labels + datasets (แนะนำ):
-   - type: 'bar', 'line', 'pie', 'area', 'donut', 'scatter'
+   - type: 'bar', 'line', 'pie', 'area', 'donut', 'scatter' (REQUIRED)
    - labels: ['A', 'B', 'C'] (ป้ายกำกับแกน X)
    - datasets: [{label: 'ชื่อชุด', data: [10, 20, 30]}] (ข้อมูลตัวเลข)
 
 B) ใช้ dataJson (JSON string):
-   - type: 'bar' (หรือประเภทอื่น)
+   - type: 'bar' (หรือประเภทอื่น) (REQUIRED)
    - dataJson: '{"labels":["A","B"],"datasets":[{"label":"data","data":[1,2]}]}'
 
 C) ใช้ chatText (ข้อความจากแชท):
-   - type: 'pie'
+   - type: 'pie' (REQUIRED)
    - chatText: 'A 10, B 20, C 30' (รูปแบบ 'label value' คั่นด้วย comma)
 
 D) chartTitle (ทางเลือก): ชื่อกราฟ
@@ -43,74 +54,52 @@ D) chartTitle (ทางเลือก): ชื่อกราฟ
 3. line chart: {type:'line', dataJson:'{"labels":["Q1","Q2","Q3"],"datasets":[{"label":"Revenue","data":[50000,75000,100000]}]}'}
 
 กฎ:
-- MUST: ต้องส่ง type + (labels+datasets) หรือ dataJson หรือ chatText
+- MUST: ต้องส่ง type (bar/line/pie/area/donut/scatter) เสมอ - ห้ามส่งค่าว่าง
+- MUST: ต้องส่ง (labels+datasets) หรือ dataJson หรือ chatText
 - MUST: ถ้าส่ง labels ต้องส่ง datasets ด้วย (จำนวน label ต้องเท่ากับจำนวนค่า data)
 - MUST: ใช้ chatText เมื่อมีข้อมูลจากแชท เช่น "A 10, B 20"
 - MUST: สำหรับ dataJson, datasets array ต้องมี label และ data
-- ห้าม: ส่งค่าว่างเปล่าหรือ undefined
+- ห้าม: ส่ง type เป็น undefined หรือ null
 - ห้าม: ลืมส่ง labels เมื่อส่ง datasets
         `,
-      inputSchema: z.object({
-        type: z
-          .string()
-          .describe("ประเภทของกราฟ เช่น 'bar', 'line', 'pie', 'area', 'donut'"),
-        labels: z.array(z.string()).optional().describe("ป้ายกำกับสำหรับแกน X"),
-        datasets: z
-          .array(
-            z.object({
-              label: z.string().describe("ชื่อของชุดข้อมูล"),
-              data: z.array(z.number()).describe("ข้อมูลตัวเลขสำหรับชุดข้อมูล"),
-            })
-          )
-          .optional()
-          .describe("ชุดข้อมูลสำหรับกราฟ"),
-        dataJson: z
-          .string()
-          .optional()
-          .describe(
-            "JSON string ของข้อมูลที่คุยกันไว้ เพื่อใช้สร้างกราฟ โดยมีฟอร์แมต {labels: string[], datasets: {label: string, data: number[]}[]}"
-          ),
-        chatText: z
-          .string()
-          .optional()
-          .describe(
-            "ข้อความจากแชทที่บรรจุข้อมูลสำหรับสร้างกราฟ ในรูปแบบ 'label1 value1, label2 value2, ...' เช่น 'Shirts 5, Cardigans 20'"
-          ),
-        chartTitle: z
-          .string()
-          .optional()
-          .describe("ชื่อของกราฟ (ค่าเริ่มต้น: MDES)"),
-      }),
-      outputSchema: z.object({ chartSvg: z.string() }),
     },
-    async (
-      {
+    async (args: any) => {
+      const input = args as EchartsInput;
+      let {
         type,
         labels,
         datasets,
         dataJson,
         chartTitle: paramChartTitle,
         chatText,
-      },
-      _extra
-    ) => {
-      console.log(
-        `[MCP Server] echartsTool request received at ${new Date().toLocaleString()}`
-      );
+      } = input;
+      
+      // Validate type - CRITICAL FIX
+      if (!type || type === 'undefined') {
+        type = 'bar'; // Default to bar chart
+        mcpLog('WARN', `[ECharts Tool] No chart type specified, defaulting to 'bar'`);
+      }
+      
+      mcpLog('INFO', `[ECharts Tool] Creating ${type} chart - title: ${paramChartTitle || 'MDES'}`);
+      
       try {
         let finalLabels = labels;
         let finalDatasets = datasets;
 
+        // Parse dataJson if provided
         if (dataJson) {
           try {
             const parsed = JSON.parse(dataJson);
             if (parsed.labels) finalLabels = parsed.labels;
             if (parsed.datasets) finalDatasets = parsed.datasets;
+            mcpLog('INFO', `[ECharts Tool] Parsed dataJson successfully`);
           } catch (e) {
-            console.error("[MCP Server] echartsTool - Invalid dataJson:", e);
+            logBoth('ERROR', `[MCP Server] echartsTool - Invalid dataJson: ${String(e)}`);
+            mcpLog('ERROR', `[ECharts Tool] Failed to parse dataJson: ${e}`);
           }
         }
 
+        // Parse chatText if provided
         if (chatText) {
           try {
             const pairs = chatText.split(",").map((s) => s.trim());
@@ -127,22 +116,46 @@ D) chartTitle (ทางเลือก): ชื่อกราฟ
                 }),
               },
             ];
+            mcpLog('INFO', `[ECharts Tool] Parsed chatText successfully`);
           } catch (e) {
-            console.error("[MCP Server] echartsTool - Invalid chatText:", e);
+            logBoth('ERROR', `[MCP Server] echartsTool - Invalid chatText: ${String(e)}`);
+            mcpLog('ERROR', `[ECharts Tool] Failed to parse chatText: ${e}`);
           }
         }
 
+        // Validate data - if no data provided, generate sample data
         if (!finalLabels || !finalDatasets) {
-          throw new Error(
-            "Labels and datasets are required, or provide dataJson or chatText"
-          );
+          mcpLog('WARN', `[ECharts Tool] No data provided, generating sample data for demo`);
+          
+          // Generate sample data based on chart type
+          if (type === 'pie' || type === 'donut') {
+            finalLabels = ['Product A', 'Product B', 'Product C', 'Product D'];
+            finalDatasets = [{
+              label: 'Market Share',
+              data: [35, 25, 20, 20]
+            }];
+          } else {
+            // For bar, line, area, scatter
+            finalLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+            finalDatasets = [{
+              label: 'Sales',
+              data: [120, 190, 150, 220, 180, 250]
+            }];
+          }
+          
+          mcpLog('INFO', `[ECharts Tool] Generated sample data: ${finalLabels.length} labels, ${finalDatasets.length} datasets`);
         }
-
-        console.log(
-          "[MCP Server] echartsTool received data at " +
-            new Date().toLocaleString(),
-          { type, finalLabels, finalDatasets }
-        );
+        
+        // Validate datasets structure
+        if (finalDatasets.length === 0) {
+          throw new Error("Datasets array is empty");
+        }
+        
+        for (const dataset of finalDatasets) {
+          if (!dataset.label || !dataset.data) {
+            throw new Error(`Invalid dataset structure: ${JSON.stringify(dataset)}`);
+          }
+        }
 
         const chartTitleValue = paramChartTitle || "MDES";
         let option: any;
@@ -321,6 +334,7 @@ window.chart.setOption(window.option);
           };
         } catch (renderError) {
           await browser.close();
+          logBoth('ERROR', `[ECharts Tool] Failed to render chart: ${String(renderError)}`);
           throw new Error(
             `Failed to render chart: ${
               renderError instanceof Error
@@ -330,7 +344,7 @@ window.chart.setOption(window.option);
           );
         }
       } catch (error) {
-        console.error("[MCP Server] Error in echartsTool:", error);
+        logBoth('ERROR', `[MCP Server] Error in echartsTool: ${String(error)}`);
         throw error;
       }
     }

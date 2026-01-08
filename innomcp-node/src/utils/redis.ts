@@ -1,5 +1,7 @@
+
 import Redis from "ioredis";
 import "dotenv/config";
+import { logBoth } from "./mcpLogger";
 
 // Redis client configuration
 const redisConfig = {
@@ -21,12 +23,11 @@ export const getRedisClient = async (): Promise<Redis> => {
     redisClient = new Redis(redisConfig);
 
     redisClient.on("error", (err) => {
-      console.log("[redis] Redis connection error:", err);
-      console.error("Redis connection error:", err);
+      logBoth("error", `[redis] Redis connection error: ${err}`);
     });
 
     redisClient.on("connect", () => {
-      console.log("[redis] Connected to Redis server");
+      logBoth("info", "[redis] Connected to Redis server");
     });
   }
 
@@ -38,6 +39,6 @@ export const closeRedisConnection = async (): Promise<void> => {
   if (redisClient) {
     await redisClient.quit();
     redisClient = null;
-    console.log("[redis] Redis connection closed");
+    logBoth("info", "[redis] Redis connection closed");
   }
 };

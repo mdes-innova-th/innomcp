@@ -41,11 +41,12 @@ export default async function RootLayout({
   const nonce = await getNonce();
 
   return (
-    <html lang="en">
-      <head>
+    <html lang="en" suppressHydrationWarning>
+      <head suppressHydrationWarning>
         {/* CSP nonce is available for external scripts if needed */}
         {nonce && <meta name="csp-nonce" content={nonce} />}
         {/* Font Awesome (used for inline icons like fa-exclamation-circle) */}
+        {/* Note: External stylesheets don't need nonce, only inline styles do */}
         <link
           rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css"

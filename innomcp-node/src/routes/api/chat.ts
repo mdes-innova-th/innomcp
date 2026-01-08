@@ -3,85 +3,163 @@ import { WebSocketServer } from "ws";
 import dotenv from "dotenv";
 import { Ollama } from "ollama";
 import { InitMcpClient, IntelligentMCPClient } from "../../utils/mcp/mcpclient";
+import { logBoth } from "../../utils/mcpLogger";
+import { getCurrentAIMode } from "./aiMode";
 
 dotenv.config();
 
-// --- 1. Ollama Configuration ---
-// Support full URL in OLLAMA_HOST (including protocol) and optional OLLAMA_PORT.
-const rawHost = process.env.OLLAMA_HOST || "localhost";
-const rawPort = process.env.OLLAMA_PORT || "";
+// ========================================
+// MULTI-AI CONFIGURATION
+// ========================================
 
-// Build a clean host URL for the Ollama client.
-let ollamaHostUrl = rawHost;
+// ใช้ getCurrentAIMode() แทน env variable
+let AI_MODE: 'local' | 'remote' | 'hybrid' = getCurrentAIMode();
+logBoth("info", `\n🚀 ========================================`);
+logBoth("info", `🚀 INNOMCP AI MODE: ${AI_MODE.toUpperCase()}`);
+logBoth("info", `🚀 ========================================\n`);
+
+// --- Local Ollama (GPU) Configuration ---
+const localRawHost = process.env.LOCAL_OLLAMA_BASE_URL || process.env.OLLAMA_BASE_URL || process.env.OLLAMA_HOST || "http://172.22.64.1:11434";
+let localOllamaHostUrl = localRawHost;
 try {
-  // Ensure we have a protocol for URL parsing. If missing, assume http.
-  if (!/^https?:\/\//i.test(rawHost)) {
-    ollamaHostUrl = `http://${rawHost}`;
+  if (!/^https?:\/\//i.test(localRawHost)) {
+    localOllamaHostUrl = `http://${localRawHost}`;
   }
-
-  const parsed = new URL(ollamaHostUrl);
-
-  // If a port is provided via env, override/add it. If not, keep existing.
-  if (rawPort) parsed.port = rawPort;
-
-  // Remove any trailing slash
-  ollamaHostUrl = parsed.toString().replace(/\/$/, "");
+  const parsed = new URL(localOllamaHostUrl);
+  localOllamaHostUrl = parsed.toString().replace(/\/$/, "");
 } catch (e) {
-  // Fallback: naive concatenation (shouldn't normally happen)
-  ollamaHostUrl = rawHost.replace(/\/$/, "");
-  if (rawPort) {
-    // Avoid duplicating colon
-    ollamaHostUrl = ollamaHostUrl.replace(/:$/, "") + ":" + rawPort;
+  localOllamaHostUrl = localRawHost.replace(/\/$/, "");
+}
+
+const localOllama = new Ollama({ 
+  host: localOllamaHostUrl,
+});
+const localModel = process.env.LOCAL_OLLAMA_MODEL || process.env.OLLAMA_MODEL || "gemma3:4b";
+logBoth("info", `💚 Local AI: ${localOllamaHostUrl} (${localModel})`);
+
+// --- Remote Ollama Configuration (for remote/hybrid modes) ---
+let remoteOllama: Ollama | undefined;
+let remoteModel: string | undefined;
+
+if (AI_MODE === 'remote' || AI_MODE === 'hybrid') {
+  const remoteRawHost = process.env.REMOTE_OLLAMA_BASE_URL;
+  if (remoteRawHost) {
+    let remoteOllamaHostUrl = remoteRawHost;
+    try {
+      if (!/^https?:\/\//i.test(remoteRawHost)) {
+        remoteOllamaHostUrl = `http://${remoteRawHost}`;
+      }
+      const parsed = new URL(remoteOllamaHostUrl);
+      remoteOllamaHostUrl = parsed.toString().replace(/\/$/, "");
+    } catch (e) {
+      remoteOllamaHostUrl = remoteRawHost.replace(/\/$/, "");
+    }
+    
+    remoteOllama = new Ollama({ host: remoteOllamaHostUrl });
+    remoteModel = process.env.REMOTE_OLLAMA_MODEL || localModel;
+    logBoth("info", `🎯 Remote AI: ${remoteOllamaHostUrl} (${remoteModel})`);
+  } else {
+    logBoth("warn", `⚠️  ${AI_MODE} mode selected but REMOTE_OLLAMA_BASE_URL not configured`);
+    logBoth("warn", `⚠️  Falling back to local AI only`);
   }
 }
 
-const ollama = new Ollama({ host: ollamaHostUrl });
-const ollamaModel = process.env.OLLAMA_MODEL || "llama2";
+// Main Ollama instance (backward compatibility)
+let ollama = AI_MODE === 'local' ? localOllama : (remoteOllama || localOllama);
+let ollamaModel = AI_MODE === 'local' ? localModel : (remoteModel || localModel);
+
+logBoth("info", `\n✨ Primary AI: ${AI_MODE === 'local' ? 'Local' : (remoteOllama ? 'Remote' : 'Local (fallback)')}\n`);
+
+// Export function to update AI mode dynamically
+export function updateChatAIMode() {
+  const oldMode = AI_MODE;
+  AI_MODE = getCurrentAIMode();
+  
+  logBoth("info", `[Chat AI] 🔄 updateChatAIMode called`);
+  logBoth("info", `[Chat AI] 📊 Mode change: ${oldMode} → ${AI_MODE}`);
+  
+  // Initialize remote Ollama if needed (for remote/hybrid modes)
+  if ((AI_MODE === 'remote' || AI_MODE === 'hybrid') && !remoteOllama) {
+    const remoteRawHost = process.env.REMOTE_OLLAMA_BASE_URL;
+    if (remoteRawHost) {
+      let remoteOllamaHostUrl = remoteRawHost;
+      try {
+        if (!/^https?:\/\//i.test(remoteRawHost)) {
+          remoteOllamaHostUrl = `http://${remoteRawHost}`;
+        }
+        const parsed = new URL(remoteOllamaHostUrl);
+        remoteOllamaHostUrl = parsed.toString().replace(/\/$/, "");
+      } catch (e) {
+        remoteOllamaHostUrl = remoteRawHost.replace(/\/$/, "");
+      }
+      
+      remoteOllama = new Ollama({ host: remoteOllamaHostUrl });
+      remoteModel = process.env.REMOTE_OLLAMA_MODEL || localModel;
+      logBoth('info', `[Chat AI] 🌐 Initializing Remote Ollama: ${remoteOllamaHostUrl}`);
+      logBoth('info', `[Chat AI] 📦 Remote Model: ${remoteModel}`);
+      logBoth("info", `🎯 Remote AI initialized: ${remoteOllamaHostUrl} (${remoteModel})`);
+    } else {
+      logBoth('warn', `[Chat AI] ⚠️  ${AI_MODE} mode requested but REMOTE_OLLAMA_BASE_URL not configured`);
+      logBoth('warn', `[Chat AI] ⚠️  Will use local AI as fallback`);
+    }
+  }
+  
+  ollama = AI_MODE === 'local' ? localOllama : (remoteOllama || localOllama);
+  ollamaModel = AI_MODE === 'local' ? localModel : (remoteModel || localModel);
+  
+  logBoth('info', `[Chat AI] 🤖 Using Ollama: ${AI_MODE === 'local' ? 'Local' : (remoteOllama ? 'Remote' : 'Local (fallback)')}`);
+  logBoth('info', `[Chat AI] 📝 Model: ${ollamaModel}`);
+  
+  if (mcpClient) {
+    const oldMcpMode = (mcpClient as any).aiMode;
+    (mcpClient as any).aiMode = AI_MODE;
+    logBoth('info', `[Chat AI] 🔗 MCP Client mode: ${oldMcpMode} → ${AI_MODE}`);
+  } else {
+    logBoth('warn', `[Chat AI] ⚠️  MCP Client not initialized`);
+  }
+  
+  logBoth("info", `🔄 Chat AI Mode updated to: ${AI_MODE.toUpperCase()}`);
+  logBoth('info', `[Chat AI] ✅ updateChatAIMode completed successfully`);
+}
 
 const chatRouter = Router();
 
 // --- 2. MCP Client ---
 let mcpClient: IntelligentMCPClient | null = null;
 
-// --- 3. Initialize MCP Client ---
-mcpClient = InitMcpClient(ollama, ollamaModel);
-console.log("[Chat API] MCP client created (initializing in background)");
+// --- 3. Initialize MCP Client with Multi-AI Support ---
+mcpClient = InitMcpClient(ollama, ollamaModel, {
+  aiMode: AI_MODE,
+  localOllama: localOllama,
+  remoteOllama: remoteOllama,
+  localModel: localModel,
+  remoteModel: remoteModel,
+});
+
+logBoth("info", "[Chat API] MCP client created (initializing in background)");
 
 if (mcpClient) {
   mcpClient.on("clientConnected", (name: string) => {
-    console.log("[Chat API] MCP client connected:", name);
-    console.log(
-      "[Chat API] Connected clients:",
-      mcpClient?.getConnectedClients()
-    );
+    logBoth("info", `[Chat API] MCP client connected: ${name}`);
+    logBoth("info", `[Chat API] Connected clients: ${JSON.stringify(mcpClient?.getConnectedClients())}`);
   });
 
   mcpClient.on("connectedClients", (clients: string[]) => {
-    console.log("[Chat API] Connected clients (update):", clients);
+    logBoth("info", `[Chat API] Connected clients (update): ${JSON.stringify(clients)}`);
   });
 
   mcpClient.on("toolLoaded", (info: { client: string; tool: string }) => {
-    console.log(`[Chat API] Tool loaded from ${info.client}: ${info.tool}`);
+    logBoth("info", `[Chat API] Tool loaded from ${info.client}: ${info.tool}`);
   });
 
   mcpClient.on("ready", () => {
-    console.log("[Chat API] Intelligent MCP Client initialization completed");
-    console.log(
-      "[Chat API] Available tools:",
-      mcpClient?.getAvailableTools().length
-    );
-    // list all tools
-    console.log(
-      "[Chat API] Tools:",
-      mcpClient?.getAvailableTools().map((t) => t.name)
-    );
+    logBoth("info", "[Chat API] Intelligent MCP Client initialization completed");
+    logBoth("info", `[Chat API] Available tools: ${mcpClient?.getAvailableTools().length}`);
+    logBoth("info", `[Chat API] Tools: ${JSON.stringify(mcpClient?.getAvailableTools().map((t) => t.name))}`);
   });
 
   try {
-    console.log(
-      "[Chat API] Connected clients (initial):",
-      mcpClient.getConnectedClients()
-    );
+    logBoth("info", `[Chat API] Connected clients (initial): ${JSON.stringify(mcpClient.getConnectedClients())}`);
   } catch (e) {
     // ignore
   }
@@ -95,13 +173,13 @@ const wss = new WebSocketServer({
     const allowedOrigins = process.env.ALLOWED_ORIGIN?.split(",") || [
       "http://localhost:3000",
     ];
-    console.log(`[WebSocket] Connection attempt from origin: ${origin}`);
+    logBoth("info", `[WebSocket] Connection attempt from origin: ${origin}`);
 
     if (!origin || allowedOrigins.includes(origin)) {
       return true;
     }
 
-    console.log(`[WebSocket] Rejected connection from origin: ${origin}`);
+    logBoth("warn", `[WebSocket] Rejected connection from origin: ${origin}`);
     return false;
   },
 });
@@ -111,7 +189,7 @@ const heartbeatInterval = 30000;
 const pingInterval = setInterval(() => {
   wss.clients.forEach((client: any) => {
     if (client.isAlive === false) {
-      console.log("[WebSocket] Terminating unresponsive client");
+      logBoth("warn", "[WebSocket] Terminating unresponsive client");
       try {
         client.terminate();
       } catch (e) {
@@ -158,9 +236,7 @@ wss.on("connection", (ws) => {
     }
   });
 
-  console.log(
-    `[Chat API] New WebSocket connection - total=${wss.clients.size}`
-  );
+  logBoth("info", `[Chat API] New WebSocket connection - total=${wss.clients.size}`);
 
   // --- Message Handler ---
   ws.on("message", async (data) => {
@@ -169,7 +245,7 @@ wss.on("connection", (ws) => {
       // optional messageId to deduplicate repeated sends from the same client
       const incomingId = (clientMessage as any).messageId;
       if (incomingId && (ws as any).processedMessageIds.has(incomingId)) {
-        console.log(`[Chat API] Duplicate messageId received, ignoring: ${incomingId}`);
+        logBoth("warn", `[Chat API] Duplicate messageId received, ignoring: ${incomingId}`);
         return;
       }
       if (incomingId) {
@@ -183,7 +259,7 @@ wss.on("connection", (ws) => {
           }
         }, 60000);
       }
-      console.log("[Chat API] Received message:", clientMessage);
+      logBoth('info', `Received WebSocket message (textLength: ${clientMessage.text?.length || 0}, historySize: ${clientMessage.messages?.length || 0})`);
 
       // Get full message history from client or initialize empty
       let sessionHistory: ChatMessage[] = clientMessage.messages || [];
@@ -196,9 +272,7 @@ wss.on("connection", (ws) => {
 
       // Add user message to history
       sessionHistory.push({ sender: "user", text: currentText });
-      console.log(
-        `[Chat API] Session history: ${sessionHistory.length} messages (before AI response)`
-      );
+      logBoth('info', `Session history prepared (totalMessages: ${sessionHistory.length}, mode: ${AI_MODE})`);
 
       let finalMessage = currentText;
       let mcpContext = "";
@@ -206,15 +280,12 @@ wss.on("connection", (ws) => {
 
       // **Process with MCP**
       if (mcpClient) {
-        console.log("[Chat API] Processing message with MCP client...");
+        logBoth('info', `Processing with MCP client (messageLength: ${currentText.length})`);
         try {
           const mcpResult = await mcpClient.processMessage(currentText);
 
           if (mcpResult.needsTools) {
-            console.log(
-              "[Chat API] MCP tools executed:",
-              mcpResult.toolResults?.length
-            );
+            logBoth("info", `[Chat API] MCP tools executed: ${mcpResult.toolResults?.length}`);
 
             ws.send(
               JSON.stringify({
@@ -229,14 +300,8 @@ wss.on("connection", (ws) => {
               for (const result of mcpResult.toolResults) {
                 if (result.structuredContent) {
                   structuredContent = result.structuredContent;
-                  console.log(
-                    "[Chat API] Found structured content from tool:",
-                    result.toolName
-                  );
-                  console.log(
-                    "[Chat API] Structured content keys:",
-                    Object.keys(structuredContent)
-                  );
+                  logBoth("info", `[Chat API] Found structured content from tool: ${result.toolName}`);
+                  logBoth("info", `[Chat API] Structured content keys: ${JSON.stringify(Object.keys(structuredContent))}`);
                   break; // Use first available structuredContent
                 }
               }
@@ -264,7 +329,7 @@ wss.on("connection", (ws) => {
               const cleanCandidate = candidate.replace(/"{2,}/g, "").replace(/^"+|"+$/g, "").trim();
               if (cleanCandidate.length > 0) sorryMessage = cleanCandidate;
             } catch (e) {
-              console.error("[Chat API] Failed to generate apology via Ollama:", e);
+              logBoth("error", `[Chat API] Failed to generate apology via Ollama: ${e}`);
             }
 
             sessionHistory.push({ sender: "ai", text: sorryMessage });
@@ -279,7 +344,7 @@ wss.on("connection", (ws) => {
             return; // Don't proceed to Ollama
           }
         } catch (mcpError) {
-          console.error("[Chat API] MCP processing error:", mcpError);
+          logBoth("error", `[Chat API] MCP processing error: ${mcpError}`);
         }
       }
 
@@ -288,19 +353,31 @@ wss.on("connection", (ws) => {
         // Map history to Ollama format with system prompt
       const systemPrompt = {
        role: "system",
-       content: `คุณเป็น AI ผู้ช่วยที่มีความสำคัญ:
-1. จำประวัติการสนทนาที่ผ่านมาและใช้บริบทเพื่อให้คำตอบที่สอดคล้อง
-2. หากมีข้อมูลจากภายนอกหรือกระบวนการภายใน ให้นำมาเป็นส่วนหนึ่งของผลลัพธ์เท่านั้นโดยไม่เปิดเผยแหล่งที่มา
-3. ห้ามกล่าวถึงหรือบอกเป็นนัยเกี่ยวกับการใช้ tools, MCP, "MCP tools", MCP server, หรือระบบภายในใดๆ — ห้ามเผยชื่อ กระบวนการ หรืออธิบายการทำงานภายในในทุกรูปแบบ
-4. หากไม่ได้รับข้อมูลที่เพียงพอ ให้ตอบว่า "ขออภัย ฉันยังไม่มีข้อมูลที่คุณต้องการ" หรือให้คำแนะนำสั้นๆ โดยไม่อธิบายสาเหตุภายใน
-5. ตอบเป็นภาษาไทยเป็นหลัก และตอบในรูปแบบ markdown เสมอ
-6. ใช้ markdown headings สำหรับหัวข้อ เช่น:
-  # หัวข้อหลัก
-  เนื้อหา...
-  ## หัวข้อย่อย
-  เนื้อหา...
-7. ใช้ bullet points (- หรือ *) หรือ numbering (1. 2.) เมื่อเหมาะสม
-8. หลีกเลี่ยงการส่งข้อความธรรมดาโดยไม่มีการจัดรูปแบบ`,
+       content: `คุณเป็น AI ผู้ช่วยมืออาชีพที่ชาญฉลาดและตอบสนองรวดเร็ว มีหน้าที่:
+
+🎯 **การให้บริการ**
+1. จำประวัติการสนทนาและใช้บริบทเพื่อให้คำตอบที่สอดคล้องและเชื่อมโยง
+2. ตอบคำถามด้วยข้อมูลที่แม่นยำและครบถ้วน โดยนำเสนอในรูปแบบที่เข้าใจง่าย
+3. หากมีข้อมูลเพิ่มเติมจากแหล่งต่างๆ ให้รวมเข้าในคำตอบอย่างเป็นธรรมชาติ โดยไม่ต้องอธิบายแหล่งที่มา
+4. ตอบเป็นภาษาไทยที่สุภาพและเป็นมิตร พร้อมให้คำแนะนำที่เป็นประโยชน์
+
+📝 **รูปแบบการตอบ (Markdown)**
+• ใช้ # สำหรับหัวข้อหลัก, ## สำหรับหัวข้อย่อย
+• ใช้ bullet points (-) หรือ numbering (1. 2.) เมื่อต้องการแสดงรายการ
+• ใช้ **bold** สำหรับข้อความสำคัญ, *italic* สำหรับเน้นย้ำ
+• ใช้ \`code\` สำหรับโค้ดหรือคำสั่ง, \`\`\`language สำหรับบล็อกโค้ด
+• ใช้ > สำหรับ quote หรือข้อความที่ต้องการเน้น
+• จัดรูปแบบให้อ่านง่าย มีการแบ่งวรรคและเว้นบรรทัดที่เหมาะสม
+
+⚡ **ความเร็วและประสิทธิภาพ**
+• ตอบโดยตรง กระชับ แต่ครบถ้วน
+• หากคำถามซับซ้อน ให้แบ่งเป็นส่วนๆ ตอบทีละขั้นตอน
+• หากไม่มีข้อมูล ให้บอกตรงๆ และแนะนำทางเลือกอื่น
+
+🚫 **ข้อห้าม**
+• ห้ามเปิดเผยการทำงานภายในของระบบ
+• ห้ามกล่าวถึง tools, MCP, หรือกระบวนการเทคนิคใดๆ
+• ห้ามส่งข้อความธรรมดาที่ไม่มีการจัดรูปแบบ`,
       };
 
         const ollamaMessages = [
@@ -312,26 +389,37 @@ wss.on("connection", (ws) => {
           { role: "user", content: finalMessage },
         ];
 
-        console.log(
-          `[Chat API] Sending ${ollamaMessages.length} messages to Ollama with models=${ollamaModel} (including system prompt) ✨`
-        );
+        const streamStartTime = Date.now();
+        logBoth('info', `Sending messages to Ollama (messageCount: ${ollamaMessages.length}, model: ${ollamaModel}, mode: ${AI_MODE})`);
 
-        // Call Ollama with streaming
+        // Call Ollama with streaming and optimized options for speed
         const responseStream = await ollama.chat({
           model: ollamaModel,
           messages: ollamaMessages,
           stream: true,
+          keep_alive: '30m',
+          options: {
+            // ULTIMATE SPEED optimizations
+            temperature: 0.7,        // Balanced
+            num_ctx: 2048,           // REDUCED from 4096 (2x faster)
+            num_predict: 512,        // REDUCED from 2048 (4x faster)
+            top_k: 40,
+            top_p: 0.9,
+            repeat_penalty: 1.1,
+            num_thread: 8,
+            num_gpu: 99,
+          },
         });
 
         let aiResponse = "";
         let isFirstChunk = true;
+        let chunkCount = 0;
 
-        console.log(
-          `[Chat API] Receiving streamed response from Ollama with models=${ollamaModel}... ✨`
-        );
+        logBoth('info', `Receiving streamed response from Ollama (model: ${ollamaModel})`);
 
         for await (const chunk of responseStream) {
           if (!chunk.message || !chunk.message.content) continue;
+          chunkCount++;
 
           if (isFirstChunk && mcpContext) {
             ws.send(JSON.stringify({ type: "mcp-context", text: mcpContext }));
@@ -350,18 +438,16 @@ wss.on("connection", (ws) => {
           ws.send(JSON.stringify(chunkMsg));
         }
 
+        const streamDuration = Date.now() - streamStartTime;
+        logBoth('info', `Stream completed (duration: ${streamDuration}ms, chunkCount: ${chunkCount}, responseLength: ${aiResponse.length}, model: ${ollamaModel})`);
+
         // Add AI response to history and send back to client
         const aiMessage: any = { sender: "ai", text: aiResponse };
         if (structuredContent) {
           aiMessage.structuredContent = structuredContent;
-          console.log("[Chat API] AI message has structuredContent, keys:", Object.keys(structuredContent));
         }
         sessionHistory.push(aiMessage);
-        console.log(`[Chat API] AI response: >>>>>>>>> ${aiResponse} ✨`);
-        console.log(
-          `[Chat API] Session now has ${sessionHistory.length} messages (after AI response)`
-        );
-        console.log("[Chat API] Last message in history:", JSON.stringify(sessionHistory[sessionHistory.length - 1], null, 2).substring(0, 200));
+        logBoth('info', `AI response complete (responseLength: ${aiResponse.length}, totalMessages: ${sessionHistory.length})`);
 
         // Send updated history back to client
         ws.send(
@@ -371,24 +457,26 @@ wss.on("connection", (ws) => {
           })
         );
       } catch (ollamaError) {
-        console.error("[Chat API] Ollama error:", ollamaError);
+        logBoth("error", `[Chat API] Ollama error: ${ollamaError}`);
+        logBoth('error', `Ollama chat error: ${ollamaError instanceof Error ? ollamaError.message : String(ollamaError)} (model: ${ollamaModel}, mode: ${AI_MODE})`);
         ws.send(
           JSON.stringify({ error: "Failed to get response from AI model" })
         );
         return;
       }
     } catch (error) {
-      console.error("[Chat API] Error parsing message:", error);
+      logBoth("error", `[Chat API] Error parsing message: ${error}`);
+      logBoth('error', `Message parsing error: ${error instanceof Error ? error.message : String(error)}`);
       ws.send(JSON.stringify({ error: "Invalid message format" }));
     }
   });
 
   ws.on("close", () => {
-    console.log(`[Chat API] WebSocket closed - total=${wss.clients.size}`);
+    logBoth("info", `[Chat API] WebSocket closed - total=${wss.clients.size}`);
   });
 
   ws.on("error", (error) => {
-    console.error("[Chat API] WebSocket error:", error);
+    logBoth("error", `[Chat API] WebSocket error: ${error}`);
   });
 });
 
@@ -401,16 +489,14 @@ chatRouter.post("/chat", async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    console.log("[Chat API] Received POST chat message:", message);
+    logBoth("info", `[Chat API] Received POST chat message: ${JSON.stringify(message)}`);
 
     // Get full message history from client or initialize empty
     let sessionHistory: ChatMessage[] = messages || [];
 
     // Add user message to history
     sessionHistory.push({ sender: "user", text: message });
-    console.log(
-      `[Chat API] POST: Session history: ${sessionHistory.length} messages (before AI)`
-    );
+    logBoth("info", `[Chat API] POST: Session history: ${sessionHistory.length} messages (before AI)`);
 
     let finalMessage = message;
     let mcpResults = null;
@@ -421,10 +507,7 @@ chatRouter.post("/chat", async (req, res) => {
         const mcpResult = await mcpClient.processMessage(message);
 
         if (mcpResult.needsTools) {
-          console.log(
-            "[Chat API] Processed with MCP tools:",
-            mcpResult.toolResults?.length
-          );
+          logBoth("info", `[Chat API] Processed with MCP tools: ${mcpResult.toolResults?.length}`);
           mcpResults = mcpResult.toolResults;
 
           if (mcpResult.enhancedContext) {
@@ -448,7 +531,7 @@ chatRouter.post("/chat", async (req, res) => {
             const cleanCandidate = candidate.replace(/"{2,}/g, "").replace(/^"+|"+$/g, "").trim();
             if (cleanCandidate.length > 0) sorryMessage = cleanCandidate;
           } catch (e) {
-            console.error("[Chat API] Failed to generate apology via Ollama (POST):", e);
+            logBoth("error", `[Chat API] Failed to generate apology via Ollama (POST): ${e}`);
           }
 
           sessionHistory.push({ sender: "ai", text: sorryMessage });
@@ -460,7 +543,7 @@ chatRouter.post("/chat", async (req, res) => {
           });
         }
       } catch (mcpError) {
-        console.error("[Chat API] MCP processing error in POST:", mcpError);
+        logBoth("error", `[Chat API] MCP processing error in POST: ${mcpError}`);
       }
     }
 
@@ -492,9 +575,7 @@ chatRouter.post("/chat", async (req, res) => {
       { role: "user", content: finalMessage },
     ];
 
-    console.log(
-      `[Chat API] POST: Sending ${ollamaMessages.length} messages to Ollama (including system prompt) ✨`
-    );
+    logBoth("info", `[Chat API] POST: Sending ${ollamaMessages.length} messages to Ollama (including system prompt) ✨`);
 
     // Call Ollama (non-streaming)
     const response = await ollama.chat({
@@ -502,16 +583,11 @@ chatRouter.post("/chat", async (req, res) => {
       messages: ollamaMessages,
     });
 
-    console.log(
-      "[Chat API] Ollama response ✨:",
-      response.message.content.substring(0, 100)
-    );
+    logBoth("info", `[Chat API] Ollama response ✨: ${response.message.content.substring(0, 100)}`);
 
     // Add AI response to history
     sessionHistory.push({ sender: "ai", text: response.message.content });
-    console.log(
-      `[Chat API] POST: Session now has ${sessionHistory.length} messages`
-    );
+    logBoth("info", `[Chat API] POST: Session now has ${sessionHistory.length} messages`);
 
     res.json({
       text: response.message.content,
@@ -520,7 +596,7 @@ chatRouter.post("/chat", async (req, res) => {
       mcpResults: mcpResults,
     });
   } catch (error) {
-    console.error("[Chat API] Error handling chat message:", error);
+    logBoth("error", `[Chat API] Error handling chat message: ${error}`);
     res.status(500).json({ error: "Failed to process the message" });
   }
 });

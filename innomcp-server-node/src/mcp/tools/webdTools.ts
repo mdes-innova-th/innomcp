@@ -1,5 +1,11 @@
-import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { mcpLog } from "../../utils/mcpLogger";
+import { logBoth } from "../../utils/mcpLogger";
+
+// Webd Tools - Web Domain Statistics from WEBDDSB Backend
+type WebdInput = {
+  query: string;
+};
 
 export function registerWebdTools(mcpserver: McpServer) {
   mcpserver.registerTool(
@@ -21,33 +27,14 @@ export function registerWebdTools(mcpserver: McpServer) {
   { "success": true, "data": [{ "group_name": "hate speech", "url_count": 618 }] }
 ข้อผิดพลาดที่คาดได้: 401 (missing/invalid API key), 400 (invalid payload), 500 (internal error)
 หมายเหตุ: ผลลัพธ์เป็น aggregate counts; อ่าน field 'group_name' และ 'url_count' เพื่อใช้งานต่อ`,
-      inputSchema: z.object({
-        query: z
-          .string()
-          .describe(
-            "คำค้นหาหรือหมวดหมู่ที่ต้องการตรวจสอบ (Search term or category name)"
-          ),
-      }),
-      outputSchema: z.object({
-        success: z.boolean().describe("สถานะการดึงข้อมูล (Operation status)"),
-        data: z
-          .array(
-            z.object({
-              group_name: z
-                .string()
-                .describe("กลุ่ม/หมวดหมู่/ประเภท (Category name)"),
-              url_count: z.number().describe("จำนวน URL (Number of URLs)"),
-            }).passthrough()
-          )
-          .describe("รายการสถิติแยกตามกลุ่ม (Statistics by category)"),
-      }).passthrough(),
     },
-    async ({ query }, _extra) => {
-      console.log(
-        `[MCP Server] Webd count input and group tool request received at ${new Date().toLocaleString()}`
-      );
+    async (args: any) => {
+      const { query } = args as WebdInput;
+      
+      mcpLog('INFO', `[Webd Group Tool] Query: ${query || 'all'}`);
+      
       const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
-      const webddsbPort = process.env.WEBDDSB_PORT || "3010";
+      const webddsbPort = process.env.WEBDDSB_PORT || "3011";
       const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
       try {
         const csrfRes = await fetch(
@@ -64,19 +51,15 @@ export function registerWebdTools(mcpserver: McpServer) {
         const csrfToken = csrfBody.csrfToken;
         if (!csrfToken) throw new Error("No csrfToken in response");
 
-        console.log("[MCP Server] CSRF token obtained");
-
         let setCookieHeaders: string[] = [];
         const cookiehdr =
           csrfRes.headers.get && csrfRes.headers.get("set-cookie");
         if (cookiehdr) {
           setCookieHeaders = [cookiehdr];
-          console.log("[MCP Server] Set-Cookie header");
         } else {
           const cookies = csrfRes.headers.get("set-cookie");
           if (cookies) {
             setCookieHeaders = Array.isArray(cookies) ? cookies : [cookies];
-            console.log("[MCP Server] Set-Cookie headers array");
           }
         }
 
@@ -105,10 +88,8 @@ export function registerWebdTools(mcpserver: McpServer) {
           throw new Error(`API request failed with status ${postRes.status}`);
         }
 
-        console.log("[MCP Server] POST request successful... fetching data");
-
         const data = await postRes.json();
-        console.log("[MCP Server] Groups count data:", data);
+        mcpLog('INFO', `[Webd Group Tool] Fetched ${data?.data?.length || 0} group records`);
 
         return {
           content: [
@@ -119,9 +100,29 @@ export function registerWebdTools(mcpserver: McpServer) {
           ],
           structuredContent: data,
         };
-      } catch (error) {
-        console.error("Error fetching groups count:", error);
-        throw error;
+      } catch (error: any) {
+        logBoth('ERROR', `[Webd Group Tool] Error fetching groups count: ${error && error.message ? error.message : error}`);
+        // Check if backend service is unavailable
+        if (error.cause?.code === 'ECONNREFUSED' || error.code === 'ECONNREFUSED') {
+          const errorMsg = `❌ **Backend Service Unavailable**\n\n` +
+            `Cannot connect to WEBDDSB backend at http://${webddsbHost}:${webddsbPort}\n\n` +
+            `**Please ensure:**\n` +
+            `1. innomcp-node server is running on port ${webddsbPort}\n` +
+            `2. Run: \`cd innomcp-node && npm run dev\`\n` +
+            `3. Check WEBDDSB_HOST and WEBDDSB_PORT in .env\n\n` +
+            `**Error:** ${error.message || 'Connection refused'}`;
+          return {
+            content: [{ type: "text" as const, text: errorMsg }]
+          };
+        }
+        // Other errors
+        const errorMsg = `❌ **Error fetching Webd groups data**\n\n` +
+          `${error.message || 'Unknown error'}\n\n` +
+          `Please check your API key and backend configuration.`;
+        
+        return {
+          content: [{ type: "text" as const, text: errorMsg }]
+        };
       }
     }
   );
@@ -146,31 +147,15 @@ export function registerWebdTools(mcpserver: McpServer) {
   { "success": true, "data": [{ "platform": "facebook", "url_count": 500, "percentage": 45.3 }] }
 ข้อผิดพลาดที่คาดได้: 401 (API key), 500 (internal error)
 หมายเหตุ: ฟิลด์ 'percentage' จะถูกคำนวณจาก 'url_count' หาก API ต้นทางไม่ส่งค่าเปอร์เซ็นต์มา`,
-      inputSchema: z.object({
-        requestType: z
-          .string()
-          .optional()
-          .describe("ประเภทการขอข้อมูลแพลตฟอร์ม (Platform data request type)"),
-      }),
-      outputSchema: z.object({
-        success: z.boolean(),
-        data: z.array(
-          z.object({
-            platform: z.string(),
-            url_count: z.number(),
-            percentage: z.number(),
-          }).passthrough()
-        ),
-      }).passthrough(),
     },
-    async ({ requestType }, _extra) => {
-      console.log(
-        `[MCP Server] Webd platforms tool request received at ${new Date().toLocaleString()}, requestType: ${
-          requestType || "default"
-        }`
-      );
+    async (args: any) => {
+      const input = args as { requestType?: string };
+      const requestType = input.requestType;
+      
+      mcpLog('INFO', `[Webd Platforms Tool] Request type: ${requestType || 'default'}`);
+      
       const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
-      const webddsbPort = process.env.WEBDDSB_PORT || "3010";
+      const webddsbPort = process.env.WEBDDSB_PORT || "3011";
       const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
       try {
         // Obtain CSRF token and cookies first (same flow as count_group)
@@ -187,8 +172,8 @@ export function registerWebdTools(mcpserver: McpServer) {
         const csrfBody = await csrfRes.json();
         const csrfToken = csrfBody.csrfToken;
         if (!csrfToken) throw new Error("No csrfToken in response");
-
-        console.log("[MCP Server] CSRF token obtained for platforms");
+        
+        mcpLog('INFO', '[Webd Platforms Tool] CSRF token obtained');
 
         // Extract set-cookie(s)
         let setCookieHeaders: string[] = [];
@@ -196,13 +181,11 @@ export function registerWebdTools(mcpserver: McpServer) {
           csrfRes.headers.get && csrfRes.headers.get("set-cookie");
         if (cookiehdr) {
           setCookieHeaders = [cookiehdr];
-          console.log("[MCP Server] Set-Cookie header");
         } else {
           const cookies =
             (csrfRes.headers as any).get && csrfRes.headers.get("set-cookie");
           if (cookies) {
             setCookieHeaders = Array.isArray(cookies) ? cookies : [cookies];
-            console.log("[MCP Server] Set-Cookie headers array");
           }
         }
 
@@ -231,7 +214,8 @@ export function registerWebdTools(mcpserver: McpServer) {
         }
 
         let data = await res.json();
-        console.log("[MCP Server] Platforms raw data:", data);
+        
+        mcpLog('INFO', `[Webd Platforms Tool] Fetched ${data?.data?.length || 0} platform records`);
 
         // Normalize data to ensure `percentage` field exists and is a number
         try {
@@ -266,10 +250,6 @@ export function registerWebdTools(mcpserver: McpServer) {
                     typeof it.percentage === "number" ? it.percentage : 0,
                 }));
               }
-              console.log(
-                "[MCP Server] Platforms data normalized with percentages:",
-                data
-              );
             }
           }
         } catch (err) {
@@ -285,9 +265,32 @@ export function registerWebdTools(mcpserver: McpServer) {
           ],
           structuredContent: data,
         };
-      } catch (error) {
-        console.error("Error fetching platforms:", error);
-        throw error;
+      } catch (error: any) {
+        console.error("Error fetching platform list:", error);
+        
+        // Check if backend service is unavailable
+        if (error.cause?.code === 'ECONNREFUSED' || error.code === 'ECONNREFUSED') {
+          const errorMsg = `❌ **Backend Service Unavailable**\n\n` +
+            `Cannot connect to WEBDDSB backend at http://${webddsbHost}:${webddsbPort}\n\n` +
+            `**Please ensure:**\n` +
+            `1. innomcp-node server is running on port ${webddsbPort}\n` +
+            `2. Run: \`cd innomcp-node && npm run dev\`\n` +
+            `3. Check WEBDDSB_HOST and WEBDDSB_PORT in .env\n\n` +
+            `**Error:** ${error.message || 'Connection refused'}`;
+          
+          return {
+            content: [{ type: "text" as const, text: errorMsg }]
+          };
+        }
+        
+        // Other errors
+        const errorMsg = `❌ **Error fetching Webd platforms data**\n\n` +
+          `${error.message || 'Unknown error'}\n\n` +
+          `Please check your API key and backend configuration.`;
+        
+        return {
+          content: [{ type: "text" as const, text: errorMsg }]
+        };
       }
     }
   );
@@ -311,24 +314,12 @@ export function registerWebdTools(mcpserver: McpServer) {
   { "success": true, "data": [{ "country": "TH", "url_count": 300, "percentage": 30.0 }] }
 ข้อผิดพลาดที่คาดได้: 401 (API key), 500 (server error)
 หมายเหตุ: หาก API ต้นทางไม่ส่ง 'percentage' ฟังก์ชันจะคำนวณให้โดยอัตโนมัติ`,
-      inputSchema: z.object({}),
-      outputSchema: z.object({
-        success: z.boolean(),
-        data: z.array(
-          z.object({
-            country: z.string(),
-            url_count: z.number(),
-            percentage: z.number(),
-          }).passthrough()
-        ),
-      }).passthrough(),
     },
-    async (_params, _extra) => {
-      console.log(
-        `[MCP Server] Webd register country tool request received at ${new Date().toLocaleString()}`
-      );
+    async () => {
+      mcpLog('INFO', '[Webd Register Country Tool] Request received');
+      
       const webddsbHost = process.env.WEBDDSB_HOST || "localhost";
-      const webddsbPort = process.env.WEBDDSB_PORT || "3010";
+      const webddsbPort = process.env.WEBDDSB_PORT || "3011";
       const webddsbApiKey = process.env.WEBDDSB_APIKEY || "";
       try {
         // Obtain CSRF token and cookies first
@@ -345,8 +336,8 @@ export function registerWebdTools(mcpserver: McpServer) {
         const csrfBody = await csrfRes.json();
         const csrfToken = csrfBody.csrfToken;
         if (!csrfToken) throw new Error("No csrfToken in response");
-
-        console.log("[MCP Server] CSRF token obtained for register country");
+        
+        mcpLog('INFO', '[Webd Register Country Tool] CSRF token obtained');
 
         // Extract set-cookie(s)
         let setCookieHeaders: string[] = [];
@@ -354,13 +345,11 @@ export function registerWebdTools(mcpserver: McpServer) {
           csrfRes.headers.get && csrfRes.headers.get("set-cookie");
         if (cookiehdr) {
           setCookieHeaders = [cookiehdr];
-          console.log("[MCP Server] Set-Cookie header");
         } else {
           const cookies =
             (csrfRes.headers as any).get && csrfRes.headers.get("set-cookie");
           if (cookies) {
             setCookieHeaders = Array.isArray(cookies) ? cookies : [cookies];
-            console.log("[MCP Server] Set-Cookie headers array");
           }
         }
 
@@ -388,7 +377,8 @@ export function registerWebdTools(mcpserver: McpServer) {
         }
 
         let data = await res.json();
-        console.log("[MCP Server] Register country raw data:", data);
+        
+        mcpLog('INFO', `[Webd Register Country Tool] Fetched ${data?.data?.length || 0} country records`);
 
         // Normalize to ensure percentage exists
         try {
@@ -421,10 +411,6 @@ export function registerWebdTools(mcpserver: McpServer) {
                     typeof it.percentage === "number" ? it.percentage : 0,
                 }));
               }
-              console.log(
-                "[MCP Server] Register country data normalized with percentages:",
-                data
-              );
             }
           }
         } catch (err) {
@@ -443,9 +429,32 @@ export function registerWebdTools(mcpserver: McpServer) {
           ],
           structuredContent: data,
         };
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching register country:", error);
-        throw error;
+        
+        // Check if backend service is unavailable
+        if (error.cause?.code === 'ECONNREFUSED' || error.code === 'ECONNREFUSED') {
+          const errorMsg = `❌ **Backend Service Unavailable**\n\n` +
+            `Cannot connect to WEBDDSB backend at http://${webddsbHost}:${webddsbPort}\n\n` +
+            `**Please ensure:**\n` +
+            `1. innomcp-node server is running on port ${webddsbPort}\n` +
+            `2. Run: \`cd innomcp-node && npm run dev\`\n` +
+            `3. Check WEBDDSB_HOST and WEBDDSB_PORT in .env\n\n` +
+            `**Error:** ${error.message || 'Connection refused'}`;
+          
+          return {
+            content: [{ type: "text" as const, text: errorMsg }]
+          };
+        }
+        
+        // Other errors
+        const errorMsg = `❌ **Error fetching Webd country data**\n\n` +
+          `${error.message || 'Unknown error'}\n\n` +
+          `Please check your API key and backend configuration.`;
+        
+        return {
+          content: [{ type: "text" as const, text: errorMsg }]
+        };
       }
     }
   );

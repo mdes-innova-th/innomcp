@@ -3,12 +3,14 @@
  * Handles planning and execution of chained tool calls
  */
 
+
 import {
   ToolChainStep,
   ToolChainPlan,
   ChainExecutionResult,
   MCPTool,
 } from "./types";
+import { logBoth } from "../mcpLogger";
 
 export class ToolChainingEngine {
   /**
@@ -22,11 +24,11 @@ export class ToolChainingEngine {
     chatWithOllama: (messages: any[], options?: any) => Promise<any>,
     extractJsonFromText: (text: string) => string | null
   ): Promise<ToolChainPlan | null> {
-    console.log("===== Starting planToolChain =====");
+    logBoth("info", "===== Starting planToolChain =====");
 
     // ถ้ามี tool เดียวไม่ต้อง chain
     if (selectedTools.length <= 1) {
-      console.log("[Chain] Only 1 tool, no chaining needed");
+      logBoth("info", "[Chain] Only 1 tool, no chaining needed");
       return null;
     }
 
@@ -86,18 +88,18 @@ ${toolDescriptions}
 
 JSON:`;
 
-      console.log("[Chain] Calling Ollama for chain planning...");
+      logBoth("info", "[Chain] Calling Ollama for chain planning...");
       const response = await chatWithOllama(
         [{ role: "user", content: prompt }],
         { temperature: 0.2, num_predict: 500 }
       );
 
       const rawText = String(response.message?.content || "").trim();
-      console.log(`[Chain] Ollama response: ${rawText.slice(0, 200)}...`);
+      logBoth("info", `[Chain] Ollama response: ${rawText.slice(0, 200)}...`);
 
       const jsonStr = extractJsonFromText(rawText);
       if (!jsonStr) {
-        console.warn("[Chain] No JSON found in response");
+        logBoth("warn", "[Chain] No JSON found in response");
         return null;
       }
 
@@ -105,7 +107,7 @@ JSON:`;
 
       // Validate plan
       if (!plan.isChainable || !plan.steps || plan.steps.length === 0) {
-        console.log("[Chain] Plan indicates no chaining needed");
+        logBoth("info", "[Chain] Plan indicates no chaining needed");
         return null;
       }
 
@@ -113,24 +115,25 @@ JSON:`;
       plan.steps = plan.steps.filter((step) => {
         const exists = selectedTools.includes(step.toolName);
         if (!exists) {
-          console.warn(`[Chain] Invalid tool in plan: ${step.toolName}`);
+          logBoth("warn", `[Chain] Invalid tool in plan: ${step.toolName}`);
         }
         return exists;
       });
 
       if (plan.steps.length === 0) {
-        console.warn("[Chain] No valid steps after validation");
+        logBoth("warn", "[Chain] No valid steps after validation");
         return null;
       }
 
-      console.log(
+      logBoth(
+        "info",
         `[Chain] ✅ Created chain plan with ${plan.steps.length} steps`
       );
-      console.log(`[Chain] Reasoning: ${plan.reasoning}`);
+      logBoth("info", `[Chain] Reasoning: ${plan.reasoning}`);
 
       return plan;
     } catch (error) {
-      console.error("[Chain] Error planning tool chain:", error);
+      logBoth("error", `[Chain] Error planning tool chain: ${error}`);
       return null;
     }
   }

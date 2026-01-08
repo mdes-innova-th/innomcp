@@ -1,36 +1,53 @@
-import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { mcpLog } from "../../utils/mcpLogger";
+import { logBoth } from "../../utils/mcpLogger";
+
+type DateTimeInput = {
+  format?: string;
+};
 
 export function registerDateTimeTool(mcpserver: McpServer) {
   mcpserver.registerTool(
     "dateTimeTool",
     {
-      title: "เครื่องมือสำหรับแสดงเวลาและวันที่ในรูปแบบต่างๆ",
+      title: "เครื่องมือแสดงวันที่และเวลาปัจจุบัน - DateTime Tool",
       description: `
-      หน้าที่: แสดงวันที่และเวลาปัจจุบันในรูปแบบต่างๆ
+      หน้าที่: แสดงวันที่และเวลาปัจจุบัน ณ ขณะนี้
+      
       ใช้เมื่อ:
-      - ต้องการทราบวันที่และเวลาปัจจุบัน
-      - มีคำขอของผู้ใช้เกี่ยวกับวันที่และเวลา
+      - ถามว่า "ตอนนี้กี่โมง", "เวลาเท่าไร", "กี่โมงแล้ว", "ขณะนี้เวลา"
+      - ถามว่า "วันนี้วันที่เท่าไร", "วันที่เท่าไหร่", "วันอะไร"
+      - ต้องการทราบเวลาปัจจุบัน, เวลาตอนนี้, เวลาในไทย
+      - ถามเกี่ยวกับเวลาที่แสดงบน taskbar, เครื่องคอมพิวเตอร์, window
+      - มีคำถามเกี่ยวกับ: เวลา, วันที่, กี่โมง, กี่นาที, ปัจจุบัน, ตอนนี้, เดี๋ยวนี้, ขณะนี้
+      
       ไม่ใช้เมื่อ:
-      - ไม่ต้องการข้อมูลวันที่และเวลา
-      - ไม่มีคำขอของผู้ใช้เกี่ยวกับวันที่และเวลา
-      พารามิเตอร์: { format?: string } (optional) — รูปแบบการแสดงผลที่ต้องการ ('thai', 'iso', 'timestamp')
-ตัวอย่าง request: วันนี้วันที่เท่าไร แสดงวันที่และเวลาปัจจุบันในรูปแบบ ISO
-ตัวอย่าง response: { "datetime": "2024-06-15T08:30:00Z", "format": "iso" }
-ข้อผิดพลาดที่คาดได้: 400 (invalid format)
-หมายเหตุ: รูปแบบ 'thai' จะแสดงวันที่และเวลาในรูปแบบปฏิทินไทย`,
-      inputSchema: z.object({
-        format: z
-          .string()
-          .optional()
-          .describe("รูปแบบการแสดงผล เช่น 'thai', 'iso', 'timestamp'"),
-      }),
-      outputSchema: z.object({ datetime: z.string(), format: z.string() }),
+      - ถามเกี่ยวกับสภาพอากาศ, พยากรณ์อากาศ, ฝน, อุณหภูมิ
+      - ถามเกี่ยวกับข่าวสาร, ข้อมูลทั่วไป
+      - ไม่มีคำถามเกี่ยวกับเวลาหรือวันที่
+      
+      คำสำคัญ: เวลา, วันที่, กี่โมง, กี่นาที, ตอนนี้, ปัจจุบัน, ขณะนี้, เดี๋ยวนี้, time, datetime, current, now, clock, taskbar, วันนี้, พรุ่งนี้, เมื่อวาน
+      
+      พารามิเตอร์: { format?: string } (optional) — รูปแบบการแสดงผล ('thai', 'iso', 'timestamp')
+      
+      ตัวอย่างคำถาม: 
+      - "ตอนนี้กี่โมง"
+      - "วันนี้วันที่เท่าไร" 
+      - "เวลาตอนนี้เท่าไหร่"
+      - "taskbar แสดงเวลากี่โมง"
+      
+      ตัวอย่าง response: { "datetime": "21 ธันวาคม 2567, 20:34:15", "format": "thai" }
+      
+      ข้อผิดพลาดที่คาดได้: 400 (invalid format)
+      
+      หมายเหตุ: รูปแบบ 'thai' จะแสดงวันที่และเวลาในรูปแบบปฏิทินไทยพุทธศักราช`,
     },
-    async ({ format = "thai" }, _extra) => {
-      console.log(
-        `[MCP Server] DateTime tool request received at ${new Date().toLocaleString()}`
-      );
+    async (args: any) => {
+      const input = args as DateTimeInput;
+      const format = input.format || "thai";
+      
+      mcpLog('INFO', `[DateTime Tool] Request received - format: ${format}`);
+      
       try {
         const now = new Date();
         let result = "";
@@ -58,16 +75,24 @@ export function registerDateTimeTool(mcpserver: McpServer) {
 
         return {
           content: [
-            { type: "text", text: `วันเวลาปัจจุบัน: ${result}` } as {
-              type: "text";
-              text: string;
+            {
+              type: "text" as const,
+              text: `วันเวลาปัจจุบัน: ${result}`,
             },
           ],
           structuredContent: { datetime: result, format },
         };
       } catch (error) {
-        console.error("Error in datetime tool:", error);
-        throw error;
+        logBoth('ERROR', `[DateTime Tool] Error: ${String(error)}`);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `เกิดข้อผิดพลาด: ${String(error)}`,
+            },
+          ],
+          structuredContent: { datetime: "", format: "error" },
+        };
       }
     }
   );
