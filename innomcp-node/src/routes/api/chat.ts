@@ -1,10 +1,19 @@
 import { Router } from "express";
 import { WebSocketServer } from "ws";
 import dotenv from "dotenv";
+import crypto from "crypto";
 import { Ollama } from "ollama";
 import { InitMcpClient, IntelligentMCPClient } from "../../utils/mcp/mcpclient";
 import { logBoth } from "../../utils/mcpLogger";
+import logger from "../../utils/logger";
 import { getCurrentAIMode } from "./aiMode";
+import { fastPathChatMiddleware } from "../../middleware/fastpathChatMiddleware";
+import { sessionManager } from "../../utils/sessionManager";
+import { buildSystemPrompt, buildIdentityPrompt } from "../../config/systemPrompt";
+import { extractCorrelationIdFromUpgrade } from "../../middleware/correlationId";
+import { checkRateLimit, buildRateLimitKey } from "../../fastpath/rateLimit";
+import { analyzeIntent } from "../../fastpath/intentGate";
+import { requestQueue } from "../../utils/requestQueue";
 
 dotenv.config();
 
@@ -224,10 +233,36 @@ interface ClientMessage {
 }
 
 // --- 6. WebSocket Connection Handler ---
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, req) => {
   (ws as any).isAlive = true;
   // Track recently processed message IDs for this connection to avoid duplicates/loops
   (ws as any).processedMessageIds = new Set<string>();
+  
+  // 🔍 Extract Correlation ID
+  const correlationId = extractCorrelationIdFromUpgrade(req);
+  (ws as any).correlationId = correlationId;
+  
+  // Generate or extract sessionId
+  const cookies = req.headers.cookie?.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=');
+    acc[key] = value;
+    return acc;
+  }, {} as Record<string, string>) || {};
+  
+  const sessionId = cookies.sessionId || 
+                   req.headers['x-session-id'] as string || 
+                   crypto.randomUUID();
+  (ws as any).sessionId = sessionId;
+  
+  // Store client info
+  const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+  (ws as any).clientIp = clientIp;
+  
+  // Initialize session
+  const userAgent = req.headers['user-agent'];
+  sessionManager.getOrCreateSession(sessionId, undefined, userAgent);
+  logger.info(`[Chat API] WebSocket connected [cid=${correlationId.substring(0, 8)}] sid=${sessionId.substring(0, 8)} ip=${clientIp}`);
+  
   ws.on("pong", () => {
     try {
       (ws as any).isAlive = true;
@@ -238,12 +273,16 @@ wss.on("connection", (ws) => {
 
   logBoth("info", `[Chat API] New WebSocket connection - total=${wss.clients.size}`);
 
-  // --- Message Handler ---
+  // --- Message Handler with Queue Management ---
   ws.on("message", async (data) => {
-    try {
-      const clientMessage: ClientMessage = JSON.parse(data.toString());
-      // optional messageId to deduplicate repeated sends from the same client
-      const incomingId = (clientMessage as any).messageId;
+    const messageId = `ws-${sessionId.substring(0, 8)}-${Date.now()}`;
+    
+    // Enqueue the message processing to prevent overload
+    await requestQueue.enqueue(messageId, async () => {
+      try {
+        const clientMessage: ClientMessage = JSON.parse(data.toString());
+        // optional messageId to deduplicate repeated sends from the same client
+        const incomingId = (clientMessage as any).messageId;
       if (incomingId && (ws as any).processedMessageIds.has(incomingId)) {
         logBoth("warn", `[Chat API] Duplicate messageId received, ignoring: ${incomingId}`);
         return;
@@ -269,14 +308,71 @@ wss.on("connection", (ws) => {
         ws.send(JSON.stringify({ error: "Text is required" }));
         return;
       }
+      
+      // 📝 Log user message to session
+      const currentSessionId = (ws as any).sessionId;
+      sessionManager.addMessage(currentSessionId, 'user', currentText);
+      logBoth('info', `[Session] Added user message to session ${currentSessionId}`);
+
+      // 🚀 FastPath: Check if this is a simple greeting/small-talk that can be answered instantly
+      const { tryFastPathWebSocket } = await import("../../services/fastPathHandler");
+      const clientIp = (ws as any).clientIp || 'unknown';
+      const fastPathResult = await tryFastPathWebSocket(
+        currentText,
+        (payload) => {
+          // Convert FastPath format to our WebSocket format
+          const responseText = payload.content?.[0]?.text || "👋";
+          
+          // Send as chunk (streaming format)
+          ws.send(JSON.stringify({ 
+            type: "chunk", 
+            text: responseText,
+            structuredContent: payload.structuredContent
+          }));
+          
+          // Send history update with the complete response
+          const aiMessage: any = { sender: "ai", text: responseText };
+          if (payload.structuredContent) {
+            aiMessage.structuredContent = payload.structuredContent;
+          }
+          sessionHistory.push({ sender: "user", text: currentText });
+          sessionHistory.push(aiMessage);
+          
+          // 📝 Log FastPath response to session
+          sessionManager.addMessage(currentSessionId, 'assistant', responseText, ['FastPath']);
+          
+          ws.send(JSON.stringify({
+            type: "history-update",
+            messages: sessionHistory,
+            structuredContent: payload.structuredContent
+          }));
+        },
+        { mode: (process.env.FASTPATH_MODE as any) || "on" },
+        clientIp,
+        undefined // userId (not available yet)
+      );
+
+      if (fastPathResult.handled) {
+        logBoth('info', `[FastPath] ⚡ Handled in ${fastPathResult.latencyMs}ms: ${currentText.slice(0, 50)}`);
+        return; // FastPath responded, done!
+      }
 
       // Add user message to history
       sessionHistory.push({ sender: "user", text: currentText });
       logBoth('info', `Session history prepared (totalMessages: ${sessionHistory.length}, mode: ${AI_MODE})`);
 
+      // 🧠 Inject session context for AI memory
+      const recentContext = sessionManager.buildContextString(currentSessionId, 5);
+      let contextPrefix = '';
+      if (recentContext) {
+        contextPrefix = `<conversation_history>\n${recentContext}</conversation_history>\n\n`;
+        logBoth('info', `[Session] Injected ${sessionManager.getRecentMessages(currentSessionId, 5).length} recent messages as context`);
+      }
+
       let finalMessage = currentText;
       let mcpContext = "";
       let structuredContent: any = undefined;
+      let toolsUsedInThisRequest: string[] = [];
 
       // **Process with MCP**
       if (mcpClient) {
@@ -286,6 +382,11 @@ wss.on("connection", (ws) => {
 
           if (mcpResult.needsTools) {
             logBoth("info", `[Chat API] MCP tools executed: ${mcpResult.toolResults?.length}`);
+            
+            // Track tools used
+            if (mcpResult.toolResults) {
+              toolsUsedInThisRequest = mcpResult.toolResults.map(r => r.toolName);
+            }
 
             ws.send(
               JSON.stringify({
@@ -308,8 +409,7 @@ wss.on("connection", (ws) => {
             }
 
             if (mcpResult.enhancedContext) {
-              finalMessage = mcpResult.enhancedContext;
-              mcpContext = " (ใช้ข้อมูลจาก MCP tools)";
+              mcpContext = mcpResult.enhancedContext;
             }
           } else if (mcpResult.toolsFailed) {
             // Tools were selected but all failed — ask Ollama to craft a short sorry message
@@ -350,35 +450,17 @@ wss.on("connection", (ws) => {
 
       // **Use Ollama with full history**
       try {
-        // Map history to Ollama format with system prompt
-      const systemPrompt = {
-       role: "system",
-       content: `คุณเป็น AI ผู้ช่วยมืออาชีพที่ชาญฉลาดและตอบสนองรวดเร็ว มีหน้าที่:
-
-🎯 **การให้บริการ**
-1. จำประวัติการสนทนาและใช้บริบทเพื่อให้คำตอบที่สอดคล้องและเชื่อมโยง
-2. ตอบคำถามด้วยข้อมูลที่แม่นยำและครบถ้วน โดยนำเสนอในรูปแบบที่เข้าใจง่าย
-3. หากมีข้อมูลเพิ่มเติมจากแหล่งต่างๆ ให้รวมเข้าในคำตอบอย่างเป็นธรรมชาติ โดยไม่ต้องอธิบายแหล่งที่มา
-4. ตอบเป็นภาษาไทยที่สุภาพและเป็นมิตร พร้อมให้คำแนะนำที่เป็นประโยชน์
-
-📝 **รูปแบบการตอบ (Markdown)**
-• ใช้ # สำหรับหัวข้อหลัก, ## สำหรับหัวข้อย่อย
-• ใช้ bullet points (-) หรือ numbering (1. 2.) เมื่อต้องการแสดงรายการ
-• ใช้ **bold** สำหรับข้อความสำคัญ, *italic* สำหรับเน้นย้ำ
-• ใช้ \`code\` สำหรับโค้ดหรือคำสั่ง, \`\`\`language สำหรับบล็อกโค้ด
-• ใช้ > สำหรับ quote หรือข้อความที่ต้องการเน้น
-• จัดรูปแบบให้อ่านง่าย มีการแบ่งวรรคและเว้นบรรทัดที่เหมาะสม
-
-⚡ **ความเร็วและประสิทธิภาพ**
-• ตอบโดยตรง กระชับ แต่ครบถ้วน
-• หากคำถามซับซ้อน ให้แบ่งเป็นส่วนๆ ตอบทีละขั้นตอน
-• หากไม่มีข้อมูล ให้บอกตรงๆ และแนะนำทางเลือกอื่น
-
-🚫 **ข้อห้าม**
-• ห้ามเปิดเผยการทำงานภายในของระบบ
-• ห้ามกล่าวถึง tools, MCP, หรือกระบวนการเทคนิคใดๆ
-• ห้ามส่งข้อความธรรมดาที่ไม่มีการจัดรูปแบบ`,
-      };
+        // Build comprehensive system prompt with MDES identity
+        const systemPromptContent = buildSystemPrompt({
+          includeTools: true,
+          includeCapabilities: true,
+          includeGuidelines: true
+        });
+        
+        const systemPrompt = {
+          role: "system",
+          content: systemPromptContent
+        };
 
         const ollamaMessages = [
           systemPrompt,
@@ -386,7 +468,10 @@ wss.on("connection", (ws) => {
             role: m.sender === "ai" ? "assistant" : "user",
             content: m.text,
           })),
-          { role: "user", content: finalMessage },
+          { 
+            role: "user", 
+            content: contextPrefix + (mcpContext ? `${mcpContext}\n\n` : '') + currentText 
+          },
         ];
 
         const streamStartTime = Date.now();
@@ -447,6 +532,11 @@ wss.on("connection", (ws) => {
           aiMessage.structuredContent = structuredContent;
         }
         sessionHistory.push(aiMessage);
+        
+        // 📝 Log AI response to session with tools used
+        sessionManager.addMessage(currentSessionId, 'assistant', aiResponse, toolsUsedInThisRequest.length > 0 ? toolsUsedInThisRequest : undefined);
+        logBoth('info', `[Session] Added AI response to session (tools: ${toolsUsedInThisRequest.join(', ') || 'none'})`);
+        
         logBoth('info', `AI response complete (responseLength: ${aiResponse.length}, totalMessages: ${sessionHistory.length})`);
 
         // Send updated history back to client
@@ -469,6 +559,14 @@ wss.on("connection", (ws) => {
       logBoth('error', `Message parsing error: ${error instanceof Error ? error.message : String(error)}`);
       ws.send(JSON.stringify({ error: "Invalid message format" }));
     }
+    }).catch(queueError => {
+      logBoth("error", `[Queue] Failed to process message: ${queueError}`);
+      try {
+        ws.send(JSON.stringify({ error: "Server busy, please try again" }));
+      } catch (e) {
+        // WebSocket might be closed
+      }
+    });
   });
 
   ws.on("close", () => {
@@ -480,8 +578,9 @@ wss.on("connection", (ws) => {
   });
 });
 
-// --- 7. POST Endpoint (REST API) ---
-chatRouter.post("/chat", async (req, res) => {
+// --- 7. POST Endpoint (REST API) with FastPath ---
+// 🚀 FastPath middleware intercepts greetings and responds immediately (<1s)
+chatRouter.post("/chat", fastPathChatMiddleware(), async (req, res) => {
   try {
     const { message, messages } = req.body;
 

@@ -78,9 +78,7 @@ export default function Header() {
   return (
     <>
       <header
-        className={`fixed inset-x-0 top-0 flex flex-col text-gray-700 dark:text-gray-200 z-50 ${
-          theme === "dark" ? "bg-gray-950/90" : "bg-indigo-900"
-        } shadow-md`}
+        className={`fixed inset-x-0 top-0 flex flex-col z-50 bg-primary text-primary-foreground shadow-md border-b border-primary/20`}
       >
         <div className="w-full flex justify-between items-center px-5 py-1 app-name-section">
           <div className="w-full h-full m-1 flex items-center justify-between">
@@ -114,9 +112,9 @@ export default function Header() {
                     }
                     className={`px-4 py-2 ${
                       pathname === "/complex-chart"
-                        ? "bg-indigo-500 border-2 border-indigo-400"
-                        : "bg-none"
-                    } text-white rounded-3xl hover:bg-indigo-500 transition flex items-center gap-2 cursor-pointer`}
+                        ? "bg-secondary border-2 border-secondary"
+                        : "bg-transparent"
+                    } text-primary-foreground rounded-3xl hover:bg-secondary/80 transition flex items-center gap-2 cursor-pointer`}
                   >
                     <i className="fa-solid fa-chart-column text-2xl"></i>
                     COMPLEX CHART
@@ -128,9 +126,9 @@ export default function Header() {
                     }
                     className={`px-4 py-2 ${
                       pathname === "/search-url"
-                        ? "bg-indigo-500 border-2 border-indigo-400"
-                        : "bg-none"
-                    } text-white rounded-3xl hover:bg-indigo-500 transition flex items-center gap-2 cursor-pointer`}
+                        ? "bg-secondary border-2 border-secondary"
+                        : "bg-transparent"
+                    } text-primary-foreground rounded-3xl hover:bg-secondary/80 transition flex items-center gap-2 cursor-pointer`}
                   >
                     <i className="fa-solid fa-search text-2xl"></i>
                     ค้นหา URL
@@ -152,14 +150,12 @@ export default function Header() {
         {/* Bottom row: user/login menu */}
         <div className="w-full flex flex-wrap justify-center items-center py-1">
           {isAuthLoading ? (
-            <LoadingSpinner color={theme === "dark" ? "white" : "black"} />
+            <LoadingSpinner color="white" />
           ) : isLoggedIn ? (
             <>
               <div className="items-center gap-2 inline-flex">
                 <span
-                  className={`text-lg font-semibold mr-2 ${
-                    theme === "dark" ? "text-white" : "text-gray-700"
-                  }`}
+                  className="text-lg font-semibold mr-2 text-primary-foreground"
                   title={userDispName || undefined}
                 >
                   สวัสดี {userDispName}
@@ -168,11 +164,7 @@ export default function Header() {
                 <div className="flex items-center gap-2">
                   <Link
                     href="/"
-                    className={`rounded-0 mb-2 flex items-center justify-center cursor-pointer transition-colors ${
-                      theme === "dark"
-                        ? "text-white hover:text-blue-400"
-                        : "text-gray-700 hover:text-blue-500"
-                    }`}
+                    className="rounded-0 mb-2 flex items-center justify-center cursor-pointer transition-colors text-primary-foreground hover:text-secondary"
                     aria-label="หน้าแรก"
                   >
                     <FaHome size={23} />
@@ -232,7 +224,7 @@ export default function Header() {
           theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด"
         }
         title={theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด"}
-        className="fixed left-2 bottom-2 z-99 w-11 h-11 p-2 rounded-full border border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-700 text-gray-700 dark:text-gray-200 shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-transform transform hover:scale-105 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 cursor-pointer"
+        className="fixed left-2 bottom-2 z-99 w-11 h-11 p-2 rounded-full border border-border bg-card text-card-foreground shadow-lg hover:bg-accent hover:text-accent-foreground transition-transform transform hover:scale-105 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
       >
         {theme === "dark" ? <FaSun size={20} /> : <FaMoon size={20} />}
         <span className="sr-only">

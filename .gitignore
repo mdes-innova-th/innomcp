@@ -11,7 +11,6 @@ innomcp-server-node/logs/
 innomcp-node/logs/
 *.log
 
-
 # tests
 innomcp-next/tests/
 innomcp-server-node/tests/
@@ -20,13 +19,17 @@ innomcp-node/tests/
 # Database files
 mariadb/data
 
-.env
+
 
 # Ignore Markdown and text files
 *.md
 *.txt
 
 # Folders
+/config/
 /scripts/
 /docs/
 /tests/
+*/.env
+/CHANGELOG/
+# innomcp-next/.env

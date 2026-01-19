@@ -4,7 +4,12 @@
   "private": true,
   "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration",
+    "test-backend-api": "ts-node tests/test-backend-api.ts",
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js"
@@ -21,8 +26,10 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.22.0",
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.18",
     "@types/express": "^5.0.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "depcheck": "^1.4.7",
     "dotenv": "^16.5.0",

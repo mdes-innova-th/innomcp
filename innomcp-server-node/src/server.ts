@@ -59,6 +59,30 @@ import worldBankTool from "./mcp/tools/worldBankTool";
 import govDataTool from "./mcp/tools/govDataTool";
 import newtonTool from "./mcp/tools/newtonTool";
 
+// NEW: 2026-01-05 - World-Class MCP Tools
+import currencyExchangeTool from "./mcp/tools/currencyExchangeTool";
+import qrCodeTool from "./mcp/tools/qrCodeTool";
+import translationTool from "./mcp/tools/translationTool";
+import rssFeedTool from "./mcp/tools/rssFeedTool";
+import codeFormatterTool from "./mcp/tools/codeFormatterTool";
+
+// NEW: 2026-01-05 - Essential Free Tools (Phase 2)
+import ocrTool from "./mcp/tools/ocrTool";
+import fileReaderTool from "./mcp/tools/fileReaderTool";
+import imageGeneratorTool from "./mcp/tools/imageGeneratorTool";
+
+// NEW: 2026-01-06 - NWP Weather Forecast Tools (High Performance Computing)
+import {
+  nwpHourlyByLocationTool,
+  nwpHourlyByPlaceTool,
+  nwpHourlyByRegionTool
+} from "./mcp/tools/nwpHourlyTool";
+import {
+  nwpDailyByLocationTool,
+  nwpDailyByPlaceTool,
+  nwpDailyByRegionTool
+} from "./mcp/tools/nwpDailyTool";
+
 // Create MCP server instance and register tools
 const mcpserver = new McpServer({
   name: "INNOMCP Server",
@@ -112,7 +136,101 @@ mcpserver.registerTool(newtonTool.name, {
   inputSchema: newtonTool.inputSchema,
 }, newtonTool.execute);
 
-logBoth('INFO', `✅ Registered 9 essential tools (2025 Professional System):\n  - Core: dateTime, calculator (MathTool)\n  - Visualization: echartsTool\n  - Data Access: archive, nasa, weather, worldbank, govdata, newton`);
+// Register NEW World-Class Tools (2026-01-05)
+mcpserver.registerTool(currencyExchangeTool.name, {
+  title: "Currency Exchange Tool",
+  description: currencyExchangeTool.description,
+  inputSchema: currencyExchangeTool.inputSchema,
+}, currencyExchangeTool.execute);
+
+mcpserver.registerTool(qrCodeTool.name, {
+  title: "QR Code Generator Tool",
+  description: qrCodeTool.description,
+  inputSchema: qrCodeTool.inputSchema,
+}, qrCodeTool.execute);
+
+mcpserver.registerTool(translationTool.name, {
+  title: "Translation Tool",
+  description: translationTool.description,
+  inputSchema: translationTool.inputSchema,
+}, translationTool.execute);
+
+mcpserver.registerTool(rssFeedTool.name, {
+  title: "RSS Feed Reader Tool",
+  description: rssFeedTool.description,
+  inputSchema: rssFeedTool.inputSchema,
+}, rssFeedTool.execute);
+
+mcpserver.registerTool(codeFormatterTool.name, {
+  title: "Code Formatter Tool",
+  description: codeFormatterTool.description,
+  inputSchema: codeFormatterTool.inputSchema,
+}, codeFormatterTool.execute);
+
+// Register Phase 2 Tools - Essential Free Tools
+mcpserver.registerTool(ocrTool.name, {
+  title: "OCR Tool - อ่านข้อความจากภาพ",
+  description: ocrTool.description,
+  inputSchema: ocrTool.inputSchema,
+}, ocrTool.execute);
+
+mcpserver.registerTool(fileReaderTool.name, {
+  title: "File Reader Tool - อ่าน PDF/Excel/Word",
+  description: fileReaderTool.description,
+  inputSchema: fileReaderTool.inputSchema,
+}, fileReaderTool.execute);
+
+mcpserver.registerTool(imageGeneratorTool.name, {
+  title: "Image Generator Tool - สร้างรูปภาพ",
+  description: imageGeneratorTool.description,
+  inputSchema: imageGeneratorTool.inputSchema,
+}, imageGeneratorTool.execute);
+
+// Register NWP Weather Forecast Tools (HPC)
+mcpserver.registerTool(nwpHourlyByLocationTool.name, {
+  title: "NWP Hourly Forecast by Location",
+  description: nwpHourlyByLocationTool.description,
+  inputSchema: nwpHourlyByLocationTool.inputSchema,
+}, nwpHourlyByLocationTool.execute);
+
+mcpserver.registerTool(nwpHourlyByPlaceTool.name, {
+  title: "NWP Hourly Forecast by Place",
+  description: nwpHourlyByPlaceTool.description,
+  inputSchema: nwpHourlyByPlaceTool.inputSchema,
+}, nwpHourlyByPlaceTool.execute);
+
+mcpserver.registerTool(nwpHourlyByRegionTool.name, {
+  title: "NWP Hourly Forecast by Region",
+  description: nwpHourlyByRegionTool.description,
+  inputSchema: nwpHourlyByRegionTool.inputSchema,
+}, nwpHourlyByRegionTool.execute);
+
+mcpserver.registerTool(nwpDailyByLocationTool.name, {
+  title: "NWP Daily Forecast by Location",
+  description: nwpDailyByLocationTool.description,
+  inputSchema: nwpDailyByLocationTool.inputSchema,
+}, nwpDailyByLocationTool.execute);
+
+mcpserver.registerTool(nwpDailyByPlaceTool.name, {
+  title: "NWP Daily Forecast by Place",
+  description: nwpDailyByPlaceTool.description,
+  inputSchema: nwpDailyByPlaceTool.inputSchema,
+}, nwpDailyByPlaceTool.execute);
+
+mcpserver.registerTool(nwpDailyByRegionTool.name, {
+  title: "NWP Daily Forecast by Region",
+  description: nwpDailyByRegionTool.description,
+  inputSchema: nwpDailyByRegionTool.inputSchema,
+}, nwpDailyByRegionTool.execute);
+
+logBoth('INFO', `✅ Registered 27 essential tools (2026 World-Class System):
+  - Core: dateTime, calculator (MathTool)
+  - Visualization: echartsTool
+  - TMD Weather: 17 endpoints (seismic, climate, stations, forecasts, warnings)
+  - Data Access: archive, nasa, weather, worldbank, govdata, newton
+  - World-Class: currencyExchange, qrCode, translation, rssFeed, codeFormatter
+  - AI/Files: ocrTool, fileReader (PDF/Excel/Word), imageGenerator (Canvas)
+  - NWP HPC: 6 tools (hourly/daily by location/place/region, 2km-27km resolution)`);
 
 
 // Handle incoming MCP requests /////////////////////////////

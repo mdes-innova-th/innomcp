@@ -1,9 +1,13 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
+import { correlationIdMiddleware } from "./middleware/correlationId";
+import { performanceTrackingMiddleware } from "./middleware/performanceTracking";
 import apiRouter from "./routes/api";
 import apiCsrfRouter from "./routes/api/csrf";
 import aiModeRouter from "./routes/api/aiMode";
+import metricsRouter from "./routes/api/metrics";
 import { apiKeyMiddleware } from "./utils/apikey";
 import csrfMiddleware from "./utils/csrf";
 import { chatRouter } from "./routes/api/chat";
@@ -42,25 +46,14 @@ app.use(
 // รองรับการแปลง JSON ในตัว request
 app.use(express.json({ limit: "50mb" }));
 
-// ⏱️ Performance Logging Middleware
-app.use((req, res, next) => {
-  const requestStartTime = Date.now();
-  const method = req.method;
-  const url = req.originalUrl || req.url;
+// Parse cookies
+app.use(cookieParser());
 
-  logger.info(`[⏱️  START] ${method} ${url}`);
+// Correlation ID tracking
+app.use(correlationIdMiddleware);
 
-  // Log response time when request finishes
-  res.on("finish", () => {
-    const duration = Date.now() - requestStartTime;
-    const statusCode = res.statusCode;
-    const statusEmoji = statusCode >= 500 ? "❌" : statusCode >= 400 ? "⚠️ " : statusCode >= 300 ? "↪️ " : "✅";
-    
-    logger.info(`[⏱️  ${duration}ms] ${statusEmoji} ${method} ${url} → ${statusCode}`);
-  });
-
-  next();
-});
+// ⏱️ Performance Tracking Middleware (records latency metrics)
+app.use(performanceTrackingMiddleware);
 
 // Default route
 app.get("/", (req, res) => {
@@ -75,10 +68,14 @@ app.get("/health", (req, res) => {
 // Router สำหรับ CSRF (ไม่ต้อง auth เพือ testsuit)
 app.use("/api-get/csrf", apiCsrfRouter);
 
+// Router สำหรับ Metrics (ไม่ต้อง auth เพือ monitoring)
+app.use("/api/metrics", metricsRouter);
+
 // Router สำหรับ AI Mode (ไม่ต้อง auth เพือ testsuit - ต้องอยู่ก่อน /api middleware)
 app.use("/api/ai-mode", aiModeRouter);
 
 // Router สำหรับ Chat (ไม่ต้อง auth เพือ testsuit - ต้องอยู่ก่อน /api middleware)
+// FastPath middleware อยู่ใน chatRouter แล้ว
 app.use("/api/chat", chatRouter);
 
 // Router สำหรับ API endpoint ทั้งหมดที่ต้องการ API key

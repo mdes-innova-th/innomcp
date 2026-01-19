@@ -2082,10 +2082,18 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     let cleanText = text.trim();
     
     // 1. Match ```json...``` or ```...``` (handle various formats including inline)
-    const codeBlockMatch = cleanText.match(/```(?:json)?\s*\r?\n?([\s\S]*?)\r?\n?```/);
+    // Improved regex to handle more edge cases
+    const codeBlockMatch = cleanText.match(/^```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```$/m);
     if (codeBlockMatch) {
       cleanText = codeBlockMatch[1].trim();
       console.log('[extractJsonFromText] Removed markdown code block (multiline)');
+    } else {
+      // Try simpler pattern for inline backticks: ```json {...}```
+      const inlineMatch = cleanText.match(/^```(?:json)?\s*([\s\S]+?)```$/);
+      if (inlineMatch) {
+        cleanText = inlineMatch[1].trim();
+        console.log('[extractJsonFromText] Removed inline markdown code block');
+      }
     }
     
     // 2. Handle backticks at start/end: `{"type": ...}` or `json {...}`
@@ -2279,7 +2287,24 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     'worldbank',
     'govdata',
     'newton',
-    'echartsTool'
+    'echartsTool',
+    // NEW: 2026-01-05 World-Class Tools
+    'currencyExchangeTool',
+    'qrCodeTool',
+    'translationTool',
+    'rssFeedTool',
+    'codeFormatterTool',
+    // NEW: 2026-01-05 Phase 2 - Essential Free Tools
+    'ocrTool',
+    'fileReaderTool',
+    'imageGeneratorTool',
+    // NEW: 2026-01-06 NWP Weather Forecast (High Performance Computing)
+    'nwp_hourly_by_location',
+    'nwp_hourly_by_place',
+    'nwp_hourly_by_region',
+    'nwp_daily_by_location',
+    'nwp_daily_by_place',
+    'nwp_daily_by_region'
   ];
 
   getAvailableTools(): MCPTool[] {

@@ -3,18 +3,52 @@ import path from 'path';
 import fs from 'fs';
 
 // ========================================
-// Logger Configuration
+// Logger Configuration with LOG_MODE Support
 // ========================================
 
-const LOG_DIR = process.env.LOG_DIR || path.join(__dirname, '..', '..', 'logs');
+// LOG_MODE: dev (all logs), test (debug), prod (warn+error only)
+const LOG_MODE = process.env.LOG_MODE || 'dev';
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const LOG_LEVEL = process.env.LOG_LEVEL || (NODE_ENV === 'production' ? 'info' : 'debug');
+
+// Determine log level based on LOG_MODE
+const getLogLevel = (): string => {
+  switch (LOG_MODE) {
+    case 'prod':
+      return 'warn'; // Production: only warnings and errors
+    case 'test':
+      return 'debug'; // Test: debug and above
+    case 'dev':
+    default:
+      return 'debug'; // Development: all logs including debug
+  }
+};
+
+const LOG_LEVEL = process.env.LOG_LEVEL || getLogLevel();
 const ENABLE_CONSOLE = process.env.ENABLE_CONSOLE_LOG !== 'false';
 const ENABLE_FILE = process.env.ENABLE_FILE_LOG !== 'false';
 
-// Create logs directory if not exists
-if (ENABLE_FILE && !fs.existsSync(LOG_DIR)) {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
+// Create datetime for filename (YYYYMMDD-HHMMSS format)
+const getDateTimeForFilename = (): string => {
+  const now = new Date();
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+};
+
+const DATETIME_STAMP = getDateTimeForFilename();
+
+// Project-specific logs directory
+const PROJECT_LOG_DIR = path.join(__dirname, '..', '..', 'logs');
+
+// Root aggregated logs directory
+const ROOT_LOG_DIR = path.join(__dirname, '..', '..', '..', 'logs');
+
+// Create both log directories if they don't exist
+if (ENABLE_FILE) {
+  [PROJECT_LOG_DIR, ROOT_LOG_DIR].forEach(dir => {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  });
 }
 
 // Custom format
@@ -60,10 +94,10 @@ if (ENABLE_CONSOLE) {
 }
 
 if (ENABLE_FILE) {
-  // Combined log file
+  // Combined log file in project logs directory (with datetime)
   transports.push(
     new winston.transports.File({
-      filename: path.join(LOG_DIR, `backend-${NODE_ENV}.log`),
+      filename: path.join(PROJECT_LOG_DIR, `backend-${DATETIME_STAMP}.log`),
       format: customFormat,
       level: LOG_LEVEL,
       maxsize: 10 * 1024 * 1024, // 10MB
@@ -71,10 +105,28 @@ if (ENABLE_FILE) {
     })
   );
 
-  // Error log file
+  // Symlink to latest log (for easier access)
+  const latestLogPath = path.join(PROJECT_LOG_DIR, `backend-${NODE_ENV}.log`);
+  const latestLogTarget = `backend-${DATETIME_STAMP}.log`;
+  try {
+    if (fs.existsSync(latestLogPath)) {
+      fs.unlinkSync(latestLogPath);
+    }
+    // On Windows, create a copy instead of symlink
+    const sourceLog = path.join(PROJECT_LOG_DIR, latestLogTarget);
+    if (process.platform === 'win32') {
+      // Just use the same transport - winston will write to it
+    } else {
+      fs.symlinkSync(latestLogTarget, latestLogPath);
+    }
+  } catch (e) {
+    // Symlink creation may fail on Windows without admin rights, ignore
+  }
+
+  // Error log file in project directory
   transports.push(
     new winston.transports.File({
-      filename: path.join(LOG_DIR, `backend-error-${NODE_ENV}.log`),
+      filename: path.join(PROJECT_LOG_DIR, `backend-error-${DATETIME_STAMP}.log`),
       format: customFormat,
       level: 'error',
       maxsize: 10 * 1024 * 1024, // 10MB
@@ -82,14 +134,30 @@ if (ENABLE_FILE) {
     })
   );
 
-  // Access log file (HTTP requests)
+  // Symlink for error log
+  const latestErrorPath = path.join(PROJECT_LOG_DIR, `backend-error-${NODE_ENV}.log`);
+  
+  // Access log file (HTTP requests) - only if not in prod mode
+  if (LOG_MODE !== 'prod') {
+    transports.push(
+      new winston.transports.File({
+        filename: path.join(PROJECT_LOG_DIR, `backend-access-${DATETIME_STAMP}.log`),
+        format: customFormat,
+        level: 'http',
+        maxsize: 10 * 1024 * 1024, // 10MB
+        maxFiles: 3,
+      })
+    );
+  }
+
+  // Aggregated log in root directory (all projects)
   transports.push(
     new winston.transports.File({
-      filename: path.join(LOG_DIR, `backend-access-${NODE_ENV}.log`),
+      filename: path.join(ROOT_LOG_DIR, `innomcp-backend-${DATETIME_STAMP}.log`),
       format: customFormat,
-      level: 'http',
-      maxsize: 10 * 1024 * 1024, // 10MB
-      maxFiles: 3,
+      level: LOG_LEVEL,
+      maxsize: 20 * 1024 * 1024, // 20MB for aggregated logs
+      maxFiles: 10,
     })
   );
 }
