@@ -20,6 +20,11 @@ interface ChatSession {
     lastActiveAt: Date;
     messageCount: number;
     context?: Record<string, any>;
+    // เพิ่ม status tracking
+    status: 'idle' | 'responding' | 'completed' | 'error';
+    responseStartTime?: Date;
+    currentResponseDuration?: number;
+    userEmotion?: string; // เก็บอารมณ์ user ล่าสุด
   };
 }
 
@@ -45,6 +50,7 @@ class SessionManager {
           startedAt: new Date(),
           lastActiveAt: new Date(),
           messageCount: 0,
+          status: 'idle',
         },
       };
       this.sessions.set(sessionId, session);
@@ -52,6 +58,44 @@ class SessionManager {
     }
 
     return session;
+  }
+
+  /**
+   * Update session status - เรียกก่อนเริ่มตอบ
+   */
+  startResponse(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.metadata.status = 'responding';
+      session.metadata.responseStartTime = new Date();
+      console.log(`[SessionManager] Session ${sessionId} started responding`);
+    }
+  }
+
+  /**
+   * Complete response - เรียกหลังตอบเสร็จ
+   */
+  completeResponse(sessionId: string): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.metadata.status = 'completed';
+      if (session.metadata.responseStartTime) {
+        session.metadata.currentResponseDuration = 
+          Date.now() - session.metadata.responseStartTime.getTime();
+      }
+      console.log(`[SessionManager] Session ${sessionId} completed (duration: ${session.metadata.currentResponseDuration}ms)`);
+    }
+  }
+
+  /**
+   * Update user emotion from message
+   */
+  updateUserEmotion(sessionId: string, emotion: string): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.metadata.userEmotion = emotion;
+      console.log(`[SessionManager] Updated emotion for ${sessionId}: ${emotion}`);
+    }
   }
 
   /**
@@ -121,11 +165,9 @@ class SessionManager {
     let context = '[ประวัติการคุยล่าสุด]\n';
 
     for (const msg of messages) {
-      const toolsInfo = msg.toolsUsed && msg.toolsUsed.length > 0
-        ? ` [ใช้ tools: ${msg.toolsUsed.join(', ')}]`
-        : '';
-      
-      context += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}${toolsInfo}\n`;
+      // Tools information is now displayed via ToolTypeBadge component in frontend
+      // No need to include in context string
+      context += `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}\n`;
     }
 
     context += '\n';

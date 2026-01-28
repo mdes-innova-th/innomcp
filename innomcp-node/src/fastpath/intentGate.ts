@@ -11,6 +11,14 @@ const WORK_KEYWORDS = [
   // Weather
   "ฝน", "อากาศ", "พยากรณ์", "อุณหภูมิ", "ความชื้น", "weather", "forecast", "temperature", "humidity",
   "tmd", "อุตุ", "climate", "พายุ", "storm",
+  // NWP Time Ranges (CRITICAL - force NWP tool selection)
+  "วัน", "ชั่วโมง", "ชม.", "สัปดาห์", "ข้างหน้า", "ล่วงหน้า",
+  "3 วัน", "5 วัน", "7 วัน", "10 วัน", "14 วัน",
+  "12 ชม.", "24 ชม.", "48 ชม.", "36 ชม.",
+  
+  // Time & Date (NEW - short meaningful queries)
+  "กี่โมง", "เวลา", "วันนี้", "วันที่", "ตอนนี้", "time", "date", "today", "now", "when",
+  "วันอะไร", "เดือน", "ปี", "year", "month", "day", "clock",
   
   // Data & Economics
   "gdp", "population", "ประชากร", "เศรษฐกิจ", "economy", "inflation", "worldbank", "เงินเฟ้อ",
@@ -44,6 +52,45 @@ export function normalizeText(s: string): string {
 }
 
 /**
+ * Extract number of days from weather query (NWP critical)
+ * Examples: "5 วัน" → 5, "10 วันข้างหน้า" → 10, "สัปดาห์" → 7
+ */
+export function extractDaysFromQuery(text: string): number | null {
+  const t = normalizeText(text);
+  
+  // Direct day patterns: "3 วัน", "5วัน", "10 วัน"
+  const dayMatch = t.match(/(\d+)\s*(วัน|days?)/i);
+  if (dayMatch) return parseInt(dayMatch[1], 10);
+  
+  // Week pattern: "สัปดาห์", "1 สัปดาห์"
+  if (/สัปดาห์|week/i.test(t)) {
+    const weekMatch = t.match(/(\d+)\s*สัปดาห์/);
+    return weekMatch ? parseInt(weekMatch[1], 10) * 7 : 7;
+  }
+  
+  // Month pattern: "เดือน"
+  if (/เดือน|month/i.test(t)) {
+    const monthMatch = t.match(/(\d+)\s*เดือน/);
+    return monthMatch ? parseInt(monthMatch[1], 10) * 30 : 30;
+  }
+  
+  return null;
+}
+
+/**
+ * Extract hours from query
+ * Examples: "12 ชม." → 12, "24 ชั่วโมง" → 24
+ */
+export function extractHoursFromQuery(text: string): number | null {
+  const t = normalizeText(text);
+  
+  const hourMatch = t.match(/(\d+)\s*(ชั่วโมง|ชม\.|hours?)/i);
+  if (hourMatch) return parseInt(hourMatch[1], 10);
+  
+  return null;
+}
+
+/**
  * Check if text looks like math/calculation
  */
 export function looksLikeMathOrCalc(text: string): boolean {
@@ -58,11 +105,16 @@ export function looksLikeMathOrCalc(text: string): boolean {
   // 3) Has calculation keywords
   const hasCalcWord = /(คำนวณ|คิดเลข|calculate|compute|เท่าไร|เท่าไหร่|equals?)/i.test(t);
   
-  // 4) Factorial pattern (e.g., "999!", "5!")
-  const hasFactorial = /\d+!/.test(t);
+  // 4) Factorial pattern (e.g., "999!", "5!") - MUST bypass FastPath for math tools
+  const hasFactorial = /\d+!+/.test(t);
   
   // 5) Complex math expressions
   const complexMath = /(\d+[\^*/+\-]\d+|sqrt|log|sin|cos|tan|derivative|integral|อนุพันธ์|ปริพันธ์)/i.test(t);
+  
+  // If it's ONLY factorial (like "999!"), treat as math
+  if (hasFactorial && /^[\d\s!]+$/.test(t)) {
+    return true;
+  }
   
   return onlyNumLike || hasOp || hasCalcWord || hasFactorial || complexMath;
 }

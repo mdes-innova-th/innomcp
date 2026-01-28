@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { useTheme } from "@/app/context/ThemeContext";
 import { FaMoon, FaSun } from "react-icons/fa";
 import { FaHome } from "react-icons/fa";
@@ -33,6 +33,8 @@ export default function Header() {
     setUserRoleId,
     isAuthLoading,
   } = useAuth();
+  
+  const [showMDESHub, setShowMDESHub] = useState(false);
 
   // Logout logic with CSRF
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
@@ -75,15 +77,49 @@ export default function Header() {
     }
   };
 
+  // เพิ่ม state สำหรับ animated gradient position
+  const [gradientPosition, setGradientPosition] = React.useState(0);
+
+  // เพิ่ม mouse move handler สำหรับ animated gradient
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const percentX = e.clientX / window.innerWidth;
+      const bgPos = percentX * 100;
+      setGradientPosition(bgPos);
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
   return (
     <>
       <header
-        className={`fixed inset-x-0 top-0 flex flex-col z-50 bg-primary text-primary-foreground shadow-md border-b border-primary/20`}
+        style={{
+          background: theme === 'dark' 
+            ? '#000000'
+            : `linear-gradient(to right, #ECF4F1 20%, #E8F7F2 40%, #E6F2EE 60%, #F0F8F5 80%, #EDF6F3 100%)`,
+          backgroundSize: theme === 'dark' ? '100% 100%' : '200% 100%',
+          backgroundPosition: theme === 'dark' ? '0% 0%' : `${gradientPosition}% 0%`,
+          transition: 'background 0.2s ease-out, background-position 0.2s ease-out',
+        }}
+        className={`sticky top-0 z-60 h-16 shadow-md border-b border-border`}
       >
-        <div className="w-full flex justify-between items-center px-5 py-1 app-name-section">
+        <div className="w-full flex justify-between items-center px-5 py-1 app-name-section h-full">
           <div className="w-full h-full m-1 flex items-center justify-between">
-            <div className="flex items-center justify-between w-full">
-              <div className="hidden sm:flex items-start">
+            <div className="flex items-center justify-between w-full h-full">
+              <div className="hidden sm:flex items-center h-full">
+                <div className="relative m-2 w-48 h-14">
+                  <Image
+                    src="/logo.png"
+                    className="object-contain"
+                    alt="InnoMCP Logo"
+                    priority
+                    fill
+                  />
+                </div>
+              </div>
+              <div className="flex items-center h-full">
                 <div className="relative m-2 w-40 h-10">
                   <Image
                     src="/mdes-new-logo.png"
@@ -93,144 +129,88 @@ export default function Header() {
                     fill
                   />
                 </div>
-              </div>
-              <div className="flex items-start">
-                <div className="relative m-2 w-40 h-10">
-                  <Image
-                    src="/logo.png"
-                    className="object-contain h-12"
-                    alt="InnoMCP Logo"
-                    priority
-                    fill
-                  />
-                </div>
-                <div className="flex gap-4">
+
+                {/* MDES Hub Dropdown - Icon Only */}
+                <div className="relative flex items-center h-full">
                   <button
                     type="button"
-                    onClick={() =>
-                      router.push("https://wddsb.dataxo.info/complex-chart")
-                    }
-                    className={`px-4 py-2 ${
-                      pathname === "/complex-chart"
-                        ? "bg-secondary border-2 border-secondary"
-                        : "bg-transparent"
-                    } text-primary-foreground rounded-3xl hover:bg-secondary/80 transition flex items-center gap-2 cursor-pointer`}
+                    onClick={() => setShowMDESHub(!showMDESHub)}
+                    onBlur={() => setTimeout(() => setShowMDESHub(false), 200)}
+                    className={`group p-0 transition-all duration-300 hover:scale-110 cursor-pointer bg-transparent border-none outline-none relative ${
+                      theme === 'dark' ? 'bg-black' : 'bg-transparent'
+                    }`}
+                    title="MDES Hub"
                   >
-                    <i className="fa-solid fa-chart-column text-2xl"></i>
-                    COMPLEX CHART
+                    <Image
+                      src={theme === 'light' ? '/Mdeshub-icon-light-bg.png' : '/Mdeshub-icon.png'}
+                      alt="MDES Hub"
+                      width={85}
+                      height={56}
+                      className="object-contain"
+                    />
+                    {/* Animated underline highlight */}
+                    <span
+                      className="pointer-events-none absolute left-4 right-4 bottom-1 h-1 rounded-full bg-gradient-to-r from-primary/60 via-accent/80 to-primary/60 opacity-0 group-hover:opacity-100 group-focus:opacity-100 scale-x-0 group-hover:scale-x-100 group-focus:scale-x-100 transition-all duration-300 origin-center"
+                    />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      router.push("https://wddsb.dataxo.info/search-url")
-                    }
-                    className={`px-4 py-2 ${
-                      pathname === "/search-url"
-                        ? "bg-secondary border-2 border-secondary"
-                        : "bg-transparent"
-                    } text-primary-foreground rounded-3xl hover:bg-secondary/80 transition flex items-center gap-2 cursor-pointer`}
-                  >
-                    <i className="fa-solid fa-search text-2xl"></i>
-                    ค้นหา URL
-                  </button>
-                  <Image
-                    src="/aoc-mule.png"
-                    alt="AOC Logo"
-                    width={50}
-                    height={24}
-                    onClick={() => router.push("https://aoc.dataxo.info")}
-                    className="cursor-pointer"
-                  />
+
+                  {showMDESHub && (
+                    <div className="absolute top-full mt-2 right-0 bg-card text-card-foreground rounded-lg shadow-2xl border border-border min-w-[220px] z-[65] overflow-hidden animate-fadeInUp">
+                      <div className="py-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            router.push("https://wddsb.dataxo.info/complex-chart");
+                            setShowMDESHub(false);
+                          }}
+                          className="w-full px-4 py-3 flex items-center gap-3 text-left relative overflow-hidden group transition-colors duration-300"
+                        >
+                          {/* Animated background highlight */}
+                          <span className="absolute left-2 right-2 top-0 bottom-0 bg-accent/20 opacity-0 group-hover:opacity-100 group-focus:opacity-100 scale-x-0 group-hover:scale-x-100 group-focus:scale-x-100 transition-all duration-300 rounded-lg z-0" />
+                          <i className="fa-solid fa-chart-column text-xl text-secondary z-10"></i>
+                          <span className="font-medium z-10">Complex Chart</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            router.push("https://wddsb.dataxo.info/search-url");
+                            setShowMDESHub(false);
+                          }}
+                          className="w-full px-4 py-3 flex items-center gap-3 text-left relative overflow-hidden group transition-colors duration-300"
+                        >
+                          <span className="absolute left-2 right-2 top-0 bottom-0 bg-accent/20 opacity-0 group-hover:opacity-100 group-focus:opacity-100 scale-x-0 group-hover:scale-x-100 group-focus:scale-x-100 transition-all duration-300 rounded-lg z-0" />
+                          <i className="fa-solid fa-search text-xl text-secondary z-10"></i>
+                          <span className="font-medium z-10">ค้นหา URL</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            router.push("https://aoc.dataxo.info");
+                            setShowMDESHub(false);
+                          }}
+                          className="w-full px-4 py-3 flex items-center gap-3 text-left relative overflow-hidden group transition-colors duration-300"
+                        >
+                          <span className="absolute left-2 right-2 top-0 bottom-0 bg-accent/20 opacity-0 group-hover:opacity-100 group-focus:opacity-100 scale-x-0 group-hover:scale-x-100 group-focus:scale-x-100 transition-all duration-300 rounded-lg z-0" />
+                          <Image
+                            src="/aoc-mule.png"
+                            alt="AOC"
+                            width={24}
+                            height={24}
+                            className="object-contain z-10"
+                          />
+                          <span className="font-medium z-10">AOC Platform</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
           <div className="invisible">{/* Placeholder for balance */}</div>
         </div>
-        {/* Bottom row: user/login menu */}
-        <div className="w-full flex flex-wrap justify-center items-center py-1">
-          {isAuthLoading ? (
-            <LoadingSpinner color="white" />
-          ) : isLoggedIn ? (
-            <>
-              <div className="items-center gap-2 inline-flex">
-                <span
-                  className="text-lg font-semibold mr-2 text-primary-foreground"
-                  title={userDispName || undefined}
-                >
-                  สวัสดี {userDispName}
-                  {", "}
-                </span>
-                <div className="flex items-center gap-2">
-                  <Link
-                    href="/"
-                    className="rounded-0 mb-2 flex items-center justify-center cursor-pointer transition-colors text-primary-foreground hover:text-secondary"
-                    aria-label="หน้าแรก"
-                  >
-                    <FaHome size={23} />
-                  </Link>
-                  {/* Theme toggle removed from inline header — now rendered as a fixed bottom-left button below */}
-                </div>
-              </div>
-              {/* ปุ่มสำหรับ userRoleId 0 (admin) */}
-              {userRoleId === 0 && (
-                <>
-                  <button
-                    onClick={() => {
-                      router.push("/apikey");
-                    }}
-                    className={`${buttonClass} ${desktopButtonClass} text-base mx-2`}
-                  >
-                    <FaKey size={16} className="mr-1" />
-                    API Key
-                  </button>
-                  <button
-                    onClick={() => {
-                      router.push("/user");
-                    }}
-                    className={`${buttonClass} ${desktopButtonClass} text-base mx-2`}
-                  >
-                    <FaUser size={16} className="mr-1" />
-                    จัดการผู้ใช้
-                  </button>
-                </>
-              )}
-              <button
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className={`${logoutButtonClass} ${desktopButtonClass} ${
-                  isLoggingOut ? disabledButtonClass : ""
-                } text-base`}
-              >
-                <FaSignOutAlt size={16} className="mr-1" />
-                {isLoggingOut ? (
-                  <span className="flex items-center">
-                    <LoadingSpinner color="red" />
-                    <span className="ml-1">ออกจากระบบ...</span>
-                  </span>
-                ) : (
-                  "ออกจากระบบ"
-                )}
-              </button>
-            </>
-          ) : null}
-        </div>
+        {/* User menu moved to ChatSidebar dropdown */}
       </header>
-
-      {/* Fixed theme toggle button at bottom-left */}
-      <button
-        onClick={toggleTheme}
-        aria-label={
-          theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด"
-        }
-        title={theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด"}
-        className="fixed left-2 bottom-2 z-99 w-11 h-11 p-2 rounded-full border border-border bg-card text-card-foreground shadow-lg hover:bg-accent hover:text-accent-foreground transition-transform transform hover:scale-105 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-      >
-        {theme === "dark" ? <FaSun size={20} /> : <FaMoon size={20} />}
-        <span className="sr-only">
-          {theme === "dark" ? "เปลี่ยนเป็นโหมดสว่าง" : "เปลี่ยนเป็นโหมดมืด"}
-        </span>
-      </button>
     </>
   );
 }

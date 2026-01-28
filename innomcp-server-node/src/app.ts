@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import healthRouter from "./routes/api/health";
 
 // Initialize Express application
 const app = express();
@@ -42,6 +43,9 @@ app.get("/", (req, res) => {
 app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
+
+// Health check with API key validation
+app.use("/api/health", healthRouter);
 
 
 export default app;

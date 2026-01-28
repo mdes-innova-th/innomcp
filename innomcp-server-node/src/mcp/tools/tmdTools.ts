@@ -11,7 +11,7 @@ import { logBoth } from "../../utils/mcpLogger";
  */
 
 // ========== Config ==========
-const DEFAULT_TIMEOUT_MS = 15000;
+const DEFAULT_TIMEOUT_MS = 30000; // ✅ เพิ่มจาก 15s เป็น 30s สำหรับ API ที่ช้า
 
 // Zod schema: tools เหล่านี้ "ไม่ต้องรับพารามิเตอร์"
 const EmptyArgsSchema = z.object({}).passthrough();
@@ -117,7 +117,10 @@ async function callTmdJson(toolName: string, url: string) {
   }
 }
 
-function registerSimpleTmdTool(mcpserver: McpServer, opts: { name: string; title: string; description: string; url: string }) {
+function registerSimpleTmdTool(
+  mcpserver: McpServer,
+  opts: { name: string; title: string; description: string; url: string }
+) {
   mcpserver.registerTool(
     opts.name,
     {
@@ -240,7 +243,7 @@ export function registerTmdTool(mcpserver: McpServer) {
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_seismic_daily_events",
     title: "รายงานแผ่นดินไหวรายวัน (ไทย/ใกล้เคียง/ทั่วโลก) - TMD",
-    description: "ดึงรายงานการเกิดแผ่นดินไหวล่าสุดจาก TMD (DailySeismicEvent) แบบ JSON",
+    description: "ดึงรายงานการเกิดแผ่นดินไหวล่าสุดจาก TMD (DailySeismicEvent) - earthquake, seismic, แผ่นดินไหว, ริกเตอร์, richter แบบ JSON",
     url: TMD_ENDPOINTS.dailySeismicEvent,
   });
 

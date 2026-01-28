@@ -9,6 +9,7 @@ import ChatSidebar, {
   ChatSummary as SidebarSummary,
 } from "@/app/components/chat/ChatSidebar";
 import ChatInput from "./ChatInput";
+import FileUploadProgress from "@/app/components/common/FileUploadProgress";
 import ThemeContext from "@/app/context/ThemeContext";
 // icons are used in ChatInput; not needed here
 
@@ -22,6 +23,11 @@ interface ChatMessage {
   fullText?: string;
   isAnimating?: boolean;
   structuredContent?: any;
+  toolsUsed?: string[]; // Track which tools were used for this message
+  // Progress tracking properties
+  isProgress?: boolean;
+  progressStage?: string;
+  elapsedTime?: number;
 }
 
 const ChatPage: React.FC = () => {
@@ -43,6 +49,13 @@ const ChatPage: React.FC = () => {
   const [isSocketReady, setIsSocketReady] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const isStoppedRef = useRef(false);
+  
+  // File upload progress tracking (TODO #40)
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadFileSize, setUploadFileSize] = useState(0);
+  const [uploadFileName, setUploadFileName] = useState("");
+  const maxFileSize = 5 * 1024 * 1024; // 5 MB limit
 
   const hasMessages = messages.length > 0;
 
@@ -53,6 +66,9 @@ const ChatPage: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [isNearBottom, setIsNearBottom] = useState(true);
+  const [isChatActive, setIsChatActive] = useState(false); // Track if user is interacting
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -122,7 +138,7 @@ const ChatPage: React.FC = () => {
 
   // Scroll the messages container to bottom when messages change
   useEffect(() => {
-    if (messagesRef.current) {
+    if (messagesRef.current && isNearBottom) {
       // Use setTimeout to ensure DOM is updated
       setTimeout(() => {
         if (messagesRef.current) {
@@ -138,18 +154,56 @@ const ChatPage: React.FC = () => {
         }
       }, 100);
     }
-  }, [messages]);
+  }, [messages, isNearBottom]);
 
-  // Additional scroll during animation
+  // Additional scroll during animation (only if near bottom)
   useEffect(() => {
     const scrollInterval = setInterval(() => {
-      if (messagesRef.current && isWaitingForResponse) {
+      if (messagesRef.current && isWaitingForResponse && isNearBottom) {
         messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
       }
     }, 300);
 
     return () => clearInterval(scrollInterval);
-  }, [isWaitingForResponse]);
+  }, [isWaitingForResponse, isNearBottom]);
+
+  // Detect scroll position to show/hide floating button
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!messagesRef.current) return;
+      
+      const { scrollTop, scrollHeight, clientHeight } = messagesRef.current;
+      const threshold = 100; // pixels from bottom
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      
+      const nearBottom = distanceFromBottom < threshold;
+      setIsNearBottom(nearBottom);
+      setShowScrollButton(!nearBottom && messages.length > 0);
+    };
+
+    const messagesEl = messagesRef.current;
+    if (messagesEl) {
+      messagesEl.addEventListener('scroll', handleScroll);
+      // Check initial state
+      handleScroll();
+    }
+
+    return () => {
+      if (messagesEl) {
+        messagesEl.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [messages.length]);
+
+  // Function to scroll to bottom (used by floating button)
+  const scrollToBottom = () => {
+    if (messagesRef.current) {
+      messagesRef.current.scrollTo({
+        top: messagesRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  };
 
   // (Previously: scroll detection and hiding input while scrolling.)
   // That behavior was removed to keep the ChatInput always visible.
@@ -249,6 +303,39 @@ const ChatPage: React.FC = () => {
             });
             // keep isWaitingForResponse=true until final history-update arrives
           }
+          // Handle progress indicator
+          else if (message.type === "progress") {
+            console.log("[Frontend] Progress update:", message.text, message.stage);
+            setMessages((prevMessages) => {
+              const lastMsg = prevMessages[prevMessages.length - 1];
+              // ถ้ามี AI message อยู่แล้วแต่ยังไม่มีเนื้อหา แสดงว่ากำลังรอ
+              if (lastMsg && lastMsg.sender === "ai" && !lastMsg.fullText) {
+                const updatedMessages = [...prevMessages];
+                updatedMessages[updatedMessages.length - 1] = {
+                  ...lastMsg,
+                  text: message.text,
+                  isProgress: true,
+                  progressStage: message.stage,
+                  elapsedTime: message.elapsed
+                };
+                return updatedMessages;
+              } else if (!lastMsg || lastMsg.sender !== "ai") {
+                // สร้าง placeholder message สำหรับ progress
+                return [
+                  ...prevMessages,
+                  {
+                    sender: "ai",
+                    text: message.text,
+                    fullText: "",
+                    isProgress: true,
+                    progressStage: message.stage,
+                    elapsedTime: message.elapsed
+                  },
+                ];
+              }
+              return prevMessages;
+            });
+          }
           // Handle history update from server
           else if (message.type === "history-update" && message.messages) {
             console.log(
@@ -257,15 +344,21 @@ const ChatPage: React.FC = () => {
               "messages"
             );
             console.log("[Frontend] History update messages:", message.messages);
-            // Preserve structuredContent from previous messages if available
+            console.log("[Frontend] Tools used:", message.toolsUsed);
+            // Preserve structuredContent and toolsUsed from previous messages if available
             const messagesWithContent = message.messages.map((msg: any, idx: number) => {
               if (msg.sender === "ai" && !msg.structuredContent && message.structuredContent) {
                 // If this is the last AI message and structuredContent is provided at the root level
                 if (idx === message.messages.length - 1) {
-                  return { ...msg, structuredContent: message.structuredContent };
+                  return { 
+                    ...msg, 
+                    structuredContent: message.structuredContent,
+                    toolsUsed: message.toolsUsed || msg.toolsUsed 
+                  };
                 }
               }
-              return msg;
+              // Preserve toolsUsed if it exists in the message
+              return msg.toolsUsed ? msg : { ...msg, toolsUsed: message.toolsUsed };
             });
             console.log("[Frontend] Messages with content:", messagesWithContent);
             setMessages(messagesWithContent);
@@ -414,7 +507,7 @@ const ChatPage: React.FC = () => {
     };
   }, [messages]);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (
       socket &&
       isSocketReady && // Ensure WebSocket is ready
@@ -423,11 +516,56 @@ const ChatPage: React.FC = () => {
     ) {
       // include a unique messageId to allow server-side deduplication
       const messageId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-      const message = { text: input, messages, messageId };
+      
+      // 🔧 FIX: Send file attachment with message
+      let fileData = null;
+      if (selectedFile) {
+        // Convert file to base64 for WebSocket transmission
+        const reader = new FileReader();
+        fileData = await new Promise((resolve) => {
+          reader.onloadend = () => {
+            resolve({
+              name: selectedFile.name,
+              type: selectedFile.type,
+              size: selectedFile.size,
+              data: reader.result // base64 string
+            });
+          };
+          reader.readAsDataURL(selectedFile);
+        });
+      }
+      
+      const message = { 
+        text: input, 
+        messages, 
+        messageId,
+        file: fileData // Include file data if available
+      };
+      
       console.log("Sending message to WebSocket:", message); // Debug log
       socket.send(JSON.stringify(message));
-      setMessages([...messages, { sender: "user", text: input }]);
+      
+      // Add user message to UI (include file indicator)
+      const userMessage: ChatMessage = { 
+        sender: "user", 
+        text: input,
+        ...(selectedFile && { 
+          fileInfo: { 
+            name: selectedFile.name, 
+            type: selectedFile.type,
+            url: selectedImage || undefined
+          } 
+        })
+      };
+      setMessages([...messages, userMessage]);
+      
+      // 🔥 Jump to bottom when user sends message
+      setTimeout(() => scrollToBottom(), 150);
+      
+      // Clear input and file selection
       setInput("");
+      setSelectedFile(null);
+      setSelectedImage(null);
       setIsStopped(false);
       isStoppedRef.current = false;
       setIsWaitingForResponse(true); // Prevent sending new messages until a response is received
@@ -442,13 +580,45 @@ const ChatPage: React.FC = () => {
     const files = event.target.files;
     if (files && files.length > 0) {
       const file = files[0];
-      setSelectedFile(file);
-      if (file.type.startsWith("image/")) {
-        const imageUrl = URL.createObjectURL(file);
-        setSelectedImage(imageUrl);
-      } else {
-        setSelectedImage(null);
+      
+      // Start upload progress tracking
+      setIsUploading(true);
+      setUploadFileName(file.name);
+      setUploadFileSize(file.size);
+      setUploadProgress(0);
+      
+      // Check file size
+      if (file.size > maxFileSize) {
+        alert(`ไฟล์ใหญ่เกินไป! ขนาดสูงสุด ${maxFileSize / (1024 * 1024)} MB`);
+        setIsUploading(false);
+        return;
       }
+      
+      // Simulate upload progress (in real app, use XMLHttpRequest with progress events)
+      const simulateUpload = () => {
+        let progress = 0;
+        const interval = setInterval(() => {
+          progress += 10;
+          setUploadProgress(progress);
+          
+          if (progress >= 100) {
+            clearInterval(interval);
+            // Complete upload after 2 seconds
+            setTimeout(() => {
+              setIsUploading(false);
+              setSelectedFile(file);
+              if (file.type.startsWith("image/")) {
+                const imageUrl = URL.createObjectURL(file);
+                setSelectedImage(imageUrl);
+              } else {
+                setSelectedImage(null);
+              }
+            }, 2000);
+          }
+        }, 200);
+      };
+      
+      simulateUpload();
     }
   };
 
@@ -530,6 +700,24 @@ const ChatPage: React.FC = () => {
     );
   };
 
+  // TODO #45: Handle chat rename
+  const handleRename = (id: string, newTitle: string) => {
+    const updated = chatSummaries.map((s) =>
+      s.id === id ? { ...s, title: newTitle } : s
+    );
+    setChatSummaries(updated);
+    // No need to call saveSummariesToStorage - useEffect handles this
+    
+    // If renaming active chat, update localStorage metadata
+    if (id === activeSummaryId) {
+      try {
+        localStorage.setItem("chatTitle", newTitle);
+      } catch (e) {
+        // ignore
+      }
+    }
+  };
+
   const handleStop = () => {
     setIsWaitingForResponse(false);
     setIsStopped(true);
@@ -582,6 +770,44 @@ const ChatPage: React.FC = () => {
     });
   };
 
+  // TODO #41: Handle retry/regenerate request
+  const handleRetry = (idx: number) => {
+    if (!socket || !isSocketReady || isWaitingForResponse) {
+      console.warn("Cannot retry: socket not ready or already waiting");
+      return;
+    }
+
+    // Find the previous user message
+    let userMessageIdx = idx - 1;
+    while (userMessageIdx >= 0 && messages[userMessageIdx].sender !== "user") {
+      userMessageIdx--;
+    }
+
+    if (userMessageIdx < 0 || !messages[userMessageIdx]) {
+      console.error("Cannot find previous user message to retry");
+      return;
+    }
+
+    const userMessage = messages[userMessageIdx];
+    
+    // Remove the AI response we're retrying
+    setMessages((prev) => prev.slice(0, idx));
+    
+    // Resend the user message with conversation history
+    const messageId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+    const message = { 
+      text: userMessage.text, 
+      messages: messages.slice(0, userMessageIdx), // Include history up to that point
+      messageId 
+    };
+    
+    console.log("Retrying message:", message);
+    socket.send(JSON.stringify(message));
+    setIsStopped(false);
+    isStoppedRef.current = false;
+    setIsWaitingForResponse(true);
+  };
+
   // Typing UI is handled inside MessageView
 
   // Add debug logs to check WebSocket and waiting state
@@ -591,78 +817,11 @@ const ChatPage: React.FC = () => {
   }, [isSocketReady, isWaitingForResponse]);
 
   return (
-    <div className="max-w-6xl items-center mx-auto px-6">
-      <div
-        className={`mx-auto w-2/3 ${hasMessages ? "pb-32" : "pb-6"}`}
-        ref={messagesRef}
-      >
-        <div className="flex flex-col gap-2 pb-6">
-          {messages.map((message, index) => (
-            <MessageView
-              key={index}
-              message={message as MessageType}
-              index={index}
-              onUpdate={updateMessage}
-            />
-          ))}
-          {/* When waiting for AI response (no message yet), show a typing balloon */}
-          {isWaitingForResponse &&
-            (!messages.length ||
-              messages[messages.length - 1].sender !== "ai" ||
-              !messages[messages.length - 1].isAnimating) && (
-              <div
-                className={`relative p-2 max-w-full self-start pr-5 mb-5 text-left`}
-              >
-                <span className="inline-flex items-center gap-1">
-                  <span
-                    className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce"
-                    style={{ animationDelay: "0s" }}
-                  />
-                  <span
-                    className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce"
-                    style={{ animationDelay: "0.08s" }}
-                  />
-                  <span
-                    className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce"
-                    style={{ animationDelay: "0.16s" }}
-                  />
-                </span>
-              </div>
-            )}
-        </div>
-      </div>
-
-      <div
-        className={`${
-          hasMessages
-            ? "fixed z-50 w-full mx-auto bottom-0 left-0 right-0 justify-center items-center flex"
-            : "absolute z-50 w-full mx-auto top-0 bottom-0 left-0 right-0 justify-center items-center flex"
-        }`}
-      >
-        <div className="w-full max-w-3xl mx-auto"
-        >
-          <ChatInput
-            input={input}
-            setInput={setInput}
-            selectedImage={selectedImage}
-            setSelectedImage={setSelectedImage}
-            selectedFile={selectedFile}
-            setSelectedFile={setSelectedFile}
-            handleNewChat={handleNewChat}
-            handleFileUpload={handleFileUpload}
-            handleRemoveImage={handleRemoveImage}
-            sendMessage={sendMessage}
-            handleStop={handleStop}
-            isSocketReady={isSocketReady}
-            isWaitingForResponse={isWaitingForResponse}
-            textareaRef={textareaRef}
-            fileInputRef={fileInputRef}
-            adjustTextarea={adjustTextarea}
-            theme={theme}
-          />
-        </div>
-      </div>
-      <div className="absolute left-4 top-0 z-120">
+    <div className="flex">
+      {/* Sidebar - stays above chat content but below nav */}
+      <div className={`fixed left-0 top-16 bottom-0 z-[50] transition-all duration-300 overflow-y-auto ${
+        isSidebarCollapsed ? 'w-14' : 'w-72'
+      }`}>
         <ChatSidebar
           summaries={chatSummaries}
           activeId={activeSummaryId}
@@ -670,8 +829,131 @@ const ChatPage: React.FC = () => {
           onToggle={() => setIsSidebarCollapsed((v) => !v)}
           onLoad={loadSummary}
           onNewChat={handleNewChat}
+          onRename={handleRename}
           theme={theme}
         />
+      </div>
+
+      {/* Main content area - adjusts based on sidebar state */}
+      <div className={`flex-1 transition-all duration-300 ${
+        isSidebarCollapsed ? 'ml-14' : 'ml-72'
+      }`}>
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
+          <div
+            className={`mx-auto ${hasMessages ? "pb-40" : "pb-6"}`}
+            ref={messagesRef}
+          >
+            <div className="flex flex-col gap-2 pb-6"
+            >
+              {messages.map((message, index) => (
+                <MessageView
+                  key={index}
+                  message={message as MessageType}
+                  index={index}
+                  onUpdate={updateMessage}
+                  onRetry={handleRetry}
+                />
+              ))}
+              {/* When waiting for AI response (no message yet), show a typing balloon */}
+              {isWaitingForResponse &&
+                (!messages.length ||
+                  messages[messages.length - 1].sender !== "ai" ||
+                  !messages[messages.length - 1].isAnimating) && (
+                  <div
+                    className={`relative p-2 max-w-full self-start pr-5 mb-5 text-left`}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      <span
+                        className="w-2 h-2 rounded-full bg-secondary dark:bg-secondary/80 animate-bounce"
+                        style={{ animationDelay: "0s" }}
+                      />
+                      <span
+                        className="w-2 h-2 rounded-full bg-secondary dark:bg-secondary/80 animate-bounce"
+                        style={{ animationDelay: "0.08s" }}
+                      />
+                      <span
+                        className="w-2 h-2 rounded-full bg-secondary dark:bg-secondary/80 animate-bounce"
+                        style={{ animationDelay: "0.16s" }}
+                      />
+                    </span>
+                  </div>
+                )}
+            </div>
+          </div>
+
+          {/* Floating scroll-to-bottom button */}
+          {showScrollButton && (
+            <button
+              onClick={scrollToBottom}
+              className="fixed bottom-32 left-1/2 transform -translate-x-1/2 z-40 bg-card hover:bg-accent text-card-foreground rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border border-border backdrop-blur-sm"
+              title="กลับไปด้านล่าง"
+              aria-label="Scroll to bottom"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 5v14M19 12l-7 7-7-7"/>
+              </svg>
+            </button>
+          )}
+
+          {/* Chat Input - with bottom margin */}
+          <div
+            className={`${
+              hasMessages
+                ? `fixed z-40 w-full left-0 right-0 bottom-2 flex justify-center transition-all duration-300 ${
+                    isSidebarCollapsed ? 'pl-14' : 'pl-72'
+                  }`
+                : "absolute z-40 w-full mx-auto top-0 bottom-0 left-0 right-0 justify-center items-center flex"
+            }`}
+          >
+            <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 pb-2">
+              <ChatInput
+                input={input}
+                setInput={setInput}
+                selectedImage={selectedImage}
+                setSelectedImage={setSelectedImage}
+                selectedFile={selectedFile}
+                setSelectedFile={setSelectedFile}
+                handleNewChat={handleNewChat}
+                handleFileUpload={handleFileUpload}
+                handleRemoveImage={handleRemoveImage}
+                sendMessage={sendMessage}
+                handleStop={handleStop}
+                isSocketReady={isSocketReady}
+                isWaitingForResponse={isWaitingForResponse}
+                textareaRef={textareaRef}
+                fileInputRef={fileInputRef}
+                adjustTextarea={adjustTextarea}
+                theme={theme}
+                onFocus={() => setIsChatActive(true)}
+                onBlur={() => setIsChatActive(false)}
+              />
+            </div>
+          </div>
+          
+          {/* File Upload Progress (TODO #40) */}
+          {isUploading && (
+            <FileUploadProgress
+              uploadProgress={uploadProgress}
+              fileSize={uploadFileSize}
+              maxSize={maxFileSize}
+              fileName={uploadFileName}
+              onComplete={() => {
+                setIsUploading(false);
+                setUploadProgress(0);
+              }}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

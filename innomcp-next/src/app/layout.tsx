@@ -7,7 +7,8 @@ import "dotenv/config";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "@/app/context/ThemeContext";
 import Header from "@/app/components/Header";
-import Footer from "@/app/components/Footer";
+import GlobalLoadingOverlay from "@/app/components/common/GlobalLoadingOverlay";
+import FooterWrapper from "@/app/components/FooterWrapper";
 import { config } from "@fortawesome/fontawesome-svg-core";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 
@@ -43,6 +44,31 @@ export default async function RootLayout({
       <head suppressHydrationWarning>
         {/* CSP nonce is available for external scripts if needed */}
         {nonce && <meta name="csp-nonce" content={nonce} />}
+        {/* Prevent theme flash (FOUC) - Load theme BEFORE React hydration */}
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var theme = localStorage.getItem('theme');
+                  if (theme === 'dark' || theme === 'light') {
+                    document.documentElement.classList.add(theme);
+                    document.documentElement.setAttribute('data-theme', theme);
+                    // 🔥 2026 FIX: Also add to body for better compatibility
+                    document.body?.classList.add(theme);
+                  } else {
+                    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    var initialTheme = prefersDark ? 'dark' : 'light';
+                    document.documentElement.classList.add(initialTheme);
+                    document.documentElement.setAttribute('data-theme', initialTheme);
+                    document.body?.classList.add(initialTheme);
+                  }
+                } catch (e) {}
+              })();
+            `,
+          }}
+        />
         {/* Inject LOG_MODE for client logger */}
         <script
           nonce={nonce}
@@ -63,8 +89,11 @@ export default async function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             <Header />
-            <main className="flex-1 pt-24 pb-8">{children}</main>
-            <Footer />
+            <GlobalLoadingOverlay />
+            <main className="flex-1 pt-24 pb-8 relative">
+              {children}
+            </main>
+            <FooterWrapper />
           </ThemeProvider>
         </AuthProvider>
       </body>

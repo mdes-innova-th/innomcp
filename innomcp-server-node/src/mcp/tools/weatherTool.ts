@@ -2,24 +2,26 @@ import { z } from "zod";
 import { logBoth } from "../../utils/mcpLogger";
 
 /**
- * WeatherTool - OpenWeather API Tool
+ * WeatherTool - TMD & NWP Weather API Integration
  * 
- * Get weather forecasts, current conditions, and historical data.
- * API: OpenWeather API
+ * Get weather forecasts using Thailand Meteorological Department APIs.
+ * Primary: NWP (Numerical Weather Prediction) - High accuracy
+ * Fallback: OpenWeather (current conditions only)
  * 
  * Use cases:
- * - "พรุ่งนี้กรุงเทพฝนตกไหม"
- * - "อากาศวันนี้เป็นอย่างไร"
- * - "พยากรณ์อากาศ 5 วัน"
+ * - "พรุ่งนี้กรุงเทพฝนตกไหม" → NWP hourly forecast
+ * - "อากาศวันนี้เป็นอย่างไร" → OpenWeather current
+ * - "พยากรณ์อากาศ 5 วัน" → NWP daily forecast
  */
 
 // Zod schema for input validation
 const WeatherToolInputSchema = z.object({
-  city: z.string().describe("City name (e.g., Bangkok, London, Tokyo)"),
-  type: z.enum(["current", "forecast"]).default("current")
-    .describe("Weather type: 'current' for now, 'forecast' for 5-day prediction"),
+  city: z.string().describe("City name (e.g., Bangkok, London, Tokyo) or province name in Thai"),
+  type: z.enum(["current", "forecast", "hourly"]).default("current")
+    .describe("Weather type: 'current' for now, 'forecast' for daily, 'hourly' for next 24h"),
   units: z.enum(["metric", "imperial", "standard"]).default("metric")
-    .describe("Units: metric (Celsius), imperial (Fahrenheit), standard (Kelvin)")
+    .describe("Units: metric (Celsius), imperial (Fahrenheit), standard (Kelvin)"),
+  hours: z.number().optional().describe("For hourly forecast: number of hours ahead (max 24)")
 });
 
 type WeatherToolInput = z.infer<typeof WeatherToolInputSchema>;
@@ -300,7 +302,7 @@ function formatForecast(data: ForecastWeather, units: string, duration: number):
  */
 export const weatherTool = {
   name: "weather",
-  description: "Get weather forecasts and current conditions for any city worldwide. Supports current weather and 5-day forecasts with temperature, humidity, wind, precipitation probability, and more.",
+  description: "Get CURRENT weather conditions ONLY. For forecasts (rain, temperature predictions), use nwpHourlyTool or nwpDailyTool instead. This tool shows real-time temperature, humidity, wind.",
   inputSchema: WeatherToolInputSchema,
   execute: async (args: unknown) => {
     // Validate input
@@ -316,9 +318,33 @@ export const weatherTool = {
       };
     }
     
-    const result = parsed.data.type === "current" 
-      ? await fetchCurrentWeather(parsed.data)
-      : await fetchForecast(parsed.data);
+    // Route to appropriate API
+    if (parsed.data.type === "hourly" || (parsed.data.type === "forecast" && parsed.data.hours)) {
+      // Suggest using nwpHourlyTool
+      const suggestion = JSON.stringify({
+        success: false,
+        suggestion: "For hourly forecasts, please use 'nwpHourlyTool' instead",
+        hint: `Use tool: nwpHourlyPlace with province="${parsed.data.city}"`
+      }, null, 2);
+      return {
+        content: [{ type: "text" as const, text: suggestion }]
+      };
+    }
+    
+    if (parsed.data.type === "forecast") {
+      // Suggest using nwpDailyTool
+      const suggestion = JSON.stringify({
+        success: false,
+        suggestion: "For daily forecasts, please use 'nwpDailyTool' instead",
+        hint: `Use tool: nwpDailyPlace with province="${parsed.data.city}"`
+      }, null, 2);
+      return {
+        content: [{ type: "text" as const, text: suggestion }]
+      };
+    }
+    
+    // Only handle current weather
+    const result = await fetchCurrentWeather(parsed.data);
     
     return {
       content: [{ type: "text" as const, text: result }]

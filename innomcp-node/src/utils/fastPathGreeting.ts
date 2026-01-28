@@ -153,14 +153,10 @@ const DEFAULT_DICT: GreetingDict = {
     "🔥",
     "✨",
     "🎉",
-    // Thai "555/999" style
+    // Thai "555" style (NOT 999! - that's factorial/math)
     "555",
     "5555",
     "55555",
-    "999",
-    "999!",
-    "999!!",
-    "999!!!",
   ],
 };
 
@@ -193,11 +189,21 @@ function containsAny(text: string, list: string[]) {
   for (const raw of list) {
     const key = safeNormalize(raw);
     if (!key) continue;
+    
+    // Exact match or starts with (for short greetings)
     if (text === key) return true;
-    if (text.startsWith(key)) return true;
-    if (text.includes(key)) return true;
+    if (text.startsWith(key + " ")) return true;
+    
+    // Word boundary check to prevent false positives
+    // e.g., "โอเค" should NOT match in "ไม่ได้อ้อ"
+    const wordBoundaryRegex = new RegExp(`(^|\\s)${escapeRegex(key)}(\\s|$)`, 'i');
+    if (wordBoundaryRegex.test(text)) return true;
   }
   return false;
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function isMostlyEmojiOrShortNoise(original: string) {
@@ -259,17 +265,68 @@ export function detectFastPath(text: string): FastPathHit | null {
 
   if (!normalized && isMostlyEmojiOrShortNoise(original)) return "emoji";
 
+  // 🚨 NEW: Detect mixed intent (greeting + question)
+  const hasMixedIntent = detectMixedIntent(original, normalized);
+  if (hasMixedIntent) {
+    return null; // Bypass to AI for complex queries
+  }
+
+  // 🚨 NEW: Length threshold - long text should go to AI
+  if (normalized.length > 25 && original.includes("?")) {
+    return null; // Questions with substantial content → AI
+  }
+
+  // Priority order (IMPORTANT: identity/questions BEFORE greeting)
   if (containsAny(normalized, dict.identity)) return "identity";
   if (containsAny(normalized, dict.thanks)) return "thanks";
   if (containsAny(normalized, dict.ping)) return "ping";
   if (containsAny(normalized, dict.ok)) return "ok";
   if (containsAny(normalized, dict.greeting)) return "greeting";
 
-  // quick emoji / laugh codes
+  // quick emoji / laugh codes (but NOT factorial patterns like 999!)
   if (containsAny(safeNormalize(original), dict.emoji)) return "emoji";
-  if (/^(5{3,}|9{3,})(!+)?$/.test(original.trim())) return "emoji";
+  if (/^5{3,}$/.test(original.trim())) return "emoji"; // "555", "5555" only
 
   return null;
+}
+
+/**
+ * Detect mixed intent: greeting + question/complaint
+ * Examples:
+ * - "สวัสดี นายคือใคร" → greeting + identity question
+ * - "สวัสดี แค่นี้ตอบไม่ได้อ้อ" → greeting + complaint
+ * - "หวัดดี อากาศเป็นยังไง" → greeting + weather question
+ */
+function detectMixedIntent(original: string, normalized: string): boolean {
+  const hasGreeting = containsAny(normalized, dict.greeting);
+  if (!hasGreeting) return false;
+
+  // Question indicators
+  const questionWords = [
+    "นาย", "คุณ", "แก", "เธอ", // pronouns suggesting questions
+    "คือ", "ชื่อ", "อะไร", "ไหม", "มั้ย", "หรือ", "ยังไง", "อย่างไร",
+    "who", "what", "where", "when", "why", "how",
+    "เป็น", "ทำ", "ช่วย", "บอก", "แนะนำ"
+  ];
+
+  const hasQuestionWord = questionWords.some(word => 
+    normalized.includes(safeNormalize(word))
+  );
+
+  const hasQuestionMark = original.includes("?");
+
+  // Complaint/negative indicators
+  const complaintWords = [
+    "แค่นี้", "เท่านี้", "ไม่ได้", "ไม่มี", "ไม่", "ไม่ใช่",
+    "can't", "cannot", "not", "no"
+  ];
+
+  const hasComplaint = complaintWords.some(word => 
+    normalized.includes(safeNormalize(word))
+  );
+
+  // If greeting + (question OR complaint) → mixed intent
+  return hasQuestionWord || hasQuestionMark || hasComplaint;
 }
 
 function nowThaiTimeString() {
@@ -294,7 +351,7 @@ export function buildFastPathResponse(hit: FastPathHit): FastPathResponse {
         content: [
           {
             type: "text",
-            text: `สวัสดีครับ 😊 มีอะไรให้ช่วยไหม${t ? ` (ตอนนี้ ${t})` : ""}`,
+            text: `สวัสดีครับ 😊 มีอะไรให้ช่วยไหม`,
           },
         ],
         structuredContent: { fastPath: true, type: "greeting" },

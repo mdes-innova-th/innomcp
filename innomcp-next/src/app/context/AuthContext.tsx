@@ -13,6 +13,8 @@ interface AuthContextType {
   setIsLoggedIn: (v: boolean) => void;
   userId: number | null;
   setUserId: (v: number | null) => void;
+  userEmail: string | null;
+  setUserEmail: (v: string | null) => void;
   userDispName: string | null;
   setUserDispName: (v: string | null) => void;
   userRoleId: number | null;
@@ -21,7 +23,11 @@ interface AuthContextType {
   setHostname: (v: string) => void;
   isAuthLoading: boolean;
   setIsAuthLoading: (v: boolean) => void;
+  isGuestMode: boolean;
+  capabilityLevel: number;
   checkAuth: () => Promise<void>;
+  login: (userData: { userId: number; email: string; displayName: string; roleId: number }) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
@@ -31,10 +37,16 @@ export const AuthContext = createContext<AuthContextType | undefined>(
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userDispName, setUserDispName] = useState<string | null>(null);
   const [userRoleId, setUserRoleId] = useState<number | null>(null);
   const [hostname, setHostname] = useState("localhost");
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  
+  // Guest mode: users can use chat without login (50% capability by default)
+  // Authenticated users get 100% capability
+  const isGuestMode = !isLoggedIn;
+  const capabilityLevel = isLoggedIn ? 100 : 50;
 
   // Exported checkAuth function
   const checkAuth = async () => {
@@ -52,6 +64,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       clearTimeout(timeoutId);
       if (response.ok) {
         const data = await response.json();
+        setUserEmail(data.user?.user_email || null);
         setUserDispName(data.user?.user_dispname || null);
         if (data.user && typeof data.user.user_id !== "undefined") {
           const id = Number(data.user.user_id);
@@ -67,6 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsLoggedIn(true);
       } else {
         setIsLoggedIn(false);
+        setUserEmail(null);
         setUserDispName(null);
         setUserId(null);
         setUserRoleId(null);
@@ -93,6 +107,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkAuth();
   }, []);
 
+  // Login function
+  const login = async (userData: { userId: number; email: string; displayName: string; roleId: number }) => {
+    console.log('🔐 [AuthContext] Login called');
+    console.log('👤 User Data:', {
+      userId: userData.userId,
+      email: userData.email,
+      displayName: userData.displayName,
+      roleId: userData.roleId
+    });
+    
+    setUserId(userData.userId);
+    setUserEmail(userData.email);
+    setUserDispName(userData.displayName);
+    setUserRoleId(userData.roleId);
+    setIsLoggedIn(true);
+    
+    console.log(`✅ [AuthContext] Logged in as ${userData.displayName} (Capability: 100%)`);
+  };
+
+  // Logout function
+  const logout = async () => {
+    console.log('🚪 [AuthContext] Logout called');
+    try {
+      await fetch('http://localhost:3011/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      console.log('✅ [AuthContext] Logout successful');
+    } catch (error) {
+      console.error('❌ [AuthContext] Logout error:', error);
+    } finally {
+      setIsLoggedIn(false);
+      setUserId(null);
+      setUserEmail(null);
+      setUserDispName(null);
+      setUserRoleId(null);
+      console.log('🔓 [AuthContext] User state cleared (now Guest - 50% capability)');
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -100,15 +154,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsLoggedIn,
         userId: userId,
         setUserId,
+        userEmail: userEmail,
+        setUserEmail,
         userDispName: userDispName,
         setUserDispName,
         userRoleId: userRoleId,
+        isGuestMode,
+        capabilityLevel,
         setUserRoleId,
         hostname,
         setHostname,
         isAuthLoading,
         setIsAuthLoading,
         checkAuth,
+        login,
+        logout,
       }}
     >
       {children}

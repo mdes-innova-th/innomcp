@@ -64,7 +64,10 @@ export const nwpHourlyByPlaceSchema = z.object({
   hour: z.number().min(0).max(23).optional().describe("ชั่วโมงเริ่มต้น (0-23)"),
   duration: z.number().min(1).max(48).optional().default(24).describe("จำนวนชั่วโมง (1-48)"),
   fields: z.array(z.enum(AVAILABLE_FIELDS)).optional().describe("ตัวแปรที่ต้องการ"),
-});
+}).refine(
+  (data) => !!(data.province || data.amphoe || data.tambon),
+  { message: "ต้องระบุจังหวัด อำเภอ หรือ ตำบลอย่างน้อย 1 ค่า" }
+);
 
 // Schema for location by region
 export const nwpHourlyByRegionSchema = z.object({

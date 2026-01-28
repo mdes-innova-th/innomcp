@@ -8,7 +8,7 @@ import logger from "./utils/logger";
 import { logBoth } from "./utils/mcpLogger";
 
 import app from "./app";
-import { wss as chatWSS } from "./routes/api/chat";
+import { wss as chatWSS, mcpClient, toolHealthChecker } from "./routes/api/chat";
 
 dotenv.config();
 
@@ -35,4 +35,51 @@ server.on("upgrade", (request: http.IncomingMessage, socket: net.Socket, head: B
   }
 });
 
+// Graceful shutdown handlers
+const shutdown = async (signal: string) => {
+  logger.info(`${signal} signal received: closing HTTP server and cleaning up`);
+  
+  // Stop tool health checks
+  if (toolHealthChecker) {
+    try {
+      toolHealthChecker.stopHealthChecks();
+      logger.info("Tool health checks stopped");
+    } catch (err) {
+      logger.error("Error stopping tool health checks:", err);
+    }
+  }
+  
+  // Stop MCP health checks
+  if (mcpClient) {
+    try {
+      mcpClient.stopHealthCheck();
+      logger.info("MCP health check stopped");
+    } catch (err) {
+      logger.error("Error stopping MCP health check:", err);
+    }
+  }
+  
+  // Close WebSocket connections
+  chatWSS.clients.forEach((client) => {
+    client.close();
+  });
+  
+  // Close HTTP server
+  server.close(() => {
+    logger.info("HTTP server closed");
+    process.exit(0);
+  });
+  
+  // Force exit after 10 seconds
+  setTimeout(() => {
+    logger.error("Could not close connections in time, forcefully shutting down");
+    process.exit(1);
+  }, 10000);
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
+
 export default server;
+
+// Trigger restart: DB_NAME fix - 15:38:42

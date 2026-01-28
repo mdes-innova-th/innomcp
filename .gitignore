@@ -33,3 +33,7 @@ mariadb/data
 */.env
 /CHANGELOG/
 # innomcp-next/.env
+# logs/backend/
+# workspace-storage/data/
+# mariadb/
+# mariadb/*.sql

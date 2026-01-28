@@ -1,4 +1,46 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sarabun);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
 
 /* Font variable for Sarabun */
 :root {
@@ -22,41 +64,6 @@ html.dark,
 .dark html,
 .dark body {
   color-scheme: dark;
-}
-
-:root {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
 }
 
 :root {
@@ -97,33 +104,62 @@ html.dark,
 }
 
 html.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.614 0.241 24.8);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.859 0 0);
-  --sidebar: oklch(0.179 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.922 0 0);
-  --sidebar-primary-foreground: oklch(0.205 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.859 0 0);
+  /* Professional Dark Theme - Deep Blue & Purple Palette */
+  /* Main background - Deep dark blue-gray #0a0e1a */
+  --background: oklch(0.12 0.02 240);
+  /* Text - Soft white with slight warmth #e8ecf4 */
+  --foreground: oklch(0.94 0.01 240);
+  
+  /* Cards - Elevated dark surface #141827 */
+  --card: oklch(0.16 0.02 240);
+  --card-foreground: oklch(0.94 0.01 240);
+  
+  /* Popover - Slightly lighter for depth #1a1f33 */
+  --popover: oklch(0.18 0.02 240);
+  --popover-foreground: oklch(0.94 0.01 240);
+  
+  /* Primary - Vibrant blue-purple accent #6366f1 (indigo) */
+  --primary: oklch(0.62 0.18 270);
+  --primary-foreground: oklch(0.98 0 0);
+  
+  /* Secondary - Muted purple-blue #4f46e5 */
+  --secondary: oklch(0.42 0.08 260);
+  --secondary-foreground: oklch(0.94 0.01 240);
+  
+  /* Muted - Subdued dark surface #252a3f */
+  --muted: oklch(0.22 0.02 240);
+  --muted-foreground: oklch(0.68 0.02 240);
+  
+  /* Accent - Bright cyan highlight #06b6d4 (cyan) */
+  --accent: oklch(0.68 0.15 200);
+  --accent-foreground: oklch(0.12 0.02 240);
+  
+  /* Destructive - Professional red #ef4444 */
+  --destructive: oklch(0.62 0.24 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  
+  /* Borders - Subtle dark border #2d3548 */
+  --border: oklch(0.24 0.02 240);
+  --input: oklch(0.24 0.02 240);
+  
+  /* Ring - Bright focus indicator (primary) */
+  --ring: oklch(0.62 0.18 270);
+  
+  /* Sidebar - Deep navy #0f1420 */
+  --sidebar: oklch(0.13 0.02 240);
+  --sidebar-foreground: oklch(0.94 0.01 240);
+  
+  /* Sidebar Primary - Vibrant accent */
+  --sidebar-primary: oklch(0.62 0.18 270);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  
+  /* Sidebar Accent - Hover state #1e2538 */
+  --sidebar-accent: oklch(0.20 0.02 240);
+  --sidebar-accent-foreground: oklch(0.94 0.01 240);
+  
+  /* Sidebar Border - Subtle separator */
+  --sidebar-border: oklch(0.18 0.02 240);
+  --sidebar-ring: oklch(0.62 0.18 270);
 }
 
 /* Logo animations */
@@ -353,4 +389,126 @@ html.dark {
 .animate-bars {
   animation: bars 1.2s infinite ease-in-out;
   transform-origin: bottom center;
+}
+
+/* Smooth fade-in animation for floating scroll button */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes fadeOutDown {
+  from {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+}
+
+/* Smooth transitions for interactive elements */
+* {
+  transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Override for elements that should not transition */
+.no-transition,
+.no-transition * {
+  transition: none !important;
+}
+
+/* Smooth dropdown animation */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-slideDown {
+  animation: slideDown 0.2s ease-out forwards;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.2s ease-in forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--muted);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary);
+}
+
+/* Dark mode scrollbar */
+html.dark ::-webkit-scrollbar-track {
+  background: var(--card);
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: var(--primary);
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary);
 }
