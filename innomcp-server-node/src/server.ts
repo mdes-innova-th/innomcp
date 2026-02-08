@@ -50,6 +50,7 @@ import { registerTmdTool as registerTmdTool } from "./mcp/tools/tmdTools";
 import { registerWebdTools } from "./mcp/tools/webdTools";
 import { registerEchartsTool } from "./mcp/tools/echartsTool";
 import { registerCalculatorTool } from "./mcp/tools/calculatorTool";
+import { registerThaiGeoTool } from "./mcp/tools/thaiGeoTool";
 
 // NEW: Session 8.8 - Data Access & Calculation Tools
 import archiveTool from "./mcp/tools/archiveTool";
@@ -95,6 +96,7 @@ registerTmdTool(mcpserver); // ENABLED for Thailand Meteorological Department Da
 // DISABLED: registerWebdTools(mcpserver); // Not in allowed list
 registerEchartsTool(mcpserver); // ✅ ENABLED for visualization
 registerCalculatorTool(mcpserver); // Enhanced as MathTool
+registerThaiGeoTool(mcpserver);
 
 // Register NEW Session 8.8 tools (direct tool objects)
 mcpserver.registerTool(archiveTool.name, {
