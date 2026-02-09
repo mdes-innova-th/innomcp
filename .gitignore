@@ -6,6 +6,9 @@ node_modules/
 !.env.example
 
 # Logs
+logs/
+*.log
+*.log.gz
 innomcp-next/logs/
 innomcp-server-node/logs/
 innomcp-node/logs/
@@ -17,8 +20,13 @@ innomcp-server-node/tests/
 innomcp-node/tests/
 
 # Database files
-mariadb/data
+mariadb/data/
 
+# Workspace storage
+workspace-storage/data/
+
+
+package-lock.json
 
 
 # Ignore Markdown and text files
@@ -37,3 +45,8 @@ mariadb/data
 # workspace-storage/data/
 # mariadb/
 # mariadb/*.sql
+
+
+# AI archive / phase lock
+.ai/_archive/
+.ai/PHASE_LOCK.json

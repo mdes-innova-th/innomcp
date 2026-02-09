@@ -13,6 +13,7 @@
     "dev:backend": "cd innomcp-node && npm run dev",
     "dev:mcp": "cd innomcp-server-node && npm run dev",
     "dev:frontend": "cd innomcp-next && npm run dev",
+    "dev:logged": "powershell -ExecutionPolicy Bypass -File scripts/start-dev-logged.ps1",
     "build": "npm run build:backend && npm run build:mcp && npm run build:frontend",
     "build:backend": "cd innomcp-node && npm run build",
     "build:mcp": "cd innomcp-server-node && npm run build",
@@ -36,9 +37,12 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
+    "@types/jest": "^30.0.0",
     "@types/node-fetch": "^2.6.13",
     "concurrently": "^9.1.2",
-    "node-fetch": "^2.7.0"
+    "jest": "^30.2.0",
+    "node-fetch": "^2.7.0",
+    "ts-jest": "^29.4.6"
   },
   "overrides": {
     "zod": "3.22.4"
