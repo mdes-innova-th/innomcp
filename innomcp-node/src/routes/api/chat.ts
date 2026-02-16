@@ -10,7 +10,7 @@ import logger from "../../utils/logger";
 import { getCurrentAIMode } from "./aiMode";
 import { fastPathChatMiddleware } from "../../middleware/fastpathChatMiddleware";
 import { sessionManager } from "../../utils/sessionManager";
-import { validateThaiLanguage, createThaiOnlyFallbackPrompt, createThaiErrorResponse } from "../../utils/languageValidator";
+import { validateThaiLanguage, createThaiOnlyFallbackPrompt, createThaiErrorResponse, sanitizeThaiSegments } from "../../utils/languageValidator";
 import { buildSystemPrompt, buildIdentityPrompt } from "../../config/systemPrompt";
 import { extractCorrelationIdFromUpgrade } from "../../middleware/correlationId";
 import { checkRateLimit, buildRateLimitKey } from "../../fastpath/rateLimit";
@@ -22,6 +22,7 @@ import { requestQueue } from "../../utils/requestQueue";
 import reportRouter from "./chat/report";
 import { optionalAuth } from "../../utils/jwt";
 import { guestLimiterMiddleware, getLimitsForUser, checkToolAccess, limitResponseLength } from "../../middleware/guestLimiter";
+import { tryFastPathWebSocket } from "../../services/fastPathHandler";
 
 dotenv.config();
 
@@ -306,6 +307,31 @@ interface ClientMessage {
   };
 }
 
+// 🛡️ HARD SCHEMA ENFORCEMENT 🛡️
+function sendSafe(ws: any, payload: any) {
+  if (!payload) return;
+
+  const safePayload = {
+    id: payload.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    type: payload.type || "message",
+    sender: payload.sender || "assistant", // "ai" is now allowed if passed
+    text: payload.text || payload.message || "", // FIX: Frontend expects "text", not "message"
+    timestamp: payload.timestamp || Date.now(),
+    ...payload // Merge other fields (like structuredContent)
+  };
+
+  // Ensure "message" field is present for frontend compatibility
+  if (!safePayload.message && safePayload.text) {
+      safePayload.message = safePayload.text;
+  }
+
+  try {
+      ws.send(JSON.stringify(safePayload));
+  } catch(e) {
+      console.error("[Chat API] Send failed:", e);
+  }
+}
+
 // --- 6. WebSocket Connection Handler ---
 wss.on("connection", (ws, req) => {
   (ws as any).isAlive = true;
@@ -351,10 +377,66 @@ wss.on("connection", (ws, req) => {
   ws.on("message", async (data) => {
     const messageId = `ws-${sessionId.substring(0, 8)}-${Date.now()}`;
     
+    // 1. 🔍 Parse Message Immediately
+    let clientMessage: ClientMessage;
+    try {
+        clientMessage = JSON.parse(data.toString());
+    } catch (e) {
+        logBoth("error", `[Chat API] Invalid JSON: ${e}`);
+        sendSafe(ws, { error: "Invalid JSON", type: "error" });
+        return;
+    }
+    const currentText = clientMessage.text;
+
+    // 2. 🚀 HARD FASTPATH (Before Queue)
+    const clientIp = (ws as any).clientIp || 'unknown';
+    if (currentText) {
+         try {
+          const fastPathResult = await tryFastPathWebSocket(
+            currentText,
+            (payload) => {
+                 // Direct pass-through per user request (Handler defines schema)
+                 sendSafe(ws, payload);
+            },
+            { mode: (process.env.FASTPATH_MODE as any) || "on" },
+            clientIp
+          );
+
+          if (fastPathResult.handled) {
+            console.log("[FASTPATH] HARD SHORT-CIRCUIT:", currentText);
+            
+            // 💾 Persist Assistant Message to Session
+            // We need to extract the response text from the payload to save it
+            // fastPathResult.responseTextPreview is not always reliable, better to rely on what was sent?
+            // Actually, let's use the result from the handler if available, or just the preview
+            if (fastPathResult.structuredContent && fastPathResult.structuredContent.result) {
+                // Determine text from structured content or result
+                 const responseText = typeof fastPathResult.structuredContent.result === 'string' 
+                    ? fastPathResult.structuredContent.result 
+                    : JSON.stringify(fastPathResult.structuredContent.result);
+                    
+                 sessionManager.addMessage(sessionId, 'assistant', responseText);
+            } else if (fastPathResult.responseTextPreview) {
+                 sessionManager.addMessage(sessionId, 'assistant', fastPathResult.responseTextPreview);
+            }
+
+            // ✅ RESTORE DONE EVENT (Required for frontend lifecycle)
+            sendSafe(ws, { type: "done" });
+            
+            return; // 🛑 HARD STOP
+          }
+         } catch (e) {
+             console.error("FastPath Error:", e);
+         }
+    }
+
+    console.log("=== AFTER FASTPATH BLOCK ==="); // KILL SWITCH TEST
+
     // Enqueue the message processing to prevent overload
     await requestQueue.enqueue(messageId, async () => {
       try {
-        const clientMessage: ClientMessage = JSON.parse(data.toString());
+        // clientMessage is already parsed above
+        
         // optional messageId to deduplicate repeated sends from the same client
         const incomingId = (clientMessage as any).messageId;
       if (incomingId && (ws as any).processedMessageIds.has(incomingId)) {
@@ -376,7 +458,6 @@ wss.on("connection", (ws, req) => {
 
       // Get full message history from client or initialize empty
       let sessionHistory: ChatMessage[] = clientMessage.messages || [];
-      const currentText = clientMessage.text;
       
       // 📎 Handle file attachment
       let fileContext = "";
@@ -398,13 +479,16 @@ wss.on("connection", (ws, req) => {
       }
 
       if (!currentText) {
-        ws.send(JSON.stringify({ error: "Text is required" }));
+        sendSafe(ws, { error: "Text is required", type: "error" });
         return;
       }
       
       // Add file context to the message if present
       const messageWithFile = currentText + fileContext;
       
+
+
+
       // 📝 Log user message to session (with file indicator if present)
       const currentSessionId = (ws as any).sessionId;
       sessionManager.addMessage(currentSessionId, 'user', messageWithFile);
@@ -413,48 +497,7 @@ wss.on("connection", (ws, req) => {
       // 🎯 Start response tracking
       sessionManager.startResponse(currentSessionId);
 
-      // 🚀 FastPath: Check if this is a simple greeting/small-talk that can be answered instantly
-      const { tryFastPathWebSocket } = await import("../../services/fastPathHandler");
-      const clientIp = (ws as any).clientIp || 'unknown';
-      const fastPathResult = await tryFastPathWebSocket(
-        messageWithFile,
-        (payload) => {
-          // Convert FastPath format to our WebSocket format
-          const responseText = payload.content?.[0]?.text || "👋";
-          
-          // Send as chunk (streaming format)
-          ws.send(JSON.stringify({ 
-            type: "chunk", 
-            text: responseText,
-            structuredContent: payload.structuredContent
-          }));
-          
-          // Send history update with the complete response
-          const aiMessage: any = { sender: "ai", text: responseText };
-          if (payload.structuredContent) {
-            aiMessage.structuredContent = payload.structuredContent;
-          }
-          sessionHistory.push({ sender: "user", text: messageWithFile });
-          sessionHistory.push(aiMessage);
-          
-          // 📝 Log FastPath response to session
-          sessionManager.addMessage(currentSessionId, 'assistant', responseText, ['FastPath']);
-          
-          ws.send(JSON.stringify({
-            type: "history-update",
-            messages: sessionHistory,
-            structuredContent: payload.structuredContent
-          }));
-        },
-        { mode: (process.env.FASTPATH_MODE as any) || "on" },
-        clientIp,
-        undefined // userId (not available yet)
-      );
-
-      if (fastPathResult.handled) {
-        logBoth('info', `[FastPath] ⚡ Handled in ${fastPathResult.latencyMs}ms: ${messageWithFile.slice(0, 50)}`);
-        return; // FastPath responded, done!
-      }
+      // (FastPath check moved to top)
 
       // 🎯 God-Tier Router: 4-stage context-aware intent classification (Keyword + Semantic + Ambiguity + LLM)
       let semanticCategory: string | null = null;
@@ -575,13 +618,11 @@ wss.on("connection", (ws, req) => {
               toolsUsedInThisRequest = mcpResult.toolResults.map(r => r.toolName);
             }
 
-            ws.send(
-              JSON.stringify({
+            sendSafe(ws, {
                 type: "mcp-status",
                 text: "กำลังประมวลผลด้วย MCP tools...",
                 tools: mcpResult.toolResults?.map((r) => r.toolName) || [],
-              })
-            );
+            });
 
             // Extract structuredContent from tool results (e.g., chartSvg from echartsTool)
             if (mcpResult.toolResults && mcpResult.toolResults.length > 0) {
@@ -597,6 +638,84 @@ wss.on("connection", (ws, req) => {
 
             if (mcpResult.enhancedContext) {
               mcpContext = mcpResult.enhancedContext;
+            }
+
+            // PATCH 2 (weather performance): bypass Ollama finalize when weatherPipeline already has a complete answer.
+            // Only use LLM if user explicitly asks for deeper explanation.
+            const wantsDeepExplain = /อธิบายเชิงลึก|ละเอียด|สรุปเป็นภาษาคน|เหตุผล|วิเคราะห์/i.test(currentText || "");
+            const weatherTool = mcpResult.toolResults?.find((r) => r && r.toolName === "weatherPipeline");
+            const weatherResults = Array.isArray(weatherTool?.structuredContent)
+              ? (weatherTool!.structuredContent as any[])
+              : null;
+
+            if (weatherResults && !wantsDeepExplain) {
+              const renderBkkDateStr = (offsetDays: number): string => {
+                const now = new Date();
+                const bkkMs = now.getTime() + (7 * 60 * 60 * 1000);
+                const bkk = new Date(bkkMs);
+                bkk.setUTCDate(bkk.getUTCDate() + offsetDays);
+                const dd = String(bkk.getUTCDate()).padStart(2, "0");
+                const mm = String(bkk.getUTCMonth() + 1).padStart(2, "0");
+                const yyyy = bkk.getUTCFullYear();
+                return `${dd}/${mm}/${yyyy}`;
+              };
+
+              const firstOk = weatherResults.find((r: any) => r && r.type !== "error") || weatherResults[0];
+
+              let finalText = "";
+
+              if (!firstOk || firstOk.type === "error") {
+                const err = String(firstOk?.error || "WEATHER_PIPELINE_ERROR");
+                if (err === "PROVINCE_MISSING") {
+                  finalText = "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")";
+                } else if (err === "TIMEOUT") {
+                  finalText = "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ";
+                } else {
+                  finalText = `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`;
+                }
+              } else if (firstOk.type === "national") {
+                const d = firstOk.data || {};
+                const label = d.dateLabel || "พรุ่งนี้";
+                const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
+                const note = d.note ? `\n\nหมายเหตุ: ${d.note}` : "";
+                const table = d.tableMarkdown ? `\n\n${d.tableMarkdown}` : "";
+                finalText = `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${table}${note}`;
+              } else if (firstOk.type === "forecast7d") {
+                const province = firstOk.province || "";
+                const f = firstOk.data?.forecast;
+                const targetDate = /วันนี้|ตอนนี้|ขณะนี้/i.test(currentText || "") ? renderBkkDateStr(0) : renderBkkDateStr(1);
+
+                if (f && typeof f === "object" && Array.isArray((f as any).ForecastDate)) {
+                  const idx = ((f as any).ForecastDate as string[]).indexOf(targetDate);
+                  const i = idx >= 0 ? idx : 0;
+                  const rain = Number((f as any).PercentRainCover?.[i]) || 0;
+                  const tmax = (f as any).MaximumTemperature?.[i];
+                  const tmin = (f as any).MinimumTemperature?.[i];
+                  const desc = String((f as any).DescriptionThai?.[i] || "").trim();
+                  finalText = `พยากรณ์อากาศ${province} (${targetDate}): โอกาสฝน ~${rain}% อุณหภูมิ ${tmin ?? "—"}–${tmax ?? "—"}°C${desc ? `, ${desc}` : ""}`;
+                } else {
+                  finalText = `พยากรณ์อากาศ${province}: ดึงข้อมูลพยากรณ์ 7 วันสำเร็จ (หากต้องการ \"ตาราง\" บอกได้ครับ)`;
+                }
+              } else if (firstOk.type === "station3h") {
+                const province = firstOk.province || "";
+                const list = Array.isArray(firstOk.data) ? firstOk.data : [];
+                const s = list[0] || {};
+                const temp = s.Temp ?? s.Temperature ?? s.AirTemperature ?? s.TempC;
+                finalText = `อากาศตอนนี้${province}: พบข้อมูลสถานี ${list.length} จุด${temp !== undefined ? `, อุณหภูมิประมาณ ${temp}°C` : ""}`;
+              } else {
+                finalText = `ผลพยากรณ์อากาศ (${firstOk.type}) สำหรับ ${firstOk.province || "พื้นที่ที่ถาม"}`;
+              }
+
+              const aiMessage: any = { sender: "ai", text: finalText };
+              if (weatherTool?.structuredContent) aiMessage.structuredContent = weatherTool.structuredContent;
+              if (toolsUsedInThisRequest.length > 0) aiMessage.toolsUsed = toolsUsedInThisRequest;
+              sessionHistory.push(aiMessage);
+
+              const chunkMsg: any = { type: "chunk", text: finalText };
+              if (weatherTool?.structuredContent) chunkMsg.structuredContent = weatherTool.structuredContent;
+              sendSafe(ws, chunkMsg);
+              sendSafe(ws, { type: "history-update", messages: sessionHistory });
+              return; // ✅ Skip Ollama finalize
             }
           } else if (mcpResult.toolsFailed) {
             // Tools were selected but all failed — ask Ollama to craft a short sorry message
@@ -621,13 +740,11 @@ wss.on("connection", (ws, req) => {
 
             sessionHistory.push({ sender: "ai", text: sorryMessage });
             // Send as a final chunk and history update
-            ws.send(JSON.stringify({ type: "chunk", text: sorryMessage }));
-            ws.send(
-              JSON.stringify({
+            sendSafe(ws, { type: "chunk", text: sorryMessage });
+            sendSafe(ws, {
                 type: "history-update",
                 messages: sessionHistory,
-              })
-            );
+            });
             return; // Don't proceed to Ollama
           }
         } catch (mcpError) {
@@ -707,11 +824,11 @@ wss.on("connection", (ws, req) => {
         const randomThinking = thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)];
         
         // ส่ง progress indicator เริ่มต้น
-        ws.send(JSON.stringify({ 
+        sendSafe(ws, { 
           type: "progress", 
           text: randomThinking,
           stage: "thinking"
-        }));
+        });
 
         for await (const chunk of responseStream) {
           if (!chunk.message || !chunk.message.content) continue;
@@ -721,17 +838,17 @@ wss.on("connection", (ws, req) => {
           const now = Date.now();
           if (now - lastProgressTime > progressInterval) {
             const elapsedSec = Math.floor((now - streamStartTime) / 1000);
-            ws.send(JSON.stringify({ 
+            sendSafe(ws, { 
               type: "progress", 
               text: `⏳ ยังคงประมวลผล... (${elapsedSec}วินาที)`,
               stage: "processing",
               elapsed: elapsedSec
-            }));
+            });
             lastProgressTime = now;
           }
 
           if (isFirstChunk && mcpContext) {
-            ws.send(JSON.stringify({ type: "mcp-context", text: mcpContext }));
+            sendSafe(ws, { type: "mcp-context", text: mcpContext });
             isFirstChunk = false;
           }
 
@@ -747,7 +864,7 @@ wss.on("connection", (ws, req) => {
               console.log("[Chat API] Response includes structuredContent, keys:", Object.keys(structuredContent));
             }
           }
-          ws.send(JSON.stringify(chunkMsg));
+          sendSafe(ws, chunkMsg);
         }
 
         const streamDuration = Date.now() - streamStartTime;
@@ -756,59 +873,30 @@ wss.on("connection", (ws, req) => {
         // � Validate Thai language (must be Thai only)
         const languageCheck = validateThaiLanguage(aiResponse, { originalQuestion: currentText });
         if (!languageCheck.isThaiOnly) {
-          logBoth('warn', `[Language Validator] ⚠️ Non-Thai response detected! Using rewrite instead of regen...`);
+          logBoth('warn', `[Language Validator] ⚠️ Non-Thai response detected! Stripping non-Thai segments...`);
           logBoth('warn', `  - Original question: ${currentText}`);
           logBoth('warn', `  - Invalid response preview: ${aiResponse.substring(0, 200)}...`);
           
           // Send warning to client
-          ws.send(JSON.stringify({
+          sendSafe(ws, {
             type: "warning",
-            text: "⚠️ พบเนื้อหาที่ต้องปรับภาษา กำลังแก้ไข..."
-          }));
+            text: "⚠️ กำลังปรับปรุงคำตอบให้เป็นภาษาไทย..."
+          });
           
-          // Use REWRITE instead of REGEN - แก้เฉพาะส่วนที่ผิด ไม่ generate ใหม่ทั้งหมด
-          try {
-            const rewritePrompt = `คำตอบต่อไปนี้มีปัญหาด้านภาษา กรุณา**แก้ไขเฉพาะส่วนที่ผิด**เป็นภาษาไทย โดย**คงเนื้อหาและประเด็นเดิม**:
-
-"${aiResponse}"
-
-**หลักการแก้ไข**:
-1. เก็บเนื้อหาหลักไว้ทั้งหมด (ห้ามลบข้อมูลสำคัญ)
-2. แปลงภาษาอื่นเป็นไทย ยกเว้น: ชื่อเฉพาะ/ยี่ห้อ/คำย่อ/ชื่อหนังสือ
-3. รูปแบบ: ชื่อไทย (English) ครั้งแรก แล้วใช้คงเส้นคงวา
-4. ห้ามเปลี่ยนประเด็น ห้ามเพิ่มเติมข้อมูลใหม่
-
-แก้ไขเลย:`;
-            
-            logBoth('info', `[Language Validator] Rewriting non-Thai portions (preserve content)...`);
-            
-            const rewriteResponse = await ollama.chat({
-              model: ollamaModel,
-              messages: [
-                { role: "system", content: buildSystemPrompt() },
-                { role: "user", content: rewritePrompt }
-              ],
-              stream: false,
-              options: {
-                temperature: 0.2, // Lower temperature สำหรับความแม่นยำ
-                num_predict: aiResponse.length + 100 // เผื่อไว้นิดหน่อย
-              }
-            });
-            
-            const rewrittenText = rewriteResponse.message?.content || '';
-            const rewriteCheck = validateThaiLanguage(rewrittenText, { originalQuestion: currentText });
-            
-            if (rewriteCheck.isThaiOnly) {
-              logBoth('info', `[Language Validator] ✅ Rewrite successful! (${rewriteCheck.confidence.toFixed(1)}% Thai)`);
-              aiResponse = rewrittenText;
-            } else {
-              logBoth('error', `[Language Validator] ❌ Rewrite still non-Thai. Using original response.`);
-              // ใช้คำตอบเดิมดีกว่า error response generic
-            }
-          } catch (rewriteError) {
-            logBoth('error', `[Language Validator] Rewrite failed: ${rewriteError}`);
-            // ใช้คำตอบเดิมถ้า rewrite ล้มเหลว
+          // Use SANITIZATION instead of REWRITE (Requirement: Strip non-Thai tokens)
+          logBoth('warn', `[Language Validator] ⚠️ Non-Thai response detected! Stripping non-Thai segments...`);
+          
+          const sanitized = sanitizeThaiSegments(aiResponse);
+          
+          if (sanitized.length < 5) {
+             logBoth('error', `[Language Validator] ❌ Sanitization removed almost everything.`);
+             // If validation fails completely, use fallback error message
+             aiResponse = createThaiErrorResponse(currentText);
+          } else {
+             aiResponse = sanitized;
+             logBoth('info', `[Language Validator] ✅ Sanitized response (New length: ${aiResponse.length})`);
           }
+
         } else {
           logBoth('info', `[Language Validator] ✅ Response is Thai-only (${languageCheck.confidence.toFixed(1)}% Thai)`);
           
@@ -823,12 +911,12 @@ wss.on("connection", (ws, req) => {
         // �📝 สำหรับ response ยาว (>1000 ตัวอักษร) ส่ง summary ก่อน
         if (aiResponse.length > 1000 && chunkCount > 300) {
           const summaryText = `📋 ตอบเสร็จแล้ว! (${aiResponse.length} ตัวอักษร, ใช้เวลา ${Math.floor(streamDuration/1000)}วินาที)`;
-          ws.send(JSON.stringify({ 
+          sendSafe(ws, { 
             type: "response-summary", 
             text: summaryText,
             length: aiResponse.length,
             duration: streamDuration
-          }));
+          });
         }
 
         // Add AI response to history and send back to client
@@ -850,30 +938,26 @@ wss.on("connection", (ws, req) => {
         logBoth('info', `AI response complete (responseLength: ${aiResponse.length}, totalMessages: ${sessionHistory.length})`);
 
         // Send updated history back to client with toolsUsed
-        ws.send(
-          JSON.stringify({
+        sendSafe(ws, {
             type: "history-update",
             messages: sessionHistory,
             toolsUsed: toolsUsedInThisRequest.length > 0 ? toolsUsedInThisRequest : undefined,
-          })
-        );
+          });
       } catch (ollamaError) {
         logBoth("error", `[Chat API] Ollama error: ${ollamaError}`);
         logBoth('error', `Ollama chat error: ${ollamaError instanceof Error ? ollamaError.message : String(ollamaError)} (model: ${ollamaModel}, mode: ${AI_MODE})`);
-        ws.send(
-          JSON.stringify({ error: "Failed to get response from AI model" })
-        );
+        sendSafe(ws, { error: "Failed to get response from AI model", type: "error" });
         return;
       }
     } catch (error) {
       logBoth("error", `[Chat API] Error parsing message: ${error}`);
       logBoth('error', `Message parsing error: ${error instanceof Error ? error.message : String(error)}`);
-      ws.send(JSON.stringify({ error: "Invalid message format" }));
+      sendSafe(ws, { error: "Invalid message format", type: "error" });
     }
     }).catch(queueError => {
       logBoth("error", `[Queue] Failed to process message: ${queueError}`);
       try {
-        ws.send(JSON.stringify({ error: "Server busy, please try again" }));
+        sendSafe(ws, { error: "Server busy, please try again", type: "error" });
       } catch (e) {
         // WebSocket might be closed
       }
