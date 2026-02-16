@@ -5,8 +5,12 @@ import { NwpEngine } from "./engines/nwpEngine";
 import { WeatherResult, WeatherTarget } from "./types";
 import { resolveProvinces } from "../locationResolver";
 
-// National query: show top N provinces by rain
-const NATIONAL_TOP_N = 20;
+// Nationwide query: show top N provinces by rain
+const NATIONWIDE_TOP_N_DEFAULT = 10;
+const NATIONWIDE_TOP_N_MAX = 20;
+
+// Budget: max wall-clock time for entire execute()
+const BUDGET_MS = 30_000;
 
 // Wind direction degrees → Thai cardinal
 const WIND_DIR: Record<string, string> = {
@@ -19,24 +23,74 @@ const WIND_DIR: Record<string, string> = {
 function windLabel(deg: string | number): string {
   const d = Number(deg);
   if (isNaN(d)) return String(deg);
-  // Snap to nearest 45°
   const snapped = Math.round(d / 45) * 45;
   return WIND_DIR[String(snapped % 360)] || `${d}°`;
 }
 
-/**
- * Get tomorrow's date string in DD/MM/YYYY format (Asia/Bangkok).
- */
-function tomorrowDateStr(): string {
+/** Bangkok date string in DD/MM/YYYY for a given offset (0=today, 1=tomorrow). */
+function bkkDateStr(offsetDays: number): string {
   const now = new Date();
-  // Asia/Bangkok = UTC+7
   const bkkMs = now.getTime() + (7 * 60 * 60 * 1000);
   const bkk = new Date(bkkMs);
-  bkk.setUTCDate(bkk.getUTCDate() + 1);
+  bkk.setUTCDate(bkk.getUTCDate() + offsetDays);
   const dd = String(bkk.getUTCDate()).padStart(2, "0");
   const mm = String(bkk.getUTCMonth() + 1).padStart(2, "0");
   const yyyy = bkk.getUTCFullYear();
   return `${dd}/${mm}/${yyyy}`;
+}
+
+// ─── Nationwide intent detection ───
+// Keep broad + cheap; pipeline decides national-mode (NOT resolver-only)
+const NATIONWIDE_KEYWORDS = /ในไทย|ประเทศไทย|ทั่วประเทศ|ทั้งประเทศ|ทั่วไทย|ที่ไหน/i;
+
+function clamp(n: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, n));
+}
+
+function detectNationwideParams(text: string): {
+    national: boolean;
+    wantToday: boolean;
+    wantTable: boolean;
+    topN: number;
+    sort: "percentRain_desc" | "percentRain_asc" | "tempMax_desc" | "tempMin_asc";
+} {
+    const t = text || "";
+    const national = NATIONWIDE_KEYWORDS.test(t);
+    const wantToday = /วันนี้|ตอนนี้|ขณะนี้/i.test(t);
+    const wantTable = /ตารางแสดง|ตาราง/i.test(t);
+
+    let topN = NATIONWIDE_TOP_N_DEFAULT;
+    const m = t.match(/(\d{1,2})\s*(อันดับ|จังหวัด)/);
+    if (m?.[1]) topN = Number(m[1]);
+    topN = clamp(Number.isFinite(topN) ? topN : NATIONWIDE_TOP_N_DEFAULT, 1, NATIONWIDE_TOP_N_MAX);
+
+    // Minimal sort selection (default: rain desc)
+    let sort: "percentRain_desc" | "percentRain_asc" | "tempMax_desc" | "tempMin_asc" = "percentRain_desc";
+    if (/น้อยไปมาก|ต่ำสุด|ฝนน้อย/i.test(t)) sort = "percentRain_asc";
+    if (/เรียงตาม\s*อุณหภูมิ\s*สูงสุด|ร้อนสุด/i.test(t)) sort = "tempMax_desc";
+    if (/เรียงตาม\s*อุณหภูมิ\s*ต่ำสุด|หนาวสุด/i.test(t)) sort = "tempMin_asc";
+
+    return { national, wantToday, wantTable, topN, sort };
+}
+
+function buildNationwideMarkdownTable(rows: Array<{ province: string; percentRain: number; tempMax: number | null; tempMin: number | null; windSpeed: number | null; windDir: string | null; desc: string | null; }>): string {
+    const headers = ["จังหวัด", "%ฝน", "สูงสุด", "ต่ำสุด", "ลม", "ทิศลม", "คำอธิบาย"];
+    const safe = (v: any) => (v === null || v === undefined || v === "" ? "—" : String(v).replace(/[\r\n|]/g, " "));
+
+    const rowLines = rows.map((r) => [
+        safe(r.province),
+        safe(r.percentRain),
+        r.tempMax === null ? "—" : `${r.tempMax}°C`,
+        r.tempMin === null ? "—" : `${r.tempMin}°C`,
+        r.windSpeed === null ? "—" : `${r.windSpeed}km/h`,
+        safe(r.windDir),
+        safe(r.desc),
+    ]);
+
+    const headerLine = `| ${headers.join(" | ")} |`;
+    const sepLine = `| ${headers.map(() => "---").join(" | ")} |`;
+    const body = rowLines.map((rr) => `| ${rr.join(" | ")} |`);
+    return [headerLine, sepLine, ...body].join("\n");
 }
 
 export class WeatherPipeline {
@@ -52,20 +106,24 @@ export class WeatherPipeline {
 
     public resolveTarget(userText: string): WeatherTarget {
         const provinces = resolveProvinces(userText);
-        const mode = this.detectMode(userText);
-        const national = this.isNationalQuery(userText, provinces);
+        const mode: WeatherTarget["intent"]["mode"] = this.detectMode(userText);
+        const nat = detectNationwideParams(userText);
+
+        // Mixed intent: keep province mode AND add a nationwide row block
+        if (nat.national && provinces.length > 0 && !provinces.includes("ALL_THAILAND")) {
+            provinces.push("ALL_THAILAND");
+        }
 
         return {
             provinces,
-            intent: { mode },
+            intent: { mode, national: nat.national, sort: nat.sort, topN: nat.topN },
             originalText: userText,
-            national,
         };
     }
 
     // ─── Intent Detection ───
 
-    private detectMode(text: string): "now" | "today" | "future" | "week" | "table" {
+    private detectMode(text: string): "now" | "today" | "future" | "week" | "table" | "nationwide" {
         const t = text || "";
         if (/ตารางแสดง|ตาราง|รายสถานี|สถานี|station\b/i.test(t)) return "table";
         if (/ตอนนี้|ขณะนี้|เดี๋ยวนี้|ปัจจุบัน|observation|current\b|real\s*time/i.test(t)) return "now";
@@ -74,31 +132,20 @@ export class WeatherPipeline {
         return "today";
     }
 
-    /**
-     * Detect national/Thailand-wide weather query.
-     * national=true when:
-     *   - resolvedProvinces is empty AND
-     *   - message contains national scope keywords AND
-     *   - it's a weather-intent message (already routed here)
-     */
-    private isNationalQuery(text: string, provinces: string[]): boolean {
-        if (provinces.length > 0) return false;
-
-        const t = text || "";
-        const hasNationalScope = /ในไทย|ทั่วประเทศ|ทั้งประเทศ|ที่ไหน|จังหวัดไหน|บ้าง|ทุกจังหวัด|ประเทศไทย|ทั่วไทย/i.test(t);
-        return hasNationalScope;
-    }
-
     // ─── Execution ───
 
     public async execute(target: WeatherTarget): Promise<WeatherResult[]> {
         const startedAt = Date.now();
-        const budgetMs = 30_000;
         const budgetUsedMs = () => Date.now() - startedAt;
-        const budgetRemainingMs = () => Math.max(0, budgetMs - budgetUsedMs());
+        const budgetRemainingMs = () => Math.max(0, BUDGET_MS - budgetUsedMs());
 
         const mode = target.intent.mode;
+        const nat = detectNationwideParams(target.originalText || "");
+        const isNational = Boolean(target.intent.national) || nat.national;
+
         const chain = (() => {
+            // National uses only forecast
+            if (isNational && target.provinces.length === 0) return "Forecast";
             switch (mode) {
                 case "now":
                 case "table":
@@ -113,23 +160,17 @@ export class WeatherPipeline {
             }
         })();
 
-        // ─── National query: bypass PROVINCE_MISSING, use dedicated strategy ───
-        if (target.national) {
-            console.log(`[WeatherPipeline] mode=${mode} national=true chain=Forecast`);
-            return this.executeNational(target);
-        }
+        // LOG POINT #2: Pipeline (short only)
+        console.log(`[WeatherPipeline] mode=${isNational && target.provinces.length === 0 ? "national" : mode} chain=${chain} budgetMs=${BUDGET_MS}`);
 
-        // Guard: no provinces resolved (and not national)
+        // Guard: no provinces resolved
+        // New rule: if national=true, bypass PROVINCE_MISSING gate and compute nationwide from forecast array.
         if (target.provinces.length === 0) {
-            console.log(`[WeatherPipeline] mode=${mode} chain=${chain} budgetUsedMs=${budgetUsedMs()} PROVINCE_MISSING`);
-            return [{
-                province: "",
-                type: "error",
-                error: "PROVINCE_MISSING",
-            }];
+            if (isNational) {
+                return this.executeNationwide(target);
+            }
+            return [{ province: "", type: "error", error: "PROVINCE_MISSING" }];
         }
-
-        console.log(`[WeatherPipeline] mode=${mode} chain=${chain} provinces=${target.provinces.length} budgetMs=${budgetMs}`);
 
         // Track engine availability across provinces in this execution
         let stationAvailable = true;
@@ -152,9 +193,14 @@ export class WeatherPipeline {
                     return r;
                 };
 
+                if (province === "ALL_THAILAND") {
+                    const natResults = await this.executeNationwide(target);
+                    results.push(...natResults);
+                    continue;
+                }
+
                 const tryStation = async (): Promise<WeatherResult> => {
                     if (!stationAvailable) {
-                        console.log(`[WeatherPipeline] province=${province} stationEngine=SKIPPED (failed on previous province)`);
                         return { province, type: "error", error: "STATION_SKIPPED" };
                     }
                     const r = await runWithBudget(() => this.stationEngine.getStationData(province));
@@ -187,7 +233,6 @@ export class WeatherPipeline {
                     }
                 }
             } catch (err: any) {
-                console.error(`[WeatherPipeline] province=${province} error=${err.message || "UNEXPECTED_ERROR"}`);
                 result = { province, type: "error", error: err.message || "UNEXPECTED_ERROR" };
             }
 
@@ -199,41 +244,41 @@ export class WeatherPipeline {
         }
 
         const successCount = results.filter(r => r.type !== "error").length;
-        const failCount = results.filter(r => r.type === "error").length;
 
         if (budgetExceeded && successCount === 0) {
-            console.log(`[WeatherPipeline] mode=${mode} chain=${chain} budgetUsedMs=${budgetUsedMs()} TIMEOUT`);
             return [{ province: "", type: "error", error: "TIMEOUT" }];
         }
-
-        console.log(`[WeatherPipeline] mode=${mode} chain=${chain} budgetUsedMs=${budgetUsedMs()} success=${successCount} fail=${failCount}`);
         return results;
     }
 
-    // ─── National Execution ───
+    // ─── Nationwide Execution ───
 
-    private async executeNational(target: WeatherTarget): Promise<WeatherResult[]> {
-        // Single TMD call to get all provinces
+    private async executeNationwide(target: WeatherTarget): Promise<WeatherResult[]> {
+        // Single TMD call to get all provinces (uses cache if warm)
         const allProvinces = await this.forecastEngine.getAllForecasts();
         if (allProvinces.length === 0) {
             return [{ province: "", type: "error", error: "NATIONAL_DATA_UNAVAILABLE" }];
         }
 
-        // Find tomorrow's index in ForecastDate array
-        const tomorrow = tomorrowDateStr();
+        const nat = detectNationwideParams(target.originalText || "");
 
-        // Build per-province rows for tomorrow
-        interface NationalRow {
+        // Pick target day: "พรุ่งนี้" → tomorrow, "วันนี้"/"ตอนนี้" → today, default tomorrow
+        const targetDate = bkkDateStr(nat.wantToday ? 0 : 1);
+        const dateLabel = nat.wantToday ? "วันนี้" : "พรุ่งนี้";
+
+        // Build per-province rows for target day
+        interface NationwideRow {
             province: string;
-            rain: number;
-            desc: string;
-            tempMin: string;
-            tempMax: string;
-            wind: string;
-            windSpeed: string;
+            percentRain: number;
+            tempMax: number | null;
+            tempMin: number | null;
+            windSpeed: number | null;
+            windDir: string | null;
+            desc: string | null;
+            humidity: null;
         }
 
-        const rows: NationalRow[] = [];
+        const rows: NationwideRow[] = [];
 
         for (const p of allProvinces) {
             const name = p?.ProvinceNameThai || "";
@@ -241,57 +286,76 @@ export class WeatherPipeline {
             if (!fc || !fc.ForecastDate) continue;
 
             const dates: string[] = Array.isArray(fc.ForecastDate) ? fc.ForecastDate : [];
-            let idx = dates.indexOf(tomorrow);
+            let idx = dates.indexOf(targetDate);
 
-            // Fallback: if tomorrow not found, use first entry (most future date)
+            // Fallback: if target date not found, use first entry
             if (idx < 0) idx = 0;
 
             const rain = Number(fc.PercentRainCover?.[idx]) || 0;
-            const desc = String(fc.DescriptionThai?.[idx] || "");
-            const tempMin = String(fc.MinimumTemperature?.[idx] || "—");
-            const tempMax = String(fc.MaximumTemperature?.[idx] || "—");
+            const desc = String(fc.DescriptionThai?.[idx] || "") || null;
+            const maxTempNum = fc.MaximumTemperature?.[idx] !== undefined ? Number(fc.MaximumTemperature?.[idx]) : NaN;
+            const minTempNum = fc.MinimumTemperature?.[idx] !== undefined ? Number(fc.MinimumTemperature?.[idx]) : NaN;
             const windDeg = String(fc.WindDirection?.[idx] || "");
-            const windSpd = String(fc.WindSpeed?.[idx] || "");
+            const windSpdNum = fc.WindSpeed?.[idx] !== undefined ? Number(fc.WindSpeed?.[idx]) : NaN;
 
             // Include if rain > 0 OR description mentions rain
-            if (rain > 0 || /ฝน|พายุ|rain|storm/i.test(desc)) {
+                        if (rain > 0 || (desc && /ฝน|พายุ|rain|storm/i.test(desc))) {
                 rows.push({
                     province: name,
-                    rain,
-                    desc,
-                    tempMin,
-                    tempMax,
-                    wind: windLabel(windDeg),
-                    windSpeed: windSpd,
+                                        percentRain: rain,
+                                        tempMax: Number.isFinite(maxTempNum) ? Math.round(maxTempNum) : null,
+                                        tempMin: Number.isFinite(minTempNum) ? Math.round(minTempNum) : null,
+                                        windSpeed: Number.isFinite(windSpdNum) ? Math.round(windSpdNum) : null,
+                                        windDir: windDeg ? windLabel(windDeg) : null,
+                                        desc,
+                                        humidity: null,
                 });
             }
         }
 
-        // Sort by rain% descending, take top N
-        rows.sort((a, b) => b.rain - a.rain);
-        const topRows = rows.slice(0, NATIONAL_TOP_N);
+                // Sort + slice
+                const sort = (target.intent.sort || nat.sort || "percentRain_desc");
+                rows.sort((a, b) => {
+                    switch (sort) {
+                        case "percentRain_asc":
+                            return a.percentRain - b.percentRain;
+                        case "tempMax_desc":
+                            return (b.tempMax ?? -9999) - (a.tempMax ?? -9999);
+                        case "tempMin_asc":
+                            return (a.tempMin ?? 9999) - (b.tempMin ?? 9999);
+                        case "percentRain_desc":
+                        default:
+                            return b.percentRain - a.percentRain;
+                    }
+                });
+                const topN = clamp(target.intent.topN ?? nat.topN ?? NATIONWIDE_TOP_N_DEFAULT, 1, NATIONWIDE_TOP_N_MAX);
+                const topRows = rows.slice(0, topN);
 
-        console.log(`[National] rainyCount=${rows.length} topN=${topRows.length}`);
-
-        // Build structured data for LLM/UI
-        const tableData = topRows.map(r => ({
-            จังหวัด: r.province,
-            "%ฝน": r.rain,
-            "อุณหภูมิ": `${r.tempMin}–${r.tempMax} °C`,
-            "ลม": `${r.wind} ${r.windSpeed} กม./ชม.`,
-            "ความชื้น": "—",
-            "สภาพอากาศ": r.desc,
-        }));
+                const markdownTable = (nat.wantTable || target.intent.mode === "table")
+                    ? buildNationwideMarkdownTable(topRows)
+                    : undefined;
 
         return [{
             province: "ทั่วประเทศ",
             type: "national",
             data: {
-                date: tomorrow,
-                totalRainyProvinces: rows.length,
-                topN: topRows.length,
-                table: tableData,
-                footnote: "ความชื้นไม่มีในพยากรณ์ 7 วัน TMD; ใช้ข้อมูลสถานี (ราย 3 ชม.) สำหรับความชื้นจริง",
+                date: targetDate,
+                dateLabel,
+                                totalRainyProvinces: rows.length,
+                                topN: topRows.length,
+                                sort,
+                                rows: topRows.map((r) => ({
+                                    province: r.province,
+                                    percentRain: r.percentRain,
+                                    tempMax: r.tempMax,
+                                    tempMin: r.tempMin,
+                                    windSpeed: r.windSpeed,
+                                    windDir: r.windDir,
+                                    desc: r.desc,
+                                    humidity: null,
+                                })),
+                                tableMarkdown: markdownTable,
+                                note: "TMD 7-day ไม่มี humidity (แสดงเป็น null และไม่เดา)",
             },
             sourceTool: "tmd_weather_forecast_7days_by_province",
         }];
