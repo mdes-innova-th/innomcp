@@ -5,11 +5,14 @@ import { WeatherResult } from "../types";
 // Timeout constants (configurable)
 const FORECAST_TIMEOUT_MS = 12_000;
 
-// Cache TTL: TMD forecast updates ~every 6 hours; 5 min cache is safe
-const CACHE_TTL_MS = 5 * 60 * 1000;
+// Micro-cache TTL (in-process): keep short to avoid stale data and reduce latency
+const CACHE_TTL_MS = 60 * 1000;
+
+type CacheEntry = { at: number; payload: any };
+const TOOL_CACHE: Map<string, CacheEntry> = new Map();
 
 export class ForecastEngine {
-    // In-memory cache: TMD returns all 77 provinces per call, no need to call again
+    // Per-instance cache (still useful within one pipeline execution)
     private cachedPayload: any = null;
     private cachedAt = 0;
 
@@ -23,6 +26,20 @@ export class ForecastEngine {
         return this.cachedPayload !== null && (Date.now() - this.cachedAt) < CACHE_TTL_MS;
     }
 
+    private getToolCache(toolName: string): any | null {
+        const entry = TOOL_CACHE.get(toolName);
+        if (!entry) return null;
+        if ((Date.now() - entry.at) >= CACHE_TTL_MS) {
+            TOOL_CACHE.delete(toolName);
+            return null;
+        }
+        return entry.payload;
+    }
+
+    private setToolCache(toolName: string, payload: any): void {
+        TOOL_CACHE.set(toolName, { at: Date.now(), payload });
+    }
+
     async getForecast(province: string): Promise<WeatherResult> {
         const client = this.getClient();
         if (!client) return { province, type: "error", error: "CLIENT_NOT_FOUND" };
@@ -33,13 +50,19 @@ export class ForecastEngine {
             if (this.isCacheValid()) {
                 payload = this.cachedPayload;
             } else {
-                // TMD 7-Day Forecast: returns all 77 provinces, we cache + filter
-                payload = await executeWeatherToolCall({
-                    client,
-                    toolName: "tmd_weather_forecast_7days_by_province",
-                    args: {},
-                    timeoutMs: FORECAST_TIMEOUT_MS,
-                });
+                const toolName = "tmd_weather_forecast_7days_by_province";
+                payload = this.getToolCache(toolName);
+                if (!payload) {
+                    // TMD 7-Day Forecast: returns all 77 provinces, we cache + filter
+                    payload = await executeWeatherToolCall({
+                        client,
+                        toolName,
+                        args: {},
+                        timeoutMs: FORECAST_TIMEOUT_MS,
+                        scope: "national",
+                    });
+                    this.setToolCache(toolName, payload);
+                }
                 this.cachedPayload = payload;
                 this.cachedAt = Date.now();
             }
@@ -54,11 +77,9 @@ export class ForecastEngine {
                 };
             }
 
-            console.warn(`[ForecastEngine] province="${province}" not found in TMD forecast`);
             return { province, type: "error", error: "PROVINCE_NOT_FOUND_IN_FORECAST" };
 
         } catch (error: any) {
-            console.warn(`[ForecastEngine] province=${province} error=${error.code || error.message}`);
             if (error instanceof TimeoutError || error.code === "TIMEOUT") {
                 return { province, type: "error", error: "TIMEOUT" };
             }
@@ -80,22 +101,28 @@ export class ForecastEngine {
             if (this.isCacheValid()) {
                 payload = this.cachedPayload;
             } else {
-                payload = await executeWeatherToolCall({
-                    client,
-                    toolName: "tmd_weather_forecast_7days_by_province",
-                    args: {},
-                    timeoutMs: FORECAST_TIMEOUT_MS,
-                });
+                const toolName = "tmd_weather_forecast_7days_by_province";
+                payload = this.getToolCache(toolName);
+                if (!payload) {
+                    payload = await executeWeatherToolCall({
+                        client,
+                        toolName,
+                        args: {},
+                        timeoutMs: FORECAST_TIMEOUT_MS,
+                        scope: "national",
+                    });
+                    this.setToolCache(toolName, payload);
+                }
                 this.cachedPayload = payload;
                 this.cachedAt = Date.now();
             }
 
             const raw = payload?.Provinces?.Province;
             const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+            // LOG POINT #3: ForecastEngine (short only)
             console.log(`[ForecastEngine] provinceCount=${list.length}`);
             return list;
         } catch (error: any) {
-            console.warn(`[ForecastEngine] getAllForecasts error=${error.code || error.message}`);
             return [];
         }
     }
@@ -110,7 +137,6 @@ export class ForecastEngine {
 
         const raw = payload?.Provinces?.Province;
         const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
-        console.log(`[ForecastEngine] provinceCount=${list.length}`);
 
         const found = list.find((p: any) => {
             const name = (p?.ProvinceNameThai || p?.ProvinceName || "").trim();

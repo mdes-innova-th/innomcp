@@ -23,6 +23,7 @@ export class NwpEngine {
                 toolName: "nwp_daily_by_place",
                 args: { place: province },
                 timeoutMs: NWP_TIMEOUT_MS,
+                scope: "province",
             });
 
             const data = this.extractNwp(payload, province);
@@ -48,6 +49,7 @@ export class NwpEngine {
                 toolName: "nwp_hourly_by_place",
                 args: { place: province },
                 timeoutMs: NWP_TIMEOUT_MS,
+                scope: "province",
             });
 
             const data = this.extractNwp(payload, province);

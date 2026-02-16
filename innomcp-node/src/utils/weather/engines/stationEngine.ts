@@ -28,6 +28,7 @@ export class StationEngine {
                 toolName: "tmd_weather_3hours_all_stations",
                 args: {},
                 timeoutMs: STATION_3H_TIMEOUT_MS,
+                scope: "province",
             });
 
             const { total, filtered } = this.extractStations(payload, province);
@@ -42,12 +43,9 @@ export class StationEngine {
 
             // API responded but 0 total stations → TMD has no data right now
             // Skip 07am fallback (likely also empty), let pipeline fall through faster
-            if (total === 0) {
-                apiReturnedEmpty = true;
-                console.log(`[StationEngine] province=${province} tool=tmd_weather_3hours_all_stations stationCount=0 (API empty, skip 07am)`);
-            }
+            if (total === 0) apiReturnedEmpty = true;
         } catch (error: any) {
-            console.warn(`[StationEngine] province=${province} tool=tmd_weather_3hours_all_stations error=${error.code || error.message}`);
+            // no extra logs (keep only the required StationEngine log point)
         }
 
         // Fallback: Today 07am stations (only if 3h didn't respond with empty data)
@@ -58,6 +56,7 @@ export class StationEngine {
                     toolName: "tmd_weather_today_07am_all_stations",
                     args: {},
                     timeoutMs: STATION_TODAY_TIMEOUT_MS,
+                    scope: "province",
                 });
 
                 const { filtered } = this.extractStations(payload, province);
@@ -70,7 +69,7 @@ export class StationEngine {
                     };
                 }
             } catch (error: any) {
-                console.warn(`[StationEngine] province=${province} tool=tmd_weather_today_07am_all_stations error=${error.code || error.message}`);
+                // no extra logs (keep only the required StationEngine log point)
             }
         }
 

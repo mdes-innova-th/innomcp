@@ -93,10 +93,78 @@ export interface ToolExecutionOptions {
     toolName: string;
     args: any;
     timeoutMs: number;
+    /** Cache scope hint (e.g. 'national' | 'province'). Used in cache key only. */
+    scope?: string;
+}
+
+type CacheEntry = {
+  at: number;
+  payload: any;
+};
+
+// Keep cache longer than engine-level micro-caches to absorb slow upstreams.
+const TOOL_TTL_MS: Array<{ re: RegExp; ttlMs: number }> = [
+  { re: /^tmd_weather_3hours_all_stations$/i, ttlMs: 5 * 60_000 },
+  { re: /^tmd_weather_today_07am_all_stations$/i, ttlMs: 5 * 60_000 },
+  { re: /^tmd_weather_forecast_7days_by_province$/i, ttlMs: 15 * 60_000 },
+  { re: /^nwp_/i, ttlMs: 10 * 60_000 },
+];
+
+// Allow timeout fallback to a last-known payload even if stale (bounded).
+const MAX_STALE_FALLBACK_MS = 6 * 60 * 60_000; // 6h
+
+const TOOLCALL_CACHE: Map<string, CacheEntry> = new Map();
+
+function ttlForTool(toolName: string): number {
+  for (const r of TOOL_TTL_MS) {
+    if (r.re.test(toolName)) return r.ttlMs;
+  }
+  return 60_000;
+}
+
+function stableStringify(value: any): string {
+  if (value === null || value === undefined) return String(value);
+  if (typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  const keys = Object.keys(value).sort();
+  return `{${keys.map((k) => `${JSON.stringify(k)}:${stableStringify(value[k])}`).join(",")}}`;
+}
+
+function cacheKey(toolName: string, args: any, scope?: string): string {
+  const s = scope ? String(scope) : "";
+  return `${toolName}|${s}|${stableStringify(args || {})}`;
+}
+
+function getFreshCache(key: string, ttlMs: number): CacheEntry | null {
+  const entry = TOOLCALL_CACHE.get(key);
+  if (!entry) return null;
+  if ((Date.now() - entry.at) <= ttlMs) return entry;
+  return null;
+}
+
+function getStaleCache(key: string): CacheEntry | null {
+  const entry = TOOLCALL_CACHE.get(key);
+  if (!entry) return null;
+  if ((Date.now() - entry.at) <= MAX_STALE_FALLBACK_MS) return entry;
+  return null;
+}
+
+function withCacheMeta(payload: any, meta: any): any {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return { __cache: meta, data: payload };
+  }
+  return { ...payload, __cache: meta };
 }
 
 export async function executeWeatherToolCall(opts: ToolExecutionOptions): Promise<any> {
-    const { client, toolName, args, timeoutMs } = opts;
+  const { client, toolName, args, timeoutMs, scope } = opts;
+  const ttlMs = ttlForTool(toolName);
+  const key = cacheKey(toolName, args, scope);
+
+  const cached = getFreshCache(key, ttlMs);
+  if (cached) {
+    return withCacheMeta(cached.payload, { hit: true, at: cached.at, ageMs: Date.now() - cached.at, stale: false });
+  }
 
     try {
         const result = await withTimeout(
@@ -117,12 +185,30 @@ export async function executeWeatherToolCall(opts: ToolExecutionOptions): Promis
             throw new Error(errText);
         }
 
-        return parseMcpPayload(safeResult);
+        const payload = parseMcpPayload(safeResult);
+        TOOLCALL_CACHE.set(key, { at: Date.now(), payload });
+        return payload;
 
     } catch (error: any) {
-        if (isTimeoutText(error.message)) {
-            throw new TimeoutError(error.message);
+        if (isTimeoutText(error.message) || error instanceof TimeoutError) {
+          const stale = getStaleCache(key);
+          if (stale) {
+            return withCacheMeta(stale.payload, { hit: true, at: stale.at, ageMs: Date.now() - stale.at, stale: true, reason: "timeout_fallback" });
+          }
+          throw new TimeoutError(error.message);
         }
         throw error;
     }
+}
+
+export function primeWeatherToolCallCachePayload(params: {
+  toolName: string;
+  args: any;
+  scope?: string;
+  payload: any;
+  at?: number;
+}): void {
+  const { toolName, args, scope, payload, at } = params;
+  const key = cacheKey(toolName, args, scope);
+  TOOLCALL_CACHE.set(key, { at: at ?? Date.now(), payload });
 }

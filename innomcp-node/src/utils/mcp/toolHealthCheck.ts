@@ -11,6 +11,7 @@
 
 import { IntelligentMCPClient, MCPTool } from "./mcpclient";
 import chalk from "chalk";
+import { parseMcpPayload, primeWeatherToolCallCachePayload } from "../weather/toolCall";
 
 interface ToolHealthStatus {
   name: string;
@@ -35,6 +36,9 @@ export class ToolHealthCheckSystem {
   private checkTimeout: number = 10000; // 10 seconds per check
   private enableAnimations: boolean = false; // 🔥 2026 FIX: Disable verbose progress (40 lines → 1 line)
   private silentMode: boolean = true; // 🔥 2026 FIX: Only show summary, no progress spam
+
+  // Prime weather toolCall cache after a successful health check (PATCH 4)
+  private primeWeatherCacheOnCheck: boolean = true;
 
   constructor(client: IntelligentMCPClient) {
     this.client = client;
@@ -117,11 +121,56 @@ export class ToolHealthCheckSystem {
       }
 
       this.printCheckSummary();
+
+      // PATCH 4: Health check primes weather toolCall cache (best-effort, silent)
+      if (this.primeWeatherCacheOnCheck) {
+        await this.primeWeatherCaches().catch(() => {
+          // keep silent
+        });
+      }
     } catch (error) {
       console.error(chalk.red(`\n[Health Check] Error: ${error}\n`));
     } finally {
       this.isChecking = false;
     }
+  }
+
+  private async primeWeatherCaches(): Promise<void> {
+    const mcpUrl = process.env.MCPSERVER_URL || "http://localhost:3012/mcp";
+
+    const callTool = async (toolName: string, args: any) => {
+      const body = {
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: { name: toolName, arguments: args ?? {} },
+      };
+
+      const resp = await fetch(mcpUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!resp.ok) return null;
+      const json: any = await resp.json().catch(() => null);
+      if (!json || json.error) return null;
+      return json.result;
+    };
+
+    const warm = async (toolName: string, args: any, scope: string) => {
+      const raw = await callTool(toolName, args);
+      if (!raw) return;
+      const payload = parseMcpPayload(raw);
+      primeWeatherToolCallCachePayload({ toolName, args, scope, payload });
+    };
+
+    // Warm the most expensive/common weather upstreams.
+    await warm("tmd_weather_forecast_7days_by_province", {}, "national");
+    await warm("tmd_weather_3hours_all_stations", {}, "province");
   }
 
   /**
