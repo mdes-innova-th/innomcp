@@ -30,6 +30,7 @@ import {
   MessageClassification,
 } from "./types";
 import { ToolSelectionEngine } from "./toolSelection";
+import { WeatherPipeline } from "../weather/weatherPipeline";
 
 // ========================================
 // SYSTEM PROMPT (Enhanced 2026)
@@ -168,6 +169,7 @@ class IntelligentMCPClient extends EventEmitter {
   private clients: Map<string, Client> = new Map();
   private tools: Map<string, MCPTool> = new Map();
   private resources: Map<string, MCPResource> = new Map();
+  private weatherPipeline: WeatherPipeline | null = null;
   
   // Multi-AI support
   private localOllama: Ollama | null = null;
@@ -1970,246 +1972,162 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
   // TOOL EXECUTION
   // ========================================
 
-  async executeTools(
+  private getWeatherPipeline(): WeatherPipeline {
+    if (!this.weatherPipeline) {
+        // Pass the clients map to the pipeline so engines can access them
+        this.weatherPipeline = new WeatherPipeline(this.clients);
+    }
+    return this.weatherPipeline!;
+  }
+
+   async executeTools(
     toolNames: string[],
     userMessage: string,
     preGeneratedArgsMap?: Record<string, any>
   ): Promise<any[]> {
     const results: any[] = [];
+      let weatherHandled = false; // Only run pipeline once per executeTools call
 
-    // 📍 PRE-EXTRACT LOCATION from user message
-    const locationMap: { [key: string]: { province: string; lat: number; lon: number } } = {
-      'โคราช': { province: 'นครราชสีมา', lat: 14.9799, lon: 102.0977 },
-      'นครราชสีมา': { province: 'นครราชสีมา', lat: 14.9799, lon: 102.0977 },
-      'กทม': { province: 'กรุงเทพมหานคร', lat: 13.7563, lon: 100.5018 },
-      'กรุงเทพ': { province: 'กรุงเทพมหานคร', lat: 13.7563, lon: 100.5018 },
-      'bangkok': { province: 'กรุงเทพมหานคร', lat: 13.7563, lon: 100.5018 },
-      'เชียงใหม่': { province: 'เชียงใหม่', lat: 18.7883, lon: 98.9853 },
-      'ภูเก็ต': { province: 'ภูเก็ต', lat: 7.8804, lon: 98.3923 },
-      'ขอนแก่น': { province: 'ขอนแก่น', lat: 16.4322, lon: 102.8236 },
-      'พัทยา': { province: 'ชลบุรี', lat: 12.9236, lon: 100.8825 }
-    };
+      const isWeatherToolName = (name: string) =>
+        name.includes("weather") || name.includes("tmd") || name.includes("nwp");
 
-    let detectedLocation: { province: string; lat: number; lon: number } | null = null;
-    const msgLower = userMessage.toLowerCase();
-    for (const [alias, data] of Object.entries(locationMap)) {
-      if (msgLower.includes(alias.toLowerCase())) {
-        detectedLocation = data;
-        break;
-      }
-    }
-
-    for (const toolName of toolNames) {
-      let retries = 2;
-      let lastError: any = null;
-
-      while (retries > 0) {
+      // Pre-scan: if any weather intent toolname exists, run the pipeline exactly once
+      const hasAnyWeatherTool = toolNames.some((n) => isWeatherToolName(n));
+      if (hasAnyWeatherTool && !weatherHandled) {
+        weatherHandled = true;
         try {
-          const [clientName, actualToolName] = toolName.split(":");
-          const client = this.clients.get(clientName);
-          const tool = this.tools.get(toolName);
-          const resource = this.resources.get(toolName);
+          const pipeline = this.getWeatherPipeline();
+          const target = pipeline.resolveTarget(userMessage);
 
-          if (!client) {
-            break;
-          }
+          // PROVINCE_MISSING gate MUST live in weatherPipeline (no MCP call).
+          const weatherResults = await pipeline.execute(target);
+          const success = weatherResults.some((r: any) => r && r.type !== "error");
 
-          // 🔧 FORCE CORRECT ARGUMENTS based on tool type and detected location
-          let args: any;
-          
-          if (detectedLocation) {
-            if (toolName.includes('by_province')) {
-              // ✅ Province-based tools: force province name
-              args = { province: detectedLocation.province };
-              console.log(`[MCP Client] 🎯 Forced province argument: ${detectedLocation.province}`);
-            } else if (toolName.includes('by_location')) {
-              // ✅ Location-based tools: force lat/lon
-              args = { lat: detectedLocation.lat, lon: detectedLocation.lon };
-              console.log(`[MCP Client] 🎯 Forced location argument: [${detectedLocation.lat}, ${detectedLocation.lon}]`);
-            } else if (toolName.includes('by_place')) {
-              // ✅ Place-based tools (NWP): force province name
-              // NWP tools use "province" parameter, not "place"
-              args = { province: detectedLocation.province };
-              console.log(`[MCP Client] 🎯 Forced place/province argument: ${detectedLocation.province}`);
-            } else {
-              // Use pre-generated or generate new
-              const preGeneratedArgs = preGeneratedArgsMap?.[toolName];
-              if (preGeneratedArgs !== undefined && preGeneratedArgs !== null) {
-                args = preGeneratedArgs;
-              } else if (resource) {
-                args = await this.generateToolArguments(
-                  {
-                    name: resource.name,
-                    description: resource.description,
-                    inputSchema: resource.inputSchema,
-                    category: "resource",
-                    keywords: [],
-                    examples: [],
-                  } as MCPTool,
-                  userMessage
-                );
-              } else {
-                args = await this.generateToolArguments(tool!, userMessage);
-              }
-            }
-          } else {
-            // No location detected, use existing logic
-            const preGeneratedArgs = preGeneratedArgsMap?.[toolName];
-            if (preGeneratedArgs !== undefined && preGeneratedArgs !== null) {
-              args = preGeneratedArgs;
-            } else if (resource) {
-              args = await this.generateToolArguments(
-                {
-                  name: resource.name,
-                  description: resource.description,
-                  inputSchema: resource.inputSchema,
-                  category: "resource",
-                  keywords: [],
-                  examples: [],
-                } as MCPTool,
-                userMessage
-              );
-            } else {
-              args = await this.generateToolArguments(tool!, userMessage);
-            }
-          }
-
-          if (!args || typeof args !== "object") {
-            args = {};
-          }
-
-          // Prefill Thai location hints for NWP place tool to avoid empty args
-          if (toolName === "innomcp-server:nwp_hourly_by_place") {
-            const locationHints = this.extractThaiLocationHints(userMessage);
-            if (locationHints && Object.keys(locationHints).length > 0) {
-              Object.entries(locationHints).forEach(([key, value]) => {
-                if (value && (!args[key] || String(args[key]).trim() === "")) {
-                  args[key] = value;
-                }
-              });
-            }
-          }
-
-          const schema = tool ? tool.inputSchema : resource?.inputSchema;
-          
-          // 🔥 FIX (Round 16): Convert string numbers to numbers BEFORE validation
-          // CRITICAL: Must happen BEFORE validateArguments() to prevent validation failure
-          if (schema?.properties) {
-            for (const [key, propSchema] of Object.entries(schema.properties)) {
-              const prop = propSchema as any;
-              // Convert string numbers to actual numbers for number-type fields
-              if (prop.type === 'number' && key in args) {
-                if (typeof args[key] === 'string' && args[key] !== '') {
-                  const num = parseFloat(args[key]);
-                  if (!isNaN(num)) {
-                    args[key] = num;
-                  }
-                }
-              }
-            }
-          }
-
-          // Now validate with converted types
-          if (schema) {
-            const validation = this.validateArguments(args, schema);
-            if (!validation.valid) {
-              // 🔥 CRITICAL FIX: Do NOT reset fields that already have valid values
-              // Only set defaults for TRULY MISSING or null/undefined/empty string fields
-              for (const key of schema.required || []) {
-                const currentValue = args[key];
-                // 🔥 FIX: Empty string "" should be treated as missing (AI sent incomplete JSON)
-                const isMissing = !(key in args) || 
-                                 currentValue === undefined || 
-                                 currentValue === null || 
-                                 (typeof currentValue === 'string' && currentValue.trim() === '');
-                
-                if (isMissing) {
-                  const defaultValue = schema.properties?.[key]?.default ?? "";
-                  args[key] = defaultValue;
-                }
-              }
-            }
-          }
-
-          let result: any;
-
-          if (resource) {
-            result = await client.callTool({
-              name: resource.name,
-              arguments: args,
-            });
-          } else {
-            result = await client.callTool({
-              name: actualToolName,
-              arguments: args,
-            });
-          }
-
-          if (result.isError) {
-            const errText =
-              result.content && result.content.length > 0
-                ? result.content[0].text
-                : "Tool execution error";
-
-            console.error(`[MCP Client] Tool ${toolName} failed with error:`, errText);
-
-            results.push({
-              toolName,
-              error: errText,
-              success: false,
-            });
-          } else {
-            let payload: any = result.content;
-
-            try {
-              if (Array.isArray(result.content) && result.content.length > 0) {
-                const first = result.content[0] as any;
-                if (first && typeof first.text === "string") {
-                  const extracted = this.extractJsonFromText(first.text);
-                  if (extracted) {
-                    payload = JSON.parse(extracted);
-                  }
-                }
-              }
-            } catch (e) {
-              // use original payload
-            }
-
-            results.push({
-              toolName,
-              result: payload,
-              structuredContent: result.structuredContent,
-              success: true,
-            });
-            
-          }
-
-          break;
-        } catch (error) {
-          lastError = error;
-          retries--;
-
-          console.error(`[MCP Client] Exception executing ${toolName}:`, error);
-
-          if (retries > 0) {
-            console.warn(`[MCP Client] Retry ${toolName}, ${retries} left`);
-            await new Promise((resolve) => setTimeout(resolve, 1000));
-          }
+          results.push({
+            toolName: "weatherPipeline",
+            success,
+            isError: !success,
+            error: success ? undefined : (weatherResults[0]?.error || "WEATHER_PIPELINE_ERROR"),
+            structuredContent: weatherResults,
+            content: [{
+              type: "text",
+              text: JSON.stringify(weatherResults),
+            }],
+          });
+        } catch (err: any) {
+          console.error(`[WeatherPipeline] Critical Failure: ${err.message}`);
+          const structured = { error: "WEATHER_PIPELINE_ERROR", message: err.message };
+          results.push({
+            toolName: "weatherPipeline",
+            success: false,
+            isError: true,
+            error: "WEATHER_PIPELINE_ERROR",
+            structuredContent: structured,
+            content: [{ type: "text", text: JSON.stringify(structured) }],
+          });
         }
       }
 
-      if (retries === 0 && lastError) {
-        console.error(`[MCP Client] Error executing ${toolName}:`, lastError);
-        results.push({
-          toolName,
-          error:
-            lastError instanceof Error ? lastError.message : String(lastError),
-          success: false,
-        });
-      }
+    for (const toolName of toolNames) {
+        // 🌤️ Weather Architecture (Phase 6.5)
+        // Weather tools are handled only by the pipeline once; skip all of them here.
+        if (isWeatherToolName(toolName) && weatherHandled) {
+          continue;
+        }
+
+      // Normal execution for other tools
+      const singleResult = await this.executeSingleTool(
+        toolName,
+        userMessage,
+        undefined,
+        preGeneratedArgsMap
+      );
+      results.push(singleResult);
     }
 
     return results;
+  }
+
+
+
+  private async executeSingleTool(
+    toolName: string,
+    userMessage: string,
+    forcedArgs?: any,
+    preGeneratedArgsMap?: Record<string, any>
+  ): Promise<any> {
+    // Standard execution for non-weather tools
+    // (Retry logic removed/minimized as per general cleanup)
+    
+    try {
+        const [clientName, actualToolName] = toolName.split(":");
+        const client = this.clients.get(clientName);
+        const tool = this.tools.get(toolName);
+        const resource = this.resources.get(toolName);
+
+        if (!client) {
+          return { toolName, error: `Client ${clientName} not found`, success: false };
+        }
+
+        let finalArgs: any;
+        const preGeneratedArgs = preGeneratedArgsMap?.[toolName];
+             if (preGeneratedArgs) {
+                finalArgs = preGeneratedArgs;
+             } else if (resource) {
+                finalArgs = await this.generateToolArguments(
+                    { ...resource, category: "resource" } as any,
+                    userMessage
+                );
+             } else {
+                finalArgs = await this.generateToolArguments(tool!, userMessage);
+             }
+
+        const callArgs = JSON.parse(JSON.stringify(finalArgs || {}));
+        delete callArgs.signal;
+        delete callArgs.requestId;
+        delete callArgs.requestInfo;
+
+        console.log(`[MCP Client] 🚀 Calling ${actualToolName} with args:`, JSON.stringify(callArgs));
+
+        let result: any;
+        if (resource) {
+           result = await client.callTool({
+             name: resource.name,
+             arguments: callArgs,
+           });
+        } else {
+           result = await client.callTool({
+             name: actualToolName,
+             arguments: callArgs,
+           });
+        }
+
+        if (result.isError) {
+             const errText = result.content?.[0]?.text || "Tool execution error";
+             console.error(`[MCP Client] Tool ${toolName} failed:`, errText);
+             return { toolName, error: errText, success: false };
+        } 
+        
+        let payload: any = result.content;
+        try {
+           if (Array.isArray(result.content) && result.content[0]?.text) {
+              payload = JSON.parse(result.content[0].text);
+           }
+        } catch (e) { /* use original */ }
+
+        // Normal return
+        return {
+           toolName,
+           result: payload,
+           structuredContent: result.structuredContent || payload,
+           success: true,
+        };
+
+    } catch (error) {
+         console.error(`[MCP Client] Exception executing ${toolName}:`, error);
+         const errMsg = error instanceof Error ? error.message : String(error);
+         return { toolName, error: errMsg, success: false };
+    }
   }
 
   private async generateToolArguments(
@@ -2694,7 +2612,7 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
         let parsed: any = null;
         
         if (result.structuredContent && typeof result.structuredContent === 'object') {
-          console.log(`[Enhanced Context] ✅ Using structuredContent directly (avoids truncation)`);
+          console.log(`[Enhanced Context] ✅ Using structuredContent directly`);
           parsed = result.structuredContent;
         } else {
           // FALLBACK: Extract text and try to parse
@@ -2702,43 +2620,48 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
           if (typeof result.result === "string") {
             resultStr = result.result;
           } else if (Array.isArray(result.result) && result.result[0]?.type === 'text') {
-            // MCP returns [{ type: 'text', text: '...' }]
             resultStr = result.result[0].text || JSON.stringify(result.result, null, 2);
           } else {
             resultStr = JSON.stringify(result.result, null, 2);
           }
           
-          // Try to parse JSON from text
           try {
             const firstBrace = resultStr.indexOf('{');
             const lastBrace = resultStr.lastIndexOf('}');
             if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
               const jsonStr = resultStr.substring(firstBrace, lastBrace + 1);
               parsed = JSON.parse(jsonStr);
-              console.log(`[Enhanced Context] ✅ Parsed JSON from text (${jsonStr.length} chars)`);
             }
           } catch (e) {
-            console.log(`[Enhanced Context] ⚠️ Could not parse JSON from text, using raw text`);
+            console.log(`[Enhanced Context] ⚠️ Could not parse JSON from text`);
           }
         }
+
+        // 🛡️ SYSTEM GUARD CHECK (Weather Hardening)
+        let systemGuardMsg = "";
+        if (parsed && parsed._system_guard) {
+             systemGuardMsg = `🛡️ ${parsed._system_guard}\n\n`;
+             // Unwrap data if present
+             if (parsed.data) {
+                 parsed = parsed.data;
+             } else {
+                 delete parsed._system_guard;
+             }
+        }
         
-        // 🔍 FILTER PROVINCE DATA if requested
+        // 🔍 FILTER PROVINCE DATA if requested (Double check)
+        // Note: The gate already filtered it, but this logic remains as backup/visual confirmation
         if (requestedProvince && parsed && parsed.Provinces?.Province && Array.isArray(parsed.Provinces.Province)) {
-          console.log(`[Enhanced Context] 🎯 Attempting to filter for province: ${requestedProvince}`);
-          console.log(`[Enhanced Context] 📊 Found ${parsed.Provinces.Province.length} provinces in data`);
-          
-          // Filter to only requested province
-          const filtered = parsed.Provinces.Province.filter((p: any) => 
-            p.ProvinceNameThai === requestedProvince
-          );
-          
-          if (filtered.length > 0) {
-            console.log(`[Enhanced Context] ✅ Found ${filtered.length} matching province(s)`);
-            parsed.Provinces.Province = filtered;
-            console.log(`[Enhanced Context] 🔍 Filtered to province: ${requestedProvince}`);
-          } else {
-            console.log(`[Enhanced Context] ⚠️ No matching province found for: ${requestedProvince}`);
-          }
+             // ... existing filter logic (will likely be redundant if gate works, but harmless) ...
+             const filtered = parsed.Provinces.Province.filter((p: any) => 
+                p.ProvinceNameThai === requestedProvince
+             );
+             if (filtered.length > 0) parsed.Provinces.Province = filtered;
+        }
+
+        // Add System Guard to context
+        if (systemGuardMsg) {
+            context += systemGuardMsg;
         }
         
         // Convert to string for context
@@ -2859,52 +2782,52 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
   }
 
   // ✅ 2025 OPTIMIZATION: Only enable essential tools for speed & accuracy
-  private readonly ALLOWED_TOOLS = [
-    'dateTimeTool',
-    'calculatorTool', 
-    'MathTool',
-    'archive',
-    'tmd_seismic_daily_events',
-    'tmd_thailand_climate_normal_1981_2010',
-    'tmd_thailand_monthly_rainfall',
-    'tmd_rain_regions',
-    'tmd_station_list',
-    'tmd_daily_forecast_4_times',
-    'tmd_weather_today_07am_all_stations',
-    'tmd_weather_3hours_all_stations',   
-    'tmd_weather_forecast_7days_by_province',
-    'tmd_weather_warning_news',
-    'tmd_weather_forecast_7days_by_region',
-    'tmd_weather_3hours_by_hydro',       
-    'tmd_weather_3hours_by_agro',        
-    'tmd_weather_3hours_by_synop',       
-    'tmd_weather_today_by_hydro_07am',   
-    'tmd_weather_today_by_agro_07am',    
-    'tmd_weather_today_by_synop_07am',
-    'nasa',
-    'weather',
-    'worldbank',
-    'govdata',
-    'newton',
-    'echartsTool',
-    // NEW: 2026-01-05 World-Class Tools
-    'currencyExchangeTool',
-    'qrCodeTool',
-    'translationTool',
-    'rssFeedTool',
-    'codeFormatterTool',
-    // NEW: 2026-01-05 Phase 2 - Essential Free Tools
-    'ocrTool',
-    'fileReaderTool',
-    'imageGeneratorTool',
-    // NEW: 2026-01-06 NWP Weather Forecast (High Performance Computing)
-    'nwp_hourly_by_location',
-    'nwp_hourly_by_place',
-    'nwp_hourly_by_region',
-    'nwp_daily_by_location',
-    'nwp_daily_by_place',
-    'nwp_daily_by_region'
-  ];
+  // private readonly ALLOWED_TOOLS = [
+  //   'dateTimeTool',
+  //   'calculatorTool', 
+  //   'MathTool',
+  //   'archive',
+  //   'tmd_seismic_daily_events',
+  //   'tmd_thailand_climate_normal_1981_2010',
+  //   'tmd_thailand_monthly_rainfall',
+  //   'tmd_rain_regions',
+  //   'tmd_station_list',
+  //   'tmd_daily_forecast_4_times',
+  //   'tmd_weather_today_07am_all_stations',
+  //   'tmd_weather_3hours_all_stations',   
+  //   'tmd_weather_forecast_7days_by_province',
+  //   'tmd_weather_warning_news',
+  //   'tmd_weather_forecast_7days_by_region',
+  //   'tmd_weather_3hours_by_hydro',       
+  //   'tmd_weather_3hours_by_agro',        
+  //   'tmd_weather_3hours_by_synop',       
+  //   'tmd_weather_today_by_hydro_07am',   
+  //   'tmd_weather_today_by_agro_07am',    
+  //   'tmd_weather_today_by_synop_07am',
+  //   'nasa',
+  //   'weather',
+  //   'worldbank',
+  //   'govdata',
+  //   'newton',
+  //   'echartsTool',
+  //   // NEW: 2026-01-05 World-Class Tools
+  //   'currencyExchangeTool',
+  //   'qrCodeTool',
+  //   'translationTool',
+  //   'rssFeedTool',
+  //   'codeFormatterTool',
+  //   // NEW: 2026-01-05 Phase 2 - Essential Free Tools
+  //   'ocrTool',
+  //   'fileReaderTool',
+  //   'imageGeneratorTool',
+  //   // NEW: 2026-01-06 NWP Weather Forecast (High Performance Computing)
+  //   'nwp_hourly_by_location',
+  //   'nwp_hourly_by_place',
+  //   'nwp_hourly_by_region',
+  //   'nwp_daily_by_location',
+  //   'nwp_daily_by_place',
+  //   'nwp_daily_by_region'
+  // ];
 
   // Cache available tools to avoid repeated filtering
   private cachedAvailableTools: MCPTool[] | null = null;
@@ -3423,67 +3346,88 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
   }
 
   async selectTools(userMessage: string, semanticHint?: string): Promise<string[]> {
-    // ===== TODO 2 FIX: Early exit for greetings =====
-    if (this.isGreetingQuery(userMessage)) {
-      return [];
+    // 0) Normalize
+    const q = (userMessage ?? "").trim();
+    const qLower = q.toLowerCase();
+
+    // 1) Early exit: greetings / chit-chat
+    if (this.isGreetingQuery(q)) return [];
+
+    // 2) Hard overrides (must-win rules)
+    const is7DayQuery =
+      /(\b7\b\s*วัน|เจ็ด\s*วัน|สัปดาห์นี้|สัปดาห์หน้า|7day|7-day|weekly)/i.test(q);
+
+    const isWeatherQuery =
+      /(อากาศ|ฝน|อุณหภูมิ|พยากรณ์|สภาพอากาศ|weather|temperature|forecast|rain|storm|wind)/i.test(q);
+
+    // PDPA / "ที่เราเคยเก็บไว้" = recall / memory intent
+    const isRecallQuery =
+      /(เคยเก็บไว้|ที่เราเคย|สรุป.*(ที่|จาก).*เก็บ|สรุป\s*pdpa|pdpa\s*ที่|memory|rag)/i.test(q);
+
+    // Earthquake
+    const isEarthquakeQuery = /(แผ่นดินไหว|earthquake|seismic|ริกเตอร์|richter)/i.test(q);
+
+    // ✅ RULE A: 7-day weather MUST use TMD 7 days tool (prevents 3-hours tool misuse)
+    if (is7DayQuery && isWeatherQuery) {
+      return ["innomcp-server:tmd_weather_forecast_7days_by_province"];
     }
 
-    // 🧠 Semantic Router Integration: Use semantic category to boost relevant tools (hybrid mode)
-    if (semanticHint && semanticHint !== 'general') {
+    // ✅ RULE B: Recall/Memo MUST NOT go to rssFeedTool
+    // Prefer workspace/file reader tools you already have
+    if (isRecallQuery) {
+      // if you have a memory tool later, swap this to innomcp-server:memory_search (or whatever actual name is)
+      // For now: fileReaderTool is the safest deterministic tool.
+      return ["innomcp-server:fileReaderTool"];
+    }
+
+    // 3) Cache policy (bypass cache for volatile categories)
+    const shouldBypassCache = isWeatherQuery || isEarthquakeQuery || isRecallQuery;
+
+    if (!shouldBypassCache) {
+      const cached = this.getCachedSelection(q);
+      if (cached) return cached;
+    }
+
+    // 4) Optional semantic hint log (no behavior change here)
+    if (semanticHint && semanticHint !== "general") {
       logger.info(`[selectTools] 🧠 Using semantic hint: "${semanticHint}" for tool selection`);
     }
 
-    // 🔥 BYPASS CACHE for complex queries to prevent wrong tool selection
-    const isWeatherQuery = /(?:อากาศ|ฝน|อุณหภูมิ|ครึ้ม|มืด|เมฆ|แดด|ร้อน|หนาว|เย็น|ลม|พายุ|ฟ้า|ตก|พยากรณ์|weather|temperature|forecast|rain|cloud|storm|wind)/i.test(userMessage);
-    const isEarthquakeQuery = /(?:แผ่นดินไหว|earthquake|seismic|ริกเตอร์|richter)/i.test(userMessage);
-    const shouldBypassCache = isWeatherQuery || isEarthquakeQuery;
-    
-    if (!shouldBypassCache) {
-      const cached = this.getCachedSelection(userMessage);
-      if (cached) {
-        return cached;
-      }
-    } else if (isWeatherQuery) {
-      // Weather bypass
-    } else if (isEarthquakeQuery) {
-      // Earthquake bypass
-    }
-
-    // ===== DEBUG: Check available tools =====
+    // 5) Sanity: available tools
     const availableTools = this.getAvailableTools();
-    
     if (availableTools.length === 0) {
-      console.error(`[MCP Client] ❌ CRITICAL ERROR: No available tools! Aborting selection.`);
+      logger.error(`[MCP Client] ❌ No available tools. Aborting selection.`);
       return [];
     }
 
+    // 6) Normal selection pipeline (fast → slower)
     let candidates: string[] = [];
 
-    // Direct keyword check (fast path for common queries)
-    candidates = this.directKeywordCheck(userMessage);
+    candidates = this.directKeywordCheck(q);
 
-    // Pattern matching
     if (candidates.length === 0) {
-      candidates = await this.tryPatternMatching(userMessage);
+      candidates = await this.tryPatternMatching(q);
     }
 
-    // Keyword matching
     if (candidates.length === 0) {
-      candidates = await this.tryKeywordMatching(userMessage);
+      candidates = await this.tryKeywordMatching(q);
     }
 
-    // AI selection
     if (candidates.length === 0) {
-      candidates = await this.tryAISelection(userMessage);
+      candidates = await this.tryAISelection(q);
     }
 
-    const finalSelection = candidates.slice(0, 3); // Allow up to 3 tools for chaining
+    // 7) Finalize: allow top-3 for chaining/parallel, BUT still stable
+    const finalSelection = candidates.slice(0, 3);
 
-    this.cacheSelection(userMessage, finalSelection);
-    this.addToHistory(userMessage, finalSelection);
+    if (!shouldBypassCache) {
+      this.cacheSelection(q, finalSelection);
+    }
+    this.addToHistory(q, finalSelection);
 
     return finalSelection;
   }
+
 
   /**
    * Direct keyword matching against category keywords
