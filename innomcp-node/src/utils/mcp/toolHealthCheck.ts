@@ -13,6 +13,28 @@ import { IntelligentMCPClient, MCPTool } from "./mcpclient";
 import chalk from "chalk";
 import { parseMcpPayload, primeWeatherToolCallCachePayload } from "../weather/toolCall";
 
+type ToolCostTier = "light" | "heavy";
+
+function getToolCostTier(toolName: string): ToolCostTier {
+  const name = String(toolName || "");
+  if (
+    name === "weatherPipeline" ||
+    name.startsWith("tmd_") ||
+    name.startsWith("nwp_") ||
+    name.includes("tmdWeather") ||
+    name.includes("nwp")
+  ) {
+    return "heavy";
+  }
+  return "light";
+}
+
+interface HealthCheckOptions {
+  tiers?: ToolCostTier[];
+  reason?: "interval" | "manual" | "heavy-interval";
+  includeHeavyPriming?: boolean;
+}
+
 interface ToolHealthStatus {
   name: string;
   healthy: boolean;
@@ -28,17 +50,19 @@ export class ToolHealthCheckSystem {
   private client: IntelligentMCPClient;
   private healthStatus: Map<string, ToolHealthStatus> = new Map();
   private checkInterval: NodeJS.Timeout | null = null;
+  private heavyCheckInterval: NodeJS.Timeout | null = null;
   private isChecking: boolean = false;
   
   // Configuration
   private checkIntervalMs: number = 300000; // 5 minutes (not aggressive)
+  private heavyCheckIntervalMs: number | null = null; // disabled by default
   private maxConcurrentChecks: number = 5; // Limit concurrent checks
   private checkTimeout: number = 10000; // 10 seconds per check
   private enableAnimations: boolean = false; // 🔥 2026 FIX: Disable verbose progress (40 lines → 1 line)
   private silentMode: boolean = true; // 🔥 2026 FIX: Only show summary, no progress spam
 
-  // Prime weather toolCall cache after a successful health check (PATCH 4)
-  private primeWeatherCacheOnCheck: boolean = true;
+  // Prime heavy weather toolCall caches only when explicitly allowed
+  private primeWeatherCacheOnCheck: boolean = false;
 
   constructor(client: IntelligentMCPClient) {
     this.client = client;
@@ -52,24 +76,40 @@ export class ToolHealthCheckSystem {
       this.checkIntervalMs = intervalMs;
     }
 
+    const envHeavyInterval = process.env.HEALTHCHECK_HEAVY_INTERVAL_MS;
+    if (envHeavyInterval) {
+      const parsed = Number(envHeavyInterval);
+      if (Number.isFinite(parsed) && parsed > 0) this.heavyCheckIntervalMs = parsed;
+    }
+
+    console.log(chalk.cyan(`\n[HealthCheck] 🏥 Tool Health Check System Started`));
     console.log(
-      chalk.cyan(`\n🏥 Tool Health Check System Started`)
+      chalk.gray(`[HealthCheck]   Light interval: ${this.checkIntervalMs / 1000}s`)
     );
     console.log(
-      chalk.gray(`   Check interval: ${this.checkIntervalMs / 1000}s`)
+      chalk.gray(
+        `[HealthCheck]   Heavy interval: ${this.heavyCheckIntervalMs ? `${this.heavyCheckIntervalMs / 1000}s` : "disabled"}`
+      )
     );
     console.log(
-      chalk.gray(`   Max concurrent: ${this.maxConcurrentChecks}`)
+      chalk.gray(`[HealthCheck]   Max concurrent: ${this.maxConcurrentChecks}`)
     );
-    console.log(chalk.gray(`   Timeout: ${this.checkTimeout / 1000}s\n`));
+    console.log(chalk.gray(`[HealthCheck]   Timeout: ${this.checkTimeout / 1000}s\n`));
 
     // Initial check after 10 seconds
-    setTimeout(() => this.performHealthCheck(), 10000);
+    setTimeout(() => this.performHealthCheck({ tiers: ["light"], reason: "interval", includeHeavyPriming: false }), 10000);
 
     // Periodic checks
     this.checkInterval = setInterval(() => {
-      this.performHealthCheck();
+      this.performHealthCheck({ tiers: ["light"], reason: "interval", includeHeavyPriming: false });
     }, this.checkIntervalMs);
+
+    // Optional heavy checks (disabled by default unless HEALTHCHECK_HEAVY_INTERVAL_MS is set)
+    if (this.heavyCheckIntervalMs && this.heavyCheckIntervalMs > 0) {
+      this.heavyCheckInterval = setInterval(() => {
+        this.performHealthCheck({ tiers: ["heavy"], reason: "heavy-interval", includeHeavyPriming: true });
+      }, this.heavyCheckIntervalMs);
+    }
   }
 
   /**
@@ -79,26 +119,31 @@ export class ToolHealthCheckSystem {
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
       this.checkInterval = null;
-      console.log(chalk.yellow("\n⏸️  Tool health checks stopped\n"));
+      console.log(chalk.yellow("\n[HealthCheck] ⏸️  Tool health checks stopped\n"));
+    }
+    if (this.heavyCheckInterval) {
+      clearInterval(this.heavyCheckInterval);
+      this.heavyCheckInterval = null;
     }
   }
 
   /**
    * Perform health check on all tools
    */
-  public async performHealthCheck(): Promise<void> {
+  public async performHealthCheck(options: HealthCheckOptions = {}): Promise<void> {
     if (this.isChecking) {
-      console.log(chalk.gray("[Health Check] Check already in progress, skipping..."));
+      console.log(chalk.gray("[HealthCheck] Check already in progress, skipping..."));
       return;
     }
 
     this.isChecking = true;
 
     try {
-      const tools = this.client.getAvailableTools();
+      const tiers = options.tiers && options.tiers.length > 0 ? options.tiers : (["light"] as ToolCostTier[]);
+      const tools = this.client.getAvailableTools().filter((t) => tiers.includes(getToolCostTier(t.name)));
       
       if (tools.length === 0) {
-        console.log(chalk.red("\n❌ No tools available to check\n"));
+        console.log(chalk.red("\n[HealthCheck] ❌ No tools available to check\n"));
         return;
       }
 
@@ -122,14 +167,15 @@ export class ToolHealthCheckSystem {
 
       this.printCheckSummary();
 
-      // PATCH 4: Health check primes weather toolCall cache (best-effort, silent)
-      if (this.primeWeatherCacheOnCheck) {
-        await this.primeWeatherCaches().catch(() => {
-          // keep silent
+      // Prime heavy weather caches only when explicitly allowed (manual/heavy-interval)
+      const shouldPrime = Boolean(options.includeHeavyPriming) || this.primeWeatherCacheOnCheck;
+      if (shouldPrime) {
+        await this.primeWeatherCaches().catch((e) => {
+          console.log(chalk.gray(`[HealthCheck] primeWeatherCaches skipped: ${String(e)}`));
         });
       }
     } catch (error) {
-      console.error(chalk.red(`\n[Health Check] Error: ${error}\n`));
+      console.error(chalk.red(`\n[HealthCheck] Error: ${error}\n`));
     } finally {
       this.isChecking = false;
     }
@@ -146,6 +192,9 @@ export class ToolHealthCheckSystem {
         params: { name: toolName, arguments: args ?? {} },
       };
 
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), this.checkTimeout);
+
       const resp = await fetch(mcpUrl, {
         method: "POST",
         headers: {
@@ -153,7 +202,8 @@ export class ToolHealthCheckSystem {
           Accept: "application/json, text/event-stream",
         },
         body: JSON.stringify(body),
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timer));
 
       if (!resp.ok) return null;
       const json: any = await resp.json().catch(() => null);
@@ -168,7 +218,7 @@ export class ToolHealthCheckSystem {
       primeWeatherToolCallCachePayload({ toolName, args, scope, payload });
     };
 
-    // Warm the most expensive/common weather upstreams.
+    // Warm the most expensive/common weather upstreams (heavy) - only when explicitly allowed.
     await warm("tmd_weather_forecast_7days_by_province", {}, "national");
     await warm("tmd_weather_3hours_all_stations", {}, "province");
   }
@@ -435,7 +485,7 @@ export class ToolHealthCheckSystem {
    * Manual trigger for health check
    */
   public async triggerManualCheck(): Promise<void> {
-    console.log(chalk.cyan("\n🔍 Manual health check triggered...\n"));
-    await this.performHealthCheck();
+    console.log(chalk.cyan("\n[HealthCheck] 🔍 Manual health check triggered...\n"));
+    await this.performHealthCheck({ tiers: ["light", "heavy"], reason: "manual", includeHeavyPriming: true });
   }
 }
