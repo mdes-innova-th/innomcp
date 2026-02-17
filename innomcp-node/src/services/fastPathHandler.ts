@@ -2,6 +2,8 @@
 import fs from "fs";
 import path from "path";
 import { performance } from "perf_hooks";
+import { evaluate } from "mathjs";
+// const evaluate = (expr: string) => { try { return Function('"use strict";return (' + expr + ')')(); } catch(e) { return null; } };
 import { logger } from "../utils/logger";
 import { maybeFastPath, getFastPathDictInfo } from "../utils/fastPathGreeting";
 import { analyzeIntent } from "../fastpath/intentGate";
@@ -229,6 +231,87 @@ export async function handleFastPathMessage(
     extra = await getExtraPhrases(opts);
   }
 
+  // --- 🚀 REAL FAST PATH (Math & History) ---
+  const q = safeText.trim();
+  
+  // 1. Math (Strict Regex)
+  // Only allow numbers, operators, parentheses, and math functions common in mathjs
+  // (sin|cos|tan|sqrt|log|exp|pow|abs|pi|e)
+  if (/^[\d+\-*/().\s%^]+$|^(sin|cos|tan|sqrt|log|exp|pow|abs|pi|e)[\d\W]+$/i.test(q)) {
+      try {
+          // Dynamic import to avoid load time if not needed (or require if CommonJS)
+          // We can use the installed 'mathjs'
+          const { evaluate } = require('mathjs'); 
+          const result = evaluate(q);
+          
+          if (typeof result === 'number' || (result && result.type === 'Complex')) {
+              const latencyMs = Math.round(performance.now() - start);
+              const responseText = `${result}`;
+              
+              await respond({
+                  content: [{ type: "text", text: responseText }],
+                  structuredContent: { fastPath: true, fastPathHit: "math", result: responseText }
+              });
+              
+              logger.debug(`[FastPath] Math handled: ${q} -> ${responseText}`);
+              return {
+                  handled: true,
+                  hit: "math",
+                  latencyMs,
+                  responseTextPreview: responseText,
+                  structuredContent: { fastPath: true, hit: "math" }
+              };
+          }
+      } catch (e) {
+          // Not valid math, fall through
+      }
+  }
+
+  // 2. Thai History (Static KB)
+  const THAI_HISTORY_KB: Record<string, string> = {
+      "รัชกาลที่ 1": "พระบาทสมเด็จพระพุทธยอดฟ้าจุฬาโลกมหาราช",
+      "รัชกาลที่ 2": "พระบาทสมเด็จพระพุทธเลิศหล้านภาลัย",
+      "รัชกาลที่ 3": "พระบาทสมเด็จพระนั่งเกล้าเจ้าอยู่หัว",
+      "รัชกาลที่ 4": "พระบาทสมเด็จพระจอมเกล้าเจ้าอยู่หัว",
+      "รัชกาลที่ 5": "พระบาทสมเด็จพระจุลจอมเกล้าเจ้าอยู่หัว",
+      "รัชกาลที่ 6": "พระบาทสมเด็จพระมงกุฎเกล้าเจ้าอยู่หัว",
+      "รัชกาลที่ 7": "พระบาทสมเด็จพระปกเกล้าเจ้าอยู่หัว",
+      "รัชกาลที่ 8": "พระบาทสมเด็จพระปรเมนทรมหาอานันทมหิดล",
+      "รัชกาลที่ 9": "พระบาทสมเด็จพระบรมชนกาธิเบศร มหาภูมิพลอดุลยเดชมหาราช บรมนาถบพิตร",
+      "รัชกาลที่ 10": "พระบาทสมเด็จพระวชิรเกล้าเจ้าอยู่หัว",
+      "ร.1": "พระบาทสมเด็จพระพุทธยอดฟ้าจุฬาโลกมหาราช",
+      "ร.2": "พระบาทสมเด็จพระพุทธเลิศหล้านภาลัย",
+      "ร.3": "พระบาทสมเด็จพระนั่งเกล้าเจ้าอยู่หัว",
+      "ร.4": "พระบาทสมเด็จพระจอมเกล้าเจ้าอยู่หัว",
+      "ร.5": "พระบาทสมเด็จพระจุลจอมเกล้าเจ้าอยู่หัว",
+      "ร.6": "พระบาทสมเด็จพระมงกุฎเกล้าเจ้าอยู่หัว",
+      "ร.7": "พระบาทสมเด็จพระปกเกล้าเจ้าอยู่หัว",
+      "ร.8": "พระบาทสมเด็จพระปรเมนทรมหาอานันทมหิดล",
+      "ร.9": "พระบาทสมเด็จพระบรมชนกาธิเบศร มหาภูมิพลอดุลยเดชมหาราช บรมนาถบพิตร",
+      "ร.10": "พระบาทสมเด็จพระวชิรเกล้าเจ้าอยู่หัว"
+  };
+
+  for (const [key, value] of Object.entries(THAI_HISTORY_KB)) {
+       if (q.includes(key) && q.length < 50) {
+           const latencyMs = Math.round(performance.now() - start);
+           const responseText = `${key} คือ ${value}`;
+           
+           await respond({
+               content: [{ type: "text", text: responseText }],
+               structuredContent: { fastPath: true, fastPathHit: "history", result: responseText }
+           });
+           
+           logger.debug(`[FastPath] History handled: ${q}`);
+           return {
+               handled: true,
+               hit: "history",
+               latencyMs,
+               responseTextPreview: responseText,
+               structuredContent: { fastPath: true, hit: "history" }
+           };
+       }
+  }
+
   // NOTE: maybeFastPath uses its internal dict + optional FASTPATH_DICT_PATH
   // Extra phrases are intended for future extension; for now we only log them (kept to avoid breaking change).
   const fp = maybeFastPath(safeText);
@@ -309,22 +392,63 @@ export function createFastPathExpressMiddleware(opts: FastPathHandlerOptions = {
  * - caller passes a `sendJson(obj)` function
  */
 export async function tryFastPathWebSocket(
-  incomingText: string,
-  sendJson: (obj: any) => void,
-  opts: FastPathHandlerOptions = {},
-  clientIp?: string,
-  userId?: string
-): Promise<FastPathDecision> {
-  return handleFastPathMessage(
-    incomingText,
-    (payload) => {
-      sendJson({
-        type: "chat_response",
-        ...payload,
+  userMessage: string,
+  send: (payload: any) => void,
+  options: any,
+  clientIp?: string
+): Promise<{ handled: boolean; latencyMs?: number; hit?: string; responseTextPreview?: string; structuredContent?: any }> {
+
+  const start = Date.now();
+  const text = userMessage.trim();
+
+  // ===== HARD MATH DETECTION =====
+  // Regex: Detect numbers and operators, optional "เท่ากับเท่าไร"
+  const mathMatch = text.match(/^\s*(\d+\s*[\+\-\*\/]\s*\d+)\s*(?:เท่ากับเท่าไร|เท่าไร|=?\s*)?$/i);
+  
+  console.log("[FASTPATH DEBUG] matched math:", mathMatch);
+
+  if (mathMatch) {
+    try {
+      const expression = mathMatch[1];
+      const result = evaluate(expression);
+      // const responseText = `${result}`;
+
+      send({
+        id: `fastpath-${Date.now()}`,
+        type: "message",
+        sender: "ai",
+        text: `${result}`,
+        timestamp: Date.now()
       });
-    },
-    opts,
-    clientIp,
-    userId
-  );
+
+      return {
+        handled: true,
+        latencyMs: Date.now() - start
+      };
+
+    } catch (err) {
+      console.error("[FastPath] Math eval error:", err);
+      return { handled: false, latencyMs: Date.now() - start };
+    }
+  }
+
+  // ===== HISTORY FAST LOOKUP =====
+  if (/รัชกาลที่\s*3/.test(text)) {
+    // const msg = "รัชกาลที่ 3 คือ พระบาทสมเด็จพระนั่งเกล้าเจ้าอยู่หัว";
+    
+    send({
+        id: `fastpath-${Date.now()}`,
+        type: "message",
+        sender: "ai",
+        text: "รัชกาลที่ 3 คือ พระบาทสมเด็จพระนั่งเกล้าเจ้าอยู่หัว",
+        timestamp: Date.now()
+      });
+
+    return {
+      handled: true,
+      latencyMs: Date.now() - start
+    };
+  }
+
+  return { handled: false, latencyMs: Date.now() - start };
 }

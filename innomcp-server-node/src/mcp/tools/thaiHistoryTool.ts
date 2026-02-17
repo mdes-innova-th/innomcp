@@ -2,21 +2,14 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { query } from "../../utils/db";
 
+import type { ThaiKnowledgeSource } from "./thaiKnowledge.types";
+import type { HistoryAttributes, HistoryEntityType } from "../knowledge/types/history";
+import { HISTORY_ERAS } from "../knowledge/data/history_eras";
+import { HISTORY_KINGS } from "../knowledge/data/history_kings";
+
 type ThaiKnowledgeDomain = "history";
 
-export interface ThaiHistorySource {
-  name: string;
-  url?: string;
-}
-
-export interface ThaiHistoryAttributes {
-  era: string;
-  period?: string;
-  year_start?: number;
-  year_end?: number;
-  event_type: string;
-  key_figures?: string[];
-}
+export type ThaiHistoryAttributes = HistoryAttributes;
 
 export interface ThaiHistoryEntity {
   id: string;
@@ -25,8 +18,8 @@ export interface ThaiHistoryEntity {
   aliases?: string[];
   description: string;
   attributes: ThaiHistoryAttributes;
-  relations: any[];
-  source: ThaiHistorySource;
+  relations: Array<{ type: string; target_id: string }>;
+  source: ThaiKnowledgeSource;
   confidence: number;
   version: string;
   updated_at: string;
@@ -112,14 +105,17 @@ export class InMemoryHistoryDb implements HistoryDbAdapter {
 
   private score(entity: ThaiHistoryEntity, q: string): number {
     const aliases = entity.aliases ?? [];
+    const attrs = entity.attributes;
 
     if (entity.name_th.toLowerCase() === q) return 0.95;
     if (aliases.some((a) => a.toLowerCase() === q)) return 0.92;
     if (entity.name_th.toLowerCase().includes(q)) return 0.85;
     if (aliases.some((a) => a.toLowerCase().includes(q))) return 0.82;
 
-    const attrs = entity.attributes;
-    if (attrs.era && attrs.era.toLowerCase() === q) return 0.8;
+    // Type-specific matching (Phase 2 discriminated union)
+    if (attrs.entity_type === "era" && attrs.period?.toLowerCase().includes(q)) return 0.8;
+    if (attrs.entity_type === "person" && attrs.significance?.toLowerCase().includes(q)) return 0.78;
+    if (attrs.entity_type === "event" && attrs.significance?.toLowerCase().includes(q)) return 0.78;
 
     if (entity.description.toLowerCase().includes(q)) return 0.75;
 
@@ -128,56 +124,46 @@ export class InMemoryHistoryDb implements HistoryDbAdapter {
 }
 
 const now = new Date().toISOString();
-const RTGG_SOURCE: ThaiHistorySource = { name: "Royal Thai Government Gazette" };
+const RTGG_SOURCE: ThaiKnowledgeSource = { name: "Royal Thai Government Gazette" };
 
-export const THAI_HISTORY_SEED: ThaiHistoryEntity[] = [
+const HISTORY_EVENTS: ThaiHistoryEntity[] = [
   {
-    id: "history:sukhothai",
+    id: "event:fall-ayutthaya-2",
     domain: "history",
-    name_th: "อาณาจักรสุโขทัย",
-    aliases: ["สุโขทัย", "กรุงสุโขทัย"],
-    description: "อาณาจักรไทยแห่งแรก ก่อตั้ง พ.ศ. 1792 โดยพ่อขุนศรีอินทราทิตย์ เมืองหลวงอยู่ที่สุโขทัย",
-    attributes: { era: "สุโขทัย", period: "พ.ศ. 1792–1981", year_start: 1249, year_end: 1438, event_type: "kingdom", key_figures: ["พ่อขุนศรีอินทราทิตย์", "พ่อขุนรามคำแหง"] },
-    relations: [],
+    name_th: "เสียกรุงศรีอยุธยาครั้งที่ 2",
+    aliases: ["เสียกรุงครั้งที่ 2", "Fall of Ayutthaya 1767"],
+    description: "พม่าตีกรุงศรีอยุธยาแตก พ.ศ. 2310 สิ้นสุดอาณาจักรอยุธยา 417 ปี",
+    attributes: {
+      entity_type: "event",
+      era: "history:ayutthaya",
+      year: 1767,
+      date: "7 เมษายน พ.ศ. 2310",
+      event_type: "battle",
+      key_figures: ["พระเจ้ามังระ", "สมเด็จพระที่นั่งสุริยาศน์อมรินทร์"],
+      outcome: "กรุงศรีอยุธยาแตก",
+      significance: "สิ้นสุดอาณาจักรอยุธยา นำไปสู่การสถาปนากรุงธนบุรี",
+    },
+    relations: [{ type: "ended", target_id: "history:ayutthaya" }],
     source: RTGG_SOURCE,
     confidence: 0.95,
     version: "1.0.0",
     updated_at: now,
   },
   {
-    id: "history:ayutthaya",
+    id: "event:bowring-treaty-1855",
     domain: "history",
-    name_th: "อาณาจักรอยุธยา",
-    aliases: ["อยุธยา", "กรุงศรีอยุธยา"],
-    description: "อาณาจักรไทยที่ยิ่งใหญ่ ก่อตั้ง พ.ศ. 1893 โดยสมเด็จพระรามาธิบดีที่ 1 (พระเจ้าอู่ทอง)",
-    attributes: { era: "อยุธยา", period: "พ.ศ. 1893–2310", year_start: 1350, year_end: 1767, event_type: "kingdom", key_figures: ["สมเด็จพระรามาธิบดีที่ 1", "สมเด็จพระนเรศวรมหาราช"] },
-    relations: [],
-    source: RTGG_SOURCE,
-    confidence: 0.95,
-    version: "1.0.0",
-    updated_at: now,
-  },
-  {
-    id: "history:thonburi",
-    domain: "history",
-    name_th: "อาณาจักรธนบุรี",
-    aliases: ["ธนบุรี", "กรุงธนบุรี"],
-    description: "อาณาจักรสั้นหลังเสียกรุงศรีอยุธยา ก่อตั้งโดยสมเด็จพระเจ้าตากสินมหาราช",
-    attributes: { era: "ธนบุรี", period: "พ.ศ. 2310–2325", year_start: 1767, year_end: 1782, event_type: "kingdom", key_figures: ["สมเด็จพระเจ้าตากสินมหาราช"] },
-    relations: [],
-    source: RTGG_SOURCE,
-    confidence: 0.95,
-    version: "1.0.0",
-    updated_at: now,
-  },
-  {
-    id: "history:rattanakosin",
-    domain: "history",
-    name_th: "กรุงรัตนโกสินทร์",
-    aliases: ["รัตนโกสินทร์", "ราชวงศ์จักรี"],
-    description: "ยุคปัจจุบัน ก่อตั้งโดยพระบาทสมเด็จพระพุทธยอดฟ้าจุฬาโลกมหาราช (รัชกาลที่ 1)",
-    attributes: { era: "รัตนโกสินทร์", period: "พ.ศ. 2325–ปัจจุบัน", year_start: 1782, event_type: "kingdom", key_figures: ["พระบาทสมเด็จพระพุทธยอดฟ้าจุฬาโลกมหาราช"] },
-    relations: [],
+    name_th: "สนธิสัญญาเบาว์ริง",
+    aliases: ["สนธิสัญญาเบาว์ริง", "Bowring Treaty"],
+    description: "สนธิสัญญาระหว่างสยามกับอังกฤษ พ.ศ. 2398 เปิดการค้าและปรับระบบภาษี",
+    attributes: {
+      entity_type: "event",
+      era: "history:rattanakosin",
+      year: 1855,
+      event_type: "treaty",
+      key_figures: ["เซอร์จอห์น เบาว์ริง", "พระบาทสมเด็จพระจอมเกล้าเจ้าอยู่หัว"],
+      significance: "เปลี่ยนโครงสร้างการค้าและความสัมพันธ์กับชาติตะวันตก",
+    },
+    relations: [{ type: "occurred_during", target_id: "history:rattanakosin" }],
     source: RTGG_SOURCE,
     confidence: 0.95,
     version: "1.0.0",
@@ -187,15 +173,29 @@ export const THAI_HISTORY_SEED: ThaiHistoryEntity[] = [
     id: "history:siamese-revolution-1932",
     domain: "history",
     name_th: "การปฏิวัติสยาม พ.ศ. 2475",
-    aliases: ["ปฏิวัติ 2475", "การเปลี่ยนแปลงการปกครอง"],
+    aliases: ["ปฏิวัติ 2475", "การเปลี่ยนแปลงการปกครอง", "Siamese Revolution 1932"],
     description: "การเปลี่ยนแปลงการปกครองจากสมบูรณาญาสิทธิราชย์เป็นระบอบประชาธิปไตย โดยคณะราษฎร",
-    attributes: { era: "รัตนโกสินทร์", period: "24 มิถุนายน พ.ศ. 2475", year_start: 1932, year_end: 1932, event_type: "revolution", key_figures: ["พระยาพหลพลพยุหเสนา", "ปรีดี พนมยงค์"] },
-    relations: [],
+    attributes: {
+      entity_type: "event",
+      era: "history:rattanakosin",
+      year: 1932,
+      date: "24 มิถุนายน พ.ศ. 2475",
+      event_type: "revolution",
+      key_figures: ["พระยาพหลพลพยุหเสนา", "ปรีดี พนมยงค์"],
+      significance: "เปลี่ยนแปลงระบอบการปกครองสู่รัฐธรรมนูญ",
+    },
+    relations: [{ type: "occurred_during", target_id: "history:rattanakosin" }],
     source: RTGG_SOURCE,
     confidence: 0.95,
     version: "1.0.0",
     updated_at: now,
   },
+];
+
+export const THAI_HISTORY_SEED: ThaiHistoryEntity[] = [
+  ...HISTORY_ERAS,
+  ...HISTORY_KINGS,
+  ...HISTORY_EVENTS,
 ];
 
 let historyDb: HistoryDbAdapter = new MariaDbHistoryDb();
@@ -225,14 +225,52 @@ function normalizeDbRowToEntity(row: any): ThaiHistoryEntity {
   const name_th = String(row.name_th ?? "");
 
   const aliases = safeJsonParse<string[]>(row.aliases, []);
-  const attributes = safeJsonParse<any>(row.attributes, {});
+  const rawAttributes = safeJsonParse<any>(row.attributes, {});
   const relations = safeJsonParse<any[]>(row.relations, []);
 
   const sourceRaw = row.source;
-  const sourceObj: ThaiHistorySource =
+  const sourceObj: ThaiKnowledgeSource =
     typeof sourceRaw === "string" && sourceRaw.trim().startsWith("{")
-      ? safeJsonParse<ThaiHistorySource>(sourceRaw, { name: sourceRaw || "unknown" })
+      ? safeJsonParse<ThaiKnowledgeSource>(sourceRaw, { name: sourceRaw || "unknown" })
       : { name: String(sourceRaw ?? "unknown") };
+
+  const entity_type = String(rawAttributes.entity_type ?? "era") as HistoryEntityType;
+  let attributes: HistoryAttributes;
+
+  if (entity_type === "person") {
+    attributes = {
+      entity_type: "person",
+      era: String(rawAttributes.era ?? ""),
+      role: String(rawAttributes.role ?? ""),
+      reign_period: rawAttributes.reign_period,
+      year_birth: typeof rawAttributes.year_birth === "number" ? rawAttributes.year_birth : undefined,
+      year_death: typeof rawAttributes.year_death === "number" ? rawAttributes.year_death : undefined,
+      significance: String(rawAttributes.significance ?? ""),
+      titles: Array.isArray(rawAttributes.titles) ? rawAttributes.titles : undefined,
+    };
+  } else if (entity_type === "event") {
+    attributes = {
+      entity_type: "event",
+      era: String(rawAttributes.era ?? ""),
+      year: typeof rawAttributes.year === "number" ? rawAttributes.year : 0,
+      date: rawAttributes.date,
+      event_type: String(rawAttributes.event_type ?? ""),
+      key_figures: Array.isArray(rawAttributes.key_figures) ? rawAttributes.key_figures : [],
+      outcome: rawAttributes.outcome,
+      significance: String(rawAttributes.significance ?? ""),
+    };
+  } else {
+    attributes = {
+      entity_type: "era",
+      capital: rawAttributes.capital,
+      year_start: typeof rawAttributes.year_start === "number" ? rawAttributes.year_start : 0,
+      year_end: typeof rawAttributes.year_end === "number" ? rawAttributes.year_end : undefined,
+      period: String(rawAttributes.period ?? ""),
+      key_figures: Array.isArray(rawAttributes.key_figures) ? rawAttributes.key_figures : [],
+      successor_era: rawAttributes.successor_era,
+      predecessor_era: rawAttributes.predecessor_era,
+    };
+  }
 
   return {
     id: String(row.id ?? ""),
@@ -240,15 +278,8 @@ function normalizeDbRowToEntity(row: any): ThaiHistoryEntity {
     name_th,
     aliases,
     description: String(row.description ?? ""),
-    attributes: {
-      era: String(attributes.era ?? ""),
-      period: attributes.period,
-      year_start: typeof attributes.year_start === "number" ? attributes.year_start : undefined,
-      year_end: typeof attributes.year_end === "number" ? attributes.year_end : undefined,
-      event_type: String(attributes.event_type ?? ""),
-      key_figures: Array.isArray(attributes.key_figures) ? attributes.key_figures : undefined,
-    },
-    relations,
+    attributes,
+    relations: Array.isArray(relations) ? relations : [],
     source: sourceObj,
     confidence: typeof row.confidence === "number" ? row.confidence : 1.0,
     version: String(row.version ?? "1.0.0"),
@@ -257,20 +288,12 @@ function normalizeDbRowToEntity(row: any): ThaiHistoryEntity {
 }
 
 function entityToResult(entity: ThaiHistoryEntity): ThaiHistoryResult {
-  const attrs = entity.attributes;
   return {
     id: entity.id,
     name_th: entity.name_th,
     aliases: entity.aliases ?? [],
     description: entity.description,
-    attributes: {
-      era: attrs.era ?? "",
-      period: attrs.period,
-      year_start: attrs.year_start,
-      year_end: attrs.year_end,
-      event_type: attrs.event_type ?? "",
-      key_figures: attrs.key_figures,
-    },
+    attributes: entity.attributes,
   };
 }
 
@@ -291,7 +314,6 @@ function matchNote(entity: ThaiHistoryEntity, queryText: string): string | undef
 
   if (entity.name_th.toLowerCase() === q) return undefined;
   if ((entity.aliases ?? []).some((a) => a.toLowerCase() === q)) return "matched by alias";
-  if (entity.attributes.era?.toLowerCase() === q) return "matched by era";
   return "matched by description";
 }
 

@@ -1,43 +1,16 @@
-
 import { executeWeatherToolCall, TimeoutError } from "../toolCall";
 import { WeatherResult } from "../types";
+import { ToolCache } from "../../cache/toolCache";
 
 // Timeout constants (configurable)
 const FORECAST_TIMEOUT_MS = 12_000;
 
-// Micro-cache TTL (in-process): keep short to avoid stale data and reduce latency
-const CACHE_TTL_MS = 60 * 1000;
-
-type CacheEntry = { at: number; payload: any };
-const TOOL_CACHE: Map<string, CacheEntry> = new Map();
 
 export class ForecastEngine {
-    // Per-instance cache (still useful within one pipeline execution)
-    private cachedPayload: any = null;
-    private cachedAt = 0;
-
     constructor(private clients: Map<string, any>) {}
 
     private getClient(): any {
         return this.clients.get("innomcp-server") || this.clients.values().next().value;
-    }
-
-    private isCacheValid(): boolean {
-        return this.cachedPayload !== null && (Date.now() - this.cachedAt) < CACHE_TTL_MS;
-    }
-
-    private getToolCache(toolName: string): any | null {
-        const entry = TOOL_CACHE.get(toolName);
-        if (!entry) return null;
-        if ((Date.now() - entry.at) >= CACHE_TTL_MS) {
-            TOOL_CACHE.delete(toolName);
-            return null;
-        }
-        return entry.payload;
-    }
-
-    private setToolCache(toolName: string, payload: any): void {
-        TOOL_CACHE.set(toolName, { at: Date.now(), payload });
     }
 
     async getForecast(province: string): Promise<WeatherResult> {
@@ -46,25 +19,21 @@ export class ForecastEngine {
 
         try {
             let payload: any;
+            const toolName = "tmd_weather_forecast_7days_by_province";
+            const cacheKey = ToolCache.generateKey(toolName, { scope: "national" });
+            
+            payload = ToolCache.get(cacheKey);
 
-            if (this.isCacheValid()) {
-                payload = this.cachedPayload;
-            } else {
-                const toolName = "tmd_weather_forecast_7days_by_province";
-                payload = this.getToolCache(toolName);
-                if (!payload) {
-                    // TMD 7-Day Forecast: returns all 77 provinces, we cache + filter
-                    payload = await executeWeatherToolCall({
-                        client,
-                        toolName,
-                        args: {},
-                        timeoutMs: FORECAST_TIMEOUT_MS,
-                        scope: "national",
-                    });
-                    this.setToolCache(toolName, payload);
-                }
-                this.cachedPayload = payload;
-                this.cachedAt = Date.now();
+            if (!payload) {
+                // TMD 7-Day Forecast: returns all 77 provinces, we cache + filter
+                payload = await executeWeatherToolCall({
+                    client,
+                    toolName,
+                    args: {},
+                    timeoutMs: FORECAST_TIMEOUT_MS,
+                    scope: "national",
+                });
+                ToolCache.set(cacheKey, payload);
             }
 
             const data = this.extractForecast(payload, province);
@@ -97,24 +66,20 @@ export class ForecastEngine {
 
         try {
             let payload: any;
+            const toolName = "tmd_weather_forecast_7days_by_province";
+            const cacheKey = ToolCache.generateKey(toolName, { scope: "national" });
+            
+            payload = ToolCache.get(cacheKey);
 
-            if (this.isCacheValid()) {
-                payload = this.cachedPayload;
-            } else {
-                const toolName = "tmd_weather_forecast_7days_by_province";
-                payload = this.getToolCache(toolName);
-                if (!payload) {
-                    payload = await executeWeatherToolCall({
-                        client,
-                        toolName,
-                        args: {},
-                        timeoutMs: FORECAST_TIMEOUT_MS,
-                        scope: "national",
-                    });
-                    this.setToolCache(toolName, payload);
-                }
-                this.cachedPayload = payload;
-                this.cachedAt = Date.now();
+            if (!payload) {
+                payload = await executeWeatherToolCall({
+                    client,
+                    toolName,
+                    args: {},
+                    timeoutMs: FORECAST_TIMEOUT_MS,
+                    scope: "national",
+                });
+                ToolCache.set(cacheKey, payload);
             }
 
             const raw = payload?.Provinces?.Province;

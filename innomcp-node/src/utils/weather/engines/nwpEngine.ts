@@ -1,6 +1,7 @@
 
 import { executeWeatherToolCall, TimeoutError } from "../toolCall";
 import { WeatherResult } from "../types";
+import { ToolCache } from "../../cache/toolCache";
 
 // Timeout constants (configurable)
 const NWP_TIMEOUT_MS = 12_000;
@@ -18,13 +19,21 @@ export class NwpEngine {
 
         // Try NWP daily by place (accepts province arg)
         try {
-            const payload = await executeWeatherToolCall({
-                client,
-                toolName: "nwp_daily_by_place",
-                args: { place: province },
-                timeoutMs: NWP_TIMEOUT_MS,
-                scope: "province",
-            });
+            const toolName = "nwp_daily_by_place";
+            const args = { place: province };
+            const cacheKey = ToolCache.generateKey(toolName, args);
+            
+            let payload = ToolCache.get(cacheKey);
+            if (!payload) {
+                payload = await executeWeatherToolCall({
+                    client,
+                    toolName,
+                    args,
+                    timeoutMs: NWP_TIMEOUT_MS,
+                    scope: "province",
+                });
+                ToolCache.set(cacheKey, payload);
+            }
 
             const data = this.extractNwp(payload, province);
             if (data) {
@@ -44,13 +53,21 @@ export class NwpEngine {
 
         // Fallback: NWP hourly by place
         try {
-            const payload = await executeWeatherToolCall({
-                client,
-                toolName: "nwp_hourly_by_place",
-                args: { place: province },
-                timeoutMs: NWP_TIMEOUT_MS,
-                scope: "province",
-            });
+            const toolName = "nwp_hourly_by_place";
+            const args = { place: province };
+            const cacheKey = ToolCache.generateKey(toolName, args);
+
+            let payload = ToolCache.get(cacheKey);
+            if (!payload) {
+                payload = await executeWeatherToolCall({
+                    client,
+                    toolName,
+                    args,
+                    timeoutMs: NWP_TIMEOUT_MS,
+                    scope: "province",
+                });
+                ToolCache.set(cacheKey, payload);
+            }
 
             const data = this.extractNwp(payload, province);
             if (data) {

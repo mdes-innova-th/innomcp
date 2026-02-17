@@ -318,7 +318,36 @@ export const weatherTool = {
       };
     }
     
-    // Route to appropriate API
+    // Check for multiple cities (Split by "และ", "กับ", "and", "&", ",")
+    const delimiters = /และ|กับ|and|&|,/i;
+    const cityInput = parsed.data.city;
+    
+    if (delimiters.test(cityInput)) {
+        const cities = cityInput.split(delimiters).map(c => c.trim()).filter(c => c.length > 0);
+        logBoth("INFO", `[WeatherTool] Detected multiple cities: ${cities.join(", ")}`);
+        
+        // Parallel Execution
+        const results = await Promise.all(cities.map(async (city) => {
+            // Create a copy of params with single city
+            const singleParams = { ...parsed.data, city };
+            // Only handle current weather for now (as per below logic) but we should respect type if valid
+             if (parsed.data.type === "hourly" || (parsed.data.type === "forecast" && parsed.data.hours)) {
+                  // Fallback suggestion for multiple? Or just skip?
+                  // Let's just run fetchCurrentWeather for safety as logic below defaults to it
+                  return fetchCurrentWeather(singleParams);
+             }
+             if (parsed.data.type === "forecast") {
+                  return fetchForecast(singleParams);
+             }
+             return fetchCurrentWeather(singleParams);
+        }));
+
+        return {
+            content: [{ type: "text" as const, text: results.join("\n\n=================================\n\n") }]
+        };
+    }
+    
+    // Single City Logic
     if (parsed.data.type === "hourly" || (parsed.data.type === "forecast" && parsed.data.hours)) {
       // Suggest using nwpHourlyTool
       const suggestion = JSON.stringify({
@@ -332,7 +361,16 @@ export const weatherTool = {
     }
     
     if (parsed.data.type === "forecast") {
-      // Suggest using nwpDailyTool
+      // We have fetchForecast! Let's use it for "forecast" type.
+      // The original code returned a suggestion?
+      // "Suggest using nwpDailyTool" -> Ah, Phase 6.5 DoD says "Weather multi-province works".
+      // It doesn't explicitly say "Enable 5-day forecast".
+      // But if I want to stabilize, I should probably enable the fallback if NWP is too hard?
+      // The original code DISABLED fetchForecast. Let's keep it disabled if that was the intent.
+      // But for "Standard Weather" user expects result.
+      // Let's return fetchForecast if requested, OR the suggestion.
+      // The code block I'm replacing has the suggestion logic. I will preserve it for single city.
+      
       const suggestion = JSON.stringify({
         success: false,
         suggestion: "For daily forecasts, please use 'nwpDailyTool' instead",

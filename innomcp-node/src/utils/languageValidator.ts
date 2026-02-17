@@ -359,8 +359,68 @@ export function createThaiErrorResponse(originalQuestion: string): string {
 ระบบจะพยายามตอบคำถามให้ดีที่สุดครับ 🙏`;
 }
 
+/**
+ * CLEAN & STRIP: Removes non-Thai segments if validation fails.
+ * Keeps: Thai chars, numbers, technical terms, basic punctuation
+ */
+export function sanitizeThaiSegments(text: string): string {
+    // 1. Split by newlines to process paragraph by paragraph
+    const lines = text.split('\n');
+    const cleanLines = lines.map(line => {
+        // Keep line if it has significant Thai content
+        const thaiChars = (line.match(/[\u0E00-\u0E7F]/g) || []).length;
+        const totalChars = line.replace(/\s/g, '').length;
+        
+        if (totalChars === 0) return line;
+        
+        // If line is mostly English (e.g. "Here is the summary..."), drop it
+        // Threshold: at least 30% Thai/Numbers/Tech or very short
+        // But the requirement says "Strip non-Thai tokens".
+        // Let's go deeper: Tokenize by spaces
+        
+        const tokens = line.split(/\s+/);
+        const validTokens = tokens.filter(t => {
+             // Keep if Thai
+             if (/[\u0E00-\u0E7F]/.test(t)) return true;
+             // Keep if Number
+             if (/^\d+$/.test(t)) return true;
+             // Keep if Technical (Allowlist regex from validateThaiLanguage)
+             // We can reuse allowlist logic or just simplistic logic:
+             // If English word > 3 chars and NOT in allowlist -> Drop
+             // For simplicity and speed: Keep if NOT purely English letters (unless it looks like a known term)
+             
+             // Simple heuristic: 
+             // Keep if it has Thai char
+             // OR keep if it is special char/number
+             // OR keep if it matches specific tech terms (reusing logic is hard without refactor)
+             
+             // STRICT MODE:
+             // If token is purely English [a-zA-Z]+ and length > 3 -> Drop?
+             // But "GPS", "TMD", "km" are English.
+             
+             // Better approach: 
+             // Use the same allowlist regexes. 
+             // If a token matches allowlist -> Keep.
+             // If not -> Check if it has Thai.
+             // If not -> Drop.
+             
+             const isTech = /\b(API|URL|JSON|HTTP|HTTPS|HTML|CSS|JS|TS|SQL|XML|CSV|PDF|TMD|NWP|NASA|APOD|GDP|USD|THB|ISO|AI|ML|UI|UX|°C|°F|km|m|cm|mm|kg|g|mg|MB|GB|TB|KB|Hz|GHz|MHz)\b/i.test(t);
+             const isCommon = /\b(ok|okay)\b/i.test(t); // Maybe drop these? Requirement says "Strip non-Thai"
+             const isThai = /[\u0E00-\u0E7F]/.test(t);
+             const isNum = /[\d\.\-,:]/.test(t); // Allow numbers and punctuation
+             
+             return isThai || isNum || isTech;
+        });
+        
+        return validTokens.join(' ');
+    });
+    
+    return cleanLines.filter(l => l.trim().length > 0).join('\n');
+}
+
 export default {
   validateThaiLanguage,
   createThaiOnlyFallbackPrompt,
-  createThaiErrorResponse
+  createThaiErrorResponse,
+  sanitizeThaiSegments
 };

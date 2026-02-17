@@ -25,6 +25,11 @@ mariadb/data/
 # Workspace storage
 workspace-storage/data/
 
+# Workspace-storage accidental artifacts
+workspace-storage/$null
+workspace-storage/docker-compose.yml
+workspace-storage/nginx/
+
 
 package-lock.json
 

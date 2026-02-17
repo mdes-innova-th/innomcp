@@ -1,6 +1,6 @@
 /**
- * Phase 6.5 + 6.5.1 Weather Architecture - Acceptance Tests
- * Tests locationResolver + weatherPipeline resolveTarget logic (no live MCP needed)
+ * Phase 6.5 + 6.5.2 Weather Architecture - Acceptance Tests
+ * Tests locationResolver + weatherPipeline resolveTarget + mock execute (no live MCP)
  */
 
 import { resolveProvinces } from "../src/utils/locationResolver";
@@ -86,80 +86,174 @@ console.log(yellow("\n═══ Test 5: กรุงเทพมหานคร 
 // ════════════════════════════════════════
 console.log(yellow("\n═══ Extra: Edge cases ═══"));
 {
-  // Test English alias
   const r1 = resolveProvinces("bangkok weather today");
   assert(r1.includes("กรุงเทพมหานคร"), "bangkok → กรุงเทพมหานคร");
 
-  // Test short alias
   const r2 = resolveProvinces("กทม อากาศวันนี้");
   assert(r2.includes("กรุงเทพมหานคร"), "กทม → กรุงเทพมหานคร");
 
-  // Test colloquial
   const r3 = resolveProvinces("โคราช ฝนตกไหม");
   assert(r3.includes("นครราชสีมา"), "โคราช → นครราชสีมา");
 
-  // Test multi without spaces: "กรุงเทพเชียงใหม่"
   const r4 = resolveProvinces("กรุงเทพเชียงใหม่");
-  // "กรุงเทพ" alias should match, and "เชียงใหม่" province should match
   assert(r4.includes("กรุงเทพมหานคร"), "กรุงเทพ substring → กรุงเทพมหานคร");
   assert(r4.includes("เชียงใหม่"), "เชียงใหม่ substring → เชียงใหม่");
 
-  // Test that สมุทรสาคร doesn't also match สมุทรสงคราม or สมุทรปราการ
   const r5 = resolveProvinces("สมุทรสาคร");
   assert(r5.length === 1 && r5[0] === "สมุทรสาคร", "สมุทรสาคร exact (no false positives)");
 }
 
 // ════════════════════════════════════════
-// Phase 6.5.1: National query detection
+// Nationwide: mode detection via resolveTarget
 // ════════════════════════════════════════
-console.log(yellow("\n═══ Phase 6.5.1: National query detection ═══"));
+console.log(yellow("\n═══ Nationwide: mode detection ═══"));
 {
-  // Create a mock pipeline (no live clients needed for resolveTarget)
   const pipeline = new WeatherPipeline(new Map());
 
-  // Test 6a: National query → national=true, provinces=[]
+  // Nationwide queries → mode="nationwide"
   const t1 = pipeline.resolveTarget("พรุ่งนี้ในไทยที่ไหนฝนตกบ้าง");
-  assert(t1.national === true, "national=true for 'ในไทย...ที่ไหน...บ้าง'");
+  assert(t1.intent.mode === "nationwide", `"ในไทย...ที่ไหนฝนตก" → mode=nationwide (got ${t1.intent.mode})`);
   assert(t1.provinces.length === 0, `provinces=[] (got ${t1.provinces.length})`);
-  assert(t1.intent.mode === "future", `mode=future (got ${t1.intent.mode})`);
 
-  // Test 6b: "ทั่วประเทศ" variant
   const t2 = pipeline.resolveTarget("อากาศทั่วประเทศวันนี้");
-  assert(t2.national === true, "national=true for 'ทั่วประเทศ'");
-  assert(t2.provinces.length === 0, `provinces=[] (got ${t2.provinces.length})`);
+  assert(t2.intent.mode === "nationwide", `"ทั่วประเทศ" → mode=nationwide (got ${t2.intent.mode})`);
 
-  // Test 6c: "ประเทศไทย" variant
   const t3 = pipeline.resolveTarget("ฝนตกที่ไหนในประเทศไทย");
-  assert(t3.national === true, "national=true for 'ประเทศไทย'");
+  assert(t3.intent.mode === "nationwide", `"ประเทศไทย" → mode=nationwide (got ${t3.intent.mode})`);
 
-  // Test 6d: "ทั่วไทย" variant
   const t4 = pipeline.resolveTarget("สภาพอากาศทั่วไทย");
-  assert(t4.national === true, "national=true for 'ทั่วไทย'");
+  assert(t4.intent.mode === "nationwide", `"ทั่วไทย" → mode=nationwide (got ${t4.intent.mode})`);
+
+  const t5 = pipeline.resolveTarget("ทั้งประเทศฝนตกไหมพรุ่งนี้");
+  assert(t5.intent.mode === "nationwide", `"ทั้งประเทศ" → mode=nationwide (got ${t5.intent.mode})`);
+
+  const t6 = pipeline.resolveTarget("จังหวัดไหนฝนตกวันนี้");
+  assert(t6.intent.mode === "nationwide", `"จังหวัดไหนฝนตก" → mode=nationwide (got ${t6.intent.mode})`);
 }
 
 // ════════════════════════════════════════
-// Phase 6.5.1: Regression - fake province still blocked
+// Regression: fake province still blocked, province-specific not nationwide
 // ════════════════════════════════════════
-console.log(yellow("\n═══ Phase 6.5.1 Regression: Fake vs National ═══"));
+console.log(yellow("\n═══ Regression: Fake vs Nationwide ═══"));
 {
   const pipeline = new WeatherPipeline(new Map());
 
-  // Fake province: national=false, provinces=[]
+  // Fake province: provinces=[], no nationwide keywords → mode stays original
   const fake = pipeline.resolveTarget("เมืองทิพย์พรุ่งนี้ฝนตกไหม");
-  assert(fake.national === false || fake.national === undefined, "fake → national=false");
+  assert(fake.intent.mode !== "nationwide", `fake → NOT nationwide (got ${fake.intent.mode})`);
   assert(fake.provinces.length === 0, `fake → provinces=[] (got ${fake.provinces.length})`);
 
-  // Province-specific query: national=false even with national-like words
-  const specific = pipeline.resolveTarget("กรุงเทพมหานคร ฝนตกที่ไหนบ้าง");
-  assert(specific.national !== true, "province + 'ที่ไหนบ้าง' → NOT national (has province)");
+  // Province-specific + nationwide-like words → NOT nationwide (has province)
+  const specific = pipeline.resolveTarget("กรุงเทพมหานคร ฝนตกที่ไหนในไทย");
+  assert(specific.intent.mode !== "nationwide", `province + 'ในไทย' → NOT nationwide (got ${specific.intent.mode})`);
   assert(specific.provinces.includes("กรุงเทพมหานคร"), "province still resolved");
 
-  // Empty non-national: no province, no national keywords
+  // Greeting: no province, no nationwide keywords → NOT nationwide
   const empty = pipeline.resolveTarget("สวัสดีครับ");
-  assert(empty.national !== true, "greeting → NOT national");
+  assert(empty.intent.mode !== "nationwide", `greeting → NOT nationwide (got ${empty.intent.mode})`);
   assert(empty.provinces.length === 0, "greeting → no provinces");
 }
 
+// ─── Async tests wrapper ───
+async function runAsyncTests() {
+
+// ════════════════════════════════════════
+// Nationwide execute: mock single-MCP-call + >=10 rows
+// ════════════════════════════════════════
+console.log(yellow("\n═══ Nationwide execute: mock MCP (1 call, >=10 rows) ═══"));
+await (async () => {
+  // Build fake TMD payload with 20 provinces, all rainy
+  const fakeProvinces = Array.from({ length: 20 }, (_, i) => {
+    const dd = String(new Date(Date.now() + 7 * 3600_000 + 86400_000).getUTCDate()).padStart(2, "0");
+    const mm = String(new Date(Date.now() + 7 * 3600_000 + 86400_000).getUTCMonth() + 1).padStart(2, "0");
+    const yyyy = new Date(Date.now() + 7 * 3600_000 + 86400_000).getUTCFullYear();
+    const tomorrowDate = `${dd}/${mm}/${yyyy}`;
+    return {
+      ProvinceNameThai: `จังหวัดทดสอบ${i + 1}`,
+      SevenDaysForecast: {
+        ForecastDate: [tomorrowDate],
+        PercentRainCover: [String(90 - i * 4)],
+        MaximumTemperature: ["35.0"],
+        MinimumTemperature: ["25.0"],
+        WindDirection: ["180"],
+        WindSpeed: ["10"],
+        DescriptionThai: ["ฝนฟ้าคะนอง"],
+      },
+    };
+  });
+
+  let callCount = 0;
+  const mockClient = {
+    callTool: async ({ name }: { name: string; arguments: any }) => {
+      callCount++;
+      return {
+        structuredContent: {
+          ok: true,
+          meta: {},
+          data: [{ Provinces: { Province: fakeProvinces } }],
+        },
+      };
+    },
+  };
+
+  const clients = new Map<string, any>();
+  clients.set("innomcp-server", mockClient);
+  const pipeline = new WeatherPipeline(clients);
+
+  const target = pipeline.resolveTarget("พรุ่งนี้ในไทยที่ไหนฝนตกบ้าง บอกในรูปแบบตาราง");
+  assert(target.intent.mode === "nationwide", `resolveTarget → mode=nationwide`);
+
+  const results = await pipeline.execute(target);
+  assert(results.length === 1, `1 result (got ${results.length})`);
+  assert(results[0].type === "national", `type=national (got ${results[0].type})`);
+  assert(results[0].type !== "error", `NOT error (got ${results[0].error || "ok"})`);
+
+  const table = results[0].data?.table;
+  assert(Array.isArray(table) && table.length >= 10, `table rows >=10 (got ${table?.length})`);
+  assert(table.length <= 15, `table rows <=15 (got ${table?.length})`);
+
+  // Verify column structure
+  const row = table?.[0];
+  assert(row?.Province !== undefined, `column Province exists`);
+  assert(row?.["%Rain"] !== undefined, `column %Rain exists`);
+  assert(row?.MaxTemp !== undefined, `column MaxTemp exists`);
+  assert(row?.MinTemp !== undefined, `column MinTemp exists`);
+  assert(row?.WindSpeed !== undefined, `column WindSpeed exists`);
+  assert(row?.WindDir !== undefined, `column WindDir exists`);
+  assert(row?.Humidity === "—", `column Humidity = "—"`);
+
+  // Only ONE MCP call (cached forecast call, no station)
+  assert(callCount === 1, `exactly 1 MCP call (got ${callCount})`);
+
+  // Verify footnote
+  assert(results[0].data?.footnote?.includes("ความชื้น"), `footnote mentions ความชื้น`);
+})();
+
+// ════════════════════════════════════════
+// Fake province execute: PROVINCE_MISSING, zero MCP calls
+// ════════════════════════════════════════
+console.log(yellow("\n═══ Fake province: PROVINCE_MISSING, 0 MCP calls ═══"));
+await (async () => {
+  let callCount = 0;
+  const mockClient = {
+    callTool: async () => { callCount++; return {}; },
+  };
+
+  const clients = new Map<string, any>();
+  clients.set("innomcp-server", mockClient);
+  const pipeline = new WeatherPipeline(clients);
+
+  const target = pipeline.resolveTarget("เมืองทิพย์พรุ่งนี้ฝนตกไหม");
+  const results = await pipeline.execute(target);
+
+  assert(results.length === 1 && results[0].error === "PROVINCE_MISSING", "PROVINCE_MISSING returned");
+  assert(callCount === 0, `zero MCP calls (got ${callCount})`);
+})();
+
+} // end runAsyncTests
+
+// ─── Run async tests then summarize ───
+runAsyncTests().then(() => {
 // ════════════════════════════════════════
 // Summary
 // ════════════════════════════════════════
@@ -168,3 +262,7 @@ console.log(`Total: ${passed + failed} tests | ${green(`${passed} passed`)} | ${
 console.log(yellow("═══════════════════════════════════════\n"));
 
 process.exit(failed > 0 ? 1 : 0);
+}).catch(err => {
+  console.error(red(`Async test error: ${err.message}`));
+  process.exit(2);
+});

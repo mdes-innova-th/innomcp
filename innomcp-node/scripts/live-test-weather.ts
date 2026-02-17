@@ -19,8 +19,8 @@ interface TestCase {
   input: string;
   expectProvinces: string[];
   expectMode: string;
-  expectNoProvince?: boolean;
-  expectNational?: boolean;
+  expectNoProvince?: boolean;  // expect PROVINCE_MISSING error
+  expectNationwide?: boolean;  // expect mode=nationwide, type=national result
   description: string;
 }
 
@@ -63,11 +63,11 @@ const TESTS: TestCase[] = [
   },
   {
     id: 6,
-    input: "พรุ่งนี้ในไทยที่ไหนฝนตกบ้าง บอกในรูปแบบตาราง",
+    input: "พรุ่งนี้ในไทยที่ไหนฝนตกบ้าง บอกในรูปแบบตาราง % ฝน อุณหภูมิ ความชื้น ลม",
     expectProvinces: [],
-    expectMode: "table",  // "ตาราง" has higher priority than "พรุ่งนี้" in detectMode
-    expectNational: true,
-    description: "Phase 6.5.1: National query → type=national, table data, NOT PROVINCE_MISSING",
+    expectMode: "nationwide",
+    expectNationwide: true,
+    description: "Nationwide: mode=nationwide, type=national, table >=10 rows, NOT PROVINCE_MISSING",
   },
 ];
 
@@ -112,7 +112,7 @@ async function main() {
       const target = pipeline.resolveTarget(tc.input);
       const resolveMs = Date.now() - t0;
 
-      console.log(`  Resolved: [${target.provinces.join(", ")}]  mode=${target.intent.mode}  national=${!!target.national}  (${resolveMs}ms)`);
+      console.log(`  Resolved: [${target.provinces.join(", ")}]  mode=${target.intent.mode}  (${resolveMs}ms)`);
 
       // Check provinces
       let provOk = true;
@@ -121,14 +121,9 @@ async function main() {
           console.log(red(`  FAIL: Expected 0 provinces, got ${target.provinces.length}`));
           provOk = false;
         }
-      } else if (tc.expectNational) {
-        // National: provinces=[] is expected, national=true required
+      } else if (tc.expectNationwide) {
         if (target.provinces.length !== 0) {
-          console.log(red(`  FAIL: National query expected 0 provinces, got ${target.provinces.length}`));
-          provOk = false;
-        }
-        if (!target.national) {
-          console.log(red(`  FAIL: Expected national=true, got ${target.national}`));
+          console.log(red(`  FAIL: Nationwide expected 0 provinces, got ${target.provinces.length}`));
           provOk = false;
         }
       } else {
@@ -160,10 +155,11 @@ async function main() {
           }
         } else if (r.type === "national") {
           const tableLen = r.data?.table?.length || 0;
-          console.log(green(`  ✓ NATIONAL: date=${r.data?.date} rainy=${r.data?.totalRainyProvinces} top=${tableLen}`));
+          console.log(green(`  ✓ NATIONWIDE: date=${r.data?.date} (${r.data?.dateLabel}) rainy=${r.data?.totalRainyProvinces} top=${tableLen}`));
           if (r.data?.table?.[0]) {
-            console.log(dim(`    sample: ${JSON.stringify(r.data.table[0]).slice(0, 150)}...`));
+            console.log(dim(`    sample: ${JSON.stringify(r.data.table[0]).slice(0, 200)}`));
           }
+          console.log(dim(`    footnote: ${r.data?.footnote}`));
         } else {
           const dataPreview = JSON.stringify(r.data).slice(0, 200);
           console.log(green(`  ✓ ${r.province}: type=${r.type} source=${r.sourceTool}`));
@@ -175,12 +171,11 @@ async function main() {
       let resultsOk: boolean;
       if (tc.expectNoProvince) {
         resultsOk = results.length === 1 && results[0].error === "PROVINCE_MISSING";
-      } else if (tc.expectNational) {
-        // National: expect type="national" with table data, NOT PROVINCE_MISSING
+      } else if (tc.expectNationwide) {
         const nat = results.find(r => r.type === "national");
-        resultsOk = !!nat && Array.isArray(nat.data?.table) && nat.data.table.length > 0;
+        resultsOk = !!nat && Array.isArray(nat.data?.table) && nat.data.table.length >= 10;
         if (!resultsOk) {
-          console.log(red(`  FAIL: Expected national result with table data`));
+          console.log(red(`  FAIL: Expected nationwide result with >=10 table rows`));
         }
       } else {
         resultsOk = results.filter(r => r.type !== "error").length >= tc.expectProvinces.length;

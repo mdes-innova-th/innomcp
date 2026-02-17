@@ -39,6 +39,18 @@ function bkkDateStr(offsetDays: number): string {
   return `${dd}/${mm}/${yyyy}`;
 }
 
+/** Bangkok date string in YYYY-MM-DD for a given offset (0=today, 1=tomorrow). */
+function bkkIsoDateStr(offsetDays: number): string {
+    const now = new Date();
+    const bkkMs = now.getTime() + (7 * 60 * 60 * 1000);
+    const bkk = new Date(bkkMs);
+    bkk.setUTCDate(bkk.getUTCDate() + offsetDays);
+    const yyyy = bkk.getUTCFullYear();
+    const mm = String(bkk.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(bkk.getUTCDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+}
+
 // ─── Nationwide intent detection ───
 // Keep broad + cheap; pipeline decides national-mode (NOT resolver-only)
 const NATIONWIDE_KEYWORDS = /ในไทย|ประเทศไทย|ทั่วประเทศ|ทั้งประเทศ|ทั่วไทย|ที่ไหน/i;
@@ -263,7 +275,9 @@ export class WeatherPipeline {
         const nat = detectNationwideParams(target.originalText || "");
 
         // Pick target day: "พรุ่งนี้" → tomorrow, "วันนี้"/"ตอนนี้" → today, default tomorrow
-        const targetDate = bkkDateStr(nat.wantToday ? 0 : 1);
+        const offsetDays = nat.wantToday ? 0 : 1;
+        const targetDate = bkkDateStr(offsetDays);
+        const targetIsoDate = bkkIsoDateStr(offsetDays);
         const dateLabel = nat.wantToday ? "วันนี้" : "พรุ่งนี้";
 
         // Build per-province rows for target day
@@ -283,20 +297,44 @@ export class WeatherPipeline {
         for (const p of allProvinces) {
             const name = p?.ProvinceNameThai || "";
             const fc = p?.SevenDaysForecast;
-            if (!fc || !fc.ForecastDate) continue;
 
-            const dates: string[] = Array.isArray(fc.ForecastDate) ? fc.ForecastDate : [];
-            let idx = dates.indexOf(targetDate);
+            let rain = 0;
+            let desc: string | null = null;
+            let maxTempNum = NaN;
+            let minTempNum = NaN;
+            let windDeg = "";
+            let windSpdNum = NaN;
 
-            // Fallback: if target date not found, use first entry
-            if (idx < 0) idx = 0;
+            if (fc?.ForecastDate) {
+                const dates: string[] = Array.isArray(fc.ForecastDate) ? fc.ForecastDate : [];
+                let idx = dates.indexOf(targetDate);
+                if (idx < 0) idx = dates.indexOf(targetIsoDate);
+                if (idx < 0) idx = 0;
 
-            const rain = Number(fc.PercentRainCover?.[idx]) || 0;
-            const desc = String(fc.DescriptionThai?.[idx] || "") || null;
-            const maxTempNum = fc.MaximumTemperature?.[idx] !== undefined ? Number(fc.MaximumTemperature?.[idx]) : NaN;
-            const minTempNum = fc.MinimumTemperature?.[idx] !== undefined ? Number(fc.MinimumTemperature?.[idx]) : NaN;
-            const windDeg = String(fc.WindDirection?.[idx] || "");
-            const windSpdNum = fc.WindSpeed?.[idx] !== undefined ? Number(fc.WindSpeed?.[idx]) : NaN;
+                rain = Number(fc.PercentRainCover?.[idx]) || 0;
+                desc = String(fc.DescriptionThai?.[idx] || "") || null;
+                maxTempNum = fc.MaximumTemperature?.[idx] !== undefined ? Number(fc.MaximumTemperature?.[idx]) : NaN;
+                minTempNum = fc.MinimumTemperature?.[idx] !== undefined ? Number(fc.MinimumTemperature?.[idx]) : NaN;
+                windDeg = String(fc.WindDirection?.[idx] || "");
+                windSpdNum = fc.WindSpeed?.[idx] !== undefined ? Number(fc.WindSpeed?.[idx]) : NaN;
+            } else {
+                // Alternate shape (commonly used in mocks / some payloads): ForecastDaily[] items
+                const dailyRaw = p?.ForecastDaily;
+                const dailyList = Array.isArray(dailyRaw) ? dailyRaw : (dailyRaw ? [dailyRaw] : []);
+                if (dailyList.length === 0) continue;
+
+                const picked = dailyList.find((d: any) => {
+                    const dt = String(d?.Date || "");
+                    return dt === targetIsoDate || dt === targetDate;
+                }) || dailyList[0];
+
+                rain = Number(picked?.Rain60 ?? picked?.PercentRainCover ?? picked?.Rain ?? 0) || 0;
+                desc = String(picked?.DescTh ?? picked?.DescriptionThai ?? picked?.Desc ?? "") || null;
+                maxTempNum = picked?.TempMax !== undefined ? Number(picked?.TempMax) : NaN;
+                minTempNum = picked?.TempMin !== undefined ? Number(picked?.TempMin) : NaN;
+                windDeg = String(picked?.WindDir ?? picked?.WindDirection ?? "");
+                windSpdNum = picked?.WindSpeed !== undefined ? Number(picked?.WindSpeed) : NaN;
+            }
 
             // Include if rain > 0 OR description mentions rain
                         if (rain > 0 || (desc && /ฝน|พายุ|rain|storm/i.test(desc))) {

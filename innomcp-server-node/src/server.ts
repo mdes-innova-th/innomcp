@@ -53,6 +53,7 @@ import { registerCalculatorTool } from "./mcp/tools/calculatorTool";
 import { registerThaiGeoTool } from "./mcp/tools/thaiGeoTool";
 import { registerThaiHistoryTool } from "./mcp/tools/thaiHistoryTool";
 import { registerThaiLawTool } from "./mcp/tools/thaiLawTool";
+import { registerThaiReligionTool } from "./mcp/tools/thaiReligionTool";
 
 // NEW: Session 8.8 - Data Access & Calculation Tools
 import archiveTool from "./mcp/tools/archiveTool";
@@ -92,6 +93,34 @@ const mcpserver = new McpServer({
   version: "1.0.0",
 });
 
+
+// Phase 4: Intelligence Pipeline Integration
+import { IntelligencePipeline } from "./intelligence/pipeline";
+
+// Feature Flag
+const USE_INTELLIGENCE_PIPELINE = process.env.USE_INTELLIGENCE_PIPELINE === "true";
+
+// Tool Registry for Pipeline
+const toolsRegistry: Record<string, any> = {};
+
+// Monkey-patch registerTool to collect tools
+const originalRegister = mcpserver.registerTool.bind(mcpserver);
+mcpserver.registerTool = (name: string, ...args: any[]) => {
+    // args[0] might be schema or details, args[1] represents execute
+    // Type definition for registerTool varies, but usually it's (name, details, execute) 
+    // OR (name, schema, execute)
+    // Based on usage in file: mcpserver.registerTool(name, { ... }, execute)
+    
+    // We need to capture the execute function. 
+    // In SDK, it might be: registerTool(name, description, handler)
+    // Let's safe guard.
+    const execute = args[args.length - 1]; // Execute is usually last
+    if (typeof execute === "function") {
+        toolsRegistry[name] = { execute };
+    }
+    return originalRegister(name, ...args as [any, any]); 
+};
+
 // Register essential tools only (10 tools for 2025 professional system)
 registerDateTimeTool(mcpserver);
 registerTmdTool(mcpserver); // ENABLED for Thailand Meteorological Department Data
@@ -101,6 +130,7 @@ registerCalculatorTool(mcpserver); // Enhanced as MathTool
 registerThaiGeoTool(mcpserver);
 registerThaiHistoryTool(mcpserver);
 registerThaiLawTool(mcpserver);
+registerThaiReligionTool(mcpserver); // New Phase 5 Tools
 
 // Register NEW Session 8.8 tools (direct tool objects)
 mcpserver.registerTool(archiveTool.name, {
@@ -229,15 +259,16 @@ mcpserver.registerTool(nwpDailyByRegionTool.name, {
   inputSchema: nwpDailyByRegionTool.inputSchema,
 }, nwpDailyByRegionTool.execute);
 
-logBoth('INFO', `✅ Registered 27 essential tools (2026 World-Class System):
-  - Core: dateTime, calculator (MathTool)
-  - Visualization: echartsTool
-  - TMD Weather: 17 endpoints (seismic, climate, stations, forecasts, warnings)
-  - Data Access: archive, nasa, weather, worldbank, govdata, newton
-  - World-Class: currencyExchange, qrCode, translation, rssFeed, codeFormatter
-  - AI/Files: ocrTool, fileReader (PDF/Excel/Word), imageGenerator (Canvas)
-  - NWP HPC: 6 tools (hourly/daily by location/place/region, 2km-27km resolution)`);
+logBoth('INFO', `✅ Registered ${Object.keys(toolsRegistry).length} essential tools (2026 World-Class System)`);
 
+// Initialize Pipeline (if enabled)
+let pipeline: IntelligencePipeline | null = null;
+if (USE_INTELLIGENCE_PIPELINE) {
+    pipeline = new IntelligencePipeline(toolsRegistry);
+    logBoth('INFO', '🚀 Intelligence Pipeline INITIALIZED (Phase 4)');
+} else {
+    logBoth('INFO', 'ℹ️ Intelligence Pipeline DISABLED (Phase 4)');
+}
 
 // Handle incoming MCP requests /////////////////////////////
 app.post("/mcp", async (req, res) => {
@@ -302,6 +333,48 @@ app.post("/mcp", async (req, res) => {
   await transport.handleRequest(req, res, req.body);
 });
 
+// NEW: Smart Query Endpoint (Phase 4)
+app.post("/api/smart", async (req, res) => {
+    if (!USE_INTELLIGENCE_PIPELINE || !pipeline) {
+        return res.status(503).json({ error: "Intelligence Pipeline Disabled" });
+    }
+
+    const { query } = req.body;
+    if (!query) return res.status(400).json({ error: "Missing query" });
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    const safeWrite = (payload: any) => {
+      if (res.writableEnded || res.destroyed) return;
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    };
+
+    const safeEnd = () => {
+      if (res.writableEnded || res.destroyed) return;
+      res.write(`data: [DONE]\n\n`);
+      res.end();
+    };
+
+    try {
+      for await (const e of pipeline.execute(query)) {
+        safeWrite(e);
+
+        // Professional behavior: close SSE immediately after final answer.
+        // This guarantees the high-confidence path never waits for memory.
+        if ((e as any)?.type === "final_answer") {
+          safeEnd();
+          return;
+        }
+      }
+      safeEnd();
+    } catch (e: any) {
+        safeWrite({ type: "error", message: e?.message || String(e), ms: 0 });
+        safeEnd();
+    }
+});
+
 const server = app.listen(port, host, () => {
   logBoth('INFO', `🚀 MCP Server running on http://${host}:${port}/mcp`);
 });
@@ -320,3 +393,4 @@ server.on("error", (error: any) => {
 });
 
 export { server, mcpserver };
+

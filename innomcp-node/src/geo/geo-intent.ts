@@ -46,7 +46,10 @@ export class GeoIntent {
 		const features = this.extractFeatures(text, lower);
 
 		// ── 2. Domain gate ──
-		const isWeather = this.hasWeatherKeyword(lower);
+		const isWeather =
+			this.hasWeatherKeyword(lower) ||
+			TMD_RE.test(lower) ||
+			((HOURLY_RE.test(lower) || DAILY_RE.test(lower)) && features.location_terms.length > 0);
 		if (!isWeather) {
 			return {
 				domain: "unknown",

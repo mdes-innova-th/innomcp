@@ -14,6 +14,7 @@ import { apiKeyMiddleware } from "./utils/apikey";
 import csrfMiddleware from "./utils/csrf";
 import { chatRouter } from "./routes/api/chat";
 import logger from "./utils/logger";
+import debugRouter from "./routes/api/debug";
 
 // Initialize Express application
 const app = express();
@@ -102,6 +103,9 @@ app.use("/api/metrics", metricsRouter);
 
 // Router สำหรับ AI Mode (ไม่ต้อง auth เพือ testsuit - ต้องอยู่ก่อน /api middleware)
 app.use("/api/ai-mode", aiModeRouter);
+
+// Router สำหรับ Debug/Test GUI (ไม่ต้อง auth)
+app.use("/api/debug", debugRouter);
 
 // Router สำหรับ Chat (ไม่ต้อง auth เพือ testsuit - ต้องอยู่ก่อน /api middleware)
 // FastPath middleware อยู่ใน chatRouter แล้ว

@@ -259,12 +259,27 @@ const ChatPage: React.FC = () => {
             data = await data.text();
           }
 
-          const message = JSON.parse(data);
-
-          if (!data || Object.keys(message || {}).length === 0) {
-            console.warn("Received empty message from WebSocket:", data);
-            setIsWaitingForResponse(false);
+          let message;
+          try {
+            message = JSON.parse(data);
+          } catch (e) {
+            console.error("Failed to parse WebSocket message:", e);
             return;
+          }
+
+          if (!message) return;
+          
+          if (message.type === "done") {
+             console.log("Received DONE signal");
+             setIsWaitingForResponse(false);
+             return;
+          }
+           
+          // Strict null safety: Drop messages without sender (except potentially control messages if any?)
+          // User requested strict check. backend sendSafe ensures sender exists.
+          if (!message.sender) {
+             console.warn("Ignored message missing sender:", message);
+             return;
           }
 
           // Handle incoming streaming chunk (append as-is)
@@ -346,10 +361,13 @@ const ChatPage: React.FC = () => {
             console.log("[Frontend] History update messages:", message.messages);
             console.log("[Frontend] Tools used:", message.toolsUsed);
             // Preserve structuredContent and toolsUsed from previous messages if available
-            const messagesWithContent = message.messages.map((msg: any, idx: number) => {
+            // SANITIZE: Filter out nulls/undefined/missing sender
+            const rawMessages = (message.messages ?? []).filter((m: any) => m && m.sender);
+            
+            const messagesWithContent = rawMessages.map((msg: any, idx: number) => {
               if (msg.sender === "ai" && !msg.structuredContent && message.structuredContent) {
                 // If this is the last AI message and structuredContent is provided at the root level
-                if (idx === message.messages.length - 1) {
+                if (idx === rawMessages.length - 1) {
                   return { 
                     ...msg, 
                     structuredContent: message.structuredContent,
@@ -845,7 +863,10 @@ const ChatPage: React.FC = () => {
           >
             <div className="flex flex-col gap-2 pb-6"
             >
-              {messages.map((message, index) => (
+              {messages
+                .filter(Boolean)
+                .filter(m => m.sender)
+                .map((message, index) => (
                 <MessageView
                   key={index}
                   message={message as MessageType}

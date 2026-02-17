@@ -52,7 +52,7 @@ try {
 const localOllama = new Ollama({ 
   host: localOllamaHostUrl,
 });
-const localModel = process.env.LOCAL_OLLAMA_MODEL || process.env.OLLAMA_MODEL || "gemma3:4b";
+const localModel = process.env.LOCAL_OLLAMA_MODEL || process.env.OLLAMA_MODEL || "qwen2.5:14b";
 const fastModel = process.env.FAST_OLLAMA_MODEL || "qwen2.5:0.5b";  // For fast routing/classification
 const heavyModel = process.env.HEAVY_OLLAMA_MODEL || "deepseek-r1:32b";  // For heavy tasks (optional)
 logBoth("info", `💚 Local AI: ${localOllamaHostUrl} (${localModel})`);
@@ -766,17 +766,30 @@ wss.on("connection", (ws, req) => {
           content: systemPromptContent
         };
 
-        const ollamaMessages = [
-          systemPrompt,
-          ...sessionHistory.slice(0, -1).map((m) => ({
-            role: m.sender === "ai" ? "assistant" : "user",
-            content: m.text,
-          })),
-          { 
+        const ollamaMessages = [systemPrompt];
+
+        // PERFORMANCE OPTIMIZATION: History Truncation
+        // If we have fresh MCP context (e.g. weather data), we assume the user wants an answer based on THAT.
+        // We drop older history (keep only last 2 turns) to maximize attention on the new data and reduce token count.
+        if (mcpContext) {
+            const recentHistory = sessionHistory.slice(-3, -1); // Keep last interaction only
+            ollamaMessages.push(...recentHistory.map((m) => ({
+                role: m.sender === "ai" ? "assistant" : "user",
+                content: m.text,
+            })));
+            logBoth('info', `[Chat API] ⚡ Optimization: Truncated history to last ${recentHistory.length} messages due to MCP context.`);
+        } else {
+            // Normal conversation: use full history
+            ollamaMessages.push(...sessionHistory.slice(0, -1).map((m) => ({
+                role: m.sender === "ai" ? "assistant" : "user",
+                content: m.text,
+            })));
+        }
+
+        ollamaMessages.push({ 
             role: "user", 
             content: contextPrefix + (mcpContext ? `${mcpContext}\n\n` : '') + currentText 
-          },
-        ];
+        });
 
         const streamStartTime = Date.now();
         logBoth('info', `Sending messages to Ollama (messageCount: ${ollamaMessages.length}, model: ${ollamaModel}, mode: ${AI_MODE})`);

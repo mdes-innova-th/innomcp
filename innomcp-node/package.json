@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "scripts": {
     "test": "jest",
-    "test:geo": "node --test tests/geo/*.test.js",
+    "test:geo": "npm run build && node --test tests/geo/*.test.js",
+    "test:weather65": "jest --testPathPatterns=phase65",
     "test:basic": "echo 'No tests yet' && exit 0",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -13,6 +14,8 @@
     "test:integration": "jest tests/integration",
     "test-backend-api": "ts-node tests/test-backend-api.ts",
     "test:regression": "ts-node test-runner.ts",
+    "check-db": "ts-node src/utils/db/check_db.ts",
+    "seed-geo": "ts-node src/utils/db/setup_geo.ts",
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js"

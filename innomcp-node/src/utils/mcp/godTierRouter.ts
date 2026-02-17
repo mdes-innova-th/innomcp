@@ -26,6 +26,7 @@ import { logBoth } from '../mcpLogger';
 const CONFIG = {
   OLLAMA_HOST: process.env.OLLAMA_HOST || 'http://127.0.0.1:11434',
   OLLAMA_REMOTE: process.env.OLLAMA_REMOTE_URL || 'https://ollama.mdes-innova.online',
+  GPU_LAYERS: 99, // Force maximum GPU offloading
   EMBED_MODEL: 'nomic-embed-text', // Vector embedding model
   LLM_JUDGE: 'gemma3:4b', // ใช้ตัด ambiguity (fast + accurate)
   LLM_HEAVY: 'deepseek-r1:32b', // สำหรับ complex cases (optional)
@@ -99,6 +100,14 @@ interface DBKeyword {
 // ========================================
 
 const CATEGORIES: ToolCategory[] = [
+  {
+    id: 'evidence',
+    name: 'Evidence Analysis (Detect)',
+    description: 'ตรวจสอบสถานะเครื่อง, หลักฐานค้าง, และ Threat ล่าสุดจากระบบ Detect',
+    keywords: ['evidence', 'threat', 'nip', 'record', 'ตรวจสอบหลักฐาน', 'คนร้าย', 'ภัยคุกคาม', 'สถานะเครื่อง', 'server', 'machine'],
+    priority: 1,
+    enabled: true,
+  },
   {
     id: 'weather',
     name: 'Weather Forecasting (NWP/TMD)',
@@ -378,6 +387,7 @@ export class GodTierRouter {
       const response = await this.ollama.embeddings({
         model: CONFIG.EMBED_MODEL,
         prompt: fullQuery,
+        options: { num_gpu_layers: CONFIG.GPU_LAYERS } as any,
       });
       const queryVector = response.embedding;
       
@@ -466,7 +476,7 @@ B. ${cat2?.name} (${(top2.score * 100).toFixed(1)}%) - ${cat2?.description}
       const response = await this.ollama.chat({
         model: CONFIG.LLM_JUDGE,
         messages: [{ role: 'user', content: judgePrompt }],
-        options: { temperature: 0, num_predict: 100 },
+        options: { temperature: 0, num_predict: 100, num_gpu_layers: CONFIG.GPU_LAYERS } as any,
       });
       const judgeTime = Date.now() - judgeStart;
       

@@ -10,7 +10,17 @@
       "Bash(docker ps:*)",
       "Bash(docker port:*)",
       "Bash(mysql:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(dir:*)",
+      "Bash(npx tsx --test:*)",
+      "Bash(node -e:*)",
+      "Bash(curl:*)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(npx tsx:*)",
+      "Bash(python antigravity_watcher.py:*)",
+      "Bash(git init:*)"
     ]
   }
 }

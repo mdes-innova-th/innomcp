@@ -45,4 +45,7 @@ yarn-error.log*
 /temp
 /tmp
 
+# local scratch scripts (verification / debug helpers)
+/scripts/
+
 

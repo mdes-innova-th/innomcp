@@ -31,6 +31,8 @@ import {
 } from "./types";
 import { ToolSelectionEngine } from "./toolSelection";
 import { WeatherPipeline } from "../weather/weatherPipeline";
+import { EVIDENCE_TOOL_DEF, handleEvidenceTool, EVIDENCE_TOOL_NAME } from "./tools/evidenceTool";
+import { THAI_GEO_TOOL_DEF, handleThaiGeoTool } from "./tools/thai_geo_tool";
 
 // ========================================
 // SYSTEM PROMPT (Enhanced 2026)
@@ -170,6 +172,7 @@ class IntelligentMCPClient extends EventEmitter {
   private tools: Map<string, MCPTool> = new Map();
   private resources: Map<string, MCPResource> = new Map();
   private weatherPipeline: WeatherPipeline | null = null;
+  private localHandlers: Map<string, Function> = new Map(); // Local tool handlers
   
   // Multi-AI support
   private localOllama: Ollama | null = null;
@@ -370,6 +373,21 @@ class IntelligentMCPClient extends EventEmitter {
       this.aiMode = 'local';
       this.localModel = ollamaModel;
     }
+
+    // Register Local Tools
+    this.registerLocalTool(EVIDENCE_TOOL_DEF, handleEvidenceTool);
+    this.registerLocalTool(THAI_GEO_TOOL_DEF, handleThaiGeoTool);
+  }
+
+
+  /**
+   * Register a local tool handler
+   */
+  private registerLocalTool(toolDef: MCPTool, handler: Function) {
+      const wrapperName = `local-tools:${toolDef.name}`;
+      this.tools.set(wrapperName, toolDef);
+      this.localHandlers.set(wrapperName, handler);
+      console.log(`[MCP Client] Registered local tool: ${wrapperName}`);
   }
 
   // ========================================
@@ -2065,7 +2083,9 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
         const tool = this.tools.get(toolName);
         const resource = this.resources.get(toolName);
 
-        if (!client) {
+        if (clientName === "local-tools") {
+            // Local tool execution (bypass client check)
+        } else if (!client) {
           return { toolName, error: `Client ${clientName} not found`, success: false };
         }
 
@@ -2090,13 +2110,44 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
         console.log(`[MCP Client] 🚀 Calling ${actualToolName} with args:`, JSON.stringify(callArgs));
 
         let result: any;
-        if (resource) {
+        if (resource && client) {
            result = await client.callTool({
              name: resource.name,
              arguments: callArgs,
            });
-        } else {
            result = await client.callTool({
+             name: actualToolName,
+             arguments: callArgs,
+           });
+        }
+        
+        // Execute Local Tool
+        else if (clientName === "local-tools") {
+             const handler = this.localHandlers.get(toolName);
+             if (handler) {
+                 const localResult = await handler(callArgs);
+                 // Format to match MCP result structure
+                 result = {
+                     content: [{ type: "text", text: JSON.stringify(localResult) }],
+                     isError: !!localResult.error
+                 };
+             } else {
+                 throw new Error(`Local handler not found for ${toolName}`);
+             }
+        } else if (clientName === "local-tools") {
+             const handler = this.localHandlers.get(toolName);
+             if (handler) {
+                 const localResult = await handler(callArgs);
+                 // Format to match MCP result structure
+                 result = {
+                     content: [{ type: "text", text: JSON.stringify(localResult) }],
+                     isError: !!localResult.error
+                 };
+             } else {
+                 throw new Error(`Local handler not found for ${toolName}`);
+             }
+        } else {
+           result = await client!.callTool({ // Add ! assertion or check
              name: actualToolName,
              arguments: callArgs,
            });

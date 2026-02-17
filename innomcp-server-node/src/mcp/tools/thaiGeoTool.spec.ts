@@ -1,6 +1,11 @@
-import test from "node:test";
+import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { thaiGeoTool, setGeoDb, MariaDbGeoDb, type GeoDbAdapter } from "./thaiGeoTool";
+import { thaiGeoTool, setGeoDb, InMemoryGeoDb, THAI_GEO_SEED, type GeoDbAdapter } from "./thaiGeoTool";
+
+beforeEach(() => {
+  // Unit tests must not depend on MariaDB availability.
+  setGeoDb(new InMemoryGeoDb(THAI_GEO_SEED));
+});
 
 function parseToolText(result: any): any {
   assert.ok(result);
@@ -57,5 +62,5 @@ test("thai_geo_tool: DB adapter error triggers fallback to stub", async () => {
   assert.ok(typeof body.note === "string");
   assert.ok(body.note.includes("fallback to stub"));
 
-  setGeoDb(new MariaDbGeoDb());
+  setGeoDb(new InMemoryGeoDb(THAI_GEO_SEED));
 });
