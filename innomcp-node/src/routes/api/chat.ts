@@ -23,6 +23,7 @@ import reportRouter from "./chat/report";
 import { optionalAuth } from "../../utils/jwt";
 import { guestLimiterMiddleware, getLimitsForUser, checkToolAccess, limitResponseLength } from "../../middleware/guestLimiter";
 import { tryFastPathWebSocket } from "../../services/fastPathHandler";
+import { renderWeatherMarkdownTable } from "../../utils/weather/tableRenderer";
 
 dotenv.config();
 
@@ -95,8 +96,285 @@ let ollamaFastModel = AI_MODE === 'local' ? fastModel : (remoteFastModel || fast
 
 logBoth("info", `\n✨ Primary AI: ${AI_MODE === 'local' ? 'Local' : (remoteOllama ? 'Remote' : 'Local (fallback)')}\n`);
 
+function syncChatAIModeIfChanged() {
+  const latestMode = getCurrentAIMode();
+  if (latestMode !== AI_MODE) {
+    logBoth('info', `[Chat AI] 🔄 Detected mode drift: ${AI_MODE} → ${latestMode}`);
+    updateChatAIMode();
+  }
+}
+
+function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { text: string; structuredContent: any } {
+  const structuredContent = { weatherPipeline: weatherPayload };
+
+  const wantsTable = /ตาราง|table|รายสถานี|สถานี/i.test(userText || "");
+  const wantsToday = /วันนี้|ตอนนี้|ขณะนี้/i.test(userText || "");
+
+  const renderBkkDateStr = (offsetDays: number): string => {
+    const now = new Date();
+    const bkkMs = now.getTime() + (7 * 60 * 60 * 1000);
+    const bkk = new Date(bkkMs);
+    bkk.setUTCDate(bkk.getUTCDate() + offsetDays);
+    const dd = String(bkk.getUTCDate()).padStart(2, "0");
+    const mm = String(bkk.getUTCMonth() + 1).padStart(2, "0");
+    const yyyy = bkk.getUTCFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+
+  if (!Array.isArray(weatherPayload)) {
+    const err = String(weatherPayload?.error || "WEATHER_PIPELINE_ERROR");
+    if (err === "PROVINCE_MISSING") {
+      return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
+    }
+    if (err === "TIMEOUT") {
+      return { text: "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ", structuredContent };
+    }
+    return { text: `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`, structuredContent };
+  }
+
+  const weatherResults = weatherPayload as any[];
+  const firstOk = weatherResults.find((r: any) => r && r.type !== "error") || weatherResults[0];
+
+  if (!firstOk || firstOk.type === "error") {
+    const err = String(firstOk?.error || "WEATHER_PIPELINE_ERROR");
+    if (err === "PROVINCE_MISSING") {
+      return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
+    }
+    if (err === "TIMEOUT") {
+      return { text: "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ", structuredContent };
+    }
+    return { text: `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`, structuredContent };
+  }
+
+  if (wantsTable) {
+    if (firstOk.type === "national") {
+      const d = firstOk.data || {};
+      const label = d.dateLabel || "พรุ่งนี้";
+      const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
+      const note = d.note ? `\n\nหมายเหตุ: ${d.note}` : "";
+      const table = d.tableMarkdown ? `\n\n${d.tableMarkdown}` : `\n\n${renderWeatherMarkdownTable(weatherResults)}`;
+      return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${table}${note}`, structuredContent };
+    }
+
+    return {
+      text: `ตารางสรุปสภาพอากาศ:\n\n${renderWeatherMarkdownTable(weatherResults)}`,
+      structuredContent,
+    };
+  }
+
+  if (firstOk.type === "national") {
+    const d = firstOk.data || {};
+    const label = d.dateLabel || "พรุ่งนี้";
+    const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
+    return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN} (ถ้าต้องการ \"ตาราง\" บอกได้ครับ)`, structuredContent };
+  }
+
+  if (firstOk.type === "forecast7d") {
+    const province = firstOk.province || "";
+    const f = firstOk.data?.forecast;
+    const targetDate = wantsToday ? renderBkkDateStr(0) : renderBkkDateStr(1);
+
+    if (f && typeof f === "object" && Array.isArray((f as any).ForecastDate)) {
+      const idx = ((f as any).ForecastDate as string[]).indexOf(targetDate);
+      const i = idx >= 0 ? idx : 0;
+      const rain = Number((f as any).PercentRainCover?.[i]) || 0;
+      const tmax = (f as any).MaximumTemperature?.[i];
+      const tmin = (f as any).MinimumTemperature?.[i];
+      const desc = String((f as any).DescriptionThai?.[i] || "").trim();
+      return {
+        text: `พยากรณ์อากาศ${province} (${targetDate}): โอกาสฝน ~${rain}% อุณหภูมิ ${tmin ?? "—"}–${tmax ?? "—"}°C${desc ? `, ${desc}` : ""}`,
+        structuredContent,
+      };
+    }
+
+    return { text: `พยากรณ์อากาศ${province}: ดึงข้อมูลพยากรณ์ 7 วันสำเร็จ (ถ้าต้องการ \"ตาราง\" บอกได้ครับ)`, structuredContent };
+  }
+
+  if (firstOk.type === "station3h") {
+    const province = firstOk.province || "";
+    const list = Array.isArray(firstOk.data) ? firstOk.data : [];
+    const s = list[0] || {};
+    const temp = s.Temp ?? s.Temperature ?? s.AirTemperature ?? s.TempC;
+    return {
+      text: `อากาศตอนนี้${province}: พบข้อมูลสถานี ${list.length} จุด${temp !== undefined ? `, อุณหภูมิประมาณ ${temp}°C` : ""}`,
+      structuredContent,
+    };
+  }
+
+  return { text: `ผลพยากรณ์อากาศ (${firstOk.type}) สำหรับ ${firstOk.province || "พื้นที่ที่ถาม"}`, structuredContent };
+}
+
+function safeTruncate(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  return text.slice(0, Math.max(0, maxChars - 1)) + "…";
+}
+
+function safeJsonStringify(value: any, maxChars: number): string {
+  try {
+    const json = JSON.stringify(
+      value,
+      (_k, v) => {
+        if (typeof v === "bigint") return v.toString();
+        return v;
+      },
+      2
+    );
+    return safeTruncate(json, maxChars);
+  } catch {
+    return safeTruncate(String(value), maxChars);
+  }
+}
+
+function structuredKeysSummary(structuredContent: any): string {
+  if (!structuredContent) return "(none)";
+  if (Array.isArray(structuredContent)) return `array(len=${structuredContent.length})`;
+  if (typeof structuredContent === "object") return Object.keys(structuredContent).join(",") || "(empty)";
+  return typeof structuredContent;
+}
+
+function renderStructuredDirect(
+  toolName: string,
+  structuredContent: any,
+  originalQuery: string
+): { text: string; structuredContent: any } | null {
+  const wantsDeepExplain = /อธิบายเชิงลึก|ละเอียด|สรุปเป็นภาษาคน|เหตุผล|วิเคราะห์/i.test(originalQuery || "");
+
+  if (toolName === "weatherPipeline") {
+    if (wantsDeepExplain) return null;
+    const payload =
+      structuredContent && typeof structuredContent === "object" && !Array.isArray(structuredContent)
+        ? (structuredContent as any).weatherPipeline ?? structuredContent
+        : structuredContent;
+    return renderWeatherDirectAnswer(originalQuery || "", payload);
+  }
+
+  if (toolName === "echartsTool") {
+    const chartSvg = structuredContent && typeof structuredContent === "object" ? (structuredContent as any).chartSvg : undefined;
+    if (typeof chartSvg === "string" && chartSvg.length > 0) {
+      return {
+        text: "สร้างกราฟให้แล้วครับ (ดูภาพด้านล่าง)",
+        structuredContent,
+      };
+    }
+  }
+
+  const json = safeJsonStringify(structuredContent, 2400);
+  return {
+    text: `ผลลัพธ์จากเครื่องมือ ${toolName}:\n\n\`\`\`json\n${json}\n\`\`\``,
+    structuredContent,
+  };
+}
+
 // Export function to update AI mode dynamically
 export function updateChatAIMode() {
+
+  function syncChatAIModeIfChanged() {
+    const latestMode = getCurrentAIMode();
+    if (latestMode !== AI_MODE) {
+      logBoth('info', `[Chat AI] 🔄 Detected mode drift: ${AI_MODE} → ${latestMode}`);
+      updateChatAIMode();
+    }
+  }
+
+  function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { text: string; structuredContent: any } {
+    const structuredContent = { weatherPipeline: weatherPayload };
+
+    const wantsTable = /ตาราง|table|รายสถานี|สถานี/i.test(userText || "");
+    const wantsToday = /วันนี้|ตอนนี้|ขณะนี้/i.test(userText || "");
+
+    const renderBkkDateStr = (offsetDays: number): string => {
+      const now = new Date();
+      const bkkMs = now.getTime() + (7 * 60 * 60 * 1000);
+      const bkk = new Date(bkkMs);
+      bkk.setUTCDate(bkk.getUTCDate() + offsetDays);
+      const dd = String(bkk.getUTCDate()).padStart(2, "0");
+      const mm = String(bkk.getUTCMonth() + 1).padStart(2, "0");
+      const yyyy = bkk.getUTCFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+
+    if (!Array.isArray(weatherPayload)) {
+      const err = String(weatherPayload?.error || "WEATHER_PIPELINE_ERROR");
+      if (err === "PROVINCE_MISSING") {
+        return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
+      }
+      if (err === "TIMEOUT") {
+        return { text: "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ", structuredContent };
+      }
+      return { text: `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`, structuredContent };
+    }
+
+    const weatherResults = weatherPayload as any[];
+    const firstOk = weatherResults.find((r: any) => r && r.type !== "error") || weatherResults[0];
+
+    if (!firstOk || firstOk.type === "error") {
+      const err = String(firstOk?.error || "WEATHER_PIPELINE_ERROR");
+      if (err === "PROVINCE_MISSING") {
+        return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
+      }
+      if (err === "TIMEOUT") {
+        return { text: "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ", structuredContent };
+      }
+      return { text: `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`, structuredContent };
+    }
+
+    if (wantsTable) {
+      if (firstOk.type === "national") {
+        const d = firstOk.data || {};
+        const label = d.dateLabel || "พรุ่งนี้";
+        const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
+        const note = d.note ? `\n\nหมายเหตุ: ${d.note}` : "";
+        const table = d.tableMarkdown ? `\n\n${d.tableMarkdown}` : `\n\n${renderWeatherMarkdownTable(weatherResults)}`;
+        return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${table}${note}`, structuredContent };
+      }
+
+      return {
+        text: `ตารางสรุปสภาพอากาศ:\n\n${renderWeatherMarkdownTable(weatherResults)}`,
+        structuredContent,
+      };
+    }
+
+    if (firstOk.type === "national") {
+      const d = firstOk.data || {};
+      const label = d.dateLabel || "พรุ่งนี้";
+      const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
+      return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN} (ถ้าต้องการ \"ตาราง\" บอกได้ครับ)`, structuredContent };
+    }
+
+    if (firstOk.type === "forecast7d") {
+      const province = firstOk.province || "";
+      const f = firstOk.data?.forecast;
+      const targetDate = wantsToday ? renderBkkDateStr(0) : renderBkkDateStr(1);
+
+      if (f && typeof f === "object" && Array.isArray((f as any).ForecastDate)) {
+        const idx = ((f as any).ForecastDate as string[]).indexOf(targetDate);
+        const i = idx >= 0 ? idx : 0;
+        const rain = Number((f as any).PercentRainCover?.[i]) || 0;
+        const tmax = (f as any).MaximumTemperature?.[i];
+        const tmin = (f as any).MinimumTemperature?.[i];
+        const desc = String((f as any).DescriptionThai?.[i] || "").trim();
+        return {
+          text: `พยากรณ์อากาศ${province} (${targetDate}): โอกาสฝน ~${rain}% อุณหภูมิ ${tmin ?? "—"}–${tmax ?? "—"}°C${desc ? `, ${desc}` : ""}`,
+          structuredContent,
+        };
+      }
+
+      return { text: `พยากรณ์อากาศ${province}: ดึงข้อมูลพยากรณ์ 7 วันสำเร็จ (ถ้าต้องการ \"ตาราง\" บอกได้ครับ)`, structuredContent };
+    }
+
+    if (firstOk.type === "station3h") {
+      const province = firstOk.province || "";
+      const list = Array.isArray(firstOk.data) ? firstOk.data : [];
+      const s = list[0] || {};
+      const temp = s.Temp ?? s.Temperature ?? s.AirTemperature ?? s.TempC;
+      return {
+        text: `อากาศตอนนี้${province}: พบข้อมูลสถานี ${list.length} จุด${temp !== undefined ? `, อุณหภูมิประมาณ ${temp}°C` : ""}`,
+        structuredContent,
+      };
+    }
+
+    return { text: `ผลพยากรณ์อากาศ (${firstOk.type}) สำหรับ ${firstOk.province || "พื้นที่ที่ถาม"}`, structuredContent };
+  }
   const oldMode = AI_MODE;
   AI_MODE = getCurrentAIMode();
   
@@ -435,103 +713,101 @@ wss.on("connection", (ws, req) => {
     // Enqueue the message processing to prevent overload
     await requestQueue.enqueue(messageId, async () => {
       try {
+        // Keep AI mode consistent across MCP planner + final response
+        syncChatAIModeIfChanged();
+
         // clientMessage is already parsed above
-        
+
         // optional messageId to deduplicate repeated sends from the same client
         const incomingId = (clientMessage as any).messageId;
-      if (incomingId && (ws as any).processedMessageIds.has(incomingId)) {
-        logBoth("warn", `[Chat API] Duplicate messageId received, ignoring: ${incomingId}`);
-        return;
-      }
-      if (incomingId) {
-        (ws as any).processedMessageIds.add(incomingId);
-        // expire this id after 60 seconds to avoid memory leak
-        setTimeout(() => {
-          try {
-            (ws as any).processedMessageIds.delete(incomingId);
-          } catch (e) {
-            // ignore
+        if (incomingId && (ws as any).processedMessageIds.has(incomingId)) {
+          logBoth("warn", `[Chat API] Duplicate messageId received, ignoring: ${incomingId}`);
+          return;
+        }
+        if (incomingId) {
+          (ws as any).processedMessageIds.add(incomingId);
+          // expire this id after 60 seconds to avoid memory leak
+          setTimeout(() => {
+            try {
+              (ws as any).processedMessageIds.delete(incomingId);
+            } catch (e) {
+              // ignore
+            }
+          }, 60000);
+        }
+        logBoth('info', `Received WebSocket message (textLength: ${clientMessage.text?.length || 0}, historySize: ${clientMessage.messages?.length || 0}, hasFile: ${!!clientMessage.file})`);
+
+        // Get full message history from client or initialize empty
+        let sessionHistory: ChatMessage[] = clientMessage.messages || [];
+
+        // 📎 Handle file attachment
+        let fileContext = "";
+        if (clientMessage.file) {
+          const file = clientMessage.file;
+          logBoth('info', `[File Upload] Processing file: ${file.name} (${file.type}, ${(file.size / 1024).toFixed(2)}KB)`);
+
+          // Check if it's an image file
+          if (file.type.startsWith('image/')) {
+            // For now, just acknowledge the image
+            // TODO: Implement image processing with vision AI
+            fileContext = `\n[ผู้ใช้แนบรูปภาพ: ${file.name}]`;
+            logBoth('info', `[File Upload] Image file detected: ${file.name}`);
+          } else {
+            // Other file types
+            fileContext = `\n[ผู้ใช้แนบไฟล์: ${file.name} (${file.type})]`;
+            logBoth('info', `[File Upload] File attached: ${file.name} (${file.type})`);
           }
-        }, 60000);
-      }
-      logBoth('info', `Received WebSocket message (textLength: ${clientMessage.text?.length || 0}, historySize: ${clientMessage.messages?.length || 0}, hasFile: ${!!clientMessage.file})`);
-
-      // Get full message history from client or initialize empty
-      let sessionHistory: ChatMessage[] = clientMessage.messages || [];
-      
-      // 📎 Handle file attachment
-      let fileContext = "";
-      if (clientMessage.file) {
-        const file = clientMessage.file;
-        logBoth('info', `[File Upload] Processing file: ${file.name} (${file.type}, ${(file.size / 1024).toFixed(2)}KB)`);
-        
-        // Check if it's an image file
-        if (file.type.startsWith('image/')) {
-          // For now, just acknowledge the image
-          // TODO: Implement image processing with vision AI
-          fileContext = `\n[ผู้ใช้แนบรูปภาพ: ${file.name}]`;
-          logBoth('info', `[File Upload] Image file detected: ${file.name}`);
-        } else {
-          // Other file types
-          fileContext = `\n[ผู้ใช้แนบไฟล์: ${file.name} (${file.type})]`;
-          logBoth('info', `[File Upload] File attached: ${file.name} (${file.type})`);
         }
-      }
 
-      if (!currentText) {
-        sendSafe(ws, { error: "Text is required", type: "error" });
-        return;
-      }
-      
-      // Add file context to the message if present
-      const messageWithFile = currentText + fileContext;
-      
-
-
-
-      // 📝 Log user message to session (with file indicator if present)
-      const currentSessionId = (ws as any).sessionId;
-      sessionManager.addMessage(currentSessionId, 'user', messageWithFile);
-      logBoth('info', `[Session] Added user message to session ${currentSessionId}${fileContext ? ' (with file)' : ''}`);
-      
-      // 🎯 Start response tracking
-      sessionManager.startResponse(currentSessionId);
-
-      // (FastPath check moved to top)
-
-      // 🎯 God-Tier Router: 4-stage context-aware intent classification (Keyword + Semantic + Ambiguity + LLM)
-      let semanticCategory: string | null = null;
-      try {
-        const godTierRouter = getGodTierRouter();
-        const startTime = Date.now();
-        
-        // Get last 2 messages from history for context
-        const conversationHistory = sessionHistory.slice(-2).map((m: any) => ({
-          role: m.role,
-          content: m.content,
-          timestamp: new Date()
-        }));
-        
-        const routingResult = await godTierRouter.route(messageWithFile, conversationHistory);
-        semanticCategory = routingResult.category;
-        const latency = Date.now() - startTime;
-        
-        logBoth('info', `[God-Tier Router] 🎯 Category: "${semanticCategory}" (confidence: ${routingResult.confidence.toFixed(2)}, ${latency}ms)`);
-        
-        if (routingResult.isAmbiguous) {
-          logBoth('info', `[God-Tier Router] ⚠️  Ambiguous query - used reasoning: ${routingResult.reasoning}`);
+        if (!currentText) {
+          sendSafe(ws, { error: "Text is required", type: "error" });
+          return;
         }
-        
-        // Log matched keywords and scores
-        if (routingResult.matchedKeywords && routingResult.matchedKeywords.length > 0) {
-          logBoth('info', `[God-Tier Router] 🔑 Keywords: ${routingResult.matchedKeywords.join(', ')}`);
+
+        // Add file context to the message if present
+        const messageWithFile = currentText + fileContext;
+
+        // 📝 Log user message to session (with file indicator if present)
+        const currentSessionId = (ws as any).sessionId;
+        sessionManager.addMessage(currentSessionId, 'user', messageWithFile);
+        logBoth('info', `[Session] Added user message to session ${currentSessionId}${fileContext ? ' (with file)' : ''}`);
+
+        // 🎯 Start response tracking
+        sessionManager.startResponse(currentSessionId);
+
+        // 🎯 God-Tier Router: 4-stage context-aware intent classification (Keyword + Semantic + Ambiguity + LLM)
+        let semanticCategory: string | null = null;
+        try {
+          const godTierRouter = getGodTierRouter();
+          const startTime = Date.now();
+
+          // Get last 2 messages from history for context
+          const conversationHistory = sessionHistory.slice(-2).map((m: any) => ({
+            role: m.role,
+            content: m.content,
+            timestamp: new Date()
+          }));
+
+          const routingResult = await godTierRouter.route(messageWithFile, conversationHistory);
+          semanticCategory = routingResult.category;
+          const latency = Date.now() - startTime;
+
+          logBoth('info', `[God-Tier Router] 🎯 Category: "${semanticCategory}" (confidence: ${routingResult.confidence.toFixed(2)}, ${latency}ms)`);
+
+          if (routingResult.isAmbiguous) {
+            logBoth('info', `[God-Tier Router] ⚠️  Ambiguous query - used reasoning: ${routingResult.reasoning}`);
+          }
+
+          // Log matched keywords and scores
+          if (routingResult.matchedKeywords && routingResult.matchedKeywords.length > 0) {
+            logBoth('info', `[God-Tier Router] 🔑 Keywords: ${routingResult.matchedKeywords.join(', ')}`);
+          }
+          if (routingResult.keywordScore !== undefined && routingResult.semanticScore !== undefined) {
+            logBoth('info', `[God-Tier Router] 📊 Keyword: ${routingResult.keywordScore.toFixed(2)} | Semantic: ${routingResult.semanticScore.toFixed(2)}`);
+          }
+        } catch (err) {
+          logBoth('warn', `[God-Tier Router] ⚠️  Routing failed: ${err}, falling back to MCP default`);
         }
-        if (routingResult.keywordScore !== undefined && routingResult.semanticScore !== undefined) {
-          logBoth('info', `[God-Tier Router] 📊 Keyword: ${routingResult.keywordScore.toFixed(2)} | Semantic: ${routingResult.semanticScore.toFixed(2)}`);
-        }
-      } catch (err) {
-        logBoth('warn', `[God-Tier Router] ⚠️  Routing failed: ${err}, falling back to MCP default`);
-      }
 
       // 🎯 Intent-based handling: DISABLED FOR WEATHER (use MCP tools instead)
       // Weather queries should use NWP/TMD tools via MCP, not Open-Meteo direct API
@@ -598,6 +874,7 @@ wss.on("connection", (ws, req) => {
       let finalMessage = currentText;
       let mcpContext = "";
       let structuredContent: any = undefined;
+      let structuredContentToolName: string | undefined = undefined;
       let toolsUsedInThisRequest: string[] = [];
 
       // **Process with MCP**
@@ -629,6 +906,7 @@ wss.on("connection", (ws, req) => {
               for (const result of mcpResult.toolResults) {
                 if (result.structuredContent) {
                   structuredContent = result.structuredContent;
+                  structuredContentToolName = result.toolName;
                   logBoth("info", `[Chat API] Found structured content from tool: ${result.toolName}`);
                   logBoth("info", `[Chat API] Structured content keys: ${JSON.stringify(Object.keys(structuredContent))}`);
                   break; // Use first available structuredContent
@@ -640,6 +918,27 @@ wss.on("connection", (ws, req) => {
               mcpContext = mcpResult.enhancedContext;
             }
 
+            if (structuredContent && structuredContentToolName) {
+              const direct = renderStructuredDirect(structuredContentToolName, structuredContent, currentText || "");
+              if (direct) {
+                logBoth(
+                  "info",
+                  `[StructuredDirect] tool=${structuredContentToolName} keys=${structuredKeysSummary(structuredContent)} bypass=true`
+                );
+                const aiMessage: any = {
+                  sender: "ai",
+                  text: direct.text,
+                  structuredContent: direct.structuredContent,
+                };
+                if (toolsUsedInThisRequest.length > 0) aiMessage.toolsUsed = toolsUsedInThisRequest;
+                sessionHistory.push(aiMessage);
+
+                sendSafe(ws, { type: "chunk", text: direct.text, structuredContent: direct.structuredContent });
+                sendSafe(ws, { type: "history-update", messages: sessionHistory });
+                return; // ✅ Skip Ollama finalize
+              }
+            }
+
             // PATCH 2 (weather performance): bypass Ollama finalize when weatherPipeline already has a complete answer.
             // Only use LLM if user explicitly asks for deeper explanation.
             const wantsDeepExplain = /อธิบายเชิงลึก|ละเอียด|สรุปเป็นภาษาคน|เหตุผล|วิเคราะห์/i.test(currentText || "");
@@ -647,6 +946,24 @@ wss.on("connection", (ws, req) => {
             const weatherResults = Array.isArray(weatherTool?.structuredContent)
               ? (weatherTool!.structuredContent as any[])
               : null;
+
+            const weatherPayloadFromStructuredContent =
+              structuredContent && typeof structuredContent === "object" && !Array.isArray(structuredContent)
+                ? (structuredContent as any).weatherPipeline
+                : undefined;
+            const weatherPayload = weatherTool?.structuredContent ?? weatherPayloadFromStructuredContent;
+
+            if (weatherPayload && !wantsDeepExplain) {
+              console.log("[WeatherDirect] Bypassing LLM synthesis");
+              const rendered = renderWeatherDirectAnswer(currentText || "", weatherPayload);
+              const aiMessage: any = { sender: "ai", text: rendered.text, structuredContent: rendered.structuredContent };
+              if (toolsUsedInThisRequest.length > 0) aiMessage.toolsUsed = toolsUsedInThisRequest;
+              sessionHistory.push(aiMessage);
+
+              sendSafe(ws, { type: "chunk", text: rendered.text, structuredContent: rendered.structuredContent });
+              sendSafe(ws, { type: "history-update", messages: sessionHistory });
+              return; // ✅ Skip Ollama finalize
+            }
 
             if (weatherResults && !wantsDeepExplain) {
               const renderBkkDateStr = (offsetDays: number): string => {
@@ -993,6 +1310,7 @@ wss.on("connection", (ws, req) => {
 // NOTE: Mounted at /api/chat, so this should be the root path
 chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddleware(), async (req, res) => {
   try {
+    syncChatAIModeIfChanged();
     const { message, messages } = req.body;
 
     if (!message) {
@@ -1010,6 +1328,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
     let finalMessage = message;
     let mcpResults = null;
+    let structuredContent: any = undefined;
 
     // **Process with MCP**
     if (mcpClient) {
@@ -1019,6 +1338,25 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         if (mcpResult.needsTools) {
           logBoth("info", `[Chat API] Processed with MCP tools: ${mcpResult.toolResults?.length}`);
           mcpResults = mcpResult.toolResults;
+
+          const structuredResult = mcpResult.toolResults?.find((r: any) => r && r.structuredContent);
+          if (structuredResult) {
+            const direct = renderStructuredDirect(structuredResult.toolName, structuredResult.structuredContent, message || "");
+            if (direct) {
+              logBoth(
+                "info",
+                `[StructuredDirect] tool=${structuredResult.toolName} keys=${structuredKeysSummary(structuredResult.structuredContent)} bypass=true`
+              );
+              sessionHistory.push({ sender: "ai", text: direct.text } as any);
+              return res.json({
+                text: direct.text,
+                structuredContent: direct.structuredContent,
+                messages: sessionHistory,
+                mcpUsed: true,
+                mcpResults: mcpResults,
+              });
+            }
+          }
 
           if (mcpResult.enhancedContext) {
             finalMessage = mcpResult.enhancedContext;
