@@ -39,6 +39,10 @@ export interface ThaiGeoResult {
   confidence: number;
 }
 
+function escapeLike(s: string): string {
+  return s.replace(/[%_\\]/g, '\\$&');
+}
+
 const REGION_MAPPING: Record<string, string> = {
   "north": "ภาคเหนือ",
   "south": "ภาคใต้",
@@ -58,8 +62,9 @@ export async function handleThaiGeoTool(args: any): Promise<any> {
         WHERE (name_th LIKE ? OR JSON_CONTAINS(aliases, JSON_QUOTE(?)))
         AND domain = 'geo'
       `;
-      
-      const params: any[] = [`%${query}%`, query];
+
+      const safeQuery = escapeLike(query);
+      const params: any[] = [`%${safeQuery}%`, query];
       
       if (filter_region) {
         // 1. Resolve Region Name (English -> Thai)
@@ -69,8 +74,25 @@ export async function handleThaiGeoTool(args: any): Promise<any> {
           targetRegion = REGION_MAPPING[lowerReg];
         }
 
-        sql += ` AND JSON_EXTRACT(attributes, '$.region') LIKE ?`;
-        params.push(`%${targetRegion}%`);
+        const regionCandidates = new Set<string>();
+        regionCandidates.add(targetRegion);
+
+        if (targetRegion.startsWith('ภาค')) {
+          const withoutPrefix = targetRegion.replace(/^ภาค\s*/, '').trim();
+          if (withoutPrefix) regionCandidates.add(withoutPrefix);
+        } else {
+          regionCandidates.add(`ภาค${targetRegion}`);
+        }
+
+        const regionClauses = Array.from(regionCandidates).map(
+          () => `JSON_EXTRACT(attributes, '$.region') LIKE ?`
+        );
+        sql += ` AND (${regionClauses.join(' OR ')})`;
+
+        for (const candidate of regionCandidates) {
+          const safeRegion = escapeLike(candidate);
+          params.push(`%${safeRegion}%`);
+        }
       }
       
       sql += ` LIMIT 10`; 
@@ -87,7 +109,15 @@ export async function handleThaiGeoTool(args: any): Promise<any> {
       }
       
       const results = rows.map(row => {
-        const attrs = typeof row.attributes === 'string' ? JSON.parse(row.attributes) : row.attributes;
+        let attrs: any = row.attributes;
+        if (typeof attrs === 'string') {
+          try {
+            attrs = JSON.parse(attrs);
+          } catch {
+            attrs = {};
+          }
+        }
+        attrs = attrs ?? {};
         return {
           provinces_id: row.id,     // 3. Strict Output: provinces_id
           name: row.name_th,
@@ -107,7 +137,7 @@ export async function handleThaiGeoTool(args: any): Promise<any> {
     } catch (error: any) {
       return {
         success: false,
-        error: error.message
+        error: "internal query error"
       };
     }
 }

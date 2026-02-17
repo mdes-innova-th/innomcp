@@ -33,6 +33,7 @@ import { ToolSelectionEngine } from "./toolSelection";
 import { WeatherPipeline } from "../weather/weatherPipeline";
 import { EVIDENCE_TOOL_DEF, handleEvidenceTool, EVIDENCE_TOOL_NAME } from "./tools/evidenceTool";
 import { THAI_GEO_TOOL_DEF, handleThaiGeoTool } from "./tools/thai_geo_tool";
+import { SYSTEM_STATUS_TOOL_DEF, handleSystemStatusTool } from "./tools/system_status_tool";
 
 // ========================================
 // SYSTEM PROMPT (Enhanced 2026)
@@ -377,6 +378,7 @@ class IntelligentMCPClient extends EventEmitter {
     // Register Local Tools
     this.registerLocalTool(EVIDENCE_TOOL_DEF, handleEvidenceTool);
     this.registerLocalTool(THAI_GEO_TOOL_DEF, handleThaiGeoTool);
+    this.registerLocalTool(SYSTEM_STATUS_TOOL_DEF, handleSystemStatusTool);
   }
 
 

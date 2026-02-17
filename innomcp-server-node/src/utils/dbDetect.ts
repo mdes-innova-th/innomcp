@@ -5,7 +5,7 @@ export const detectDbConfig = {
   host: process.env.DETECT_DB_HOST || "209.15.105.27",
   port: parseInt(process.env.DETECT_DB_PORT || "3306", 10),
   user: process.env.DETECT_DB_USER || "root",
-  password: process.env.DETECT_DB_PASSWORD || "1nN0!-@-#$",
+  password: process.env.DETECT_DB_PASSWORD,
   database: process.env.DETECT_DB_NAME || "detect",
   waitForConnections: true,
   connectionLimit: 5,
