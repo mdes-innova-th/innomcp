@@ -40,7 +40,8 @@ package-lock.json
 
 # Folders
 /config/
-/scripts/
+/scripts/*
+!/scripts/verify_weather_v2.ts
 /docs/
 /tests/
 */.env
