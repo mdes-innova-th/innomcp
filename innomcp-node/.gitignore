@@ -46,6 +46,9 @@ yarn-error.log*
 /tmp
 
 # local scratch scripts (verification / debug helpers)
-/scripts/
+/scripts/*
+
+# Allow committing deterministic Phase 6.5 runner
+!/scripts/verify_weather_v2.ts
 
 
