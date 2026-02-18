@@ -172,8 +172,9 @@ export class WeatherPipeline {
             }
         })();
 
-        // LOG POINT #2: Pipeline (short only)
-        console.log(`[WeatherPipeline] mode=${isNational && target.provinces.length === 0 ? "national" : mode} chain=${chain} budgetMs=${BUDGET_MS}`);
+        // LOG POINT #2: Pipeline (short only, grep-friendly)
+        const prov = target.provinces.length > 0 ? target.provinces.join(",") : "";
+        console.log(`[WeatherPipeline] mode=${isNational && target.provinces.length === 0 ? "national" : mode} province=${prov} chain=${chain} budgetMs=${BUDGET_MS}`);
 
         // Guard: no provinces resolved
         // New rule: if national=true, bypass PROVINCE_MISSING gate and compute nationwide from forecast array.
@@ -225,22 +226,27 @@ export class WeatherPipeline {
                 if (mode === "now" || mode === "table") {
                     result = await tryStation();
                     if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
+                        console.log(`[WeatherPipeline] fallback=Forecast reason=StationError province=${province} error=${result.error}`);
                         result = await runWithBudget(() => this.forecastEngine.getForecast(province));
                     }
                     if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
+                        console.log(`[WeatherPipeline] fallback=NWP reason=ForecastError province=${province} error=${result.error}`);
                         result = await runWithBudget(() => this.nwpEngine.getNwpData(province));
                     }
                 } else if (mode === "future" || mode === "week") {
                     result = await runWithBudget(() => this.forecastEngine.getForecast(province));
                     if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
+                        console.log(`[WeatherPipeline] fallback=NWP reason=ForecastError province=${province} error=${result.error}`);
                         result = await runWithBudget(() => this.nwpEngine.getNwpData(province));
                     }
                 } else {
                     result = await runWithBudget(() => this.forecastEngine.getForecast(province));
                     if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
+                        console.log(`[WeatherPipeline] fallback=Station reason=ForecastError province=${province} error=${result.error}`);
                         result = await tryStation();
                     }
                     if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
+                        console.log(`[WeatherPipeline] fallback=NWP reason=StationError province=${province} error=${result.error}`);
                         result = await runWithBudget(() => this.nwpEngine.getNwpData(province));
                     }
                 }

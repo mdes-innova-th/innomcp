@@ -107,6 +107,20 @@ function syncChatAIModeIfChanged() {
 function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { text: string; structuredContent: any } {
   const structuredContent = { weatherPipeline: weatherPayload };
 
+  // Phase 7.1: support normalized weather payload wrapper
+  // - success: { ok:true, result: WeatherResult[] }
+  // - error:   { ok:false, code:"PROVINCE_MISSING"|"TIMEOUT"|"NO_DATA"|"UPSTREAM_ERROR", message:"..." }
+  if (weatherPayload && typeof weatherPayload === "object" && !Array.isArray(weatherPayload)) {
+    if (weatherPayload.ok === false) {
+      const code = String(weatherPayload.code || "UPSTREAM_ERROR");
+      const msg = String(weatherPayload.message || "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง");
+      return { text: msg, structuredContent: { weatherPipeline: { ok: false, code, message: msg } } };
+    }
+    if (weatherPayload.ok === true && Array.isArray(weatherPayload.result)) {
+      weatherPayload = weatherPayload.result;
+    }
+  }
+
   const wantsTable = /ตาราง|table|รายสถานี|สถานี/i.test(userText || "");
   const wantsToday = /วันนี้|ตอนนี้|ขณะนี้/i.test(userText || "");
 
@@ -202,6 +216,23 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
   }
 
   return { text: `ผลพยากรณ์อากาศ (${firstOk.type}) สำหรับ ${firstOk.province || "พื้นที่ที่ถาม"}`, structuredContent };
+}
+
+function wantsDeepExplain(text: string): boolean {
+  return /อธิบายเชิงลึก|ละเอียด|สรุปเป็นภาษาคน|เหตุผล|วิเคราะห์/i.test(text || "");
+}
+
+function looksLikeDeterministicWeatherQuery(text: string): boolean {
+  const t = String(text || "");
+
+  // Core weather words
+  const hasWeatherCore = /ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|ลม|พายุ|weather|forecast|temperature|humidity|tmd|อุตุ|nwp/i.test(t);
+
+  // Weather-specific patterns that often omit the word "อากาศ"
+  const hasWeatherSpecific = /รายชั่วโมง|รายวัน|ตารางสถานี|สถานีอากาศ|รายสถานี|พยากรณ์\s*7\s*วัน|7\s*วัน|สัปดาห์/i.test(t);
+
+  // We only gate when it's clearly weather-related
+  return hasWeatherCore || hasWeatherSpecific;
 }
 
 function safeTruncate(text: string, maxChars: number): string {
@@ -767,8 +798,71 @@ wss.on("connection", (ws, req) => {
         // Add file context to the message if present
         const messageWithFile = currentText + fileContext;
 
-        // 📝 Log user message to session (with file indicator if present)
+        // Session id helper used across branches (WeatherGate returns early)
         const currentSessionId = (ws as any).sessionId;
+
+        // =====================================
+        // Phase 7.1: Deterministic Weather Router (NO LLM tool planning)
+        // Gate BEFORE any God-Tier Router / semantic / LLM-based tool selection.
+        // =====================================
+        if (mcpClient && looksLikeDeterministicWeatherQuery(messageWithFile)) {
+          const deep = wantsDeepExplain(messageWithFile);
+          logBoth("info", `[WeatherGate] bypass=true transport=ws deepExplain=${deep}`);
+
+          // Add user message to history now (this branch returns early)
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+
+          const toolResult = await mcpClient.runDeterministicWeatherPipeline(messageWithFile);
+          const sc = toolResult.structuredContent;
+          const payload = sc?.weatherPipeline ?? sc;
+
+          let textOut = "";
+          if (!deep) {
+            const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
+            textOut = direct.text;
+          } else {
+            // LLM allowed ONLY for explain/render after deterministic tool results.
+            const explainPrompt = [
+              "โปรดอธิบายผลสภาพอากาศต่อไปนี้เป็นภาษาไทยแบบเข้าใจง่าย และสรุปสั้นๆ ก่อน แล้วค่อยอธิบายรายละเอียด:",
+              "- ห้ามตัดสินใจเรียกเครื่องมือหรือขอข้อมูลเพิ่ม",
+              "- ห้ามเอ่ยชื่อ tool/MCP/ระบบ",
+              "- ถ้าข้อมูลเป็น error ให้บอกผู้ใช้ว่าควรพิมพ์เพิ่มอะไร",
+              "",
+              `คำถามผู้ใช้: ${messageWithFile}`,
+              "ผลแบบโครงสร้าง (JSON):",
+              JSON.stringify(payload),
+            ].join("\n");
+
+            const resp = await ollama.chat({
+              model: ollamaModel,
+              messages: [
+                { role: "system", content: "คุณเป็นผู้ช่วยภาษาไทยที่สุภาพ กระชับ และแม่นยำ" },
+                { role: "user", content: explainPrompt },
+              ],
+              stream: false,
+            });
+            textOut = String(resp?.message?.content || "").trim();
+            if (!textOut) {
+              // fallback to deterministic direct render
+              textOut = renderWeatherDirectAnswer(messageWithFile, payload).text;
+            }
+          }
+
+          // Send response + history update
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: sc, toolsUsed: ["weatherPipeline"] };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, ["weatherPipeline"]);
+          sessionManager.completeResponse(currentSessionId);
+
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: ["weatherPipeline"] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["weatherPipeline"] });
+          sendSafe(ws, { type: "done" });
+          return;
+        }
+
+        // 📝 Log user message to session (with file indicator if present)
         sessionManager.addMessage(currentSessionId, 'user', messageWithFile);
         logBoth('info', `[Session] Added user message to session ${currentSessionId}${fileContext ? ' (with file)' : ''}`);
 
@@ -1325,6 +1419,61 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Add user message to history
     sessionHistory.push({ sender: "user", text: message });
     logBoth("info", `[Chat API] POST: Session history: ${sessionHistory.length} messages (before AI)`);
+
+    // =====================================
+    // Phase 7.1: Deterministic Weather Router (NO LLM tool planning)
+    // Gate BEFORE any MCP tool selection / LLM classification.
+    // =====================================
+    if (mcpClient && looksLikeDeterministicWeatherQuery(message)) {
+      const deep = wantsDeepExplain(message);
+      logBoth("info", `[WeatherGate] bypass=true transport=http deepExplain=${deep}`);
+
+      const toolResult = await mcpClient.runDeterministicWeatherPipeline(message);
+      const sc = toolResult.structuredContent;
+      const payload = sc?.weatherPipeline ?? sc;
+
+      if (!deep) {
+        const direct = renderStructuredDirect("weatherPipeline", sc, message) || renderWeatherDirectAnswer(message, payload);
+        sessionHistory.push({ sender: "ai", text: direct.text } as any);
+        return res.json({
+          text: direct.text,
+          structuredContent: direct.structuredContent,
+          messages: sessionHistory,
+          mcpUsed: true,
+          mcpResults: [toolResult],
+        });
+      }
+
+      const explainPrompt = [
+        "โปรดอธิบายผลสภาพอากาศต่อไปนี้เป็นภาษาไทยแบบเข้าใจง่าย และสรุปสั้นๆ ก่อน แล้วค่อยอธิบายรายละเอียด:",
+        "- ห้ามตัดสินใจเรียกเครื่องมือหรือขอข้อมูลเพิ่ม",
+        "- ห้ามเอ่ยชื่อ tool/MCP/ระบบ",
+        "- ถ้าข้อมูลเป็น error ให้บอกผู้ใช้ว่าควรพิมพ์เพิ่มอะไร",
+        "",
+        `คำถามผู้ใช้: ${message}`,
+        "ผลแบบโครงสร้าง (JSON):",
+        JSON.stringify(payload),
+      ].join("\n");
+
+      const resp = await ollama.chat({
+        model: ollamaModel,
+        messages: [
+          { role: "system", content: "คุณเป็นผู้ช่วยภาษาไทยที่สุภาพ กระชับ และแม่นยำ" },
+          { role: "user", content: explainPrompt },
+        ],
+        stream: false,
+      });
+
+      const explainText = String(resp?.message?.content || "").trim() || renderWeatherDirectAnswer(message, payload).text;
+      sessionHistory.push({ sender: "ai", text: explainText } as any);
+      return res.json({
+        text: explainText,
+        structuredContent: sc,
+        messages: sessionHistory,
+        mcpUsed: true,
+        mcpResults: [toolResult],
+      });
+    }
 
     let finalMessage = message;
     let mcpResults = null;

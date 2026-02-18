@@ -1992,12 +1992,104 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
   // TOOL EXECUTION
   // ========================================
 
+  private buildWeatherPipelineStructuredContent(weatherResults: any[]): {
+    structuredContent: any;
+    success: boolean;
+    isError: boolean;
+    error?: string;
+  } {
+    const anySuccess = Array.isArray(weatherResults) && weatherResults.some((r: any) => r && r.type && r.type !== "error");
+
+    if (anySuccess) {
+      return {
+        structuredContent: { weatherPipeline: { ok: true, result: weatherResults } },
+        success: true,
+        isError: false,
+      };
+    }
+
+    const rawErr = String(weatherResults?.[0]?.error || "WEATHER_PIPELINE_ERROR");
+    const code = (() => {
+      if (rawErr === "PROVINCE_MISSING") return "PROVINCE_MISSING";
+      if (rawErr === "TIMEOUT" || rawErr === "BUDGET_EXCEEDED") return "TIMEOUT";
+
+      // No-data style
+      if (
+        rawErr === "STATION_NOT_FOUND" ||
+        rawErr === "PROVINCE_NOT_FOUND_IN_FORECAST" ||
+        rawErr === "DATA_UNAVAILABLE" ||
+        rawErr === "STATION_SKIPPED"
+      ) {
+        return "NO_DATA";
+      }
+
+      // Upstream / infra
+      if (
+        rawErr === "CLIENT_NOT_FOUND" ||
+        rawErr === "API_ERROR" ||
+        rawErr === "NWP_UNAVAILABLE" ||
+        rawErr === "NATIONAL_DATA_UNAVAILABLE" ||
+        rawErr === "WEATHER_PIPELINE_ERROR" ||
+        rawErr === "UNEXPECTED_ERROR"
+      ) {
+        return "UPSTREAM_ERROR";
+      }
+
+      return "UPSTREAM_ERROR";
+    })();
+
+    const message = (() => {
+      switch (code) {
+        case "PROVINCE_MISSING":
+          return "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")";
+        case "TIMEOUT":
+          return "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา กรุณาลองใหม่อีกครั้ง";
+        case "NO_DATA":
+          return "ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้";
+        case "UPSTREAM_ERROR":
+        default:
+          return "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง";
+      }
+    })();
+
+    return {
+      structuredContent: { weatherPipeline: { ok: false, code, message } },
+      success: false,
+      isError: true,
+      error: code,
+    };
+  }
+
   private getWeatherPipeline(): WeatherPipeline {
     if (!this.weatherPipeline) {
         // Pass the clients map to the pipeline so engines can access them
         this.weatherPipeline = new WeatherPipeline(this.clients);
     }
     return this.weatherPipeline!;
+  }
+
+  /**
+   * Phase 7.1: Deterministic weather pipeline execution (no LLM tool planning)
+   * Returns a tool-result-like object so callers can render/stream consistently.
+   */
+  public async runDeterministicWeatherPipeline(userMessage: string): Promise<any> {
+    const pipeline = this.getWeatherPipeline();
+    const target = pipeline.resolveTarget(userMessage);
+    const weatherResults = await pipeline.execute(target);
+
+    const shaped = this.buildWeatherPipelineStructuredContent(weatherResults as any);
+
+    return {
+      toolName: "weatherPipeline",
+      success: shaped.success,
+      isError: shaped.isError,
+      error: shaped.error,
+      structuredContent: shaped.structuredContent,
+      content: [{
+        type: "text",
+        text: JSON.stringify(shaped.structuredContent),
+      }],
+    };
   }
 
    async executeTools(
@@ -2016,32 +2108,17 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
       if (hasAnyWeatherTool && !weatherHandled) {
         weatherHandled = true;
         try {
-          const pipeline = this.getWeatherPipeline();
-          const target = pipeline.resolveTarget(userMessage);
-
-          // PROVINCE_MISSING gate MUST live in weatherPipeline (no MCP call).
-          const weatherResults = await pipeline.execute(target);
-          const success = weatherResults.some((r: any) => r && r.type !== "error");
-
-          results.push({
-            toolName: "weatherPipeline",
-            success,
-            isError: !success,
-            error: success ? undefined : (weatherResults[0]?.error || "WEATHER_PIPELINE_ERROR"),
-            structuredContent: weatherResults,
-            content: [{
-              type: "text",
-              text: JSON.stringify(weatherResults),
-            }],
-          });
+          // Deterministic (no LLM planning) weather execution
+          const toolResult = await this.runDeterministicWeatherPipeline(userMessage);
+          results.push(toolResult);
         } catch (err: any) {
           console.error(`[WeatherPipeline] Critical Failure: ${err.message}`);
-          const structured = { error: "WEATHER_PIPELINE_ERROR", message: err.message };
+          const structured = { weatherPipeline: { ok: false, code: "UPSTREAM_ERROR", message: err.message || "WEATHER_PIPELINE_ERROR" } };
           results.push({
             toolName: "weatherPipeline",
             success: false,
             isError: true,
-            error: "WEATHER_PIPELINE_ERROR",
+            error: "UPSTREAM_ERROR",
             structuredContent: structured,
             content: [{ type: "text", text: JSON.stringify(structured) }],
           });
