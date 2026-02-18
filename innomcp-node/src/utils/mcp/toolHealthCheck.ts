@@ -52,6 +52,8 @@ export class ToolHealthCheckSystem {
   private checkInterval: NodeJS.Timeout | null = null;
   private heavyCheckInterval: NodeJS.Timeout | null = null;
   private isChecking: boolean = false;
+  private lastManualCheckAt: number = 0;
+  private manualCooldownMs: number = 60000; // 60s anti-spam
   
   // Configuration
   private checkIntervalMs: number = 300000; // 5 minutes (not aggressive)
@@ -316,26 +318,30 @@ export class ToolHealthCheckSystem {
     if (this.silentMode) {
       // Silent mode: minimal header
       const timestamp = new Date().toLocaleTimeString("th-TH");
-      console.log(chalk.gray(`[${timestamp}] 🔍 Health check: ${totalTools} tools...`));
+      console.log(chalk.gray(`[HealthCheck] [${timestamp}] 🔍 Health check: ${totalTools} tools...`));
       return;
     }
 
     // Full header (only if animations enabled)
     const timestamp = new Date().toLocaleString("th-TH");
-    console.log(chalk.cyan("\n╔═══════════════════════════════════════════════════════════╗"));
-    console.log(chalk.cyan("║") + chalk.bold.white("  🔍 Tool Health Check                                    ") + chalk.cyan("║"));
-    console.log(chalk.cyan("╠═══════════════════════════════════════════════════════════╣"));
+    console.log(chalk.cyan("\n[HealthCheck] ╔═══════════════════════════════════════════════════════════╗"));
     console.log(
-      chalk.cyan("║") +
+      chalk.cyan("[HealthCheck] ║") +
+        chalk.bold.white("  🔍 Tool Health Check                                    ") +
+        chalk.cyan("║")
+    );
+    console.log(chalk.cyan("[HealthCheck] ╠═══════════════════════════════════════════════════════════╣"));
+    console.log(
+      chalk.cyan("[HealthCheck] ║") +
         chalk.gray(`  Time: ${timestamp.padEnd(46)}`) +
         chalk.cyan("║")
     );
     console.log(
-      chalk.cyan("║") +
+      chalk.cyan("[HealthCheck] ║") +
         chalk.gray(`  Tools: ${totalTools.toString().padEnd(45)}`) +
         chalk.cyan("║")
     );
-    console.log(chalk.cyan("╚═══════════════════════════════════════════════════════════╝\n"));
+    console.log(chalk.cyan("[HealthCheck] ╚═══════════════════════════════════════════════════════════╝\n"));
   }
 
   /**
@@ -355,7 +361,7 @@ export class ToolHealthCheckSystem {
     // 🔥 2026 FIX: Use \r to overwrite same line (no spam)
     process.stdout.write("\r");
     process.stdout.write(
-      chalk.gray("Checking: ") +
+      chalk.gray("[HealthCheck] Checking: ") +
         chalk.cyan(bar) +
         chalk.white(` ${percentage}%`) +
         chalk.gray(` (${current}/${total})`)
@@ -381,48 +387,53 @@ export class ToolHealthCheckSystem {
     if (this.silentMode) {
       // Silent mode: compact one-liner
       console.log(
-        chalk.green(`✓ ${healthy}`) +
-        chalk.gray("/") +
-        chalk.red(`${unhealthy}`) +
-        chalk.gray(` tools | ⚡${Math.round(avgLatency)}ms avg`)
+        chalk.gray(`[HealthCheck] `) +
+          chalk.green(`✓ ${healthy}`) +
+          chalk.gray("/") +
+          chalk.red(`${unhealthy}`) +
+          chalk.gray(` tools | ⚡${Math.round(avgLatency)}ms avg`)
       );
       return;
     }
 
     // Full summary (only if animations enabled)
-    console.log(chalk.cyan("\n╔═══════════════════════════════════════════════════════════╗"));
-    console.log(chalk.cyan("║") + chalk.bold.white("  📊 Check Summary                                         ") + chalk.cyan("║"));
-    console.log(chalk.cyan("╠═══════════════════════════════════════════════════════════╣"));
+    console.log(chalk.cyan("\n[HealthCheck] ╔═══════════════════════════════════════════════════════════╗"));
     console.log(
-      chalk.cyan("║") +
+      chalk.cyan("[HealthCheck] ║") +
+        chalk.bold.white("  📊 Check Summary                                         ") +
+        chalk.cyan("║")
+    );
+    console.log(chalk.cyan("[HealthCheck] ╠═══════════════════════════════════════════════════════════╣"));
+    console.log(
+      chalk.cyan("[HealthCheck] ║") +
         chalk.green(`  ✓ Healthy: ${healthy.toString().padEnd(44)}`) +
         chalk.cyan("║")
     );
     console.log(
-      chalk.cyan("║") +
+      chalk.cyan("[HealthCheck] ║") +
         chalk.red(`  ✗ Unhealthy: ${unhealthy.toString().padEnd(42)}`) +
         chalk.cyan("║")
     );
     console.log(
-      chalk.cyan("║") +
+      chalk.cyan("[HealthCheck] ║") +
         chalk.gray(`  ⚡ Avg Latency: ${Math.round(avgLatency)}ms`.padEnd(51)) +
         chalk.cyan("║")
     );
-    console.log(chalk.cyan("╚═══════════════════════════════════════════════════════════╝\n"));
+    console.log(chalk.cyan("[HealthCheck] ╚═══════════════════════════════════════════════════════════╝\n"));
 
     // Show unhealthy tools if any
     if (unhealthy > 0) {
-      console.log(chalk.red("⚠️  Unhealthy Tools:"));
+      console.log(chalk.red("[HealthCheck] ⚠️  Unhealthy Tools:"));
       statuses
         .filter((s) => !s.healthy)
         .forEach((s) => {
           console.log(
-            chalk.red("   ✗ ") +
+            chalk.red("[HealthCheck]    ✗ ") +
               chalk.white(s.name) +
               chalk.gray(` (${s.errorMessage || "Failed"})`)
           );
         });
-      console.log();
+      console.log(chalk.gray("[HealthCheck]"));
     }
 
     // Show slowest tools
@@ -432,15 +443,15 @@ export class ToolHealthCheckSystem {
       .slice(0, 3);
 
     if (slowest.length > 0) {
-      console.log(chalk.yellow("🐌 Slowest Tools:"));
+      console.log(chalk.yellow("[HealthCheck] 🐌 Slowest Tools:"));
       slowest.forEach((s, i) => {
         console.log(
-          chalk.gray(`   ${i + 1}. `) +
+          chalk.gray(`[HealthCheck]    ${i + 1}. `) +
             chalk.white(s.name) +
             chalk.yellow(` ${s.latency}ms`)
         );
       });
-      console.log();
+      console.log(chalk.gray("[HealthCheck]"));
     }
   }
 
@@ -485,6 +496,19 @@ export class ToolHealthCheckSystem {
    * Manual trigger for health check
    */
   public async triggerManualCheck(): Promise<void> {
+    const now = Date.now();
+    const since = now - this.lastManualCheckAt;
+    if (this.lastManualCheckAt > 0 && since < this.manualCooldownMs) {
+      console.log(
+        chalk.yellow(
+          `[HealthCheck] Manual check cooldown active: wait ${Math.ceil(
+            (this.manualCooldownMs - since) / 1000
+          )}s`
+        )
+      );
+      return;
+    }
+    this.lastManualCheckAt = now;
     console.log(chalk.cyan("\n[HealthCheck] 🔍 Manual health check triggered...\n"));
     await this.performHealthCheck({ tiers: ["light", "heavy"], reason: "manual", includeHeavyPriming: true });
   }
