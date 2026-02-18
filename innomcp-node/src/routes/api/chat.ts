@@ -647,6 +647,55 @@ function sendSafe(ws: any, payload: any) {
   }
 }
 
+// =====================================
+// Phase 7.2.x: Optional SAFE Q/A Trace Logging
+// OFF by default. Enable with CHAT_TRACE_QA=1 or INNOMCP_TRACE_QA=1
+// =====================================
+const isTraceQaEnabled = (): boolean => {
+  const v = String(process.env.CHAT_TRACE_QA || process.env.INNOMCP_TRACE_QA || "").trim();
+  return /^(1|true|yes|on)$/i.test(v);
+};
+
+function sanitizeForLog(input: string, max = 220): string {
+  let s = String(input || "");
+  s = s.replace(/\s+/g, " ").trim();
+
+  // redact common credential patterns: key/token/bearer/auth/password=...
+  s = s.replace(
+    /(api[_-]?key|token|bearer|authorization|password)\s*[:=]\s*([^,\s;]+)/gi,
+    (_m, k) => `${k}=[REDACTED]`
+  );
+  // redact "Authorization: Bearer <blob>" style tokens
+  s = s.replace(/\bauthorization\s*:\s*bearer\s+[^,\s;]+/gi, "authorization: bearer [REDACTED]");
+
+  // redact long blobs (base64/hex-ish)
+  s = s.replace(/[A-F0-9]{32,}/gi, "[REDACTED_BLOB]");
+  s = s.replace(/[A-Za-z0-9+/]{80,}={0,2}/g, "[REDACTED_BLOB]");
+
+  if (s.length > max) return s.slice(0, max - 1) + "…";
+  return s;
+}
+
+function chatTraceLog(message: string) {
+  if (!isTraceQaEnabled()) return;
+  logBoth("info", message);
+}
+
+function shortId(id: string | undefined | null): string {
+  const s = String(id || "");
+  if (!s) return "-";
+  return s.length > 8 ? s.substring(0, 8) : s;
+}
+
+function joinToolsForTrace(tools: any, maxItems = 8): string {
+  const arr = Array.isArray(tools) ? tools : [];
+  const names = arr
+    .map((t) => String(t || "").trim())
+    .filter(Boolean)
+    .slice(0, maxItems);
+  return `[${names.join(",")}]`;
+}
+
 // --- 6. WebSocket Connection Handler ---
 wss.on("connection", (ws, req) => {
   (ws as any).isAlive = true;
@@ -814,6 +863,13 @@ wss.on("connection", (ws, req) => {
         // Session id helper used across branches (WeatherGate returns early)
         const currentSessionId = (ws as any).sessionId;
 
+        const cid = (ws as any).correlationId as string | undefined;
+
+        const rid = String(incomingId || messageId);
+        chatTraceLog(
+          `[ChatTrace] in transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} q="${sanitizeForLog(messageWithFile)}"`
+        );
+
         // =====================================
         // Phase 7.1: Deterministic Weather Router (NO LLM tool planning)
         // Gate BEFORE any God-Tier Router / semantic / LLM-based tool selection.
@@ -872,6 +928,10 @@ wss.on("connection", (ws, req) => {
           sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: ["weatherPipeline"] });
           sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["weatherPipeline"] });
           sendSafe(ws, { type: "done" });
+
+          chatTraceLog(
+            `[ChatTrace] out transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} bypassWeather=true deep=${deep} tools=[weatherPipeline] keys=${structuredKeysSummary(sc)} a="${sanitizeForLog(textOut)}"`
+          );
           return;
         }
 
@@ -1001,6 +1061,9 @@ wss.on("connection", (ws, req) => {
             // Track tools used
             if (mcpResult.toolResults) {
               toolsUsedInThisRequest = mcpResult.toolResults.map(r => r.toolName);
+              chatTraceLog(
+                `[ChatTrace] tools transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} selected=${joinToolsForTrace(toolsUsedInThisRequest)} bypassWeather=false deep=false`
+              );
             }
 
             sendSafe(ws, {
@@ -1043,6 +1106,10 @@ wss.on("connection", (ws, req) => {
 
                 sendSafe(ws, { type: "chunk", text: direct.text, structuredContent: direct.structuredContent });
                 sendSafe(ws, { type: "history-update", messages: sessionHistory });
+
+                chatTraceLog(
+                  `[ChatTrace] out transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} bypassWeather=false deep=${wantsDeepExplain(currentText || "")} tools=${joinToolsForTrace(toolsUsedInThisRequest)} keys=${structuredKeysSummary(direct.structuredContent)} a="${sanitizeForLog(direct.text)}"`
+                );
                 return; // ✅ Skip Ollama finalize
               }
             }
@@ -1073,6 +1140,10 @@ wss.on("connection", (ws, req) => {
 
               sendSafe(ws, { type: "chunk", text: rendered.text, structuredContent: rendered.structuredContent });
               sendSafe(ws, { type: "history-update", messages: sessionHistory });
+
+              chatTraceLog(
+                  `[ChatTrace] out transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} bypassWeather=false deep=false tools=${joinToolsForTrace(toolsUsedInThisRequest)} keys=${structuredKeysSummary(rendered.structuredContent)} a="${sanitizeForLog(rendered.text)}"`
+              );
               return; // ✅ Skip Ollama finalize
             }
 
@@ -1143,6 +1214,10 @@ wss.on("connection", (ws, req) => {
               if (weatherTool?.structuredContent) chunkMsg.structuredContent = weatherTool.structuredContent;
               sendSafe(ws, chunkMsg);
               sendSafe(ws, { type: "history-update", messages: sessionHistory });
+
+              chatTraceLog(
+                  `[ChatTrace] out transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} bypassWeather=false deep=false tools=${joinToolsForTrace(toolsUsedInThisRequest)} keys=${weatherTool?.structuredContent ? structuredKeysSummary(weatherTool.structuredContent) : "-"} a="${sanitizeForLog(finalText)}"`
+              );
               return; // ✅ Skip Ollama finalize
             }
           } else if (mcpResult.toolsFailed) {
@@ -1173,6 +1248,10 @@ wss.on("connection", (ws, req) => {
                 type: "history-update",
                 messages: sessionHistory,
             });
+
+            chatTraceLog(
+              `[ChatTrace] out transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} bypassWeather=false deep=false tools=${joinToolsForTrace(toolsUsedInThisRequest)} keys=- a="${sanitizeForLog(sorryMessage)}"`
+            );
             return; // Don't proceed to Ollama
           }
         } catch (mcpError) {
@@ -1378,6 +1457,10 @@ wss.on("connection", (ws, req) => {
         
         logBoth('info', `AI response complete (responseLength: ${aiResponse.length}, totalMessages: ${sessionHistory.length})`);
 
+        chatTraceLog(
+          `[ChatTrace] out transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} bypassWeather=false deep=false tools=${joinToolsForTrace(toolsUsedInThisRequest)} keys=${structuredContent ? structuredKeysSummary(structuredContent) : "-"} a="${sanitizeForLog(aiResponse)}"`
+        );
+
         // Send updated history back to client with toolsUsed
         sendSafe(ws, {
             type: "history-update",
@@ -1425,6 +1508,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     const { message, messages } = req.body;
     const uiMode = String((req.body as any)?.uiMode || "").trim();
     const officerMode = uiMode === "officer";
+    const httpCid = String((req.headers["x-correlation-id"] as string) || (req.headers["x-correlationid"] as string) || "");
     if (officerMode) {
       logBoth("info", `[OfficerMode] uiMode=officer boostedTools=evidenceTool,webdTool_*`);
     }
@@ -1433,7 +1517,14 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       return res.status(400).json({ error: "Message is required" });
     }
 
-    logBoth("info", `[Chat API] Received POST chat message: ${JSON.stringify(message)}`);
+    // Do NOT log raw message body (could contain secrets). Use safe excerpt only.
+    if (isTraceQaEnabled()) {
+      chatTraceLog(
+        `[ChatTrace] recv transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} q="${sanitizeForLog(String(message))}"`
+      );
+    } else {
+      logBoth("info", `[Chat API] Received POST chat message (len=${String(message || "").length})`);
+    }
 
     // Get full message history from client or initialize empty
     let sessionHistory: ChatMessage[] = messages || [];
@@ -1460,6 +1551,23 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
     const messageWithFile = String(message || "") + fileContext;
 
+    // Best-effort sessionId/requestId correlation for HTTP parity
+    const cookieMap = String(req.headers.cookie || "")
+      .split(";")
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .reduce((acc, pair) => {
+        const [k, v] = pair.split("=");
+        if (k) acc[k] = v;
+        return acc;
+      }, {} as Record<string, string>);
+    const httpSessionId = cookieMap.sessionId || (req.headers["x-session-id"] as string) || undefined;
+    const httpRid = String((req.body as any)?.messageId || (req.headers["x-request-id"] as string) || `http-${Date.now()}`);
+
+    chatTraceLog(
+      `[ChatTrace] in transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} q="${sanitizeForLog(messageWithFile)}"`
+    );
+
     // Add user message to history
     sessionHistory.push({ sender: "user", text: messageWithFile });
     logBoth("info", `[Chat API] POST: Session history: ${sessionHistory.length} messages (before AI)`);
@@ -1479,6 +1587,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       if (!deep) {
         const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
         sessionHistory.push({ sender: "ai", text: direct.text } as any);
+
+        chatTraceLog(
+          `[ChatTrace] out transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} bypassWeather=true deep=false tools=[weatherPipeline] keys=${structuredKeysSummary(direct.structuredContent)} a="${sanitizeForLog(direct.text)}"`
+        );
         return res.json({
           text: direct.text,
           structuredContent: direct.structuredContent,
@@ -1510,6 +1622,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
       const explainText = String(resp?.message?.content || "").trim() || renderWeatherDirectAnswer(messageWithFile, payload).text;
       sessionHistory.push({ sender: "ai", text: explainText } as any);
+
+      chatTraceLog(
+        `[ChatTrace] out transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} bypassWeather=true deep=true tools=[weatherPipeline] keys=${structuredKeysSummary(sc)} a="${sanitizeForLog(explainText)}"`
+      );
       return res.json({
         text: explainText,
         structuredContent: sc,
@@ -1520,7 +1636,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     }
 
     let finalMessage = messageWithFile;
-    let mcpResults = null;
+    let mcpResults: any[] | null = null;
     let structuredContent: any = undefined;
 
     // **Process with MCP**
@@ -1534,7 +1650,11 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
         if (mcpResult.needsTools) {
           logBoth("info", `[Chat API] Processed with MCP tools: ${mcpResult.toolResults?.length}`);
-          mcpResults = mcpResult.toolResults;
+          mcpResults = mcpResult.toolResults ?? null;
+
+          chatTraceLog(
+            `[ChatTrace] tools transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} selected=${joinToolsForTrace(mcpResult.toolResults?.map((r: any) => r?.toolName))} bypassWeather=false deep=false`
+          );
 
           const structuredResult = mcpResult.toolResults?.find((r: any) => r && r.structuredContent);
           if (structuredResult) {
@@ -1545,6 +1665,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
                 `[StructuredDirect] tool=${structuredResult.toolName} keys=${structuredKeysSummary(structuredResult.structuredContent)} bypass=true`
               );
               sessionHistory.push({ sender: "ai", text: direct.text } as any);
+
+              chatTraceLog(
+                `[ChatTrace] out transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} bypassWeather=false deep=false tools=${joinToolsForTrace(Array.isArray(mcpResults) ? mcpResults.map((r: any) => r?.toolName) : undefined)} keys=${structuredKeysSummary(direct.structuredContent)} a="${sanitizeForLog(direct.text)}"`
+              );
               return res.json({
                 text: direct.text,
                 structuredContent: direct.structuredContent,
@@ -1580,6 +1704,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           }
 
           sessionHistory.push({ sender: "ai", text: sorryMessage });
+
+          chatTraceLog(
+            `[ChatTrace] out transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} bypassWeather=false deep=false tools=[] keys=- a="${sanitizeForLog(sorryMessage)}"`
+          );
           return res.json({
             text: sorryMessage,
             messages: sessionHistory,
@@ -1658,6 +1786,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Add AI response to history
     sessionHistory.push({ sender: "ai", text: response.message.content });
     logBoth("info", `[Chat API] POST: Session now has ${sessionHistory.length} messages`);
+
+    chatTraceLog(
+      `[ChatTrace] out transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} bypassWeather=false deep=false tools=${joinToolsForTrace(Array.isArray(mcpResults) ? mcpResults.map((r: any) => r?.toolName) : undefined)} keys=${structuredContent ? structuredKeysSummary(structuredContent) : "-"} a="${sanitizeForLog(String(response.message.content || ""))}"`
+    );
 
     res.json({
       text: response.message.content,
