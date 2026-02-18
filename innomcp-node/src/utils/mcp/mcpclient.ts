@@ -387,7 +387,13 @@ class IntelligentMCPClient extends EventEmitter {
    */
   private registerLocalTool(toolDef: MCPTool, handler: Function) {
       const wrapperName = `local-tools:${toolDef.name}`;
-      this.tools.set(wrapperName, toolDef);
+      // Important: selection pipeline returns MCPTool.name, while execution expects the qualified key
+      // format `clientName:toolName`. Keep them aligned to avoid `Client <tool> not found`.
+      const qualifiedToolDef: MCPTool = {
+        ...toolDef,
+        name: wrapperName,
+      };
+      this.tools.set(wrapperName, qualifiedToolDef);
       this.localHandlers.set(wrapperName, handler);
       console.log(`[MCP Client] Registered local tool: ${wrapperName}`);
   }
@@ -656,7 +662,9 @@ class IntelligentMCPClient extends EventEmitter {
 
       for (const tool of toolsList.tools) {
         const mcpTool: MCPTool = {
-          name: tool.name,
+          // Important: selection pipeline returns MCPTool.name, while execution expects the qualified key
+          // format `clientName:toolName`. Keep them aligned to avoid `Client <tool> not found`.
+          name: `${clientName}:${tool.name}`,
           description: tool.description || "",
           inputSchema: tool.inputSchema,
           category: this.categorizeTools(tool.name, tool.description),
@@ -2103,6 +2111,7 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     preGeneratedArgsMap?: Record<string, any>
   ): Promise<any[]> {
     const results: any[] = [];
+    const mergedArgsMap: Record<string, any> = { ...(preGeneratedArgsMap || {}) };
       let weatherHandled = false; // Only run pipeline once per executeTools call
 
       const isWeatherToolName = (name: string) =>
@@ -2130,6 +2139,25 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
         }
       }
 
+    // Officer evidence: infer deterministic args for EvidenceTool (no LLM required)
+    // This keeps tool execution reliable even when argument generation is unavailable.
+    const inferEvidenceAction = (text: string): string | undefined => {
+      const t = String(text || "");
+      if (/(ออนไลน์|online)/i.test(t)) return "active_machines_count";
+      if (/(วิดีโอ|video|หลักฐานวิดีโอ|จัดเก็บหลักฐาน)/i.test(t)) return "evidence_records_today";
+      if (/(url|โดเมน|domain)/i.test(t)) return "detected_urls_today";
+      return undefined;
+    };
+
+    const evidenceAction = inferEvidenceAction(userMessage);
+    if (evidenceAction) {
+      for (const name of toolNames) {
+        if (!mergedArgsMap[name] && /(^|:)evidenceTool$/i.test(name)) {
+          mergedArgsMap[name] = { action: evidenceAction };
+        }
+      }
+    }
+
     for (const toolName of toolNames) {
         // 🌤️ Weather Architecture (Phase 6.5)
         // Weather tools are handled only by the pipeline once; skip all of them here.
@@ -2142,7 +2170,7 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
         toolName,
         userMessage,
         undefined,
-        preGeneratedArgsMap
+        mergedArgsMap
       );
       results.push(singleResult);
     }
@@ -2162,6 +2190,28 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     // (Retry logic removed/minimized as per general cleanup)
     
     try {
+        const originalToolName = toolName;
+
+        // Backward-compatible fallback: if toolName is unqualified, resolve it to a unique
+        // `clientName:toolName` key from the loaded tools map.
+        if (!toolName.includes(":")) {
+          const candidates = Array.from(this.tools.keys()).filter(
+            (k) => k === toolName || k.endsWith(`:${toolName}`)
+          );
+          if (candidates.length === 1) {
+            toolName = candidates[0];
+            if (/\bevidenceTool\b/i.test(originalToolName) || /\bwebdTool\b/i.test(originalToolName)) {
+              console.log(`[OfficerMode] resolveClient tool=${originalToolName} -> ${toolName}`);
+            }
+          } else if (candidates.length > 1) {
+            const preferServer = candidates.find((k) => !k.startsWith("local-tools:"));
+            toolName = preferServer || candidates[0];
+            if (/\bevidenceTool\b/i.test(originalToolName) || /\bwebdTool\b/i.test(originalToolName)) {
+              console.log(`[OfficerMode] resolveClient tool=${originalToolName} -> ${toolName}`);
+            }
+          }
+        }
+
         const [clientName, actualToolName] = toolName.split(":");
         const client = this.clients.get(clientName);
         const tool = this.tools.get(toolName);
@@ -2190,6 +2240,10 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
         delete callArgs.signal;
         delete callArgs.requestId;
         delete callArgs.requestInfo;
+
+        if (actualToolName && (actualToolName === "evidenceTool" || actualToolName.includes("webdTool"))) {
+          console.log(`[OfficerMode] resolvedClient=${clientName} tool=${actualToolName}`);
+        }
 
         console.log(`[MCP Client] 🚀 Calling ${actualToolName} with args:`, JSON.stringify(callArgs));
 

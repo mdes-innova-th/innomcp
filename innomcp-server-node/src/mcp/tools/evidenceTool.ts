@@ -10,12 +10,12 @@ export const evidenceTool = {
   inputSchema: z.object({
     action: z
       .enum([
+        "active_machines_count",
+        "evidence_records_today",
+        "detected_urls_today",
         "officer_summary",
         "list_tables",
         "describe_table",
-        "query_recent",
-        "report_latest_undetected",
-        "report_top_urls",
       ])
       .describe("Action to perform"),
     tableName: z
@@ -64,7 +64,78 @@ export const evidenceTool = {
       return n;
     };
 
+    const pickCreatedDateColumn = (cols: string[]): string | undefined => {
+      return pickFirstColumn(cols, [
+        "create_date",
+        "created_at",
+        "created_date",
+        "created",
+        "createdAt",
+        "created_on",
+        "timestamp",
+        "update_date",
+        "updated_at",
+      ]);
+    };
+
     try {
+      // ===== Required v1 intents (counts only; parameterized) =====
+      if (action === "active_machines_count") {
+        const n = await countQuery(
+          "SELECT COUNT(*) as c FROM machines WHERE is_online = ?",
+          [1],
+          "active_machines_count"
+        );
+        return {
+          content: [{ type: "text" as const, text: `ตอนนี้เครื่องออนไลน์: ${n} เครื่อง` }],
+          structuredContent: { ok: true, intent: action, count: n },
+        };
+      }
+
+      if (action === "evidence_records_today") {
+        const cols = await getColumns("record");
+        const createdCol = pickCreatedDateColumn(cols);
+        if (!createdCol) {
+          logBoth("WARN", `[EvidenceTool] query=evidence_records_today missing_created_date_column`);
+          return {
+            content: [{ type: "text" as const, text: "ไม่พบคอลัมน์วันที่สร้างในตาราง record" }],
+            structuredContent: { ok: false, intent: action, code: "MISSING_DATE_COLUMN", table: "record" },
+          };
+        }
+
+        const n = await countQuery(
+          `SELECT COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) = CURDATE()`,
+          [],
+          "evidence_records_today"
+        );
+        return {
+          content: [{ type: "text" as const, text: `วันนี้จัดเก็บหลักฐานวิดีโอแล้ว: ${n} รายการ` }],
+          structuredContent: { ok: true, intent: action, count: n },
+        };
+      }
+
+      if (action === "detected_urls_today") {
+        const cols = await getColumns("nip");
+        const createdCol = pickCreatedDateColumn(cols);
+        if (!createdCol) {
+          logBoth("WARN", `[EvidenceTool] query=detected_urls_today missing_created_date_column`);
+          return {
+            content: [{ type: "text" as const, text: "ไม่พบคอลัมน์วันที่สร้างในตาราง nip" }],
+            structuredContent: { ok: false, intent: action, code: "MISSING_DATE_COLUMN", table: "nip" },
+          };
+        }
+
+        const n = await countQuery(
+          `SELECT COUNT(*) as c FROM nip WHERE DATE(\`${createdCol}\`) = CURDATE()`,
+          [],
+          "detected_urls_today"
+        );
+        return {
+          content: [{ type: "text" as const, text: `วันนี้ตรวจพบ URL แล้ว: ${n} รายการ` }],
+          structuredContent: { ok: true, intent: action, count: n },
+        };
+      }
+
       if (action === "officer_summary") {
         const today = getBangkokToday();
 
@@ -208,54 +279,6 @@ export const evidenceTool = {
             { type: "text" as const, text: JSON.stringify(columns, null, 2) },
           ],
         };
-      }
-
-      if (action === "query_recent") {
-        if (!tableName)
-          throw new Error("tableName is required for query_recent");
-        // Simple discovery: Select * with limit
-        // Note: This assumes the table exists.
-        const rows = await queryDetect(`SELECT * FROM \`${tableName}\` LIMIT ?`, [
-          safeLimit,
-        ]);
-        return {
-          content: [
-            { type: "text" as const, text: JSON.stringify(rows, null, 2) },
-          ],
-        };
-      }
-
-      // NEW: Report - Latest Undetected URLs
-      if (action === "report_latest_undetected") {
-        // Assumption: Table name is 'entries' or 'urls'. We try 'entries' first.
-        // Logic: "Undetected" might mean 'case_number' is NULL or specific status.
-        // User said: "latest undetected URLs ... unseen/unrecorded".
-        // We will select all, ordered by create_date DESC.
-        // Columns: url ,title, http_status,isp_name,case_number,create_date,sent_isp_date,update_date
-
-        const sql = `
-              SELECT url, title, http_status, isp_name, case_number, create_date, sent_isp_date, update_date 
-              FROM entries 
-              ORDER BY create_date DESC 
-              LIMIT ?
-          `;
-        try {
-          const rows = await queryDetect(sql, [safeLimit]);
-          return {
-            content: [
-              { type: "text" as const, text: JSON.stringify(rows, null, 2) },
-            ],
-          };
-        } catch (err: any) {
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: `Error generating report (Table 'entries' might not exist?): ${err.message}`,
-              },
-            ],
-          };
-        }
       }
 
       // NEW: Report - Top URLs

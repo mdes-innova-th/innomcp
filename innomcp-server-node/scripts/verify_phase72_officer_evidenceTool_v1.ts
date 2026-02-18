@@ -6,19 +6,30 @@ async function main() {
   const startedAt = new Date();
   console.log(`[Phase7.2] verify officer EvidenceTool v1 startedAt=${startedAt.toISOString()}`);
 
-  const result = await evidenceTool.execute({ action: "officer_summary" });
+    const cases: Array<{ question: string; action: any }> = [
+      { question: "ตอนนี้เครื่องออนไลน์กี่เครื่อง", action: "active_machines_count" },
+      { question: "วันนี้จัดเก็บหลักฐานวิดีโอแล้วได้ทั้งหมดเท่าไหร่", action: "evidence_records_today" },
+      { question: "วันนี้ตรวจพบ URL แล้วกี่รายการ", action: "detected_urls_today" },
+    ];
 
-  const text = Array.isArray((result as any)?.content)
-    ? (result as any).content.map((c: any) => c?.text).filter(Boolean).join("\n")
-    : "";
+    const results: any[] = [];
 
-  console.log("\n--- TEXT ---\n" + text);
-  console.log("\n--- STRUCTURED ---\n" + JSON.stringify((result as any)?.structuredContent ?? null, null, 2));
+    for (const c of cases) {
+      console.log(`\n[Q] ${c.question}`);
+      const r = await evidenceTool.execute({ action: c.action });
+      const text = r?.content?.[0]?.text ?? "";
+      const structured = r?.structuredContent;
+      results.push({ question: c.question, action: c.action, structured });
 
-  const ok = Boolean((result as any)?.structuredContent?.ok);
-  console.log(`\n[Phase7.2] ok=${ok}`);
+      console.log("--- TEXT ---");
+      console.log(text);
+      console.log("--- STRUCTURED ---");
+      console.log(JSON.stringify(structured, null, 2));
+    }
 
-  process.exit(ok ? 0 : 2);
+    const allOk = results.every((r) => r?.structured?.ok === true);
+    console.log(`\n[Phase7.2] allOk=${allOk}`);
+    process.exit(allOk ? 0 : 2);
 }
 
 main().catch((err) => {
