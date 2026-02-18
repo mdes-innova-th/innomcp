@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 
-export type ToolType = 'auto' | 'weather' | 'calculation' | 'art' | 'data' | 'datetime';
+export type ToolType = 'auto' | 'weather' | 'calculation' | 'art' | 'data' | 'datetime' | 'officer';
 
 interface ToolsTypeSelectorProps {
   onNewChat: () => void;
@@ -66,6 +66,14 @@ const ToolsTypeSelector: React.FC<ToolsTypeSelectorProps> = ({
       icon: '⏰',
       color: 'text-cyan-600 dark:text-cyan-400',
       borderColor: 'border-cyan-500'
+    },
+    {
+      id: 'officer' as ToolType,
+      name: 'เจ้าหน้าที่',
+      description: 'ข้อมูลการทำงานของเจ้าหน้าที่ MDES',
+      icon: '🧑‍💼',
+      color: 'text-indigo-600 dark:text-indigo-400',
+      borderColor: 'border-indigo-500'
     },
   ];
 

@@ -11,6 +11,7 @@ import ChatSidebar, {
 import ChatInput from "./ChatInput";
 import FileUploadProgress from "@/app/components/common/FileUploadProgress";
 import ThemeContext from "@/app/context/ThemeContext";
+import type { ToolType } from "./ToolsTypeSelector";
 // icons are used in ChatInput; not needed here
 
 // Define the type for a chat message
@@ -69,6 +70,7 @@ const ChatPage: React.FC = () => {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(true);
   const [isChatActive, setIsChatActive] = useState(false); // Track if user is interacting
+  const [selectedToolType, setSelectedToolType] = useState<ToolType>("auto");
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -101,6 +103,14 @@ const ChatPage: React.FC = () => {
       } catch (err) {
         console.error("Error loading chat summaries:", err);
       }
+    }
+
+    // Load selected tool type (used to derive uiMode)
+    try {
+      const savedType = localStorage.getItem("selectedToolType") as ToolType;
+      if (savedType) setSelectedToolType(savedType);
+    } catch {
+      // ignore
     }
   }, []);
 
@@ -557,7 +567,8 @@ const ChatPage: React.FC = () => {
         text: input, 
         messages, 
         messageId,
-        file: fileData // Include file data if available
+        file: fileData, // Include file data if available
+        uiMode: selectedToolType === "officer" ? "officer" : undefined
       };
       
       console.log("Sending message to WebSocket:", message); // Debug log
@@ -955,6 +966,7 @@ const ChatPage: React.FC = () => {
                 fileInputRef={fileInputRef}
                 adjustTextarea={adjustTextarea}
                 theme={theme}
+                  onToolTypeChange={(t) => setSelectedToolType(t)}
                 onFocus={() => setIsChatActive(true)}
                 onBlur={() => setIsChatActive(false)}
               />

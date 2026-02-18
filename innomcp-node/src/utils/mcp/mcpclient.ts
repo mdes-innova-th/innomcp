@@ -1770,7 +1770,11 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
    */
   async processMessage(
     userMessage: string,
-    semanticHint?: string // 🧠 Optional semantic category from Semantic Router (hybrid mode only)
+    semanticHint?: string, // 🧠 Optional semantic category from Semantic Router (hybrid mode only)
+    options?: {
+      uiMode?: string;
+      boostedTools?: string[]; // e.g. ["evidenceTool", "webdTool"]
+    }
   ): Promise<{
     needsTools: boolean;
     toolResults?: any[];
@@ -1785,7 +1789,8 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     logger.info(`Starting processMessage`, { 
       messageLength: userMessage.length,
       historySize: this.conversationHistory.length,
-      semanticHint: semanticHint || 'none' // 🧠 Log semantic hint if provided
+      semanticHint: semanticHint || 'none', // 🧠 Log semantic hint if provided
+      uiMode: options?.uiMode || 'none'
     });
 
     // Classify message type ก่อน
@@ -1902,7 +1907,7 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
       logger.info(`[Process] No fast path match - using AI selection with Priority Boost`);
       logger.info(`[Process] 🌤️  Weather queries will use NWP/TMD priority (+100/+60 vs -20 Open-Meteo)`);
       // 🧠 Pass semantic hint to selectTools for smarter selection (hybrid mode)
-      selectedTools = await this.selectTools(userMessage, semanticHint);
+      selectedTools = await this.selectTools(userMessage, semanticHint, options);
     }
     
     logger.info(`[Process] selectTools() returned tools`, { count: selectedTools.length, tools: selectedTools });
@@ -3475,7 +3480,15 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     return selected.map((t) => t.toolName);
   }
 
-  async selectTools(userMessage: string, semanticHint?: string): Promise<string[]> {
+  async selectTools(
+    userMessage: string,
+    semanticHint?: string,
+    options?: {
+      uiMode?: string;
+      boostedTools?: string[];
+    }
+  ): Promise<string[]> {
+    const officerMode = options?.uiMode === "officer";
     // 0) Normalize
     const q = (userMessage ?? "").trim();
     const qLower = q.toLowerCase();
@@ -3511,7 +3524,7 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     }
 
     // 3) Cache policy (bypass cache for volatile categories)
-    const shouldBypassCache = isWeatherQuery || isEarthquakeQuery || isRecallQuery;
+    const shouldBypassCache = isWeatherQuery || isEarthquakeQuery || isRecallQuery || officerMode;
 
     if (!shouldBypassCache) {
       const cached = this.getCachedSelection(q);
@@ -3525,10 +3538,61 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
 
     // 5) Sanity: available tools
     const availableTools = this.getAvailableTools();
+    const availableToolNames = availableTools.map((t) => t.name);
     if (availableTools.length === 0) {
       logger.error(`[MCP Client] ❌ No available tools. Aborting selection.`);
       return [];
     }
+
+    const looksLikeOfficerEvidenceQuery = (text: string): boolean => {
+      // Officer mode should bias toward evidence-related tools, but avoid hijacking unrelated questions.
+      return /(machine|machines|เครื่อง|ออนไลน์|online|evidence|หลักฐาน|วิดีโอ|video|record|records|nip|ตรวจ|monitor|mdes)/i.test(text || "");
+    };
+
+    const applyBoostOrdering = (candidates: string[]): string[] => {
+      const boosted = options?.boostedTools || [];
+      if (!boosted || boosted.length === 0) return candidates;
+
+      const isBoostedTool = (toolName: string): boolean => {
+        const t = String(toolName || "");
+        return boosted.some((b) => {
+          const key = String(b || "").trim();
+          if (!key) return false;
+          if (key === "webdTool") return t.includes(":webdTool") || t.includes("webdTool_");
+          if (key === "evidenceTool") return t.endsWith(":evidenceTool") || t.includes(":evidenceTool") || t.endsWith("evidenceTool");
+          // generic: exact or suffix match
+          return t === key || t.endsWith(`:${key}`) || t.includes(`:${key}`);
+        });
+      };
+
+      const boostedFirst: string[] = [];
+      const rest: string[] = [];
+      for (const name of candidates) {
+        if (isBoostedTool(name)) boostedFirst.push(name);
+        else rest.push(name);
+      }
+      return [...boostedFirst, ...rest];
+    };
+
+    const ensureOfficerSeedCandidates = (candidates: string[]): string[] => {
+      if (!officerMode) return candidates;
+      if (!looksLikeOfficerEvidenceQuery(q)) return candidates;
+
+      const out = [...candidates];
+      const findTool = (suffixOrExact: string): string | undefined => {
+        const s = String(suffixOrExact || "");
+        return availableToolNames.find((t) => t === s || t.endsWith(`:${s}`) || t.includes(`:${s}`));
+      };
+
+      const evidence = findTool("evidenceTool");
+      if (evidence && !out.includes(evidence)) out.push(evidence);
+
+      // Prefer a representative webd tool entry point if present
+      const webdGroup = availableToolNames.find((t) => t.includes(":webdTool_group"));
+      if (webdGroup && !out.includes(webdGroup)) out.push(webdGroup);
+
+      return out;
+    };
 
     // 6) Normal selection pipeline (fast → slower)
     let candidates: string[] = [];
@@ -3546,6 +3610,10 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     if (candidates.length === 0) {
       candidates = await this.tryAISelection(q);
     }
+
+    // Officer mode: seed and boost evidence tools (without removing others)
+    candidates = ensureOfficerSeedCandidates(candidates);
+    candidates = applyBoostOrdering(candidates);
 
     // 7) Finalize: allow top-3 for chaining/parallel, BUT still stable
     const finalSelection = candidates.slice(0, 3);

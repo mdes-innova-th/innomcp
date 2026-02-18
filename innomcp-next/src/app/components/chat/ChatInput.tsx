@@ -10,7 +10,7 @@ import {
   faStop,
 } from "@fortawesome/free-solid-svg-icons";
 import AIModelSelector from "./AIModelSelector";
-import ToolsTypeSelector from "./ToolsTypeSelector";
+import ToolsTypeSelector, { type ToolType } from "./ToolsTypeSelector";
 
 interface ChatInputProps {
   input: string;
@@ -30,6 +30,7 @@ interface ChatInputProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   adjustTextarea: () => void;
   theme: string;
+  onToolTypeChange?: (type: ToolType) => void;
   onFocus?: () => void;
   onBlur?: () => void;
 }
@@ -52,6 +53,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   fileInputRef,
   adjustTextarea,
   theme,
+  onToolTypeChange,
   onFocus,
   onBlur,
 }) => {
@@ -144,6 +146,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             {/* Dropdown with New Chat and Tools Type Selector */}
             <ToolsTypeSelector 
               onNewChat={handleNewChat}
+              onToolTypeChange={onToolTypeChange}
               theme={theme}
             />
             <button

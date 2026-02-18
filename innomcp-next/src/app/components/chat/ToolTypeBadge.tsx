@@ -2,7 +2,7 @@
 
 import React from "react";
 
-export type ToolType = 'auto' | 'weather' | 'calculation' | 'art' | 'data' | 'datetime';
+export type ToolType = 'auto' | 'weather' | 'calculation' | 'art' | 'data' | 'datetime' | 'officer';
 
 interface ToolTypeBadgeProps {
   toolType?: ToolType;

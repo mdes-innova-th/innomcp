@@ -136,6 +136,12 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
   };
 
   if (!Array.isArray(weatherPayload)) {
+    // Legacy safety: some callers might still pass { error: "PROVINCE_MISSING" } shape.
+    // Keep behavior, but log once per call-site to catch regressions.
+    if (weatherPayload && typeof weatherPayload === "object") {
+      const keys = Object.keys(weatherPayload).slice(0, 12).join(",");
+      logBoth("warn", `[WeatherDirect] legacy payload shape encountered (keys=${keys || "(none)"})`);
+    }
     const err = String(weatherPayload?.error || "WEATHER_PIPELINE_ERROR");
     if (err === "PROVINCE_MISSING") {
       return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
@@ -268,10 +274,10 @@ function renderStructuredDirect(
   structuredContent: any,
   originalQuery: string
 ): { text: string; structuredContent: any } | null {
-  const wantsDeepExplain = /อธิบายเชิงลึก|ละเอียด|สรุปเป็นภาษาคน|เหตุผล|วิเคราะห์/i.test(originalQuery || "");
+  const deep = wantsDeepExplain(originalQuery || "");
 
   if (toolName === "weatherPipeline") {
-    if (wantsDeepExplain) return null;
+    if (deep) return null;
     const payload =
       structuredContent && typeof structuredContent === "object" && !Array.isArray(structuredContent)
         ? (structuredContent as any).weatherPipeline ?? structuredContent
@@ -798,6 +804,13 @@ wss.on("connection", (ws, req) => {
         // Add file context to the message if present
         const messageWithFile = currentText + fileContext;
 
+        // Phase 7.2: Officer UI mode (boost evidence tools, keep multi-tool allowed)
+        const uiMode = String((clientMessage as any)?.uiMode || "").trim();
+        const officerMode = uiMode === "officer";
+        if (officerMode) {
+          logBoth("info", `[OfficerMode] uiMode=officer boostedTools=evidenceTool,webdTool_*`);
+        }
+
         // Session id helper used across branches (WeatherGate returns early)
         const currentSessionId = (ws as any).sessionId;
 
@@ -807,7 +820,7 @@ wss.on("connection", (ws, req) => {
         // =====================================
         if (mcpClient && looksLikeDeterministicWeatherQuery(messageWithFile)) {
           const deep = wantsDeepExplain(messageWithFile);
-          logBoth("info", `[WeatherGate] bypass=true transport=ws deepExplain=${deep}`);
+          logBoth("info", `[WeatherGate] bypass=true transport=ws deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
 
           // Add user message to history now (this branch returns early)
           sessionHistory.push({ sender: "user", text: messageWithFile });
@@ -978,7 +991,8 @@ wss.on("connection", (ws, req) => {
           // 🧠 Pass semantic category hint to MCP for smarter tool selection (hybrid mode)
           const mcpResult = await mcpClient.processMessage(
             currentText,
-            semanticCategory || undefined
+            semanticCategory || undefined,
+            officerMode ? { uiMode: "officer", boostedTools: ["evidenceTool", "webdTool"] } : undefined
           );
 
           if (mcpResult.needsTools) {
@@ -1033,9 +1047,12 @@ wss.on("connection", (ws, req) => {
               }
             }
 
-            // PATCH 2 (weather performance): bypass Ollama finalize when weatherPipeline already has a complete answer.
+            // PATCH 2 (weather performance): legacy fallback path.
+            // NOTE: The Phase 7.1 WeatherGate returns early for clearly-weather queries.
+            // This block remains as a safety net when WeatherGate is disabled, regex misses,
+            // or weather is triggered via MCP tool planning instead of the deterministic gate.
             // Only use LLM if user explicitly asks for deeper explanation.
-            const wantsDeepExplain = /อธิบายเชิงลึก|ละเอียด|สรุปเป็นภาษาคน|เหตุผล|วิเคราะห์/i.test(currentText || "");
+            const deep = wantsDeepExplain(currentText || "");
             const weatherTool = mcpResult.toolResults?.find((r) => r && r.toolName === "weatherPipeline");
             const weatherResults = Array.isArray(weatherTool?.structuredContent)
               ? (weatherTool!.structuredContent as any[])
@@ -1047,8 +1064,8 @@ wss.on("connection", (ws, req) => {
                 : undefined;
             const weatherPayload = weatherTool?.structuredContent ?? weatherPayloadFromStructuredContent;
 
-            if (weatherPayload && !wantsDeepExplain) {
-              console.log("[WeatherDirect] Bypassing LLM synthesis");
+            if (weatherPayload && !deep) {
+              logBoth("info", "[WeatherDirect] Bypassing LLM synthesis");
               const rendered = renderWeatherDirectAnswer(currentText || "", weatherPayload);
               const aiMessage: any = { sender: "ai", text: rendered.text, structuredContent: rendered.structuredContent };
               if (toolsUsedInThisRequest.length > 0) aiMessage.toolsUsed = toolsUsedInThisRequest;
@@ -1059,7 +1076,7 @@ wss.on("connection", (ws, req) => {
               return; // ✅ Skip Ollama finalize
             }
 
-            if (weatherResults && !wantsDeepExplain) {
+            if (weatherResults && !deep) {
               const renderBkkDateStr = (offsetDays: number): string => {
                 const now = new Date();
                 const bkkMs = now.getTime() + (7 * 60 * 60 * 1000);
@@ -1406,6 +1423,11 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
   try {
     syncChatAIModeIfChanged();
     const { message, messages } = req.body;
+    const uiMode = String((req.body as any)?.uiMode || "").trim();
+    const officerMode = uiMode === "officer";
+    if (officerMode) {
+      logBoth("info", `[OfficerMode] uiMode=officer boostedTools=evidenceTool,webdTool_*`);
+    }
 
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
@@ -1416,24 +1438,46 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Get full message history from client or initialize empty
     let sessionHistory: ChatMessage[] = messages || [];
 
+    // 📎 Handle file attachment (HTTP parity with WS)
+    let fileContext = "";
+    const file = (req.body as any)?.file;
+    if (file) {
+      try {
+        const name = String(file?.name || "(unknown)");
+        const type = String(file?.type || "application/octet-stream");
+        const size = Number(file?.size || 0);
+        logBoth("info", `[File Upload] POST: Processing file: ${name} (${type}, ${(size / 1024).toFixed(2)}KB)`);
+
+        if (type.startsWith("image/")) {
+          fileContext = `\n[ผู้ใช้แนบรูปภาพ: ${name}]`;
+        } else {
+          fileContext = `\n[ผู้ใช้แนบไฟล์: ${name} (${type})]`;
+        }
+      } catch {
+        // ignore malformed file payload
+      }
+    }
+
+    const messageWithFile = String(message || "") + fileContext;
+
     // Add user message to history
-    sessionHistory.push({ sender: "user", text: message });
+    sessionHistory.push({ sender: "user", text: messageWithFile });
     logBoth("info", `[Chat API] POST: Session history: ${sessionHistory.length} messages (before AI)`);
 
     // =====================================
     // Phase 7.1: Deterministic Weather Router (NO LLM tool planning)
     // Gate BEFORE any MCP tool selection / LLM classification.
     // =====================================
-    if (mcpClient && looksLikeDeterministicWeatherQuery(message)) {
-      const deep = wantsDeepExplain(message);
-      logBoth("info", `[WeatherGate] bypass=true transport=http deepExplain=${deep}`);
+    if (mcpClient && looksLikeDeterministicWeatherQuery(messageWithFile)) {
+      const deep = wantsDeepExplain(messageWithFile);
+      logBoth("info", `[WeatherGate] bypass=true transport=http deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
 
-      const toolResult = await mcpClient.runDeterministicWeatherPipeline(message);
+      const toolResult = await mcpClient.runDeterministicWeatherPipeline(messageWithFile);
       const sc = toolResult.structuredContent;
       const payload = sc?.weatherPipeline ?? sc;
 
       if (!deep) {
-        const direct = renderStructuredDirect("weatherPipeline", sc, message) || renderWeatherDirectAnswer(message, payload);
+        const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
         sessionHistory.push({ sender: "ai", text: direct.text } as any);
         return res.json({
           text: direct.text,
@@ -1450,7 +1494,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         "- ห้ามเอ่ยชื่อ tool/MCP/ระบบ",
         "- ถ้าข้อมูลเป็น error ให้บอกผู้ใช้ว่าควรพิมพ์เพิ่มอะไร",
         "",
-        `คำถามผู้ใช้: ${message}`,
+        `คำถามผู้ใช้: ${messageWithFile}`,
         "ผลแบบโครงสร้าง (JSON):",
         JSON.stringify(payload),
       ].join("\n");
@@ -1464,7 +1508,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         stream: false,
       });
 
-      const explainText = String(resp?.message?.content || "").trim() || renderWeatherDirectAnswer(message, payload).text;
+      const explainText = String(resp?.message?.content || "").trim() || renderWeatherDirectAnswer(messageWithFile, payload).text;
       sessionHistory.push({ sender: "ai", text: explainText } as any);
       return res.json({
         text: explainText,
@@ -1475,14 +1519,18 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       });
     }
 
-    let finalMessage = message;
+    let finalMessage = messageWithFile;
     let mcpResults = null;
     let structuredContent: any = undefined;
 
     // **Process with MCP**
     if (mcpClient) {
       try {
-        const mcpResult = await mcpClient.processMessage(message);
+        const mcpResult = await mcpClient.processMessage(
+          messageWithFile,
+          undefined,
+          officerMode ? { uiMode: "officer", boostedTools: ["evidenceTool", "webdTool"] } : undefined
+        );
 
         if (mcpResult.needsTools) {
           logBoth("info", `[Chat API] Processed with MCP tools: ${mcpResult.toolResults?.length}`);
@@ -1490,7 +1538,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
           const structuredResult = mcpResult.toolResults?.find((r: any) => r && r.structuredContent);
           if (structuredResult) {
-            const direct = renderStructuredDirect(structuredResult.toolName, structuredResult.structuredContent, message || "");
+            const direct = renderStructuredDirect(structuredResult.toolName, structuredResult.structuredContent, messageWithFile || "");
             if (direct) {
               logBoth(
                 "info",

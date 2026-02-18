@@ -19,7 +19,7 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
     properties: {
       intent: {
         type: "string",
-        enum: ["machine_status", "pending_evidence", "recent_threats"],
+        enum: ["machine_status", "active_evidence_machines", "evidence_records_today", "pending_evidence", "recent_threats"],
         description: "The specific query intent to execute."
       },
       limit: {
@@ -39,9 +39,22 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         let params: any[] = [];
 
         switch (intent) {
-            case "machine_status":
+      case "machine_status":
                 // A. Machine Status: Online machines
                 sql = "SELECT * FROM machines WHERE is_online = 1";
+                break;
+
+            case "active_evidence_machines": // New intent for "active today"
+                // Definition: Online machines (is_online=1).
+                // If there's a 'type' column, we could filter by type='evidence'. 
+                // For now, assume all machines in this DB are relevant.
+                sql = "SELECT COUNT(*) as count FROM machines WHERE is_online = 1";
+                break;
+
+            case "evidence_records_today": // New intent for "records collected today"
+                // Definition: Records created today in 'record' table.
+                // Assuming 'create_date' column exists based on 'nip' table usage.
+                sql = "SELECT COUNT(*) as count FROM record WHERE DATE(create_date) = CURDATE()";
                 break;
 
             case "pending_evidence":
@@ -63,7 +76,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
 
             default:
                 return { 
-                    error: `Unknown intent: ${intent}. Supported: machine_status, pending_evidence, recent_threats` 
+                    error: `Unknown intent: ${intent}. Supported: machine_status, active_evidence_machines, evidence_records_today, pending_evidence, recent_threats` 
                 };
         }
 

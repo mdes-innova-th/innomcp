@@ -48,6 +48,7 @@ function sendJsonRpcError(
 import { registerDateTimeTool } from "./mcp/tools/dateTimeTool";
 import { registerTmdTool as registerTmdTool } from "./mcp/tools/tmdTools";
 import { registerWebdTools } from "./mcp/tools/webdTools";
+import { registerEvidenceTool } from "./mcp/tools/evidenceTool";
 import { registerEchartsTool } from "./mcp/tools/echartsTool";
 import { registerCalculatorTool } from "./mcp/tools/calculatorTool";
 import { registerThaiGeoTool } from "./mcp/tools/thaiGeoTool";
@@ -124,7 +125,8 @@ mcpserver.registerTool = (name: string, ...args: any[]) => {
 // Register essential tools only (10 tools for 2025 professional system)
 registerDateTimeTool(mcpserver);
 registerTmdTool(mcpserver); // ENABLED for Thailand Meteorological Department Data
-// DISABLED: registerWebdTools(mcpserver); // Not in allowed list
+registerWebdTools(mcpserver);
+registerEvidenceTool(mcpserver);
 registerEchartsTool(mcpserver); // ✅ ENABLED for visualization
 registerCalculatorTool(mcpserver); // Enhanced as MathTool
 registerThaiGeoTool(mcpserver);
