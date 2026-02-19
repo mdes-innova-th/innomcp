@@ -1012,7 +1012,12 @@ Evidence
       - Timeout fallback works (stale-cache fallback on timeout)
       - Payload parsing robust (structuredContent JSON string + array unwrap)
 
-  \***\*\*\*\*** 2026-02-18 - PHASE 7.2: Officer Mode + EvidenceTool v1 \***\*\*\*\***
+  \***\*\*\*\*** 2026-02- [x] Phase 7.2.2: Officer Mode UI + EvidenceTool v2
+  - **Commit**: `326b37df314f88e0e61cfaebaca0d5932d9aa06a`
+  - **Command**: `powershell -File scripts/test_officer.ps1`
+  - **Evidence Log**: `innomcp-node/logs/mcp-20260219-172822.log` (Wiring confirmed: 51 tools loaded)
+  - **Runtime**: Verified `active_machines_count` intent execution on port 3011.
+  - **Verdict**: PASS1 \***\*\*\*\***
   - Commit: `5d8411e` (Phase7.2 Officer mode + EvidenceTool v1)
   - Scope: Officer Mode (`uiMode="officer"`) + MCP EvidenceTool (`evidenceTool`) biasing (WS/HTTP parity)
 
@@ -1175,14 +1180,31 @@ Evidence
 
     Status: MERGED & VERIFIED
 
-     Phase 7.2.1 Merge + 429 debt close (2026-02-19)
-     - Merge commit (main): 5c0b47c
-     - Smoke evidence (HTTP/WS summary): innomcp-node/evidence/smoke721-http-20260219-151539.log
-     - Summary: HTTP pass=6 fail=0, WS pass=6 fail=0
-     - Note: guestLimiter smoke bypass is gated by SMOKE_MODE=1 (or NODE_ENV=test) and X-Smoke-Run=1; production behavior unchanged.
+    Phase 7.2.1 Merge + 429 debt close (2026-02-19)
+    - Merge commit (main): 5c0b47c
+    - Smoke evidence (HTTP/WS summary): innomcp-node/evidence/smoke721-http-20260219-151539.log
+    - Summary: HTTP pass=6 fail=0, WS pass=6 fail=0
+    - Note: guestLimiter smoke bypass is gated by SMOKE_MODE=1 (or NODE_ENV=test) and X-Smoke-Run=1; production behavior unchanged.
 
     Phase 7.2.1 RECONCILE GATE (source-of-truth origin/main)
     - origin/main merge hash: 5c0b47c; origin/main post-merge (429 closure): f0793cf
     - Evidence on origin/main: innomcp-node/evidence/chattrace-phase721-20260219-140251.log; innomcp-node/evidence/smoke721-http-20260219-151539.log
     - guestLimiter bypass: (SMOKE_MODE=1 OR NODE_ENV=test) AND header X-Smoke-Run=1
     - Note: previous report referenced stale hash f793e32; corrected to merge=5c0b47c and post-merge=f0793cf
+
+    ********* Phase 7.2.3: Single-line Evidence Log Standard (VIT) *********
+    - Extractor: scripts/extract_smoke_evidence_721.ps1 writes EXACTLY 12 lines (6 HTTP + 6 WS), one request = one line.
+    - Format (one line): [ChatTrace] t=<http|ws> cid=<id> mode=<...> route=<...> tool=<qualified|-> code=<ok|err> ms=<n> q='<sanitized>' a='<sanitized>'
+    - Sanitize rules: collapse whitespace, strip backticks/``` and {}, redact JSON-ish => [JSON_REDACTED], redact IP/email, truncate 220 chars.
+    - Error rule: if structured ok:false payload detected => a='ERR:<code> <msg>' (no raw JSON/rows).
+    - Smoke runner enforcement: scripts/smoke_phase_721.ps1 refuses old multi-line evidence; requires -TraceLogFile and delegates evidence generation to the extractor.
+    - Evidence (12 lines, validated): innomcp-node/evidence/smoke721-lines-20260219-175423.log
+    - Commit (main): 02de26e
+    - 12 lines verified: (Get-Content -Path innomcp-node/evidence/smoke721-lines-20260219-175423.log -Encoding UTF8).Count
+    - CROSS quick check (no PII/JSON/braces/backticks):
+      - Select-String -Path innomcp-node/evidence/smoke721-lines-20260219-175423.log -Pattern '`' -Quiet
+      - Select-String -Path innomcp-node/evidence/smoke721-lines-20260219-175423.log -Pattern '[\{\}]' -Quiet
+      - Select-String -Path innomcp-node/evidence/smoke721-lines-20260219-175423.log -Pattern '"' -Quiet
+      - Select-String -Path innomcp-node/evidence/smoke721-lines-20260219-175423.log -Pattern '(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b' -Quiet
+      - Select-String -Path innomcp-node/evidence/smoke721-lines-20260219-175423.log -Pattern '\b\d{1,3}(?:\.\d{1,3}){3}\b' -Quiet
+    - Smoke exit codes: see smoke_run_results.txt (HTTP#1-6 exitCode=0, WS#1-6 exitCode=0)

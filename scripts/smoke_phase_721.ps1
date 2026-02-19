@@ -1,5 +1,6 @@
 param(
-  [string]$EvidenceOut = ''
+  [string]$EvidenceOut = '',
+  [string]$TraceLogFile = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -146,10 +147,15 @@ Write-Host "WROTE smoke_run_results.txt"
 Get-Item smoke_run_results.txt | Select-Object FullName, Length, LastWriteTime
 
 if ($EvidenceOut -and $EvidenceOut.Trim().Length -gt 0) {
-  $dir = Split-Path -Parent $EvidenceOut
-  if ($dir -and -not (Test-Path $dir)) {
-    New-Item -ItemType Directory -Path $dir | Out-Null
+  if (-not $TraceLogFile -or $TraceLogFile.Trim().Length -eq 0) {
+    throw "EvidenceOut requires -TraceLogFile (path to backend log containing [ChatTrace] lines)"
   }
-  Set-Content -Path $EvidenceOut -Value ($summary -join "`n") -Encoding UTF8
+
+  $scriptPath = Join-Path $PSScriptRoot 'extract_smoke_evidence_721.ps1'
+  if (-not (Test-Path $scriptPath)) {
+    throw "Missing extractor script: $scriptPath"
+  }
+
+  & $scriptPath -LogFile $TraceLogFile -EvidenceOut $EvidenceOut
   Write-Host "WROTE EVIDENCE $EvidenceOut"
 }
