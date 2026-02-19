@@ -250,12 +250,26 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   if (/(เครื่อง.*ออนไลน์|ออนไลน์กี่เครื่อง|active\s*machines?|online\s*machines?|machines?\s*online)/i.test(t)) {
     return "active_machines_count";
   }
+  // Phase 7.2.4: "วันนี้ machine evidence ทำงานอยู่กี่เครื่อง".
+  // We count machines where DATE(last_check_in)=today OR DATE(create_datetime)=today (selected by schema detect in tool).
+  if (/(วันนี้.*(machine|เครื่อง).*(evidence|หลักฐาน).*(ทำงาน|ทำงานอยู่|active)|machine\s*evidence\s*(active|working)\s*today)/i.test(t)) {
+    return "machines_evidence_active_today";
+  }
   if (/(ตรวจพบ.*url|url.*วันนี้|nip.*วันนี้|detected\s*urls?\s*today|urls?\s*detected\s*today)/i.test(t)) {
     return "detected_urls_today";
   }
   if (/(เก็บหลักฐาน|วิดีโอ|record.*วันนี้|บันทึก.*วันนี้|evidence\s*records?\s*today|video\s*evidence\s*today)/i.test(t)) {
     return "evidence_records_today";
   }
+  return undefined;
+}
+
+function mapOfficerEvidenceActionToLocalIntent(action: string): string | undefined {
+  // Local evidence tool (`local-tools:detect_evidence_stats`) uses `intent`.
+  // Keep this mapping minimal and only for the Phase 7.2.4 v1 officer questions.
+  if (action === "active_machines_count") return "active_evidence_machines";
+  if (action === "machines_evidence_active_today") return "machines_evidence_active_today";
+  if (action === "evidence_records_today") return "evidence_records_today";
   return undefined;
 }
 
@@ -287,6 +301,66 @@ function structuredKeysSummary(structuredContent: any): string {
   return typeof structuredContent;
 }
 
+function extractEvidenceCount(structuredContent: any): number | null {
+  const sc = structuredContent && typeof structuredContent === "object" ? structuredContent : {};
+
+  const tryNum = (v: any): number => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : NaN;
+  };
+
+  // Common structured shapes
+  const direct = tryNum((sc as any).count ?? (sc as any).c ?? (sc as any).total);
+  if (Number.isFinite(direct)) return direct;
+
+  const nested = tryNum((sc as any)?.result?.count ?? (sc as any)?.data?.count ?? (sc as any)?.stats?.count);
+  if (Number.isFinite(nested)) return nested;
+
+  // Some MCP clients return only `content` arrays like [{type:'text', text:'...'}]
+  const contentArr = Array.isArray(sc) ? sc : Array.isArray((sc as any)?.content) ? (sc as any).content : null;
+  if (Array.isArray(contentArr)) {
+    const text = contentArr
+      .map((x: any) => (x && typeof x.text === "string" ? x.text : ""))
+      .filter(Boolean)
+      .join(" ")
+      .trim();
+    if (text) {
+      const m = /:\s*(\d+)\b/.exec(text) || /\b(\d+)\b/.exec(text);
+      if (m) return Number(m[1]);
+    }
+  }
+
+  return null;
+}
+
+function extractEvidenceErr(structuredContent: any): { code: string; message?: string } | null {
+  const sc = structuredContent && typeof structuredContent === "object" ? structuredContent : null;
+  if (!sc) return null;
+
+  const ok = (sc as any).ok;
+  if (ok !== false) return null;
+
+  const code = String((sc as any).code || (sc as any).errorCode || "EVIDENCE_FAILED");
+  const messageRaw = String((sc as any).message || (sc as any).error || "");
+
+  // Avoid leaking sensitive keywords into evidence traces.
+  const msg = messageRaw
+    .replace(/\b(password|token|authorization|bearer|api[_-]?key)\b/gi, "[REDACTED]")
+    .slice(0, 120);
+
+  return msg ? { code, message: msg } : { code };
+}
+
+function formatOfficerEvidenceTraceAnswer(structuredContent: any): string {
+  const count = extractEvidenceCount(structuredContent);
+  if (typeof count === "number" && Number.isFinite(count)) return String(count);
+
+  const err = extractEvidenceErr(structuredContent);
+  if (err) return `ERR:${err.code}` + (err.message ? ` ${err.message}` : "");
+
+  return "ERR:COUNT_MISSING";
+}
+
 function renderStructuredDirect(
   toolName: string,
   structuredContent: any,
@@ -311,6 +385,41 @@ function renderStructuredDirect(
         structuredContent,
       };
     }
+  }
+
+  // Evidence tools: never render raw JSON blocks in user-visible text (and therefore logs).
+  // Prefer a small, deterministic sentence based on aggregation outputs.
+  if (/(^|:)evidenceTool$/i.test(toolName) || /detect_evidence_stats/i.test(toolName)) {
+    const sc = structuredContent && typeof structuredContent === "object" ? structuredContent : {};
+
+    const inferIntentFromQuery = (): string => inferOfficerEvidenceAction(originalQuery || "") || "";
+
+    const intent = String((sc as any).intent || (sc as any).action || inferIntentFromQuery()).trim();
+    const count = extractEvidenceCount(sc);
+
+    const err = extractEvidenceErr(sc);
+    if (err) {
+      return { text: `ERR:${err.code}` + (err.message ? ` ${err.message}` : ""), structuredContent };
+    }
+
+    if (typeof count === "number" && Number.isFinite(count)) {
+      if (intent === "active_machines_count") {
+        return { text: `ตอนนี้เครื่องออนไลน์: ${count} เครื่อง`, structuredContent };
+      }
+      if (intent === "machines_evidence_active_today") {
+        return { text: `วันนี้ machine evidence ทำงาน: ${count} เครื่อง`, structuredContent };
+      }
+      if (intent === "evidence_records_today") {
+        return { text: `วันนี้จัดเก็บหลักฐานวิดีโอได้: ${count} รายการ`, structuredContent };
+      }
+      if (intent === "detected_urls_today") {
+        return { text: `วันนี้ตรวจพบ URL/NIP: ${count} รายการ`, structuredContent };
+      }
+      return { text: `ผลสรุปหลักฐาน: ${count}`, structuredContent };
+    }
+
+    // If we cannot interpret, fall back to a safe generic.
+    return { text: "สรุปผลหลักฐานพร้อมใช้งาน แต่ไม่พบค่าจำนวนในผลลัพธ์", structuredContent };
   }
 
   const json = safeJsonStringify(structuredContent, 2400);
@@ -680,6 +789,11 @@ function sanitizeForLog(input: string, max = 180): string {
   s = s.replace(/`/g, "'");
   s = s.replace(/\s+/g, " ").trim();
 
+  // Remove braces early to avoid JSON-like fragments leaking into logs.
+  s = s.replace(/[{}]/g, "");
+  // Remove quotes to avoid unescaped quoting issues in one-line traces.
+  s = s.replace(/[\"']/g, "");
+
   // Remove JSON-ish payloads from logs (e.g., tool results) to keep evidence one-line and non-JSON.
   // Heuristic: redact flat object/array snippets containing quotes (common in JSON).
   s = s.replace(/\{[^{}]*\"[^{}]*\}/g, "[JSON_REDACTED]");
@@ -701,8 +815,65 @@ function sanitizeForLog(input: string, max = 180): string {
   s = s.replace(/[A-F0-9]{32,}/gi, "[REDACTED_BLOB]");
   s = s.replace(/[A-Za-z0-9+/]{80,}={0,2}/g, "[REDACTED_BLOB]");
 
+  // redact email + IPv4
+  s = s.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[EMAIL_REDACTED]");
+  s = s.replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, "[IP_REDACTED]");
+
   if (s.length > max) return s.slice(0, max - 1) + "…";
   return s;
+}
+
+function sanitizeForTraceV2(input: string, max = 220): string {
+  // Strict, UTF-8 safe, one-line sanitizer for Phase 7.2.3/7.2.4 evidence traces.
+  // Rules: collapse whitespace, strip quotes/backticks/braces, redact JSON-ish/email/ip, truncate.
+  let s = String(input || "");
+  s = s.replace(/\r?\n/g, " ");
+  s = s.replace(/`/g, "");
+  s = s.replace(/[{}]/g, "");
+  s = s.replace(/[\"']/g, "");
+  s = s.replace(/\s+/g, " ").trim();
+
+  // JSON-ish redaction heuristics
+  s = s.replace(/\{[^{}]*\}/g, "[JSON_REDACTED]");
+  s = s.replace(/\[[^\[\]]*\]/g, "[JSON_REDACTED]");
+  if (/\b(ok|error|code|message)\b\s*:/i.test(s) && /\b(true|false|null)\b/i.test(s)) {
+    s = "[JSON_REDACTED]";
+  }
+
+  // Credentials
+  s = s.replace(/(api[_-]?key|token|bearer|authorization|password)\s*[:=]\s*([^,\s;]+)/gi, (_m, k) => `${k}=[REDACTED]`);
+  s = s.replace(/\bauthorization\s*:\s*bearer\s+[^,\s;]+/gi, "authorization: bearer [REDACTED]");
+
+  // PII-ish
+  s = s.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[EMAIL_REDACTED]");
+  s = s.replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, "[IP_REDACTED]");
+
+  if (s.length > max) s = s.slice(0, max - 1) + "…";
+  return s;
+}
+
+function chatTraceV2(params: {
+  transport: "ws" | "http";
+  cid?: string;
+  uiMode?: string;
+  route: string;
+  tool?: string;
+  code: "OK" | "ERR";
+  ms: number;
+  q: string;
+  a: string;
+}) {
+  const tNorm = params.transport;
+  const cid = shortId(params.cid);
+  const modeNorm = params.uiMode || "auto";
+  const routeNorm = String(params.route || "-") || "-";
+  const toolNorm = String(params.tool || "-") || "-";
+  const msNorm = Math.max(0, Math.floor(params.ms || 0));
+  const qSan = sanitizeForTraceV2(params.q || "-");
+  const aSan = sanitizeForTraceV2(params.a || "-");
+  chatTraceLog(
+    `[ChatTrace] t=${tNorm} cid=${cid} mode=${modeNorm} route=${routeNorm} tool=${toolNorm} code=${params.code} ms=${msNorm} q='${qSan}' a='${aSan}'`
+  );
 }
 
 function chatTraceLog(message: string) {
@@ -720,6 +891,19 @@ function chatTraceIn(params: {
   chatTraceLog(
     `[ChatTrace] ts=${new Date().toISOString()} dir=in transport=${params.transport} sid=${shortId(params.sid)} cid=${shortId(params.cid)} uiMode=${params.uiMode || "auto"} msg="${sanitizeForLog(params.msg)}"`
   );
+
+  // Phase 7.2.4: One-line evidence standard IN trace
+  chatTraceV2({
+    transport: params.transport,
+    cid: params.cid,
+    uiMode: params.uiMode,
+    route: "in",
+    tool: "-",
+    code: "OK",
+    ms: 0,
+    q: params.msg,
+    a: "-",
+  });
 }
 
 function chatTraceOut(params: {
@@ -738,11 +922,25 @@ function chatTraceOut(params: {
   tool?: string;
   code: number;
   durMs: number;
+  q: string;
   ans: string;
 }) {
   chatTraceLog(
     `[ChatTrace] ts=${new Date().toISOString()} dir=out transport=${params.transport} sid=${shortId(params.sid)} cid=${shortId(params.cid)} uiMode=${params.uiMode || "auto"} route=${params.route} tool=${params.tool || "none"} code=${params.code} durMs=${Math.max(0, Math.floor(params.durMs))} ans="${sanitizeForLog(params.ans)}"`
   );
+
+  // Phase 7.2.4: One-line evidence standard OUT trace
+  chatTraceV2({
+    transport: params.transport,
+    cid: params.cid,
+    uiMode: params.uiMode,
+    route: params.route,
+    tool: params.tool || "-",
+    code: params.code >= 200 && params.code < 300 ? "OK" : "ERR",
+    ms: params.durMs,
+    q: params.q,
+    a: params.ans,
+  });
 }
 
 function shortId(id: string | undefined | null): string {
@@ -790,7 +988,7 @@ wss.on("connection", (ws, req) => {
   // Initialize session
   const userAgent = req.headers['user-agent'];
   sessionManager.getOrCreateSession(sessionId, undefined, userAgent);
-  logger.info(`[Chat API] WebSocket connected [cid=${correlationId.substring(0, 8)}] sid=${sessionId.substring(0, 8)} ip=${clientIp}`);
+  logger.info(`[Chat API] WebSocket connected [cid=${correlationId.substring(0, 8)}] sid=${sessionId.substring(0, 8)} ip=[IP_REDACTED]`);
   
   ws.on("pong", () => {
     try {
@@ -929,7 +1127,7 @@ wss.on("connection", (ws, req) => {
         const uiMode = String((clientMessage as any)?.uiMode || "").trim();
         const officerMode = uiMode === "officer";
         if (officerMode) {
-          logBoth("info", `[OfficerMode] uiMode=officer boostedTools=evidenceTool,webdTool_*`);
+          logBoth("info", `[OfficerMode] uiMode=officer boostedTools=evidenceTool,detect_evidence_stats,webdTool_*`);
         }
 
         const traceStartMs = Date.now();
@@ -953,22 +1151,58 @@ wss.on("connection", (ws, req) => {
           sessionManager.addMessage(currentSessionId, "user", messageWithFile);
           sessionManager.startResponse(currentSessionId);
 
-          const toolName = "innomcp-server:evidenceTool";
-          const toolResults = await mcpClient.executeTools([toolName], messageWithFile, {
-            [toolName]: { action: officerAction },
+          const primaryToolName = "innomcp-server:evidenceTool";
+          let toolNameUsed = primaryToolName;
+          let toolResults = await mcpClient.executeTools([primaryToolName], messageWithFile, {
+            [primaryToolName]: { action: officerAction },
           });
-          const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
-          const sc = first?.structuredContent ?? first?.result;
-          const direct = renderStructuredDirect(first?.toolName || toolName, sc, messageWithFile);
-          const textOut = direct?.text || "ขออภัย ไม่สามารถดึงข้อมูลหลักฐานได้ในขณะนี้";
 
-          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [toolName] };
+          let first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+          let sc = first?.structuredContent ?? first?.result;
+          let direct = renderStructuredDirect(first?.toolName || toolNameUsed, sc, messageWithFile);
+          let textOut = direct?.text || "ขออภัย ไม่สามารถดึงข้อมูลหลักฐานได้ในขณะนี้";
+
+          // Evidence trace OUT must be numeric or ERR only (Phase 7.2.4 close requirement)
+          let traceAns = formatOfficerEvidenceTraceAnswer(sc);
+
+          // Fallback: if remote EvidenceTool fails (e.g., Detect DB creds missing), use local aggregation tool.
+          const shouldLocalFallback =
+            first?.success !== true ||
+            (typeof sc === "object" && sc && (sc as any).ok === false) ||
+            /ไม่พบค่าจำนวนในผลลัพธ์/i.test(String(textOut || "")) ||
+            /^ERR:/i.test(traceAns) ||
+            traceAns === "ERR:COUNT_MISSING";
+
+          if (shouldLocalFallback) {
+            const localIntent = mapOfficerEvidenceActionToLocalIntent(officerAction);
+            if (localIntent) {
+              const localToolName = "local-tools:detect_evidence_stats";
+              const localResults = await mcpClient.executeTools([localToolName], messageWithFile, {
+                [localToolName]: { intent: localIntent },
+              });
+              const localFirst = Array.isArray(localResults) ? localResults[0] : undefined;
+              const localSc = localFirst?.structuredContent ?? localFirst?.result;
+              const localDirect = renderStructuredDirect(localFirst?.toolName || localToolName, localSc, messageWithFile);
+              const localTextOut = localDirect?.text;
+              if (localTextOut) {
+                toolNameUsed = localToolName;
+                toolResults = localResults;
+                first = localFirst;
+                sc = localSc;
+                direct = localDirect;
+                textOut = localTextOut;
+                traceAns = formatOfficerEvidenceTraceAnswer(sc);
+              }
+            }
+          }
+
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [toolNameUsed] };
           sessionHistory.push(aiMessage);
-          sessionManager.addMessage(currentSessionId, "assistant", textOut, [toolName]);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, [toolNameUsed]);
           sessionManager.completeResponse(currentSessionId);
 
-          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [toolName] });
-          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [toolName] });
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [toolNameUsed] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [toolNameUsed] });
           sendDoneOnce();
 
           chatTraceOut({
@@ -977,10 +1211,11 @@ wss.on("connection", (ws, req) => {
             cid,
             uiMode,
             route: "officerEvidence",
-            tool: toolName,
+            tool: toolNameUsed,
             code: 200,
             durMs: Date.now() - traceStartMs,
-            ans: textOut,
+            q: messageWithFile,
+            ans: traceAns,
           });
           return;
         }
@@ -1055,6 +1290,7 @@ wss.on("connection", (ws, req) => {
             tool: "weatherPipeline",
             code: 200,
             durMs: Date.now() - traceStartMs,
+            q: messageWithFile,
             ans: textOut,
           });
           return;
@@ -1177,7 +1413,7 @@ wss.on("connection", (ws, req) => {
           const mcpResult = await mcpClient.processMessage(
             currentText,
             semanticCategory || undefined,
-            officerMode ? { uiMode: "officer", boostedTools: ["evidenceTool", "webdTool"] } : undefined
+            officerMode ? { uiMode: "officer", boostedTools: ["evidenceTool", "detect_evidence_stats", "webdTool"] } : undefined
           );
 
           if (mcpResult.needsTools) {
@@ -1239,6 +1475,7 @@ wss.on("connection", (ws, req) => {
                   tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : structuredContentToolName,
                   code: 200,
                   durMs: Date.now() - traceStartMs,
+                  q: messageWithFile,
                   ans: direct.text,
                 });
                 return; // ✅ Skip Ollama finalize
@@ -1283,6 +1520,7 @@ wss.on("connection", (ws, req) => {
                 tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : (structuredContentToolName || "weatherPipeline"),
                 code: 200,
                 durMs: Date.now() - traceStartMs,
+                q: messageWithFile,
                 ans: rendered.text,
               });
               return; // ✅ Skip Ollama finalize
@@ -1365,6 +1603,7 @@ wss.on("connection", (ws, req) => {
                 tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : (weatherTool?.toolName || "weatherPipeline"),
                 code: 200,
                 durMs: Date.now() - traceStartMs,
+                q: messageWithFile,
                 ans: finalText,
               });
               return; // ✅ Skip Ollama finalize
@@ -1407,6 +1646,7 @@ wss.on("connection", (ws, req) => {
               tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : "none",
               code: 200,
               durMs: Date.now() - traceStartMs,
+              q: messageWithFile,
               ans: sorryMessage,
             });
             return; // Don't proceed to Ollama
@@ -1623,6 +1863,7 @@ wss.on("connection", (ws, req) => {
           tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : "none",
           code: 200,
           durMs: Date.now() - traceStartMs,
+          q: messageWithFile,
           ans: aiResponse,
         });
 
@@ -1645,6 +1886,7 @@ wss.on("connection", (ws, req) => {
           tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : "none",
           code: 500,
           durMs: Date.now() - traceStartMs,
+          q: messageWithFile,
           ans: "Failed to get response from AI model",
         });
         sendSafe(ws, { error: "Failed to get response from AI model", type: "error" });
@@ -1690,7 +1932,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     const officerMode = uiMode === "officer";
     const httpCid = String((req.headers["x-correlation-id"] as string) || (req.headers["x-correlationid"] as string) || "");
     if (officerMode) {
-      logBoth("info", `[OfficerMode] uiMode=officer boostedTools=evidenceTool,webdTool_*`);
+      logBoth("info", `[OfficerMode] uiMode=officer boostedTools=evidenceTool,detect_evidence_stats,webdTool_*`);
     }
 
     if (!message) {
@@ -1751,15 +1993,48 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     if (mcpClient && officerMode && officerAction) {
       logBoth("info", `[OfficerMode] deterministicEvidence=true transport=http action=${officerAction}`);
 
-      const toolName = "innomcp-server:evidenceTool";
-      const toolResults = await mcpClient.executeTools([toolName], messageWithFile, {
-        [toolName]: { action: officerAction },
+      const primaryToolName = "innomcp-server:evidenceTool";
+      let toolNameUsed = primaryToolName;
+      let toolResults = await mcpClient.executeTools([primaryToolName], messageWithFile, {
+        [primaryToolName]: { action: officerAction },
       });
 
-      const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
-      const sc = first?.structuredContent ?? first?.result;
-      const direct = renderStructuredDirect(first?.toolName || toolName, sc, messageWithFile);
-      const textOut = direct?.text || "ขออภัย ไม่สามารถดึงข้อมูลหลักฐานได้ในขณะนี้";
+      let first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+      let sc = first?.structuredContent ?? first?.result;
+      let direct = renderStructuredDirect(first?.toolName || toolNameUsed, sc, messageWithFile);
+      let textOut = direct?.text || "ขออภัย ไม่สามารถดึงข้อมูลหลักฐานได้ในขณะนี้";
+
+      let traceAns = formatOfficerEvidenceTraceAnswer(sc);
+
+      const shouldLocalFallback =
+        first?.success !== true ||
+        (typeof sc === "object" && sc && (sc as any).ok === false) ||
+        /ไม่พบค่าจำนวนในผลลัพธ์/i.test(String(textOut || "")) ||
+        /^ERR:/i.test(traceAns) ||
+        traceAns === "ERR:COUNT_MISSING";
+
+      if (shouldLocalFallback) {
+        const localIntent = mapOfficerEvidenceActionToLocalIntent(officerAction);
+        if (localIntent) {
+          const localToolName = "local-tools:detect_evidence_stats";
+          const localResults = await mcpClient.executeTools([localToolName], messageWithFile, {
+            [localToolName]: { intent: localIntent },
+          });
+          const localFirst = Array.isArray(localResults) ? localResults[0] : undefined;
+          const localSc = localFirst?.structuredContent ?? localFirst?.result;
+          const localDirect = renderStructuredDirect(localFirst?.toolName || localToolName, localSc, messageWithFile);
+          const localTextOut = localDirect?.text;
+          if (localTextOut) {
+            toolNameUsed = localToolName;
+            toolResults = localResults;
+            first = localFirst;
+            sc = localSc;
+            direct = localDirect;
+            textOut = localTextOut;
+            traceAns = formatOfficerEvidenceTraceAnswer(sc);
+          }
+        }
+      }
 
       sessionHistory.push({ sender: "ai", text: textOut } as any);
 
@@ -1769,10 +2044,11 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         cid: httpCid,
         uiMode,
         route: "officerEvidence",
-        tool: toolName,
+        tool: toolNameUsed,
         code: 200,
         durMs: Date.now() - traceStartMs,
-        ans: textOut,
+        q: messageWithFile,
+        ans: traceAns,
       });
 
       return res.json({
@@ -1811,6 +2087,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           tool: "weatherPipeline",
           code: 200,
           durMs: Date.now() - traceStartMs,
+          q: messageWithFile,
           ans: direct.text,
         });
         return res.json({
@@ -1854,6 +2131,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         tool: "weatherPipeline",
         code: 200,
         durMs: Date.now() - traceStartMs,
+        q: messageWithFile,
         ans: explainText,
       });
       return res.json({
@@ -1876,7 +2154,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         const mcpResult = await mcpClient.processMessage(
           messageWithFile,
           undefined,
-          officerMode ? { uiMode: "officer", boostedTools: ["evidenceTool", "webdTool"] } : undefined
+          officerMode ? { uiMode: "officer", boostedTools: ["evidenceTool", "detect_evidence_stats", "webdTool"] } : undefined
         );
 
         if (mcpResult.needsTools) {
@@ -1906,6 +2184,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
                 tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : (structuredResult.toolName || "none"),
                 code: 200,
                 durMs: Date.now() - traceStartMs,
+                q: messageWithFile,
                 ans: direct.text,
               });
               return res.json({
@@ -1953,6 +2232,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
             tool: "none",
             code: 200,
             durMs: Date.now() - traceStartMs,
+            q: messageWithFile,
             ans: sorryMessage,
           });
           return res.json({
@@ -2043,6 +2323,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : "none",
       code: 200,
       durMs: Date.now() - traceStartMs,
+      q: messageWithFile,
       ans: String(response.message.content || ""),
     });
 

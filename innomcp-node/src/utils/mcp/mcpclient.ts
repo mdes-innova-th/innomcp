@@ -2144,6 +2144,9 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     const inferEvidenceAction = (text: string): string | undefined => {
       const t = String(text || "");
       if (/(เครื่อง.*ออนไลน์|ออนไลน์กี่เครื่อง|active\s*machines?|online\s*machines?)/i.test(t)) return "active_machines_count";
+      if (/(วันนี้.*(machine|เครื่อง).*(evidence|หลักฐาน).*(ทำงาน|ทำงานอยู่|active)|machine\s*evidence\s*(active|working)\s*today)/i.test(t)) {
+        return "machines_evidence_active_today";
+      }
       if (/(ตรวจพบ.*url|url.*วันนี้|detected\s*urls?\s*today|nip.*วันนี้)/i.test(t)) return "detected_urls_today";
       if (/(เก็บหลักฐาน|จัดเก็บหลักฐาน|บันทึก.*วันนี้|วิดีโอ.*วันนี้|record.*วันนี้|evidence.*today)/i.test(t)) return "evidence_records_today";
       return undefined;
@@ -3640,6 +3643,10 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
 
       const evidence = findTool("evidenceTool");
       if (evidence && !out.includes(evidence)) out.push(evidence);
+
+      // Optional local fallback tool (still keep other tools allowed)
+      const localDetect = findTool("detect_evidence_stats");
+      if (localDetect && !out.includes(localDetect)) out.push(localDetect);
 
       // Prefer a representative webd tool entry point if present
       const webdGroup = availableToolNames.find((t) => t.includes(":webdTool_group"));

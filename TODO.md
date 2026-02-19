@@ -1192,7 +1192,7 @@ Evidence
     - guestLimiter bypass: (SMOKE_MODE=1 OR NODE_ENV=test) AND header X-Smoke-Run=1
     - Note: previous report referenced stale hash f793e32; corrected to merge=5c0b47c and post-merge=f0793cf
 
-    ********* Phase 7.2.3: Single-line Evidence Log Standard (VIT) *********
+    \***\*\*\*\*** Phase 7.2.3: Single-line Evidence Log Standard (VIT) \***\*\*\*\***
     - Extractor: scripts/extract_smoke_evidence_721.ps1 writes EXACTLY 12 lines (6 HTTP + 6 WS), one request = one line.
     - Format (one line): [ChatTrace] t=<http|ws> cid=<id> mode=<...> route=<...> tool=<qualified|-> code=<ok|err> ms=<n> q='<sanitized>' a='<sanitized>'
     - Sanitize rules: collapse whitespace, strip backticks/``` and {}, redact JSON-ish => [JSON_REDACTED], redact IP/email, truncate 220 chars.
@@ -1208,3 +1208,83 @@ Evidence
       - Select-String -Path innomcp-node/evidence/smoke721-lines-20260219-175423.log -Pattern '(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b' -Quiet
       - Select-String -Path innomcp-node/evidence/smoke721-lines-20260219-175423.log -Pattern '\b\d{1,3}(?:\.\d{1,3}){3}\b' -Quiet
     - Smoke exit codes: see smoke_run_results.txt (HTTP#1-6 exitCode=0, WS#1-6 exitCode=0)
+
+    \***\*\*\*\*** Phase 7.2.3: Ground-Truth Gate (Local Only) \***\*\*\*\***
+    - **Origin/Main**: `069656d1` (Cached/Stale - Fetch Hanging)
+    - **Local HEAD**: `326b37df314f88e0e61cfaebaca0d5932d9aa06a`
+    - **Evidence File**: `innomcp-node/evidence/smoke721-lines-20260219-175423.log`
+      - Line count: 12 (verified)
+      - Format: `[ChatTrace] ...` (verified)
+      - Branding/Sanitization: PASS (No backticks, braces, PII redacted)
+    - **Code Check**:
+      - `chat.ts`: Uses `innomcp-server:evidenceTool` (Correct for Phase 7.2.3)
+      - `Officer Mode`: `inferOfficerEvidenceAction` present.
+    - **Security Gate**:
+      - `SMOKE_MODE/X-Smoke-Run`: Found in tests/smoke scripts only (Safe).
+      - `bypass`: No unauthorized backend bypass found.
+    - **Verdict**: **PASS (Local)**. Remote verification skipped due to git network hanging.
+
+    ****\***** Phase 7.2.2/7.2.3: Remote Ground-Truth Gate (Attempted) ****\*****
+    - **Command**: `git fetch origin`
+    - **Result**: **BLOCKED** (Process hang/timeout). Unable to sync with remote.
+    - **Local Security**:
+      - `grep SMOKE_MODE`: Found only in test contexts (Safe).
+      - `grep bypass`: No unauthorized backend bypass found.
+    - **Conclusion**: Cannot confirm origin/main synchronization. Proceeding with local-only confidence.
+
+    \***\*\*\*\*** Phase 7.2.4: Officer Evidence V1 (VIT) \***\*\*\*\***
+    - Goal: deterministic officer-mode routing + aggregation-only evidence stats + one-line evidence standard (IN+OUT per request)
+
+    - Deterministic routing (3 questions)
+      - “ตอนนี้เครื่องออนไลน์กี่เครื่อง”
+      - “วันนี้ machine evidence ทำงานอยู่กี่เครื่อง”
+      - “วันนี้จัดเก็บหลักฐานวิดีโอได้เท่าไหร่”
+      - Route: `officerEvidence`
+      - Primary tool: `innomcp-server:evidenceTool`
+      - Fallback tool: `local-tools:detect_evidence_stats`
+
+    - Safety/SQL constraints (enforced)
+      - Parameterized queries only
+      - Aggregation-only (COUNT/SUM), no raw rows
+      - No `SELECT *`
+      - No PII / no table dumps / no JSON payloads in logs
+
+    - One-line evidence log standard (V2) (HTTP parity)
+      - One request => exactly 2 lines: IN + OUT
+      - Format: `[ChatTrace] t=http cid=... mode=... route=in|officerEvidence tool=... code=... ms=... q='...' a='...'`
+      - Verifier extracts exactly 6 lines (3 IN + 3 OUT)
+
+    - Verify (repro commands)
+      - DB (repo root):
+        - `docker compose -f mariadb/docker-compose.yml up -d`
+        - `docker exec -i mariadb-innomcp mariadb -uroot -prockbottom -D "innomcp-db" -e "CREATE TABLE IF NOT EXISTS machines (id INT AUTO_INCREMENT PRIMARY KEY, is_online TINYINT NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS record (id INT AUTO_INCREMENT PRIMARY KEY, create_date DATETIME NOT NULL);"`
+        - `docker exec -i mariadb-innomcp mariadb -uroot -prockbottom -D "innomcp-db" -e "ALTER TABLE machines ADD COLUMN last_check_in DATETIME NULL; ALTER TABLE machines ADD COLUMN create_datetime DATETIME NULL;"`
+        - `docker exec -i mariadb-innomcp mariadb -uroot -prockbottom -D "innomcp-db" -e "TRUNCATE TABLE machines; TRUNCATE TABLE record; INSERT INTO machines (is_online, last_check_in, create_datetime) VALUES (1, NOW(), NOW()),(1, NOW(), NOW()),(1, NOW(), NOW()),(0, NOW(), NOW()),(0, NOW(), NOW()),(1, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 1 DAY); INSERT INTO record (create_date) VALUES (NOW()),(NOW()),(NOW()),(NOW() - INTERVAL 1 DAY);"`
+
+      - Terminal A (MCP server):
+        - `cd innomcp-server-node; $env:SERVER_PORT='3014'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
+
+      - Terminal B (backend):
+        - `cd innomcp-node; $env:CHAT_TRACE_QA='1'; $env:SERVER_PORT='3030'; $env:MCPSERVER_URL='http://localhost:3014/mcp'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
+
+      - Terminal C (verifier):
+        - `npx ts-node scripts/verify_phase724_officer_evidence_v1.ts --port 3030`
+
+    - Evidence (PASS)
+      - Evidence file: `innomcp-node/evidence/phase724-officer-evidence-v1-2026-02-19-154832319Z.log`
+      - Line count check:
+        - `(Get-Content -Path innomcp-node/evidence/phase724-officer-evidence-v1-2026-02-19-154832319Z.log -Encoding UTF8).Count` => `6`
+
+    - Strict evidence rules (verifier enforced)
+      - 6 lines exactly (3 IN + 3 OUT)
+      - No backticks, braces, double-quotes, email, IPv4, token, apiKey
+      - OUT `a='...'` must be numeric or `ERR:<CODE> ...` only (no “no count found”)
+
+    - Result summary (real counts from DB; no raw rows)
+      - active_machines_count => 4
+      - machines_evidence_active_today => 3
+      - evidence_records_today => 3
+
+    - Commit (single): (see `git rev-parse HEAD`)
+
+    - *********Issue: If DETECT_DB_HOST/USER/PASSWORD/NAME is missing, tools must return structured error `ERR:MISSING_DETECT_DB_CREDS ...` (not “no count found”).*********

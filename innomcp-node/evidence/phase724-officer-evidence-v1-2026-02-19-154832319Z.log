@@ -1,0 +1,6 @@
+[ChatTrace] t=http cid=PHASE724_HTTP_P1 mode=officer route=in tool=- code=OK ms=0 q='PHASE724_P1 officer: ตอนนี้เครื่องออนไลน์กี่เครื่อง' a='-'
+[ChatTrace] t=http cid=PHASE724_HTTP_P1 mode=officer route=officerEvidence tool=innomcp-server:evidenceTool code=OK ms=47 q='PHASE724_P1 officer: ตอนนี้เครื่องออนไลน์กี่เครื่อง' a='4'
+[ChatTrace] t=http cid=PHASE724_HTTP_P2 mode=officer route=in tool=- code=OK ms=0 q='PHASE724_P2 officer: วันนี้ machine evidence ทำงานอยู่กี่เครื่อง' a='-'
+[ChatTrace] t=http cid=PHASE724_HTTP_P2 mode=officer route=officerEvidence tool=innomcp-server:evidenceTool code=OK ms=37 q='PHASE724_P2 officer: วันนี้ machine evidence ทำงานอยู่กี่เครื่อง' a='3'
+[ChatTrace] t=http cid=PHASE724_HTTP_P3 mode=officer route=in tool=- code=OK ms=0 q='PHASE724_P3 officer: วันนี้จัดเก็บหลักฐานวิดีโอได้เท่าไหร่' a='-'
+[ChatTrace] t=http cid=PHASE724_HTTP_P3 mode=officer route=officerEvidence tool=innomcp-server:evidenceTool code=OK ms=34 q='PHASE724_P3 officer: วันนี้จัดเก็บหลักฐานวิดีโอได้เท่าไหร่' a='3'
