@@ -40,6 +40,8 @@ package-lock.json
 *.md
 *.txt
 
+!TODO.md
+
 # Folders
 /config/
 /scripts/*

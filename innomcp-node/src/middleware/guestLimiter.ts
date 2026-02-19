@@ -116,6 +116,7 @@ export function guestLimiterMiddleware(req: AuthRequest, res: Response, next: Ne
   try {
     const smokeHeaderRaw = req.headers['x-smoke-run'];
     const smokeHeader = Array.isArray(smokeHeaderRaw) ? smokeHeaderRaw[0] : smokeHeaderRaw;
+    // smoke-only bypass; cannot activate in prod without env
     const smokeBypassEnabled = (process.env.NODE_ENV === 'test' || process.env.SMOKE_MODE === '1')
       && smokeHeader === '1';
 
