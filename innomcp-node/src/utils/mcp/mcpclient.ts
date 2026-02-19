@@ -1798,7 +1798,7 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
       messageLength: userMessage.length,
       historySize: this.conversationHistory.length,
       semanticHint: semanticHint || 'none', // 🧠 Log semantic hint if provided
-      uiMode: options?.uiMode || 'none'
+      uiMode: options?.uiMode || 'auto'
     });
 
     // Classify message type ก่อน

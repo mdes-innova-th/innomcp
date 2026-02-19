@@ -24,6 +24,7 @@ import { optionalAuth } from "../../utils/jwt";
 import { guestLimiterMiddleware, getLimitsForUser, checkToolAccess, limitResponseLength } from "../../middleware/guestLimiter";
 import { tryFastPathWebSocket } from "../../services/fastPathHandler";
 import { renderWeatherMarkdownTable } from "../../utils/weather/tableRenderer";
+import { sanitizeForTraceV3, normalizeTraceAnswerV3 } from "../../utils/traceSanitizer";
 
 dotenv.config();
 
@@ -247,6 +248,9 @@ function hasExplicitWeatherIntentKeywords(text: string): boolean {
 
 function inferOfficerEvidenceAction(text: string): string | undefined {
   const t = String(text || "");
+  if (/(เครื่อง.*ออฟไลน์|ออฟไลน์กี่เครื่อง|offline\s*machines?|machines?\s*offline)/i.test(t)) {
+    return "active_machines_offline_count";
+  }
   if (/(เครื่อง.*ออนไลน์|ออนไลน์กี่เครื่อง|active\s*machines?|online\s*machines?|machines?\s*online)/i.test(t)) {
     return "active_machines_count";
   }
@@ -268,6 +272,7 @@ function mapOfficerEvidenceActionToLocalIntent(action: string): string | undefin
   // Local evidence tool (`local-tools:detect_evidence_stats`) uses `intent`.
   // Keep this mapping minimal and only for the Phase 7.2.4 v1 officer questions.
   if (action === "active_machines_count") return "active_evidence_machines";
+  if (action === "active_machines_offline_count") return "active_evidence_machines_offline";
   if (action === "machines_evidence_active_today") return "machines_evidence_active_today";
   if (action === "evidence_records_today") return "evidence_records_today";
   return undefined;
@@ -356,7 +361,8 @@ function formatOfficerEvidenceTraceAnswer(structuredContent: any): string {
   if (typeof count === "number" && Number.isFinite(count)) return String(count);
 
   const err = extractEvidenceErr(structuredContent);
-  if (err) return `ERR:${err.code}` + (err.message ? ` ${err.message}` : "");
+  // Phase 7.2.5 Trace v3: keep OUT a strictly as ERR:CODE (no extra text)
+  if (err) return `ERR:${String(err.code || "EVIDENCE_FAILED").toUpperCase()}`;
 
   return "ERR:COUNT_MISSING";
 }
@@ -405,6 +411,9 @@ function renderStructuredDirect(
     if (typeof count === "number" && Number.isFinite(count)) {
       if (intent === "active_machines_count") {
         return { text: `ตอนนี้เครื่องออนไลน์: ${count} เครื่อง`, structuredContent };
+      }
+      if (intent === "active_machines_offline_count") {
+        return { text: `ตอนนี้เครื่องออฟไลน์: ${count} เครื่อง`, structuredContent };
       }
       if (intent === "machines_evidence_active_today") {
         return { text: `วันนี้ machine evidence ทำงาน: ${count} เครื่อง`, structuredContent };
@@ -823,35 +832,6 @@ function sanitizeForLog(input: string, max = 180): string {
   return s;
 }
 
-function sanitizeForTraceV2(input: string, max = 220): string {
-  // Strict, UTF-8 safe, one-line sanitizer for Phase 7.2.3/7.2.4 evidence traces.
-  // Rules: collapse whitespace, strip quotes/backticks/braces, redact JSON-ish/email/ip, truncate.
-  let s = String(input || "");
-  s = s.replace(/\r?\n/g, " ");
-  s = s.replace(/`/g, "");
-  s = s.replace(/[{}]/g, "");
-  s = s.replace(/[\"']/g, "");
-  s = s.replace(/\s+/g, " ").trim();
-
-  // JSON-ish redaction heuristics
-  s = s.replace(/\{[^{}]*\}/g, "[JSON_REDACTED]");
-  s = s.replace(/\[[^\[\]]*\]/g, "[JSON_REDACTED]");
-  if (/\b(ok|error|code|message)\b\s*:/i.test(s) && /\b(true|false|null)\b/i.test(s)) {
-    s = "[JSON_REDACTED]";
-  }
-
-  // Credentials
-  s = s.replace(/(api[_-]?key|token|bearer|authorization|password)\s*[:=]\s*([^,\s;]+)/gi, (_m, k) => `${k}=[REDACTED]`);
-  s = s.replace(/\bauthorization\s*:\s*bearer\s+[^,\s;]+/gi, "authorization: bearer [REDACTED]");
-
-  // PII-ish
-  s = s.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[EMAIL_REDACTED]");
-  s = s.replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, "[IP_REDACTED]");
-
-  if (s.length > max) s = s.slice(0, max - 1) + "…";
-  return s;
-}
-
 function chatTraceV2(params: {
   transport: "ws" | "http";
   cid?: string;
@@ -869,8 +849,9 @@ function chatTraceV2(params: {
   const routeNorm = String(params.route || "-") || "-";
   const toolNorm = String(params.tool || "-") || "-";
   const msNorm = Math.max(0, Math.floor(params.ms || 0));
-  const qSan = sanitizeForTraceV2(params.q || "-");
-  const aSan = sanitizeForTraceV2(params.a || "-");
+  const qSan = sanitizeForTraceV3(params.q || "-");
+  const aSanRaw = isTraceQaEnabled() ? normalizeTraceAnswerV3(params.a || "-") : String(params.a || "-");
+  const aSan = sanitizeForTraceV3(aSanRaw);
   chatTraceLog(
     `[ChatTrace] t=${tNorm} cid=${cid} mode=${modeNorm} route=${routeNorm} tool=${toolNorm} code=${params.code} ms=${msNorm} q='${qSan}' a='${aSan}'`
   );
@@ -888,11 +869,7 @@ function chatTraceIn(params: {
   uiMode?: string;
   msg: string;
 }) {
-  chatTraceLog(
-    `[ChatTrace] ts=${new Date().toISOString()} dir=in transport=${params.transport} sid=${shortId(params.sid)} cid=${shortId(params.cid)} uiMode=${params.uiMode || "auto"} msg="${sanitizeForLog(params.msg)}"`
-  );
-
-  // Phase 7.2.4: One-line evidence standard IN trace
+  // Phase 7.2.5: Trace v3 (ONE line IN)
   chatTraceV2({
     transport: params.transport,
     cid: params.cid,
@@ -925,11 +902,7 @@ function chatTraceOut(params: {
   q: string;
   ans: string;
 }) {
-  chatTraceLog(
-    `[ChatTrace] ts=${new Date().toISOString()} dir=out transport=${params.transport} sid=${shortId(params.sid)} cid=${shortId(params.cid)} uiMode=${params.uiMode || "auto"} route=${params.route} tool=${params.tool || "none"} code=${params.code} durMs=${Math.max(0, Math.floor(params.durMs))} ans="${sanitizeForLog(params.ans)}"`
-  );
-
-  // Phase 7.2.4: One-line evidence standard OUT trace
+  // Phase 7.2.5: Trace v3 (ONE line OUT)
   chatTraceV2({
     transport: params.transport,
     cid: params.cid,
@@ -1030,7 +1003,7 @@ wss.on("connection", (ws, req) => {
           );
 
           if (fastPathResult.handled) {
-            console.log("[FASTPATH] HARD SHORT-CIRCUIT:", currentText);
+            if (process.env.LOG_DEBUG === "1") console.log("[FASTPATH] HARD SHORT-CIRCUIT:", currentText);
             
             // 💾 Persist Assistant Message to Session
             // We need to extract the response text from the payload to save it
@@ -1057,7 +1030,7 @@ wss.on("connection", (ws, req) => {
          }
     }
 
-    console.log("=== AFTER FASTPATH BLOCK ==="); // KILL SWITCH TEST
+    if (process.env.LOG_DEBUG === "1") console.log("=== AFTER FASTPATH BLOCK ===");
 
     // Enqueue the message processing to prevent overload
     await requestQueue.enqueue(messageId, async () => {
@@ -1123,15 +1096,20 @@ wss.on("connection", (ws, req) => {
         // Add file context to the message if present
         const messageWithFile = currentText + fileContext;
 
-        // Phase 7.2: Officer UI mode (boost evidence tools, keep multi-tool allowed)
-        const uiMode = String((clientMessage as any)?.uiMode || "").trim();
+        // Phase 7.2.5: uiMode propagation hardening for WS sessions.
+        // Persist the last non-empty uiMode on the WS connection so subsequent messages
+        // do not fall back to uiMode="none" inside MCP processMessage.
+        const incomingUiMode = String((clientMessage as any)?.uiMode || "").trim();
+        const prevUiMode = String((ws as any).__uiMode || "").trim();
+        const uiMode = incomingUiMode || prevUiMode || "auto";
+        if (incomingUiMode) (ws as any).__uiMode = incomingUiMode;
         const officerMode = uiMode === "officer";
         if (officerMode) {
           logBoth("info", `[OfficerMode] uiMode=officer boostedTools=evidenceTool,detect_evidence_stats,webdTool_*`);
         }
 
         const traceStartMs = Date.now();
-        const officerAction = officerMode ? inferOfficerEvidenceAction(messageWithFile) : undefined;
+        const evidenceAction = inferOfficerEvidenceAction(messageWithFile);
 
         // Session id helper used across branches (WeatherGate returns early)
         const currentSessionId = (ws as any).sessionId;
@@ -1141,11 +1119,12 @@ wss.on("connection", (ws, req) => {
         chatTraceIn({ transport: "ws", sid: currentSessionId, cid, uiMode, msg: messageWithFile });
 
         // =====================================
-        // Phase 7.2.1: Deterministic Officer Evidence Router (NO LLM args)
-        // Route officer-mode templates directly to EvidenceTool with forced args.
+        // Phase 7.2.5: Deterministic Evidence Fastpath (NO LLM classify/tool-select)
+        // Route machine/evidence online/offline patterns directly to EvidenceTool with forced args.
+        // Applies even when uiMode is not officer.
         // =====================================
-        if (mcpClient && officerMode && officerAction) {
-          logBoth("info", `[OfficerMode] deterministicEvidence=true transport=ws action=${officerAction}`);
+        if (mcpClient && evidenceAction) {
+          logBoth("info", `[EvidenceFastPath] deterministicEvidence=true transport=ws action=${evidenceAction} uiMode=${uiMode}`);
 
           sessionHistory.push({ sender: "user", text: messageWithFile });
           sessionManager.addMessage(currentSessionId, "user", messageWithFile);
@@ -1154,7 +1133,7 @@ wss.on("connection", (ws, req) => {
           const primaryToolName = "innomcp-server:evidenceTool";
           let toolNameUsed = primaryToolName;
           let toolResults = await mcpClient.executeTools([primaryToolName], messageWithFile, {
-            [primaryToolName]: { action: officerAction },
+            [primaryToolName]: { action: evidenceAction },
           });
 
           let first = Array.isArray(toolResults) ? toolResults[0] : undefined;
@@ -1174,7 +1153,7 @@ wss.on("connection", (ws, req) => {
             traceAns === "ERR:COUNT_MISSING";
 
           if (shouldLocalFallback) {
-            const localIntent = mapOfficerEvidenceActionToLocalIntent(officerAction);
+            const localIntent = mapOfficerEvidenceActionToLocalIntent(evidenceAction);
             if (localIntent) {
               const localToolName = "local-tools:detect_evidence_stats";
               const localResults = await mcpClient.executeTools([localToolName], messageWithFile, {
@@ -1413,7 +1392,9 @@ wss.on("connection", (ws, req) => {
           const mcpResult = await mcpClient.processMessage(
             currentText,
             semanticCategory || undefined,
-            officerMode ? { uiMode: "officer", boostedTools: ["evidenceTool", "detect_evidence_stats", "webdTool"] } : undefined
+            officerMode
+              ? { uiMode: "officer", boostedTools: ["evidenceTool", "detect_evidence_stats", "webdTool"] }
+              : { uiMode }
           );
 
           if (mcpResult.needsTools) {
@@ -1928,7 +1909,8 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
   try {
     syncChatAIModeIfChanged();
     const { message, messages } = req.body;
-    const uiMode = String((req.body as any)?.uiMode || "").trim();
+    const uiModeRaw = String((req.body as any)?.uiMode || "").trim();
+    const uiMode = uiModeRaw || "auto";
     const officerMode = uiMode === "officer";
     const httpCid = String((req.headers["x-correlation-id"] as string) || (req.headers["x-correlationid"] as string) || "");
     if (officerMode) {
@@ -1967,7 +1949,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     const messageWithFile = String(message || "") + fileContext;
 
     const traceStartMs = Date.now();
-    const officerAction = officerMode ? inferOfficerEvidenceAction(messageWithFile) : undefined;
+    const evidenceAction = inferOfficerEvidenceAction(messageWithFile);
 
     // Best-effort sessionId/requestId correlation for HTTP parity
     const cookieMap = String(req.headers.cookie || "")
@@ -1988,15 +1970,15 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     logBoth("info", `[Chat API] POST: Session history: ${sessionHistory.length} messages (before AI)`);
 
     // =====================================
-    // Phase 7.2.1: Deterministic Officer Evidence Router (NO LLM args)
+    // Phase 7.2.5: Deterministic Evidence Fastpath (NO LLM classify/tool-select)
     // =====================================
-    if (mcpClient && officerMode && officerAction) {
-      logBoth("info", `[OfficerMode] deterministicEvidence=true transport=http action=${officerAction}`);
+    if (mcpClient && evidenceAction) {
+      logBoth("info", `[EvidenceFastPath] deterministicEvidence=true transport=http action=${evidenceAction} uiMode=${uiMode}`);
 
       const primaryToolName = "innomcp-server:evidenceTool";
       let toolNameUsed = primaryToolName;
       let toolResults = await mcpClient.executeTools([primaryToolName], messageWithFile, {
-        [primaryToolName]: { action: officerAction },
+        [primaryToolName]: { action: evidenceAction },
       });
 
       let first = Array.isArray(toolResults) ? toolResults[0] : undefined;
@@ -2014,7 +1996,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         traceAns === "ERR:COUNT_MISSING";
 
       if (shouldLocalFallback) {
-        const localIntent = mapOfficerEvidenceActionToLocalIntent(officerAction);
+        const localIntent = mapOfficerEvidenceActionToLocalIntent(evidenceAction);
         if (localIntent) {
           const localToolName = "local-tools:detect_evidence_stats";
           const localResults = await mcpClient.executeTools([localToolName], messageWithFile, {
@@ -2154,7 +2136,9 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         const mcpResult = await mcpClient.processMessage(
           messageWithFile,
           undefined,
-          officerMode ? { uiMode: "officer", boostedTools: ["evidenceTool", "detect_evidence_stats", "webdTool"] } : undefined
+          officerMode
+            ? { uiMode: "officer", boostedTools: ["evidenceTool", "detect_evidence_stats", "webdTool"] }
+            : { uiMode }
         );
 
         if (mcpResult.needsTools) {

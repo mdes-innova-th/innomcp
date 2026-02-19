@@ -5,6 +5,9 @@ import path from "path";
 
 export type LogLevel = "info" | "warn" | "error" | "debug";
 
+const TRACE_QA_ENABLED = process.env.CHAT_TRACE_QA === "1";
+const LOG_DEBUG_ENABLED = process.env.LOG_DEBUG === "1";
+
 // LOG_MODE support: dev (all), test (debug), prod (warn+error only)
 const LOG_MODE = process.env.LOG_MODE || 'dev';
 
@@ -70,6 +73,13 @@ export function mcpLog(level: LogLevel, message: string) {
 export function logBoth(level: LogLevel, message: string) {
   if (!shouldLog(level)) {
     return;
+  }
+
+  // Phase 7.2.5 Log hygiene:
+  // When CHAT_TRACE_QA=1, keep logs strictly to [ChatTrace] lines unless LOG_DEBUG=1.
+  // This prevents banners / router spam / JSON dumps from polluting evidence runs.
+  if (TRACE_QA_ENABLED && !LOG_DEBUG_ENABLED) {
+    if (!String(message || "").includes("[ChatTrace]")) return;
   }
 
   // Log to console

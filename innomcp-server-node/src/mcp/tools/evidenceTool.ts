@@ -11,6 +11,7 @@ export const evidenceTool = {
     action: z
       .enum([
         "active_machines_count",
+        "active_machines_offline_count",
         "machines_evidence_active_today",
         "evidence_records_today",
         "detected_urls_today",
@@ -106,6 +107,18 @@ export const evidenceTool = {
       }
 
       // ===== Required v1 intents (counts only; parameterized) =====
+      if (action === "active_machines_offline_count") {
+        const n = await countQuery(
+          "SELECT COUNT(*) as c FROM machines WHERE is_online = ?",
+          [0],
+          "active_machines_offline_count"
+        );
+        return {
+          content: [{ type: "text" as const, text: `ตอนนี้เครื่องออฟไลน์: ${n} เครื่อง` }],
+          structuredContent: { ok: true, intent: action, count: n },
+        };
+      }
+
       if (action === "active_machines_count") {
         const n = await countQuery(
           "SELECT COUNT(*) as c FROM machines WHERE is_online = ?",

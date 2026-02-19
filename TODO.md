@@ -1288,3 +1288,41 @@ Evidence
     - Commit (single): (see `git rev-parse HEAD`)
 
     - *********Issue: If DETECT_DB_HOST/USER/PASSWORD/NAME is missing, tools must return structured error `ERR:MISSING_DETECT_DB_CREDS ...` (not “no count found”).*********
+
+    \***\*\*\*\*** Phase 7.2.5: Log Hygiene + Officer Routing Hardening (VIT) \***\*\*\*\***
+    - Goal: Trace v3 hygiene (QA mode) + WS `uiMode` propagation hardening + deterministic evidence routing even when `uiMode` is not officer
+
+    - Deterministic evidence routing (3 questions) (works for HTTP + WS; does NOT depend on officer mode)
+      - “ตอนนี้เครื่องออนไลน์กี่เครื่อง”
+      - “ตอนนี้ ระบบ evidence มีmachine ที่ออฟไลน์กี่เครื่อง”
+      - “วันนี้ machine evidence ทำงานอยู่กี่เครื่อง”
+      - Route: `officerEvidence`
+      - Primary tool: `innomcp-server:evidenceTool`
+      - Fallback tool: `local-tools:detect_evidence_stats`
+
+    - WS `uiMode` propagation hardening
+      - WS connection stores last non-empty `uiMode` (defaults to `auto`)
+      - `processMessage` never sees `uiMode='none'` fallback in normal flows
+
+    - Trace v3 (QA mode strict)
+      - When `CHAT_TRACE_QA=1`: exactly 2 one-line `[ChatTrace]` per request (IN + OUT)
+      - OUT `a='...'` must be `NUMBER` or `ERR:CODE` only
+      - Sanitization: no backticks/braces/double-quotes; email + IPv4 redacted; q/a truncated
+
+    - Log hygiene (QA mode)
+      - When `CHAT_TRACE_QA=1` and `LOG_DEBUG!=1`: suppress ALL non-`[ChatTrace]` console output in backend
+
+    - Verifier (12-line evidence; HTTP + WS parity)
+      - Script: `scripts/verify_phase725_trace_v3.ts`
+      - Evidence file (PASS): `innomcp-node/evidence/phase725-tracev3-2026-02-19-163644228Z.log`
+      - Expected: 12 lines exactly (6 IN + 6 OUT), OUT `a` numeric, `route=officerEvidence`
+
+    - Verify (repro commands)
+      - Terminal A (MCP server):
+        - `cd innomcp-server-node; $env:SERVER_PORT='3015'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
+      - Terminal B (backend):
+        - `cd innomcp-node; $env:CHAT_TRACE_QA='1'; $env:SERVER_PORT='3035'; $env:MCPSERVER_URL='http://localhost:3015/mcp'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
+      - Terminal C (verifier):
+        - `npx ts-node scripts/verify_phase725_trace_v3.ts --port 3035`
+
+    - Commit (single): (see `git rev-parse HEAD`)

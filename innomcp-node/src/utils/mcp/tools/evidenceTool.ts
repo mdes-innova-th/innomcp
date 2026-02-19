@@ -23,6 +23,7 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
         enum: [
           "machine_status",
           "active_evidence_machines",
+          "active_evidence_machines_offline",
           "machines_evidence_active_today",
           "evidence_records_today",
           "pending_evidence",
@@ -110,6 +111,17 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         intent: intent === "machine_status" ? "active_evidence_machines" : intent,
         count: online,
         summary: `ตอนนี้เครื่องออนไลน์: ${online} เครื่อง`,
+      };
+    }
+
+    // 1b) ตอนนี้เครื่องออฟไลน์กี่เครื่อง → machines WHERE is_online=0
+    if (intent === "active_evidence_machines_offline") {
+      const offline = await countQuery("SELECT COUNT(*) as c FROM machines WHERE is_online = ?", [0]);
+      return {
+        ok: true,
+        intent,
+        count: offline,
+        summary: `ตอนนี้เครื่องออฟไลน์: ${offline} เครื่อง`,
       };
     }
 

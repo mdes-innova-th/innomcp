@@ -11,6 +11,10 @@ import fs from 'fs';
 const LOG_MODE = process.env.LOG_MODE || 'dev';
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
+const TRACE_QA_ENABLED = process.env.CHAT_TRACE_QA === '1';
+const LOG_DEBUG_ENABLED = process.env.LOG_DEBUG === '1';
+const TRACE_QA_SILENT = TRACE_QA_ENABLED && !LOG_DEBUG_ENABLED;
+
 // ----------------------------------------------------------------------------
 // 1. Centralized Log Directory Setup
 // ----------------------------------------------------------------------------
@@ -74,6 +78,7 @@ transports.push(
   new winston.transports.Console({
     level: LOG_MODE === 'prod' ? 'info' : 'debug',
     format: consoleFormat,
+    silent: TRACE_QA_SILENT,
   })
 );
 
