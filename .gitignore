@@ -44,6 +44,7 @@ package-lock.json
 /config/
 /scripts/*
 !/scripts/verify_weather_v2.ts
+!/scripts/smoke_phase_721.ps1
 /docs/
 /tests/
 */.env

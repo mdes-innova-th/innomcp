@@ -114,6 +114,11 @@ function checkRateLimit(userId: string | null, limits: GuestLimits): { allowed: 
  */
 export function guestLimiterMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
   try {
+    const smokeHeaderRaw = req.headers['x-smoke-run'];
+    const smokeHeader = Array.isArray(smokeHeaderRaw) ? smokeHeaderRaw[0] : smokeHeaderRaw;
+    const smokeBypassEnabled = (process.env.NODE_ENV === 'test' || process.env.SMOKE_MODE === '1')
+      && smokeHeader === '1';
+
     // Determine user role
     const user = req.user;
     const isGuest = !user;
@@ -130,37 +135,39 @@ export function guestLimiterMiddleware(req: AuthRequest, res: Response, next: Ne
       limits = GUEST_LIMITS;
     }
     
-    // Check rate limit
     const userId = user?.userId?.toString() || null;
-    const rateLimit = checkRateLimit(userId, limits);
-    
-    if (!rateLimit.allowed) {
-      res.status(429).json({
-        success: false,
-        error: 'Rate limit exceeded',
-        message: isGuest 
-          ? 'คุณใช้งานเกินจำนวนที่กำหนดสำหรับผู้ใช้ที่ไม่ได้ล็อกอิน กรุณาล็อกอินเพื่อใช้งานได้เต็มประสิทธิภาพ' 
-          : 'คุณใช้งานเกินจำนวนที่กำหนด กรุณารอสักครู่แล้วลองใหม่อีกครั้ง',
-        limits: {
-          maxRequestsPerHour: limits.maxRequestsPerHour,
-          resetAt: rateLimit.resetAt.toISOString(),
-        },
-        isGuest,
-      });
-      return;
+    if (!smokeBypassEnabled) {
+      // Check rate limit
+      const rateLimit = checkRateLimit(userId, limits);
+
+      if (!rateLimit.allowed) {
+        res.status(429).json({
+          success: false,
+          error: 'Rate limit exceeded',
+          message: isGuest
+            ? 'คุณใช้งานเกินจำนวนที่กำหนดสำหรับผู้ใช้ที่ไม่ได้ล็อกอิน กรุณาล็อกอินเพื่อใช้งานได้เต็มประสิทธิภาพ'
+            : 'คุณใช้งานเกินจำนวนที่กำหนด กรุณารอสักครู่แล้วลองใหม่อีกครั้ง',
+          limits: {
+            maxRequestsPerHour: limits.maxRequestsPerHour,
+            resetAt: rateLimit.resetAt.toISOString(),
+          },
+          isGuest,
+        });
+        return;
+      }
+
+      // Add rate limit info to response headers
+      res.setHeader('X-RateLimit-Limit', limits.maxRequestsPerHour.toString());
+      res.setHeader('X-RateLimit-Remaining', rateLimit.remaining.toString());
+      res.setHeader('X-RateLimit-Reset', rateLimit.resetAt.toISOString());
     }
-    
-    // Add rate limit info to response headers
-    res.setHeader('X-RateLimit-Limit', limits.maxRequestsPerHour.toString());
-    res.setHeader('X-RateLimit-Remaining', rateLimit.remaining.toString());
-    res.setHeader('X-RateLimit-Reset', rateLimit.resetAt.toISOString());
     
     // Attach limits to request for use in chat handler
     (req as any).guestLimits = limits;
     (req as any).isGuest = isGuest;
     (req as any).capabilityLevel = isGuest ? 50 : 100;
     
-    console.log(`[Guest Limiter] ${isGuest ? 'Guest' : `User ${userId}`} - ${rateLimit.remaining}/${limits.maxRequestsPerHour} requests remaining`);
+    console.log(`[Guest Limiter] ${isGuest ? 'Guest' : `User ${userId}`} - ${smokeBypassEnabled ? 'SMOKE_BYPASS' : 'OK'}`);
     
     next();
   } catch (error) {

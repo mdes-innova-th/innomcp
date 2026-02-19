@@ -154,7 +154,7 @@ router.post('/login', async (req: Request, res: Response) => {
     // Find user by email
     const users = await withDbConnection(async (conn) => {
       const [rows] = await conn.query(
-        'SELECT user_id, user_email, password, user_dispname as user_disp_name, userrole_id as user_role_id FROM `user` WHERE user_email = ?',
+        'SELECT user_id, user_email, user_pwd, user_disp_name, user_role_id FROM `user` WHERE user_email = ?',
         [email]
       );
       return rows;
@@ -185,7 +185,7 @@ router.post('/login', async (req: Request, res: Response) => {
     console.log(`🔑 Comparing password...`);
 
     // Compare password
-    const isPasswordValid = await comparePassword(password, user.password);
+    const isPasswordValid = await comparePassword(password, user.user_pwd);
     
     console.log(`🔑 Password valid: ${isPasswordValid}`);
 
