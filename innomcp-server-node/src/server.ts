@@ -48,8 +48,13 @@ function sendJsonRpcError(
 import { registerDateTimeTool } from "./mcp/tools/dateTimeTool";
 import { registerTmdTool as registerTmdTool } from "./mcp/tools/tmdTools";
 import { registerWebdTools } from "./mcp/tools/webdTools";
+import { registerEvidenceTool } from "./mcp/tools/evidenceTool";
 import { registerEchartsTool } from "./mcp/tools/echartsTool";
 import { registerCalculatorTool } from "./mcp/tools/calculatorTool";
+import { registerThaiGeoTool } from "./mcp/tools/thaiGeoTool";
+import { registerThaiHistoryTool } from "./mcp/tools/thaiHistoryTool";
+import { registerThaiLawTool } from "./mcp/tools/thaiLawTool";
+import { registerThaiReligionTool } from "./mcp/tools/thaiReligionTool";
 
 // NEW: Session 8.8 - Data Access & Calculation Tools
 import archiveTool from "./mcp/tools/archiveTool";
@@ -59,18 +64,75 @@ import worldBankTool from "./mcp/tools/worldBankTool";
 import govDataTool from "./mcp/tools/govDataTool";
 import newtonTool from "./mcp/tools/newtonTool";
 
+// NEW: 2026-01-05 - World-Class MCP Tools
+import currencyExchangeTool from "./mcp/tools/currencyExchangeTool";
+import qrCodeTool from "./mcp/tools/qrCodeTool";
+import translationTool from "./mcp/tools/translationTool";
+import rssFeedTool from "./mcp/tools/rssFeedTool";
+import codeFormatterTool from "./mcp/tools/codeFormatterTool";
+
+// NEW: 2026-01-05 - Essential Free Tools (Phase 2)
+import ocrTool from "./mcp/tools/ocrTool";
+import fileReaderTool from "./mcp/tools/fileReaderTool";
+import imageGeneratorTool from "./mcp/tools/imageGeneratorTool";
+
+// NEW: 2026-01-06 - NWP Weather Forecast Tools (High Performance Computing)
+import {
+  nwpHourlyByLocationTool,
+  nwpHourlyByPlaceTool,
+  nwpHourlyByRegionTool
+} from "./mcp/tools/nwpHourlyTool";
+import {
+  nwpDailyByLocationTool,
+  nwpDailyByPlaceTool,
+  nwpDailyByRegionTool
+} from "./mcp/tools/nwpDailyTool";
+
 // Create MCP server instance and register tools
 const mcpserver = new McpServer({
   name: "INNOMCP Server",
   version: "1.0.0",
 });
 
+
+// Phase 4: Intelligence Pipeline Integration
+import { IntelligencePipeline } from "./intelligence/pipeline";
+
+// Feature Flag
+const USE_INTELLIGENCE_PIPELINE = process.env.USE_INTELLIGENCE_PIPELINE === "true";
+
+// Tool Registry for Pipeline
+const toolsRegistry: Record<string, any> = {};
+
+// Monkey-patch registerTool to collect tools
+const originalRegister = mcpserver.registerTool.bind(mcpserver);
+mcpserver.registerTool = (name: string, ...args: any[]) => {
+    // args[0] might be schema or details, args[1] represents execute
+    // Type definition for registerTool varies, but usually it's (name, details, execute) 
+    // OR (name, schema, execute)
+    // Based on usage in file: mcpserver.registerTool(name, { ... }, execute)
+    
+    // We need to capture the execute function. 
+    // In SDK, it might be: registerTool(name, description, handler)
+    // Let's safe guard.
+    const execute = args[args.length - 1]; // Execute is usually last
+    if (typeof execute === "function") {
+        toolsRegistry[name] = { execute };
+    }
+    return originalRegister(name, ...args as [any, any]); 
+};
+
 // Register essential tools only (10 tools for 2025 professional system)
 registerDateTimeTool(mcpserver);
 registerTmdTool(mcpserver); // ENABLED for Thailand Meteorological Department Data
-// DISABLED: registerWebdTools(mcpserver); // Not in allowed list
+registerWebdTools(mcpserver);
+registerEvidenceTool(mcpserver);
 registerEchartsTool(mcpserver); // ✅ ENABLED for visualization
 registerCalculatorTool(mcpserver); // Enhanced as MathTool
+registerThaiGeoTool(mcpserver);
+registerThaiHistoryTool(mcpserver);
+registerThaiLawTool(mcpserver);
+registerThaiReligionTool(mcpserver); // New Phase 5 Tools
 
 // Register NEW Session 8.8 tools (direct tool objects)
 mcpserver.registerTool(archiveTool.name, {
@@ -112,8 +174,103 @@ mcpserver.registerTool(newtonTool.name, {
   inputSchema: newtonTool.inputSchema,
 }, newtonTool.execute);
 
-logBoth('INFO', `✅ Registered 9 essential tools (2025 Professional System):\n  - Core: dateTime, calculator (MathTool)\n  - Visualization: echartsTool\n  - Data Access: archive, nasa, weather, worldbank, govdata, newton`);
+// Register NEW World-Class Tools (2026-01-05)
+mcpserver.registerTool(currencyExchangeTool.name, {
+  title: "Currency Exchange Tool",
+  description: currencyExchangeTool.description,
+  inputSchema: currencyExchangeTool.inputSchema,
+}, currencyExchangeTool.execute);
 
+mcpserver.registerTool(qrCodeTool.name, {
+  title: "QR Code Generator Tool",
+  description: qrCodeTool.description,
+  inputSchema: qrCodeTool.inputSchema,
+}, qrCodeTool.execute);
+
+mcpserver.registerTool(translationTool.name, {
+  title: "Translation Tool",
+  description: translationTool.description,
+  inputSchema: translationTool.inputSchema,
+}, translationTool.execute);
+
+mcpserver.registerTool(rssFeedTool.name, {
+  title: "RSS Feed Reader Tool",
+  description: rssFeedTool.description,
+  inputSchema: rssFeedTool.inputSchema,
+}, rssFeedTool.execute);
+
+mcpserver.registerTool(codeFormatterTool.name, {
+  title: "Code Formatter Tool",
+  description: codeFormatterTool.description,
+  inputSchema: codeFormatterTool.inputSchema,
+}, codeFormatterTool.execute);
+
+// Register Phase 2 Tools - Essential Free Tools
+mcpserver.registerTool(ocrTool.name, {
+  title: "OCR Tool - อ่านข้อความจากภาพ",
+  description: ocrTool.description,
+  inputSchema: ocrTool.inputSchema,
+}, ocrTool.execute);
+
+mcpserver.registerTool(fileReaderTool.name, {
+  title: "File Reader Tool - อ่าน PDF/Excel/Word",
+  description: fileReaderTool.description,
+  inputSchema: fileReaderTool.inputSchema,
+}, fileReaderTool.execute);
+
+mcpserver.registerTool(imageGeneratorTool.name, {
+  title: "Image Generator Tool - สร้างรูปภาพ",
+  description: imageGeneratorTool.description,
+  inputSchema: imageGeneratorTool.inputSchema,
+}, imageGeneratorTool.execute);
+
+// Register NWP Weather Forecast Tools (HPC)
+mcpserver.registerTool(nwpHourlyByLocationTool.name, {
+  title: "NWP Hourly Forecast by Location",
+  description: nwpHourlyByLocationTool.description,
+  inputSchema: nwpHourlyByLocationTool.inputSchema,
+}, nwpHourlyByLocationTool.execute);
+
+mcpserver.registerTool(nwpHourlyByPlaceTool.name, {
+  title: "NWP Hourly Forecast by Place",
+  description: nwpHourlyByPlaceTool.description,
+  inputSchema: nwpHourlyByPlaceTool.inputSchema,
+}, nwpHourlyByPlaceTool.execute);
+
+mcpserver.registerTool(nwpHourlyByRegionTool.name, {
+  title: "NWP Hourly Forecast by Region",
+  description: nwpHourlyByRegionTool.description,
+  inputSchema: nwpHourlyByRegionTool.inputSchema,
+}, nwpHourlyByRegionTool.execute);
+
+mcpserver.registerTool(nwpDailyByLocationTool.name, {
+  title: "NWP Daily Forecast by Location",
+  description: nwpDailyByLocationTool.description,
+  inputSchema: nwpDailyByLocationTool.inputSchema,
+}, nwpDailyByLocationTool.execute);
+
+mcpserver.registerTool(nwpDailyByPlaceTool.name, {
+  title: "NWP Daily Forecast by Place",
+  description: nwpDailyByPlaceTool.description,
+  inputSchema: nwpDailyByPlaceTool.inputSchema,
+}, nwpDailyByPlaceTool.execute);
+
+mcpserver.registerTool(nwpDailyByRegionTool.name, {
+  title: "NWP Daily Forecast by Region",
+  description: nwpDailyByRegionTool.description,
+  inputSchema: nwpDailyByRegionTool.inputSchema,
+}, nwpDailyByRegionTool.execute);
+
+logBoth('INFO', `✅ Registered ${Object.keys(toolsRegistry).length} essential tools (2026 World-Class System)`);
+
+// Initialize Pipeline (if enabled)
+let pipeline: IntelligencePipeline | null = null;
+if (USE_INTELLIGENCE_PIPELINE) {
+    pipeline = new IntelligencePipeline(toolsRegistry);
+    logBoth('INFO', '🚀 Intelligence Pipeline INITIALIZED (Phase 4)');
+} else {
+    logBoth('INFO', 'ℹ️ Intelligence Pipeline DISABLED (Phase 4)');
+}
 
 // Handle incoming MCP requests /////////////////////////////
 app.post("/mcp", async (req, res) => {
@@ -178,6 +335,48 @@ app.post("/mcp", async (req, res) => {
   await transport.handleRequest(req, res, req.body);
 });
 
+// NEW: Smart Query Endpoint (Phase 4)
+app.post("/api/smart", async (req, res) => {
+    if (!USE_INTELLIGENCE_PIPELINE || !pipeline) {
+        return res.status(503).json({ error: "Intelligence Pipeline Disabled" });
+    }
+
+    const { query } = req.body;
+    if (!query) return res.status(400).json({ error: "Missing query" });
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    const safeWrite = (payload: any) => {
+      if (res.writableEnded || res.destroyed) return;
+      res.write(`data: ${JSON.stringify(payload)}\n\n`);
+    };
+
+    const safeEnd = () => {
+      if (res.writableEnded || res.destroyed) return;
+      res.write(`data: [DONE]\n\n`);
+      res.end();
+    };
+
+    try {
+      for await (const e of pipeline.execute(query)) {
+        safeWrite(e);
+
+        // Professional behavior: close SSE immediately after final answer.
+        // This guarantees the high-confidence path never waits for memory.
+        if ((e as any)?.type === "final_answer") {
+          safeEnd();
+          return;
+        }
+      }
+      safeEnd();
+    } catch (e: any) {
+        safeWrite({ type: "error", message: e?.message || String(e), ms: 0 });
+        safeEnd();
+    }
+});
+
 const server = app.listen(port, host, () => {
   logBoth('INFO', `🚀 MCP Server running on http://${host}:${port}/mcp`);
 });
@@ -196,3 +395,4 @@ server.on("error", (error: any) => {
 });
 
 export { server, mcpserver };
+

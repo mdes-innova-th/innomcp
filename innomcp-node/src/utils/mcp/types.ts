@@ -77,8 +77,18 @@ export interface ChainExecutionResult {
   executionTime?: number;
 }
 
+export type MessageType = 
+  | "greeting" 
+  | "general_question" 
+  | "action_request" 
+  | "calculation_request" 
+  | "datetime_request" 
+  | "weather_request" 
+  | "data_request" 
+  | "unknown";
+
 export interface MessageClassification {
-  type: "greeting" | "general_question" | "action_request" | "unknown";
+  type: MessageType;
   canAnswerDirectly: boolean;
   confidence: number;
 }

@@ -15,8 +15,8 @@ const redisConfig = {
   },
 };
 
-// Create Redis client instance
-let redisClient: Redis | null = null;
+// Create Redis client instance (can be null if not configured)
+export let redisClient: Redis | null = null;
 
 export const getRedisClient = async (): Promise<Redis> => {
   if (!redisClient) {
@@ -28,6 +28,10 @@ export const getRedisClient = async (): Promise<Redis> => {
 
     redisClient.on("connect", () => {
       logBoth("info", "[redis] Connected to Redis server");
+    });
+    
+    redisClient.on("ready", () => {
+      logBoth("info", "[redis] Redis client is ready");
     });
   }
 

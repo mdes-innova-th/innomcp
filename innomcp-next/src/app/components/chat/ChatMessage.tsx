@@ -5,6 +5,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { useTheme } from "@/app/context/ThemeContext";
+import { useAuth } from "@/app/context/AuthContext";
+import ToolTypeBadge from "./ToolTypeBadge";
 
 type Props = {
   html: string;
@@ -58,6 +60,51 @@ export default function ChatMessage({
   return (
     <div className={className ?? ""}>
       <div className="prose prose-sm wrap-break-word dark:prose-invert">
+        {/* Display NASA APOD Image if available */}
+        {structuredContent?.url && structuredContent?.media_type === 'image' && (
+          <div className="mb-4">
+            <div className="relative rounded-lg overflow-hidden">
+              <img 
+                src={structuredContent.hdurl || structuredContent.url} 
+                alt={structuredContent.title || 'NASA APOD Image'} 
+                className="w-full h-auto"
+                loading="lazy"
+              />
+              {structuredContent.title && (
+                <div className={`absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t ${
+                  theme === 'dark' 
+                    ? 'from-black/80 to-transparent' 
+                    : 'from-white/90 to-transparent'
+                }`}>
+                  <p className="font-semibold text-sm">{structuredContent.title}</p>
+                  {structuredContent.copyright && (
+                    <p className="text-xs opacity-80">© {structuredContent.copyright}</p>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-center gap-2 mt-2">
+              <a
+                href={structuredContent.hdurl || structuredContent.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`flex items-center gap-1 px-3 py-1 rounded text-sm transition-all ${
+                  theme === "dark"
+                    ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
+                    : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                }`}
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+                เปิดภาพขนาดเต็ม
+              </a>
+            </div>
+          </div>
+        )}
+
         {/* Display SVG chart if available */}
         {structuredContent?.chartSvg && (
           <div className="mb-4">
@@ -219,6 +266,7 @@ export type Message = {
   timestamp?: number; // Unix timestamp
   tokenCount?: number; // Number of tokens
   responseTime?: number; // Response time in ms
+  toolsUsed?: string[]; // List of tools used by AI
 };
 
 type EnhancedProps = {
@@ -240,9 +288,14 @@ export function MessageView({
 }: EnhancedProps) {
   const [copied, setCopied] = React.useState(false);
   const [showActions, setShowActions] = React.useState(false);
+  const [showMoreActions, setShowMoreActions] = React.useState(false);
   const [isEditing, setIsEditing] = React.useState(false);
   const [editValue, setEditValue] = React.useState("");
+  const [isReading, setIsReading] = React.useState(false);
+  const [likeStatus, setLikeStatus] = React.useState<"none" | "like" | "dislike">("none");
+  const [showReportModal, setShowReportModal] = React.useState(false);
   const { theme } = useTheme();
+  const { isGuestMode } = useAuth();
 
   React.useEffect(() => {
     return () => {
@@ -332,24 +385,164 @@ export function MessageView({
     }
   };
 
+  const handleBranchChat = () => {
+    // Copy conversation up to this message into new chat
+    const confirmed = confirm("สร้างการสนทนาใหม่จากข้อความนี้?");
+    if (confirmed) {
+      // Store messages in localStorage for new chat
+      const messagesUpToHere = JSON.parse(localStorage.getItem("chatMessages") || "[]").slice(0, index + 1);
+      localStorage.setItem("branchMessages", JSON.stringify(messagesUpToHere));
+      // Reload page to start new chat with branched messages
+      window.location.href = "/";
+    }
+  };
+
+  const handleReadAloud = () => {
+    if (isReading) {
+      // Stop reading
+      window.speechSynthesis.cancel();
+      setIsReading(false);
+    } else {
+      // Start reading
+      const utterance = new SpeechSynthesisUtterance(message.text);
+      utterance.lang = "th-TH"; // Thai language
+      utterance.rate = 0.9;
+      utterance.onend = () => setIsReading(false);
+      window.speechSynthesis.speak(utterance);
+      setIsReading(true);
+    }
+  };
+
+  // TODO #42: Handle report message with multi-checkbox modal
+  const handleReportMessage = async (categories: string[]) => {
+    if (categories.length === 0) return;
+    
+    try {
+      await fetch("/api/chat/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messageIndex: index,
+          messageText: message.text,
+          categories,
+          timestamp: Date.now(),
+        }),
+      });
+      setShowReportModal(false);
+      alert("ขอบคุณสำหรับการรายงาน เราจะตรวจสอบและดำเนินการต่อไป");
+    } catch (error) {
+      console.error("Report failed:", error);
+      alert("เกิดข้อผิดพลาดในการรายงาน กรุณาลองใหม่อีกครั้ง");
+    }
+  };
+
+  // TODO #43: Handle like/dislike feedback
+  const handleLike = async () => {
+    const newStatus = likeStatus === "like" ? "none" : "like";
+    setLikeStatus(newStatus);
+    
+    try {
+      await fetch("/api/chat/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messageIndex: index,
+          messageText: message.text,
+          feedback: newStatus,
+          timestamp: Date.now(),
+        }),
+      });
+    } catch (error) {
+      console.error("Like feedback failed:", error);
+    }
+  };
+
+  const handleDislike = async () => {
+    const newStatus = likeStatus === "dislike" ? "none" : "dislike";
+    setLikeStatus(newStatus);
+    
+    try {
+      await fetch("/api/chat/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messageIndex: index,
+          messageText: message.text,
+          feedback: newStatus,
+          timestamp: Date.now(),
+        }),
+      });
+    } catch (error) {
+      console.error("Dislike feedback failed:", error);
+    }
+  };
+
   return (
     <div
       className={`relative group p-3 rounded-lg ${
         message.sender === "user"
           ? "max-w-full self-end ml-auto pr-5 bg-blue-500 text-white rounded-br-none"
-          : "max-w-full self-start pr-5 mb-5 text-left"
+          : "max-w-full self-start pr-5 mb-5 text-left border border-white/10 dark:border-gray-700 rounded-lg"
       } ${className || ""}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
       data-testid={message.sender === "user" ? "message-user" : "message-assistant"}
     >
-      {/* Action buttons */}
+      {/* Action buttons - moved to bottom-right */}
       {!message.isAnimating && (
         <div
-          className={`absolute top-1 right-1 flex gap-1 transition-opacity ${
+          className={`absolute bottom-1 right-1 flex gap-1 transition-opacity ${
             showActions ? "opacity-100" : "opacity-0"
           }`}
         >
+          {/* Like/Dislike buttons (AI messages only) - TODO #43 */}
+          {message.sender === "ai" && (
+            <>
+              <button
+                title="ถูกใจ"
+                className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+                  likeStatus === "like"
+                    ? "text-green-500"
+                    : theme === "light"
+                    ? "text-gray-600"
+                    : "text-gray-400"
+                }`}
+                onClick={handleLike}
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill={likeStatus === "like" ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+                </svg>
+              </button>
+              <button
+                title="ไม่ถูกใจ"
+                className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+                  likeStatus === "dislike"
+                    ? "text-red-500"
+                    : theme === "light"
+                    ? "text-gray-600"
+                    : "text-gray-400"
+                }`}
+                onClick={handleDislike}
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill={likeStatus === "dislike" ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+                </svg>
+              </button>
+            </>
+          )}
+
           {/* Copy button */}
           <div className="relative">
             <button
@@ -410,10 +603,10 @@ export function MessageView({
             </button>
           )}
 
-          {/* Retry button (AI messages only) */}
+          {/* Try Again button (AI messages only) */}
           {message.sender === "ai" && onRetry && (
             <button
-              title="ลองใหม่"
+              title="เริ่มใหม่อีกครั้ง"
               className={`p-1 rounded ${
                 theme === "light"
                   ? "text-gray-600 hover:bg-gray-200"
@@ -433,6 +626,94 @@ export function MessageView({
                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
               </svg>
             </button>
+          )}
+
+          {/* More Actions button (AI messages only) */}
+          {message.sender === "ai" && (
+            <div className="relative">
+              <button
+                title="More Actions"
+                className={`p-1 rounded ${
+                  theme === "light"
+                    ? "text-gray-600 hover:bg-gray-200"
+                    : "text-gray-400 hover:bg-gray-700"
+                }`}
+                onClick={() => setShowMoreActions(!showMoreActions)}
+              >
+                <svg
+                  className="w-4 h-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="1"></circle>
+                  <circle cx="12" cy="5" r="1"></circle>
+                  <circle cx="12" cy="19" r="1"></circle>
+                </svg>
+              </button>
+              {showMoreActions && (
+                <div
+                  className={`absolute right-0 mt-2 w-56 rounded-lg shadow-lg z-10 ${
+                    theme === "light"
+                      ? "bg-white border border-gray-200"
+                      : "bg-gray-800 border border-gray-700"
+                  }`}
+                >
+                  <button
+                    onClick={() => {
+                      handleBranchChat();
+                      setShowMoreActions(false);
+                    }}
+                    className={`w-full flex items-center gap-2 px-4 py-2 text-left text-sm ${
+                      theme === "light"
+                        ? "hover:bg-gray-100 text-gray-700"
+                        : "hover:bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path>
+                    </svg>
+                    Branch in new chat
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleReadAloud();
+                      setShowMoreActions(false);
+                    }}
+                    className={`w-full flex items-center gap-2 px-4 py-2 text-left text-sm ${
+                      theme === "light"
+                        ? "hover:bg-gray-100 text-gray-700"
+                        : "hover:bg-gray-700 text-gray-300"
+                    }`}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                    </svg>
+                    {isReading ? "Stop reading" : "Read aloud"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowReportModal(true);
+                      setShowMoreActions(false);
+                    }}
+                    className={`w-full flex items-center gap-2 px-4 py-2 text-left text-sm rounded-b-lg ${
+                      theme === "light"
+                        ? "hover:bg-red-50 text-red-600"
+                        : "hover:bg-red-900/20 text-red-400"
+                    }`}
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                      <line x1="12" y1="9" x2="12" y2="13"></line>
+                      <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    Report message
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {/* Delete button */}
@@ -492,20 +773,76 @@ export function MessageView({
         </div>
       ) : (
         <>
+          {/* Tool Type Badge - Only show in auto mode with tools used */}
+          {message.sender === "ai" && !isGuestMode && message.toolsUsed && message.toolsUsed.length > 0 && (
+            <ToolTypeBadge 
+              toolType="auto"
+              toolsUsed={message.toolsUsed}
+              theme={theme}
+            />
+          )}
+          
+          {/* Tool badges for authenticated users only */}
+          {message.sender === "ai" && !isGuestMode && message.structuredContent?.toolsUsed && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {message.structuredContent.toolsUsed.map((tool: string, idx: number) => (
+                <span
+                  key={idx}
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                    theme === "light"
+                      ? "bg-blue-100 text-blue-800"
+                      : "bg-blue-900/30 text-blue-400"
+                  }`}
+                >
+                  <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+                  </svg>
+                  {tool}
+                </span>
+              ))}
+            </div>
+          )}
+          
           {/* Message content */}
           <div className="whitespace-pre-wrap wrap-break-word">
-            {message.sender === "ai" ? (
-              <ChatMessage
-                html={message.fullText || message.text}
-                structuredContent={message.structuredContent}
-              />
-            ) : (
-              message.text
+            {/* Progress indicator - แสดงขณะรอ AI พร้อมกรอบและ font เล็ก */}
+            {(message as any).isProgress && (
+              <div className={`
+                flex items-center gap-2 animate-pulse
+                px-3 py-2 rounded-lg border
+                ${theme === 'light' 
+                  ? 'border-gray-300 bg-gray-50 text-gray-600' 
+                  : 'border-gray-700 bg-gray-800/50 text-gray-400'
+                }
+              `}>
+                <svg className="w-4 h-4 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" opacity="0.25"></circle>
+                  <path d="M4 12a8 8 0 018-8" strokeLinecap="round" opacity="0.75"></path>
+                </svg>
+                <span className="text-sm">{message.text}</span>
+                {(message as any).elapsedTime && (
+                  <span className="text-xs opacity-70">({(message as any).elapsedTime}วินาที)</span>
+                )}
+              </div>
             )}
-            {message.sender === "ai" && message.isAnimating && (
-              <span className="ml-2 inline-block align-middle text-gray-600">
-                <TypingDots />
-              </span>
+            
+            {/* Normal message content */}
+            {!(message as any).isProgress && (
+              <>
+                {message.sender === "ai" ? (
+                  <ChatMessage
+                    html={message.fullText || message.text}
+                    structuredContent={message.structuredContent}
+                  />
+                ) : (
+                  message.text
+                )}
+                {message.sender === "ai" && message.isAnimating && (
+                  <span className="ml-2 inline-block align-middle text-gray-600">
+                    <TypingDots />
+                  </span>
+                )}
+              </>
             )}
           </div>
 
@@ -573,6 +910,113 @@ export function MessageView({
           </div>
         </>
       )}
+
+      {/* TODO #42: Report Modal */}
+      {showReportModal && <ReportModal onClose={() => setShowReportModal(false)} onSubmit={handleReportMessage} theme={theme} />}
     </div>
   );
 }
+
+// TODO #42: Report Modal Component
+const ReportModal: React.FC<{
+  onClose: () => void;
+  onSubmit: (categories: string[]) => void;
+  theme: string;
+}> = ({ onClose, onSubmit, theme }) => {
+  const [selectedCategories, setSelectedCategories] = React.useState<Set<string>>(new Set());
+
+  const categories = [
+    { id: "violence", label: "ความรุนแรงหรือการทำร้ายตนเอง" },
+    { id: "sexual", label: "การแสวงหาประโยชน์ทางเพศ" },
+    { id: "child-abuse", label: "การล่วงละเมิดเด็ก" },
+    { id: "bullying", label: "การกลั่นแกล้งหรือคุกคาม" },
+    { id: "spam", label: "สแปมหรือการหลอกลวง" },
+    { id: "privacy", label: "การละเมิดความเป็นส่วนตัว" },
+    { id: "ip", label: "การละเมิดทรัพย์สินทางปัญญา" },
+    { id: "age-inappropriate", label: "เนื้อหาไม่เหมาะสมกับเด็ก" },
+    { id: "other", label: "อื่นๆ" },
+  ];
+
+  const toggleCategory = (id: string) => {
+    const newSet = new Set(selectedCategories);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedCategories(newSet);
+  };
+
+  const handleSubmit = () => {
+    if (selectedCategories.size === 0) {
+      alert("กรุณาเลือกอย่างน้อย 1 หมวดหมู่");
+      return;
+    }
+    onSubmit(Array.from(selectedCategories));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className={`${
+          theme === "light" ? "bg-white text-gray-900" : "bg-gray-800 text-gray-100"
+        } rounded-lg shadow-2xl p-6 w-full max-w-md m-4`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 className="text-xl font-bold mb-4">รายงานข้อความ</h2>
+        <p className={`mb-4 text-sm ${theme === "light" ? "text-gray-600" : "text-gray-400"}`}>
+          เลือกหมวดหมู่ที่เหมาะสมกับเหตุผลในการรายงาน (เลือกได้หลายรายการ):
+        </p>
+
+        <div className="space-y-2 mb-6 max-h-96 overflow-y-auto">
+          {categories.map((cat) => (
+            <label
+              key={cat.id}
+              className={`flex items-center gap-3 p-3 rounded cursor-pointer transition-colors ${
+                selectedCategories.has(cat.id)
+                  ? theme === "light"
+                    ? "bg-blue-50 border border-blue-500"
+                    : "bg-blue-900/30 border border-blue-500"
+                  : theme === "light"
+                  ? "bg-gray-50 border border-gray-200 hover:bg-gray-100"
+                  : "bg-gray-700/50 border border-gray-600 hover:bg-gray-700"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={selectedCategories.has(cat.id)}
+                onChange={() => toggleCategory(cat.id)}
+                className="w-5 h-5 rounded accent-blue-500"
+              />
+              <span>{cat.label}</span>
+            </label>
+          ))}
+        </div>
+
+        <div className="flex gap-3 justify-end">
+          <button
+            onClick={onClose}
+            className={`px-4 py-2 rounded transition-colors ${
+              theme === "light"
+                ? "bg-gray-200 hover:bg-gray-300 text-gray-800"
+                : "bg-gray-700 hover:bg-gray-600 text-gray-200"
+            }`}
+          >
+            ยกเลิก
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={selectedCategories.size === 0}
+            className={`px-4 py-2 rounded transition-colors ${
+              selectedCategories.size === 0
+                ? "bg-gray-400 cursor-not-allowed text-gray-600"
+                : "bg-red-600 hover:bg-red-700 text-white"
+            }`}
+          >
+            ส่งรายงาน
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,353 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "test:thaiGeoTool",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"--prefix",
+				"innomcp-server-node",
+				"test",
+				"--",
+				"--runInBand",
+				"thaiGeoTool.spec.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "node-test:thaiGeoTool",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && node --require ts-node/register --test src\\mcp\\tools\\thaiGeoTool.spec.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "git-status",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"git status -sb"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-flags-check",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"git ls-files -v TODO.md innomcp-server-node/src/mcp/tools/thaiGeoTool.ts innomcp-server-node/src/utils/db.ts innomcp-server-node/src/mcp/tools/thaiGeoTool.spec.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-ls-todo",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"git ls-files | findstr /i \"TODO.md\""
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-ls-todo2",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"git ls-files | findstr /i TODO.md"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-ls-specific",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"ls-files",
+				"TODO.md"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-ls-geo",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"ls-files",
+				"innomcp-server-node/src/mcp/tools/thaiGeoTool.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-ls-server",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"ls-files",
+				"innomcp-server-node/src/server.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-porcelain",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"status",
+				"--porcelain=v1"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-check-ignore-geo",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"check-ignore",
+				"-v",
+				"innomcp-server-node/src/mcp/tools/thaiGeoTool.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-untracked-geo",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"ls-files",
+				"--others",
+				"--exclude-standard",
+				"innomcp-server-node/src/mcp/tools/thaiGeoTool.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-ls-geo-spec",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"ls-files",
+				"innomcp-server-node/src/mcp/tools/thaiGeoTool.spec.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-untracked-geo-spec",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"ls-files",
+				"--others",
+				"--exclude-standard",
+				"innomcp-server-node/src/mcp/tools/thaiGeoTool.spec.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-untracked-db",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"ls-files",
+				"--others",
+				"--exclude-standard",
+				"innomcp-server-node/src/utils/db.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-diff-server",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"diff",
+				"--",
+				"innomcp-server-node/src/server.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-diff-server-stat",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"diff",
+				"--stat",
+				"--",
+				"innomcp-server-node/src/server.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-diff-seed-stat",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"diff",
+				"--stat",
+				"--",
+				"innomcp-server-node/scripts/seed_thai_geo.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "git-ls-seed",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"ls-files",
+				"innomcp-server-node/scripts/seed_thai_geo.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "seed:thaiHistoryLaw",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && npx ts-node scripts\\seed_thai_history_law.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "seed:thaiHistoryLaw",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && npx ts-node scripts\\seed_thai_history_law.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "seed:thaiHistoryLaw:nocache",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && set TS_NODE_CACHE=false && npx ts-node scripts\\seed_thai_history_law.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "seed:thaiHistoryLaw:nocache:check",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && set TS_NODE_CACHE=false && npx ts-node scripts\\seed_thai_history_law.ts & echo ERRORLEVEL=%ERRORLEVEL%"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "seed:phase2:dryrun",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && npx ts-node scripts\\seed_thai_history_law.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "seed:phase2:exec",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && set TS_NODE_CACHE=false && npx ts-node scripts\\seed_thai_history_law.ts --exec"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "verify:phase2",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && set TS_NODE_CACHE=false && npx ts-node scripts\\verify_phase2.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "verify:phase2",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && set TS_NODE_CACHE=false && npx ts-node scripts\\verify_phase2.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		},
+		{
+			"label": "verify:phase2:rerun",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && set TS_NODE_CACHE=false && npx ts-node scripts\\verify_phase2.ts"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "test"
+		}
+	]
+}

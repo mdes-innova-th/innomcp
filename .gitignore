@@ -6,11 +6,15 @@ node_modules/
 !.env.example
 
 # Logs
+logs/
+*.log
+*.log.gz
+!innomcp-node/evidence/*.log
 innomcp-next/logs/
 innomcp-server-node/logs/
 innomcp-node/logs/
 *.log
-
+!innomcp-node/evidence/*.log
 
 # tests
 innomcp-next/tests/
@@ -18,15 +22,39 @@ innomcp-server-node/tests/
 innomcp-node/tests/
 
 # Database files
-mariadb/data
+mariadb/data/
 
-.env
+# Workspace storage
+workspace-storage/data/
+
+# Workspace-storage accidental artifacts
+workspace-storage/$null
+workspace-storage/docker-compose.yml
+workspace-storage/nginx/
+
+
+package-lock.json
+
 
 # Ignore Markdown and text files
 *.md
 *.txt
 
 # Folders
-/scripts/
+/config/
+/scripts/*
+!/scripts/verify_weather_v2.ts
 /docs/
 /tests/
+*/.env
+/CHANGELOG/
+# innomcp-next/.env
+# logs/backend/
+# workspace-storage/data/
+# mariadb/
+# mariadb/*.sql
+
+
+# AI archive / phase lock
+.ai/_archive/
+.ai/PHASE_LOCK.json

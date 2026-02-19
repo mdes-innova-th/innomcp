@@ -15,7 +15,7 @@ import { logBoth } from "../../utils/mcpLogger";
 
 // Zod schema for input validation
 const worldBankToolInputSchema = z.object({
-  country: z.string().describe("Country code (ISO 3166-1 alpha-2, e.g., TH, US, GB) or name"),
+  country: z.string().min(2).describe("Country code (ISO 3166-1 alpha-2, e.g., TH, US, GB) or name"),
   indicator: z.string().describe("World Bank indicator code (e.g., NY.GDP.MKTP.CD for GDP, SP.POP.TOTL for population)"),
   startYear: z.number().min(1960).max(2030).optional()
     .describe("Start year for data range (optional)"),
@@ -86,16 +86,19 @@ async function fetchWorldBankData(params: worldBankToolInput): Promise<string> {
   try {
     const indicatorCode = resolveIndicatorCode(params.indicator);
     
-    // Build URL
+    // Build URL (Use HTTPS)
     const dateRange = params.startYear && params.endYear 
       ? `${params.startYear}:${params.endYear}`
       : params.startYear 
       ? `${params.startYear}:${new Date().getFullYear()}`
       : "";
     
+    // Ensure country is valid (default to 'TH' if empty/invalid, though Zod checks min length)
+    const countryCode = (params.country || "TH").trim();
+
     const url = dateRange
-      ? `http://api.worldbank.org/v2/country/${params.country}/indicator/${indicatorCode}?date=${dateRange}&format=json&per_page=100`
-      : `http://api.worldbank.org/v2/country/${params.country}/indicator/${indicatorCode}?format=json&per_page=100`;
+      ? `https://api.worldbank.org/v2/country/${countryCode}/indicator/${indicatorCode}?date=${dateRange}&format=json&per_page=100`
+      : `https://api.worldbank.org/v2/country/${countryCode}/indicator/${indicatorCode}?format=json&per_page=100`;
     
     logBoth("INFO", `[worldBankTool] Fetching: ${url}`);
     

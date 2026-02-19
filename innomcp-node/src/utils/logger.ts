@@ -1,165 +1,204 @@
 import winston from 'winston';
+import 'winston-daily-rotate-file';
 import path from 'path';
 import fs from 'fs';
 
-// ========================================
-// Logger Configuration
-// ========================================
+// ============================================================================
+// INNOMCP LOGGER CONFIGURATION (THAI GOD 2026 EDITION)
+// ============================================================================
+// "Robust, Scalable, and Crystal Clear Logging for Enterprise AI Systems"
 
-const LOG_DIR = process.env.LOG_DIR || path.join(__dirname, '..', '..', 'logs');
+const LOG_MODE = process.env.LOG_MODE || 'dev';
 const NODE_ENV = process.env.NODE_ENV || 'development';
-const LOG_LEVEL = process.env.LOG_LEVEL || (NODE_ENV === 'production' ? 'info' : 'debug');
-const ENABLE_CONSOLE = process.env.ENABLE_CONSOLE_LOG !== 'false';
-const ENABLE_FILE = process.env.ENABLE_FILE_LOG !== 'false';
 
-// Create logs directory if not exists
-if (ENABLE_FILE && !fs.existsSync(LOG_DIR)) {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
+// ----------------------------------------------------------------------------
+// 1. Centralized Log Directory Setup
+// ----------------------------------------------------------------------------
+// All logs go to: C:\Users\USER-NT\DEV\innomcp\logs\backend\
+// This ensures no scattering of log files across the project.
+const LOG_DIR = path.join(__dirname, '..', '..', '..', 'logs', 'backend');
+
+if (!fs.existsSync(LOG_DIR)) {
+  try {
+    fs.mkdirSync(LOG_DIR, { recursive: true });
+  } catch (err) {
+    console.error('CRITICAL: Failed to create log directory:', err);
+  }
 }
 
-// Custom format
-const customFormat = winston.format.combine(
-  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-  winston.format.errors({ stack: true }),
+// ----------------------------------------------------------------------------
+// 2. Custom Formats
+// ----------------------------------------------------------------------------
+const structuredFormat = winston.format.combine(
+  winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
+  winston.format.errors({ stack: true }), // Capture stack traces
   winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
-    let log = `${timestamp} [${level.toUpperCase()}]: ${message}`;
-    
-    // Add stack trace for errors
+    let log = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
+
+    // Append Stack Trace if Error
     if (stack) {
-      log += `\n${stack}`;
+      log += `\nExample Stack Trace:\n${stack}`;
     }
-    
-    // Add metadata
+
+    // Append Metadata (Object details) if present and not empty
     if (Object.keys(meta).length > 0) {
-      log += `\n${JSON.stringify(meta, null, 2)}`;
+      log += `\nMetadata: ${JSON.stringify(meta, null, 2)}`;
     }
-    
+
     return log;
   })
 );
 
-// Console format (colorized for development)
 const consoleFormat = winston.format.combine(
-  winston.format.colorize(),
+  winston.format.colorize({ all: true }), // Colorize everything for better readability
   winston.format.timestamp({ format: 'HH:mm:ss' }),
-  winston.format.printf(({ timestamp, level, message }) => {
-    return `${timestamp} ${level}: ${message}`;
+  winston.format.printf(({ timestamp, level, message, ...meta }) => {
+    let log = `${timestamp} ${level}: ${message}`;
+    if (Object.keys(meta).length > 0 && LOG_MODE === 'dev') {
+      // In dev mode, show metadata in console too
+      log += ` ${JSON.stringify(meta)}`;
+    }
+    return log;
   })
 );
 
-// Create transports
+// ----------------------------------------------------------------------------
+// 3. Transport Configuration (The "Pro" Setup)
+// ----------------------------------------------------------------------------
 const transports: winston.transport[] = [];
 
-if (ENABLE_CONSOLE) {
-  transports.push(
-    new winston.transports.Console({
-      format: consoleFormat,
-      level: LOG_LEVEL,
-    })
-  );
-}
+// A. Console Transport
+// - Prod: Info+ only (reduce noise)
+// - Dev: Debug+ (show everything)
+transports.push(
+  new winston.transports.Console({
+    level: LOG_MODE === 'prod' ? 'info' : 'debug',
+    format: consoleFormat,
+  })
+);
 
-if (ENABLE_FILE) {
-  // Combined log file
-  transports.push(
-    new winston.transports.File({
-      filename: path.join(LOG_DIR, `backend-${NODE_ENV}.log`),
-      format: customFormat,
-      level: LOG_LEVEL,
-      maxsize: 10 * 1024 * 1024, // 10MB
-      maxFiles: 5,
-    })
-  );
+// B. Daily Rotate File (Combined)
+// - Rotates every day
+// - Keeps logs for 14 days
+// - Zips old logs to save space
+transports.push(
+  new winston.transports.DailyRotateFile({
+    filename: path.join(LOG_DIR, 'backend-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    zippedArchive: true,
+    maxSize: '50m', // 50MB per file
+    maxFiles: '14d',
+    level: 'debug', // We want full traces in files even in prod often
+    format: structuredFormat,
+  })
+);
 
-  // Error log file
-  transports.push(
-    new winston.transports.File({
-      filename: path.join(LOG_DIR, `backend-error-${NODE_ENV}.log`),
-      format: customFormat,
-      level: 'error',
-      maxsize: 10 * 1024 * 1024, // 10MB
-      maxFiles: 5,
-    })
-  );
+// C. Daily Rotate File (Errors Only)
+// - Critical for quick debugging
+// - Keeps logs for 30 days
+transports.push(
+  new winston.transports.DailyRotateFile({
+    filename: path.join(LOG_DIR, 'backend-error-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    zippedArchive: true,
+    maxSize: '50m',
+    maxFiles: '30d',
+    level: 'error',
+    format: structuredFormat,
+  })
+);
 
-  // Access log file (HTTP requests)
-  transports.push(
-    new winston.transports.File({
-      filename: path.join(LOG_DIR, `backend-access-${NODE_ENV}.log`),
-      format: customFormat,
-      level: 'http',
-      maxsize: 10 * 1024 * 1024, // 10MB
-      maxFiles: 3,
-    })
-  );
-}
-
-// Create logger instance
+// ----------------------------------------------------------------------------
+// 4. Logger Instance
+// ----------------------------------------------------------------------------
 const logger = winston.createLogger({
-  level: LOG_LEVEL,
+  level: LOG_MODE === 'prod' ? 'info' : 'debug',
+  levels: winston.config.npm.levels,
   transports,
-  exitOnError: false,
+  exitOnError: false, // Do not crash on logging error
 });
 
-// Helper methods
+// ============================================================================
+// SPECIALIZED HELPER FUNCTIONS
+// ============================================================================
+// Use these helpers instead of raw logger calls for consistent key-value pairs.
+
+/**
+ * Log HTTP API Requests
+ * Use this in Express middleware.
+ */
 export const logRequest = (req: any, res: any, duration: number) => {
-  const logData = {
+  const meta = {
     method: req.method,
-    url: req.url,
+    url: req.originalUrl || req.url,
     status: res.statusCode,
     duration: `${duration}ms`,
-    ip: req.ip || req.connection.remoteAddress,
+    ip: req.ip || (req.connection && req.connection.remoteAddress) || 'unknown',
     userAgent: req.get('user-agent'),
   };
 
-  if (res.statusCode >= 400) {
-    logger.error('HTTP Request Failed', logData);
+  if (res.statusCode >= 500) {
+    logger.error(`HTTP Server Error: ${req.method} ${meta.url}`, meta);
+  } else if (res.statusCode >= 400) {
+    logger.warn(`HTTP Client Error: ${req.method} ${meta.url}`, meta);
   } else {
-    logger.http('HTTP Request', logData);
+    logger.info(`HTTP Success: ${req.method} ${meta.url}`, meta);
   }
 };
 
-export const logOllamaRequest = (model: string, prompt: string, duration: number, error?: any) => {
+/**
+ * Log Ollama (AI Model) Interactions
+ * Tracks model usage, prompt size, and latency.
+ */
+export const logOllamaRequest = (model: string, promptLength: number, duration: number, error?: any) => {
+  const meta = {
+    model,
+    promptLength,
+    duration: `${duration}ms`,
+  };
+
   if (error) {
-    logger.error('Ollama Request Failed', {
-      model,
-      promptLength: prompt.length,
-      duration: `${duration}ms`,
-      error: error.message,
-    });
+    logger.error('Ollama Inference Failed', { ...meta, error: error.message || error });
   } else {
-    logger.debug('Ollama Request Success', {
-      model,
-      promptLength: prompt.length,
-      duration: `${duration}ms`,
-    });
+    logger.debug('Ollama Inference Completed', meta);
   }
 };
 
-export const logMCPRequest = (tool: string, success: boolean, duration: number, error?: any) => {
-  if (!success && error) {
-    logger.error('MCP Tool Failed', {
-      tool,
-      duration: `${duration}ms`,
-      error: error.message,
-    });
+/**
+ * Log MCP Tool Executions
+ * Tracks which tools are used and their success rate.
+ */
+export const logMCPRequest = (toolName: string, success: boolean, duration: number, error?: any) => {
+  const meta = {
+    tool: toolName,
+    success,
+    duration: `${duration}ms`
+  };
+
+  if (!success || error) {
+    logger.error(`MCP Tool Execution Failed: ${toolName}`, { ...meta, error: error?.message || error });
   } else {
-    logger.debug('MCP Tool Executed', {
-      tool,
-      success,
-      duration: `${duration}ms`,
-    });
+    logger.info(`MCP Tool Executed: ${toolName}`, meta);
   }
 };
 
+/**
+ * Log WebSocket Events
+ * useful for tracking real-time user connections.
+ */
 export const logWebSocket = (event: string, clientCount?: number, message?: string) => {
-  logger.debug('WebSocket Event', {
-    event,
-    clientCount,
-    message,
+  logger.debug(`WebSocket Event: ${event}`, {
+    activeClients: clientCount,
+    details: message
   });
 };
 
-// Export logger instance and helpers
+/**
+ * Log System Health / Lifecycle Events
+ */
+export const logSystemEvent = (event: string, details?: any) => {
+  logger.info(`System Event: ${event}`, details || {});
+}
+
 export { logger };
 export default logger;

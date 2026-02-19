@@ -45,4 +45,11 @@ yarn-error.log*
 /temp
 /tmp
 
+# local runtime data
+/data/
+
+# local-only helper scripts
+/scripts/hello.ts
+/scripts/index_workspace.ts
+
 

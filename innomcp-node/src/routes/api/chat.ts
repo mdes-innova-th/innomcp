@@ -1,10 +1,29 @@
-import { Router } from "express";
+﻿import { Router } from "express";
 import { WebSocketServer } from "ws";
 import dotenv from "dotenv";
+import crypto from "crypto";
 import { Ollama } from "ollama";
 import { InitMcpClient, IntelligentMCPClient } from "../../utils/mcp/mcpclient";
+import { ToolHealthCheckSystem } from "../../utils/mcp/toolHealthCheck";
 import { logBoth } from "../../utils/mcpLogger";
+import logger from "../../utils/logger";
 import { getCurrentAIMode } from "./aiMode";
+import { fastPathChatMiddleware } from "../../middleware/fastpathChatMiddleware";
+import { sessionManager } from "../../utils/sessionManager";
+import { validateThaiLanguage, createThaiOnlyFallbackPrompt, createThaiErrorResponse, sanitizeThaiSegments } from "../../utils/languageValidator";
+import { buildSystemPrompt, buildIdentityPrompt } from "../../config/systemPrompt";
+import { extractCorrelationIdFromUpgrade } from "../../middleware/correlationId";
+import { checkRateLimit, buildRateLimitKey } from "../../fastpath/rateLimit";
+import { analyzeIntent } from "../../fastpath/intentGate";
+import { getSemanticRouter } from "../../utils/semanticRouter"; // 🧠 NEW: Semantic classification for hybrid mode
+import { getGodTierRouter } from "../../utils/mcp/godTierRouter"; // 🎯 God-Tier Context-Aware Intent Engine (2026)
+import { getABTester } from "../../utils/mcp/abTester"; // 🧪 A/B Testing: Remote vs Hybrid mode comparison
+import { requestQueue } from "../../utils/requestQueue";
+import reportRouter from "./chat/report";
+import { optionalAuth } from "../../utils/jwt";
+import { guestLimiterMiddleware, getLimitsForUser, checkToolAccess, limitResponseLength } from "../../middleware/guestLimiter";
+import { tryFastPathWebSocket } from "../../services/fastPathHandler";
+import { renderWeatherMarkdownTable } from "../../utils/weather/tableRenderer";
 
 dotenv.config();
 
@@ -34,12 +53,16 @@ try {
 const localOllama = new Ollama({ 
   host: localOllamaHostUrl,
 });
-const localModel = process.env.LOCAL_OLLAMA_MODEL || process.env.OLLAMA_MODEL || "gemma3:4b";
+const localModel = process.env.LOCAL_OLLAMA_MODEL || process.env.OLLAMA_MODEL || "qwen2.5:14b";
+const fastModel = process.env.FAST_OLLAMA_MODEL || "qwen2.5:0.5b";  // For fast routing/classification
+const heavyModel = process.env.HEAVY_OLLAMA_MODEL || "deepseek-r1:32b";  // For heavy tasks (optional)
 logBoth("info", `💚 Local AI: ${localOllamaHostUrl} (${localModel})`);
+logBoth("info", `⚡ Fast Model: ${fastModel} | 🧠 Heavy Model: ${heavyModel}`);
 
 // --- Remote Ollama Configuration (for remote/hybrid modes) ---
 let remoteOllama: Ollama | undefined;
-let remoteModel: string | undefined;
+let remoteModel: string | undefined;  // Primary model for main responses
+let remoteFastModel: string | undefined;  // Fast model for routing
 
 if (AI_MODE === 'remote' || AI_MODE === 'hybrid') {
   const remoteRawHost = process.env.REMOTE_OLLAMA_BASE_URL;
@@ -56,8 +79,10 @@ if (AI_MODE === 'remote' || AI_MODE === 'hybrid') {
     }
     
     remoteOllama = new Ollama({ host: remoteOllamaHostUrl });
-    remoteModel = process.env.REMOTE_OLLAMA_MODEL || localModel;
-    logBoth("info", `🎯 Remote AI: ${remoteOllamaHostUrl} (${remoteModel})`);
+    remoteModel = process.env.REMOTE_OLLAMA_MODEL || localModel;  // gemma3:4b
+    remoteFastModel = process.env.FAST_OLLAMA_MODEL || fastModel;  // qwen2.5:0.5b
+    logBoth("info", `🎯 Remote AI: ${remoteOllamaHostUrl}`);
+    logBoth("info", `  📦 Primary: ${remoteModel} | ⚡ Fast: ${remoteFastModel}`);
   } else {
     logBoth("warn", `⚠️  ${AI_MODE} mode selected but REMOTE_OLLAMA_BASE_URL not configured`);
     logBoth("warn", `⚠️  Falling back to local AI only`);
@@ -67,11 +92,344 @@ if (AI_MODE === 'remote' || AI_MODE === 'hybrid') {
 // Main Ollama instance (backward compatibility)
 let ollama = AI_MODE === 'local' ? localOllama : (remoteOllama || localOllama);
 let ollamaModel = AI_MODE === 'local' ? localModel : (remoteModel || localModel);
+let ollamaFastModel = AI_MODE === 'local' ? fastModel : (remoteFastModel || fastModel);
 
 logBoth("info", `\n✨ Primary AI: ${AI_MODE === 'local' ? 'Local' : (remoteOllama ? 'Remote' : 'Local (fallback)')}\n`);
 
+function syncChatAIModeIfChanged() {
+  const latestMode = getCurrentAIMode();
+  if (latestMode !== AI_MODE) {
+    logBoth('info', `[Chat AI] 🔄 Detected mode drift: ${AI_MODE} → ${latestMode}`);
+    updateChatAIMode();
+  }
+}
+
+function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { text: string; structuredContent: any } {
+  const structuredContent = { weatherPipeline: weatherPayload };
+
+  // Phase 7.1: support normalized weather payload wrapper
+  // - success: { ok:true, result: WeatherResult[] }
+  // - error:   { ok:false, code:"PROVINCE_MISSING"|"TIMEOUT"|"NO_DATA"|"UPSTREAM_ERROR", message:"..." }
+  if (weatherPayload && typeof weatherPayload === "object" && !Array.isArray(weatherPayload)) {
+    if (weatherPayload.ok === false) {
+      const code = String(weatherPayload.code || "UPSTREAM_ERROR");
+      const msg = String(weatherPayload.message || "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง");
+      return { text: msg, structuredContent: { weatherPipeline: { ok: false, code, message: msg } } };
+    }
+    if (weatherPayload.ok === true && Array.isArray(weatherPayload.result)) {
+      weatherPayload = weatherPayload.result;
+    }
+  }
+
+  const wantsTable = /ตาราง|table|รายสถานี|สถานี/i.test(userText || "");
+  const wantsToday = /วันนี้|ตอนนี้|ขณะนี้/i.test(userText || "");
+
+  const renderBkkDateStr = (offsetDays: number): string => {
+    const now = new Date();
+    const bkkMs = now.getTime() + (7 * 60 * 60 * 1000);
+    const bkk = new Date(bkkMs);
+    bkk.setUTCDate(bkk.getUTCDate() + offsetDays);
+    const dd = String(bkk.getUTCDate()).padStart(2, "0");
+    const mm = String(bkk.getUTCMonth() + 1).padStart(2, "0");
+    const yyyy = bkk.getUTCFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  };
+
+  if (!Array.isArray(weatherPayload)) {
+    // Legacy safety: some callers might still pass { error: "PROVINCE_MISSING" } shape.
+    // Keep behavior, but log once per call-site to catch regressions.
+    if (weatherPayload && typeof weatherPayload === "object") {
+      const keys = Object.keys(weatherPayload).slice(0, 12).join(",");
+      logBoth("warn", `[WeatherDirect] legacy payload shape encountered (keys=${keys || "(none)"})`);
+    }
+    const err = String(weatherPayload?.error || "WEATHER_PIPELINE_ERROR");
+    if (err === "PROVINCE_MISSING") {
+      return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
+    }
+    if (err === "TIMEOUT") {
+      return { text: "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ", structuredContent };
+    }
+    return { text: `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`, structuredContent };
+  }
+
+  const weatherResults = weatherPayload as any[];
+  const firstOk = weatherResults.find((r: any) => r && r.type !== "error") || weatherResults[0];
+
+  if (!firstOk || firstOk.type === "error") {
+    const err = String(firstOk?.error || "WEATHER_PIPELINE_ERROR");
+    if (err === "PROVINCE_MISSING") {
+      return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
+    }
+    if (err === "TIMEOUT") {
+      return { text: "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ", structuredContent };
+    }
+    return { text: `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`, structuredContent };
+  }
+
+  if (wantsTable) {
+    if (firstOk.type === "national") {
+      const d = firstOk.data || {};
+      const label = d.dateLabel || "พรุ่งนี้";
+      const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
+      const note = d.note ? `\n\nหมายเหตุ: ${d.note}` : "";
+      const table = d.tableMarkdown ? `\n\n${d.tableMarkdown}` : `\n\n${renderWeatherMarkdownTable(weatherResults)}`;
+      return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${table}${note}`, structuredContent };
+    }
+
+    return {
+      text: `ตารางสรุปสภาพอากาศ:\n\n${renderWeatherMarkdownTable(weatherResults)}`,
+      structuredContent,
+    };
+  }
+
+  if (firstOk.type === "national") {
+    const d = firstOk.data || {};
+    const label = d.dateLabel || "พรุ่งนี้";
+    const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
+    return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN} (ถ้าต้องการ \"ตาราง\" บอกได้ครับ)`, structuredContent };
+  }
+
+  if (firstOk.type === "forecast7d") {
+    const province = firstOk.province || "";
+    const f = firstOk.data?.forecast;
+    const targetDate = wantsToday ? renderBkkDateStr(0) : renderBkkDateStr(1);
+
+    if (f && typeof f === "object" && Array.isArray((f as any).ForecastDate)) {
+      const idx = ((f as any).ForecastDate as string[]).indexOf(targetDate);
+      const i = idx >= 0 ? idx : 0;
+      const rain = Number((f as any).PercentRainCover?.[i]) || 0;
+      const tmax = (f as any).MaximumTemperature?.[i];
+      const tmin = (f as any).MinimumTemperature?.[i];
+      const desc = String((f as any).DescriptionThai?.[i] || "").trim();
+      return {
+        text: `พยากรณ์อากาศ${province} (${targetDate}): โอกาสฝน ~${rain}% อุณหภูมิ ${tmin ?? "—"}–${tmax ?? "—"}°C${desc ? `, ${desc}` : ""}`,
+        structuredContent,
+      };
+    }
+
+    return { text: `พยากรณ์อากาศ${province}: ดึงข้อมูลพยากรณ์ 7 วันสำเร็จ (ถ้าต้องการ \"ตาราง\" บอกได้ครับ)`, structuredContent };
+  }
+
+  if (firstOk.type === "station3h") {
+    const province = firstOk.province || "";
+    const list = Array.isArray(firstOk.data) ? firstOk.data : [];
+    const s = list[0] || {};
+    const temp = s.Temp ?? s.Temperature ?? s.AirTemperature ?? s.TempC;
+    return {
+      text: `อากาศตอนนี้${province}: พบข้อมูลสถานี ${list.length} จุด${temp !== undefined ? `, อุณหภูมิประมาณ ${temp}°C` : ""}`,
+      structuredContent,
+    };
+  }
+
+  return { text: `ผลพยากรณ์อากาศ (${firstOk.type}) สำหรับ ${firstOk.province || "พื้นที่ที่ถาม"}`, structuredContent };
+}
+
+function wantsDeepExplain(text: string): boolean {
+  return /อธิบายเชิงลึก|ละเอียด|สรุปเป็นภาษาคน|เหตุผล|วิเคราะห์/i.test(text || "");
+}
+
+function looksLikeDeterministicWeatherQuery(text: string): boolean {
+  const t = String(text || "");
+
+  // Core weather words
+  const hasWeatherCore = /ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|ลม|พายุ|weather|forecast|temperature|humidity|tmd|อุตุ|nwp/i.test(t);
+
+  // Weather-specific patterns that often omit the word "อากาศ"
+  const hasWeatherSpecific = /รายชั่วโมง|รายวัน|ตารางสถานี|สถานีอากาศ|รายสถานี|พยากรณ์\s*7\s*วัน|7\s*วัน|สัปดาห์/i.test(t);
+
+  // We only gate when it's clearly weather-related
+  return hasWeatherCore || hasWeatherSpecific;
+}
+
+function hasExplicitWeatherIntentKeywords(text: string): boolean {
+  return /(อากาศ|พยากรณ์|ฝน|อุณหภูมิ|ลม|เรดาร์|weather|forecast|temperature|rain|storm|wind)/i.test(String(text || ""));
+}
+
+function inferOfficerEvidenceAction(text: string): string | undefined {
+  const t = String(text || "");
+  if (/(เครื่อง.*ออนไลน์|ออนไลน์กี่เครื่อง|active\s*machines?|online\s*machines?|machines?\s*online)/i.test(t)) {
+    return "active_machines_count";
+  }
+  if (/(ตรวจพบ.*url|url.*วันนี้|nip.*วันนี้|detected\s*urls?\s*today|urls?\s*detected\s*today)/i.test(t)) {
+    return "detected_urls_today";
+  }
+  if (/(เก็บหลักฐาน|วิดีโอ|record.*วันนี้|บันทึก.*วันนี้|evidence\s*records?\s*today|video\s*evidence\s*today)/i.test(t)) {
+    return "evidence_records_today";
+  }
+  return undefined;
+}
+
+function safeTruncate(text: string, maxChars: number): string {
+  if (text.length <= maxChars) return text;
+  return text.slice(0, Math.max(0, maxChars - 1)) + "…";
+}
+
+function safeJsonStringify(value: any, maxChars: number): string {
+  try {
+    const json = JSON.stringify(
+      value,
+      (_k, v) => {
+        if (typeof v === "bigint") return v.toString();
+        return v;
+      },
+      2
+    );
+    return safeTruncate(json, maxChars);
+  } catch {
+    return safeTruncate(String(value), maxChars);
+  }
+}
+
+function structuredKeysSummary(structuredContent: any): string {
+  if (!structuredContent) return "(none)";
+  if (Array.isArray(structuredContent)) return `array(len=${structuredContent.length})`;
+  if (typeof structuredContent === "object") return Object.keys(structuredContent).join(",") || "(empty)";
+  return typeof structuredContent;
+}
+
+function renderStructuredDirect(
+  toolName: string,
+  structuredContent: any,
+  originalQuery: string
+): { text: string; structuredContent: any } | null {
+  const deep = wantsDeepExplain(originalQuery || "");
+
+  if (toolName === "weatherPipeline") {
+    if (deep) return null;
+    const payload =
+      structuredContent && typeof structuredContent === "object" && !Array.isArray(structuredContent)
+        ? (structuredContent as any).weatherPipeline ?? structuredContent
+        : structuredContent;
+    return renderWeatherDirectAnswer(originalQuery || "", payload);
+  }
+
+  if (toolName === "echartsTool") {
+    const chartSvg = structuredContent && typeof structuredContent === "object" ? (structuredContent as any).chartSvg : undefined;
+    if (typeof chartSvg === "string" && chartSvg.length > 0) {
+      return {
+        text: "สร้างกราฟให้แล้วครับ (ดูภาพด้านล่าง)",
+        structuredContent,
+      };
+    }
+  }
+
+  const json = safeJsonStringify(structuredContent, 2400);
+  return {
+    text: `ผลลัพธ์จากเครื่องมือ ${toolName}:\n\n\`\`\`json\n${json}\n\`\`\``,
+    structuredContent,
+  };
+}
+
 // Export function to update AI mode dynamically
 export function updateChatAIMode() {
+
+  function syncChatAIModeIfChanged() {
+    const latestMode = getCurrentAIMode();
+    if (latestMode !== AI_MODE) {
+      logBoth('info', `[Chat AI] 🔄 Detected mode drift: ${AI_MODE} → ${latestMode}`);
+      updateChatAIMode();
+    }
+  }
+
+  function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { text: string; structuredContent: any } {
+    const structuredContent = { weatherPipeline: weatherPayload };
+
+    const wantsTable = /ตาราง|table|รายสถานี|สถานี/i.test(userText || "");
+    const wantsToday = /วันนี้|ตอนนี้|ขณะนี้/i.test(userText || "");
+
+    const renderBkkDateStr = (offsetDays: number): string => {
+      const now = new Date();
+      const bkkMs = now.getTime() + (7 * 60 * 60 * 1000);
+      const bkk = new Date(bkkMs);
+      bkk.setUTCDate(bkk.getUTCDate() + offsetDays);
+      const dd = String(bkk.getUTCDate()).padStart(2, "0");
+      const mm = String(bkk.getUTCMonth() + 1).padStart(2, "0");
+      const yyyy = bkk.getUTCFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    };
+
+    if (!Array.isArray(weatherPayload)) {
+      const err = String(weatherPayload?.error || "WEATHER_PIPELINE_ERROR");
+      if (err === "PROVINCE_MISSING") {
+        return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
+      }
+      if (err === "TIMEOUT") {
+        return { text: "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ", structuredContent };
+      }
+      return { text: `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`, structuredContent };
+    }
+
+    const weatherResults = weatherPayload as any[];
+    const firstOk = weatherResults.find((r: any) => r && r.type !== "error") || weatherResults[0];
+
+    if (!firstOk || firstOk.type === "error") {
+      const err = String(firstOk?.error || "WEATHER_PIPELINE_ERROR");
+      if (err === "PROVINCE_MISSING") {
+        return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
+      }
+      if (err === "TIMEOUT") {
+        return { text: "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ", structuredContent };
+      }
+      return { text: `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`, structuredContent };
+    }
+
+    if (wantsTable) {
+      if (firstOk.type === "national") {
+        const d = firstOk.data || {};
+        const label = d.dateLabel || "พรุ่งนี้";
+        const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
+        const note = d.note ? `\n\nหมายเหตุ: ${d.note}` : "";
+        const table = d.tableMarkdown ? `\n\n${d.tableMarkdown}` : `\n\n${renderWeatherMarkdownTable(weatherResults)}`;
+        return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${table}${note}`, structuredContent };
+      }
+
+      return {
+        text: `ตารางสรุปสภาพอากาศ:\n\n${renderWeatherMarkdownTable(weatherResults)}`,
+        structuredContent,
+      };
+    }
+
+    if (firstOk.type === "national") {
+      const d = firstOk.data || {};
+      const label = d.dateLabel || "พรุ่งนี้";
+      const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
+      return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN} (ถ้าต้องการ \"ตาราง\" บอกได้ครับ)`, structuredContent };
+    }
+
+    if (firstOk.type === "forecast7d") {
+      const province = firstOk.province || "";
+      const f = firstOk.data?.forecast;
+      const targetDate = wantsToday ? renderBkkDateStr(0) : renderBkkDateStr(1);
+
+      if (f && typeof f === "object" && Array.isArray((f as any).ForecastDate)) {
+        const idx = ((f as any).ForecastDate as string[]).indexOf(targetDate);
+        const i = idx >= 0 ? idx : 0;
+        const rain = Number((f as any).PercentRainCover?.[i]) || 0;
+        const tmax = (f as any).MaximumTemperature?.[i];
+        const tmin = (f as any).MinimumTemperature?.[i];
+        const desc = String((f as any).DescriptionThai?.[i] || "").trim();
+        return {
+          text: `พยากรณ์อากาศ${province} (${targetDate}): โอกาสฝน ~${rain}% อุณหภูมิ ${tmin ?? "—"}–${tmax ?? "—"}°C${desc ? `, ${desc}` : ""}`,
+          structuredContent,
+        };
+      }
+
+      return { text: `พยากรณ์อากาศ${province}: ดึงข้อมูลพยากรณ์ 7 วันสำเร็จ (ถ้าต้องการ \"ตาราง\" บอกได้ครับ)`, structuredContent };
+    }
+
+    if (firstOk.type === "station3h") {
+      const province = firstOk.province || "";
+      const list = Array.isArray(firstOk.data) ? firstOk.data : [];
+      const s = list[0] || {};
+      const temp = s.Temp ?? s.Temperature ?? s.AirTemperature ?? s.TempC;
+      return {
+        text: `อากาศตอนนี้${province}: พบข้อมูลสถานี ${list.length} จุด${temp !== undefined ? `, อุณหภูมิประมาณ ${temp}°C` : ""}`,
+        structuredContent,
+      };
+    }
+
+    return { text: `ผลพยากรณ์อากาศ (${firstOk.type}) สำหรับ ${firstOk.province || "พื้นที่ที่ถาม"}`, structuredContent };
+  }
   const oldMode = AI_MODE;
   AI_MODE = getCurrentAIMode();
   
@@ -95,8 +453,10 @@ export function updateChatAIMode() {
       
       remoteOllama = new Ollama({ host: remoteOllamaHostUrl });
       remoteModel = process.env.REMOTE_OLLAMA_MODEL || localModel;
+      remoteFastModel = process.env.FAST_OLLAMA_MODEL || fastModel;
       logBoth('info', `[Chat AI] 🌐 Initializing Remote Ollama: ${remoteOllamaHostUrl}`);
-      logBoth('info', `[Chat AI] 📦 Remote Model: ${remoteModel}`);
+      logBoth('info', `[Chat AI] 📦 Primary Model: ${remoteModel}`);
+      logBoth('info', `[Chat AI] ⚡ Fast Model: ${remoteFastModel}`);
       logBoth("info", `🎯 Remote AI initialized: ${remoteOllamaHostUrl} (${remoteModel})`);
     } else {
       logBoth('warn', `[Chat AI] ⚠️  ${AI_MODE} mode requested but REMOTE_OLLAMA_BASE_URL not configured`);
@@ -106,9 +466,26 @@ export function updateChatAIMode() {
   
   ollama = AI_MODE === 'local' ? localOllama : (remoteOllama || localOllama);
   ollamaModel = AI_MODE === 'local' ? localModel : (remoteModel || localModel);
+  ollamaFastModel = AI_MODE === 'local' ? fastModel : (remoteFastModel || fastModel);
   
   logBoth('info', `[Chat AI] 🤖 Using Ollama: ${AI_MODE === 'local' ? 'Local' : (remoteOllama ? 'Remote' : 'Local (fallback)')}`);
   logBoth('info', `[Chat AI] 📝 Model: ${ollamaModel}`);
+  
+  // 🧠 Initialize Semantic Router for hybrid mode
+  if (AI_MODE === 'hybrid') {
+    const router = getSemanticRouter();
+    router.initialize().catch(err => 
+      logBoth('error', `[Semantic Router] ❌ Initialization failed: ${err}`)
+    );
+    logBoth('info', `[Semantic Router] 🧠 Hybrid mode activated - Smart classification enabled`);
+  }
+  
+  // 🎯 Initialize God-Tier Router (2026 Context-Aware Intent Engine)
+  const godTierRouter = getGodTierRouter();
+  godTierRouter.initialize().catch(err =>
+    logBoth('error', `[God-Tier Router] ❌ Initialization failed: ${err}`)
+  );
+  logBoth('info', `[God-Tier Router] 🎯 Context-aware routing activated`);
   
   if (mcpClient) {
     const oldMcpMode = (mcpClient as any).aiMode;
@@ -124,8 +501,12 @@ export function updateChatAIMode() {
 
 const chatRouter = Router();
 
+// Report message endpoint
+chatRouter.use("/report", reportRouter);
+
 // --- 2. MCP Client ---
 let mcpClient: IntelligentMCPClient | null = null;
+let toolHealthChecker: ToolHealthCheckSystem | null = null;
 
 // --- 3. Initialize MCP Client with Multi-AI Support ---
 mcpClient = InitMcpClient(ollama, ollamaModel, {
@@ -140,22 +521,47 @@ logBoth("info", "[Chat API] MCP client created (initializing in background)");
 
 if (mcpClient) {
   mcpClient.on("clientConnected", (name: string) => {
-    logBoth("info", `[Chat API] MCP client connected: ${name}`);
-    logBoth("info", `[Chat API] Connected clients: ${JSON.stringify(mcpClient?.getConnectedClients())}`);
+    const clientCount = mcpClient?.getConnectedClients().length || 0;
+    logBoth("info", `[Chat API] 🔌 Client connected: ${name} (${clientCount} total)`);
   });
 
   mcpClient.on("connectedClients", (clients: string[]) => {
-    logBoth("info", `[Chat API] Connected clients (update): ${JSON.stringify(clients)}`);
+    // Silent - already logged in clientConnected
   });
 
   mcpClient.on("toolLoaded", (info: { client: string; tool: string }) => {
-    logBoth("info", `[Chat API] Tool loaded from ${info.client}: ${info.tool}`);
+    // Silent - tools will be summarized in ready event
   });
 
   mcpClient.on("ready", () => {
-    logBoth("info", "[Chat API] Intelligent MCP Client initialization completed");
-    logBoth("info", `[Chat API] Available tools: ${mcpClient?.getAvailableTools().length}`);
-    logBoth("info", `[Chat API] Tools: ${JSON.stringify(mcpClient?.getAvailableTools().map((t) => t.name))}`);
+    const toolCount = mcpClient?.getAvailableTools().length || 0;
+    logBoth("info", `[Chat API] ✅ Ready | ${toolCount} tools loaded`);
+    
+    // Start tool health check system
+    if (mcpClient && !toolHealthChecker) {
+      toolHealthChecker = new ToolHealthCheckSystem(mcpClient);
+      toolHealthChecker.startHealthChecks(); // Check every 5 minutes
+      logBoth("info", "[Chat API] 🏥 Tool Health Check System activated");
+    }
+  });
+
+  // Health check monitoring events
+  mcpClient.on("healthCheck", (status: any) => {
+    if (!status.healthy) {
+      logBoth("warn", `[Chat API] 🏥 Health check warning: ${status.clients} clients, ${status.tools} tools`);
+    }
+  });
+
+  mcpClient.on("reconnecting", (info: any) => {
+    logBoth("warn", `[Chat API] 🔄 MCP reconnecting (attempt ${info.attempt}/${info.maxAttempts}, backoff: ${info.backoff}ms)`);
+  });
+
+  mcpClient.on("reconnected", (info: any) => {
+    logBoth("info", `[Chat API] ✅ MCP reconnected successfully: ${info.clients} clients, ${info.tools} tools`);
+  });
+
+  mcpClient.on("reconnectionFailed", (info: any) => {
+    logBoth("error", `[Chat API] ❌ MCP reconnection failed after ${info.attempts} attempts: ${info.message}`);
   });
 
   try {
@@ -216,18 +622,176 @@ process.on("SIGINT", () => {
 interface ChatMessage {
   sender: "user" | "ai";
   text: string;
+  fileInfo?: {
+    name: string;
+    type: string;
+    url?: string;
+  };
 }
 
 interface ClientMessage {
   text: string;
   messages?: ChatMessage[];
+  file?: {
+    name: string;
+    type: string;
+    size: number;
+    data: string; // base64 encoded file data
+  };
+}
+
+// 🛡️ HARD SCHEMA ENFORCEMENT 🛡️
+function sendSafe(ws: any, payload: any) {
+  if (!payload) return;
+
+  const safePayload = {
+    id: payload.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    type: payload.type || "message",
+    sender: payload.sender || "assistant", // "ai" is now allowed if passed
+    text: payload.text || payload.message || "", // FIX: Frontend expects "text", not "message"
+    timestamp: payload.timestamp || Date.now(),
+    ...payload // Merge other fields (like structuredContent)
+  };
+
+  // Ensure "message" field is present for frontend compatibility
+  if (!safePayload.message && safePayload.text) {
+      safePayload.message = safePayload.text;
+  }
+
+  try {
+      ws.send(JSON.stringify(safePayload));
+  } catch(e) {
+      console.error("[Chat API] Send failed:", e);
+  }
+}
+
+// =====================================
+// Phase 7.2.x: Optional SAFE Q/A Trace Logging
+// OFF by default. Enable with CHAT_TRACE_QA=1
+// =====================================
+const isTraceQaEnabled = (): boolean => {
+  const v = String(process.env.CHAT_TRACE_QA || "").trim();
+  return /^(1|true|yes|on)$/i.test(v);
+};
+
+function sanitizeForLog(input: string, max = 180): string {
+  let s = String(input || "");
+  // Replace backticks to avoid breaking evidence/log consumers.
+  s = s.replace(/`/g, "'");
+  s = s.replace(/\s+/g, " ").trim();
+
+  // Remove JSON-ish payloads from logs (e.g., tool results) to keep evidence one-line and non-JSON.
+  // Heuristic: redact flat object/array snippets containing quotes (common in JSON).
+  s = s.replace(/\{[^{}]*\"[^{}]*\}/g, "[JSON_REDACTED]");
+  s = s.replace(/\[[^\[\]]*\"[^\[\]]*\]/g, "[JSON_REDACTED]");
+  // If it still looks like it contains JSON, redact everything after the first JSON start.
+  if (/(\{\s*\"|\[\s*\{\s*\")/.test(s)) {
+    s = s.replace(/(\{\s*\"|\[\s*\{\s*\").*$/, "[JSON_REDACTED]");
+  }
+
+  // redact common credential patterns: key/token/bearer/auth/password=...
+  s = s.replace(
+    /(api[_-]?key|token|bearer|authorization|password)\s*[:=]\s*([^,\s;]+)/gi,
+    (_m, k) => `${k}=[REDACTED]`
+  );
+  // redact "Authorization: Bearer <blob>" style tokens
+  s = s.replace(/\bauthorization\s*:\s*bearer\s+[^,\s;]+/gi, "authorization: bearer [REDACTED]");
+
+  // redact long blobs (base64/hex-ish)
+  s = s.replace(/[A-F0-9]{32,}/gi, "[REDACTED_BLOB]");
+  s = s.replace(/[A-Za-z0-9+/]{80,}={0,2}/g, "[REDACTED_BLOB]");
+
+  if (s.length > max) return s.slice(0, max - 1) + "…";
+  return s;
+}
+
+function chatTraceLog(message: string) {
+  if (!isTraceQaEnabled()) return;
+  logBoth("info", message);
+}
+
+function chatTraceIn(params: {
+  transport: "ws" | "http";
+  sid?: string;
+  cid?: string;
+  uiMode?: string;
+  msg: string;
+}) {
+  chatTraceLog(
+    `[ChatTrace] ts=${new Date().toISOString()} dir=in transport=${params.transport} sid=${shortId(params.sid)} cid=${shortId(params.cid)} uiMode=${params.uiMode || "auto"} msg="${sanitizeForLog(params.msg)}"`
+  );
+}
+
+function chatTraceOut(params: {
+  transport: "ws" | "http";
+  sid?: string;
+  cid?: string;
+  uiMode?: string;
+  route:
+    | "weatherGate"
+    | "officerEvidence"
+    | "mcpDirect"
+    | "weatherDirect"
+    | "mcpToolsFailed"
+    | "ollama"
+    | "ollamaError";
+  tool?: string;
+  code: number;
+  durMs: number;
+  ans: string;
+}) {
+  chatTraceLog(
+    `[ChatTrace] ts=${new Date().toISOString()} dir=out transport=${params.transport} sid=${shortId(params.sid)} cid=${shortId(params.cid)} uiMode=${params.uiMode || "auto"} route=${params.route} tool=${params.tool || "none"} code=${params.code} durMs=${Math.max(0, Math.floor(params.durMs))} ans="${sanitizeForLog(params.ans)}"`
+  );
+}
+
+function shortId(id: string | undefined | null): string {
+  const s = String(id || "");
+  if (!s) return "-";
+  if (s.length <= 16) return s;
+  return `${s.substring(0, 8)}…${s.substring(Math.max(0, s.length - 6))}`;
+}
+
+function joinToolsForTrace(tools: any, maxItems = 8): string {
+  const arr = Array.isArray(tools) ? tools : [];
+  const names = arr
+    .map((t) => String(t || "").trim())
+    .filter(Boolean)
+    .slice(0, maxItems);
+  return `[${names.join(",")}]`;
 }
 
 // --- 6. WebSocket Connection Handler ---
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, req) => {
   (ws as any).isAlive = true;
   // Track recently processed message IDs for this connection to avoid duplicates/loops
   (ws as any).processedMessageIds = new Set<string>();
+  
+  // 🔍 Extract Correlation ID
+  const correlationId = extractCorrelationIdFromUpgrade(req);
+  (ws as any).correlationId = correlationId;
+  
+  // Generate or extract sessionId
+  const cookies = req.headers.cookie?.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=');
+    acc[key] = value;
+    return acc;
+  }, {} as Record<string, string>) || {};
+  
+  const sessionId = cookies.sessionId || 
+                   req.headers['x-session-id'] as string || 
+                   crypto.randomUUID();
+  (ws as any).sessionId = sessionId;
+  
+  // Store client info
+  const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.socket.remoteAddress || 'unknown';
+  (ws as any).clientIp = clientIp;
+  
+  // Initialize session
+  const userAgent = req.headers['user-agent'];
+  sessionManager.getOrCreateSession(sessionId, undefined, userAgent);
+  logger.info(`[Chat API] WebSocket connected [cid=${correlationId.substring(0, 8)}] sid=${sessionId.substring(0, 8)} ip=${clientIp}`);
+  
   ws.on("pong", () => {
     try {
       (ws as any).isAlive = true;
@@ -238,68 +802,404 @@ wss.on("connection", (ws) => {
 
   logBoth("info", `[Chat API] New WebSocket connection - total=${wss.clients.size}`);
 
-  // --- Message Handler ---
+  // --- Message Handler with Queue Management ---
   ws.on("message", async (data) => {
+    const messageId = `ws-${sessionId.substring(0, 8)}-${Date.now()}`;
+    
+    // 1. 🔍 Parse Message Immediately
+    let clientMessage: ClientMessage;
     try {
-      const clientMessage: ClientMessage = JSON.parse(data.toString());
-      // optional messageId to deduplicate repeated sends from the same client
-      const incomingId = (clientMessage as any).messageId;
-      if (incomingId && (ws as any).processedMessageIds.has(incomingId)) {
-        logBoth("warn", `[Chat API] Duplicate messageId received, ignoring: ${incomingId}`);
+        clientMessage = JSON.parse(data.toString());
+    } catch (e) {
+        logBoth("error", `[Chat API] Invalid JSON: ${e}`);
+        sendSafe(ws, { error: "Invalid JSON", type: "error" });
         return;
-      }
-      if (incomingId) {
-        (ws as any).processedMessageIds.add(incomingId);
-        // expire this id after 60 seconds to avoid memory leak
-        setTimeout(() => {
-          try {
-            (ws as any).processedMessageIds.delete(incomingId);
-          } catch (e) {
-            // ignore
+    }
+    const currentText = clientMessage.text;
+
+    // 2. 🚀 HARD FASTPATH (Before Queue)
+    const clientIp = (ws as any).clientIp || 'unknown';
+    if (currentText) {
+         try {
+          const fastPathResult = await tryFastPathWebSocket(
+            currentText,
+            (payload) => {
+                 // Direct pass-through per user request (Handler defines schema)
+                 sendSafe(ws, payload);
+            },
+            { mode: (process.env.FASTPATH_MODE as any) || "on" },
+            clientIp
+          );
+
+          if (fastPathResult.handled) {
+            console.log("[FASTPATH] HARD SHORT-CIRCUIT:", currentText);
+            
+            // 💾 Persist Assistant Message to Session
+            // We need to extract the response text from the payload to save it
+            // fastPathResult.responseTextPreview is not always reliable, better to rely on what was sent?
+            // Actually, let's use the result from the handler if available, or just the preview
+            if (fastPathResult.structuredContent && fastPathResult.structuredContent.result) {
+                // Determine text from structured content or result
+                 const responseText = typeof fastPathResult.structuredContent.result === 'string' 
+                    ? fastPathResult.structuredContent.result 
+                    : JSON.stringify(fastPathResult.structuredContent.result);
+                    
+                 sessionManager.addMessage(sessionId, 'assistant', responseText);
+            } else if (fastPathResult.responseTextPreview) {
+                 sessionManager.addMessage(sessionId, 'assistant', fastPathResult.responseTextPreview);
+            }
+
+            // ✅ RESTORE DONE EVENT (Required for frontend lifecycle)
+            sendSafe(ws, { type: "done" });
+            
+            return; // 🛑 HARD STOP
           }
-        }, 60000);
+         } catch (e) {
+             console.error("FastPath Error:", e);
+         }
+    }
+
+    console.log("=== AFTER FASTPATH BLOCK ==="); // KILL SWITCH TEST
+
+    // Enqueue the message processing to prevent overload
+    await requestQueue.enqueue(messageId, async () => {
+      let doneSent = false;
+      const sendDoneOnce = () => {
+        if (doneSent) return;
+        doneSent = true;
+        sendSafe(ws, { type: "done" });
+      };
+
+      try {
+        // Keep AI mode consistent across MCP planner + final response
+        syncChatAIModeIfChanged();
+
+        // clientMessage is already parsed above
+
+        // optional messageId to deduplicate repeated sends from the same client
+        const incomingId = (clientMessage as any).messageId;
+        if (incomingId && (ws as any).processedMessageIds.has(incomingId)) {
+          logBoth("warn", `[Chat API] Duplicate messageId received, ignoring: ${incomingId}`);
+          return;
+        }
+        if (incomingId) {
+          (ws as any).processedMessageIds.add(incomingId);
+          // expire this id after 60 seconds to avoid memory leak
+          setTimeout(() => {
+            try {
+              (ws as any).processedMessageIds.delete(incomingId);
+            } catch (e) {
+              // ignore
+            }
+          }, 60000);
+        }
+        logBoth('info', `Received WebSocket message (textLength: ${clientMessage.text?.length || 0}, historySize: ${clientMessage.messages?.length || 0}, hasFile: ${!!clientMessage.file})`);
+
+        // Get full message history from client or initialize empty
+        let sessionHistory: ChatMessage[] = clientMessage.messages || [];
+
+        // 📎 Handle file attachment
+        let fileContext = "";
+        if (clientMessage.file) {
+          const file = clientMessage.file;
+          logBoth('info', `[File Upload] Processing file: ${file.name} (${file.type}, ${(file.size / 1024).toFixed(2)}KB)`);
+
+          // Check if it's an image file
+          if (file.type.startsWith('image/')) {
+            // For now, just acknowledge the image
+            // TODO: Implement image processing with vision AI
+            fileContext = `\n[ผู้ใช้แนบรูปภาพ: ${file.name}]`;
+            logBoth('info', `[File Upload] Image file detected: ${file.name}`);
+          } else {
+            // Other file types
+            fileContext = `\n[ผู้ใช้แนบไฟล์: ${file.name} (${file.type})]`;
+            logBoth('info', `[File Upload] File attached: ${file.name} (${file.type})`);
+          }
+        }
+
+        if (!currentText) {
+          sendSafe(ws, { error: "Text is required", type: "error" });
+          return;
+        }
+
+        // Add file context to the message if present
+        const messageWithFile = currentText + fileContext;
+
+        // Phase 7.2: Officer UI mode (boost evidence tools, keep multi-tool allowed)
+        const uiMode = String((clientMessage as any)?.uiMode || "").trim();
+        const officerMode = uiMode === "officer";
+        if (officerMode) {
+          logBoth("info", `[OfficerMode] uiMode=officer boostedTools=evidenceTool,webdTool_*`);
+        }
+
+        const traceStartMs = Date.now();
+        const officerAction = officerMode ? inferOfficerEvidenceAction(messageWithFile) : undefined;
+
+        // Session id helper used across branches (WeatherGate returns early)
+        const currentSessionId = (ws as any).sessionId;
+
+        const cid = (ws as any).correlationId as string | undefined;
+
+        chatTraceIn({ transport: "ws", sid: currentSessionId, cid, uiMode, msg: messageWithFile });
+
+        // =====================================
+        // Phase 7.2.1: Deterministic Officer Evidence Router (NO LLM args)
+        // Route officer-mode templates directly to EvidenceTool with forced args.
+        // =====================================
+        if (mcpClient && officerMode && officerAction) {
+          logBoth("info", `[OfficerMode] deterministicEvidence=true transport=ws action=${officerAction}`);
+
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+
+          const toolName = "innomcp-server:evidenceTool";
+          const toolResults = await mcpClient.executeTools([toolName], messageWithFile, {
+            [toolName]: { action: officerAction },
+          });
+          const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+          const sc = first?.structuredContent ?? first?.result;
+          const direct = renderStructuredDirect(first?.toolName || toolName, sc, messageWithFile);
+          const textOut = direct?.text || "ขออภัย ไม่สามารถดึงข้อมูลหลักฐานได้ในขณะนี้";
+
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [toolName] };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, [toolName]);
+          sessionManager.completeResponse(currentSessionId);
+
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [toolName] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [toolName] });
+          sendDoneOnce();
+
+          chatTraceOut({
+            transport: "ws",
+            sid: currentSessionId,
+            cid,
+            uiMode,
+            route: "officerEvidence",
+            tool: toolName,
+            code: 200,
+            durMs: Date.now() - traceStartMs,
+            ans: textOut,
+          });
+          return;
+        }
+
+        // =====================================
+        // Phase 7.1: Deterministic Weather Router (NO LLM tool planning)
+        // Gate BEFORE any God-Tier Router / semantic / LLM-based tool selection.
+        // =====================================
+        const weatherLike = looksLikeDeterministicWeatherQuery(messageWithFile);
+        const allowWeatherGate = !officerMode ? weatherLike : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile);
+        if (mcpClient && allowWeatherGate) {
+          const deep = wantsDeepExplain(messageWithFile);
+          logBoth("info", `[WeatherGate] bypass=true transport=ws deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
+
+          // Add user message to history now (this branch returns early)
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+
+          const toolResult = await mcpClient.runDeterministicWeatherPipeline(messageWithFile);
+          const sc = toolResult.structuredContent;
+          const payload = sc?.weatherPipeline ?? sc;
+
+          let textOut = "";
+          if (!deep) {
+            const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
+            textOut = direct.text;
+          } else {
+            // LLM allowed ONLY for explain/render after deterministic tool results.
+            const explainPrompt = [
+              "โปรดอธิบายผลสภาพอากาศต่อไปนี้เป็นภาษาไทยแบบเข้าใจง่าย และสรุปสั้นๆ ก่อน แล้วค่อยอธิบายรายละเอียด:",
+              "- ห้ามตัดสินใจเรียกเครื่องมือหรือขอข้อมูลเพิ่ม",
+              "- ห้ามเอ่ยชื่อ tool/MCP/ระบบ",
+              "- ถ้าข้อมูลเป็น error ให้บอกผู้ใช้ว่าควรพิมพ์เพิ่มอะไร",
+              "",
+              `คำถามผู้ใช้: ${messageWithFile}`,
+              "ผลแบบโครงสร้าง (JSON):",
+              JSON.stringify(payload),
+            ].join("\n");
+
+            const resp = await ollama.chat({
+              model: ollamaModel,
+              messages: [
+                { role: "system", content: "คุณเป็นผู้ช่วยภาษาไทยที่สุภาพ กระชับ และแม่นยำ" },
+                { role: "user", content: explainPrompt },
+              ],
+              stream: false,
+            });
+            textOut = String(resp?.message?.content || "").trim();
+            if (!textOut) {
+              // fallback to deterministic direct render
+              textOut = renderWeatherDirectAnswer(messageWithFile, payload).text;
+            }
+          }
+
+          // Send response + history update
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: sc, toolsUsed: ["weatherPipeline"] };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, ["weatherPipeline"]);
+          sessionManager.completeResponse(currentSessionId);
+
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: ["weatherPipeline"] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["weatherPipeline"] });
+          sendDoneOnce();
+
+          chatTraceOut({
+            transport: "ws",
+            sid: currentSessionId,
+            cid,
+            uiMode,
+            route: "weatherGate",
+            tool: "weatherPipeline",
+            code: 200,
+            durMs: Date.now() - traceStartMs,
+            ans: textOut,
+          });
+          return;
+        }
+
+        // 📝 Log user message to session (with file indicator if present)
+        sessionManager.addMessage(currentSessionId, 'user', messageWithFile);
+        logBoth('info', `[Session] Added user message to session ${currentSessionId}${fileContext ? ' (with file)' : ''}`);
+
+        // 🎯 Start response tracking
+        sessionManager.startResponse(currentSessionId);
+
+        // 🎯 God-Tier Router: 4-stage context-aware intent classification (Keyword + Semantic + Ambiguity + LLM)
+        let semanticCategory: string | null = null;
+        try {
+          const godTierRouter = getGodTierRouter();
+          const startTime = Date.now();
+
+          // Get last 2 messages from history for context
+          const conversationHistory = sessionHistory.slice(-2).map((m: any) => ({
+            role: m.role,
+            content: m.content,
+            timestamp: new Date()
+          }));
+
+          const routingResult = await godTierRouter.route(messageWithFile, conversationHistory);
+          semanticCategory = routingResult.category;
+          const latency = Date.now() - startTime;
+
+          logBoth('info', `[God-Tier Router] 🎯 Category: "${semanticCategory}" (confidence: ${routingResult.confidence.toFixed(2)}, ${latency}ms)`);
+
+          if (routingResult.isAmbiguous) {
+            logBoth('info', `[God-Tier Router] ⚠️  Ambiguous query - used reasoning: ${routingResult.reasoning}`);
+          }
+
+          // Log matched keywords and scores
+          if (routingResult.matchedKeywords && routingResult.matchedKeywords.length > 0) {
+            logBoth('info', `[God-Tier Router] 🔑 Keywords: ${routingResult.matchedKeywords.join(', ')}`);
+          }
+          if (routingResult.keywordScore !== undefined && routingResult.semanticScore !== undefined) {
+            logBoth('info', `[God-Tier Router] 📊 Keyword: ${routingResult.keywordScore.toFixed(2)} | Semantic: ${routingResult.semanticScore.toFixed(2)}`);
+          }
+        } catch (err) {
+          logBoth('warn', `[God-Tier Router] ⚠️  Routing failed: ${err}, falling back to MCP default`);
+        }
+
+      // 🎯 Intent-based handling: DISABLED FOR WEATHER (use MCP tools instead)
+      // Weather queries should use NWP/TMD tools via MCP, not Open-Meteo direct API
+      /*
+      const { handleByIntent } = await import("../../utils/intent/handler");
+      const intentResult = await handleByIntent(messageWithFile);
+      
+      if (intentResult.handled) {
+        logBoth('info', `[Intent] ✅ Handled ${intentResult.intent} in ${intentResult.latencyMs}ms`);
+        
+        // Send response as chunk
+        ws.send(JSON.stringify({ 
+          type: "chunk", 
+          text: intentResult.response,
+          structuredContent: intentResult.structuredContent
+        }));
+        
+        // Update history
+        const aiMessage: any = { sender: "ai", text: intentResult.response || "" };
+        if (intentResult.structuredContent) {
+          aiMessage.structuredContent = intentResult.structuredContent;
+        }
+        sessionHistory.push({ sender: "user", text: messageWithFile });
+        sessionHistory.push(aiMessage);
+        
+        // Log to session
+        const toolsUsed = intentResult.sources?.map(s => s.name) || [intentResult.intent || 'Intent'];
+        sessionManager.addMessage(currentSessionId, 'assistant', intentResult.response || "", toolsUsed);
+        
+        ws.send(JSON.stringify({
+          type: "history-update",
+          messages: sessionHistory,
+          structuredContent: intentResult.structuredContent
+        }));
+        
+        return; // Intent handler responded, done!
       }
-      logBoth('info', `Received WebSocket message (textLength: ${clientMessage.text?.length || 0}, historySize: ${clientMessage.messages?.length || 0})`);
+      */
+      
+      logBoth('info', `[Intent] ⚠️  Weather Intent Handler DISABLED - using MCP tools (NWP/TMD priority)`);
 
-      // Get full message history from client or initialize empty
-      let sessionHistory: ChatMessage[] = clientMessage.messages || [];
-      const currentText = clientMessage.text;
-
-      if (!currentText) {
-        ws.send(JSON.stringify({ error: "Text is required" }));
-        return;
-      }
-
-      // Add user message to history
-      sessionHistory.push({ sender: "user", text: currentText });
+      // Add user message to history (with file context)
+      sessionHistory.push({ sender: "user", text: messageWithFile });
       logBoth('info', `Session history prepared (totalMessages: ${sessionHistory.length}, mode: ${AI_MODE})`);
+
+      // 🎭 Detect user emotion
+      const { detectEmotion, getEmotionPrompt, logEmotion } = await import("../../utils/emotionDetector");
+      const emotionResult = detectEmotion(messageWithFile);
+      logEmotion(currentSessionId, undefined, emotionResult);
+      sessionManager.updateUserEmotion(currentSessionId, emotionResult.emotion);
+
+      // 🧠 Inject session context for AI memory
+      const recentContext = sessionManager.buildContextString(currentSessionId, 5);
+      let contextPrefix = '';
+      if (recentContext) {
+        contextPrefix = `<conversation_history>\n${recentContext}</conversation_history>\n\n`;
+        logBoth('info', `[Session] Injected ${sessionManager.getRecentMessages(currentSessionId, 5).length} recent messages as context`);
+      }
+
+      // เพิ่ม emotion context
+      const emotionPrompt = getEmotionPrompt(emotionResult);
+      contextPrefix += `<user_emotion>${emotionPrompt}</user_emotion>\n\n`;
 
       let finalMessage = currentText;
       let mcpContext = "";
       let structuredContent: any = undefined;
+      let structuredContentToolName: string | undefined = undefined;
+      let toolsUsedInThisRequest: string[] = [];
 
       // **Process with MCP**
       if (mcpClient) {
         logBoth('info', `Processing with MCP client (messageLength: ${currentText.length})`);
         try {
-          const mcpResult = await mcpClient.processMessage(currentText);
+          // 🧠 Pass semantic category hint to MCP for smarter tool selection (hybrid mode)
+          const mcpResult = await mcpClient.processMessage(
+            currentText,
+            semanticCategory || undefined,
+            officerMode ? { uiMode: "officer", boostedTools: ["evidenceTool", "webdTool"] } : undefined
+          );
 
           if (mcpResult.needsTools) {
             logBoth("info", `[Chat API] MCP tools executed: ${mcpResult.toolResults?.length}`);
+            
+            // Track tools used
+            if (mcpResult.toolResults) {
+              toolsUsedInThisRequest = mcpResult.toolResults.map(r => r.toolName);
+            }
 
-            ws.send(
-              JSON.stringify({
+            sendSafe(ws, {
                 type: "mcp-status",
                 text: "กำลังประมวลผลด้วย MCP tools...",
                 tools: mcpResult.toolResults?.map((r) => r.toolName) || [],
-              })
-            );
+            });
 
             // Extract structuredContent from tool results (e.g., chartSvg from echartsTool)
             if (mcpResult.toolResults && mcpResult.toolResults.length > 0) {
               for (const result of mcpResult.toolResults) {
                 if (result.structuredContent) {
                   structuredContent = result.structuredContent;
+                  structuredContentToolName = result.toolName;
                   logBoth("info", `[Chat API] Found structured content from tool: ${result.toolName}`);
                   logBoth("info", `[Chat API] Structured content keys: ${JSON.stringify(Object.keys(structuredContent))}`);
                   break; // Use first available structuredContent
@@ -308,8 +1208,166 @@ wss.on("connection", (ws) => {
             }
 
             if (mcpResult.enhancedContext) {
-              finalMessage = mcpResult.enhancedContext;
-              mcpContext = " (ใช้ข้อมูลจาก MCP tools)";
+              mcpContext = mcpResult.enhancedContext;
+            }
+
+            if (structuredContent && structuredContentToolName) {
+              const direct = renderStructuredDirect(structuredContentToolName, structuredContent, currentText || "");
+              if (direct) {
+                logBoth(
+                  "info",
+                  `[StructuredDirect] tool=${structuredContentToolName} keys=${structuredKeysSummary(structuredContent)} bypass=true`
+                );
+                const aiMessage: any = {
+                  sender: "ai",
+                  text: direct.text,
+                  structuredContent: direct.structuredContent,
+                };
+                if (toolsUsedInThisRequest.length > 0) aiMessage.toolsUsed = toolsUsedInThisRequest;
+                sessionHistory.push(aiMessage);
+
+                sendSafe(ws, { type: "chunk", text: direct.text, structuredContent: direct.structuredContent });
+                sendSafe(ws, { type: "history-update", messages: sessionHistory });
+                sendDoneOnce();
+
+                chatTraceOut({
+                  transport: "ws",
+                  sid: currentSessionId,
+                  cid,
+                  uiMode,
+                  route: "mcpDirect",
+                  tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : structuredContentToolName,
+                  code: 200,
+                  durMs: Date.now() - traceStartMs,
+                  ans: direct.text,
+                });
+                return; // ✅ Skip Ollama finalize
+              }
+            }
+
+            // PATCH 2 (weather performance): legacy fallback path.
+            // NOTE: The Phase 7.1 WeatherGate returns early for clearly-weather queries.
+            // This block remains as a safety net when WeatherGate is disabled, regex misses,
+            // or weather is triggered via MCP tool planning instead of the deterministic gate.
+            // Only use LLM if user explicitly asks for deeper explanation.
+            const deep = wantsDeepExplain(currentText || "");
+            const weatherTool = mcpResult.toolResults?.find((r) => r && r.toolName === "weatherPipeline");
+            const weatherResults = Array.isArray(weatherTool?.structuredContent)
+              ? (weatherTool!.structuredContent as any[])
+              : null;
+
+            const weatherPayloadFromStructuredContent =
+              structuredContent && typeof structuredContent === "object" && !Array.isArray(structuredContent)
+                ? (structuredContent as any).weatherPipeline
+                : undefined;
+            const weatherPayload = weatherTool?.structuredContent ?? weatherPayloadFromStructuredContent;
+
+            if (weatherPayload && !deep) {
+              logBoth("info", "[WeatherDirect] Bypassing LLM synthesis");
+              const rendered = renderWeatherDirectAnswer(currentText || "", weatherPayload);
+              const aiMessage: any = { sender: "ai", text: rendered.text, structuredContent: rendered.structuredContent };
+              if (toolsUsedInThisRequest.length > 0) aiMessage.toolsUsed = toolsUsedInThisRequest;
+              sessionHistory.push(aiMessage);
+
+              sendSafe(ws, { type: "chunk", text: rendered.text, structuredContent: rendered.structuredContent });
+              sendSafe(ws, { type: "history-update", messages: sessionHistory });
+              sendDoneOnce();
+              sendDoneOnce();
+
+              chatTraceOut({
+                transport: "ws",
+                sid: currentSessionId,
+                cid,
+                uiMode,
+                route: "weatherDirect",
+                tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : (structuredContentToolName || "weatherPipeline"),
+                code: 200,
+                durMs: Date.now() - traceStartMs,
+                ans: rendered.text,
+              });
+              return; // ✅ Skip Ollama finalize
+            }
+
+            if (weatherResults && !deep) {
+              const renderBkkDateStr = (offsetDays: number): string => {
+                const now = new Date();
+                const bkkMs = now.getTime() + (7 * 60 * 60 * 1000);
+                const bkk = new Date(bkkMs);
+                bkk.setUTCDate(bkk.getUTCDate() + offsetDays);
+                const dd = String(bkk.getUTCDate()).padStart(2, "0");
+                const mm = String(bkk.getUTCMonth() + 1).padStart(2, "0");
+                const yyyy = bkk.getUTCFullYear();
+                return `${dd}/${mm}/${yyyy}`;
+              };
+
+              const firstOk = weatherResults.find((r: any) => r && r.type !== "error") || weatherResults[0];
+
+              let finalText = "";
+
+              if (!firstOk || firstOk.type === "error") {
+                const err = String(firstOk?.error || "WEATHER_PIPELINE_ERROR");
+                if (err === "PROVINCE_MISSING") {
+                  finalText = "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")";
+                } else if (err === "TIMEOUT") {
+                  finalText = "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ";
+                } else {
+                  finalText = `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`;
+                }
+              } else if (firstOk.type === "national") {
+                const d = firstOk.data || {};
+                const label = d.dateLabel || "พรุ่งนี้";
+                const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
+                const note = d.note ? `\n\nหมายเหตุ: ${d.note}` : "";
+                const table = d.tableMarkdown ? `\n\n${d.tableMarkdown}` : "";
+                finalText = `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${table}${note}`;
+              } else if (firstOk.type === "forecast7d") {
+                const province = firstOk.province || "";
+                const f = firstOk.data?.forecast;
+                const targetDate = /วันนี้|ตอนนี้|ขณะนี้/i.test(currentText || "") ? renderBkkDateStr(0) : renderBkkDateStr(1);
+
+                if (f && typeof f === "object" && Array.isArray((f as any).ForecastDate)) {
+                  const idx = ((f as any).ForecastDate as string[]).indexOf(targetDate);
+                  const i = idx >= 0 ? idx : 0;
+                  const rain = Number((f as any).PercentRainCover?.[i]) || 0;
+                  const tmax = (f as any).MaximumTemperature?.[i];
+                  const tmin = (f as any).MinimumTemperature?.[i];
+                  const desc = String((f as any).DescriptionThai?.[i] || "").trim();
+                  finalText = `พยากรณ์อากาศ${province} (${targetDate}): โอกาสฝน ~${rain}% อุณหภูมิ ${tmin ?? "—"}–${tmax ?? "—"}°C${desc ? `, ${desc}` : ""}`;
+                } else {
+                  finalText = `พยากรณ์อากาศ${province}: ดึงข้อมูลพยากรณ์ 7 วันสำเร็จ (หากต้องการ \"ตาราง\" บอกได้ครับ)`;
+                }
+              } else if (firstOk.type === "station3h") {
+                const province = firstOk.province || "";
+                const list = Array.isArray(firstOk.data) ? firstOk.data : [];
+                const s = list[0] || {};
+                const temp = s.Temp ?? s.Temperature ?? s.AirTemperature ?? s.TempC;
+                finalText = `อากาศตอนนี้${province}: พบข้อมูลสถานี ${list.length} จุด${temp !== undefined ? `, อุณหภูมิประมาณ ${temp}°C` : ""}`;
+              } else {
+                finalText = `ผลพยากรณ์อากาศ (${firstOk.type}) สำหรับ ${firstOk.province || "พื้นที่ที่ถาม"}`;
+              }
+
+              const aiMessage: any = { sender: "ai", text: finalText };
+              if (weatherTool?.structuredContent) aiMessage.structuredContent = weatherTool.structuredContent;
+              if (toolsUsedInThisRequest.length > 0) aiMessage.toolsUsed = toolsUsedInThisRequest;
+              sessionHistory.push(aiMessage);
+
+              const chunkMsg: any = { type: "chunk", text: finalText };
+              if (weatherTool?.structuredContent) chunkMsg.structuredContent = weatherTool.structuredContent;
+              sendSafe(ws, chunkMsg);
+              sendSafe(ws, { type: "history-update", messages: sessionHistory });
+
+              chatTraceOut({
+                transport: "ws",
+                sid: currentSessionId,
+                cid,
+                uiMode,
+                route: "weatherDirect",
+                tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : (weatherTool?.toolName || "weatherPipeline"),
+                code: 200,
+                durMs: Date.now() - traceStartMs,
+                ans: finalText,
+              });
+              return; // ✅ Skip Ollama finalize
             }
           } else if (mcpResult.toolsFailed) {
             // Tools were selected but all failed — ask Ollama to craft a short sorry message
@@ -334,13 +1392,23 @@ wss.on("connection", (ws) => {
 
             sessionHistory.push({ sender: "ai", text: sorryMessage });
             // Send as a final chunk and history update
-            ws.send(JSON.stringify({ type: "chunk", text: sorryMessage }));
-            ws.send(
-              JSON.stringify({
+            sendSafe(ws, { type: "chunk", text: sorryMessage });
+            sendSafe(ws, {
                 type: "history-update",
                 messages: sessionHistory,
-              })
-            );
+            });
+
+            chatTraceOut({
+              transport: "ws",
+              sid: currentSessionId,
+              cid,
+              uiMode,
+              route: "mcpToolsFailed",
+              tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : "none",
+              code: 200,
+              durMs: Date.now() - traceStartMs,
+              ans: sorryMessage,
+            });
             return; // Don't proceed to Ollama
           }
         } catch (mcpError) {
@@ -350,44 +1418,42 @@ wss.on("connection", (ws) => {
 
       // **Use Ollama with full history**
       try {
-        // Map history to Ollama format with system prompt
-      const systemPrompt = {
-       role: "system",
-       content: `คุณเป็น AI ผู้ช่วยมืออาชีพที่ชาญฉลาดและตอบสนองรวดเร็ว มีหน้าที่:
+        // Build comprehensive system prompt with MDES identity
+        const systemPromptContent = buildSystemPrompt({
+          includeTools: true,
+          includeCapabilities: true,
+          includeGuidelines: true
+        });
+        
+        const systemPrompt = {
+          role: "system",
+          content: systemPromptContent
+        };
 
-🎯 **การให้บริการ**
-1. จำประวัติการสนทนาและใช้บริบทเพื่อให้คำตอบที่สอดคล้องและเชื่อมโยง
-2. ตอบคำถามด้วยข้อมูลที่แม่นยำและครบถ้วน โดยนำเสนอในรูปแบบที่เข้าใจง่าย
-3. หากมีข้อมูลเพิ่มเติมจากแหล่งต่างๆ ให้รวมเข้าในคำตอบอย่างเป็นธรรมชาติ โดยไม่ต้องอธิบายแหล่งที่มา
-4. ตอบเป็นภาษาไทยที่สุภาพและเป็นมิตร พร้อมให้คำแนะนำที่เป็นประโยชน์
+        const ollamaMessages = [systemPrompt];
 
-📝 **รูปแบบการตอบ (Markdown)**
-• ใช้ # สำหรับหัวข้อหลัก, ## สำหรับหัวข้อย่อย
-• ใช้ bullet points (-) หรือ numbering (1. 2.) เมื่อต้องการแสดงรายการ
-• ใช้ **bold** สำหรับข้อความสำคัญ, *italic* สำหรับเน้นย้ำ
-• ใช้ \`code\` สำหรับโค้ดหรือคำสั่ง, \`\`\`language สำหรับบล็อกโค้ด
-• ใช้ > สำหรับ quote หรือข้อความที่ต้องการเน้น
-• จัดรูปแบบให้อ่านง่าย มีการแบ่งวรรคและเว้นบรรทัดที่เหมาะสม
+        // PERFORMANCE OPTIMIZATION: History Truncation
+        // If we have fresh MCP context (e.g. weather data), we assume the user wants an answer based on THAT.
+        // We drop older history (keep only last 2 turns) to maximize attention on the new data and reduce token count.
+        if (mcpContext) {
+            const recentHistory = sessionHistory.slice(-3, -1); // Keep last interaction only
+            ollamaMessages.push(...recentHistory.map((m) => ({
+                role: m.sender === "ai" ? "assistant" : "user",
+                content: m.text,
+            })));
+            logBoth('info', `[Chat API] ⚡ Optimization: Truncated history to last ${recentHistory.length} messages due to MCP context.`);
+        } else {
+            // Normal conversation: use full history
+            ollamaMessages.push(...sessionHistory.slice(0, -1).map((m) => ({
+                role: m.sender === "ai" ? "assistant" : "user",
+                content: m.text,
+            })));
+        }
 
-⚡ **ความเร็วและประสิทธิภาพ**
-• ตอบโดยตรง กระชับ แต่ครบถ้วน
-• หากคำถามซับซ้อน ให้แบ่งเป็นส่วนๆ ตอบทีละขั้นตอน
-• หากไม่มีข้อมูล ให้บอกตรงๆ และแนะนำทางเลือกอื่น
-
-🚫 **ข้อห้าม**
-• ห้ามเปิดเผยการทำงานภายในของระบบ
-• ห้ามกล่าวถึง tools, MCP, หรือกระบวนการเทคนิคใดๆ
-• ห้ามส่งข้อความธรรมดาที่ไม่มีการจัดรูปแบบ`,
-      };
-
-        const ollamaMessages = [
-          systemPrompt,
-          ...sessionHistory.slice(0, -1).map((m) => ({
-            role: m.sender === "ai" ? "assistant" : "user",
-            content: m.text,
-          })),
-          { role: "user", content: finalMessage },
-        ];
+        ollamaMessages.push({ 
+            role: "user", 
+            content: contextPrefix + (mcpContext ? `${mcpContext}\n\n` : '') + currentText 
+        });
 
         const streamStartTime = Date.now();
         logBoth('info', `Sending messages to Ollama (messageCount: ${ollamaMessages.length}, model: ${ollamaModel}, mode: ${AI_MODE})`);
@@ -402,7 +1468,7 @@ wss.on("connection", (ws) => {
             // ULTIMATE SPEED optimizations
             temperature: 0.7,        // Balanced
             num_ctx: 2048,           // REDUCED from 4096 (2x faster)
-            num_predict: 512,        // REDUCED from 2048 (4x faster)
+            num_predict: 1024,       // ✅ เพิ่มจาก 512 เป็น 1024 สำหรับ response ที่ยาวขึ้น (เช่น รายการจังหวัด)
             top_k: 40,
             top_p: 0.9,
             repeat_penalty: 1.1,
@@ -414,15 +1480,52 @@ wss.on("connection", (ws) => {
         let aiResponse = "";
         let isFirstChunk = true;
         let chunkCount = 0;
+        let lastProgressTime = Date.now();
+        const progressInterval = 15000; // แจ้งทุก 15 วินาที
 
         logBoth('info', `Receiving streamed response from Ollama (model: ${ollamaModel})`);
+        
+        // 🎯 Progress Messages แบบ Random & Dynamic (Natural Language)
+        const thinkingMessages = [
+          "🤔 กำลังคิดคำตอบ...",
+          "💭 กำลังวิเคราะห์คำถามของคุณ...",
+          "🧠 กำลังประมวลผลข้อมูล...",
+          "⚡ กำลังค้นหาข้อมูลที่เหมาะสม...",
+          "📊 กำลังรวบรวมข้อมูล...",
+          "🔍 กำลังตรวจสอบรายละเอียด...",
+          "✨ กำลังเตรียมคำตอบที่ดีที่สุด...",
+          "🎯 กำลังจัดเรียงข้อมูล...",
+          "💡 กำลังค้นหาคำตอบ...",
+          "🚀 กำลังประมวลผล...",
+        ];
+        const randomThinking = thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)];
+        
+        // ส่ง progress indicator เริ่มต้น
+        sendSafe(ws, { 
+          type: "progress", 
+          text: randomThinking,
+          stage: "thinking"
+        });
 
         for await (const chunk of responseStream) {
           if (!chunk.message || !chunk.message.content) continue;
           chunkCount++;
 
+          // ส่ง progress update ทุก 15 วินาที
+          const now = Date.now();
+          if (now - lastProgressTime > progressInterval) {
+            const elapsedSec = Math.floor((now - streamStartTime) / 1000);
+            sendSafe(ws, { 
+              type: "progress", 
+              text: `⏳ ยังคงประมวลผล... (${elapsedSec}วินาที)`,
+              stage: "processing",
+              elapsed: elapsedSec
+            });
+            lastProgressTime = now;
+          }
+
           if (isFirstChunk && mcpContext) {
-            ws.send(JSON.stringify({ type: "mcp-context", text: mcpContext }));
+            sendSafe(ws, { type: "mcp-context", text: mcpContext });
             isFirstChunk = false;
           }
 
@@ -433,42 +1536,136 @@ wss.on("connection", (ws) => {
           const chunkMsg: any = { type: "chunk", text: chunk.message.content };
           if (structuredContent) {
             chunkMsg.structuredContent = structuredContent;
-            console.log("[Chat API] Sending chunk with structuredContent, keys:", Object.keys(structuredContent));
+            // ✅ Log only on first chunk to reduce spam
+            if (isFirstChunk) {
+              console.log("[Chat API] Response includes structuredContent, keys:", Object.keys(structuredContent));
+            }
           }
-          ws.send(JSON.stringify(chunkMsg));
+          sendSafe(ws, chunkMsg);
         }
 
         const streamDuration = Date.now() - streamStartTime;
         logBoth('info', `Stream completed (duration: ${streamDuration}ms, chunkCount: ${chunkCount}, responseLength: ${aiResponse.length}, model: ${ollamaModel})`);
+
+        // � Validate Thai language (must be Thai only)
+        const languageCheck = validateThaiLanguage(aiResponse, { originalQuestion: currentText });
+        if (!languageCheck.isThaiOnly) {
+          logBoth('warn', `[Language Validator] ⚠️ Non-Thai response detected! Stripping non-Thai segments...`);
+          logBoth('warn', `  - Original question: ${currentText}`);
+          logBoth('warn', `  - Invalid response preview: ${aiResponse.substring(0, 200)}...`);
+          
+          // Send warning to client
+          sendSafe(ws, {
+            type: "warning",
+            text: "⚠️ กำลังปรับปรุงคำตอบให้เป็นภาษาไทย..."
+          });
+          
+          // Use SANITIZATION instead of REWRITE (Requirement: Strip non-Thai tokens)
+          logBoth('warn', `[Language Validator] ⚠️ Non-Thai response detected! Stripping non-Thai segments...`);
+          
+          const sanitized = sanitizeThaiSegments(aiResponse);
+          
+          if (sanitized.length < 5) {
+             logBoth('error', `[Language Validator] ❌ Sanitization removed almost everything.`);
+             // If validation fails completely, use fallback error message
+             aiResponse = createThaiErrorResponse(currentText);
+          } else {
+             aiResponse = sanitized;
+             logBoth('info', `[Language Validator] ✅ Sanitized response (New length: ${aiResponse.length})`);
+          }
+
+        } else {
+          logBoth('info', `[Language Validator] ✅ Response is Thai-only (${languageCheck.confidence.toFixed(1)}% Thai)`);
+          
+          // Log AI response for quality monitoring
+          const previewLength = Math.min(aiResponse.length, 300);
+          logBoth('info', `[AI Response] "${aiResponse.substring(0, previewLength)}${aiResponse.length > 300 ? '...' : ''}"`);
+          if (aiResponse.length > 300) {
+            logBoth('info', `[AI Response] Full length: ${aiResponse.length} chars`);
+          }
+        }
+
+        // �📝 สำหรับ response ยาว (>1000 ตัวอักษร) ส่ง summary ก่อน
+        if (aiResponse.length > 1000 && chunkCount > 300) {
+          const summaryText = `📋 ตอบเสร็จแล้ว! (${aiResponse.length} ตัวอักษร, ใช้เวลา ${Math.floor(streamDuration/1000)}วินาที)`;
+          sendSafe(ws, { 
+            type: "response-summary", 
+            text: summaryText,
+            length: aiResponse.length,
+            duration: streamDuration
+          });
+        }
 
         // Add AI response to history and send back to client
         const aiMessage: any = { sender: "ai", text: aiResponse };
         if (structuredContent) {
           aiMessage.structuredContent = structuredContent;
         }
+        // Add toolsUsed if any tools were used
+        if (toolsUsedInThisRequest.length > 0) {
+          aiMessage.toolsUsed = toolsUsedInThisRequest;
+        }
         sessionHistory.push(aiMessage);
+        
+        // 📝 Log AI response to session with tools used
+        sessionManager.addMessage(currentSessionId, 'assistant', aiResponse, toolsUsedInThisRequest.length > 0 ? toolsUsedInThisRequest : undefined);
+        sessionManager.completeResponse(currentSessionId); // ✅ Complete tracking
+        logBoth('info', `[Session] Added AI response to session (tools: ${toolsUsedInThisRequest.join(', ') || 'none'})`);
+        
         logBoth('info', `AI response complete (responseLength: ${aiResponse.length}, totalMessages: ${sessionHistory.length})`);
 
-        // Send updated history back to client
-        ws.send(
-          JSON.stringify({
+        chatTraceOut({
+          transport: "ws",
+          sid: currentSessionId,
+          cid,
+          uiMode,
+          route: "ollama",
+          tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : "none",
+          code: 200,
+          durMs: Date.now() - traceStartMs,
+          ans: aiResponse,
+        });
+
+        // Send updated history back to client with toolsUsed
+        sendSafe(ws, {
             type: "history-update",
             messages: sessionHistory,
-          })
-        );
+            toolsUsed: toolsUsedInThisRequest.length > 0 ? toolsUsedInThisRequest : undefined,
+          });
+        sendDoneOnce();
       } catch (ollamaError) {
         logBoth("error", `[Chat API] Ollama error: ${ollamaError}`);
         logBoth('error', `Ollama chat error: ${ollamaError instanceof Error ? ollamaError.message : String(ollamaError)} (model: ${ollamaModel}, mode: ${AI_MODE})`);
-        ws.send(
-          JSON.stringify({ error: "Failed to get response from AI model" })
-        );
+        chatTraceOut({
+          transport: "ws",
+          sid: currentSessionId,
+          cid,
+          uiMode,
+          route: "ollamaError",
+          tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : "none",
+          code: 500,
+          durMs: Date.now() - traceStartMs,
+          ans: "Failed to get response from AI model",
+        });
+        sendSafe(ws, { error: "Failed to get response from AI model", type: "error" });
+        sendDoneOnce();
         return;
       }
     } catch (error) {
       logBoth("error", `[Chat API] Error parsing message: ${error}`);
       logBoth('error', `Message parsing error: ${error instanceof Error ? error.message : String(error)}`);
-      ws.send(JSON.stringify({ error: "Invalid message format" }));
+      sendSafe(ws, { error: "Invalid message format", type: "error" });
+      sendDoneOnce();
     }
+    }).catch(queueError => {
+      logBoth("error", `[Queue] Failed to process message: ${queueError}`);
+      try {
+        sendSafe(ws, { error: "Server busy, please try again", type: "error" });
+        sendSafe(ws, { type: "done" });
+      } catch (e) {
+        // WebSocket might be closed
+      }
+    });
   });
 
   ws.on("close", () => {
@@ -480,35 +1677,246 @@ wss.on("connection", (ws) => {
   });
 });
 
-// --- 7. POST Endpoint (REST API) ---
-chatRouter.post("/chat", async (req, res) => {
+// --- 7. POST Endpoint (REST API) with FastPath ---
+// 🚀 FastPath middleware intercepts greetings and responds immediately (<1s)
+// 🔐 optionalAuth: Attach user info if logged in, allow guests
+// 🎯 guestLimiter: Restrict guests to 50% capability
+// NOTE: Mounted at /api/chat, so this should be the root path
+chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddleware(), async (req, res) => {
   try {
+    syncChatAIModeIfChanged();
     const { message, messages } = req.body;
+    const uiMode = String((req.body as any)?.uiMode || "").trim();
+    const officerMode = uiMode === "officer";
+    const httpCid = String((req.headers["x-correlation-id"] as string) || (req.headers["x-correlationid"] as string) || "");
+    if (officerMode) {
+      logBoth("info", `[OfficerMode] uiMode=officer boostedTools=evidenceTool,webdTool_*`);
+    }
 
     if (!message) {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    logBoth("info", `[Chat API] Received POST chat message: ${JSON.stringify(message)}`);
+    logBoth("info", `[Chat API] Received POST chat message (len=${String(message || "").length})`);
 
     // Get full message history from client or initialize empty
     let sessionHistory: ChatMessage[] = messages || [];
 
+    // 📎 Handle file attachment (HTTP parity with WS)
+    let fileContext = "";
+    const file = (req.body as any)?.file;
+    if (file) {
+      try {
+        const name = String(file?.name || "(unknown)");
+        const type = String(file?.type || "application/octet-stream");
+        const size = Number(file?.size || 0);
+        logBoth("info", `[File Upload] POST: Processing file: ${name} (${type}, ${(size / 1024).toFixed(2)}KB)`);
+
+        if (type.startsWith("image/")) {
+          fileContext = `\n[ผู้ใช้แนบรูปภาพ: ${name}]`;
+        } else {
+          fileContext = `\n[ผู้ใช้แนบไฟล์: ${name} (${type})]`;
+        }
+      } catch {
+        // ignore malformed file payload
+      }
+    }
+
+    const messageWithFile = String(message || "") + fileContext;
+
+    const traceStartMs = Date.now();
+    const officerAction = officerMode ? inferOfficerEvidenceAction(messageWithFile) : undefined;
+
+    // Best-effort sessionId/requestId correlation for HTTP parity
+    const cookieMap = String(req.headers.cookie || "")
+      .split(";")
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .reduce((acc, pair) => {
+        const [k, v] = pair.split("=");
+        if (k) acc[k] = v;
+        return acc;
+      }, {} as Record<string, string>);
+    const httpSessionId = cookieMap.sessionId || (req.headers["x-session-id"] as string) || undefined;
+
+    chatTraceIn({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, msg: messageWithFile });
+
     // Add user message to history
-    sessionHistory.push({ sender: "user", text: message });
+    sessionHistory.push({ sender: "user", text: messageWithFile });
     logBoth("info", `[Chat API] POST: Session history: ${sessionHistory.length} messages (before AI)`);
 
-    let finalMessage = message;
-    let mcpResults = null;
+    // =====================================
+    // Phase 7.2.1: Deterministic Officer Evidence Router (NO LLM args)
+    // =====================================
+    if (mcpClient && officerMode && officerAction) {
+      logBoth("info", `[OfficerMode] deterministicEvidence=true transport=http action=${officerAction}`);
+
+      const toolName = "innomcp-server:evidenceTool";
+      const toolResults = await mcpClient.executeTools([toolName], messageWithFile, {
+        [toolName]: { action: officerAction },
+      });
+
+      const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+      const sc = first?.structuredContent ?? first?.result;
+      const direct = renderStructuredDirect(first?.toolName || toolName, sc, messageWithFile);
+      const textOut = direct?.text || "ขออภัย ไม่สามารถดึงข้อมูลหลักฐานได้ในขณะนี้";
+
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+
+      chatTraceOut({
+        transport: "http",
+        sid: httpSessionId,
+        cid: httpCid,
+        uiMode,
+        route: "officerEvidence",
+        tool: toolName,
+        code: 200,
+        durMs: Date.now() - traceStartMs,
+        ans: textOut,
+      });
+
+      return res.json({
+        text: textOut,
+        structuredContent: sc,
+        messages: sessionHistory,
+        mcpUsed: true,
+        mcpResults: toolResults,
+      });
+    }
+
+    // =====================================
+    // Phase 7.1: Deterministic Weather Router (NO LLM tool planning)
+    // Gate BEFORE any MCP tool selection / LLM classification.
+    // =====================================
+    const weatherLike = looksLikeDeterministicWeatherQuery(messageWithFile);
+    const allowWeatherGate = !officerMode ? weatherLike : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile);
+    if (mcpClient && allowWeatherGate) {
+      const deep = wantsDeepExplain(messageWithFile);
+      logBoth("info", `[WeatherGate] bypass=true transport=http deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
+
+      const toolResult = await mcpClient.runDeterministicWeatherPipeline(messageWithFile);
+      const sc = toolResult.structuredContent;
+      const payload = sc?.weatherPipeline ?? sc;
+
+      if (!deep) {
+        const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
+        sessionHistory.push({ sender: "ai", text: direct.text } as any);
+
+        chatTraceOut({
+          transport: "http",
+          sid: httpSessionId,
+          cid: httpCid,
+          uiMode,
+          route: "weatherGate",
+          tool: "weatherPipeline",
+          code: 200,
+          durMs: Date.now() - traceStartMs,
+          ans: direct.text,
+        });
+        return res.json({
+          text: direct.text,
+          structuredContent: direct.structuredContent,
+          messages: sessionHistory,
+          mcpUsed: true,
+          mcpResults: [toolResult],
+        });
+      }
+
+      const explainPrompt = [
+        "โปรดอธิบายผลสภาพอากาศต่อไปนี้เป็นภาษาไทยแบบเข้าใจง่าย และสรุปสั้นๆ ก่อน แล้วค่อยอธิบายรายละเอียด:",
+        "- ห้ามตัดสินใจเรียกเครื่องมือหรือขอข้อมูลเพิ่ม",
+        "- ห้ามเอ่ยชื่อ tool/MCP/ระบบ",
+        "- ถ้าข้อมูลเป็น error ให้บอกผู้ใช้ว่าควรพิมพ์เพิ่มอะไร",
+        "",
+        `คำถามผู้ใช้: ${messageWithFile}`,
+        "ผลแบบโครงสร้าง (JSON):",
+        JSON.stringify(payload),
+      ].join("\n");
+
+      const resp = await ollama.chat({
+        model: ollamaModel,
+        messages: [
+          { role: "system", content: "คุณเป็นผู้ช่วยภาษาไทยที่สุภาพ กระชับ และแม่นยำ" },
+          { role: "user", content: explainPrompt },
+        ],
+        stream: false,
+      });
+
+      const explainText = String(resp?.message?.content || "").trim() || renderWeatherDirectAnswer(messageWithFile, payload).text;
+      sessionHistory.push({ sender: "ai", text: explainText } as any);
+
+      chatTraceOut({
+        transport: "http",
+        sid: httpSessionId,
+        cid: httpCid,
+        uiMode,
+        route: "weatherGate",
+        tool: "weatherPipeline",
+        code: 200,
+        durMs: Date.now() - traceStartMs,
+        ans: explainText,
+      });
+      return res.json({
+        text: explainText,
+        structuredContent: sc,
+        messages: sessionHistory,
+        mcpUsed: true,
+        mcpResults: [toolResult],
+      });
+    }
+
+    let finalMessage = messageWithFile;
+    let mcpResults: any[] | null = null;
+    let structuredContent: any = undefined;
+    let toolsUsedInThisRequest: string[] = [];
 
     // **Process with MCP**
     if (mcpClient) {
       try {
-        const mcpResult = await mcpClient.processMessage(message);
+        const mcpResult = await mcpClient.processMessage(
+          messageWithFile,
+          undefined,
+          officerMode ? { uiMode: "officer", boostedTools: ["evidenceTool", "webdTool"] } : undefined
+        );
 
         if (mcpResult.needsTools) {
           logBoth("info", `[Chat API] Processed with MCP tools: ${mcpResult.toolResults?.length}`);
-          mcpResults = mcpResult.toolResults;
+          mcpResults = mcpResult.toolResults ?? null;
+
+          if (mcpResult.toolResults) {
+            toolsUsedInThisRequest = mcpResult.toolResults.map((r: any) => r?.toolName).filter(Boolean);
+          }
+
+          const structuredResult = mcpResult.toolResults?.find((r: any) => r && r.structuredContent);
+          if (structuredResult) {
+            const direct = renderStructuredDirect(structuredResult.toolName, structuredResult.structuredContent, messageWithFile || "");
+            if (direct) {
+              logBoth(
+                "info",
+                `[StructuredDirect] tool=${structuredResult.toolName} keys=${structuredKeysSummary(structuredResult.structuredContent)} bypass=true`
+              );
+              sessionHistory.push({ sender: "ai", text: direct.text } as any);
+
+              chatTraceOut({
+                transport: "http",
+                sid: httpSessionId,
+                cid: httpCid,
+                uiMode,
+                route: "mcpDirect",
+                tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : (structuredResult.toolName || "none"),
+                code: 200,
+                durMs: Date.now() - traceStartMs,
+                ans: direct.text,
+              });
+              return res.json({
+                text: direct.text,
+                structuredContent: direct.structuredContent,
+                messages: sessionHistory,
+                mcpUsed: true,
+                mcpResults: mcpResults,
+              });
+            }
+          }
 
           if (mcpResult.enhancedContext) {
             finalMessage = mcpResult.enhancedContext;
@@ -535,6 +1943,18 @@ chatRouter.post("/chat", async (req, res) => {
           }
 
           sessionHistory.push({ sender: "ai", text: sorryMessage });
+
+          chatTraceOut({
+            transport: "http",
+            sid: httpSessionId,
+            cid: httpCid,
+            uiMode,
+            route: "mcpToolsFailed",
+            tool: "none",
+            code: 200,
+            durMs: Date.now() - traceStartMs,
+            ans: sorryMessage,
+          });
           return res.json({
             text: sorryMessage,
             messages: sessionHistory,
@@ -550,20 +1970,45 @@ chatRouter.post("/chat", async (req, res) => {
     // Map history to Ollama format
    const systemPrompt = {
     role: "system",
-    content: `คุณเป็น AI ผู้ช่วยที่มีความสำคัญ:
-1. จำประวัติการสนทนาที่ผ่านมาและใช้บริบทเพื่อให้คำตอบที่สอดคล้อง
-2. หากมีข้อมูลจากภายนอกหรือกระบวนการภายใน ให้นำมาเป็นส่วนหนึ่งของผลลัพธ์เท่านั้นโดยไม่เปิดเผยแหล่งที่มา
-3. ห้ามกล่าวถึงหรือบอกเป็นนัยเกี่ยวกับการใช้ tools, MCP, "MCP tools", MCP server, หรือระบบภายในใดๆ — ห้ามเผยชื่อ กระบวนการ หรืออธิบายการทำงานภายในในทุกรูปแบบ
-4. หากไม่ได้รับข้อมูลที่เพียงพอ ให้ตอบว่า "ขออภัย ฉันยังไม่มีข้อมูลที่คุณต้องการ" หรือให้คำแนะนำสั้นๆ โดยไม่อธิบายสาเหตุภายใน
-5. ตอบเป็นภาษาไทยเป็นหลัก และตอบในรูปแบบ markdown เสมอ โดยใช้ headings สำหรับหัวข้อ เช่น:
-  # หัวข้อหลัก
-  เนื้อหา...
-  ## หัวข้อย่อย
-  เนื้อหา...
-6. ใช้ markdown table เมื่อเหมาะสม เช่น แสดงข้อมูลในรูปแบบตาราง การเปรียบเทียบ หรือตัวเลขสถิติ
-7. ใช้ bullet points (- หรือ *) หรือ numbering (1. 2.) เมื่อเหมาะสม
-8. หลีกเลี่ยงการส่งข้อความธรรมดาโดยไม่มีการจัดรูปแบบ
-9. โครงสร้างคำตอบ: เริ่มด้วยหัวข้อหลัก, ตามด้วยเนื้อหา`,
+    content: `คุณเป็น AI ผู้ช่วยภาษาไทย ที่ฉลาด เข้าใจบริบท และตอบคำถามได้แม่นยำ:
+
+**⚠️ กฎที่สำคัญที่สุด - ภาษาไทยบริสุทธิ์ 100%:**
+1. **ตอบเป็นภาษาไทยเท่านั้น** - ห้ามมีตัวอักษรจีน อังกฤษ หรือภาษาอื่นใด ๆ
+2. **คำศัพท์เทคนิคเท่านั้น** - API, URL, JSON ใช้อังกฤษได้ แต่ต้องอธิบายเป็นไทย
+3. **ตรวจสอบก่อนส่ง** - ถ้ามีภาษาจีน/อังกฤษปน → ห้ามส่ง แปลเป็นไทยก่อน
+4. **ห้ามเอ่ยชื่อ tool/MCP/ระบบ** - ตอบเหมือนคุณรู้เองโดยธรรมชาติ
+
+**ตัวอย่างที่ถูกต้อง:**
+- ❌ "ไม่มีข้อมูล, you can check later" → ✅ "ขออภัย ยังไม่มีข้อมูลในขณะนี้"
+- ❌ "กรุงเทพ temperature 30°C" → ✅ "กรุงเทพอุณหภูมิ 30 องศาเซลเซียส"
+- ❌ "查询完成" → ✅ "ตรวจสอบเรียบร้อยแล้ว"
+
+**บริบทสำคัญ:**
+- คุณให้บริการผู้ใช้ชาวไทยเป็นหลัก
+- เวลา/สถานที่/อากาศโดยไม่ระบุ → **สันนิษฐานว่าหมายถึงประเทศไทย**
+  - "ตอนนี้กี่โมง" = เวลาไทย
+  - "ฝนตกไหม" = อากาศไทย (ปัจจุบัน)
+  - "พรุ่งนี้ฝนตก" = พยากรณ์อากาศไทย (อนาคต)
+  - "กลางดึกคืนนี้" = เวลากลางคืนวันนี้ (อนาคต)
+  - "โคราช" = นครราชสีมา, "กทม" = กรุงเทพมหานคร
+
+**เข้าใจข้อจำกัดข้อมูล:**
+- ข้อมูล **ปัจจุบัน** (3 ชั่วโมง) ≠ **พยากรณ์** (7 วัน)
+- ถ้าถามเรื่อง **อนาคต** (กลางดึก/พรุ่งนี้) แต่มีแค่ข้อมูล**ปัจจุบัน** → ตอบว่า "ข้อมูลที่มีเป็นข้อมูลปัจจุบัน ไม่สามารถพยากรณ์ได้"
+- **ห้ามเดา ห้ามสมมติ** - ตอบจากข้อมูลที่มีเท่านั้น
+
+**การจัดรูปแบบ (Markdown):**
+- ใช้ # หัวข้อหลัก, ## หัวข้อย่อย
+- ใช้ **ตัวหนา** สำหรับข้อมูลสำคัญ
+- ใช้ bullet points (-) หรือ numbering (1. 2.)
+- ตาราง: | คอลัมน์ 1 | คอลัมน์ 2 |
+- Code: \`\`\`python ... \`\`\`
+
+**หลักการตอบ:**
+- เข้าใจคำถามลึกซึ้ง (อ่านเจตนา ไม่ใช่แค่คำ)
+- ตอบตรงประเด็น กระชับ ชัดเจน **ภาษาไทยบริสุทธิ์**
+- หากข้อมูลไม่ครบ → บอกข้อจำกัด ไม่เดา
+- **จำไว้: ตอบเป็นภาษาไทยเท่านั้น ห้ามปนภาษาอื่น!**`,
    };
 
     const ollamaMessages = [
@@ -588,6 +2033,18 @@ chatRouter.post("/chat", async (req, res) => {
     // Add AI response to history
     sessionHistory.push({ sender: "ai", text: response.message.content });
     logBoth("info", `[Chat API] POST: Session now has ${sessionHistory.length} messages`);
+
+    chatTraceOut({
+      transport: "http",
+      sid: httpSessionId,
+      cid: httpCid,
+      uiMode,
+      route: "ollama",
+      tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : "none",
+      code: 200,
+      durMs: Date.now() - traceStartMs,
+      ans: String(response.message.content || ""),
+    });
 
     res.json({
       text: response.message.content,
@@ -639,4 +2096,122 @@ chatRouter.get("/mcp/tools", (req, res) => {
   });
 });
 
-export { chatRouter, wss };
+// --- 9. MCP Health & Reconnection Endpoints ---
+chatRouter.get("/mcp/health", (req, res) => {
+  if (!mcpClient) {
+    return res.status(503).json({
+      healthy: false,
+      error: "MCP client not initialized",
+    });
+  }
+
+  const stats = mcpClient.getStatistics();
+  const tools = mcpClient.getAvailableTools();
+  const clients = mcpClient.getConnectedClients();
+
+  const healthy = clients.length > 0 && tools.length > 0;
+
+  res.json({
+    healthy,
+    timestamp: new Date().toISOString(),
+    clients: {
+      count: clients.length,
+      names: clients,
+    },
+    tools: {
+      count: tools.length,
+      total: stats.availableTools,
+    },
+    resources: {
+      count: stats.availableResources,
+    },
+    cache: {
+      queries: stats.cachedQueries,
+      historySize: stats.historySize,
+    },
+    aiMode: stats.aiMode,
+  });
+});
+
+chatRouter.post("/mcp/reconnect", async (req, res) => {
+  if (!mcpClient) {
+    return res.status(503).json({
+      success: false,
+      error: "MCP client not initialized",
+    });
+  }
+
+  try {
+    logBoth("info", "[Chat API] Manual MCP reconnection requested");
+    
+    // Trigger reconnection in background
+    mcpClient.forceReconnect().catch((err) => {
+      logBoth("error", `[Chat API] Manual reconnection failed: ${err}`);
+    });
+
+    res.json({
+      success: true,
+      message: "Reconnection initiated",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logBoth("error", `[Chat API] Error initiating reconnection: ${error}`);
+    res.status(500).json({
+      success: false,
+      error: "Failed to initiate reconnection",
+    });
+  }
+});
+
+// --- 10. Tool Health Check Endpoints ---
+chatRouter.get("/tools/health", (req, res) => {
+  if (!toolHealthChecker) {
+    return res.status(503).json({
+      error: "Tool health checker not initialized",
+      available: false,
+    });
+  }
+
+  try {
+    const healthData = toolHealthChecker.getHealthStatusJSON();
+    res.json(healthData);
+  } catch (error) {
+    logBoth("error", `[Chat API] Error getting tool health: ${error}`);
+    res.status(500).json({
+      error: "Failed to get tool health status",
+    });
+  }
+});
+
+chatRouter.post("/tools/health/check", async (req, res) => {
+  if (!toolHealthChecker) {
+    return res.status(503).json({
+      success: false,
+      error: "Tool health checker not initialized",
+    });
+  }
+
+  try {
+    logBoth("info", "[Chat API] Manual tool health check requested");
+    
+    // Trigger health check in background
+    toolHealthChecker.triggerManualCheck().catch((err) => {
+      logBoth("error", `[Chat API] Manual health check failed: ${err}`);
+    });
+
+    res.json({
+      success: true,
+      message: "Health check initiated",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    logBoth("error", `[Chat API] Error initiating health check: ${error}`);
+    res.status(500).json({
+      success: false,
+      error: "Failed to initiate health check",
+    });
+  }
+});
+
+export { chatRouter, wss, mcpClient, toolHealthChecker };
+

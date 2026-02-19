@@ -1,0 +1,76 @@
+{
+  "name": "innomcp-workspace",
+  "version": "1.0.0",
+  "description": "INNOMCP AI Chatbot with MCP Tools - Monorepo Workspace",
+  "private": true,
+  "workspaces": [
+    "innomcp-next",
+    "innomcp-node",
+    "innomcp-server-node"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"BACKEND,MCP,FRONTEND\" -c \"cyan,magenta,green\" \"npm run dev:backend\" \"npm run dev:mcp\" \"npm run dev:frontend\"",
+    "dev:backend": "cd innomcp-node && npm run dev",
+    "dev:mcp": "cd innomcp-server-node && npm run dev",
+    "dev:frontend": "cd innomcp-next && npm run dev",
+    "dev:logged": "powershell -ExecutionPolicy Bypass -File scripts/start-dev-logged.ps1",
+    "build": "npm run build:backend && npm run build:mcp && npm run build:frontend",
+    "build:backend": "cd innomcp-node && npm run build",
+    "build:mcp": "cd innomcp-server-node && npm run build",
+    "build:frontend": "cd innomcp-next && npm run build",
+    "start": "concurrently -n \"BACKEND,MCP,FRONTEND\" -c \"cyan,magenta,green\" \"npm run start:backend\" \"npm run start:mcp\" \"npm run start:frontend\"",
+    "start:backend": "cd innomcp-node && npm start",
+    "start:mcp": "cd innomcp-server-node && npm start",
+    "start:frontend": "cd innomcp-next && npm start",
+    "kill": "bash ./kill-all-processes.sh",
+    "test": "bash ./test-performance.sh",
+    "test:mcp": "curl -X POST http://localhost:3012/mcp -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}'",
+    "install:all": "npm install && cd innomcp-next && npm install && cd ../innomcp-node && npm install && cd ../innomcp-server-node && npm install",
+    "clean": "rm -rf node_modules innomcp-next/node_modules innomcp-node/node_modules innomcp-server-node/node_modules",
+    "clean:dist": "rm -rf innomcp-next/.next innomcp-node/dist innomcp-server-node/dist",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd innomcp-next && npm run lint",
+    "lint:backend": "cd innomcp-node && npm run lint",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "@types/jest": "^30.0.0",
+    "@types/node-fetch": "^2.6.13",
+    "concurrently": "^9.1.2",
+    "jest": "^30.2.0",
+    "node-fetch": "^2.7.0",
+    "ts-jest": "^29.4.6"
+  },
+  "overrides": {
+    "zod": "3.22.4"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/innomcp.git"
+  },
+  "keywords": [
+    "ai",
+    "chatbot",
+    "mcp",
+    "model-context-protocol",
+    "ollama",
+    "nextjs",
+    "nodejs",
+    "typescript",
+    "websocket",
+    "streaming"
+  ],
+  "author": "INNOMCP Team",
+  "license": "MIT",
+  "dependencies": {
+    "@types/winston": "^2.4.4",
+    "winston": "^3.19.0"
+  }
+}

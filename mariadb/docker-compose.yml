@@ -4,6 +4,8 @@ services:
   mariadb:
     container_name: mariadb-innomcp
     image: mariadb:11.8.2-noble
+    ports:
+      - "3308:3308"
     volumes:
       - innomcp-db_volume:/var/lib/mysql
     environment:

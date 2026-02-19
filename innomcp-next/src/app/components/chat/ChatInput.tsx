@@ -10,6 +10,7 @@ import {
   faStop,
 } from "@fortawesome/free-solid-svg-icons";
 import AIModelSelector from "./AIModelSelector";
+import ToolsTypeSelector, { type ToolType } from "./ToolsTypeSelector";
 
 interface ChatInputProps {
   input: string;
@@ -29,6 +30,9 @@ interface ChatInputProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   adjustTextarea: () => void;
   theme: string;
+  onToolTypeChange?: (type: ToolType) => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -49,6 +53,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
   fileInputRef,
   adjustTextarea,
   theme,
+  onToolTypeChange,
+  onFocus,
+  onBlur,
 }) => {
   // Add animation dots when waiting for AI response
   const DotsAnimation: React.FC = () => {
@@ -99,17 +106,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
             setInput(e.target.value);
             adjustTextarea();
           }}
+          onFocus={onFocus}
+          onBlur={onBlur}
           onKeyDown={(e) => {
-            // Shift+Enter to send message
-            if (e.key === "Enter" && e.shiftKey && !e.ctrlKey && !e.altKey) {
+            // Enter to send message (Shift+Enter for new line)
+            if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.altKey) {
               e.preventDefault();
               if (input.trim() && isSocketReady && !isWaitingForResponse) {
                 sendMessage();
               }
             }
+            // Shift+Enter allows new line (default textarea behavior)
           }}
           rows={1}
-          placeholder="มีอะไรให้ช่วยไหม? (Shift+Enter เพื่อส่ง)"
+          placeholder="มีอะไรให้ช่วยไหม? (Enter เพื่อส่ง, Shift+Enter เพื่อเว้นบรรทัด)"
           className="w-full resize-none focus:outline-none transition-all max-h-60 overflow-y-auto"
           data-testid="chat-input"
         />
@@ -133,17 +143,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
         )}
         <div className="flex gap-4 pt-8 pb-0 justify-between">
           <div className="flex gap-2">
-            <button
-              onClick={handleNewChat}
-              className="bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-200 rounded-full p-2 w- h-8 font-semibold shadow flex items-center gap-2 hover:bg-green-200 dark:hover:bg-green-800 transition-colors cursor-pointer"
-              title="เริ่มการแชทใหม่"
-            >
-              <FontAwesomeIcon icon={faRefresh} />
-            </button>
+            {/* Dropdown with New Chat and Tools Type Selector */}
+            <ToolsTypeSelector 
+              onNewChat={handleNewChat}
+              onToolTypeChange={onToolTypeChange}
+              theme={theme}
+            />
             <button
               onClick={() => fileInputRef.current?.click()}
               title="แนบไฟล์"
-              className="bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-200 rounded-full p-2 w- h-8 font-semibold shadow flex items-center gap-2 hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors cursor-pointer"
+              className="bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/80 rounded-full p-2 w-9 h-9 font-semibold shadow-sm flex items-center justify-center hover:bg-primary/20 dark:hover:bg-primary/30 hover:scale-105 transition-all duration-200 cursor-pointer"
             >
               <FontAwesomeIcon icon={faPaperclip} />
             </button>
@@ -153,13 +162,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <button
               onClick={isWaitingForResponse ? handleStop : sendMessage}
               disabled={!isSocketReady}
-              className={`bg-linear-to-r from-indigo-500 to-blue-400 text-white rounded-lg px-6 py-2 font-semibold shadow transition-colors cursor-pointer ${
+              className={`bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-6 py-2 font-semibold shadow-md transition-all duration-200 cursor-pointer ${
                 !isSocketReady
                   ? "opacity-50 cursor-not-allowed"
-                  : "hover:from-blue-400 hover:to-indigo-500"
+                  : "hover:shadow-lg hover:scale-105"
               }`}
               data-testid="send-btn"
-              title={isWaitingForResponse ? "หยุดการตอบ" : "ส่งข้อความ (Shift+Enter)"}
+              title={isWaitingForResponse ? "หยุดการตอบ" : "ส่งข้อความ (Enter)"}
             >
               {isWaitingForResponse ? (
                 <FontAwesomeIcon icon={faStop} className="font-bold" />

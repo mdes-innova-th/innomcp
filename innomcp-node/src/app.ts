@@ -1,19 +1,46 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
+import { correlationIdMiddleware } from "./middleware/correlationId";
+import { performanceTrackingMiddleware } from "./middleware/performanceTracking";
 import apiRouter from "./routes/api";
 import apiCsrfRouter from "./routes/api/csrf";
 import aiModeRouter from "./routes/api/aiMode";
+import metricsRouter from "./routes/api/metrics";
+import authRouter from "./routes/api/auth";
+import workspaceRouter from "./routes/api/workspace";
 import { apiKeyMiddleware } from "./utils/apikey";
 import csrfMiddleware from "./utils/csrf";
 import { chatRouter } from "./routes/api/chat";
 import logger from "./utils/logger";
+import debugRouter from "./routes/api/debug";
 
 // Initialize Express application
 const app = express();
 
 logger.info('🚀 Backend application starting...');
 const allowedOrigin = process.env.ALLOWED_ORIGIN?.split(",") || [];
+
+// CORS origin function - allow all in development, restricted in production
+const corsOriginFn = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+  // No origin = same-origin request (e.g., curl, Postman, server-to-server)
+  if (!origin) {
+    return callback(null, true);
+  }
+  
+  // Development mode: allow all origins
+  if (process.env.NODE_ENV === 'development') {
+    return callback(null, true);
+  }
+  
+  // Production mode: check against whitelist
+  if (allowedOrigin.includes(origin)) {
+    callback(null, true);
+  } else {
+    callback(new Error('Not allowed by CORS'));
+  }
+};
 
 // Security headers middleware
 app.use((req, res, next) => {
@@ -27,10 +54,20 @@ app.use((req, res, next) => {
   next();
 });
 
+// รองรับการแปลง JSON และ URL-encoded ในตัว request (ต้องมาก่อน CORS)
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
+// Debug logging middleware
+app.use((req, res, next) => {
+  logger.info(`[REQUEST] ${req.method} ${req.url} from ${req.headers.origin || 'no-origin'}`);
+  next();
+});
+
 // ใช้ cors middleware แทนการกำหนด header เอง
 app.use(
   cors({
-    origin: allowedOrigin, // ระบุ origin ที่อนุญาต เช่น ["http://localhost:3000", "https://yourdomain.com"]
+    origin: corsOriginFn, // Dynamic origin checking
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "X-API-Key"],
     credentials: true,
@@ -39,28 +76,14 @@ app.use(
   })
 );
 
-// รองรับการแปลง JSON ในตัว request
-app.use(express.json({ limit: "50mb" }));
+// Parse cookies
+app.use(cookieParser());
 
-// ⏱️ Performance Logging Middleware
-app.use((req, res, next) => {
-  const requestStartTime = Date.now();
-  const method = req.method;
-  const url = req.originalUrl || req.url;
+// Correlation ID tracking
+app.use(correlationIdMiddleware);
 
-  logger.info(`[⏱️  START] ${method} ${url}`);
-
-  // Log response time when request finishes
-  res.on("finish", () => {
-    const duration = Date.now() - requestStartTime;
-    const statusCode = res.statusCode;
-    const statusEmoji = statusCode >= 500 ? "❌" : statusCode >= 400 ? "⚠️ " : statusCode >= 300 ? "↪️ " : "✅";
-    
-    logger.info(`[⏱️  ${duration}ms] ${statusEmoji} ${method} ${url} → ${statusCode}`);
-  });
-
-  next();
-});
+// ⏱️ Performance Tracking Middleware (records latency metrics)
+app.use(performanceTrackingMiddleware);
 
 // Default route
 app.get("/", (req, res) => {
@@ -75,11 +98,24 @@ app.get("/health", (req, res) => {
 // Router สำหรับ CSRF (ไม่ต้อง auth เพือ testsuit)
 app.use("/api-get/csrf", apiCsrfRouter);
 
+// Router สำหรับ Metrics (ไม่ต้อง auth เพือ monitoring)
+app.use("/api/metrics", metricsRouter);
+
 // Router สำหรับ AI Mode (ไม่ต้อง auth เพือ testsuit - ต้องอยู่ก่อน /api middleware)
 app.use("/api/ai-mode", aiModeRouter);
 
+// Router สำหรับ Debug/Test GUI (ไม่ต้อง auth)
+app.use("/api/debug", debugRouter);
+
 // Router สำหรับ Chat (ไม่ต้อง auth เพือ testsuit - ต้องอยู่ก่อน /api middleware)
+// FastPath middleware อยู่ใน chatRouter แล้ว
 app.use("/api/chat", chatRouter);
+
+// Router สำหรับ Authentication (public endpoints)
+app.use("/api/auth", authRouter);
+
+// Router สำหรับ Workspace (requires authentication)
+app.use("/api/workspace", workspaceRouter);
 
 // Router สำหรับ API endpoint ทั้งหมดที่ต้องการ API key
 app.use("/api", apiKeyMiddleware, csrfMiddleware, apiRouter);
