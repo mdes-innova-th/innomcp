@@ -380,6 +380,205 @@ Evidence
   - (ให้ยึด canonical ที่ backend) `npm --prefix innomcp-node run test:geo` (expect: 8 passed, 0 failed)
   - `npm --prefix innomcp-server-node run build` (expect: PASS หลังลบ geo duplicate)
 
+\***\*\*\*\*** PHASE 1: GEO — Round A (Review Spec + Plan) (2026-02-20) \***\*\*\*\***
+
+Goal
+
+- Review existing GEO context in repo + define a concrete GEO spec + implementation plan that fits INNOMCP MCP tool architecture.
+- Round A is docs-only (no code changes).
+
+Repo context (what already exists)
+
+- MCP tool spec (legacy): `docs/mcp-tools/thai_geo_tool.md`
+- MCP server tool: `innomcp-server-node/src/mcp/tools/thaiGeoTool.ts`
+  - Primary store: MariaDB table `knowledge_entities` where `domain='geo'`
+  - Fallback: `InMemoryGeoDb` with `THAI_GEO_SEED` (DOPA source marker)
+- Seed script (DB optional): `innomcp-server-node/scripts/seed_thai_geo.ts` (DRY-RUN by default; `--exec` to insert)
+- Verify script (ad-hoc): `innomcp-server-node/scripts/verify_thai_geo.ts`
+- Backend-side tool definition (local DB wrapper): `innomcp-node/src/utils/mcp/tools/thai_geo_tool.ts`
+- Separate “GEO core” modules (weather-only routing): `innomcp-node/src/geo/*` (intent/router/guard/aggregator/service)
+
+Deliverable 1) GEO Scope + user stories (admin areas normalization + lookup)
+
+- Scope (Round B minimal happy path)
+  - Normalize Thai admin-area references into structured components:
+    - province (จังหวัด)
+    - district (อำเภอ/เขต)
+    - subdistrict (ตำบล/แขวง)
+    - postcode (รหัสไปรษณีย์)
+  - Search/fuzzy lookup by:
+    - Thai name (exact/partial)
+    - common aliases (เช่น โคราช → นครราชสีมา, กทม → กรุงเทพมหานคร)
+    - optional region filter (เหนือ/ใต้/กลาง/อีสาน/ตะวันออก/ตะวันตก)
+  - Return canonical Thai name(s) + region + optional centroid lat/lon (if present).
+
+- Out-of-scope (Round A/B)
+  - Full polygon reverse geocoding (requires heavy geometry datasets)
+  - Address-to-house-number precision (PII-adjacent, not needed for tool selection)
+
+- User stories
+  1. “โคราช” → ได้ผลลัพธ์เป็น “นครราชสีมา” พร้อม `region='อีสาน'` และ confidence สูง
+  2. “จังหวัดเชียงใหม่” / “จ.เชียงใหม่” → normalize เหลือ province=เชียงใหม่
+  3. “อำเภอสามพราน นครปฐม” → normalize เป็น province=นครปฐม, district=สามพราน (ถ้าระบบมี district dataset)
+  4. “ตำบลบางเลน” (กำกวม) → ส่งกลับแบบ AMBIGUOUS พร้อม candidate list + กติกาให้ถามต่อ
+  5. “รหัสไปรษณีย์ 10110 อยู่เขตอะไร” → คืน candidate เขต/แขวง/จังหวัดที่สัมพันธ์ (ถ้ามี postcode mapping)
+
+- Ambiguity + ranking rules (deterministic)
+  - Exact match > alias exact > prefix/contains > description match
+  - If multiple candidates:
+    - Prefer province matches over lower admin levels when query is short (≤ 6 chars) และไม่มีคำว่า อำเภอ/ตำบล/เขต/แขวง
+    - If user supplies explicit admin keywords (จังหวัด/อำเภอ/ตำบล/เขต/แขวง) → boost that level
+    - If `filter_region` is provided → hard filter first, then rank
+  - Confidence gating:
+    - If top1 confidence < `confidence_required` → return `NOT_FOUND` (or `AMBIGUOUS` when there are multiple close scores)
+
+Deliverable 2) Data source plan
+
+- Primary storage (already aligned with Thai Knowledge tools)
+  - MariaDB table `knowledge_entities` with `domain='geo'`
+  - Fields already used by `thaiGeoTool.ts`: `id, name_th, aliases, description, attributes, relations, source, confidence, version, updated_at`
+
+- Data model extensions (planned)
+  - `attributes` should evolve to support normalization use-cases:
+    - `province` (required)
+    - `district` (optional)
+    - `subdistrict` (optional)
+    - `postcode` (optional)
+    - `region` (required)
+    - `lat/lon` (optional; centroid only)
+  - `relations` reserved for parent-child links (district→province, subdistrict→district, postcode→area)
+
+- Update/seed strategy
+  - Keep a versioned seed script (`seed_thai_geo.ts`) as the single source of truth for bootstrapping minimal dataset.
+  - Allow future “full dataset import” as a separate, explicit script (not auto-run in dev).
+
+- Licensing note (short)
+  - Current repo declares sources in `docs/mcp-tools/thai_geo_tool.md` and seed markers in `thaiGeoTool.ts` (DOPA/data.go.th; OSM/osm.org mentioned in spec).
+  - Policy: store only names/aliases/admin-level + centroid (no full map tiles/polygons) unless we add an explicit ODbL-compliant ingestion path later.
+
+Deliverable 3) Tool/API design (MCP)
+
+- Principle
+  - Keep weather GEO core (`innomcp-node/src/geo/*`) separate from Thai admin-area lookup to avoid tool-selection conflicts.
+  - Use deterministic routing first; do not require LLM to decide “this is geo”.
+
+- Proposed MCP tools
+  1. Existing (keep as canonical lookup)
+     - Tool name: `thai_geo_tool`
+     - Purpose: fuzzy search geo entities + optional region filter + confidence gating
+     - Input (Round B minimal): `query` (string), optional `filter_region` (string), optional `context.confidence_required` (number)
+     - Output (success): list of entities with canonical names + attributes (province/district/subdistrict/region/lat/lon/postcode when available) + overall confidence
+     - Error codes: `INVALID_QUERY`, `NOT_FOUND`, `DB_ERROR`
+
+  2. New (planned; not required for Round B minimal unless SA wants)
+     - Tool name: `thai_address_normalize_tool`
+     - Purpose: parse/normalize free-text Thai address into structured components (province/district/subdistrict/postcode) and return candidates when ambiguous
+     - Error codes: `INVALID_QUERY`, `AMBIGUOUS`, `NOT_FOUND`, `DB_ERROR`
+
+  3. Optional (Round C)
+     - Tool name: `thai_geo_reverse_lookup_tool`
+     - Purpose: lat/lon → best-effort admin area (centroid/bounds only in early versions)
+     - Error codes: `INVALID_QUERY`, `NOT_FOUND`, `UNSUPPORTED` (if polygon dataset not installed)
+
+- Deterministic routing rules (backend)
+  - Rule 0: If weather intent is detected by existing `GeoIntent` (weather keywords/TMD/NWP patterns) → route to weather tool plan, not `thai_geo_tool`.
+  - Rule 1: If message contains admin-area keywords (จังหวัด/อำเภอ/ตำบล/เขต/แขวง/ภาค/พิกัด/แผนที่) OR contains a 5-digit token (postcode) → geo routing candidate.
+  - Rule 2: If message looks like a full address (has ≥2 admin keywords or contains postcode + at least 1 Thai token) → call `thai_address_normalize_tool` first (planned), else call `thai_geo_tool`.
+  - Rule 3: If user asks “อยู่จังหวัดอะไร/อยู่เขตอะไร/รหัสไปรษณีย์อะไร” and provides a name → `thai_geo_tool`.
+
+- Acceptance criteria (Round B minimal)
+  - Tool answers must be deterministic for core aliases: โคราช/กทม/เชียงใหม่/ภูเก็ต
+  - Must return stable structured output keys (no free-form paragraphs in tool output)
+  - Must not require DB to exist (fallback seed works)
+
+Deliverable 4) Performance plan
+
+- DB query strategy
+  - Prefer FULLTEXT (`MATCH ... AGAINST`) for `name_th, description` when available; fallback to LIKE (already implemented in MCP server tool)
+  - Keep `LIMIT` small by default (e.g., 5–10)
+
+- Indexing (planned)
+  - Add/confirm FULLTEXT index on `knowledge_entities(name_th, description)`
+  - If region filter is used heavily, consider a generated column `region` extracted from attributes + normal index (avoid JSON scan)
+
+\***\*\*\*\*** Phase 1 GEO: Round A Verification + CROSS Gate (Verdict) \***\*\*\*\***
+
+- **Scope**: **PASS** (Clear normalization list + deterministic ranking rules).
+- **Tool Design**: **PASS** (Fits `thai_geo_tool` pattern; separates weather core).
+- **Data Handling**: **PASS** (Explicit "No PII" rule; Trace v3 log hygiene cited).
+- **Security**: **PASS** (Parameterized queries enforced; input validation spec'd).
+- **Verdict**: **PASS (Local-Only)**
+  - Note: Remote verification against `origin/main` skipped due to git fetch hangs.
+  - Spec source: `TODO.md` (lines 383-500) is the active Source of Truth.
+
+  - Add/confirm FULLTEXT index on `knowledge_entities(name_th, description)`
+  - If region filter is used heavily, consider a generated column `region` extracted from attributes + normal index (avoid JSON scan)
+
+- In-memory and cache
+  - Maintain a minimal in-memory alias map for top provinces and common aliases (already via `THAI_GEO_SEED`)
+  - Add LRU cache for `(query, filter_region, confidence_required)` → result (TTL 1–5 minutes) inside tool executor (Round B/C)
+
+- Memory footprint constraints
+  - Round B seed-only: keep memory overhead small (<5MB)
+  - Full dataset later: target <50MB in-process; if larger, rely on DB + indexed queries
+
+Deliverable 5) Security
+
+- Input validation
+  - Enforce max length for `query/address` (e.g., ≤ 200 chars)
+  - Reject/trim control characters; normalize whitespace
+
+- No PII logging
+  - Do not log raw full addresses in non-QA logs; in QA mode use Trace v3 sanitization rules
+  - Never log tokens/cookies/headers; keep only tool name + latency + error code
+
+- Rate-limit stance
+  - Rely on existing backend guest/user/admin limiter; GEO tools are internal and should not implement their own per-IP limits unless exposed externally
+
+Deliverable 6) Verification plan (Round A docs-only)
+
+- Planned verifier file (skeleton to implement in Round B/C): `scripts/verify_phase1_geo_roundA.ts`
+  - Purpose: send a small fixed prompt set over HTTP + WS, then assert:
+    - deterministic tool routing (geo vs weather)
+    - stable structured payload keys
+    - no noisy logs
+  - Evidence format requirement: reuse Trace v3 one-line `[ChatTrace]` format (IN/OUT), but Round A does not generate evidence yet.
+
+Definition of Done (Round A)
+
+- Spec + plan recorded (this section) with acceptance criteria for Round B
+- No code changes are required for Round A
+
+Round A complete checklist + next-round plan
+
+- [ ] Round A complete: SA reviews and approves scope + routing rules + tool list
+- [x] Round B (minimal happy path + verifier + evidence)
+
+\***\*\*\*\*** PHASE 1: GEO — Round B (Minimal Happy Path + Verifier + Evidence) (2026-02-20) \***\*\*\*\***
+
+What shipped
+
+- Local tool `local-tools:thai_geo_tool` now supports 3 actions: `address_normalize`, `geo_lookup`, `geo_validate`
+- Deterministic GeoGate routing added for both HTTP + WS (runs before any LLM/tool-planning)
+- WeatherGate hardening: prevents false positive on Thai address keyword collision (e.g. ถนนสีลม should not be treated as “wind”)
+- Verifier: `innomcp-node/scripts/verify_phase1_geo_roundB.ts` spins up backend with `CHAT_TRACE_QA=1`, sends 3 HTTP + 3 WS, writes 12-line Trace v3 evidence
+
+Commands (real run)
+
+- Build:
+  - `npm --prefix innomcp-node run build`
+  - `npm --prefix innomcp-server-node run build`
+- Evidence verifier:
+  - `cd innomcp-node && npx ts-node scripts\verify_phase1_geo_roundB.ts`
+
+Evidence (Trace v3, 12 lines)
+
+- `innomcp-node/evidence/phase1-geo-roundB-20260220-010646.log`
+
+Notes
+
+- \***\*\*\*\***Fix applied: ถนนสีลม previously triggered WeatherGate due to substring match “ลม”\***\*\*\*\***
+
 \***\*\*\*\*** [จาก: Vitcup] Re-run ชุด weather เพื่อยืนยัน "ระบบนิ่ง" หลัง hardening harness (2026-02-05) \***\*\*\*\***
 
 - ผลทดสอบ (ผ่าน):
@@ -1224,7 +1423,7 @@ Evidence
       - `bypass`: No unauthorized backend bypass found.
     - **Verdict**: **PASS (Local)**. Remote verification skipped due to git network hanging.
 
-    ****\***** Phase 7.2.2/7.2.3: Remote Ground-Truth Gate (Attempted) ****\*****
+    \***\*\*\*\*** Phase 7.2.2/7.2.3: Remote Ground-Truth Gate (Attempted) \***\*\*\*\***
     - **Command**: `git fetch origin`
     - **Result**: **BLOCKED** (Process hang/timeout). Unable to sync with remote.
     - **Local Security**:
@@ -1287,7 +1486,7 @@ Evidence
 
     - Commit (single): (see `git rev-parse HEAD`)
 
-    - *********Issue: If DETECT_DB_HOST/USER/PASSWORD/NAME is missing, tools must return structured error `ERR:MISSING_DETECT_DB_CREDS ...` (not “no count found”).*********
+    - \***\*\*\*\***Issue: If DETECT_DB_HOST/USER/PASSWORD/NAME is missing, tools must return structured error `ERR:MISSING_DETECT_DB_CREDS ...` (not “no count found”).\***\*\*\*\***
 
     \***\*\*\*\*** Phase 7.2.5: Log Hygiene + Officer Routing Hardening (VIT) \***\*\*\*\***
     - Goal: Trace v3 hygiene (QA mode) + WS `uiMode` propagation hardening + deterministic evidence routing even when `uiMode` is not officer
@@ -1325,4 +1524,16 @@ Evidence
       - Terminal C (verifier):
         - `npx ts-node scripts/verify_phase725_trace_v3.ts --port 3035`
 
-    - Commit (single): (see `git rev-parse HEAD`)
+    - Commit (single): `d9509335662d78c852cef9e981c204f66ce5025a` (Local HEAD)
+
+    \***\*\*\*\*** Phase 7.2.5: Verification + CROSS Security Gate (Verdict) \***\*\*\*\***
+    - **Commit**: `d9509335662d78c852cef9e981c204f66ce5025a` (Local HEAD)
+    - **Evidence File**: `innomcp-node/evidence/phase725-tracev3-2026-02-19-163644228Z.log`
+    - **Verification**:
+      - `uiMode` propagation: **PASS** (Code review `chat.ts`: `__uiMode` persistence).
+      - Deterministic routing: **PASS** (Code review `chat.ts`: `evidenceAction` fastpath).
+      - Trace v3 format: **PASS** (12 lines, `a='...'` numeric/ERR).
+    - **Security (CROSS)**:
+      - PII Redaction: **PASS** (Log reviewed: no email/IP/token).
+      - SQL Safety: **PASS** (Parameterized queries in `evidenceTool.ts`).
+    - **Verdict**: **PASS (Local-Only)**

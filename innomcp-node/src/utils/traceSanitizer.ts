@@ -29,10 +29,25 @@ export function sanitizeForTraceV3(input: string, max = 220): string {
 }
 
 export function normalizeTraceAnswerV3(ans: string): string {
+  // Backwards-compatible default (kept strict for legacy callers)
+  return normalizeTraceAnswerV3ByRoute("officerEvidence", ans);
+}
+
+export function normalizeTraceAnswerV3ByRoute(route: string, ans: string): string {
+  const r = String(route || "").trim();
   const a = String(ans || "").trim();
-  if (/^\d+$/.test(a)) return a;
-  if (/^ERR:[A-Z0-9_]+$/i.test(a)) return a.toUpperCase();
+
   if (!a || a === "-") return "ERR:EMPTY";
-  // No sentences / JSON / fragments in trace answer
-  return "ERR:NON_NUMERIC";
+
+  // Phase 7.2.x officerEvidence traces require numeric/ERR only
+  if (r === "officerEvidence") {
+    if (/^\d+$/.test(a)) return a;
+    if (/^ERR:[A-Z0-9_]+$/i.test(a)) return a.toUpperCase();
+    return "ERR:NON_NUMERIC";
+  }
+
+  // GEO + other traces: allow short, human-readable text (sanitized later)
+  // Still allow explicit ERR:CODE
+  if (/^ERR:[A-Z0-9_]+$/i.test(a)) return a.toUpperCase();
+  return a;
 }

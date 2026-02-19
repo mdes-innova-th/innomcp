@@ -24,7 +24,8 @@ import { optionalAuth } from "../../utils/jwt";
 import { guestLimiterMiddleware, getLimitsForUser, checkToolAccess, limitResponseLength } from "../../middleware/guestLimiter";
 import { tryFastPathWebSocket } from "../../services/fastPathHandler";
 import { renderWeatherMarkdownTable } from "../../utils/weather/tableRenderer";
-import { sanitizeForTraceV3, normalizeTraceAnswerV3 } from "../../utils/traceSanitizer";
+import { sanitizeForTraceV3, normalizeTraceAnswerV3ByRoute } from "../../utils/traceSanitizer";
+import { renderThaiGeoAnswerShort } from "../../utils/mcp/tools/thai_geo_tool";
 
 dotenv.config();
 
@@ -233,7 +234,9 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
   const t = String(text || "");
 
   // Core weather words
-  const hasWeatherCore = /ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|ลม|พายุ|weather|forecast|temperature|humidity|tmd|อุตุ|nwp/i.test(t);
+  // NOTE: do NOT match "ลม" as a bare substring (e.g. "ถนนสีลม" should not be treated as weather)
+  const hasWind = /(?:^|\s)ลม(?:\s|$)|ลมแรง|ความเร็วลม|ทิศทางลม|wind\b/i.test(t);
+  const hasWeatherCore = /ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|พายุ|weather|forecast|temperature|humidity|tmd|อุตุ|nwp/i.test(t) || hasWind;
 
   // Weather-specific patterns that often omit the word "อากาศ"
   const hasWeatherSpecific = /รายชั่วโมง|รายวัน|ตารางสถานี|สถานีอากาศ|รายสถานี|พยากรณ์\s*7\s*วัน|7\s*วัน|สัปดาห์/i.test(t);
@@ -266,6 +269,47 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
     return "evidence_records_today";
   }
   return undefined;
+}
+
+function looksLikeDeterministicGeoQuery(text: string): boolean {
+  const t = String(text || "");
+  return /(รหัสไปรษณีย์|\b\d{5}\b|จังหวัด|อำเภอ|เขต|แขวง|ตำบล|พิกัด|ภาค|ที่อยู่|แยกที่อยู่|จัดรูปแบบที่อยู่|ตรวจสอบที่อยู่|postcode|province|district|subdistrict|address|coordinate|lat|lon)/i.test(
+    t
+  );
+}
+
+function inferGeoAction(text: string): "address_normalize" | "geo_validate" | "geo_lookup" {
+  const t = String(text || "");
+  if (/(จัดรูปแบบที่อยู่|แยกที่อยู่|normalize\s*address|address[_\s-]?normalize)/i.test(t)) {
+    return "address_normalize";
+  }
+  if (/(ตรวจสอบที่อยู่|validate\s*address|address[_\s-]?validate|ถูกไหม|ตรงไหม|postcode.*match|รหัสไปรษณีย์.*ถูก)/i.test(t)) {
+    return "geo_validate";
+  }
+  return "geo_lookup";
+}
+
+function extractGeoLookupQuery(text: string): string {
+  const t = String(text || "");
+  const mPost = t.match(/\b(\d{5})\b/);
+  if (mPost) return mPost[1];
+
+  const mProv = t.match(/(?:จังหวัด|จ\.)\s*([ก-๙A-Za-z]+)/) || t.match(/จังหวัด([ก-๙A-Za-z]+)/);
+  if (mProv) return mProv[1];
+
+  const mCoord = t.match(/พิกัด(?:ของ)?\s*([ก-๙A-Za-z]+)/);
+  if (mCoord) return mCoord[1];
+
+  const mDist = t.match(/(?:อำเภอ|เขต)\s*([ก-๙A-Za-z]+)/);
+  if (mDist) return mDist[1];
+
+  const mSub = t.match(/(?:ตำบล|แขวง)\s*([ก-๙A-Za-z]+)/);
+  if (mSub) return mSub[1];
+
+  const tail = t.match(/([ก-๙]{2,})\s*$/)?.[1];
+  if (tail) return tail;
+
+  return t.trim().slice(0, 80);
 }
 
 function mapOfficerEvidenceActionToLocalIntent(action: string): string | undefined {
@@ -850,7 +894,9 @@ function chatTraceV2(params: {
   const toolNorm = String(params.tool || "-") || "-";
   const msNorm = Math.max(0, Math.floor(params.ms || 0));
   const qSan = sanitizeForTraceV3(params.q || "-");
-  const aSanRaw = isTraceQaEnabled() ? normalizeTraceAnswerV3(params.a || "-") : String(params.a || "-");
+  const aSanRaw = isTraceQaEnabled()
+    ? normalizeTraceAnswerV3ByRoute(params.route, params.a || "-")
+    : String(params.a || "-");
   const aSan = sanitizeForTraceV3(aSanRaw);
   chatTraceLog(
     `[ChatTrace] t=${tNorm} cid=${cid} mode=${modeNorm} route=${routeNorm} tool=${toolNorm} code=${params.code} ms=${msNorm} q='${qSan}' a='${aSan}'`
@@ -891,6 +937,7 @@ function chatTraceOut(params: {
   route:
     | "weatherGate"
     | "officerEvidence"
+    | "geo"
     | "mcpDirect"
     | "weatherDirect"
     | "mcpToolsFailed"
@@ -1267,6 +1314,60 @@ wss.on("connection", (ws, req) => {
             uiMode,
             route: "weatherGate",
             tool: "weatherPipeline",
+            code: 200,
+            durMs: Date.now() - traceStartMs,
+            q: messageWithFile,
+            ans: textOut,
+          });
+          return;
+        }
+
+        // =====================================
+        // Phase 1 GEO Round B: Deterministic GEO Gate (NO LLM tool planning)
+        // Minimal Happy Path: address_normalize / geo_lookup / geo_validate
+        // =====================================
+        const geoLike = looksLikeDeterministicGeoQuery(messageWithFile);
+        if (mcpClient && geoLike) {
+          const geoToolName = "local-tools:thai_geo_tool";
+          const action = inferGeoAction(messageWithFile);
+          const toolArgs: any =
+            action === "geo_lookup"
+              ? { action, query: extractGeoLookupQuery(messageWithFile), topN: 5 }
+              : { action, address: messageWithFile };
+
+          logBoth("info", `[GeoGate] bypass=true transport=ws action=${action} query=${String(toolArgs.query || "").slice(0, 60)}`);
+
+          // Add user message to history now (this branch returns early)
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+
+          const toolResults = await mcpClient.executeTools([geoToolName], messageWithFile, {
+            [geoToolName]: toolArgs,
+          });
+
+          const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+          const sc = first?.structuredContent ?? first?.result;
+
+          const rendered = renderThaiGeoAnswerShort(sc);
+          const textOut = rendered.text;
+
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [geoToolName] };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, [geoToolName]);
+          sessionManager.completeResponse(currentSessionId);
+
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [geoToolName] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [geoToolName] });
+          sendDoneOnce();
+
+          chatTraceOut({
+            transport: "ws",
+            sid: currentSessionId,
+            cid,
+            uiMode,
+            route: "geo",
+            tool: geoToolName,
             code: 200,
             durMs: Date.now() - traceStartMs,
             q: messageWithFile,
@@ -2122,6 +2223,54 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         messages: sessionHistory,
         mcpUsed: true,
         mcpResults: [toolResult],
+      });
+    }
+
+    // =====================================
+    // Phase 1 GEO Round B: Deterministic GEO Gate (NO LLM tool planning)
+    // Minimal Happy Path: address_normalize / geo_lookup / geo_validate
+    // =====================================
+    const geoLike = looksLikeDeterministicGeoQuery(messageWithFile);
+    if (mcpClient && geoLike) {
+      const geoToolName = "local-tools:thai_geo_tool";
+      const action = inferGeoAction(messageWithFile);
+      const toolArgs: any =
+        action === "geo_lookup"
+          ? { action, query: extractGeoLookupQuery(messageWithFile), topN: 5 }
+          : { action, address: messageWithFile };
+
+      logBoth("info", `[GeoGate] bypass=true transport=http action=${action} query=${String(toolArgs.query || "").slice(0, 60)}`);
+
+      const toolResults = await mcpClient.executeTools([geoToolName], messageWithFile, {
+        [geoToolName]: toolArgs,
+      });
+
+      const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+      const sc = first?.structuredContent ?? first?.result;
+      const rendered = renderThaiGeoAnswerShort(sc);
+      const textOut = rendered.text;
+
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+
+      chatTraceOut({
+        transport: "http",
+        sid: httpSessionId,
+        cid: httpCid,
+        uiMode,
+        route: "geo",
+        tool: geoToolName,
+        code: 200,
+        durMs: Date.now() - traceStartMs,
+        q: messageWithFile,
+        ans: textOut,
+      });
+
+      return res.json({
+        text: textOut,
+        structuredContent: sc,
+        messages: sessionHistory,
+        mcpUsed: true,
+        mcpResults: toolResults,
       });
     }
 
