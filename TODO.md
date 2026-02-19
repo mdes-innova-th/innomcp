@@ -1199,7 +1199,7 @@ Evidence
     - Error rule: if structured ok:false payload detected => a='ERR:<code> <msg>' (no raw JSON/rows).
     - Smoke runner enforcement: scripts/smoke_phase_721.ps1 refuses old multi-line evidence; requires -TraceLogFile and delegates evidence generation to the extractor.
     - Evidence (12 lines, validated): innomcp-node/evidence/smoke721-lines-20260219-175423.log
-    - Commit (main): 02de26e
+    - Commit (main): c11497d
     - 12 lines verified: (Get-Content -Path innomcp-node/evidence/smoke721-lines-20260219-175423.log -Encoding UTF8).Count
     - CROSS quick check (no PII/JSON/braces/backticks):
       - Select-String -Path innomcp-node/evidence/smoke721-lines-20260219-175423.log -Pattern '`' -Quiet
