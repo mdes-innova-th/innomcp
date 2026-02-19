@@ -241,6 +241,24 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
   return hasWeatherCore || hasWeatherSpecific;
 }
 
+function hasExplicitWeatherIntentKeywords(text: string): boolean {
+  return /(อากาศ|พยากรณ์|ฝน|อุณหภูมิ|ลม|เรดาร์|weather|forecast|temperature|rain|storm|wind)/i.test(String(text || ""));
+}
+
+function inferOfficerEvidenceAction(text: string): string | undefined {
+  const t = String(text || "");
+  if (/(เครื่อง.*ออนไลน์|ออนไลน์กี่เครื่อง|active\s*machines?|online\s*machines?|machines?\s*online)/i.test(t)) {
+    return "active_machines_count";
+  }
+  if (/(ตรวจพบ.*url|url.*วันนี้|nip.*วันนี้|detected\s*urls?\s*today|urls?\s*detected\s*today)/i.test(t)) {
+    return "detected_urls_today";
+  }
+  if (/(เก็บหลักฐาน|วิดีโอ|record.*วันนี้|บันทึก.*วันนี้|evidence\s*records?\s*today|video\s*evidence\s*today)/i.test(t)) {
+    return "evidence_records_today";
+  }
+  return undefined;
+}
+
 function safeTruncate(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
   return text.slice(0, Math.max(0, maxChars - 1)) + "…";
@@ -649,16 +667,27 @@ function sendSafe(ws: any, payload: any) {
 
 // =====================================
 // Phase 7.2.x: Optional SAFE Q/A Trace Logging
-// OFF by default. Enable with CHAT_TRACE_QA=1 or INNOMCP_TRACE_QA=1
+// OFF by default. Enable with CHAT_TRACE_QA=1
 // =====================================
 const isTraceQaEnabled = (): boolean => {
-  const v = String(process.env.CHAT_TRACE_QA || process.env.INNOMCP_TRACE_QA || "").trim();
+  const v = String(process.env.CHAT_TRACE_QA || "").trim();
   return /^(1|true|yes|on)$/i.test(v);
 };
 
-function sanitizeForLog(input: string, max = 220): string {
+function sanitizeForLog(input: string, max = 180): string {
   let s = String(input || "");
+  // Replace backticks to avoid breaking evidence/log consumers.
+  s = s.replace(/`/g, "'");
   s = s.replace(/\s+/g, " ").trim();
+
+  // Remove JSON-ish payloads from logs (e.g., tool results) to keep evidence one-line and non-JSON.
+  // Heuristic: redact flat object/array snippets containing quotes (common in JSON).
+  s = s.replace(/\{[^{}]*\"[^{}]*\}/g, "[JSON_REDACTED]");
+  s = s.replace(/\[[^\[\]]*\"[^\[\]]*\]/g, "[JSON_REDACTED]");
+  // If it still looks like it contains JSON, redact everything after the first JSON start.
+  if (/(\{\s*\"|\[\s*\{\s*\")/.test(s)) {
+    s = s.replace(/(\{\s*\"|\[\s*\{\s*\").*$/, "[JSON_REDACTED]");
+  }
 
   // redact common credential patterns: key/token/bearer/auth/password=...
   s = s.replace(
@@ -681,10 +710,46 @@ function chatTraceLog(message: string) {
   logBoth("info", message);
 }
 
+function chatTraceIn(params: {
+  transport: "ws" | "http";
+  sid?: string;
+  cid?: string;
+  uiMode?: string;
+  msg: string;
+}) {
+  chatTraceLog(
+    `[ChatTrace] ts=${new Date().toISOString()} dir=in transport=${params.transport} sid=${shortId(params.sid)} cid=${shortId(params.cid)} uiMode=${params.uiMode || "auto"} msg="${sanitizeForLog(params.msg)}"`
+  );
+}
+
+function chatTraceOut(params: {
+  transport: "ws" | "http";
+  sid?: string;
+  cid?: string;
+  uiMode?: string;
+  route:
+    | "weatherGate"
+    | "officerEvidence"
+    | "mcpDirect"
+    | "weatherDirect"
+    | "mcpToolsFailed"
+    | "ollama"
+    | "ollamaError";
+  tool?: string;
+  code: number;
+  durMs: number;
+  ans: string;
+}) {
+  chatTraceLog(
+    `[ChatTrace] ts=${new Date().toISOString()} dir=out transport=${params.transport} sid=${shortId(params.sid)} cid=${shortId(params.cid)} uiMode=${params.uiMode || "auto"} route=${params.route} tool=${params.tool || "none"} code=${params.code} durMs=${Math.max(0, Math.floor(params.durMs))} ans="${sanitizeForLog(params.ans)}"`
+  );
+}
+
 function shortId(id: string | undefined | null): string {
   const s = String(id || "");
   if (!s) return "-";
-  return s.length > 8 ? s.substring(0, 8) : s;
+  if (s.length <= 16) return s;
+  return `${s.substring(0, 8)}…${s.substring(Math.max(0, s.length - 6))}`;
 }
 
 function joinToolsForTrace(tools: any, maxItems = 8): string {
@@ -798,6 +863,13 @@ wss.on("connection", (ws, req) => {
 
     // Enqueue the message processing to prevent overload
     await requestQueue.enqueue(messageId, async () => {
+      let doneSent = false;
+      const sendDoneOnce = () => {
+        if (doneSent) return;
+        doneSent = true;
+        sendSafe(ws, { type: "done" });
+      };
+
       try {
         // Keep AI mode consistent across MCP planner + final response
         syncChatAIModeIfChanged();
@@ -860,21 +932,66 @@ wss.on("connection", (ws, req) => {
           logBoth("info", `[OfficerMode] uiMode=officer boostedTools=evidenceTool,webdTool_*`);
         }
 
+        const traceStartMs = Date.now();
+        const officerAction = officerMode ? inferOfficerEvidenceAction(messageWithFile) : undefined;
+
         // Session id helper used across branches (WeatherGate returns early)
         const currentSessionId = (ws as any).sessionId;
 
         const cid = (ws as any).correlationId as string | undefined;
 
-        const rid = String(incomingId || messageId);
-        chatTraceLog(
-          `[ChatTrace] in transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} q="${sanitizeForLog(messageWithFile)}"`
-        );
+        chatTraceIn({ transport: "ws", sid: currentSessionId, cid, uiMode, msg: messageWithFile });
+
+        // =====================================
+        // Phase 7.2.1: Deterministic Officer Evidence Router (NO LLM args)
+        // Route officer-mode templates directly to EvidenceTool with forced args.
+        // =====================================
+        if (mcpClient && officerMode && officerAction) {
+          logBoth("info", `[OfficerMode] deterministicEvidence=true transport=ws action=${officerAction}`);
+
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+
+          const toolName = "innomcp-server:evidenceTool";
+          const toolResults = await mcpClient.executeTools([toolName], messageWithFile, {
+            [toolName]: { action: officerAction },
+          });
+          const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+          const sc = first?.structuredContent ?? first?.result;
+          const direct = renderStructuredDirect(first?.toolName || toolName, sc, messageWithFile);
+          const textOut = direct?.text || "ขออภัย ไม่สามารถดึงข้อมูลหลักฐานได้ในขณะนี้";
+
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [toolName] };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, [toolName]);
+          sessionManager.completeResponse(currentSessionId);
+
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [toolName] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [toolName] });
+          sendDoneOnce();
+
+          chatTraceOut({
+            transport: "ws",
+            sid: currentSessionId,
+            cid,
+            uiMode,
+            route: "officerEvidence",
+            tool: toolName,
+            code: 200,
+            durMs: Date.now() - traceStartMs,
+            ans: textOut,
+          });
+          return;
+        }
 
         // =====================================
         // Phase 7.1: Deterministic Weather Router (NO LLM tool planning)
         // Gate BEFORE any God-Tier Router / semantic / LLM-based tool selection.
         // =====================================
-        if (mcpClient && looksLikeDeterministicWeatherQuery(messageWithFile)) {
+        const weatherLike = looksLikeDeterministicWeatherQuery(messageWithFile);
+        const allowWeatherGate = !officerMode ? weatherLike : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile);
+        if (mcpClient && allowWeatherGate) {
           const deep = wantsDeepExplain(messageWithFile);
           logBoth("info", `[WeatherGate] bypass=true transport=ws deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
 
@@ -927,11 +1044,19 @@ wss.on("connection", (ws, req) => {
 
           sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: ["weatherPipeline"] });
           sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["weatherPipeline"] });
-          sendSafe(ws, { type: "done" });
+          sendDoneOnce();
 
-          chatTraceLog(
-            `[ChatTrace] out transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} bypassWeather=true deep=${deep} tools=[weatherPipeline] keys=${structuredKeysSummary(sc)} a="${sanitizeForLog(textOut)}"`
-          );
+          chatTraceOut({
+            transport: "ws",
+            sid: currentSessionId,
+            cid,
+            uiMode,
+            route: "weatherGate",
+            tool: "weatherPipeline",
+            code: 200,
+            durMs: Date.now() - traceStartMs,
+            ans: textOut,
+          });
           return;
         }
 
@@ -1061,9 +1186,6 @@ wss.on("connection", (ws, req) => {
             // Track tools used
             if (mcpResult.toolResults) {
               toolsUsedInThisRequest = mcpResult.toolResults.map(r => r.toolName);
-              chatTraceLog(
-                `[ChatTrace] tools transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} selected=${joinToolsForTrace(toolsUsedInThisRequest)} bypassWeather=false deep=false`
-              );
             }
 
             sendSafe(ws, {
@@ -1106,10 +1228,19 @@ wss.on("connection", (ws, req) => {
 
                 sendSafe(ws, { type: "chunk", text: direct.text, structuredContent: direct.structuredContent });
                 sendSafe(ws, { type: "history-update", messages: sessionHistory });
+                sendDoneOnce();
 
-                chatTraceLog(
-                  `[ChatTrace] out transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} bypassWeather=false deep=${wantsDeepExplain(currentText || "")} tools=${joinToolsForTrace(toolsUsedInThisRequest)} keys=${structuredKeysSummary(direct.structuredContent)} a="${sanitizeForLog(direct.text)}"`
-                );
+                chatTraceOut({
+                  transport: "ws",
+                  sid: currentSessionId,
+                  cid,
+                  uiMode,
+                  route: "mcpDirect",
+                  tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : structuredContentToolName,
+                  code: 200,
+                  durMs: Date.now() - traceStartMs,
+                  ans: direct.text,
+                });
                 return; // ✅ Skip Ollama finalize
               }
             }
@@ -1140,10 +1271,20 @@ wss.on("connection", (ws, req) => {
 
               sendSafe(ws, { type: "chunk", text: rendered.text, structuredContent: rendered.structuredContent });
               sendSafe(ws, { type: "history-update", messages: sessionHistory });
+              sendDoneOnce();
+              sendDoneOnce();
 
-              chatTraceLog(
-                  `[ChatTrace] out transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} bypassWeather=false deep=false tools=${joinToolsForTrace(toolsUsedInThisRequest)} keys=${structuredKeysSummary(rendered.structuredContent)} a="${sanitizeForLog(rendered.text)}"`
-              );
+              chatTraceOut({
+                transport: "ws",
+                sid: currentSessionId,
+                cid,
+                uiMode,
+                route: "weatherDirect",
+                tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : (structuredContentToolName || "weatherPipeline"),
+                code: 200,
+                durMs: Date.now() - traceStartMs,
+                ans: rendered.text,
+              });
               return; // ✅ Skip Ollama finalize
             }
 
@@ -1215,9 +1356,17 @@ wss.on("connection", (ws, req) => {
               sendSafe(ws, chunkMsg);
               sendSafe(ws, { type: "history-update", messages: sessionHistory });
 
-              chatTraceLog(
-                  `[ChatTrace] out transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} bypassWeather=false deep=false tools=${joinToolsForTrace(toolsUsedInThisRequest)} keys=${weatherTool?.structuredContent ? structuredKeysSummary(weatherTool.structuredContent) : "-"} a="${sanitizeForLog(finalText)}"`
-              );
+              chatTraceOut({
+                transport: "ws",
+                sid: currentSessionId,
+                cid,
+                uiMode,
+                route: "weatherDirect",
+                tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : (weatherTool?.toolName || "weatherPipeline"),
+                code: 200,
+                durMs: Date.now() - traceStartMs,
+                ans: finalText,
+              });
               return; // ✅ Skip Ollama finalize
             }
           } else if (mcpResult.toolsFailed) {
@@ -1249,9 +1398,17 @@ wss.on("connection", (ws, req) => {
                 messages: sessionHistory,
             });
 
-            chatTraceLog(
-              `[ChatTrace] out transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} bypassWeather=false deep=false tools=${joinToolsForTrace(toolsUsedInThisRequest)} keys=- a="${sanitizeForLog(sorryMessage)}"`
-            );
+            chatTraceOut({
+              transport: "ws",
+              sid: currentSessionId,
+              cid,
+              uiMode,
+              route: "mcpToolsFailed",
+              tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : "none",
+              code: 200,
+              durMs: Date.now() - traceStartMs,
+              ans: sorryMessage,
+            });
             return; // Don't proceed to Ollama
           }
         } catch (mcpError) {
@@ -1457,9 +1614,17 @@ wss.on("connection", (ws, req) => {
         
         logBoth('info', `AI response complete (responseLength: ${aiResponse.length}, totalMessages: ${sessionHistory.length})`);
 
-        chatTraceLog(
-          `[ChatTrace] out transport=ws uiMode=${uiMode || "auto"} cid=${shortId(cid)} sid=${shortId(currentSessionId)} rid=${shortId(rid)} bypassWeather=false deep=false tools=${joinToolsForTrace(toolsUsedInThisRequest)} keys=${structuredContent ? structuredKeysSummary(structuredContent) : "-"} a="${sanitizeForLog(aiResponse)}"`
-        );
+        chatTraceOut({
+          transport: "ws",
+          sid: currentSessionId,
+          cid,
+          uiMode,
+          route: "ollama",
+          tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : "none",
+          code: 200,
+          durMs: Date.now() - traceStartMs,
+          ans: aiResponse,
+        });
 
         // Send updated history back to client with toolsUsed
         sendSafe(ws, {
@@ -1467,21 +1632,36 @@ wss.on("connection", (ws, req) => {
             messages: sessionHistory,
             toolsUsed: toolsUsedInThisRequest.length > 0 ? toolsUsedInThisRequest : undefined,
           });
+        sendDoneOnce();
       } catch (ollamaError) {
         logBoth("error", `[Chat API] Ollama error: ${ollamaError}`);
         logBoth('error', `Ollama chat error: ${ollamaError instanceof Error ? ollamaError.message : String(ollamaError)} (model: ${ollamaModel}, mode: ${AI_MODE})`);
+        chatTraceOut({
+          transport: "ws",
+          sid: currentSessionId,
+          cid,
+          uiMode,
+          route: "ollamaError",
+          tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : "none",
+          code: 500,
+          durMs: Date.now() - traceStartMs,
+          ans: "Failed to get response from AI model",
+        });
         sendSafe(ws, { error: "Failed to get response from AI model", type: "error" });
+        sendDoneOnce();
         return;
       }
     } catch (error) {
       logBoth("error", `[Chat API] Error parsing message: ${error}`);
       logBoth('error', `Message parsing error: ${error instanceof Error ? error.message : String(error)}`);
       sendSafe(ws, { error: "Invalid message format", type: "error" });
+      sendDoneOnce();
     }
     }).catch(queueError => {
       logBoth("error", `[Queue] Failed to process message: ${queueError}`);
       try {
         sendSafe(ws, { error: "Server busy, please try again", type: "error" });
+        sendSafe(ws, { type: "done" });
       } catch (e) {
         // WebSocket might be closed
       }
@@ -1517,14 +1697,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       return res.status(400).json({ error: "Message is required" });
     }
 
-    // Do NOT log raw message body (could contain secrets). Use safe excerpt only.
-    if (isTraceQaEnabled()) {
-      chatTraceLog(
-        `[ChatTrace] recv transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} q="${sanitizeForLog(String(message))}"`
-      );
-    } else {
-      logBoth("info", `[Chat API] Received POST chat message (len=${String(message || "").length})`);
-    }
+    logBoth("info", `[Chat API] Received POST chat message (len=${String(message || "").length})`);
 
     // Get full message history from client or initialize empty
     let sessionHistory: ChatMessage[] = messages || [];
@@ -1551,6 +1724,9 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
     const messageWithFile = String(message || "") + fileContext;
 
+    const traceStartMs = Date.now();
+    const officerAction = officerMode ? inferOfficerEvidenceAction(messageWithFile) : undefined;
+
     // Best-effort sessionId/requestId correlation for HTTP parity
     const cookieMap = String(req.headers.cookie || "")
       .split(";")
@@ -1562,21 +1738,59 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         return acc;
       }, {} as Record<string, string>);
     const httpSessionId = cookieMap.sessionId || (req.headers["x-session-id"] as string) || undefined;
-    const httpRid = String((req.body as any)?.messageId || (req.headers["x-request-id"] as string) || `http-${Date.now()}`);
 
-    chatTraceLog(
-      `[ChatTrace] in transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} q="${sanitizeForLog(messageWithFile)}"`
-    );
+    chatTraceIn({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, msg: messageWithFile });
 
     // Add user message to history
     sessionHistory.push({ sender: "user", text: messageWithFile });
     logBoth("info", `[Chat API] POST: Session history: ${sessionHistory.length} messages (before AI)`);
 
     // =====================================
+    // Phase 7.2.1: Deterministic Officer Evidence Router (NO LLM args)
+    // =====================================
+    if (mcpClient && officerMode && officerAction) {
+      logBoth("info", `[OfficerMode] deterministicEvidence=true transport=http action=${officerAction}`);
+
+      const toolName = "innomcp-server:evidenceTool";
+      const toolResults = await mcpClient.executeTools([toolName], messageWithFile, {
+        [toolName]: { action: officerAction },
+      });
+
+      const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+      const sc = first?.structuredContent ?? first?.result;
+      const direct = renderStructuredDirect(first?.toolName || toolName, sc, messageWithFile);
+      const textOut = direct?.text || "ขออภัย ไม่สามารถดึงข้อมูลหลักฐานได้ในขณะนี้";
+
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+
+      chatTraceOut({
+        transport: "http",
+        sid: httpSessionId,
+        cid: httpCid,
+        uiMode,
+        route: "officerEvidence",
+        tool: toolName,
+        code: 200,
+        durMs: Date.now() - traceStartMs,
+        ans: textOut,
+      });
+
+      return res.json({
+        text: textOut,
+        structuredContent: sc,
+        messages: sessionHistory,
+        mcpUsed: true,
+        mcpResults: toolResults,
+      });
+    }
+
+    // =====================================
     // Phase 7.1: Deterministic Weather Router (NO LLM tool planning)
     // Gate BEFORE any MCP tool selection / LLM classification.
     // =====================================
-    if (mcpClient && looksLikeDeterministicWeatherQuery(messageWithFile)) {
+    const weatherLike = looksLikeDeterministicWeatherQuery(messageWithFile);
+    const allowWeatherGate = !officerMode ? weatherLike : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile);
+    if (mcpClient && allowWeatherGate) {
       const deep = wantsDeepExplain(messageWithFile);
       logBoth("info", `[WeatherGate] bypass=true transport=http deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
 
@@ -1588,9 +1802,17 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
         sessionHistory.push({ sender: "ai", text: direct.text } as any);
 
-        chatTraceLog(
-          `[ChatTrace] out transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} bypassWeather=true deep=false tools=[weatherPipeline] keys=${structuredKeysSummary(direct.structuredContent)} a="${sanitizeForLog(direct.text)}"`
-        );
+        chatTraceOut({
+          transport: "http",
+          sid: httpSessionId,
+          cid: httpCid,
+          uiMode,
+          route: "weatherGate",
+          tool: "weatherPipeline",
+          code: 200,
+          durMs: Date.now() - traceStartMs,
+          ans: direct.text,
+        });
         return res.json({
           text: direct.text,
           structuredContent: direct.structuredContent,
@@ -1623,9 +1845,17 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       const explainText = String(resp?.message?.content || "").trim() || renderWeatherDirectAnswer(messageWithFile, payload).text;
       sessionHistory.push({ sender: "ai", text: explainText } as any);
 
-      chatTraceLog(
-        `[ChatTrace] out transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} bypassWeather=true deep=true tools=[weatherPipeline] keys=${structuredKeysSummary(sc)} a="${sanitizeForLog(explainText)}"`
-      );
+      chatTraceOut({
+        transport: "http",
+        sid: httpSessionId,
+        cid: httpCid,
+        uiMode,
+        route: "weatherGate",
+        tool: "weatherPipeline",
+        code: 200,
+        durMs: Date.now() - traceStartMs,
+        ans: explainText,
+      });
       return res.json({
         text: explainText,
         structuredContent: sc,
@@ -1638,6 +1868,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     let finalMessage = messageWithFile;
     let mcpResults: any[] | null = null;
     let structuredContent: any = undefined;
+    let toolsUsedInThisRequest: string[] = [];
 
     // **Process with MCP**
     if (mcpClient) {
@@ -1652,9 +1883,9 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           logBoth("info", `[Chat API] Processed with MCP tools: ${mcpResult.toolResults?.length}`);
           mcpResults = mcpResult.toolResults ?? null;
 
-          chatTraceLog(
-            `[ChatTrace] tools transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} selected=${joinToolsForTrace(mcpResult.toolResults?.map((r: any) => r?.toolName))} bypassWeather=false deep=false`
-          );
+          if (mcpResult.toolResults) {
+            toolsUsedInThisRequest = mcpResult.toolResults.map((r: any) => r?.toolName).filter(Boolean);
+          }
 
           const structuredResult = mcpResult.toolResults?.find((r: any) => r && r.structuredContent);
           if (structuredResult) {
@@ -1666,9 +1897,17 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
               );
               sessionHistory.push({ sender: "ai", text: direct.text } as any);
 
-              chatTraceLog(
-                `[ChatTrace] out transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} bypassWeather=false deep=false tools=${joinToolsForTrace(Array.isArray(mcpResults) ? mcpResults.map((r: any) => r?.toolName) : undefined)} keys=${structuredKeysSummary(direct.structuredContent)} a="${sanitizeForLog(direct.text)}"`
-              );
+              chatTraceOut({
+                transport: "http",
+                sid: httpSessionId,
+                cid: httpCid,
+                uiMode,
+                route: "mcpDirect",
+                tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : (structuredResult.toolName || "none"),
+                code: 200,
+                durMs: Date.now() - traceStartMs,
+                ans: direct.text,
+              });
               return res.json({
                 text: direct.text,
                 structuredContent: direct.structuredContent,
@@ -1705,9 +1944,17 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
           sessionHistory.push({ sender: "ai", text: sorryMessage });
 
-          chatTraceLog(
-            `[ChatTrace] out transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} bypassWeather=false deep=false tools=[] keys=- a="${sanitizeForLog(sorryMessage)}"`
-          );
+          chatTraceOut({
+            transport: "http",
+            sid: httpSessionId,
+            cid: httpCid,
+            uiMode,
+            route: "mcpToolsFailed",
+            tool: "none",
+            code: 200,
+            durMs: Date.now() - traceStartMs,
+            ans: sorryMessage,
+          });
           return res.json({
             text: sorryMessage,
             messages: sessionHistory,
@@ -1787,9 +2034,17 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     sessionHistory.push({ sender: "ai", text: response.message.content });
     logBoth("info", `[Chat API] POST: Session now has ${sessionHistory.length} messages`);
 
-    chatTraceLog(
-      `[ChatTrace] out transport=http uiMode=${uiMode || "auto"} cid=${shortId(httpCid)} sid=${shortId(httpSessionId)} rid=${shortId(httpRid)} bypassWeather=false deep=false tools=${joinToolsForTrace(Array.isArray(mcpResults) ? mcpResults.map((r: any) => r?.toolName) : undefined)} keys=${structuredContent ? structuredKeysSummary(structuredContent) : "-"} a="${sanitizeForLog(String(response.message.content || ""))}"`
-    );
+    chatTraceOut({
+      transport: "http",
+      sid: httpSessionId,
+      cid: httpCid,
+      uiMode,
+      route: "ollama",
+      tool: toolsUsedInThisRequest.length > 0 ? joinToolsForTrace(toolsUsedInThisRequest) : "none",
+      code: 200,
+      durMs: Date.now() - traceStartMs,
+      ans: String(response.message.content || ""),
+    });
 
     res.json({
       text: response.message.content,

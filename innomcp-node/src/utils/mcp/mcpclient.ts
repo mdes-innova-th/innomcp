@@ -2143,9 +2143,9 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     // This keeps tool execution reliable even when argument generation is unavailable.
     const inferEvidenceAction = (text: string): string | undefined => {
       const t = String(text || "");
-      if (/(ออนไลน์|online)/i.test(t)) return "active_machines_count";
-      if (/(วิดีโอ|video|หลักฐานวิดีโอ|จัดเก็บหลักฐาน)/i.test(t)) return "evidence_records_today";
-      if (/(url|โดเมน|domain)/i.test(t)) return "detected_urls_today";
+      if (/(เครื่อง.*ออนไลน์|ออนไลน์กี่เครื่อง|active\s*machines?|online\s*machines?)/i.test(t)) return "active_machines_count";
+      if (/(ตรวจพบ.*url|url.*วันนี้|detected\s*urls?\s*today|nip.*วันนี้)/i.test(t)) return "detected_urls_today";
+      if (/(เก็บหลักฐาน|จัดเก็บหลักฐาน|บันทึก.*วันนี้|วิดีโอ.*วันนี้|record.*วันนี้|evidence.*today)/i.test(t)) return "evidence_records_today";
       return undefined;
     };
 

@@ -9,10 +9,12 @@ node_modules/
 logs/
 *.log
 *.log.gz
+!innomcp-node/evidence/*.log
 innomcp-next/logs/
 innomcp-server-node/logs/
 innomcp-node/logs/
 *.log
+!innomcp-node/evidence/*.log
 
 # tests
 innomcp-next/tests/
