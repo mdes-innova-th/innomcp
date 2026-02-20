@@ -272,10 +272,22 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
 }
 
 function looksLikeDeterministicGeoQuery(text: string): boolean {
-  const t = String(text || "");
-  return /(รหัสไปรษณีย์|\b\d{5}\b|จังหวัด|อำเภอ|เขต|แขวง|ตำบล|พิกัด|ภาค|ที่อยู่|แยกที่อยู่|จัดรูปแบบที่อยู่|ตรวจสอบที่อยู่|postcode|province|district|subdistrict|address|coordinate|lat|lon)/i.test(
+  const normalizeThaiDigits = (v: string): string => {
+    const digits = "๐๑๒๓๔๕๖๗๘๙";
+    return String(v || "").replace(/[๐-๙]/g, (ch) => String(digits.indexOf(ch)));
+  };
+
+  const t = normalizeThaiDigits(String(text || ""));
+  const directGeo = /(รหัสไปรษณีย์|\b\d{5}\b|จังหวัด|อำเภอ|เขต|แขวง|ตำบล|พิกัด|ภาค|ที่อยู่|แยกที่อยู่|จัดรูปแบบที่อยู่|ตรวจสอบที่อยู่|postcode|province|district|subdistrict|address|coordinate|lat|lon|(?:^|\s)(?:จ\.|อ\.|ต\.|ถ\.|ซ\.|กทม\.?)(?=\s|$))/i.test(
     t
   );
+  if (directGeo) return true;
+
+  // Natural "where is this place" questions.
+  // Keep this strict to avoid hijacking non-geo queries (e.g., UI/feature questions).
+  const whereQ = /(อยู่ที่ไหน|อยู่ตรงไหน|แถวไหน|ที่ไหน)/i.test(t);
+  const locationCue = /(บ้าน|หมู่บ้าน|ตำบล|อำเภอ|จังหวัด|เขต|แขวง|ถนน|ซอย|รหัสไปรษณีย์|postcode)/i.test(t);
+  return whereQ && locationCue;
 }
 
 function inferGeoAction(text: string): "address_normalize" | "geo_validate" | "geo_lookup" {
@@ -290,7 +302,20 @@ function inferGeoAction(text: string): "address_normalize" | "geo_validate" | "g
 }
 
 function extractGeoLookupQuery(text: string): string {
-  const t = String(text || "");
+  const normalizeThaiDigits = (v: string): string => {
+    const digits = "๐๑๒๓๔๕๖๗๘๙";
+    return String(v || "").replace(/[๐-๙]/g, (ch) => String(digits.indexOf(ch)));
+  };
+
+  const t = normalizeThaiDigits(String(text || ""));
+
+  // Handle natural "X อยู่ที่ไหน/อยู่ตรงไหน/แถวไหน/ที่ไหน" by stripping the suffix.
+  const mWhere = t.match(/^(.*?)\s*(?:อยู่ที่ไหน|อยู่ตรงไหน|แถวไหน|ที่ไหน)\s*\?*\s*$/);
+  if (mWhere) {
+    const core = String(mWhere[1] || "").trim();
+    if (core) return core.slice(0, 80);
+  }
+
   const mPost = t.match(/\b(\d{5})\b/);
   if (mPost) return mPost[1];
 
@@ -1027,13 +1052,18 @@ wss.on("connection", (ws, req) => {
     // 1. 🔍 Parse Message Immediately
     let clientMessage: ClientMessage;
     try {
-        clientMessage = JSON.parse(data.toString());
+      clientMessage = JSON.parse(data.toString());
     } catch (e) {
-        logBoth("error", `[Chat API] Invalid JSON: ${e}`);
-        sendSafe(ws, { error: "Invalid JSON", type: "error" });
-        return;
+      logBoth("error", `[Chat API] Invalid JSON: ${e}`);
+      sendSafe(ws, { error: "Invalid JSON", type: "error" });
+      // ✅ Always close the WS message lifecycle.
+      sendSafe(ws, { type: "done" });
+      return;
     }
-    const currentText = clientMessage.text;
+
+    // Accept both `text` (current) and `message` (legacy/frontends) payload fields.
+    const currentText = String((clientMessage as any)?.text ?? (clientMessage as any)?.message ?? "").trim();
+    (clientMessage as any).text = currentText;
 
     // 2. 🚀 HARD FASTPATH (Before Queue)
     const clientIp = (ws as any).clientIp || 'unknown';
@@ -1098,6 +1128,8 @@ wss.on("connection", (ws, req) => {
         const incomingId = (clientMessage as any).messageId;
         if (incomingId && (ws as any).processedMessageIds.has(incomingId)) {
           logBoth("warn", `[Chat API] Duplicate messageId received, ignoring: ${incomingId}`);
+          // ✅ Still signal done so clients won't hang.
+          sendDoneOnce();
           return;
         }
         if (incomingId) {
@@ -1137,6 +1169,8 @@ wss.on("connection", (ws, req) => {
 
         if (!currentText) {
           sendSafe(ws, { error: "Text is required", type: "error" });
+          // ✅ Always close the WS message lifecycle.
+          sendDoneOnce();
           return;
         }
 
@@ -1250,8 +1284,11 @@ wss.on("connection", (ws, req) => {
         // Phase 7.1: Deterministic Weather Router (NO LLM tool planning)
         // Gate BEFORE any God-Tier Router / semantic / LLM-based tool selection.
         // =====================================
+        const geoLike = looksLikeDeterministicGeoQuery(messageWithFile);
         const weatherLike = looksLikeDeterministicWeatherQuery(messageWithFile);
-        const allowWeatherGate = !officerMode ? weatherLike : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile);
+        const allowWeatherGate = !officerMode
+          ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(messageWithFile))
+          : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile);
         if (mcpClient && allowWeatherGate) {
           const deep = wantsDeepExplain(messageWithFile);
           logBoth("info", `[WeatherGate] bypass=true transport=ws deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
@@ -1326,7 +1363,6 @@ wss.on("connection", (ws, req) => {
         // Phase 1 GEO Round B: Deterministic GEO Gate (NO LLM tool planning)
         // Minimal Happy Path: address_normalize / geo_lookup / geo_validate
         // =====================================
-        const geoLike = looksLikeDeterministicGeoQuery(messageWithFile);
         if (mcpClient && geoLike) {
           const geoToolName = "local-tools:thai_geo_tool";
           const action = inferGeoAction(messageWithFile);
@@ -2147,8 +2183,11 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Phase 7.1: Deterministic Weather Router (NO LLM tool planning)
     // Gate BEFORE any MCP tool selection / LLM classification.
     // =====================================
+    const geoLike = looksLikeDeterministicGeoQuery(messageWithFile);
     const weatherLike = looksLikeDeterministicWeatherQuery(messageWithFile);
-    const allowWeatherGate = !officerMode ? weatherLike : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile);
+    const allowWeatherGate = !officerMode
+      ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(messageWithFile))
+      : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile);
     if (mcpClient && allowWeatherGate) {
       const deep = wantsDeepExplain(messageWithFile);
       logBoth("info", `[WeatherGate] bypass=true transport=http deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
@@ -2230,7 +2269,6 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Phase 1 GEO Round B: Deterministic GEO Gate (NO LLM tool planning)
     // Minimal Happy Path: address_normalize / geo_lookup / geo_validate
     // =====================================
-    const geoLike = looksLikeDeterministicGeoQuery(messageWithFile);
     if (mcpClient && geoLike) {
       const geoToolName = "local-tools:thai_geo_tool";
       const action = inferGeoAction(messageWithFile);

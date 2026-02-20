@@ -17,6 +17,17 @@
 
 - *********NOTE: On this workstation (Node v25.2.1), `node --loader ts-node/esm scripts/verify_phase1_geo_roundB.ts` fails early with `ERR_REQUIRE_CYCLE_MODULE`. Using `npx ts-node` is the working runtime path for the same verifier script.*********
 
+\***\*\*\*\***PHASE1: GEO Round C (Professionalization) (2026-02-20)\***\*\*\*\***
+
+- Runtime (A):
+  - `npm --prefix innomcp-node run build`
+  - `cd innomcp-node; $env:CHAT_TRACE_QA='1'; $env:LOG_DEBUG='0'; $env:LOG_MODE='test'; npx ts-node scripts/verify_phase1_geo_roundC.ts`
+
+- Evidence:
+  - `innomcp-node/evidence/phase1-geo-roundC-20260220-224332.log`
+
+- *********Result: verifier printed `OK evidence=... p95ms=18 perf=OK` and evidence file contains exactly 12 Trace v3 lines.*********
+
 \***\*\*\*\***FIX: test:geo MODULE_NOT_FOUND + hourly intent\***\*\*\*\***
 
 - Root cause: `test:geo` runs Node CJS tests that `require()` JS, but geo modules were `.ts` under `src/`.
