@@ -1,4 +1,23 @@
-﻿\***\*\*\*\***FIX: test:geo MODULE_NOT_FOUND + hourly intent\***\*\*\*\***
+﻿\***\*\*\*\***PHASE1: GEO Round B Closure (audit) (2026-02-20)\***\*\*\*\***
+
+- Ground truth (A):
+  - `git rev-parse --abbrev-ref HEAD`
+  - `git status -sb`
+  - `git log -1 --oneline --decorate`
+
+- Runtime (B):
+  - `npm --prefix innomcp-node run build`
+  - `cd innomcp-node; $env:CHAT_TRACE_QA='1'; $env:LOG_DEBUG='0'; $env:LOG_MODE='test'; npx ts-node scripts/verify_phase1_geo_roundB.ts`
+
+- Evidence:
+  - `innomcp-node/evidence/phase1-geo-roundB-20260220-163815.log`
+
+- Validate evidence (C) — must print PASS:
+  - `$e='C:\\Users\\USER-NT\\DEV\\innomcp\\innomcp-node\\evidence\\phase1-geo-roundB-20260220-163815.log'; $lines = Get-Content $e | ? { $_.Trim().Length -gt 0 }; "EVIDENCE=$e"; "LINE_COUNT=$($lines.Count)"; if($lines.Count -ne 12){ throw "FAIL line_count expected=12 got=$($lines.Count)" }; $bad = $lines | ? { $_ -match '[{}"`\\\\]' }; if($bad){ throw "FAIL forbidden_chars sample=$($bad[0])" }; $pii = $lines | ? { $_ -match '(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\\\\.[A-Z]{2,}' -or $_ -match '\\\\b\\\\d{1,3}(?:\\\\.\\\\d{1,3}){3}\\\\b' -or $_ -match '(?i)\\\\bbearer\\\\s' -or $_ -match '(?i)\\\\btoken\\\\b|\\\\bapi[_-]?key\\\\b' }; if($pii){ throw "FAIL pii sample=$($pii[0])" }; 'PASS'`
+
+- *********NOTE: On this workstation (Node v25.2.1), `node --loader ts-node/esm scripts/verify_phase1_geo_roundB.ts` fails early with `ERR_REQUIRE_CYCLE_MODULE`. Using `npx ts-node` is the working runtime path for the same verifier script.*********
+
+\***\*\*\*\***FIX: test:geo MODULE_NOT_FOUND + hourly intent\***\*\*\*\***
 
 - Root cause: `test:geo` runs Node CJS tests that `require()` JS, but geo modules were `.ts` under `src/`.
 - Fix: Geo tests now load compiled modules from `innomcp-node/dist/geo/*` and `test:geo` runs `npm run build` before tests.
