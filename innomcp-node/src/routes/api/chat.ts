@@ -24,6 +24,7 @@ import { optionalAuth } from "../../utils/jwt";
 import { guestLimiterMiddleware, getLimitsForUser, checkToolAccess, limitResponseLength } from "../../middleware/guestLimiter";
 import { tryFastPathWebSocket } from "../../services/fastPathHandler";
 import { renderWeatherMarkdownTable } from "../../utils/weather/tableRenderer";
+import { renderWeatherContractAnswer } from "../../utils/weather/answerContract";
 import { sanitizeForTraceV3, normalizeTraceAnswerV3ByRoute } from "../../utils/traceSanitizer";
 import { renderThaiGeoAnswerShort } from "../../utils/mcp/tools/thai_geo_tool";
 
@@ -191,39 +192,9 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
     return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN} (ถ้าต้องการ \"ตาราง\" บอกได้ครับ)`, structuredContent };
   }
 
-  if (firstOk.type === "forecast7d") {
-    const province = firstOk.province || "";
-    const f = firstOk.data?.forecast;
-    const targetDate = wantsToday ? renderBkkDateStr(0) : renderBkkDateStr(1);
-
-    if (f && typeof f === "object" && Array.isArray((f as any).ForecastDate)) {
-      const idx = ((f as any).ForecastDate as string[]).indexOf(targetDate);
-      const i = idx >= 0 ? idx : 0;
-      const rain = Number((f as any).PercentRainCover?.[i]) || 0;
-      const tmax = (f as any).MaximumTemperature?.[i];
-      const tmin = (f as any).MinimumTemperature?.[i];
-      const desc = String((f as any).DescriptionThai?.[i] || "").trim();
-      return {
-        text: `พยากรณ์อากาศ${province} (${targetDate}): โอกาสฝน ~${rain}% อุณหภูมิ ${tmin ?? "—"}–${tmax ?? "—"}°C${desc ? `, ${desc}` : ""}`,
-        structuredContent,
-      };
-    }
-
-    return { text: `พยากรณ์อากาศ${province}: ดึงข้อมูลพยากรณ์ 7 วันสำเร็จ (ถ้าต้องการ \"ตาราง\" บอกได้ครับ)`, structuredContent };
-  }
-
-  if (firstOk.type === "station3h") {
-    const province = firstOk.province || "";
-    const list = Array.isArray(firstOk.data) ? firstOk.data : [];
-    const s = list[0] || {};
-    const temp = s.Temp ?? s.Temperature ?? s.AirTemperature ?? s.TempC;
-    return {
-      text: `อากาศตอนนี้${province}: พบข้อมูลสถานี ${list.length} จุด${temp !== undefined ? `, อุณหภูมิประมาณ ${temp}°C` : ""}`,
-      structuredContent,
-    };
-  }
-
-  return { text: `ผลพยากรณ์อากาศ (${firstOk.type}) สำหรับ ${firstOk.province || "พื้นที่ที่ถาม"}`, structuredContent };
+  // Phase W1: strict deterministic contract renderer
+  // Must include: จังหวัด, โอกาสฝน (%), อุณหภูมิ, ลม, เวลาอัปเดตข้อมูล (Observation/LastBuildDate)
+  return renderWeatherContractAnswer(userText || "", weatherResults as any);
 }
 
 function wantsDeepExplain(text: string): boolean {
@@ -278,7 +249,7 @@ function looksLikeDeterministicGeoQuery(text: string): boolean {
   };
 
   const t = normalizeThaiDigits(String(text || ""));
-  const directGeo = /(รหัสไปรษณีย์|\b\d{5}\b|จังหวัด|อำเภอ|เขต|แขวง|ตำบล|พิกัด|ภาค|ที่อยู่|แยกที่อยู่|จัดรูปแบบที่อยู่|ตรวจสอบที่อยู่|postcode|province|district|subdistrict|address|coordinate|lat|lon|(?:^|\s)(?:จ\.|อ\.|ต\.|ถ\.|ซ\.|กทม\.?)(?=\s|$))/i.test(
+  const directGeo = /(รหัสไปรษณีย์|\b\d{5}\b|จังหวัด|อำเภอ|เขต|แขวง|ตำบล|พิกัด|ภาค|ที่อยู่|แยกที่อยู่|จัดรูปแบบที่อยู่|ตรวจสอบที่อยู่|postcode|province|district|subdistrict|address|coordinate|lat|lon|(?:^|\s)(?:จ\.|อ\.|ต\.|ถ\.|ซ\.|กทม\.?))/i.test(
     t
   );
   if (directGeo) return true;
@@ -518,104 +489,8 @@ export function updateChatAIMode() {
     }
   }
 
-  function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { text: string; structuredContent: any } {
-    const structuredContent = { weatherPipeline: weatherPayload };
-
-    const wantsTable = /ตาราง|table|รายสถานี|สถานี/i.test(userText || "");
-    const wantsToday = /วันนี้|ตอนนี้|ขณะนี้/i.test(userText || "");
-
-    const renderBkkDateStr = (offsetDays: number): string => {
-      const now = new Date();
-      const bkkMs = now.getTime() + (7 * 60 * 60 * 1000);
-      const bkk = new Date(bkkMs);
-      bkk.setUTCDate(bkk.getUTCDate() + offsetDays);
-      const dd = String(bkk.getUTCDate()).padStart(2, "0");
-      const mm = String(bkk.getUTCMonth() + 1).padStart(2, "0");
-      const yyyy = bkk.getUTCFullYear();
-      return `${dd}/${mm}/${yyyy}`;
-    };
-
-    if (!Array.isArray(weatherPayload)) {
-      const err = String(weatherPayload?.error || "WEATHER_PIPELINE_ERROR");
-      if (err === "PROVINCE_MISSING") {
-        return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
-      }
-      if (err === "TIMEOUT") {
-        return { text: "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ", structuredContent };
-      }
-      return { text: `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`, structuredContent };
-    }
-
-    const weatherResults = weatherPayload as any[];
-    const firstOk = weatherResults.find((r: any) => r && r.type !== "error") || weatherResults[0];
-
-    if (!firstOk || firstOk.type === "error") {
-      const err = String(firstOk?.error || "WEATHER_PIPELINE_ERROR");
-      if (err === "PROVINCE_MISSING") {
-        return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
-      }
-      if (err === "TIMEOUT") {
-        return { text: "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ", structuredContent };
-      }
-      return { text: `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`, structuredContent };
-    }
-
-    if (wantsTable) {
-      if (firstOk.type === "national") {
-        const d = firstOk.data || {};
-        const label = d.dateLabel || "พรุ่งนี้";
-        const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
-        const note = d.note ? `\n\nหมายเหตุ: ${d.note}` : "";
-        const table = d.tableMarkdown ? `\n\n${d.tableMarkdown}` : `\n\n${renderWeatherMarkdownTable(weatherResults)}`;
-        return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${table}${note}`, structuredContent };
-      }
-
-      return {
-        text: `ตารางสรุปสภาพอากาศ:\n\n${renderWeatherMarkdownTable(weatherResults)}`,
-        structuredContent,
-      };
-    }
-
-    if (firstOk.type === "national") {
-      const d = firstOk.data || {};
-      const label = d.dateLabel || "พรุ่งนี้";
-      const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
-      return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN} (ถ้าต้องการ \"ตาราง\" บอกได้ครับ)`, structuredContent };
-    }
-
-    if (firstOk.type === "forecast7d") {
-      const province = firstOk.province || "";
-      const f = firstOk.data?.forecast;
-      const targetDate = wantsToday ? renderBkkDateStr(0) : renderBkkDateStr(1);
-
-      if (f && typeof f === "object" && Array.isArray((f as any).ForecastDate)) {
-        const idx = ((f as any).ForecastDate as string[]).indexOf(targetDate);
-        const i = idx >= 0 ? idx : 0;
-        const rain = Number((f as any).PercentRainCover?.[i]) || 0;
-        const tmax = (f as any).MaximumTemperature?.[i];
-        const tmin = (f as any).MinimumTemperature?.[i];
-        const desc = String((f as any).DescriptionThai?.[i] || "").trim();
-        return {
-          text: `พยากรณ์อากาศ${province} (${targetDate}): โอกาสฝน ~${rain}% อุณหภูมิ ${tmin ?? "—"}–${tmax ?? "—"}°C${desc ? `, ${desc}` : ""}`,
-          structuredContent,
-        };
-      }
-
-      return { text: `พยากรณ์อากาศ${province}: ดึงข้อมูลพยากรณ์ 7 วันสำเร็จ (ถ้าต้องการ \"ตาราง\" บอกได้ครับ)`, structuredContent };
-    }
-
-    if (firstOk.type === "station3h") {
-      const province = firstOk.province || "";
-      const list = Array.isArray(firstOk.data) ? firstOk.data : [];
-      const s = list[0] || {};
-      const temp = s.Temp ?? s.Temperature ?? s.AirTemperature ?? s.TempC;
-      return {
-        text: `อากาศตอนนี้${province}: พบข้อมูลสถานี ${list.length} จุด${temp !== undefined ? `, อุณหภูมิประมาณ ${temp}°C` : ""}`,
-        structuredContent,
-      };
-    }
-
-    return { text: `ผลพยากรณ์อากาศ (${firstOk.type}) สำหรับ ${firstOk.province || "พื้นที่ที่ถาม"}`, structuredContent };
+  function renderWeatherDirectAnswerLegacy(userText: string, weatherPayload: any): { text: string; structuredContent: any } {
+    return renderWeatherDirectAnswer(userText, weatherPayload);
   }
   const oldMode = AI_MODE;
   AI_MODE = getCurrentAIMode();

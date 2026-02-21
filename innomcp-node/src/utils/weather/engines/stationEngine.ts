@@ -11,7 +11,16 @@ export class StationEngine {
     constructor(private clients: Map<string, any>) {}
 
     private getClient(): any {
-        return this.clients.get("innomcp-server") || this.clients.values().next().value;
+        const c = this.clients.get("innomcp-server") || this.clients.values().next().value;
+        if (c) return c;
+        if (process.env.WEATHER_FIXTURE_W1 === "1") {
+            return {
+                callTool: async () => {
+                    throw new Error("WEATHER_FIXTURE_W1 dummy client should not be called");
+                },
+            };
+        }
+        return undefined;
     }
 
     async getStationData(province: string): Promise<WeatherResult> {

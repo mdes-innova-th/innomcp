@@ -4,6 +4,7 @@ import { StationEngine } from "./engines/stationEngine";
 import { NwpEngine } from "./engines/nwpEngine";
 import { WeatherResult, WeatherTarget } from "./types";
 import { resolveProvinces } from "../locationResolver";
+import { primeWeatherFixturesW1 } from "./fixtures/w1";
 
 // Nationwide query: show top N provinces by rain
 const NATIONWIDE_TOP_N_DEFAULT = 10;
@@ -114,6 +115,11 @@ export class WeatherPipeline {
         this.forecastEngine = new ForecastEngine(clients);
         this.stationEngine = new StationEngine(clients);
         this.nwpEngine = new NwpEngine(clients);
+
+        // Phase W1: allow deterministic zero-network fixtures for verifier/evidence.
+        if (process.env.WEATHER_FIXTURE_W1 === "1") {
+            primeWeatherFixturesW1();
+        }
     }
 
     public resolveTarget(userText: string): WeatherTarget {
@@ -138,9 +144,11 @@ export class WeatherPipeline {
     private detectMode(text: string): "now" | "today" | "future" | "week" | "table" | "nationwide" {
         const t = text || "";
         if (/ตารางแสดง|ตาราง|รายสถานี|สถานี|station\b/i.test(t)) return "table";
-        if (/ตอนนี้|ขณะนี้|เดี๋ยวนี้|ปัจจุบัน|observation|current\b|real\s*time/i.test(t)) return "now";
+        // Mode v2: NOW must win even if other timewords exist.
+        if (/ตอนนี้(ที่)?|ขณะนี้|เดี๋ยวนี้|ปัจจุบัน|observation|current\b|real\s*time/i.test(t)) return "now";
         if (/7\s*วัน|๗\s*วัน|หนึ่งสัปดาห์|สัปดาห์นี้|สัปดาห์หน้า|อาทิตย์นี้|อาทิตย์หน้า/i.test(t)) return "week";
-        if (/พรุ่งนี้|มะรืน|เดือนหน้า|ล่วงหน้า|พยากรณ์|forecast|\d+\s*วัน/i.test(t)) return "future";
+        // Support Thai digits for "อีก X วัน"
+        if (/พรุ่งนี้|มะรืน|เดือนหน้า|ล่วงหน้า|พยากรณ์|forecast|\d+\s*วัน|[๐-๙]+\s*วัน|อีก\s*(\d+|[๐-๙]+)\s*วัน/i.test(t)) return "future";
         return "today";
     }
 
@@ -155,6 +163,12 @@ export class WeatherPipeline {
         const nat = detectNationwideParams(target.originalText || "");
         const isNational = Boolean(target.intent.national) || nat.national;
 
+        const isTodayRainQuestion = (() => {
+            const t = target.originalText || "";
+            // "วันนี้" + rain question -> summarize by observation (latest) + today's forecast
+            return /วันนี้/i.test(t) && /(ฝนตกไหม|ฝนจะตก|ฝนตกช่วงไหน|ฝน\s*ตก)/i.test(t);
+        })();
+
         const chain = (() => {
             // National uses only forecast
             if (isNational && target.provinces.length === 0) return "Forecast";
@@ -163,6 +177,7 @@ export class WeatherPipeline {
                 case "table":
                     return "Station>Forecast>NWP";
                 case "today":
+                    if (isTodayRainQuestion) return "Station>Forecast>NWP";
                     return "Forecast>Station>NWP";
                 case "future":
                 case "week":
@@ -192,20 +207,21 @@ export class WeatherPipeline {
 
         for (const province of target.provinces) {
             let result: WeatherResult | null = null;
+            let shouldSupplementForecast = false;
+
+            const runWithBudget = async (fn: () => Promise<WeatherResult>): Promise<WeatherResult> => {
+                if (budgetRemainingMs() <= 0) {
+                    budgetExceeded = true;
+                    return { province, type: "error", error: "BUDGET_EXCEEDED" };
+                }
+                const r = await fn();
+                if (budgetRemainingMs() <= 0) {
+                    budgetExceeded = true;
+                }
+                return r;
+            };
 
             try {
-                const runWithBudget = async (fn: () => Promise<WeatherResult>): Promise<WeatherResult> => {
-                    if (budgetRemainingMs() <= 0) {
-                        budgetExceeded = true;
-                        return { province, type: "error", error: "BUDGET_EXCEEDED" };
-                    }
-                    const r = await fn();
-                    if (budgetRemainingMs() <= 0) {
-                        budgetExceeded = true;
-                    }
-                    return r;
-                };
-
                 if (province === "ALL_THAILAND") {
                     const natResults = await this.executeNationwide(target);
                     results.push(...natResults);
@@ -223,8 +239,13 @@ export class WeatherPipeline {
                     return r;
                 };
 
-                if (mode === "now" || mode === "table") {
+                if (mode === "now" || mode === "table" || (mode === "today" && isTodayRainQuestion)) {
                     result = await tryStation();
+
+                    // For NOW and "วันนี้+ฝน" questions, keep station-first but also try to add forecast
+                    // so that rain% and forecast update-time are always available when possible.
+                    shouldSupplementForecast = (result.type !== "error");
+
                     if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
                         console.log(`[WeatherPipeline] fallback=Forecast reason=StationError province=${province} error=${result.error}`);
                         result = await runWithBudget(() => this.forecastEngine.getForecast(province));
@@ -255,6 +276,20 @@ export class WeatherPipeline {
             }
 
             results.push(result || { province, type: "error", error: "DATA_UNAVAILABLE" });
+
+            // Supplement forecast (non-blocking) when station succeeded and we still have budget.
+            if (shouldSupplementForecast && result && result.type === "station3h" && budgetRemainingMs() > 0) {
+                const fc = await (async () => {
+                    try {
+                        return await runWithBudget(() => this.forecastEngine.getForecast(province));
+                    } catch {
+                        return null;
+                    }
+                })();
+                if (fc && fc.type !== "error") {
+                    results.push(fc);
+                }
+            }
 
             if (budgetRemainingMs() <= 0) {
                 break;

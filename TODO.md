@@ -15,7 +15,7 @@
 - Validate evidence (C) — must print PASS:
   - `$e='C:\\Users\\USER-NT\\DEV\\innomcp\\innomcp-node\\evidence\\phase1-geo-roundB-20260220-163815.log'; $lines = Get-Content $e | ? { $_.Trim().Length -gt 0 }; "EVIDENCE=$e"; "LINE_COUNT=$($lines.Count)"; if($lines.Count -ne 12){ throw "FAIL line_count expected=12 got=$($lines.Count)" }; $bad = $lines | ? { $_ -match '[{}"`\\\\]' }; if($bad){ throw "FAIL forbidden_chars sample=$($bad[0])" }; $pii = $lines | ? { $_ -match '(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\\\\.[A-Z]{2,}' -or $_ -match '\\\\b\\\\d{1,3}(?:\\\\.\\\\d{1,3}){3}\\\\b' -or $_ -match '(?i)\\\\bbearer\\\\s' -or $_ -match '(?i)\\\\btoken\\\\b|\\\\bapi[_-]?key\\\\b' }; if($pii){ throw "FAIL pii sample=$($pii[0])" }; 'PASS'`
 
-- *********NOTE: On this workstation (Node v25.2.1), `node --loader ts-node/esm scripts/verify_phase1_geo_roundB.ts` fails early with `ERR_REQUIRE_CYCLE_MODULE`. Using `npx ts-node` is the working runtime path for the same verifier script.*********
+- ****\*****NOTE: On this workstation (Node v25.2.1), `node --loader ts-node/esm scripts/verify_phase1_geo_roundB.ts` fails early with `ERR_REQUIRE_CYCLE_MODULE`. Using `npx ts-node` is the working runtime path for the same verifier script.****\*****
 
 \***\*\*\*\***PHASE1: GEO Round C (Professionalization) (2026-02-20)\***\*\*\*\***
 
@@ -26,7 +26,23 @@
 - Evidence:
   - `innomcp-node/evidence/phase1-geo-roundC-20260220-224332.log`
 
-- *********Result: verifier printed `OK evidence=... p95ms=18 perf=OK` and evidence file contains exactly 12 Trace v3 lines.*********
+- ****\*****Result: verifier printed `OK evidence=... p95ms=18 perf=OK` and evidence file contains exactly 12 Trace v3 lines.****\*****
+
+\***\*\*\*\***PHASE W1: Weather Accuracy Recovery (2026-02-21)\***\*\*\*\***
+
+- Runtime (A):
+  - `npm --prefix innomcp-node run build`
+  - `cd innomcp-node; npx ts-node scripts/verify_weather_accuracy_v1.ts`
+  - Output file:
+    - `innomcp-node/evidence/phaseW1-weather-verify-accuracy-v1-2026-02-21T07-47-42-991Z.out.log`
+
+- Evidence (Trace v3, exactly 12 lines):
+  - `cd innomcp-node; npx ts-node scripts/verify_phaseW1_weather_tracev3.ts`
+  - Output files:
+    - `innomcp-node/evidence/phaseW1-weather-tracev3-2026-02-21T07-47-47-868Z.log`
+    - `innomcp-node/evidence/phaseW1-weather-tracev3-2026-02-21T07-47-47-868Z.out.log`
+
+- ****\*****Result: `verify_weather_accuracy_v1` PASS (10) และ Trace v3 ได้ครบ 12 บรรทัด (6 HTTP + 6 WS) โดย OUT เป็น route=weatherGate, ไม่ใช่ JSON, และมี `เวลาอัปเดตข้อมูล:` (non-LLM).****\*****
 
 \***\*\*\*\***FIX: test:geo MODULE_NOT_FOUND + hourly intent\***\*\*\*\***
 
@@ -605,9 +621,24 @@ Evidence (Trace v3, 12 lines)
 
 - `innomcp-node/evidence/phase1-geo-roundB-20260220-010646.log`
 
-Notes
-
 - \***\*\*\*\***Fix applied: ถนนสีลม previously triggered WeatherGate due to substring match “ลม”\***\*\*\*\***
+
+\***\*\*\*\*** PHASE 1: GEO — Round C (Deterministic Geo + Ambiguous Case) (2026-02-21) \***\*\*\*\***
+
+What shipped
+
+- Handled ambiguous queries falling back incorrectly by relaxing GeoGate regex requirements for spaces after prefixes like `ต.`.
+- Added Verifier `innomcp-node/scripts/verify_phase1_geo_roundC.ts` that includes specific edge cases like `ต.สุเทพ` and checks performance.
+
+Commands (real run)
+
+- Evidence verifier:
+  - `cd innomcp-node && npx ts-node scripts\verify_phase1_geo_roundC.ts` (Modified to use ts-node to execute `src/server.ts` directly, bypassing the hanging `npm run build` step on the test vm)
+
+Evidence (Trace v3, 12 lines)
+
+- `innomcp-node/evidence/phase1-geo-roundC-20260221-140810.log`
+- Performance metric: `p95ms=16 perf=OK`
 
 \***\*\*\*\*** [จาก: Vitcup] Re-run ชุด weather เพื่อยืนยัน "ระบบนิ่ง" หลัง hardening harness (2026-02-05) \***\*\*\*\***
 

@@ -51,4 +51,8 @@ yarn-error.log*
 # Allow committing deterministic Phase 6.5 runner
 !/scripts/verify_weather_v2.ts
 
+# Phase W1: Weather Accuracy Recovery verifiers
+!/scripts/verify_weather_accuracy_v1.ts
+!/scripts/verify_phaseW1_weather_tracev3.ts
+
 

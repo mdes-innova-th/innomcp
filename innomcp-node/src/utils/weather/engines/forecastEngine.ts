@@ -1,6 +1,7 @@
 import { executeWeatherToolCall, TimeoutError } from "../toolCall";
 import { WeatherResult } from "../types";
 import { ToolCache } from "../../cache/toolCache";
+import { firstNonEmptyString } from "../shaping";
 
 // Timeout constants (configurable)
 const FORECAST_TIMEOUT_MS = 12_000;
@@ -10,7 +11,16 @@ export class ForecastEngine {
     constructor(private clients: Map<string, any>) {}
 
     private getClient(): any {
-        return this.clients.get("innomcp-server") || this.clients.values().next().value;
+        const c = this.clients.get("innomcp-server") || this.clients.values().next().value;
+        if (c) return c;
+        if (process.env.WEATHER_FIXTURE_W1 === "1") {
+            return {
+                callTool: async () => {
+                    throw new Error("WEATHER_FIXTURE_W1 dummy client should not be called");
+                },
+            };
+        }
+        return undefined;
     }
 
     async getForecast(province: string): Promise<WeatherResult> {
@@ -100,6 +110,13 @@ export class ForecastEngine {
     private extractForecast(payload: any, target: string): any | null {
         if (!payload || typeof payload !== "object") return null;
 
+        const lastBuildDate = firstNonEmptyString(
+            payload?.LastBuildDate,
+            payload?.lastBuildDate,
+            payload?.Header?.LastBuildDate,
+            payload?.header?.lastBuildDate
+        );
+
         const raw = payload?.Provinces?.Province;
         const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
 
@@ -113,6 +130,7 @@ export class ForecastEngine {
         return {
             province: found.ProvinceNameThai || found.ProvinceName,
             forecast: found.SevenDaysForecast || found.ForecastDaily || [],
+            lastBuildDate: lastBuildDate || undefined,
         };
     }
 }
