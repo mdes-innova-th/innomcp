@@ -1,0 +1,5 @@
+Error: Expected 12 trace lines for cid=phaseW1-, got 6
+    at assert (C:\Users\USER-NT\DEV\innomcp\innomcp-node\scripts\verify_phaseW1_weather_tracev3.ts:123:20)
+    at C:\Users\USER-NT\DEV\innomcp\innomcp-node\scripts\verify_phaseW1_weather_tracev3.ts:198:5
+    at Generator.next (<anonymous>)
+    at fulfilled (C:\Users\USER-NT\DEV\innomcp\innomcp-node\scripts\verify_phaseW1_weather_tracev3.ts:12:58)

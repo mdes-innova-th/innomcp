@@ -1,0 +1,24 @@
+15:25:55 [32minfo[39m: [32m[ToolCache] CLEARED[39m
+[LocationResolver] resolvedProvinces=[กรุงเทพมหานคร] method=substring
+[WeatherPipeline] mode=today province=กรุงเทพมหานคร chain=Station>Forecast>NWP budgetMs=30000
+[StationEngine] stationCount=2 filteredCount=1 province=กรุงเทพมหานคร
+15:25:55 [32minfo[39m: [32m[ToolCache] SET: tmd_weather_forecast_7days_by_province:{"scope":"national"} (ttl: 1800000ms)[39m
+[FAIL] alias: 'กทม' -> 'กรุงเทพมหานคร' reason=Expected 1 result, got=2
+[LocationResolver] resolvedProvinces=[สมุทรสาคร,ศรีสะเกษ] method=substring
+[WeatherPipeline] mode=future province=สมุทรสาคร,ศรีสะเกษ chain=Forecast>NWP budgetMs=30000
+15:25:55 [32minfo[39m: [32m[ToolCache] HIT: tmd_weather_forecast_7days_by_province:{"scope":"national"}[39m
+15:25:55 [32minfo[39m: [32m[ToolCache] HIT: tmd_weather_forecast_7days_by_province:{"scope":"national"}[39m
+[PASS] multi-province: 2 provinces
+[LocationResolver] resolvedProvinces=[] method=none
+[WeatherPipeline] mode=future province= chain=Forecast>NWP budgetMs=30000
+[PASS] fake province block: PROVINCE_MISSING and no tool calls
+15:25:55 [32minfo[39m: [32m[ToolCache] CLEARED[39m
+[LocationResolver] resolvedProvinces=[ปทุมธานี] method=substring
+[WeatherPipeline] mode=now province=ปทุมธานี chain=Station>Forecast>NWP budgetMs=30000
+[StationEngine] stationCount=2 filteredCount=1 province=ปทุมธานี
+15:25:55 [32minfo[39m: [32m[ToolCache] SET: tmd_weather_forecast_7days_by_province:{"scope":"national"} (ttl: 1800000ms)[39m
+[FAIL] fallback: station uses tmd_weather_today_07am_all_stations reason=Expected 1 result, got=2
+[PASS] timeout: stale timeout fallback returned
+[PASS] payload variance: parse unwrap shapes
+Summary: pass=4 fail=2
+__INNOMCP_EXITCODE__=0 

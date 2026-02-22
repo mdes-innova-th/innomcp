@@ -48,6 +48,7 @@ package-lock.json
 !/scripts/verify_weather_v2.ts
 !/scripts/smoke_phase_721.ps1
 !/scripts/extract_smoke_evidence_721.ps1
+!/scripts/run_minimal_ci.ps1
 /docs/
 /tests/
 */.env
