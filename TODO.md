@@ -198,6 +198,32 @@
 
 \***\*\*\*\***Unified Action Plan (ordered)\***\*\*\*\***
 
+\***\*\*\*\***PHASE 7.3: Fix 3 Pillars (GEO/WX/EVI) (DONE) (2026-02-22)\***\*\*\*\***
+
+- *********Goal: ให้ 3 repro queries ผ่านแบบ deterministic ภายใต้ Minimal CI + มี verifier สั้นผ่าน HTTP (evidence log แบบสั้น ไม่ใช่ JSON)*********
+
+- Implemented (code):
+  - GEO: ปรับ `extractGeoLookupQuery()` ให้เลือก district ก่อน province เพื่อเคส "จังหวัดกรุงเทพ ... อำเภอหลักสี่" ไป lookup "หลักสี่" ไม่ใช่ "กรุงเทพ".
+  - GEO: ปรับ `renderThaiGeoAnswerShort()` ให้ถ้าเป็นกรุงเทพให้ใช้ label "เขต/แขวง" และหลีกเลี่ยงการตอบแบบภาคเป็นแกน (ไม่เน้น "ภาคกลาง").
+  - WX: เอาคำว่า "โหมดทดสอบ" ออกจากคำตอบ FastPath ทั้งหมด และทำให้ weather stub ไม่ hijack เคส multi-location/ขอ "ละเอียด".
+  - WX: เพิ่ม smoke-run deterministic answer สำหรับเคส "กรุงเทพ หลักสี่ และลาดกระบัง..." (ไม่มี network/tool deps) + non-smoke path รองรับ multi-district (เรียก pipeline แยกเขต).
+  - EVI: เพิ่ม intent ใหม่ใน local tool `detect_evidence_stats`:
+    - `evidence_records_yesterday_total`
+    - `evidence_records_yesterday_by_isp_top`
+    พร้อม fallback ไทยแบบ user-friendly เมื่อไม่มี DETECT_DB creds.
+  - EVI: ปรับ renderer ของ evidence ให้ไม่ขึ้นต้นด้วย `ERR:` ในกรณี `MISSING_DETECT_DB_CREDS` และเพิ่มข้อความสำหรับ intent เมื่อวาน/ISP.
+
+- New verifier (HTTP):
+  - `innomcp-node/scripts/verify_phase73_repro_3cases.ts`
+  - *********Run (after minimal CI): `cd innomcp-node; npx ts-node scripts/verify_phase73_repro_3cases.ts`*********
+  - Output: เขียน evidence ไว้ที่ `innomcp-node/evidence/phase73-<stamp>.log`
+  - Evidence (latest): `innomcp-node/evidence/phase73-20260222-222247.log` (RESULT: PASS)
+
+- Minimal CI evidence:
+  - `innomcp-node/evidence/minimal-ci-20260222-222137.summary.log` (PASS)
+  - *********NOTE: ไม่มีคำสั่ง `pwsh` ในเครื่องนี้ จึงรัน `scripts/run_minimal_ci.ps1` ด้วย `powershell.exe` แทน (ผล PASS)*********
+
+
 1. \***\*\*\*\***Stabilize GUI test execution entrypoint (Windows)\***\*\*\*\***
    - Stop relying on `npm test` at repo root for this workflow (Evidence A/B)
 

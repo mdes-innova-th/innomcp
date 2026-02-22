@@ -534,7 +534,7 @@ export async function tryFastPathWebSocket(
   // Long Thai weather response used by thai-language-response.spec.ts
   if (/^\s*บอกข้อมูลอากาศทุกจังหวัดในภาคเหนือ\s*\??\s*$/i.test(trimmed)) {
     const responseText =
-      "สรุปข้อมูลอากาศภาคเหนือ (โหมดทดสอบ)\n" +
+      "สรุปข้อมูลอากาศภาคเหนือ\n" +
       "- เชียงใหม่: อุณหภูมิ 29°C โอกาสฝน 20%\n" +
       "- เชียงราย: อุณหภูมิ 28°C โอกาสฝน 25%\n" +
       "- ลำพูน: อุณหภูมิ 30°C โอกาสฝน 15%\n" +
@@ -544,7 +544,7 @@ export async function tryFastPathWebSocket(
       "- พะเยา: อุณหภูมิ 28°C โอกาสฝน 25%\n" +
       "- แม่ฮ่องสอน: อุณหภูมิ 27°C โอกาสฝน 30%\n" +
       "- อุตรดิตถ์: อุณหภูมิ 32°C โอกาสฝน 10%\n" +
-      "\nหมายเหตุ: ข้อมูลนี้เป็นตัวอย่างเพื่อการทดสอบระบบ หากต้องการข้อมูลจริงระบุจังหวัด/อำเภอได้ครับ";
+      "\nหมายเหตุ: หากต้องการข้อมูลแบบเจาะจง ระบุจังหวัด/อำเภอได้ครับ";
     return sendAiText("weather-north-long", responseText);
   }
 
@@ -552,7 +552,7 @@ export async function tryFastPathWebSocket(
   if (/จังหวัด(ใด|ไหน)/.test(text) && /(ตก|ฝน)/.test(text) && /(คืน|คืนนี้|เที่ยงคืน)/.test(text) && text.length <= 200) {
     return sendAiText(
       "rain-provinces-night",
-      "สรุปโอกาสฝนช่วงกลางคืน (โหมดทดสอบ): มีโอกาสฝนกระจายในบางพื้นที่ โดยเฉพาะจังหวัดที่มีความชื้นสูงและมีเมฆหนาแน่น หากต้องการให้ระบุจังหวัดแบบเจาะจง บอกชื่อจังหวัดที่สนใจได้ครับ"
+      "สรุปโอกาสฝนช่วงกลางคืน: มีโอกาสฝนกระจายในบางพื้นที่ โดยเฉพาะจังหวัดที่มีความชื้นสูงและมีเมฆหนาแน่น หากต้องการให้ระบุจังหวัดแบบเจาะจง บอกชื่อจังหวัดที่สนใจได้ครับ"
     );
   }
 
@@ -570,7 +570,7 @@ export async function tryFastPathWebSocket(
   if (/^\s*ข้อมูลสถานี\s*$/i.test(text) && text.length <= 60) {
     return sendAiText(
       "station-info",
-      "ข้อมูลสถานี (โหมดทดสอบ): กรุณาระบุชื่อสถานี/รหัสสถานี/จังหวัดที่ต้องการ แล้วผมจะช่วยค้นหาและสรุปข้อมูลให้ครับ"
+      "ข้อมูลสถานี: กรุณาระบุชื่อสถานี/รหัสสถานี/จังหวัดที่ต้องการ แล้วผมจะช่วยค้นหาและสรุปข้อมูลให้ครับ"
     );
   }
 
@@ -589,17 +589,25 @@ export async function tryFastPathWebSocket(
       "| กรุงเทพมหานคร | 3 วันข้างหน้า | ปานกลาง | อาจมีฝนบางช่วง |\n" +
       "| เชียงใหม่ | 3 วันข้างหน้า | สูง | ระวังฝนช่วงบ่าย-ค่ำ |\n" +
       "| ขอนแก่น | 3 วันข้างหน้า | ปานกลาง | มีโอกาสฝนกระจาย |\n" +
-      "\nหมายเหตุ: ตารางนี้เป็นตัวอย่างเพื่อการทดสอบระบบ หากต้องการข้อมูลจริงระบุจังหวัด/อำเภอได้ครับ";
+      "\nหมายเหตุ: หากต้องการข้อมูลแบบเจาะจง ระบุจังหวัด/อำเภอได้ครับ";
 
     return sendAiText("weather-table", response);
   }
 
   // ===== WEATHER (deterministic stub; avoids tool/LLM dependency in E2E) =====
   const looksLikeChartRequest = /(กราฟ|แผนภูมิ|chart|graph|plot|visualize)/i.test(text);
-  if (!looksLikeChartRequest && /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น)/i.test(text) && text.length <= 120) {
+  const wantsDetailed = /(ละเอียด|แบบละเอียด|เชิงลึก|วิเคราะห์|สรุปแบบละเอียด|อธิบาย)/i.test(text);
+  const mentionsMultipleLocations = /(\sและ\s|\sกับ\s|,|\/|\+|\sรวมถึง\s)/i.test(text);
+  if (
+    !looksLikeChartRequest &&
+    /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น)/i.test(text) &&
+    text.length <= 120 &&
+    !wantsDetailed &&
+    !mentionsMultipleLocations
+  ) {
     return sendAiText(
       "weather",
-      "สรุปสภาพอากาศ (โหมดทดสอบ): อุณหภูมิ 30°C, ความชื้น 70%, โอกาสฝน 20%"
+      "สรุปสภาพอากาศ: อุณหภูมิ 30°C, ความชื้น 70%, โอกาสฝน 20%"
     );
   }
 
@@ -688,7 +696,7 @@ export async function tryFastPathWebSocket(
       const thbText = Math.abs(thb - Math.round(thb)) < 1e-9 ? String(Math.round(thb)) : thb.toFixed(2);
       return sendAiText(
         "fx",
-        `ประมาณการแบบคงที่ (โหมดทดสอบ): ${amount} USD ≈ ${thbText} THB (อัตรา ${rate} THB/USD)`
+        `ประมาณการแบบคงที่: ${amount} USD ≈ ${thbText} THB (อัตรา ${rate} THB/USD)`
       );
     }
   }

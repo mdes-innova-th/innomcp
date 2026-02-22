@@ -279,6 +279,20 @@ const SEED: SeedEntity[] = [
     attributes: { province: "กรุงเทพมหานคร", district: "บางรัก", subdistrict: "สี่พระยา", postcode: "10500", region: "กลาง" },
   },
   {
+    id: "geo:lak-si",
+    type: "district",
+    name_th: "หลักสี่",
+    aliases: ["เขตหลักสี่", "อำเภอหลักสี่"],
+    attributes: { province: "กรุงเทพมหานคร", district: "หลักสี่", region: "กลาง" },
+  },
+  {
+    id: "geo:lat-krabang",
+    type: "district",
+    name_th: "ลาดกระบัง",
+    aliases: ["เขตลาดกระบัง", "อำเภอลาดกระบัง"],
+    attributes: { province: "กรุงเทพมหานคร", district: "ลาดกระบัง", region: "กลาง" },
+  },
+  {
     id: "geo:pathum-wan",
     type: "district",
     name_th: "ปทุมวัน",
@@ -907,13 +921,27 @@ export function renderThaiGeoAnswerShort(toolResult: any): { text: string; trace
     return `${s}?`;
   };
 
+  const isBangkok = (prov: string): boolean => {
+    const p = sanitize(prov);
+    return /^(กรุงเทพมหานคร|กรุงเทพฯ|กรุงเทพ|กทม)$/.test(p);
+  };
+
+  const districtLabel = (prov: string): string => (isBangkok(prov) ? "เขต" : "อำเภอ");
+  const subdistrictLabel = (prov: string): string => (isBangkok(prov) ? "แขวง" : "ตำบล");
+
   const labelOf = (r: any): string => {
     const t = String(r?.type || "");
     const name = sanitize(r?.name_th);
     if (!name) return "";
     if (t === "postcode") return `รหัสไปรษณีย์ ${name}`;
-    if (t === "subdistrict") return `แขวง/ตำบล${name}`;
-    if (t === "district") return `เขต/อำเภอ${name}`;
+    if (t === "subdistrict") {
+      const prov = sanitize(r?.attributes?.province);
+      return `${subdistrictLabel(prov)}${name}`;
+    }
+    if (t === "district") {
+      const prov = sanitize(r?.attributes?.province);
+      return `${districtLabel(prov)}${name}`;
+    }
     return `จังหวัด${name}`;
   };
 
@@ -924,8 +952,8 @@ export function renderThaiGeoAnswerShort(toolResult: any): { text: string; trace
     const sub = sanitize(attrs?.subdistrict);
     const post = sanitize(attrs?.postcode);
     const parts: string[] = [];
-    if (sub) parts.push(`แขวง/ตำบล${sub}`);
-    if (dist) parts.push(`เขต/อำเภอ${dist}`);
+    if (sub) parts.push(`${subdistrictLabel(prov)}${sub}`);
+    if (dist) parts.push(`${districtLabel(prov)}${dist}`);
     if (prov) parts.push(prov);
     if (post) parts.push(post);
     return parts.join(" ").trim();
@@ -936,7 +964,7 @@ export function renderThaiGeoAnswerShort(toolResult: any): { text: string; trace
     const prov = sanitize(attrs?.province);
     const dist = sanitize(attrs?.district);
     const parts: string[] = [];
-    if (dist) parts.push(`เขต/อำเภอ${dist}`);
+    if (dist) parts.push(`${districtLabel(prov)}${dist}`);
     if (prov) parts.push(prov);
     return parts.join(" ").trim();
   };
@@ -1001,18 +1029,36 @@ export function renderThaiGeoAnswerShort(toolResult: any): { text: string; trace
   if (best) {
     const t = String(best.type);
     if (t === "postcode") {
-      const text = sanitize(`รหัสไปรษณีย์ ${best.name_th} อยู่เขต/อำเภอ${best.attributes?.district || ""} ${best.attributes?.province || ""}`);
+      const prov = sanitize(best.attributes?.province);
+      const distLabel = districtLabel(prov);
+      const text = sanitize(`รหัสไปรษณีย์ ${best.name_th} อยู่${distLabel}${best.attributes?.district || ""} ${prov || ""}`);
       return { text, trace: "OK" };
     }
     if (t === "subdistrict") {
-      const text = sanitize(`แขวง/ตำบล${best.name_th} อยู่เขต/อำเภอ${best.attributes?.district || ""} ${best.attributes?.province || ""}`);
+      const prov = sanitize(best.attributes?.province);
+      const distLabel = districtLabel(prov);
+      const subLabel = subdistrictLabel(prov);
+      const text = sanitize(`${subLabel}${best.name_th} อยู่${distLabel}${best.attributes?.district || ""} ${prov || ""}`);
       return { text, trace: "OK" };
     }
     if (t === "district") {
-      const text = sanitize(`เขต/อำเภอ${best.name_th} อยู่${best.attributes?.province || ""}`);
+      const prov = sanitize(best.attributes?.province);
+      if (isBangkok(prov) || isBangkok(best.name_th || "")) {
+        const p = prov || "กรุงเทพมหานคร";
+        const text = sanitize(`${p} เขต${best.name_th} (กรุงเทพมหานครใช้คำว่า “เขต” แทน “อำเภอ”)`);
+        return { text, trace: "OK" };
+      }
+      const distLabel = districtLabel(prov);
+      const text = sanitize(`${distLabel}${best.name_th} อยู่${prov || ""}`);
       return { text, trace: "OK" };
     }
-    const text = sanitize(`จังหวัด${best.name_th} อยู่ภาค${best.attributes?.region || ""}`);
+    // Province-level: avoid region-centric answer for Bangkok; region is helpful for other provinces.
+    if (isBangkok(best.name_th || "") || isBangkok(best.attributes?.province || "")) {
+      const text = sanitize(`จังหวัด${best.name_th}`);
+      return { text, trace: "OK" };
+    }
+    // Province-level: keep short and avoid trivia like "อยู่ภาค..." as the primary answer.
+    const text = sanitize(`จังหวัด${best.name_th}`);
     return { text, trace: "OK" };
   }
 

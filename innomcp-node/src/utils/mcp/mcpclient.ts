@@ -653,7 +653,12 @@ class IntelligentMCPClient extends EventEmitter {
     }
     
     // Start health check monitoring after initial connection
-    this.startHealthCheck();
+    // NOTE: In SMOKE_MODE we skip background timers so short verifiers can exit cleanly.
+    if (process.env.SMOKE_MODE === "1") {
+      console.log("[MCP Client] 🧪 SMOKE_MODE=1 -> skip MCP health checks");
+    } else {
+      this.startHealthCheck();
+    }
   }
 
   private async loadToolsFromClient(clientName: string, client: Client) {
@@ -3144,6 +3149,25 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
       clearInterval(this.healthCheckInterval);
       this.healthCheckInterval = null;
     }
+  }
+
+  /**
+   * Graceful shutdown for short-lived scripts/tests.
+   * Closes all connected MCP clients and stops background health checks.
+   */
+  public async shutdown(): Promise<void> {
+    this.stopHealthCheck();
+    for (const [name, client] of this.clients) {
+      try {
+        await client.close();
+        console.log(`[MCP Client] Closed connection to ${name} (shutdown)`);
+      } catch (err) {
+        console.warn(`[MCP Client] Error closing client ${name} (shutdown):`, err);
+      }
+    }
+    this.clients.clear();
+    this.tools.clear();
+    this.resources.clear();
   }
 
   /**
