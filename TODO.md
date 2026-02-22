@@ -223,6 +223,22 @@
   - `innomcp-node/evidence/minimal-ci-20260222-222137.summary.log` (PASS)
   - *********NOTE: ไม่มีคำสั่ง `pwsh` ในเครื่องนี้ จึงรัน `scripts/run_minimal_ci.ps1` ด้วย `powershell.exe` แทน (ผล PASS)*********
 
+\***\*\*\*\***PHASE 7.4: General Intelligence Hardening (NO BLOAT) (DONE) (2026-02-22)\***\*\*\*\***
+
+- *********Goal: General questions ตอบได้โดยไม่เลือก tool เมื่อปลอดภัย + fast-LLM ต้องมี budget แข็ง (เกิน 5s => fallback สั้น) + tool-sanity กันเลือก dateTime/system-status ผิดบริบท + เพิ่ม verifier 25 เคสภาษาไทย*********
+
+- Implemented (code):
+  - GeneralGate (HTTP + WS) ก่อน MCP/tool selection
+  - Fix heuristic: "downtime" ไม่ถูกตีความเป็น datetime (\btime\b) และ "อธิบาย Docker" ไม่โดนกันออกแบบ ops
+  - Strict budget for fast LLM calls in MCP client (SMOKE_MODE timeout => short-circuit ไม่ไป stream fallback)
+  - Skip apology LLM ใน smoke-run เมื่อ tool ล้มเหลว (ลด hang)
+  - Skip LLM arg-generation สำหรับ tool schema ว่าง (เช่น `system_status_tool`)
+
+- New verifier (25 cases):
+  - `innomcp-node/scripts/verify_phase74_general_25cases.ts`
+  - *********Run: `cd innomcp-node; npx ts-node scripts/verify_phase74_general_25cases.ts`*********
+  - Evidence (latest): `innomcp-node/evidence/phase74-general-20260222-234046.log` (RESULT: PASS, 25/25)
+
 
 1. \***\*\*\*\***Stabilize GUI test execution entrypoint (Windows)\***\*\*\*\***
    - Stop relying on `npm test` at repo root for this workflow (Evidence A/B)

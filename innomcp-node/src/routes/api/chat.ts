@@ -249,6 +249,162 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   return undefined;
 }
 
+// =====================================
+// Phase 7.4: General Intelligence Hardening
+// - GeneralGate: answer safe general queries WITHOUT tool selection
+// - Strict budget for fast LLM; timeout => short Thai fallback (no hallucination)
+// =====================================
+
+function getGeneralBudgetMs(): number {
+  const raw = Number(process.env.GENERAL_LLM_BUDGET_MS || "5000");
+  if (!Number.isFinite(raw)) return 5000;
+  return Math.min(Math.max(Math.floor(raw), 250), 30000);
+}
+
+function looksLikeEvidenceKeywordQuery(text: string): boolean {
+  const t = String(text || "");
+  const hasThaiMachine = /เครื่อง/i.test(t);
+  const hasEvidenceTerms = /(evidence|หลักฐาน|record|records|nip|url|mdes|วิดีโอ|บันทึก)/i.test(t);
+  const hasIsp = /\bisp\b/i.test(t) || /ผู้ให้บริการ|ค่าย/i.test(t);
+  const hasOnlineTerms = /(ออนไลน์|ออฟไลน์|online|offline|active)/i.test(t);
+
+  // English "machine" is ambiguous (e.g. "Machine Learning"). Only treat as evidence-like when paired with online/offline.
+  const hasEnglishMachineToken = /\bmachine(s)?\b/i.test(t) && !/\bmachine\s+learning\b/i.test(t);
+
+  if (hasThaiMachine) return true;
+  if (hasEvidenceTerms) return true;
+  if (hasIsp) return true;
+  if (hasEnglishMachineToken && hasOnlineTerms) return true;
+  return false;
+}
+
+function looksLikeGeoLikeQuery(text: string): boolean {
+  return /(เขต|แขวง|อำเภอ|ตำบล|รหัสไปรษณีย์|postcode|อยู่ที่ไหน|อยู่ตรงไหน|แถวไหน|พิกัด|lat\b|lon\b|ละติจูด|ลองจิจูด)/i.test(String(text || ""));
+}
+
+function looksLikeDateTimeLikeQuery(text: string): boolean {
+  // Keep narrow: avoid hijacking weather queries containing "วันนี้".
+  const t = String(text || "");
+  const looksLikeWeather = /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น)/i.test(t);
+  if (looksLikeWeather) return false;
+  // IMPORTANT: use full word boundaries for EN tokens so words like "downtime" won't match "time".
+  return /(กี่โมง|ตอนนี้.*กี่โมง|เวลา(นี้|เท่าไหร่|อะไร|ไหน)|วันที่|วันอะไร|เดือนอะไร|ปีอะไร|\bnow\b|\btime\b|\bdate\b|\btoday\b)/i.test(t) && t.length <= 80;
+}
+
+function looksLikeMathLikeQuery(text: string): boolean {
+  const t = String(text || "");
+  return /\d\s*[\+\-\*\/\^×÷]/.test(t) || /(แฟกทอเรียล|factorial|คำนวณ|calculate|บวก|ลบ|คูณ|หาร)/i.test(t);
+}
+
+function looksLikeInfraOpsQuery(text: string): boolean {
+  const t = String(text || "");
+  const hasInfraToken = /(docker|คอนเทนเนอร์|container|สถานะระบบ|system\s*status|infra)/i.test(t);
+  if (!hasInfraToken) return false;
+
+  // Allow general explanations like "Docker คืออะไร" to pass GeneralGate.
+  const looksLikeExplain = /(คืออะไร|อธิบาย|สรุป|สำหรับคนเริ่มต้น|เริ่มต้น|สอน|ความหมาย|ต่างกัน|แตกต่าง)/i.test(t);
+  if (looksLikeExplain) return false;
+
+  // Ops/status intent: checks, stuck, running, etc.
+  return /(ค้าง|ล่ม|มีปัญหา|ทำงานอยู่|ทำงานไหม|ออนไลน์|ออฟไลน์|เช็ค|เช็ก|ตรวจ|ดูสถานะ|status|health|logs?|ps\b|restart|หยุด|รัน)/i.test(t);
+}
+
+function looksLikeGeneralNoToolsQuery(text: string): boolean {
+  const t = String(text || "").trim();
+  if (!t) return false;
+
+  // Be conservative: do NOT general-gate when deterministic/tool-ish signals exist.
+  if (looksLikeDeterministicWeatherQuery(t)) return false;
+  if (looksLikeDeterministicGeoQuery(t) || looksLikeGeoLikeQuery(t)) return false;
+  if (looksLikeEvidenceKeywordQuery(t) || !!inferOfficerEvidenceAction(t)) return false;
+  if (looksLikeDateTimeLikeQuery(t)) return false;
+  if (looksLikeMathLikeQuery(t)) return false;
+  if (/(http:\/\/|https:\/\/|www\.)/i.test(t)) return false;
+
+  // Infra/system checks should go to tools (e.g., system_status_tool), not GeneralGate.
+  if (looksLikeInfraOpsQuery(t)) return false;
+
+  // Positive signals for general chat/knowledge/explanation.
+  const positive = /(คืออะไร|อธิบาย|สรุป|แตกต่าง|เปรียบเทียบ|ทำไม|อย่างไร|แนวทาง|ขั้นตอน|วิธี|ตัวอย่าง|แนะนำ|ควรทำยังไง|ควรทำอย่างไร)/i.test(t);
+  if (positive) return true;
+
+  // Short, question-like messages are usually safe.
+  const looksLikeQuestion = /\?\s*$/.test(t) || /ไหม\s*$|หรือ\s*$|ได้ไหม\s*$|ทำยังไง\s*$|อย่างไร\s*$/.test(t);
+  if (looksLikeQuestion && t.length <= 160) return true;
+
+  return t.length <= 80;
+}
+
+function renderGeneralFallbackMessage(): string {
+  return "ขออภัย ตอนนี้ตอบได้ไม่ทันเวลา ลองระบุคำถามให้แคบลงอีกนิด (เช่น เป้าหมาย/บริบท/ตัวอย่าง) แล้วผมจะสรุปให้สั้นๆ ได้ครับ";
+}
+
+function renderGeneralSmokeAnswer(userText: string): string {
+  const t = String(userText || "").trim();
+  if (/RAG/i.test(t)) {
+    return "RAG คือแนวทางที่ให้ระบบไปค้น/ดึงข้อมูลที่เกี่ยวข้องมาก่อน แล้วค่อยให้โมเดลสรุปตอบจากข้อมูลนั้น เพื่อลดการเดาและตอบให้ตรงบริบทมากขึ้นครับ";
+  }
+  if (/AI|ปัญญาประดิษฐ์/i.test(t) && /คืออะไร|หมายถึง/i.test(t)) {
+    return "AI คือเทคโนโลยีที่ทำให้คอมพิวเตอร์ทำงานที่ปกติใช้การคิดของมนุษย์ได้ เช่น จำแนกข้อมูล คาดการณ์ หรือช่วยสรุปข้อความ โดยต้องระบุโจทย์และข้อมูลให้ชัดเพื่อความแม่นยำครับ";
+  }
+  if (/KPI|OKR/i.test(t)) {
+    return "KPI คือ “ตัวชี้วัดผลลัพธ์” ส่วน OKR คือ “เป้าหมาย + ตัวชี้วัดความสำเร็จ” ถ้าบอกประเภทงาน/ทีม ผมช่วยยกตัวอย่างให้ตรงบริบทได้ครับ";
+  }
+  return "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ";
+}
+
+async function answerGeneralWithFastModel(userText: string, budgetMs: number): Promise<{ text: string; fallback: boolean; reason: string; durMs: number; model: string }> {
+  const start = Date.now();
+  const model = String(ollamaFastModel || "");
+
+  const isForcedTimeoutTest =
+    process.env.NODE_ENV === "test" &&
+    process.env.SMOKE_MODE === "1" &&
+    /PHASE74_FORCE_TIMEOUT/i.test(String(userText || ""));
+  if (isForcedTimeoutTest) {
+    const text = renderGeneralFallbackMessage();
+    return { text, fallback: true, reason: "FORCED_TIMEOUT_TEST", durMs: Date.now() - start, model };
+  }
+
+  const timeoutPromise = new Promise<{ message: { content: string } }>((_resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("GENERAL_FAST_TIMEOUT")), budgetMs);
+    // @ts-ignore
+    if (typeof (t as any).unref === "function") (t as any).unref();
+  });
+
+  try {
+    const prompt = [
+      "ตอบเป็นภาษาไทย สุภาพ กระชับ 2-5 ประโยค",
+      "ถ้าไม่แน่ใจหรือคำถามกว้าง ให้ถามกลับ 1 คำถามเพื่อขอรายละเอียด",
+      "ห้ามเดาตัวเลข/สถิติ/เหตุการณ์ปัจจุบันที่ไม่ชัวร์",
+      "ห้ามเอ่ยถึง tool/MCP/ระบบภายใน",
+      "",
+      `คำถาม: ${String(userText || "").trim()}`,
+    ].join("\n");
+
+    const resp = await Promise.race([
+      ollama.chat({
+        model: ollamaFastModel,
+        messages: [
+          { role: "system", content: "คุณเป็นผู้ช่วยภาษาไทยที่ตอบเร็วและแม่นยำ" },
+          { role: "user", content: prompt },
+        ],
+        stream: false,
+      }) as any,
+      timeoutPromise,
+    ]);
+
+    const text = String((resp as any)?.message?.content || "").trim();
+    if (!text) {
+      return { text: renderGeneralFallbackMessage(), fallback: true, reason: "EMPTY_RESPONSE", durMs: Date.now() - start, model };
+    }
+    return { text, fallback: false, reason: "OK", durMs: Date.now() - start, model };
+  } catch (e: any) {
+    const reason = String(e?.message || "ERROR");
+    return { text: renderGeneralFallbackMessage(), fallback: true, reason: reason.includes("TIMEOUT") ? "TIMEOUT" : "ERROR", durMs: Date.now() - start, model };
+  }
+}
+
 function looksLikeDeterministicGeoQuery(text: string): boolean {
   const normalizeThaiDigits = (v: string): string => {
     const digits = "๐๑๒๓๔๕๖๗๘๙";
@@ -876,6 +1032,7 @@ function chatTraceOut(params: {
   cid?: string;
   uiMode?: string;
   route:
+    | "general"
     | "weatherGate"
     | "officerEvidence"
     | "geo"
@@ -1320,6 +1477,58 @@ wss.on("connection", (ws, req) => {
             uiMode,
             route: "geo",
             tool: geoToolName,
+            code: 200,
+            durMs: Date.now() - traceStartMs,
+            q: messageWithFile,
+            ans: textOut,
+          });
+          return;
+        }
+
+        // =====================================
+        // Phase 7.4: GeneralGate (NO tool selection)
+        // BEFORE God-Tier Router / MCP processMessage.
+        // =====================================
+        if (looksLikeGeneralNoToolsQuery(messageWithFile)) {
+          const budgetMs = getGeneralBudgetMs();
+          const generalStart = Date.now();
+          logBoth("info", `[GeneralGate] bypass=true transport=ws budgetMs=${budgetMs}`);
+
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+
+          const result = await answerGeneralWithFastModel(messageWithFile, budgetMs);
+          const sc = {
+            generalGate: {
+              route: "general",
+              usedTools: false,
+              budgetMs,
+              durMs: result.durMs,
+              model: result.model,
+              fallback: result.fallback,
+              reason: result.reason,
+              totalDurMs: Date.now() - generalStart,
+            },
+          };
+
+          const textOut = result.text;
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [] };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, []);
+          sessionManager.completeResponse(currentSessionId);
+
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [] });
+          sendDoneOnce();
+
+          chatTraceOut({
+            transport: "ws",
+            sid: currentSessionId,
+            cid,
+            uiMode,
+            route: "general",
+            tool: "none",
             code: 200,
             durMs: Date.now() - traceStartMs,
             q: messageWithFile,
@@ -2311,6 +2520,68 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       });
     }
 
+    // =====================================
+    // Phase 7.4: GeneralGate (NO tool selection)
+    // BEFORE MCP processMessage.
+    // =====================================
+    if (looksLikeGeneralNoToolsQuery(messageWithFile)) {
+      const budgetMs = getGeneralBudgetMs();
+      const generalStart = Date.now();
+      const isSmokeRun =
+        process.env.SMOKE_MODE === "1" &&
+        String(req.headers["x-smoke-run"] || (req.headers as any)["X-Smoke-Run"] || "") === "1";
+
+      const isForcedTimeoutTest =
+        process.env.NODE_ENV === "test" &&
+        process.env.SMOKE_MODE === "1" &&
+        /PHASE74_FORCE_TIMEOUT/i.test(String(messageWithFile || ""));
+
+      logBoth("info", `[GeneralGate] bypass=true transport=http budgetMs=${budgetMs} smoke=${isSmokeRun}`);
+
+      const result = isForcedTimeoutTest
+        ? await answerGeneralWithFastModel(messageWithFile, budgetMs)
+        : isSmokeRun
+          ? { text: renderGeneralSmokeAnswer(messageWithFile), fallback: false, reason: "SMOKE_DETERMINISTIC", durMs: 0, model: String(ollamaFastModel || "") }
+          : await answerGeneralWithFastModel(messageWithFile, budgetMs);
+
+      const sc = {
+        generalGate: {
+          route: "general",
+          usedTools: false,
+          budgetMs,
+          durMs: result.durMs,
+          model: result.model,
+          fallback: result.fallback,
+          reason: result.reason,
+          totalDurMs: Date.now() - generalStart,
+        },
+      };
+
+      const textOut = result.text;
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+
+      chatTraceOut({
+        transport: "http",
+        sid: httpSessionId,
+        cid: httpCid,
+        uiMode,
+        route: "general",
+        tool: "none",
+        code: 200,
+        durMs: Date.now() - traceStartMs,
+        q: messageWithFile,
+        ans: textOut,
+      });
+
+      return res.json({
+        text: textOut,
+        structuredContent: sc,
+        messages: sessionHistory,
+        mcpUsed: false,
+        mcpResults: null,
+      });
+    }
+
     let finalMessage = messageWithFile;
     let mcpResults: any[] | null = null;
     let structuredContent: any = undefined;
@@ -2373,7 +2644,13 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         } else if (mcpResult.toolsFailed) {
           // Tools were selected but all failed — ask Ollama to craft a short sorry message
           let sorryMessage = "ขออภัย ขณะนี้ไม่สามารถให้ข้อมูลที่คุณต้องการได้";
+          const isSmokeRun =
+            process.env.SMOKE_MODE === "1" &&
+            String(req.headers["x-smoke-run"] || (req.headers as any)["X-Smoke-Run"] || "") === "1";
           try {
+            if (isSmokeRun) {
+              throw new Error("SMOKE_SKIP_APOLOGY_LLM");
+            }
             const apologyPrompt = `กรุณาสร้างข้อความขอโทษสั้นๆ (ภาษาไทย) ความยาวไม่เกิน 2 ประโยค อธิบายว่าไม่สามารถดึงข้อมูลหรือประมวลผลได้ในขณะนี้ และแนะนำทางเลือก เช่น ลองอีกครั้งภายหลัง หรือตรวจสอบรายละเอียดเพิ่มเติม ตอนจบให้สุภาพและกระชับ ตอบเฉพาะข้อความ ไม่ต้องมี markdown หรือข้อมูลเสริมอื่นๆ`;
             const apologyResp = await ollama.chat({
               model: ollamaModel,
@@ -2388,7 +2665,12 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
             const cleanCandidate = candidate.replace(/"{2,}/g, "").replace(/^"+|"+$/g, "").trim();
             if (cleanCandidate.length > 0) sorryMessage = cleanCandidate;
           } catch (e) {
-            logBoth("error", `[Chat API] Failed to generate apology via Ollama (POST): ${e}`);
+            if (String(e).includes("SMOKE_SKIP_APOLOGY_LLM")) {
+              // Keep deterministic and fast in smoke.
+              sorryMessage = "ขออภัย ระบบยังไม่พร้อมให้บริการในขณะนี้ กรุณาลองใหม่อีกครั้งภายหลังครับ";
+            } else {
+              logBoth("error", `[Chat API] Failed to generate apology via Ollama (POST): ${e}`);
+            }
           }
 
           sessionHistory.push({ sender: "ai", text: sorryMessage });

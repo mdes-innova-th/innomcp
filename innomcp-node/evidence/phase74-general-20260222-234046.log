@@ -1,0 +1,29 @@
+phase74 verifier start: port=58642
+env: SMOKE_MODE=1 CHAT_TRACE_QA=1 budgetMs=5000
+G01 durMs=56 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G02 durMs=10 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=RAG คือแนวทางที่ให้ระบบไปค้น/ดึงข้อมูลที่เกี่ยวข้องมาก่อน แล้วค่อยให้โมเดลสรุปตอบจากข้อมูลนั้น เพื่อลดการเดาและตอบให้ตรงบริบทมากขึ้นครับ
+G03 durMs=6 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=KPI คือ “ตัวชี้วัดผลลัพธ์” ส่วน OKR คือ “เป้าหมาย + ตัวชี้วัดความสำเร็จ” ถ้าบอกประเภทงาน/ทีม ผมช่วยยกตัวอย่างให้ตรงบริบทได้ครับ
+G04 durMs=5 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G05 durMs=6 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G06 durMs=4 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G07 durMs=4 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G08 durMs=15 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G09 durMs=4 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G10 durMs=3 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G11 durMs=4 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=KPI คือ “ตัวชี้วัดผลลัพธ์” ส่วน OKR คือ “เป้าหมาย + ตัวชี้วัดความสำเร็จ” ถ้าบอกประเภทงาน/ทีม ผมช่วยยกตัวอย่างให้ตรงบริบทได้ครับ
+G12 durMs=3 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G13 durMs=3 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G14 durMs=3 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G15 durMs=3 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G16 durMs=3 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G17 durMs=3 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ
+G18 durMs=3 status=200 | expectGeneral=true | route=general | mcpUsed=false | text=ขออภัย ตอนนี้ตอบได้ไม่ทันเวลา ลองระบุคำถามให้แคบลงอีกนิด (เช่น เป้าหมาย/บริบท/ตัวอย่าง) แล้วผมจะสรุปให้สั้นๆ ได้ครับ
+M19 durMs=6 status=200 | expectGeneral=false | route=(none) | mcpUsed=true | text=ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง
+M20 durMs=21 status=200 | expectGeneral=false | route=(none) | mcpUsed=true | text=ไม่พบข้อมูลภูมิศาสตร์ที่ตรงกับคำค้นหา
+M21 durMs=5 status=200 | expectGeneral=false | route=(none) | mcpUsed=true | text=ผลสรุปหลักฐาน: 0
+M22 durMs=4 status=200 | expectGeneral=false | route=(none) | mcpUsed=true | text=เมื่อวานนี้รวม 0 รายการ | ยังไม่เชื่อมต่อฐานข้อมูล จึงยังแยกตาม ISP/ผู้ให้บริการ และหาอันดับมากสุดไม่ได้
+M23 durMs=5494 status=200 | expectGeneral=false | route=(none) | mcpUsed=true | text=ผลลัพธ์จากเครื่องมือ local-tools:system_status_tool: ```json { "status": "ok", "message": "Docker CLI responsive.", "machine_count": 0, "con…
+M24 durMs=4 status=200 | expectGeneral=false | route=(none) | mcpUsed=false | text=สรุปฝนในกรุงเทพมหานคร (เขตหลักสี่, เขตลาดกระบัง) - เขตหลักสี่: โอกาสฝน 20% | อุณหภูมิ 30°C | ความชื้น 70% | ลม 10 กม./ชม. - เขตลาดกระบัง: โอ…
+M25 durMs=7 status=200 | expectGeneral=false | route=(none) | mcpUsed=false | text=ขออภัย ระบบยังไม่พร้อมให้บริการในขณะนี้ กรุณาลองใหม่อีกครั้งภายหลังครับ
+RESULT: PASS
+PASS_COUNT: 25/25

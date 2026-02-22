@@ -492,6 +492,14 @@ class IntelligentMCPClient extends EventEmitter {
     
     logger.info(`Starting chatWithOllama`, { aiType: aiType.toUpperCase(), taskType, model });
 
+    const fastBudgetMs = (() => {
+      const raw = Number(process.env.FAST_LLM_BUDGET_MS || process.env.GENERAL_LLM_BUDGET_MS || '5000');
+      if (!Number.isFinite(raw)) return 5000;
+      return Math.min(Math.max(Math.floor(raw), 250), 30000);
+    })();
+
+    const shouldEnforceFastBudget = taskType === 'fast';
+
     try {
       // Ensure messages is an array and prepend SYSTEM_PROMPT if no system role provided
       if (!Array.isArray(messages)) messages = [];
@@ -503,13 +511,31 @@ class IntelligentMCPClient extends EventEmitter {
       }
 
       logger.info(`Calling ollama.chat`, { model, aiType, options: JSON.stringify(options || {}) });
-      const response = await ollama.chat({
-        model: model,
-        messages,
-        stream: false,
-        keep_alive: '30m',
-        options: options || {},
+
+      const timeoutPromise = new Promise<never>((_resolve, reject) => {
+        const t = setTimeout(() => reject(new Error('FAST_LLM_TIMEOUT')), fastBudgetMs);
+        // @ts-ignore
+        if (typeof (t as any).unref === 'function') (t as any).unref();
       });
+
+      const response = await (shouldEnforceFastBudget
+        ? Promise.race([
+            ollama.chat({
+              model: model,
+              messages,
+              stream: false,
+              keep_alive: '30m',
+              options: options || {},
+            }) as any,
+            timeoutPromise,
+          ])
+        : (ollama.chat({
+            model: model,
+            messages,
+            stream: false,
+            keep_alive: '30m',
+            options: options || {},
+          }) as any));
 
       const duration = Date.now() - startTime;
       
@@ -545,6 +571,12 @@ class IntelligentMCPClient extends EventEmitter {
       const duration = Date.now() - startTime;
       const errorStr = String(err);
       const isTimeout = duration > 120000 || errorStr.toLowerCase().includes('timeout') || errorStr.includes('524');
+
+      if (shouldEnforceFastBudget && process.env.SMOKE_MODE === '1') {
+        console.warn(`[MCP Client] SMOKE fast budget exceeded (${duration}ms): ${errorStr}`);
+        // Deterministic: do not attempt additional fallbacks that could hang.
+        return { message: { content: '' } };
+      }
       
       console.warn(
         `[MCP Client] ${aiType} AI failed (${duration}ms)${isTimeout ? ' [TIMEOUT]' : ''}, attempting fallback:`,
@@ -1830,6 +1862,18 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     // FAST PATH: Direct pattern matching (ไม่ต้องรอ AI)
     let selectedTools: string[] = [];
     const msg = userMessage.toLowerCase();
+
+    // Phase 7.4: Sanity tokens to prevent wrong tool picks
+    // - Evidence-like queries must not be hijacked by dateTimeTool/system_status_tool
+    const hasEvidenceKeywords = (() => {
+      const t = String(msg || "");
+      const hasThaiMachine = /เครื่อง/i.test(t);
+      const hasEvidenceTerms = /(evidence|หลักฐาน|record|records|nip|url|mdes|วิดีโอ|บันทึก)/i.test(t);
+      const hasIsp = /\bisp\b/i.test(t) || /ผู้ให้บริการ|ค่าย/i.test(t);
+      const hasOnlineTerms = /(ออนไลน์|ออฟไลน์|online|offline|active)/i.test(t);
+      const hasEnglishMachineToken = /\bmachine(s)?\b/i.test(t) && !/\bmachine\s+learning\b/i.test(t);
+      return hasThaiMachine || hasEvidenceTerms || hasIsp || (hasEnglishMachineToken && hasOnlineTerms);
+    })();
     
     // ===== PRIORITY 1: Complex queries (multiple tools) - เช็คก่อนเป็นอันดับแรก =====
     // ⚠️ DISABLED: Complex query detection bypasses Priority Boost (TODO #1-22)
@@ -1866,7 +1910,7 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     
     // ===== PRIORITY 2: Individual tool patterns =====
     // DateTime patterns
-    if (selectedTools.length === 0 && /(?:กี่โมง|เวลา|ตอนนี้.*(?:time|เวลา)|วันที่|what.*time|current.*time)/.test(msg)) {
+    if (selectedTools.length === 0 && !hasEvidenceKeywords && /(?:กี่โมง|เวลา|ตอนนี้.*(?:time|เวลา)|วันที่|what.*time|current.*time)/.test(msg)) {
       selectedTools = ["innomcp-server:dateTimeTool"];
       logger.info(`[Process] ✅ Fast path matched: dateTimeTool`);
     }
@@ -2233,16 +2277,39 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
 
         let finalArgs: any;
         const preGeneratedArgs = preGeneratedArgsMap?.[toolName];
-             if (preGeneratedArgs) {
-                finalArgs = preGeneratedArgs;
-             } else if (resource) {
-                finalArgs = await this.generateToolArguments(
-                    { ...resource, category: "resource" } as any,
-                    userMessage
-                );
-             } else {
-                finalArgs = await this.generateToolArguments(tool!, userMessage);
-             }
+
+        const hasEmptyObjectSchema = (schema: any): boolean => {
+          if (!schema || typeof schema !== "object") return true;
+          const props = schema.properties;
+          const propCount = props && typeof props === "object" ? Object.keys(props).length : 0;
+          const req = Array.isArray(schema.required) ? schema.required : [];
+          return propCount === 0 && req.length === 0;
+        };
+
+        if (forcedArgs !== undefined) {
+          finalArgs = forcedArgs;
+        } else if (preGeneratedArgs) {
+          finalArgs = preGeneratedArgs;
+        } else if (resource) {
+          // Resources without a meaningful schema should not invoke LLM arg generation.
+          const schema = (resource as any).inputSchema;
+          if (hasEmptyObjectSchema(schema)) {
+            finalArgs = {};
+          } else {
+            finalArgs = await this.generateToolArguments(
+              { ...resource, category: "resource" } as any,
+              userMessage
+            );
+          }
+        } else {
+          // Tools with empty schemas (e.g., system_status_tool) should not invoke LLM arg generation.
+          const schema = tool?.inputSchema;
+          if (hasEmptyObjectSchema(schema)) {
+            finalArgs = {};
+          } else {
+            finalArgs = await this.generateToolArguments(tool!, userMessage);
+          }
+        }
 
         const callArgs = JSON.parse(JSON.stringify(finalArgs || {}));
         delete callArgs.signal;
@@ -3699,6 +3766,37 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     // Officer mode: seed and boost evidence tools (without removing others)
     candidates = ensureOfficerSeedCandidates(candidates);
     candidates = applyBoostOrdering(candidates);
+
+    // Phase 7.4: Tool sanity filters (minimal, deterministic)
+    // C) Prevent dateTimeTool/system_status_tool for evidence-like queries
+    // C) Prevent weather tools for geo-like queries
+    const looksEvidence = (() => {
+      const t = String(q || "");
+      const hasThaiMachine = /เครื่อง/i.test(t);
+      const hasEvidenceTerms = /(evidence|หลักฐาน|record|records|nip|url|mdes|วิดีโอ|บันทึก)/i.test(t);
+      const hasIsp = /\bisp\b/i.test(t) || /ผู้ให้บริการ|ค่าย/i.test(t);
+      const hasOnlineTerms = /(ออนไลน์|ออฟไลน์|online|offline|active)/i.test(t);
+      const hasEnglishMachineToken = /\bmachine(s)?\b/i.test(t) && !/\bmachine\s+learning\b/i.test(t);
+      return hasThaiMachine || hasEvidenceTerms || hasIsp || (hasEnglishMachineToken && hasOnlineTerms);
+    })();
+    const looksGeoLike = /(เขต|แขวง|อำเภอ|ตำบล|รหัสไปรษณีย์|postcode|อยู่ที่ไหน|อยู่ตรงไหน|แถวไหน|พิกัด|lat\b|lon\b|ละติจูด|ลองจิจูด)/i.test(q);
+    if (looksEvidence || looksGeoLike) {
+      const before = candidates.length;
+      candidates = candidates.filter((name) => {
+        const t = String(name || "").toLowerCase();
+        if (looksEvidence) {
+          if (t.includes("datetimetool") || t.includes(":datetime") || t.includes("system_status_tool")) return false;
+        }
+        if (looksGeoLike) {
+          if (t.includes("nwp") || t.includes("tmd") || t.includes("weather")) return false;
+        }
+        return true;
+      });
+      const after = candidates.length;
+      if (after !== before) {
+        logger.info(`[selectTools] Phase74 sanity filtered candidates`, { looksEvidence, looksGeoLike, before, after });
+      }
+    }
 
     // 7) Finalize: allow top-3 for chaining/parallel, BUT still stable
     const finalSelection = candidates.slice(0, 3);

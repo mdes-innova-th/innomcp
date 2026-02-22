@@ -55,4 +55,7 @@ yarn-error.log*
 !/scripts/verify_weather_accuracy_v1.ts
 !/scripts/verify_phaseW1_weather_tracev3.ts
 
+# Phase 7.4: General Intelligence Hardening verifier
+!/scripts/verify_phase74_general_25cases.ts
+
 
