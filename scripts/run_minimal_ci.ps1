@@ -46,6 +46,22 @@ function Ensure-Dir([string]$p) {
   }
 }
 
+function Append-Evidence([string]$Path, [string]$Text) {
+  $enc = New-Object System.Text.UTF8Encoding($false)
+  $max = 12
+  for ($i = 1; $i -le $max; $i++) {
+    try {
+      [System.IO.File]::AppendAllText($Path, ($Text + "`n"), $enc)
+      return
+    } catch {
+      if ($i -eq $max) {
+        throw
+      }
+      Start-Sleep -Milliseconds 80
+    }
+  }
+}
+
 function Get-ProcessChildren([int]$ParentPid) {
   # Use CIM to traverse child processes
   $children = @()
@@ -72,7 +88,7 @@ function Stop-ProcessTree([int]$Pid) {
 function Kill-WorkspaceNodeZombies([string]$WorkspaceRoot, [string]$EvidenceSummary, [int]$TimeoutSec) {
   $deadline = (Get-Date).AddSeconds($TimeoutSec)
 
-  Add-Content -LiteralPath $EvidenceSummary -Value "[KILL] workspaceRoot=$WorkspaceRoot"
+  Append-Evidence -Path $EvidenceSummary -Text "[KILL] workspaceRoot=$WorkspaceRoot"
 
   $killed = 0
   while ((Get-Date) -lt $deadline) {
@@ -92,7 +108,7 @@ function Kill-WorkspaceNodeZombies([string]$WorkspaceRoot, [string]$EvidenceSumm
     foreach ($p in $targets) {
       $procId = [int]$p.ProcessId
       $cmd = ($p.CommandLine | Out-String).Trim()
-      Add-Content -LiteralPath $EvidenceSummary -Value "[KILL] pid=$procId cmd=$cmd"
+      Append-Evidence -Path $EvidenceSummary -Text "[KILL] pid=$procId cmd=$cmd"
       Stop-ProcessTree -Pid $procId
       $killed++
     }
@@ -100,7 +116,7 @@ function Kill-WorkspaceNodeZombies([string]$WorkspaceRoot, [string]$EvidenceSumm
     Start-Sleep -Milliseconds 250
   }
 
-  Add-Content -LiteralPath $EvidenceSummary -Value "[KILL] killedCount=$killed"
+  Append-Evidence -Path $EvidenceSummary -Text "[KILL] killedCount=$killed"
 }
 
 function Read-Tail([string]$FilePath, [int]$Lines = 200) {
@@ -113,7 +129,7 @@ function Read-Tail([string]$FilePath, [int]$Lines = 200) {
 }
 
 function Invoke-Step([string]$Name, [string]$Command, [int]$TimeoutSec, [string]$EvidenceSummary, [string]$EvidenceOut, [string]$EvidenceErr) {
-  Add-Content -LiteralPath $EvidenceSummary -Value ("`n[STEP] {0}`nCMD={1}`nTIMEOUT_SEC={2}`nSTART={3}" -f $Name, $Command, $TimeoutSec, (Get-Date).ToString('o'))
+  Append-Evidence -Path $EvidenceSummary -Text ("`n[STEP] {0}`nCMD={1}`nTIMEOUT_SEC={2}`nSTART={3}" -f $Name, $Command, $TimeoutSec, (Get-Date).ToString('o'))
 
   if (Test-Path -LiteralPath $EvidenceOut) { Remove-Item -LiteralPath $EvidenceOut -Force -ErrorAction SilentlyContinue }
   if (Test-Path -LiteralPath $EvidenceErr) { Remove-Item -LiteralPath $EvidenceErr -Force -ErrorAction SilentlyContinue }
@@ -129,7 +145,7 @@ function Invoke-Step([string]$Name, [string]$Command, [int]$TimeoutSec, [string]
     Wait-Process -Id $p.Id -Timeout $TimeoutSec -ErrorAction Stop
   } catch {
     $ok = $false
-    Add-Content -LiteralPath $EvidenceSummary -Value "RESULT=TIMEOUT"
+    Append-Evidence -Path $EvidenceSummary -Text "RESULT=TIMEOUT"
     Stop-ProcessTree -Pid $p.Id
   }
 
@@ -152,7 +168,7 @@ function Invoke-Step([string]$Name, [string]$Command, [int]$TimeoutSec, [string]
       $exitCode = $null
     }
 
-    Add-Content -LiteralPath $EvidenceSummary -Value "RESULT=EXIT exitCode=$exitCode END=$((Get-Date).ToString('o'))"
+    Append-Evidence -Path $EvidenceSummary -Text "RESULT=EXIT exitCode=$exitCode END=$((Get-Date).ToString('o'))"
     if ($exitCode -eq $null -or $exitCode -ne 0) { $ok = $false }
   }
 
@@ -160,12 +176,12 @@ function Invoke-Step([string]$Name, [string]$Command, [int]$TimeoutSec, [string]
   $tailErr = Read-Tail -FilePath $EvidenceErr -Lines 120
 
   if ($tailOut) {
-    Add-Content -LiteralPath $EvidenceSummary -Value "--- STDOUT (tail) ---"
-    Add-Content -LiteralPath $EvidenceSummary -Value $tailOut
+    Append-Evidence -Path $EvidenceSummary -Text "--- STDOUT (tail) ---"
+    Append-Evidence -Path $EvidenceSummary -Text $tailOut
   }
   if ($tailErr) {
-    Add-Content -LiteralPath $EvidenceSummary -Value "--- STDERR (tail) ---"
-    Add-Content -LiteralPath $EvidenceSummary -Value $tailErr
+    Append-Evidence -Path $EvidenceSummary -Text "--- STDERR (tail) ---"
+    Append-Evidence -Path $EvidenceSummary -Text $tailErr
   }
 
   return @{ Ok = $ok }
@@ -181,18 +197,18 @@ Ensure-Dir $evidenceDir
 $evidenceSummary = Join-Path $evidenceDir "minimal-ci-$stamp.summary.log"
 $null = New-Item -ItemType File -Path $evidenceSummary -Force
 
-Add-Content -LiteralPath $evidenceSummary -Value "MINIMAL_CI_START=$((Get-Date).ToString('o'))"
-Add-Content -LiteralPath $evidenceSummary -Value "WORKSPACE_ROOT=$workspaceRoot"
-Add-Content -LiteralPath $evidenceSummary -Value "INCLUDE_FRONTEND_BUILD=$IncludeFrontendBuild"
-Add-Content -LiteralPath $evidenceSummary -Value "SKIP_WEATHER=$SkipWeather"
-Add-Content -LiteralPath $evidenceSummary -Value "SKIP_TRACEV3=$SkipTraceV3"
-Add-Content -LiteralPath $evidenceSummary -Value "RUN_GEO=$RunGeo"
+Append-Evidence -Path $evidenceSummary -Text "MINIMAL_CI_START=$((Get-Date).ToString('o'))"
+Append-Evidence -Path $evidenceSummary -Text "WORKSPACE_ROOT=$workspaceRoot"
+Append-Evidence -Path $evidenceSummary -Text "INCLUDE_FRONTEND_BUILD=$IncludeFrontendBuild"
+Append-Evidence -Path $evidenceSummary -Text "SKIP_WEATHER=$SkipWeather"
+Append-Evidence -Path $evidenceSummary -Text "SKIP_TRACEV3=$SkipTraceV3"
+Append-Evidence -Path $evidenceSummary -Text "RUN_GEO=$RunGeo"
 
 # 0) Kill zombie workspace node.exe before everything
 try {
   Kill-WorkspaceNodeZombies -WorkspaceRoot $workspaceRoot -EvidenceSummary $evidenceSummary -TimeoutSec $TimeoutKillZombieSec
 } catch {
-  Add-Content -LiteralPath $evidenceSummary -Value "[KILL] error=$($_.Exception.Message)"
+  Append-Evidence -Path $evidenceSummary -Text "[KILL] error=$($_.Exception.Message)"
 }
 
 # 1) Builds (Minimal Test Matrix A)
@@ -207,7 +223,7 @@ if ($IncludeFrontendBuild) {
 if (-not $SkipWeather) {
   $weatherVerifier = Join-Path $workspaceRoot 'innomcp-node\scripts\verify_weather_v2.ts'
   if (-not (Test-Path -LiteralPath $weatherVerifier)) {
-    Add-Content -LiteralPath $evidenceSummary -Value "[BLOCKED] missingVerifier=innomcp-node/scripts/verify_weather_v2.ts"
+    Append-Evidence -Path $evidenceSummary -Text "[BLOCKED] missingVerifier=innomcp-node/scripts/verify_weather_v2.ts"
     Write-Host "BLOCKED missing verifier: verify_weather_v2.ts"
     exit 2
   }
@@ -223,9 +239,9 @@ if (-not $SkipTraceV3) {
     $steps += @{ Name = 'verify:phase725_trace_v3'; Cmd = 'cd innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phase725_trace_v3.ts'; Timeout = $TimeoutTraceV3VerifierSec }
   } elseif (Test-Path -LiteralPath $traceW1) {
     $steps += @{ Name = 'verify:trace_v3_fallback_phaseW1'; Cmd = 'cd innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phaseW1_weather_tracev3.ts'; Timeout = $TimeoutTraceV3VerifierSec }
-    Add-Content -LiteralPath $evidenceSummary -Value "[NOTE] verify_phase725_trace_v3.ts missing; used fallback verify_phaseW1_weather_tracev3.ts"
+    Append-Evidence -Path $evidenceSummary -Text "[NOTE] verify_phase725_trace_v3.ts missing; used fallback verify_phaseW1_weather_tracev3.ts"
   } else {
-    Add-Content -LiteralPath $evidenceSummary -Value "[BLOCKED] missingVerifier=verify_phase725_trace_v3.ts AND missingFallback=verify_phaseW1_weather_tracev3.ts"
+    Append-Evidence -Path $evidenceSummary -Text "[BLOCKED] missingVerifier=verify_phase725_trace_v3.ts AND missingFallback=verify_phaseW1_weather_tracev3.ts"
     Write-Host "BLOCKED missing trace v3 verifier"
     exit 2
   }
@@ -237,7 +253,7 @@ if ($RunGeo) {
   if (Test-Path -LiteralPath $geoRoundC) {
     $steps += @{ Name = 'verify:geo_roundC'; Cmd = 'cd innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phase1_geo_roundC.ts'; Timeout = $TimeoutGeoTestSec }
   } else {
-    Add-Content -LiteralPath $evidenceSummary -Value "[NOTE] geo verifier verify_phase1_geo_roundC.ts not found; ran test:geo only"
+    Append-Evidence -Path $evidenceSummary -Text "[NOTE] geo verifier verify_phase1_geo_roundC.ts not found; ran test:geo only"
   }
 }
 
@@ -255,15 +271,15 @@ foreach ($s in $steps) {
 
   if (-not $r.Ok) {
     $reason = "step_failed=$($s.Name)"
-    Add-Content -LiteralPath $evidenceSummary -Value "[BLOCKED] $reason"
+    Append-Evidence -Path $evidenceSummary -Text "[BLOCKED] $reason"
     Write-Host "BLOCKED $reason"
     Write-Host "EVIDENCE $evidenceSummary"
     exit 1
   }
 }
 
-Add-Content -LiteralPath $evidenceSummary -Value "MINIMAL_CI_END=$((Get-Date).ToString('o'))"
-Add-Content -LiteralPath $evidenceSummary -Value "RESULT=PASS"
+Append-Evidence -Path $evidenceSummary -Text "MINIMAL_CI_END=$((Get-Date).ToString('o'))"
+Append-Evidence -Path $evidenceSummary -Text "RESULT=PASS"
 
 Write-Host "PASS"
 Write-Host "EVIDENCE $evidenceSummary"
