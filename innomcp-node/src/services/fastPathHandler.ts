@@ -531,31 +531,6 @@ export async function tryFastPathWebSocket(
     return sendAiText("datetime", `ตอนนี้เวลา ${timeStr} น. (${dateStr})`);
   }
 
-  // Long Thai weather response used by thai-language-response.spec.ts
-  if (/^\s*บอกข้อมูลอากาศทุกจังหวัดในภาคเหนือ\s*\??\s*$/i.test(trimmed)) {
-    const responseText =
-      "สรุปข้อมูลอากาศภาคเหนือ\n" +
-      "- เชียงใหม่: อุณหภูมิ 29°C โอกาสฝน 20%\n" +
-      "- เชียงราย: อุณหภูมิ 28°C โอกาสฝน 25%\n" +
-      "- ลำพูน: อุณหภูมิ 30°C โอกาสฝน 15%\n" +
-      "- ลำปาง: อุณหภูมิ 31°C โอกาสฝน 10%\n" +
-      "- แพร่: อุณหภูมิ 30°C โอกาสฝน 15%\n" +
-      "- น่าน: อุณหภูมิ 29°C โอกาสฝน 20%\n" +
-      "- พะเยา: อุณหภูมิ 28°C โอกาสฝน 25%\n" +
-      "- แม่ฮ่องสอน: อุณหภูมิ 27°C โอกาสฝน 30%\n" +
-      "- อุตรดิตถ์: อุณหภูมิ 32°C โอกาสฝน 10%\n" +
-      "\nหมายเหตุ: หากต้องการข้อมูลแบบเจาะจง ระบุจังหวัด/อำเภอได้ครับ";
-    return sendAiText("weather-north-long", responseText);
-  }
-
-  // Rain query phrasing used by thai-language-response.spec.ts ("จังหวัดใดจะตก...คืนนี้")
-  if (/จังหวัด(ใด|ไหน)/.test(text) && /(ตก|ฝน)/.test(text) && /(คืน|คืนนี้|เที่ยงคืน)/.test(text) && text.length <= 200) {
-    return sendAiText(
-      "rain-provinces-night",
-      "สรุปโอกาสฝนช่วงกลางคืน: มีโอกาสฝนกระจายในบางพื้นที่ โดยเฉพาะจังหวัดที่มีความชื้นสูงและมีเมฆหนาแน่น หากต้องการให้ระบุจังหวัดแบบเจาะจง บอกชื่อจังหวัดที่สนใจได้ครับ"
-    );
-  }
-
   // ===== GENERIC ANALYSIS (deterministic; avoids LLM/tool dependency in E2E) =====
   // Narrow match: used by tests/e2e/tests/nwp-args-generation.spec.ts
   if (/^\s*วิเคราะห์ข้อมูล\s*$/i.test(text) && text.length <= 60) {
@@ -574,42 +549,7 @@ export async function tryFastPathWebSocket(
     );
   }
 
-  // ===== WEATHER TABLE (deterministic Markdown table; avoids tool/LLM dependency in E2E) =====
-  // Narrow intent: "จังหวัดใด/จังหวัดไหน" + "ฝน" + "ช่วง 3 วัน" (optionally asks for table)
-  if (
-    /จังหวัด(ใด|ไหน)/.test(text) &&
-    /ฝน/.test(text) &&
-    /(ช่วง|ภายใน|ข้างหน้า)/.test(text) &&
-    /(3\s*วัน|สาม\s*วัน)/.test(text) &&
-    text.length <= 200
-  ) {
-    const response =
-      "| จังหวัด | ช่วงเวลา | โอกาสฝน | หมายเหตุ |\n" +
-      "|---|---|---:|---|\n" +
-      "| กรุงเทพมหานคร | 3 วันข้างหน้า | ปานกลาง | อาจมีฝนบางช่วง |\n" +
-      "| เชียงใหม่ | 3 วันข้างหน้า | สูง | ระวังฝนช่วงบ่าย-ค่ำ |\n" +
-      "| ขอนแก่น | 3 วันข้างหน้า | ปานกลาง | มีโอกาสฝนกระจาย |\n" +
-      "\nหมายเหตุ: หากต้องการข้อมูลแบบเจาะจง ระบุจังหวัด/อำเภอได้ครับ";
-
-    return sendAiText("weather-table", response);
-  }
-
-  // ===== WEATHER (deterministic stub; avoids tool/LLM dependency in E2E) =====
   const looksLikeChartRequest = /(กราฟ|แผนภูมิ|chart|graph|plot|visualize)/i.test(text);
-  const wantsDetailed = /(ละเอียด|แบบละเอียด|เชิงลึก|วิเคราะห์|สรุปแบบละเอียด|อธิบาย)/i.test(text);
-  const mentionsMultipleLocations = /(\sและ\s|\sกับ\s|,|\/|\+|\sรวมถึง\s)/i.test(text);
-  if (
-    !looksLikeChartRequest &&
-    /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น)/i.test(text) &&
-    text.length <= 120 &&
-    !wantsDetailed &&
-    !mentionsMultipleLocations
-  ) {
-    return sendAiText(
-      "weather",
-      "สรุปสภาพอากาศ: อุณหภูมิ 30°C, ความชื้น 70%, โอกาสฝน 20%"
-    );
-  }
 
   // ===== CHART / GRAPH (deterministic SVG placeholder; avoids LLM/tool dependency in E2E) =====
   if (/(กราฟ|แผนภูมิ|chart|graph|plot|visualize)/i.test(text) && text.length <= 220) {

@@ -58,4 +58,7 @@ yarn-error.log*
 # Phase 7.4: General Intelligence Hardening verifier
 !/scripts/verify_phase74_general_25cases.ts
 
+# Phase 8: LLM as Renderer Only (NO decision-making) verifier
+!/scripts/verify_phase8_renderer_only.ts
+
 

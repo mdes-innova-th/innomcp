@@ -243,7 +243,15 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   if (/(ตรวจพบ.*url|url.*วันนี้|nip.*วันนี้|detected\s*urls?\s*today|urls?\s*detected\s*today)/i.test(t)) {
     return "detected_urls_today";
   }
+  // Common Thai phrasing: "วันนี้ URL detected กี่รายการ" (no 'today' token)
+  if (/(วันนี้)/i.test(t) && /\burl\b/i.test(t) && /(detected|ตรวจพบ|กี่|ทั้งหมด|รวม)/i.test(t)) {
+    return "detected_urls_today";
+  }
   if (/(เก็บหลักฐาน|วิดีโอ|record.*วันนี้|บันทึก.*วันนี้|evidence\s*records?\s*today|video\s*evidence\s*today)/i.test(t)) {
+    return "evidence_records_today";
+  }
+  // Common Thai phrasing: "วันนี้ evidence ได้เท่าไหร่ / กี่รายการ"
+  if (/(วันนี้)/i.test(t) && /(evidence|หลักฐาน|record|วิดีโอ)/i.test(t) && /(ได้เท่าไหร่|กี่|ทั้งหมด|รวม)/i.test(t)) {
     return "evidence_records_today";
   }
   return undefined;
@@ -513,6 +521,11 @@ function structuredKeysSummary(structuredContent: any): string {
   return typeof structuredContent;
 }
 
+function withRenderMeta(structuredContent: any, meta: { route: "weather" | "geo" | "evidence" | "general"; llmUsed: boolean; routeDecider: "deterministic"; version: "phase8" }): any {
+  const base = structuredContent && typeof structuredContent === "object" && !Array.isArray(structuredContent) ? structuredContent : {};
+  return { ...(base as any), __render: meta };
+}
+
 function extractEvidenceCount(structuredContent: any): number | null {
   const sc = structuredContent && typeof structuredContent === "object" ? structuredContent : {};
 
@@ -612,30 +625,42 @@ function renderStructuredDirect(
 
     const err = extractEvidenceErr(sc);
     if (err) {
-      // User-friendly fallback for missing DB configuration (do not leak internal ERR: codes)
-      if (String(err.code || "").toUpperCase() === "MISSING_DETECT_DB_CREDS" && err.message) {
-        return { text: String(err.message).trim(), structuredContent };
+      // Phase 8: never leak env-var style guidance or raw internal codes in user-visible answers.
+      const code = String(err.code || "EVIDENCE_FAILED").toUpperCase();
+      if (code === "MISSING_DETECT_DB_CREDS") {
+        return {
+          text: "ขออภัย ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน กรุณาติดต่อผู้ดูแลระบบหรือลองใหม่ภายหลังครับ",
+          structuredContent,
+        };
       }
-      return { text: `ERR:${err.code}` + (err.message ? ` ${err.message}` : ""), structuredContent };
+      return { text: "ขออภัย ยังไม่สามารถสรุปข้อมูลหลักฐานได้ในขณะนี้ กรุณาลองใหม่อีกครั้งครับ", structuredContent };
     }
 
     // Phase 7.3: ISP breakdown must mention ISP/ผู้ให้บริการ (even if totals are 0 / mock)
     if (intent === "evidence_records_yesterday_by_isp_top" || intent === "evidence_records_yesterday_by_isp") {
-      const summary = (sc as any).summary;
-      if (typeof summary === "string" && summary.trim()) {
-        return { text: summary.trim(), structuredContent };
-      }
-
       const total = Number((sc as any).total ?? (sc as any).count ?? (sc as any).c);
+      const byIsp = (sc as any).byIsp || (sc as any).breakdownByIsp || (sc as any).ispBreakdown;
+      const rows: Array<{ isp: string; count: number }> = Array.isArray(byIsp)
+        ? byIsp
+            .map((x: any) => ({ isp: String(x?.isp || x?.name || "").trim(), count: Number(x?.count ?? x?.c) }))
+            .filter((x: any) => x.isp && Number.isFinite(x.count))
+        : [];
+
       const top = (sc as any).topIsp;
-      const topName = top && typeof top.isp === "string" ? top.isp : "";
+      const topName = top && typeof top.isp === "string" ? String(top.isp).trim() : "";
       const topCount = top && Number.isFinite(Number(top.count)) ? Number(top.count) : NaN;
 
-      const parts: string[] = [];
-      if (Number.isFinite(total)) parts.push(`เมื่อวานนี้รวม: ${total} รายการ`);
-      if (topName && Number.isFinite(topCount)) parts.push(`ISP มากสุด: ${topName} (${topCount})`);
-      if (parts.length === 0) parts.push("ยังไม่สามารถแยกตาม ISP/ผู้ให้บริการได้ในตอนนี้");
-      return { text: parts.join(" | "), structuredContent };
+      const lines: string[] = [];
+      if (Number.isFinite(total)) lines.push(`เมื่อวานนี้ (รวม): ${total} รายการ`);
+      if (rows.length > 0) {
+        lines.push("แยกตาม ISP:");
+        for (const r of rows.slice(0, 10)) lines.push(`- ${r.isp}: ${r.count}`);
+      }
+      if (topName && Number.isFinite(topCount)) lines.push(`ISP มากสุด: ${topName} (${topCount})`);
+      if (lines.length === 0) {
+        return { text: "ขออภัย ยังไม่สามารถแยกข้อมูลตาม ISP/ผู้ให้บริการได้ในขณะนี้ (ERR:SCHEMA)", structuredContent };
+      }
+      return { text: lines.join("\n"), structuredContent };
     }
 
     if (typeof count === "number" && Number.isFinite(count)) {
@@ -661,7 +686,7 @@ function renderStructuredDirect(
     }
 
     // If we cannot interpret, fall back to a safe generic.
-    return { text: "สรุปผลหลักฐานพร้อมใช้งาน แต่ไม่พบค่าจำนวนในผลลัพธ์", structuredContent };
+    return { text: "ขออภัย รูปแบบข้อมูลผลลัพธ์ไม่ครบถ้วน (ERR:SCHEMA)", structuredContent };
   }
 
   const json = safeJsonStringify(structuredContent, 2400);
@@ -1191,7 +1216,6 @@ wss.on("connection", (ws, req) => {
         sendSafe(ws, { type: "done" });
       };
 
-      try {
         // Keep AI mode consistent across MCP planner + final response
         syncChatAIModeIfChanged();
 
@@ -1329,12 +1353,14 @@ wss.on("connection", (ws, req) => {
             }
           }
 
-          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [toolNameUsed] };
+          const scOut = withRenderMeta(sc, { route: "evidence", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
+
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [toolNameUsed] };
           sessionHistory.push(aiMessage);
           sessionManager.addMessage(currentSessionId, "assistant", textOut, [toolNameUsed]);
           sessionManager.completeResponse(currentSessionId);
 
-          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [toolNameUsed] });
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [toolNameUsed] });
           sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [toolNameUsed] });
           sendDoneOnce();
 
@@ -1351,6 +1377,7 @@ wss.on("connection", (ws, req) => {
             ans: traceAns,
           });
           return;
+
         }
 
         // =====================================
@@ -1375,45 +1402,17 @@ wss.on("connection", (ws, req) => {
           const sc = toolResult.structuredContent;
           const payload = sc?.weatherPipeline ?? sc;
 
-          let textOut = "";
-          if (!deep) {
-            const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
-            textOut = direct.text;
-          } else {
-            // LLM allowed ONLY for explain/render after deterministic tool results.
-            const explainPrompt = [
-              "โปรดอธิบายผลสภาพอากาศต่อไปนี้เป็นภาษาไทยแบบเข้าใจง่าย และสรุปสั้นๆ ก่อน แล้วค่อยอธิบายรายละเอียด:",
-              "- ห้ามตัดสินใจเรียกเครื่องมือหรือขอข้อมูลเพิ่ม",
-              "- ห้ามเอ่ยชื่อ tool/MCP/ระบบ",
-              "- ถ้าข้อมูลเป็น error ให้บอกผู้ใช้ว่าควรพิมพ์เพิ่มอะไร",
-              "",
-              `คำถามผู้ใช้: ${messageWithFile}`,
-              "ผลแบบโครงสร้าง (JSON):",
-              JSON.stringify(payload),
-            ].join("\n");
-
-            const resp = await ollama.chat({
-              model: ollamaModel,
-              messages: [
-                { role: "system", content: "คุณเป็นผู้ช่วยภาษาไทยที่สุภาพ กระชับ และแม่นยำ" },
-                { role: "user", content: explainPrompt },
-              ],
-              stream: false,
-            });
-            textOut = String(resp?.message?.content || "").trim();
-            if (!textOut) {
-              // fallback to deterministic direct render
-              textOut = renderWeatherDirectAnswer(messageWithFile, payload).text;
-            }
-          }
+          const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
+          const textOut = direct.text;
+          const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
 
           // Send response + history update
-          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: sc, toolsUsed: ["weatherPipeline"] };
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["weatherPipeline"] };
           sessionHistory.push(aiMessage);
           sessionManager.addMessage(currentSessionId, "assistant", textOut, ["weatherPipeline"]);
           sessionManager.completeResponse(currentSessionId);
 
-          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: ["weatherPipeline"] });
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["weatherPipeline"] });
           sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["weatherPipeline"] });
           sendDoneOnce();
 
@@ -1460,13 +1459,14 @@ wss.on("connection", (ws, req) => {
 
           const rendered = renderThaiGeoAnswerShort(sc);
           const textOut = rendered.text;
+          const scOut = withRenderMeta(sc, { route: "geo", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
 
-          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [geoToolName] };
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [geoToolName] };
           sessionHistory.push(aiMessage);
           sessionManager.addMessage(currentSessionId, "assistant", textOut, [geoToolName]);
           sessionManager.completeResponse(currentSessionId);
 
-          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [geoToolName] });
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [geoToolName] });
           sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [geoToolName] });
           sendDoneOnce();
 
@@ -1512,13 +1512,15 @@ wss.on("connection", (ws, req) => {
             },
           };
 
+          const scOut = withRenderMeta(sc, { route: "general", llmUsed: true, routeDecider: "deterministic", version: "phase8" });
+
           const textOut = result.text;
-          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [] };
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [] };
           sessionHistory.push(aiMessage);
           sessionManager.addMessage(currentSessionId, "assistant", textOut, []);
           sessionManager.completeResponse(currentSessionId);
 
-          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: sc, toolsUsed: [] });
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [] });
           sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [] });
           sendDoneOnce();
 
@@ -2136,12 +2138,6 @@ wss.on("connection", (ws, req) => {
         sendDoneOnce();
         return;
       }
-    } catch (error) {
-      logBoth("error", `[Chat API] Error parsing message: ${error}`);
-      logBoth('error', `Message parsing error: ${error instanceof Error ? error.message : String(error)}`);
-      sendSafe(ws, { error: "Invalid message format", type: "error" });
-      sendDoneOnce();
-    }
     }).catch(queueError => {
       logBoth("error", `[Queue] Failed to process message: ${queueError}`);
       try {
@@ -2295,9 +2291,11 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         ans: traceAns,
       });
 
+      const scOut = withRenderMeta(sc, { route: "evidence", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
+
       return res.json({
         text: textOut,
-        structuredContent: sc,
+        structuredContent: scOut,
         messages: sessionHistory,
         mcpUsed: true,
         mcpResults: toolResults,
@@ -2316,55 +2314,8 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     if (mcpClient && allowWeatherGate) {
       const deep = wantsDeepExplain(messageWithFile);
       logBoth("info", `[WeatherGate] bypass=true transport=http deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
-
-      const isSmokeRun = process.env.SMOKE_MODE === "1" && String(req.headers["x-smoke-run"] || req.headers["X-Smoke-Run"] || "") === "1";
-      const isBangkokLaksiLatkrabang = /กรุงเทพ|กรุงเทพมหานคร|กทม/i.test(messageWithFile) && /หลักสี่/.test(messageWithFile) && /ลาดกระบัง/.test(messageWithFile);
-      const asksRain = /ฝน|ตกไหม|ฝนตกไหม/i.test(messageWithFile);
-
-      // Smoke-only deterministic stub: avoids network and supports multiple Bangkok districts.
-      if (isSmokeRun && isBangkokLaksiLatkrabang && asksRain) {
-        const textOut = [
-          "สรุปฝนในกรุงเทพมหานคร (เขตหลักสี่, เขตลาดกระบัง)",
-          "- เขตหลักสี่: โอกาสฝน 20% | อุณหภูมิ 30°C | ความชื้น 70% | ลม 10 กม./ชม.",
-          "- เขตลาดกระบัง: โอกาสฝน 35% | อุณหภูมิ 31°C | ความชื้น 72% | ลม 12 กม./ชม.",
-          "\nหมายเหตุ: ถ้าต้องการระบุช่วงเวลา (ตอนนี้/คืนนี้/พรุ่งนี้) พิมพ์เพิ่มได้ครับ",
-        ].join("\n");
-
-        const sc = {
-          weatherPipeline: {
-            ok: true,
-            code: "SMOKE_OK",
-            message: "Deterministic smoke response",
-            targets: [
-              { province: "กรุงเทพมหานคร", district: "หลักสี่" },
-              { province: "กรุงเทพมหานคร", district: "ลาดกระบัง" },
-            ],
-          },
-        };
-
-        sessionHistory.push({ sender: "ai", text: textOut } as any);
-        chatTraceOut({
-          transport: "http",
-          sid: httpSessionId,
-          cid: httpCid,
-          uiMode,
-          route: "weatherGate",
-          tool: "weatherPipeline",
-          code: 200,
-          durMs: Date.now() - traceStartMs,
-          q: messageWithFile,
-          ans: textOut,
-        });
-        return res.json({
-          text: textOut,
-          structuredContent: sc,
-          messages: sessionHistory,
-          mcpUsed: false,
-          mcpResults: null,
-        });
-      }
-
       // Multi-district Bangkok support: run pipeline per district when the query explicitly contains multiple districts.
+      const isBangkokLaksiLatkrabang = /กรุงเทพ|กรุงเทพมหานคร|กทม/i.test(messageWithFile) && /หลักสี่/.test(messageWithFile) && /ลาดกระบัง/.test(messageWithFile);
       const multiBkk = isBangkokLaksiLatkrabang;
       const toolResults = multiBkk
         ? await Promise.all([
@@ -2377,80 +2328,43 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       const sc = primaryToolResult.structuredContent;
       const payload = sc?.weatherPipeline ?? sc;
 
-      if (!deep) {
-        const directOne = (tr: any, userText: string) => {
-          const scc = tr?.structuredContent;
-          const pay = scc?.weatherPipeline ?? scc;
-          return renderStructuredDirect("weatherPipeline", scc, userText) || renderWeatherDirectAnswer(userText, pay);
-        };
+      const directOne = (tr: any, userText: string) => {
+        const scc = tr?.structuredContent;
+        const pay = scc?.weatherPipeline ?? scc;
+        return renderStructuredDirect("weatherPipeline", scc, userText) || renderWeatherDirectAnswer(userText, pay);
+      };
 
-        const direct =
-          toolResults.length > 1
-            ? {
-                text: toolResults
-                  .map((tr: any, idx: number) => {
-                    const label = idx === 0 ? "เขตหลักสี่" : "เขตลาดกระบัง";
-                    const d = directOne(tr, messageWithFile);
-                    return `# ${label}\n${String(d.text || "").trim()}`.trim();
-                  })
-                  .join("\n\n"),
-                structuredContent: {
-                  weatherPipeline: {
-                    ok: true,
-                    code: "MULTI_TARGET",
-                    message: "multiple targets",
-                    targets: ["หลักสี่", "ลาดกระบัง"],
-                    results: toolResults.map((tr: any) => tr?.structuredContent?.weatherPipeline ?? tr?.structuredContent),
-                  },
+      const direct =
+        toolResults.length > 1
+          ? {
+              text: (() => {
+                const blocks: string[] = [];
+                blocks.push("สรุปสภาพอากาศ: กรุงเทพมหานคร (หลักสี่ + ลาดกระบัง)");
+                for (const [idx, tr] of toolResults.entries()) {
+                  const label = idx === 0 ? "เขตหลักสี่" : "เขตลาดกระบัง";
+                  const d = directOne(tr, messageWithFile);
+                  const lines = String(d.text || "").trim().split(/\r?\n/).filter(Boolean);
+                  blocks.push(`- ${label}`);
+                  for (const l of lines) blocks.push(`  ${l}`);
+                }
+                blocks.push("หมายเหตุ: ข้อมูลพยากรณ์อาจเป็นระดับจังหวัด จึงใช้ร่วมกันสำหรับพื้นที่ในกรุงเทพมหานคร");
+                return blocks.join("\n").trim();
+              })(),
+              structuredContent: {
+                weatherPipeline: {
+                  ok: true,
+                  code: "MULTI_TARGET",
+                  message: "multiple targets",
+                  targets: ["หลักสี่", "ลาดกระบัง"],
+                  results: toolResults.map((tr: any) => tr?.structuredContent?.weatherPipeline ?? tr?.structuredContent),
                 },
-              }
-            : directOne(primaryToolResult, messageWithFile);
+              },
+            }
+          : directOne(primaryToolResult, messageWithFile);
 
-        sessionHistory.push({ sender: "ai", text: direct.text } as any);
+      const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
 
-        chatTraceOut({
-          transport: "http",
-          sid: httpSessionId,
-          cid: httpCid,
-          uiMode,
-          route: "weatherGate",
-          tool: "weatherPipeline",
-          code: 200,
-          durMs: Date.now() - traceStartMs,
-          q: messageWithFile,
-          ans: direct.text,
-        });
-        return res.json({
-          text: direct.text,
-          structuredContent: direct.structuredContent,
-          messages: sessionHistory,
-          mcpUsed: true,
-          mcpResults: toolResults,
-        });
-      }
-
-      const explainPrompt = [
-        "โปรดอธิบายผลสภาพอากาศต่อไปนี้เป็นภาษาไทยแบบเข้าใจง่าย และสรุปสั้นๆ ก่อน แล้วค่อยอธิบายรายละเอียด:",
-        "- ห้ามตัดสินใจเรียกเครื่องมือหรือขอข้อมูลเพิ่ม",
-        "- ห้ามเอ่ยชื่อ tool/MCP/ระบบ",
-        "- ถ้าข้อมูลเป็น error ให้บอกผู้ใช้ว่าควรพิมพ์เพิ่มอะไร",
-        "",
-        `คำถามผู้ใช้: ${messageWithFile}`,
-        "ผลแบบโครงสร้าง (JSON):",
-        JSON.stringify(payload),
-      ].join("\n");
-
-      const resp = await ollama.chat({
-        model: ollamaModel,
-        messages: [
-          { role: "system", content: "คุณเป็นผู้ช่วยภาษาไทยที่สุภาพ กระชับ และแม่นยำ" },
-          { role: "user", content: explainPrompt },
-        ],
-        stream: false,
-      });
-
-      const explainText = String(resp?.message?.content || "").trim() || renderWeatherDirectAnswer(messageWithFile, payload).text;
-      sessionHistory.push({ sender: "ai", text: explainText } as any);
+      sessionHistory.push({ sender: "ai", text: direct.text } as any);
 
       chatTraceOut({
         transport: "http",
@@ -2462,11 +2376,11 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         code: 200,
         durMs: Date.now() - traceStartMs,
         q: messageWithFile,
-        ans: explainText,
+        ans: direct.text,
       });
       return res.json({
-        text: explainText,
-        structuredContent: sc,
+        text: direct.text,
+        structuredContent: scOut,
         messages: sessionHistory,
         mcpUsed: true,
         mcpResults: toolResults,
@@ -2495,6 +2409,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       const sc = first?.structuredContent ?? first?.result;
       const rendered = renderThaiGeoAnswerShort(sc);
       const textOut = rendered.text;
+      const scOut = withRenderMeta(sc, { route: "geo", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
 
       sessionHistory.push({ sender: "ai", text: textOut } as any);
 
@@ -2513,7 +2428,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
       return res.json({
         text: textOut,
-        structuredContent: sc,
+        structuredContent: scOut,
         messages: sessionHistory,
         mcpUsed: true,
         mcpResults: toolResults,
@@ -2557,6 +2472,8 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         },
       };
 
+      const scOut = withRenderMeta(sc, { route: "general", llmUsed: !isSmokeRun, routeDecider: "deterministic", version: "phase8" });
+
       const textOut = result.text;
       sessionHistory.push({ sender: "ai", text: textOut } as any);
 
@@ -2575,7 +2492,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
       return res.json({
         text: textOut,
-        structuredContent: sc,
+        structuredContent: scOut,
         messages: sessionHistory,
         mcpUsed: false,
         mcpResults: null,

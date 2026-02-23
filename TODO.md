@@ -1,4 +1,18 @@
-﻿\***\*\*\*\***PHASE1: GEO Round B Closure (audit) (2026-02-20)\***\*\*\*\***
+﻿\***\*\*\*\***PHASE8: Renderer Only (NO decision-making) (2026-02-23)\***\*\*\*\***
+
+- Runtime:
+  - `npm --prefix innomcp-node run build`
+  - PowerShell:
+    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase8_renderer_only.ts`
+  - CMD:
+    - `cd /d innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phase8_renderer_only.ts`
+
+- Evidence (PASS 25/25):
+  - `innomcp-node/evidence/phase8-renderer-only-tracev3-2026-02-23T10-24-33-381Z.log`
+  - `innomcp-node/evidence/phase8-renderer-only-2026-02-23T10-24-33-381Z.json`
+  - `innomcp-node/evidence/phase8-renderer-only-2026-02-23T10-24-33-381Z.out.log`
+
+\***\*\*\*\***PHASE1: GEO Round B Closure (audit) (2026-02-20)\***\*\*\*\***
 
 - Ground truth (A):
   - `git rev-parse --abbrev-ref HEAD`

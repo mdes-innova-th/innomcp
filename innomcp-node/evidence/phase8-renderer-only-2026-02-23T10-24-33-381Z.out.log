@@ -1,0 +1,4 @@
+RESULT: PASS
+TOTAL: 25 PASS: 25 FAIL: 0
+evidenceTraceFile=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\phase8-renderer-only-tracev3-2026-02-23T10-24-33-381Z.log
+evidenceJsonFile=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\phase8-renderer-only-2026-02-23T10-24-33-381Z.json

@@ -44,6 +44,12 @@ function parseDayOffset(text: string): number {
   return 0;
 }
 
+function timeWindowLabel(userText: string): { label: string; date: string; offset: number } {
+  const offset = parseDayOffset(userText);
+  const label = offset === 0 ? "วันนี้" : offset === 1 ? "พรุ่งนี้" : offset === 2 ? "มะรืน" : `อีก ${offset} วัน`;
+  return { label, date: bkkDateStr(offset), offset };
+}
+
 function isTodayRainQuestion(text: string): boolean {
   const t = String(text || "");
   return /วันนี้/i.test(t) && /(ฝนตกไหม|ฝนจะตก|ฝนตกช่วงไหน|ฝน\s*ตก)/i.test(t);
@@ -162,17 +168,20 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
 
   const tempText = tempRange !== "—" ? tempRange : tempFallback;
 
-  const parts: string[] = [];
-  parts.push(`${province}: โอกาสฝน ${rainPct !== null ? `${rainPct}%` : "—"} | อุณหภูมิ ${tempText} | ลม ${fmtWind(wind.speedKmh, wind.dir)}`);
-  parts.push(`เวลาอัปเดตข้อมูล: สังเกตการณ์ ${obsTime || "—"} | พยากรณ์ ${forecastTime || "—"}`);
+  const lines: string[] = [];
+  lines.push(`- ${province}`);
+  lines.push(`  - โอกาสฝน: ${rainPct !== null ? `${rainPct}%` : "—"}`);
+  lines.push(`  - อุณหภูมิ: ${tempText}`);
+  lines.push(`  - ลม: ${fmtWind(wind.speedKmh, wind.dir)}`);
+  lines.push(`  - เวลาอัปเดต: สังเกตการณ์ ${obsTime || "—"} | พยากรณ์ ${forecastTime || "—"}`);
 
   if (isTodayRainQuestion(userText)) {
-    parts.push(`วันนี้ (ช่วงเช้า): อ้างอิงสังเกตการณ์ล่าสุด (${obsTime || "—"})`);
-    parts.push(`วันนี้ (ช่วงบ่าย): อ้างอิงพยากรณ์วันนี้ (${forecastTime || "—"})`);
-    parts.push(`วันนี้ (ช่วงเย็น): อ้างอิงพยากรณ์วันนี้ (${forecastTime || "—"})`);
+    lines.push(`  - วันนี้ (ช่วงเช้า): อ้างอิงสังเกตการณ์ล่าสุด (${obsTime || "—"})`);
+    lines.push(`  - วันนี้ (ช่วงบ่าย): อ้างอิงพยากรณ์วันนี้ (${forecastTime || "—"})`);
+    lines.push(`  - วันนี้ (ช่วงเย็น): อ้างอิงพยากรณ์วันนี้ (${forecastTime || "—"})`);
   }
 
-  return parts.join("\n");
+  return lines.join("\n");
 }
 
 export function renderWeatherContractAnswer(userText: string, weatherResults: WeatherResult[]): { text: string; structuredContent: any } {
@@ -186,6 +195,8 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
     return { text: "ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้", structuredContent };
   }
 
+  const tw = timeWindowLabel(userText);
+  const header = `ช่วงเวลา: ${tw.label} (${tw.date})`;
   const blocks = provinces.map((p) => renderOneProvince(userText, p, grouped.get(p) || []));
-  return { text: blocks.join("\n\n"), structuredContent };
+  return { text: [header, ...blocks].join("\n"), structuredContent };
 }
