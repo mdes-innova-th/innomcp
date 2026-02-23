@@ -45,9 +45,9 @@
     - `cd /d innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phase82_robustness.ts`
 
 - Evidence (PASS 35/35):
-  - `innomcp-node/evidence/phase82-robustness-tracev3-2026-02-23T14-31-56-744Z.log`
-  - `innomcp-node/evidence/phase82-robustness-2026-02-23T14-31-56-744Z.json`
-  - `innomcp-node/evidence/phase82-robustness-2026-02-23T14-31-56-744Z.out.log`
+  - Evidence publish commit: `28fb2a6`
+  - `innomcp-node/evidence/phase82-robustness-tracev3-2026-02-23T15-02-42-926Z.log`
+  - `innomcp-node/evidence/phase82-robustness-2026-02-23T15-02-42-926Z.out.log`
 
 \***\*\*\*\***PHASE1: GEO Round B Closure (audit) (2026-02-20)\***\*\*\*\***
 
