@@ -3,6 +3,11 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 Set-Location $repoRoot
 
+# Reproducible defaults (can be overridden by the caller)
+if (-not $env:SMOKE_MODE) { $env:SMOKE_MODE = '1' }
+if (-not $env:CHAT_TRACE_QA) { $env:CHAT_TRACE_QA = '1' }
+if (-not $env:TS_NODE_CACHE) { $env:TS_NODE_CACHE = 'false' }
+
 $evidenceDir = Join-Path $repoRoot 'innomcp-node/evidence'
 
 function Get-LatestEvidenceFile([string]$glob) {

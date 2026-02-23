@@ -2,14 +2,14 @@
 # INNOMCP pre-commit hook (offline, deterministic, non-interactive)
 # - NEVER prompts
 # - NEVER requires backend running
-# - Runs only offline checks suitable for pre-commit
+# - Runs only serverless/static checks suitable for pre-commit
 
 set -u
 set -o igncr 2>/dev/null || true
 
 echo ""
-echo "🧪 Pre-commit (offline, non-interactive)"
-echo "======================================="
+echo "Pre-commit (offline, non-interactive)"
+echo "====================================="
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 if [ -z "${ROOT}" ]; then
@@ -37,18 +37,27 @@ else
 fi
 
 echo ""
-echo "Running quick smoke tests (BASIC group)..."
+echo "Running static checks (TypeScript: noEmit)..."
 
-cd "$NODE_DIR" || exit 1
+{
+  echo "[node] tsc --noEmit"
+  cd "$NODE_DIR" || exit 1
+  npx tsc -p tsconfig.json --noEmit
 
-if npm run test:regression -- --group BASIC --todo "pre-commit-$TS" > "$LOG_FILE" 2>&1; then
-  echo "✅ PASS"
+  echo ""
+  echo "[mcp] tsc --noEmit"
+  cd "$ROOT/innomcp-server-node" || exit 1
+  npx tsc -p tsconfig.json --noEmit
+} > "$LOG_FILE" 2>&1
+
+if [ $? -eq 0 ]; then
+  echo "PASS"
   echo "Log: $LOG_FILE"
   exit 0
 fi
 
-echo "❌ FAIL"
+echo "FAIL"
 echo "Log: $LOG_FILE"
-echo "Last 60 lines:"
-tail -n 60 "$LOG_FILE" 2>/dev/null || true
+echo "Last 80 lines:"
+tail -n 80 "$LOG_FILE" 2>/dev/null || true
 exit 1

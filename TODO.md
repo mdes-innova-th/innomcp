@@ -282,6 +282,10 @@
   - Optional healthcheck (ignored on fail): set `HOOK_HEALTHCHECK_URL=http://localhost:3011/health` (or skip with `SKIP_HOOK_HEALTHCHECK=1`)
   - Added RC runner: `scripts/run_rc_gate.ps1` (runs 3 RC commands; prints PASS/BLOCKED)
 
+- *********Update (2026-02-23): pre-commit hook now runs serverless/static checks only (TypeScript `tsc --noEmit` for innomcp-node + innomcp-server-node). No backend required; no prompts.*********
+
+- *********Update (2026-02-23): RC Gate Source-of-Truth spec is `docs/reports/phase7.5_rc_gate.md` (canonical). Prefer `scripts/run_rc_gate.ps1` for reproducible reruns.*********
+
 - Evidence:
   - Pre-commit log (offline, no port 3011): `innomcp-node/logs/precommit/precommit-20260223-112206.log`
   - RC Gate rerun (scripts/run_rc_gate.ps1):
