@@ -449,7 +449,25 @@ function extractGeoLookupQuery(text: string): string {
     return String(v || "").replace(/[๐-๙]/g, (ch) => String(digits.indexOf(ch)));
   };
 
-  const t = normalizeThaiDigits(String(text || ""));
+  const raw = normalizeThaiDigits(String(text || ""));
+  const t = raw
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const isQuestionToken = (s: string): boolean => /^(อะไร|ไหน|ที่ไหน|ตรงไหน|แถวไหน)$/i.test(String(s || "").trim());
+  const stripLeadingAdminPrefixes = (s: string): string =>
+    String(s || "")
+      .trim()
+      .replace(/^(จังหวัด|อำเภอ|เขต|ตำบล|แขวง)\s*/i, "")
+      .trim();
+
+  // Natural question: "X อยู่เขตอะไร/อยู่จังหวัดอะไร" -> prefer X (not "อะไร").
+  const mSimpleWhere = t.match(/^(.*?)\s*อยู่(?:เขต|อำเภอ|จังหวัด)\s*(?:อะไร|ไหน)\s*\?*\s*$/i);
+  if (mSimpleWhere) {
+    const core = stripLeadingAdminPrefixes(String(mSimpleWhere[1] || "").trim());
+    if (core) return core.slice(0, 80);
+  }
 
   // Handle natural "X อยู่ที่ไหน/อยู่ตรงไหน/แถวไหน/ที่ไหน" by stripping the suffix.
   const mWhere = t.match(/^(.*?)\s*(?:อยู่ที่ไหน|อยู่ตรงไหน|แถวไหน|ที่ไหน)\s*\?*\s*$/);
@@ -464,19 +482,19 @@ function extractGeoLookupQuery(text: string): string {
   // Prefer district-level lookups when both province and district appear.
   // Example: "จังหวัดกรุงเทพ หลักสี่ อำเภอหลักสี่" should lookup "หลักสี่" (district), not "กรุงเทพ" (province).
   const mDist = t.match(/(?:อำเภอ|เขต)\s*([ก-๙A-Za-z]+)/);
-  if (mDist) return mDist[1];
+  if (mDist && !isQuestionToken(mDist[1])) return stripLeadingAdminPrefixes(mDist[1]);
 
   const mProv = t.match(/(?:จังหวัด|จ\.)\s*([ก-๙A-Za-z]+)/) || t.match(/จังหวัด([ก-๙A-Za-z]+)/);
-  if (mProv) return mProv[1];
+  if (mProv && !isQuestionToken(mProv[1])) return stripLeadingAdminPrefixes(mProv[1]);
 
   const mCoord = t.match(/พิกัด(?:ของ)?\s*([ก-๙A-Za-z]+)/);
   if (mCoord) return mCoord[1];
 
   const mSub = t.match(/(?:ตำบล|แขวง)\s*([ก-๙A-Za-z]+)/);
-  if (mSub) return mSub[1];
+  if (mSub && !isQuestionToken(mSub[1])) return stripLeadingAdminPrefixes(mSub[1]);
 
   const tail = t.match(/([ก-๙]{2,})\s*$/)?.[1];
-  if (tail) return tail;
+  if (tail && !isQuestionToken(tail)) return stripLeadingAdminPrefixes(tail);
 
   return t.trim().slice(0, 80);
 }
@@ -650,24 +668,34 @@ function renderStructuredDirect(
       const topName = top && typeof top.isp === "string" ? String(top.isp).trim() : "";
       const topCount = top && Number.isFinite(Number(top.count)) ? Number(top.count) : NaN;
 
+      const effectiveTop = (() => {
+        if (topName && Number.isFinite(topCount)) return { isp: topName, count: topCount };
+        if (rows.length > 0) return { isp: rows[0].isp, count: rows[0].count };
+        return null;
+      })();
+
       const lines: string[] = [];
-      if (Number.isFinite(total)) lines.push(`เมื่อวานนี้ (รวม): ${total} รายการ`);
+      lines.push("สรุปหลักฐานเมื่อวานนี้:");
+      if (Number.isFinite(total)) lines.push(`- รวม: ${total} รายการ`);
       if (rows.length > 0) {
-        lines.push("แยกตาม ISP:");
-        for (const r of rows.slice(0, 10)) lines.push(`- ${r.isp}: ${r.count}`);
+        lines.push("- แยกตาม ISP (Top 3):");
+        for (const [i, r] of rows.slice(0, 3).entries()) lines.push(`  ${i + 1}) ${r.isp}: ${r.count}`);
       }
-      if (topName && Number.isFinite(topCount)) lines.push(`ISP มากสุด: ${topName} (${topCount})`);
-      if (lines.length === 0) {
+      if (effectiveTop) lines.push(`- ISP มากสุด: ${effectiveTop.isp} (${effectiveTop.count})`);
+
+      // Phase 8.1: Require either ISP มากสุด or ERR:CODE for UI quality assertions.
+      if (!effectiveTop) {
         return { text: "ขออภัย ยังไม่สามารถแยกข้อมูลตาม ISP/ผู้ให้บริการได้ในขณะนี้ (ERR:SCHEMA)", structuredContent };
       }
+
       return { text: lines.join("\n"), structuredContent };
     }
 
     if (typeof count === "number" && Number.isFinite(count)) {
-      if (intent === "active_machines_count") {
+      if (intent === "active_machines_count" || intent === "active_evidence_machines" || intent === "machine_status") {
         return { text: `ตอนนี้เครื่องออนไลน์: ${count} เครื่อง`, structuredContent };
       }
-      if (intent === "active_machines_offline_count") {
+      if (intent === "active_machines_offline_count" || intent === "active_evidence_machines_offline") {
         return { text: `ตอนนี้เครื่องออฟไลน์: ${count} เครื่อง`, structuredContent };
       }
       if (intent === "machines_evidence_active_today") {
@@ -2339,14 +2367,25 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           ? {
               text: (() => {
                 const blocks: string[] = [];
-                blocks.push("สรุปสภาพอากาศ: กรุงเทพมหานคร (หลักสี่ + ลาดกระบัง)");
-                for (const [idx, tr] of toolResults.entries()) {
+
+                const districtRuns = toolResults.map((tr: any, idx: number) => {
                   const label = idx === 0 ? "เขตหลักสี่" : "เขตลาดกระบัง";
                   const d = directOne(tr, messageWithFile);
-                  const lines = String(d.text || "").trim().split(/\r?\n/).filter(Boolean);
-                  blocks.push(`- ${label}`);
-                  for (const l of lines) blocks.push(`  ${l}`);
+                  const rawLines = String(d.text || "").trim().split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+                  const header = rawLines.find((l) => /^ช่วงเวลา\s*:/i.test(l)) || "";
+                  const lines = rawLines.filter((l) => !/^ช่วงเวลา\s*:/i.test(l));
+                  return { label, header, lines };
+                });
+
+                const header = districtRuns.map((r) => r.header).find(Boolean) || "";
+                if (header) blocks.push(header);
+                blocks.push("สรุปสภาพอากาศ: กรุงเทพมหานคร (หลักสี่ + ลาดกระบัง)");
+
+                for (const r of districtRuns) {
+                  blocks.push(`- ${r.label}`);
+                  for (const l of r.lines) blocks.push(`  ${l}`);
                 }
+
                 blocks.push("หมายเหตุ: ข้อมูลพยากรณ์อาจเป็นระดับจังหวัด จึงใช้ร่วมกันสำหรับพื้นที่ในกรุงเทพมหานคร");
                 return blocks.join("\n").trim();
               })(),

@@ -61,4 +61,7 @@ yarn-error.log*
 # Phase 8: LLM as Renderer Only (NO decision-making) verifier
 !/scripts/verify_phase8_renderer_only.ts
 
+# Phase 8.1: Answer Quality Lock (UI-real Thai) verifier
+!/scripts/verify_phase81_answer_quality.ts
+
 

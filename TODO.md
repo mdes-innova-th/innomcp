@@ -12,6 +12,24 @@
   - `innomcp-node/evidence/phase8-renderer-only-2026-02-23T10-24-33-381Z.json`
   - `innomcp-node/evidence/phase8-renderer-only-2026-02-23T10-24-33-381Z.out.log`
 
+\***\*\*\*\***PHASE8.1: Answer Quality Lock (UI-real Thai) (2026-02-23)\***\*\*\*\***
+
+- Scope lock:
+  - Renderer-only quality upgrades for GEO/WX/EVI outputs (no LLM decision-making)
+  - Deterministic meta enforced via `structuredContent.__render` (routeDecider=deterministic, version=phase8)
+
+- Runtime:
+  - `npm --prefix innomcp-node run build`
+  - PowerShell:
+    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase81_answer_quality.ts`
+  - CMD:
+    - `cd /d innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phase81_answer_quality.ts`
+
+- Evidence (PASS 31/31):
+  - `innomcp-node/evidence/phase81-answer-quality-tracev3-2026-02-23T10-51-07-694Z.log`
+  - `innomcp-node/evidence/phase81-answer-quality-2026-02-23T10-51-07-694Z.json`
+  - `innomcp-node/evidence/phase81-answer-quality-2026-02-23T10-51-07-694Z.out.log`
+
 \***\*\*\*\***PHASE1: GEO Round B Closure (audit) (2026-02-20)\***\*\*\*\***
 
 - Ground truth (A):
