@@ -1,0 +1,2 @@
+# Ensure Git Bash hooks run reliably on Windows (no CRLF in sh scripts)
+.githooks/* text eol=lf

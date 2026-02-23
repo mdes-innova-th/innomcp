@@ -33,7 +33,9 @@
     "lint:backend": "cd innomcp-node && npm run lint",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f"
+    "docker:logs": "docker-compose logs -f",
+    "install-hooks": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-hooks.ps1",
+    "hooks:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/install-hooks.ps1"
   },
   "devDependencies": {
     "@playwright/test": "^1.57.0",

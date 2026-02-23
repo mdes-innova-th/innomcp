@@ -15,7 +15,7 @@
 - Validate evidence (C) — must print PASS:
   - `$e='C:\\Users\\USER-NT\\DEV\\innomcp\\innomcp-node\\evidence\\phase1-geo-roundB-20260220-163815.log'; $lines = Get-Content $e | ? { $_.Trim().Length -gt 0 }; "EVIDENCE=$e"; "LINE_COUNT=$($lines.Count)"; if($lines.Count -ne 12){ throw "FAIL line_count expected=12 got=$($lines.Count)" }; $bad = $lines | ? { $_ -match '[{}"`\\\\]' }; if($bad){ throw "FAIL forbidden_chars sample=$($bad[0])" }; $pii = $lines | ? { $_ -match '(?i)[A-Z0-9._%+-]+@[A-Z0-9.-]+\\\\.[A-Z]{2,}' -or $_ -match '\\\\b\\\\d{1,3}(?:\\\\.\\\\d{1,3}){3}\\\\b' -or $_ -match '(?i)\\\\bbearer\\\\s' -or $_ -match '(?i)\\\\btoken\\\\b|\\\\bapi[_-]?key\\\\b' }; if($pii){ throw "FAIL pii sample=$($pii[0])" }; 'PASS'`
 
-- ****\*****NOTE: On this workstation (Node v25.2.1), `node --loader ts-node/esm scripts/verify_phase1_geo_roundB.ts` fails early with `ERR_REQUIRE_CYCLE_MODULE`. Using `npx ts-node` is the working runtime path for the same verifier script.****\*****
+- \***\*\*\*\***NOTE: On this workstation (Node v25.2.1), `node --loader ts-node/esm scripts/verify_phase1_geo_roundB.ts` fails early with `ERR_REQUIRE_CYCLE_MODULE`. Using `npx ts-node` is the working runtime path for the same verifier script.\***\*\*\*\***
 
 \***\*\*\*\***PHASE1: GEO Round C (Professionalization) (2026-02-20)\***\*\*\*\***
 
@@ -26,7 +26,7 @@
 - Evidence:
   - `innomcp-node/evidence/phase1-geo-roundC-20260220-224332.log`
 
-- ****\*****Result: verifier printed `OK evidence=... p95ms=18 perf=OK` and evidence file contains exactly 12 Trace v3 lines.****\*****
+- \***\*\*\*\***Result: verifier printed `OK evidence=... p95ms=18 perf=OK` and evidence file contains exactly 12 Trace v3 lines.\***\*\*\*\***
 
 \***\*\*\*\***PHASE W1: Weather Accuracy Recovery (2026-02-21)\***\*\*\*\***
 
@@ -42,7 +42,7 @@
     - `innomcp-node/evidence/phaseW1-weather-tracev3-2026-02-21T07-47-47-868Z.log`
     - `innomcp-node/evidence/phaseW1-weather-tracev3-2026-02-21T07-47-47-868Z.out.log`
 
-- ****\*****Result: `verify_weather_accuracy_v1` PASS (10) และ Trace v3 ได้ครบ 12 บรรทัด (6 HTTP + 6 WS) โดย OUT เป็น route=weatherGate, ไม่ใช่ JSON, และมี `เวลาอัปเดตข้อมูล:` (non-LLM).****\*****
+- \***\*\*\*\***Result: `verify_weather_accuracy_v1` PASS (10) และ Trace v3 ได้ครบ 12 บรรทัด (6 HTTP + 6 WS) โดย OUT เป็น route=weatherGate, ไม่ใช่ JSON, และมี `เวลาอัปเดตข้อมูล:` (non-LLM).\***\*\*\*\***
 
 \***\*\*\*\*\*\***PHASE UI: UI Frontend Redesign (Gemini-style) (2026-02-21)\***\*\*\*\*\*\***
 
@@ -61,30 +61,31 @@
   - innova-bot: chat components refactor + tool dropdown polish + Playwright UI tests
 
 - Audit: "ไม่เหมือน Gemini" (10 points)
-  1) สี/ธีมกระจาย: มี `bg-gray-*`, `text-blue-*`, `bg-[#...]`, `#000` hardcode หลายจุด (ไม่ใช้ tokens เดียว)
-  2) Dark theme ปัจจุบันเป็นม่วง/ฟ้า (ไม่ใช่ "ดำ+เขียว" ตามหน่วยงาน)
-  3) Header มี animated gradient + mousemove (รบกวนสายตา/ไม่ respect reduced motion)
-  4) Sidebar ใช้ปุ่ม/พื้นหลังคนละชุดสี (มีแดง hardcode) และ border/hover ไม่สม่ำเสมอ
-  5) Tool dropdown ใช้สีต่อ item แบบ hardcode และมี inline `borderLeftColor` ที่ไม่ถูกต้องตาม CSS value
-  6) Composer ใช้พื้นหลัง/เงาแรง และปุ่มส่งเป็นสีน้ำเงิน hardcode (ไม่เข้ากับ accent green)
-  7) Message bubble: user เป็น `bg-blue-500`, assistant เป็น border ขาว/เทา (ไม่ใช่ surface hierarchy แบบ Gemini)
-  8) Typography/spacing ยังไม่เป็น rhythm เดียว (padding/gap หลายจุดไม่สม่ำเสมอ)
-  9) Focus ring/keyboard nav ยังไม่ชัด (interactive elements หลายตัวไม่มี `focus-visible` style ที่คงที่)
- 10) States (empty/loading/error) ใช้ pattern หลายแบบ ปะปน (บางจุดไม่มี empty state ที่ดูคลีน)
+  1. สี/ธีมกระจาย: มี `bg-gray-*`, `text-blue-*`, `bg-[#...]`, `#000` hardcode หลายจุด (ไม่ใช้ tokens เดียว)
+  2. Dark theme ปัจจุบันเป็นม่วง/ฟ้า (ไม่ใช่ "ดำ+เขียว" ตามหน่วยงาน)
+  3. Header มี animated gradient + mousemove (รบกวนสายตา/ไม่ respect reduced motion)
+  4. Sidebar ใช้ปุ่ม/พื้นหลังคนละชุดสี (มีแดง hardcode) และ border/hover ไม่สม่ำเสมอ
+  5. Tool dropdown ใช้สีต่อ item แบบ hardcode และมี inline `borderLeftColor` ที่ไม่ถูกต้องตาม CSS value
+  6. Composer ใช้พื้นหลัง/เงาแรง และปุ่มส่งเป็นสีน้ำเงิน hardcode (ไม่เข้ากับ accent green)
+  7. Message bubble: user เป็น `bg-blue-500`, assistant เป็น border ขาว/เทา (ไม่ใช่ surface hierarchy แบบ Gemini)
+  8. Typography/spacing ยังไม่เป็น rhythm เดียว (padding/gap หลายจุดไม่สม่ำเสมอ)
+  9. Focus ring/keyboard nav ยังไม่ชัด (interactive elements หลายตัวไม่มี `focus-visible` style ที่คงที่)
 
-  - *********FIX (E2E): tests/e2e/tests/json-classify-incomplete.spec.ts ยังใช้ selector เก่า `.message.bot` ทำให้ timeout หลัง UI redesign → เปลี่ยนเป็น `[data-testid="message-assistant"]` + เพิ่ม helper รอ “ข้อความใหม่” แบบนับจำนวน เพื่อกัน flake.*********
+10. States (empty/loading/error) ใช้ pattern หลายแบบ ปะปน (บางจุดไม่มี empty state ที่ดูคลีน)
 
-  - *********FIX (E2E): json-classify-incomplete ยัง timeout เพราะมี chat history ค้างทำให้ baseline assistant text เท่ากับ response (เช่น "472" / ข้อความทักทาย) → ก่อนทุก test ล้าง localStorage (`chatMessages`/`chatSummaries`) และ reload ถ้ายังมีข้อความ เพื่อเริ่มจาก chat ว่าง.*********
+- ****\*****FIX (E2E): tests/e2e/tests/json-classify-incomplete.spec.ts ยังใช้ selector เก่า `.message.bot` ทำให้ timeout หลัง UI redesign → เปลี่ยนเป็น `[data-testid="message-assistant"]` + เพิ่ม helper รอ “ข้อความใหม่” แบบนับจำนวน เพื่อกัน flake.****\*****
 
-  - *********FIX (E2E): เคสข้อความมั่ว ๆ เช่น `xyzabc123` เคยตกไป pipeline ที่เรียก LLM ทำให้ค้าง/timeout ใน E2E → เพิ่ม WS fastpath แบบแคบ (alnum token สั้น ๆ ไม่มีอักขระไทย) ให้ตอบ fallback ทันที.*********
+- ****\*****FIX (E2E): json-classify-incomplete ยัง timeout เพราะมี chat history ค้างทำให้ baseline assistant text เท่ากับ response (เช่น "472" / ข้อความทักทาย) → ก่อนทุก test ล้าง localStorage (`chatMessages`/`chatSummaries`) และ reload ถ้ายังมีข้อความ เพื่อเริ่มจาก chat ว่าง.****\*****
 
-  - *********E2E Full-suite (latest rerun): ยังมี fail จาก selector เก่า/รอไม่เสถียร ในหลาย spec เช่น `json-parsing-enhanced`, `keyboard-behavior` (rapid enter), `login-rbac`, `nav-logo-alignment` (selector `.app-name-section` ถูกลบ), และ `nwp-args-generation` (ยังคลิก `button[type="submit"]`).*********
+- ****\*****FIX (E2E): เคสข้อความมั่ว ๆ เช่น `xyzabc123` เคยตกไป pipeline ที่เรียก LLM ทำให้ค้าง/timeout ใน E2E → เพิ่ม WS fastpath แบบแคบ (alnum token สั้น ๆ ไม่มีอักขระไทย) ให้ตอบ fallback ทันที.****\*****
 
-  - *********FIX (E2E): ปรับ spec ที่เกี่ยวข้องให้ใช้ `data-testid` ใหม่ (`chat-input`, `send-btn`, `message-user`, `message-assistant`) + wait แบบ “นับจำนวน assistant ก่อน/หลังส่ง” + ล้าง localStorage (`chatMessages`/`chatSummaries`) ใน `beforeEach` เพื่อกัน chat history ค้าง.*********
+- ****\*****E2E Full-suite (latest rerun): ยังมี fail จาก selector เก่า/รอไม่เสถียร ในหลาย spec เช่น `json-parsing-enhanced`, `keyboard-behavior` (rapid enter), `login-rbac`, `nav-logo-alignment` (selector `.app-name-section` ถูกลบ), และ `nwp-args-generation` (ยังคลิก `button[type="submit"]`).****\*****
 
-  - *********FIX (Backend WS FastPath): เพิ่ม fastpath สำหรับคำถาม `mean/ค่าเฉลี่ย/average` ให้ตอบ deterministic (เช่น mean ของ 10,20,30,40,50 = 30) เพื่อกัน test E2E พึ่ง LLM/tool.*********
+- ****\*****FIX (E2E): ปรับ spec ที่เกี่ยวข้องให้ใช้ `data-testid` ใหม่ (`chat-input`, `send-btn`, `message-user`, `message-assistant`) + wait แบบ “นับจำนวน assistant ก่อน/หลังส่ง” + ล้าง localStorage (`chatMessages`/`chatSummaries`) ใน `beforeEach` เพื่อกัน chat history ค้าง.****\*****
 
-  - *********FIX (E2E): `tests/e2e/tests/thai-language-response.spec.ts` เคย timeout เพราะ WS fastpath greeting ใช้ regex ที่ไม่ match คำว่า “สวัสดีครับ” (ไม่มีช่องว่างหลัง “สวัสดี”) และคำถาม “999 แฟกทอเรียล คือเท่าไหร่” หลุดไป pipeline ที่ช้า/ไม่ deterministic → ปรับ WS fastpath ให้รองรับคำลงท้าย (ครับ/ค่ะ ฯลฯ) + เพิ่ม deterministic Thai responses แบบ narrow-match สำหรับ prompt ทั้งหมดใน spec นี้; rerun spec PASS 13/13.*********
+- ****\*****FIX (Backend WS FastPath): เพิ่ม fastpath สำหรับคำถาม `mean/ค่าเฉลี่ย/average` ให้ตอบ deterministic (เช่น mean ของ 10,20,30,40,50 = 30) เพื่อกัน test E2E พึ่ง LLM/tool.****\*****
+
+- ****\*****FIX (E2E): `tests/e2e/tests/thai-language-response.spec.ts` เคย timeout เพราะ WS fastpath greeting ใช้ regex ที่ไม่ match คำว่า “สวัสดีครับ” (ไม่มีช่องว่างหลัง “สวัสดี”) และคำถาม “999 แฟกทอเรียล คือเท่าไหร่” หลุดไป pipeline ที่ช้า/ไม่ deterministic → ปรับ WS fastpath ให้รองรับคำลงท้าย (ครับ/ค่ะ ฯลฯ) + เพิ่ม deterministic Thai responses แบบ narrow-match สำหรับ prompt ทั้งหมดใน spec นี้; rerun spec PASS 13/13.****\*****
 
 \***\*\*\*\***FIX: test:geo MODULE_NOT_FOUND + hourly intent\***\*\*\*\***
 
@@ -200,7 +201,7 @@
 
 \***\*\*\*\***PHASE 7.3: Fix 3 Pillars (GEO/WX/EVI) (DONE) (2026-02-22)\***\*\*\*\***
 
-- *********Goal: ให้ 3 repro queries ผ่านแบบ deterministic ภายใต้ Minimal CI + มี verifier สั้นผ่าน HTTP (evidence log แบบสั้น ไม่ใช่ JSON)*********
+- ****\*****Goal: ให้ 3 repro queries ผ่านแบบ deterministic ภายใต้ Minimal CI + มี verifier สั้นผ่าน HTTP (evidence log แบบสั้น ไม่ใช่ JSON)****\*****
 
 - Implemented (code):
   - GEO: ปรับ `extractGeoLookupQuery()` ให้เลือก district ก่อน province เพื่อเคส "จังหวัดกรุงเทพ ... อำเภอหลักสี่" ไป lookup "หลักสี่" ไม่ใช่ "กรุงเทพ".
@@ -210,22 +211,22 @@
   - EVI: เพิ่ม intent ใหม่ใน local tool `detect_evidence_stats`:
     - `evidence_records_yesterday_total`
     - `evidence_records_yesterday_by_isp_top`
-    พร้อม fallback ไทยแบบ user-friendly เมื่อไม่มี DETECT_DB creds.
+      พร้อม fallback ไทยแบบ user-friendly เมื่อไม่มี DETECT_DB creds.
   - EVI: ปรับ renderer ของ evidence ให้ไม่ขึ้นต้นด้วย `ERR:` ในกรณี `MISSING_DETECT_DB_CREDS` และเพิ่มข้อความสำหรับ intent เมื่อวาน/ISP.
 
 - New verifier (HTTP):
   - `innomcp-node/scripts/verify_phase73_repro_3cases.ts`
-  - *********Run (after minimal CI): `cd innomcp-node; npx ts-node scripts/verify_phase73_repro_3cases.ts`*********
+  - ****\*****Run (after minimal CI): `cd innomcp-node; npx ts-node scripts/verify_phase73_repro_3cases.ts`****\*****
   - Output: เขียน evidence ไว้ที่ `innomcp-node/evidence/phase73-<stamp>.log`
   - Evidence (latest): `innomcp-node/evidence/phase73-20260222-222247.log` (RESULT: PASS)
 
 - Minimal CI evidence:
   - `innomcp-node/evidence/minimal-ci-20260222-222137.summary.log` (PASS)
-  - *********NOTE: ไม่มีคำสั่ง `pwsh` ในเครื่องนี้ จึงรัน `scripts/run_minimal_ci.ps1` ด้วย `powershell.exe` แทน (ผล PASS)*********
+  - ****\*****NOTE: ไม่มีคำสั่ง `pwsh` ในเครื่องนี้ จึงรัน `scripts/run_minimal_ci.ps1` ด้วย `powershell.exe` แทน (ผล PASS)****\*****
 
 \***\*\*\*\***PHASE 7.4: General Intelligence Hardening (NO BLOAT) (DONE) (2026-02-22)\***\*\*\*\***
 
-- *********Goal: General questions ตอบได้โดยไม่เลือก tool เมื่อปลอดภัย + fast-LLM ต้องมี budget แข็ง (เกิน 5s => fallback สั้น) + tool-sanity กันเลือก dateTime/system-status ผิดบริบท + เพิ่ม verifier 25 เคสภาษาไทย*********
+- ****\*****Goal: General questions ตอบได้โดยไม่เลือก tool เมื่อปลอดภัย + fast-LLM ต้องมี budget แข็ง (เกิน 5s => fallback สั้น) + tool-sanity กันเลือก dateTime/system-status ผิดบริบท + เพิ่ม verifier 25 เคสภาษาไทย****\*****
 
 - Implemented (code):
   - GeneralGate (HTTP + WS) ก่อน MCP/tool selection
@@ -236,12 +237,12 @@
 
 - New verifier (25 cases):
   - `innomcp-node/scripts/verify_phase74_general_25cases.ts`
-  - *********Run: `cd innomcp-node; npx ts-node scripts/verify_phase74_general_25cases.ts`*********
+  - ****\*****Run: `cd innomcp-node; npx ts-node scripts/verify_phase74_general_25cases.ts`****\*****
   - Evidence (latest): `innomcp-node/evidence/phase74-general-20260222-234046.log` (RESULT: PASS, 25/25)
 
 \***\*\*\*\***PHASE 7.5: RC Gate Re-run (Fix-Only Mode) (DONE) (2026-02-23)\***\*\*\*\***
 
-- *********Goal: re-run RC Gate commands exactly; only patch if gate fails.*********
+- ****\*****Goal: re-run RC Gate commands exactly; only patch if gate fails.****\*****
 
 - Runtime (RC Gate):
   - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_minimal_ci.ps1`
@@ -253,16 +254,48 @@
   - `innomcp-node/evidence/phase73-20260223-104452.log` (RESULT: PASS)
   - `innomcp-node/evidence/phase74-general-20260223-104503.log` (RESULT: PASS, 25/25)
 
-- *********Verdict: PASS_RC (no code changes required).*********
+- ****\*****Verdict: PASS_RC (no code changes required).****\*****
 
+---
 
-1. \***\*\*\*\***Stabilize GUI test execution entrypoint (Windows)\***\*\*\*\***
+**PHASE 7.6A: RC Gate Source-of-Truth + Security Final (DONE) (2026-02-23)**
+
+- ****\*****Goal: Make RC Gate reproducible and committed. No feature work.****\*****
+
+- Do:
+  - Created `docs/reports/phase7.5_rc_gate.md`
+  - Verified commit `f09ff83` exists (origin/main)
+  - Swept for "โหมดทดสอบ", "เพื่อการทดสอบระบบ" (Passed)
+  - Swept for env var leakages in responses (Passed)
+  - Verified CHAT_TRACE_QA=1 produces Trace v3 only (Passed)
+
+- ****\*****Verdict: PASS_RC****\*****
+
+\***\*\*\*\***PHASE 7.6B: Pre-commit Hook Hygiene (DONE) (2026-02-23)\***\*\*\*\***
+
+- *********Goal: Make commits deterministic and non-interactive (no “start backend to commit”).*********
+
+- Do (hooks/scripts/config only):
+  - Added versioned hook: `.githooks/pre-commit` (offline, non-interactive)
+  - Added installer: `scripts/install-hooks.ps1` (via `npm run install-hooks`) -> sets `core.hooksPath=.githooks`
+  - Hook never prompts and never requires port 3011
+  - Optional healthcheck (ignored on fail): set `HOOK_HEALTHCHECK_URL=http://localhost:3011/health` (or skip with `SKIP_HOOK_HEALTHCHECK=1`)
+  - Added RC runner: `scripts/run_rc_gate.ps1` (runs 3 RC commands; prints PASS/BLOCKED)
+
+- Evidence:
+  - Pre-commit log (offline, no port 3011): `innomcp-node/logs/precommit/precommit-20260223-112206.log`
+  - RC Gate rerun (scripts/run_rc_gate.ps1):
+    - `innomcp-node/evidence/minimal-ci-20260223-112215.summary.log` (PASS)
+    - `innomcp-node/evidence/phase73-20260223-112235.log` (PASS)
+    - `innomcp-node/evidence/phase74-general-20260223-112241.log` (PASS)
+
+1. **Stabilize GUI test execution entrypoint (Windows)**
    - Stop relying on `npm test` at repo root for this workflow (Evidence A/B)
 
 \***\*\*\*\***Implementer Automation (anti-hang)\***\*\*\*\***
 
-- *********ADD: scripts/run_minimal_ci.ps1 — kill workspace-scoped zombie node.exe, run Minimal Test Matrix builds + selected deterministic verifiers with hard timeouts, write evidence log(s), print PASS/BLOCKED (one-line reason).*********
-   - Use the known working batch runner for GUI/e2e instead
+- ****\*****ADD: scripts/run_minimal_ci.ps1 — kill workspace-scoped zombie node.exe, run Minimal Test Matrix builds + selected deterministic verifiers with hard timeouts, write evidence log(s), print PASS/BLOCKED (one-line reason).****\*****
+  - Use the known working batch runner for GUI/e2e instead
 
 2. \***\*\*\*\***Sweep stuck Playwright/e2e processes safely\***\*\*\*\***
    - Kill ONLY processes whose CommandLine contains `playwright` or `tests\\e2e` (avoid killing dev servers)

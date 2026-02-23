@@ -1,0 +1,54 @@
+#!/bin/sh
+# INNOMCP pre-commit hook (offline, deterministic, non-interactive)
+# - NEVER prompts
+# - NEVER requires backend running
+# - Runs only offline checks suitable for pre-commit
+
+set -u
+set -o igncr 2>/dev/null || true
+
+echo ""
+echo "🧪 Pre-commit (offline, non-interactive)"
+echo "======================================="
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "${ROOT}" ]; then
+  echo "❌ Could not determine repo root"
+  exit 1
+fi
+
+NODE_DIR="$ROOT/innomcp-node"
+LOG_DIR="$NODE_DIR/logs/precommit"
+TS="$(date +%Y%m%d-%H%M%S)"
+LOG_FILE="$LOG_DIR/precommit-$TS.log"
+
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+
+# Optional healthcheck (ignored on failure). Default is offline.
+if [ -n "${HOOK_HEALTHCHECK_URL:-}" ] && [ "${SKIP_HOOK_HEALTHCHECK:-0}" != "1" ]; then
+  echo "Healthcheck: $HOOK_HEALTHCHECK_URL"
+  if curl -fsS "$HOOK_HEALTHCHECK_URL" >/dev/null 2>&1; then
+    echo "✅ Healthcheck OK"
+  else
+    echo "⚠️  Healthcheck failed (ignored)"
+  fi
+else
+  echo "Healthcheck: skipped (offline default)"
+fi
+
+echo ""
+echo "Running quick smoke tests (BASIC group)..."
+
+cd "$NODE_DIR" || exit 1
+
+if npm run test:regression -- --group BASIC --todo "pre-commit-$TS" > "$LOG_FILE" 2>&1; then
+  echo "✅ PASS"
+  echo "Log: $LOG_FILE"
+  exit 0
+fi
+
+echo "❌ FAIL"
+echo "Log: $LOG_FILE"
+echo "Last 60 lines:"
+tail -n 60 "$LOG_FILE" 2>/dev/null || true
+exit 1

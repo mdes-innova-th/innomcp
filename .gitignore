@@ -49,6 +49,8 @@ package-lock.json
 !/scripts/smoke_phase_721.ps1
 !/scripts/extract_smoke_evidence_721.ps1
 !/scripts/run_minimal_ci.ps1
+!/scripts/install-hooks.ps1
+!/scripts/run_rc_gate.ps1
 /docs/
 /tests/
 */.env
