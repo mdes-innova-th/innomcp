@@ -239,6 +239,22 @@
   - *********Run: `cd innomcp-node; npx ts-node scripts/verify_phase74_general_25cases.ts`*********
   - Evidence (latest): `innomcp-node/evidence/phase74-general-20260222-234046.log` (RESULT: PASS, 25/25)
 
+\***\*\*\*\***PHASE 7.5: RC Gate Re-run (Fix-Only Mode) (DONE) (2026-02-23)\***\*\*\*\***
+
+- *********Goal: re-run RC Gate commands exactly; only patch if gate fails.*********
+
+- Runtime (RC Gate):
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_minimal_ci.ps1`
+  - `cd innomcp-node; npx ts-node scripts/verify_phase73_repro_3cases.ts`
+  - `cd innomcp-node; npx ts-node scripts/verify_phase74_general_25cases.ts`
+
+- Evidence (2026-02-23):
+  - `innomcp-node/evidence/minimal-ci-20260223-104425.summary.log` (RESULT: PASS)
+  - `innomcp-node/evidence/phase73-20260223-104452.log` (RESULT: PASS)
+  - `innomcp-node/evidence/phase74-general-20260223-104503.log` (RESULT: PASS, 25/25)
+
+- *********Verdict: PASS_RC (no code changes required).*********
+
 
 1. \***\*\*\*\***Stabilize GUI test execution entrypoint (Windows)\***\*\*\*\***
    - Stop relying on `npm test` at repo root for this workflow (Evidence A/B)

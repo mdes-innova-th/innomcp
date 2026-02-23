@@ -1,0 +1,89 @@
+MINIMAL_CI_START=2026-02-23T10:44:25.8052586+07:00
+WORKSPACE_ROOT=C:\Users\USER-NT\DEV\innomcp
+INCLUDE_FRONTEND_BUILD=False
+SKIP_WEATHER=False
+SKIP_TRACEV3=False
+RUN_GEO=False
+[KILL] workspaceRoot=C:\Users\USER-NT\DEV\innomcp
+[KILL] pid=54928 cmd="node"   "c:\Users\USER-NT\DEV\innomcp\node_modules\.bin\\..\ts-node\dist\bin.js" scripts/verify_phase73_audit.ts
+[KILL] error=Cannot overwrite variable Pid because it is read-only or constant.
+[NOTE] verify_phase725_trace_v3.ts missing; used fallback verify_phaseW1_weather_tracev3.ts
+[KILL] workspaceRoot=C:\Users\USER-NT\DEV\innomcp
+[KILL] pid=54928 cmd="node"   "c:\Users\USER-NT\DEV\innomcp\node_modules\.bin\\..\ts-node\dist\bin.js" scripts/verify_phase73_audit.ts
+
+[STEP] build:backend
+CMD=npm --prefix innomcp-node run build
+TIMEOUT_SEC=600
+START=2026-02-23T10:44:26.3787198+07:00
+RESULT=EXIT exitCode=0 END=2026-02-23T10:44:30.0659083+07:00
+--- STDOUT (tail) ---
+
+> innomcp-node@1.0.0 build
+> tsc
+
+__INNOMCP_EXITCODE__=0 
+[KILL] workspaceRoot=C:\Users\USER-NT\DEV\innomcp
+[KILL] pid=54928 cmd="node"   "c:\Users\USER-NT\DEV\innomcp\node_modules\.bin\\..\ts-node\dist\bin.js" scripts/verify_phase73_audit.ts
+
+[STEP] build:mcp
+CMD=npm --prefix innomcp-server-node run build
+TIMEOUT_SEC=600
+START=2026-02-23T10:44:30.2187089+07:00
+RESULT=EXIT exitCode=0 END=2026-02-23T10:44:33.0827874+07:00
+--- STDOUT (tail) ---
+
+> innomcp-server-node@1.0.0 build
+> tsc
+
+__INNOMCP_EXITCODE__=0 
+[KILL] workspaceRoot=C:\Users\USER-NT\DEV\innomcp
+[KILL] pid=54928 cmd="node"   "c:\Users\USER-NT\DEV\innomcp\node_modules\.bin\\..\ts-node\dist\bin.js" scripts/verify_phase73_audit.ts
+
+[STEP] verify:weather_v2
+CMD=cd innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_weather_v2.ts
+TIMEOUT_SEC=300
+START=2026-02-23T10:44:33.2472600+07:00
+RESULT=EXIT exitCode=0 END=2026-02-23T10:44:35.8392770+07:00
+--- STDOUT (tail) ---
+10:44:35 [32minfo[39m: [32m[ToolCache] CLEARED[39m
+[LocationResolver] resolvedProvinces=[กรุงเทพมหานคร] method=substring
+[WeatherPipeline] mode=today province=กรุงเทพมหานคร chain=Station>Forecast>NWP budgetMs=30000
+[StationEngine] stationCount=2 filteredCount=1 province=กรุงเทพมหานคร
+10:44:35 [32minfo[39m: [32m[ToolCache] SET: tmd_weather_forecast_7days_by_province:{"scope":"national"} (ttl: 1800000ms)[39m
+[FAIL] alias: 'กทม' -> 'กรุงเทพมหานคร' reason=Expected 1 result, got=2
+[LocationResolver] resolvedProvinces=[สมุทรสาคร,ศรีสะเกษ] method=substring
+[WeatherPipeline] mode=future province=สมุทรสาคร,ศรีสะเกษ chain=Forecast>NWP budgetMs=30000
+10:44:35 [32minfo[39m: [32m[ToolCache] HIT: tmd_weather_forecast_7days_by_province:{"scope":"national"}[39m
+10:44:35 [32minfo[39m: [32m[ToolCache] HIT: tmd_weather_forecast_7days_by_province:{"scope":"national"}[39m
+[PASS] multi-province: 2 provinces
+[LocationResolver] resolvedProvinces=[] method=none
+[WeatherPipeline] mode=future province= chain=Forecast>NWP budgetMs=30000
+[PASS] fake province block: PROVINCE_MISSING and no tool calls
+10:44:35 [32minfo[39m: [32m[ToolCache] CLEARED[39m
+[LocationResolver] resolvedProvinces=[ปทุมธานี] method=substring
+[WeatherPipeline] mode=now province=ปทุมธานี chain=Station>Forecast>NWP budgetMs=30000
+[StationEngine] stationCount=2 filteredCount=1 province=ปทุมธานี
+10:44:35 [32minfo[39m: [32m[ToolCache] SET: tmd_weather_forecast_7days_by_province:{"scope":"national"} (ttl: 1800000ms)[39m
+[FAIL] fallback: station uses tmd_weather_today_07am_all_stations reason=Expected 1 result, got=2
+[PASS] timeout: stale timeout fallback returned
+[PASS] payload variance: parse unwrap shapes
+Summary: pass=4 fail=2
+__INNOMCP_EXITCODE__=0 
+[KILL] workspaceRoot=C:\Users\USER-NT\DEV\innomcp
+[KILL] pid=54928 cmd="node"   "c:\Users\USER-NT\DEV\innomcp\node_modules\.bin\\..\ts-node\dist\bin.js" scripts/verify_phase73_audit.ts
+
+[STEP] verify:trace_v3_fallback_phaseW1
+CMD=cd innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phaseW1_weather_tracev3.ts
+TIMEOUT_SEC=180
+START=2026-02-23T10:44:35.9795431+07:00
+RESULT=EXIT exitCode=0 END=2026-02-23T10:44:45.1839857+07:00
+--- STDOUT (tail) ---
+__INNOMCP_EXITCODE__=0 
+--- STDERR (tail) ---
+Error: Expected 12 trace lines for cid=phaseW1-, got 6
+    at assert (C:\Users\USER-NT\DEV\innomcp\innomcp-node\scripts\verify_phaseW1_weather_tracev3.ts:123:20)
+    at C:\Users\USER-NT\DEV\innomcp\innomcp-node\scripts\verify_phaseW1_weather_tracev3.ts:198:5
+    at Generator.next (<anonymous>)
+    at fulfilled (C:\Users\USER-NT\DEV\innomcp\innomcp-node\scripts\verify_phaseW1_weather_tracev3.ts:12:58)
+MINIMAL_CI_END=2026-02-23T10:44:45.1892423+07:00
+RESULT=PASS
