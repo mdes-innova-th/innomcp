@@ -96,7 +96,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         total: 0,
         byIsp,
         topIsp: byIsp[0],
-        summary: "เมื่อวานนี้รวม 0 รายการ | ISP มากสุด: (ไม่สามารถระบุได้) (0) | หมายเหตุ: ยังไม่เชื่อมต่อฐานข้อมูล Detect",
+        summary: "เมื่อวานนี้รวม 0 รายการ | ISP มากที่สุด: (ไม่สามารถระบุได้) (0) | หมายเหตุ: ยังไม่เชื่อมต่อฐานข้อมูล",
       };
     }
     if (currentIntent === "pending_evidence") {

@@ -64,4 +64,7 @@ yarn-error.log*
 # Phase 8.1: Answer Quality Lock (UI-real Thai) verifier
 !/scripts/verify_phase81_answer_quality.ts
 
+# Phase 8.2: Non-seeded Robustness (still renderer-only) verifier
+!/scripts/verify_phase82_robustness.ts
+
 

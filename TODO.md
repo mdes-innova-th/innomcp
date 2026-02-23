@@ -30,6 +30,25 @@
   - `innomcp-node/evidence/phase81-answer-quality-2026-02-23T10-51-07-694Z.json`
   - `innomcp-node/evidence/phase81-answer-quality-2026-02-23T10-51-07-694Z.out.log`
 
+\***\*\*\*\***PHASE8.2: Non-seeded Robustness (Still Renderer-only) (2026-02-23)\***\*\*\*\***
+
+- Scope lock:
+  - Keep routing deterministic + renderer-only (NO LLM decision-making)
+  - Robust aliases/near-miss handling for Thai GEO + Bangkok multi-location WX + Evidence ISP templates
+  - If ambiguity remains -> AMBIGUOUS Top3 + 1 follow-up question (no trivia)
+
+- Runtime:
+  - `npm --prefix innomcp-node run build`
+  - PowerShell:
+    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase82_robustness.ts`
+  - CMD:
+    - `cd /d innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phase82_robustness.ts`
+
+- Evidence (PASS 35/35):
+  - `innomcp-node/evidence/phase82-robustness-tracev3-2026-02-23T14-31-56-744Z.log`
+  - `innomcp-node/evidence/phase82-robustness-2026-02-23T14-31-56-744Z.json`
+  - `innomcp-node/evidence/phase82-robustness-2026-02-23T14-31-56-744Z.out.log`
+
 \***\*\*\*\***PHASE1: GEO Round B Closure (audit) (2026-02-20)\***\*\*\*\***
 
 - Ground truth (A):

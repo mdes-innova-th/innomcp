@@ -192,7 +192,7 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
 
   const provinces = Array.from(grouped.keys());
   if (provinces.length === 0) {
-    return { text: "ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้", structuredContent };
+    return { text: "ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)", structuredContent };
   }
 
   const tw = timeWindowLabel(userText);

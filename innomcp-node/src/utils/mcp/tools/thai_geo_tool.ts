@@ -160,6 +160,9 @@ function canonicalizeThaiTextV2(s: string): string {
   t = t.replace(/(^|\s)กทม(?=\s|$)/gi, "$1กรุงเทพมหานคร");
   t = t.replace(/(^|\s)กรุงเทพ(?=\s|$)/gi, "$1กรุงเทพมหานคร");
 
+  // Common near-miss typos / variants (keep deterministic, no hallucination)
+  t = t.replace(/ลักสี่/gi, "หลักสี่");
+
   // Normalize abbreviations (Thai addresses)
   t = t.replace(/\bจ\.(?=\s|$)/g, "จังหวัด");
   t = t.replace(/\bอ\.(?=\s|$)/g, "อำเภอ");
@@ -282,14 +285,14 @@ const SEED: SeedEntity[] = [
     id: "geo:lak-si",
     type: "district",
     name_th: "หลักสี่",
-    aliases: ["เขตหลักสี่", "อำเภอหลักสี่"],
+    aliases: ["เขตหลักสี่", "อำเภอหลักสี่", "ลักสี่", "เขตลักสี่"],
     attributes: { province: "กรุงเทพมหานคร", district: "หลักสี่", region: "กลาง" },
   },
   {
     id: "geo:lat-krabang",
     type: "district",
     name_th: "ลาดกระบัง",
-    aliases: ["เขตลาดกระบัง", "อำเภอลาดกระบัง"],
+    aliases: ["เขตลาดกระบัง", "อำเภอลาดกระบัง", "ลาดกระบังฯ", "เขตลาดกระบังฯ"],
     attributes: { province: "กรุงเทพมหานคร", district: "ลาดกระบัง", region: "กลาง" },
   },
   {
@@ -526,8 +529,14 @@ export async function handleThaiGeoTool(args: any): Promise<any> {
     const noConstraints = !parsed.constraints.province && !parsed.constraints.district && !parsed.constraints.postcode;
     const forceAmbiguousForCommonName = sameNameTop2 && noConstraints;
 
+    // Generic districts like "อำเภอเมือง" / "เมือง" are extremely common; avoid picking the wrong province.
+    const coreNorm = normalizeForMatch(parsed.core_query);
+    const forceAmbiguousForGenericDistrict =
+      !parsed.constraints.province && (coreNorm === normalizeForMatch("อำเภอเมือง") || coreNorm === normalizeForMatch("เมือง"));
+
     const ambiguous =
       forceAmbiguousForCommonName ||
+      forceAmbiguousForGenericDistrict ||
       (top3.length >= 2 &&
         best &&
         best.score < 0.97 &&

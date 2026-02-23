@@ -110,6 +110,14 @@ function syncChatAIModeIfChanged() {
 function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { text: string; structuredContent: any } {
   const structuredContent = { weatherPipeline: weatherPayload };
 
+  const renderUpstreamWeatherErr = (codeRaw: string, messageRaw?: string): { text: string; structuredContent: any } => {
+    const code = String(codeRaw || "UPSTREAM_ERROR").toUpperCase();
+    const errToken = `ERR:WX_${code}`;
+    const base = String(messageRaw || "ขออภัย ยังไม่สามารถดึงข้อมูลอากาศได้ในขณะนี้").trim();
+    const msg = base.includes("ERR:") ? base : `${base} (${errToken})`;
+    return { text: msg, structuredContent: { weatherPipeline: { ok: false, code, message: msg } } };
+  };
+
   // Phase 7.1: support normalized weather payload wrapper
   // - success: { ok:true, result: WeatherResult[] }
   // - error:   { ok:false, code:"PROVINCE_MISSING"|"TIMEOUT"|"NO_DATA"|"UPSTREAM_ERROR", message:"..." }
@@ -117,7 +125,11 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
     if (weatherPayload.ok === false) {
       const code = String(weatherPayload.code || "UPSTREAM_ERROR");
       const msg = String(weatherPayload.message || "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง");
-      return { text: msg, structuredContent: { weatherPipeline: { ok: false, code, message: msg } } };
+      // Only enforce ERR tokens for upstream failures (not user input).
+      if (String(code).toUpperCase() === "PROVINCE_MISSING") {
+        return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent: { weatherPipeline: { ok: false, code, message: msg } } };
+      }
+      return renderUpstreamWeatherErr(code, msg);
     }
     if (weatherPayload.ok === true && Array.isArray(weatherPayload.result)) {
       weatherPayload = weatherPayload.result;
@@ -149,10 +161,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
     if (err === "PROVINCE_MISSING") {
       return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
     }
-    if (err === "TIMEOUT") {
-      return { text: "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ", structuredContent };
-    }
-    return { text: `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`, structuredContent };
+    return renderUpstreamWeatherErr(err, "ขออภัย ยังไม่สามารถดึงข้อมูลอากาศได้ในขณะนี้");
   }
 
   const weatherResults = weatherPayload as any[];
@@ -163,10 +172,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
     if (err === "PROVINCE_MISSING") {
       return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
     }
-    if (err === "TIMEOUT") {
-      return { text: "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (TIMEOUT) ลองใหม่อีกครั้งได้ครับ", structuredContent };
-    }
-    return { text: `ขออภัย ระบบพยากรณ์อากาศขัดข้อง (${err})`, structuredContent };
+    return renderUpstreamWeatherErr(err, "ขออภัย ยังไม่สามารถดึงข้อมูลอากาศได้ในขณะนี้");
   }
 
   if (wantsTable) {
@@ -222,11 +228,18 @@ function hasExplicitWeatherIntentKeywords(text: string): boolean {
 
 function inferOfficerEvidenceAction(text: string): string | undefined {
   const t = String(text || "");
-  // Phase 7.3: Yesterday evidence totals / ISP breakdown
-  if (/(เมื่อวาน|วานนี้)/i.test(t) && /(evidence|หลักฐาน|record|วิดีโอ)/i.test(t) && /(isp|ผู้ให้บริการ|ค่าย)/i.test(t)) {
+  // Phase 7.3 / Phase 8.2: Yesterday evidence totals / ISP breakdown
+  const isYesterday = /(เมื่อวาน|วานนี้|yesterday)/i.test(t);
+  const hasIsp = /\bisp\b/i.test(t) || /ผู้ให้บริการ|ค่าย/i.test(t);
+  const hasEvidenceTerms = /(evidence|หลักฐาน|record|วิดีโอ)/i.test(t);
+  const wantsBreakdownOrTop = /(แยกตาม|breakdown|top\b|most\b|highest\b|max\b|มากที่สุด|มากสุด|สูงสุด)/i.test(t);
+
+  // Accept real Thai variants even if the user omits the word "หลักฐาน".
+  if (isYesterday && hasIsp && (hasEvidenceTerms || wantsBreakdownOrTop)) {
     return "evidence_records_yesterday_by_isp_top";
   }
-  if (/(เมื่อวาน|วานนี้)/i.test(t) && /(evidence|หลักฐาน|record|วิดีโอ)/i.test(t)) {
+
+  if (isYesterday && (hasEvidenceTerms || /(กี่รายการ|จำนวน|ทั้งหมด|รวม)/i.test(t))) {
     return "evidence_records_yesterday_total";
   }
   if (/(เครื่อง.*ออฟไลน์|ออฟไลน์กี่เครื่อง|offline\s*machines?|machines?\s*offline)/i.test(t)) {
@@ -429,7 +442,20 @@ function looksLikeDeterministicGeoQuery(text: string): boolean {
   // Keep this strict to avoid hijacking non-geo queries (e.g., UI/feature questions).
   const whereQ = /(อยู่ที่ไหน|อยู่ตรงไหน|แถวไหน|ที่ไหน)/i.test(t);
   const locationCue = /(บ้าน|หมู่บ้าน|ตำบล|อำเภอ|จังหวัด|เขต|แขวง|ถนน|ซอย|รหัสไปรษณีย์|postcode)/i.test(t);
-  return whereQ && locationCue;
+
+  if (whereQ && locationCue) return true;
+
+  // Phase 8.2: allow "<ชื่อสถานที่> อยู่ที่ไหน" even without explicit admin keywords,
+  // but keep strict exclusions so evidence/ops questions are not hijacked.
+  if (whereQ) {
+    const m = t.match(/^(.{2,40})\s*(อยู่ที่ไหน|อยู่ตรงไหน|แถวไหน|ที่ไหน)\s*\?*\s*$/i);
+    const subject = String(m?.[1] || "").trim();
+    const hasThai = /[\u0E00-\u0E7F]/.test(subject);
+    const looksLikeEvidence = looksLikeEvidenceKeywordQuery(t) || !!inferOfficerEvidenceAction(t);
+    if (subject && hasThai && !looksLikeEvidence) return true;
+  }
+
+  return false;
 }
 
 function inferGeoAction(text: string): "address_normalize" | "geo_validate" | "geo_lookup" {
@@ -621,6 +647,13 @@ function renderStructuredDirect(
     return renderWeatherDirectAnswer(originalQuery || "", payload);
   }
 
+  // GEO tool: never dump JSON fences into user-visible text.
+  if (/(^|:)thai_geo_tool$/i.test(toolName)) {
+    if (deep) return null;
+    const rendered = renderThaiGeoAnswerShort(structuredContent);
+    return { text: rendered.text, structuredContent };
+  }
+
   if (toolName === "echartsTool") {
     const chartSvg = structuredContent && typeof structuredContent === "object" ? (structuredContent as any).chartSvg : undefined;
     if (typeof chartSvg === "string" && chartSvg.length > 0) {
@@ -646,8 +679,18 @@ function renderStructuredDirect(
       // Phase 8: never leak env-var style guidance or raw internal codes in user-visible answers.
       const code = String(err.code || "EVIDENCE_FAILED").toUpperCase();
       if (code === "MISSING_DETECT_DB_CREDS") {
+        const inferred = inferIntentFromQuery();
+        if (inferred === "evidence_records_yesterday_by_isp_top" || inferred === "evidence_records_yesterday_by_isp") {
+          const lines: string[] = [];
+          lines.push("สรุปหลักฐานเมื่อวานนี้ (ยังไม่พร้อมเชื่อมต่อฐานข้อมูล):");
+          lines.push("- รวม: 0 รายการ");
+          lines.push("- ISP มากที่สุด: (ไม่สามารถระบุได้) (0)");
+          lines.push("ขั้นถัดไป: ติดต่อผู้ดูแลระบบให้เชื่อมต่อฐานข้อมูลหลักฐาน แล้วลองใหม่อีกครั้งครับ");
+          return { text: lines.join("\n"), structuredContent };
+        }
+
         return {
-          text: "ขออภัย ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน กรุณาติดต่อผู้ดูแลระบบหรือลองใหม่ภายหลังครับ",
+          text: "ขออภัย ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน หากต้องการข้อมูลจริง กรุณาติดต่อผู้ดูแลระบบหรือลองใหม่ภายหลังครับ",
           structuredContent,
         };
       }
@@ -681,7 +724,7 @@ function renderStructuredDirect(
         lines.push("- แยกตาม ISP (Top 3):");
         for (const [i, r] of rows.slice(0, 3).entries()) lines.push(`  ${i + 1}) ${r.isp}: ${r.count}`);
       }
-      if (effectiveTop) lines.push(`- ISP มากสุด: ${effectiveTop.isp} (${effectiveTop.count})`);
+      if (effectiveTop) lines.push(`- ISP มากที่สุด: ${effectiveTop.isp} (${effectiveTop.count})`);
 
       // Phase 8.1: Require either ISP มากสุด or ERR:CODE for UI quality assertions.
       if (!effectiveTop) {
@@ -2340,17 +2383,42 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(messageWithFile))
       : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile);
     if (mcpClient && allowWeatherGate) {
+      const mcp = mcpClient;
       const deep = wantsDeepExplain(messageWithFile);
       logBoth("info", `[WeatherGate] bypass=true transport=http deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
-      // Multi-district Bangkok support: run pipeline per district when the query explicitly contains multiple districts.
-      const isBangkokLaksiLatkrabang = /กรุงเทพ|กรุงเทพมหานคร|กทม/i.test(messageWithFile) && /หลักสี่/.test(messageWithFile) && /ลาดกระบัง/.test(messageWithFile);
-      const multiBkk = isBangkokLaksiLatkrabang;
+      // Multi-district Bangkok support (robust aliases/typos): run pipeline per district when user clearly asks for 2 areas.
+      const extractBangkokDistrictTargets = (text: string): string[] => {
+        const raw = String(text || "");
+        if (!/กรุงเทพ|กรุงเทพมหานคร|กทม/i.test(raw)) return [];
+        const norm = raw.replace(/[\u0E2F]/g, ""); // drop ฯ for matching
+
+        const candidates: Array<{ name: string; idx: number }> = [];
+        const pushIfFound = (name: string, re: RegExp) => {
+          const i = norm.search(re);
+          if (i >= 0) candidates.push({ name, idx: i });
+        };
+
+        pushIfFound("หลักสี่", /หลักสี่/);
+        pushIfFound("หลักสี่", /ลักสี่/);
+        pushIfFound("ลาดกระบัง", /ลาดกระบัง/);
+        pushIfFound("บางรัก", /บางรัก/);
+        pushIfFound("ปทุมวัน", /ปทุมวัน/);
+        pushIfFound("จตุจักร", /จตุจักร/);
+
+        const uniq: string[] = [];
+        for (const c of candidates.sort((a, b) => a.idx - b.idx)) {
+          if (!uniq.includes(c.name)) uniq.push(c.name);
+        }
+        return uniq.slice(0, 2);
+      };
+
+      const bkkTargets = extractBangkokDistrictTargets(messageWithFile);
+      const multiBkk = bkkTargets.length === 2;
       const toolResults = multiBkk
-        ? await Promise.all([
-            mcpClient.runDeterministicWeatherPipeline("กรุงเทพมหานคร เขตหลักสี่ " + messageWithFile),
-            mcpClient.runDeterministicWeatherPipeline("กรุงเทพมหานคร เขตลาดกระบัง " + messageWithFile),
-          ])
-        : [await mcpClient.runDeterministicWeatherPipeline(messageWithFile)];
+        ? await Promise.all(
+            bkkTargets.map((d) => mcp.runDeterministicWeatherPipeline(`กรุงเทพมหานคร เขต${d} ` + messageWithFile))
+          )
+        : [await mcp.runDeterministicWeatherPipeline(messageWithFile)];
 
       const primaryToolResult = toolResults[0];
       const sc = primaryToolResult.structuredContent;
@@ -2369,7 +2437,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
                 const blocks: string[] = [];
 
                 const districtRuns = toolResults.map((tr: any, idx: number) => {
-                  const label = idx === 0 ? "เขตหลักสี่" : "เขตลาดกระบัง";
+                  const label = `เขต${bkkTargets[idx] || ""}`.trim() || `พื้นที่ที่ ${idx + 1}`;
                   const d = directOne(tr, messageWithFile);
                   const rawLines = String(d.text || "").trim().split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
                   const header = rawLines.find((l) => /^ช่วงเวลา\s*:/i.test(l)) || "";
@@ -2379,7 +2447,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
                 const header = districtRuns.map((r) => r.header).find(Boolean) || "";
                 if (header) blocks.push(header);
-                blocks.push("สรุปสภาพอากาศ: กรุงเทพมหานคร (หลักสี่ + ลาดกระบัง)");
+                blocks.push(`สรุปสภาพอากาศ: กรุงเทพมหานคร (${bkkTargets[0]} + ${bkkTargets[1]})`);
 
                 for (const r of districtRuns) {
                   blocks.push(`- ${r.label}`);
@@ -2394,7 +2462,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
                   ok: true,
                   code: "MULTI_TARGET",
                   message: "multiple targets",
-                  targets: ["หลักสี่", "ลาดกระบัง"],
+                  targets: bkkTargets,
                   results: toolResults.map((tr: any) => tr?.structuredContent?.weatherPipeline ?? tr?.structuredContent),
                 },
               },
