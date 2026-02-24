@@ -49,6 +49,21 @@
   - `innomcp-node/evidence/phase82-robustness-tracev3-2026-02-23T15-02-42-926Z.log`
   - `innomcp-node/evidence/phase82-robustness-2026-02-23T15-02-42-926Z.out.log`
 
+\***\*\*\*\***PHASE8.3: Answer Polish (Renderer-only) (2026-02-24)\***\*\*\*\***
+
+- Scope lock:
+  - Renderer-only template polish for GEO/WX/EVI (NO routing/gate changes)
+  - Trace v3 safe output: no { } \\ " ``` ` in user-visible answers
+
+- Runtime:
+  - PowerShell:
+    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase83_answer_polish.ts`
+
+- Evidence (PASS 42/42):
+  - Evidence publish commit: `ce3ada2`
+  - `innomcp-node/evidence/phase83-answer-polish-tracev3-2026-02-24T04-41-32-106Z.log`
+  - `innomcp-node/evidence/phase83-answer-polish-2026-02-24T04-41-32-106Z.out.log`
+
 \***\*\*\*\***PHASE1: GEO Round B Closure (audit) (2026-02-20)\***\*\*\*\***
 
 - Ground truth (A):

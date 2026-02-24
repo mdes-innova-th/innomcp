@@ -101,13 +101,14 @@ function fmtTempRange(minC: unknown, maxC: unknown): string {
   if (min !== null && max !== null) return `${min}–${max}°C`;
   if (max !== null) return `≤${max}°C`;
   if (min !== null) return `≥${min}°C`;
-  return "—";
+  return "";
 }
 
 function fmtWind(speedKmh: number | null, dir: string): string {
-  const spd = speedKmh !== null ? `${speedKmh}km/h` : "—";
-  const d = dir ? String(dir).trim() : "—";
-  return `${spd} ${d}`.trim();
+  const spd = speedKmh !== null ? `${speedKmh}km/h` : "";
+  const d = dir ? String(dir).trim() : "";
+  const out = `${spd} ${d}`.replace(/\s+/g, " ").trim();
+  return out;
 }
 
 function groupByProvince(results: WeatherResult[]): Map<string, WeatherResult[]> {
@@ -163,23 +164,47 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
 
   const tempFallback = (() => {
     const t = pickStationTempC(stationItems);
-    return t !== null ? `${t}°C` : "—";
+    return t !== null ? `${t}°C` : "";
   })();
 
-  const tempText = tempRange !== "—" ? tempRange : tempFallback;
+  const tempText = tempRange ? tempRange : tempFallback;
+
+  const rainText = rainPct !== null ? `${rainPct}%` : "ไม่พบข้อมูล";
+  const windText = (() => {
+    const w = fmtWind(wind.speedKmh, wind.dir);
+    return w ? w : "ไม่พบข้อมูล";
+  })();
+  const tempOut = tempText ? tempText : "ไม่พบข้อมูล";
+
+  const timeRisk = (() => {
+    if (isTodayRainQuestion(userText)) {
+      const obs = obsTime || "ไม่พบข้อมูล";
+      const fc = forecastTime || "ไม่พบข้อมูล";
+      return `เช้า: สังเกตการณ์ล่าสุด (${obs}) | บ่าย-เย็น: พยากรณ์วันนี้ (${fc})`;
+    }
+    return "ไม่พบข้อมูลช่วงเวลา (มีเฉพาะรายวัน)";
+  })();
+
+  const advice = (() => {
+    const tips: string[] = [];
+    if (rainPct !== null) {
+      if (rainPct >= 60) tips.push("ระวังฝนและถนนลื่น");
+      else if (rainPct >= 30) tips.push("อาจมีฝนประปราย");
+    }
+    if (wind.speedKmh !== null && wind.speedKmh >= 40) tips.push("ระวังลมแรง");
+
+    if (tips.length > 0) return tips.join(" | ");
+    if (rainPct === null && wind.speedKmh === null) return "ไม่พบข้อมูลคำเตือน";
+    return "ไม่มีคำเตือนพิเศษ";
+  })();
 
   const lines: string[] = [];
-  lines.push(`- ${province}`);
-  lines.push(`  - โอกาสฝน: ${rainPct !== null ? `${rainPct}%` : "—"}`);
-  lines.push(`  - อุณหภูมิ: ${tempText}`);
-  lines.push(`  - ลม: ${fmtWind(wind.speedKmh, wind.dir)}`);
-  lines.push(`  - เวลาอัปเดต: สังเกตการณ์ ${obsTime || "—"} | พยากรณ์ ${forecastTime || "—"}`);
-
-  if (isTodayRainQuestion(userText)) {
-    lines.push(`  - วันนี้ (ช่วงเช้า): อ้างอิงสังเกตการณ์ล่าสุด (${obsTime || "—"})`);
-    lines.push(`  - วันนี้ (ช่วงบ่าย): อ้างอิงพยากรณ์วันนี้ (${forecastTime || "—"})`);
-    lines.push(`  - วันนี้ (ช่วงเย็น): อ้างอิงพยากรณ์วันนี้ (${forecastTime || "—"})`);
-  }
+  lines.push(`พื้นที่: ${province}`);
+  lines.push(`โอกาสฝน: ${rainText}`);
+  lines.push(`ช่วงเวลาเสี่ยง: ${timeRisk}`);
+  lines.push(`อุณหภูมิ: ${tempOut}`);
+  lines.push(`ลม: ${windText}`);
+  lines.push(`ข้อควรระวัง: ${advice}`);
 
   return lines.join("\n");
 }
@@ -198,5 +223,5 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
   const tw = timeWindowLabel(userText);
   const header = `ช่วงเวลา: ${tw.label} (${tw.date})`;
   const blocks = provinces.map((p) => renderOneProvince(userText, p, grouped.get(p) || []));
-  return { text: [header, ...blocks].join("\n"), structuredContent };
+  return { text: [header, ...blocks].join("\n\n"), structuredContent };
 }

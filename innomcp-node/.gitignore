@@ -67,4 +67,7 @@ yarn-error.log*
 # Phase 8.2: Non-seeded Robustness (still renderer-only) verifier
 !/scripts/verify_phase82_robustness.ts
 
+# Phase 8.3: Professional Answer Polish (still renderer-only) verifier
+!/scripts/verify_phase83_answer_polish.ts
+
 

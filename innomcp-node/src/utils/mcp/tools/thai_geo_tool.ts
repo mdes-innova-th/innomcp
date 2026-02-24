@@ -944,17 +944,81 @@ export function renderThaiGeoAnswerShort(toolResult: any): { text: string; trace
   const districtLabel = (prov: string): string => (isBangkok(prov) ? "เขต" : "อำเภอ");
   const subdistrictLabel = (prov: string): string => (isBangkok(prov) ? "แขวง" : "ตำบล");
 
-  const fmtPlace = (prov: string, dist?: string, sub?: string, post?: string): string => {
-    const p = sanitize(prov);
-    const d = sanitize(dist);
-    const s = sanitize(sub);
-    const pc = sanitize(post);
-    const parts: string[] = [];
-    if (s) parts.push(`${subdistrictLabel(p)}${s}`);
-    if (d) parts.push(`${districtLabel(p)}${d}`);
-    if (p) parts.push(p);
-    if (pc) parts.push(pc);
-    return parts.join(" ").trim();
+  const clipLine = (s: string, max: number): string => {
+    const t = sanitize(s);
+    if (t.length <= max) return t;
+    return (t.slice(0, Math.max(0, max - 1)) + "…").trim();
+  };
+
+  const renderAdminLines = (provRaw: string, distRaw?: string, subRaw?: string, postRaw?: string): string[] => {
+    const prov = sanitize(provRaw);
+    const dist = sanitize(distRaw);
+    const sub = sanitize(subRaw);
+    const post = sanitize(postRaw);
+
+    const lines: string[] = [];
+    if (dist) lines.push(`${districtLabel(prov)}: ${dist}`);
+    if (sub) lines.push(`${subdistrictLabel(prov)}: ${sub}`);
+    if (prov) lines.push(`จังหวัด: ${prov}`);
+    if (post) lines.push(`รหัสไปรษณีย์: ${post}`);
+    return lines;
+  };
+
+  const notFoundAnswer = (reasonRaw?: string): { text: string; trace: string } => {
+    const reason = sanitize(reasonRaw || "ไม่พบข้อมูลที่ตรงกับคำค้นหา");
+    const oneLineReason = reason.replace(/\n+/g, " ").trim();
+    const text = sanitize([
+      `ไม่พบข้อมูล: ${oneLineReason}`,
+      "ตัวอย่าง:",
+      "1) จังหวัดเชียงใหม่",
+      "2) เขตบางรัก กรุงเทพมหานคร 10500",
+    ].join("\n"));
+    return { text, trace: "ERR:NOT_FOUND" };
+  };
+
+  const renderAmbiguousCompact = (questionRaw: string, candidatesRaw: any[]): { text: string; trace: string } => {
+    const q = ensureSingleQuestionMark(questionRaw || "ต้องการพื้นที่ไหนครับ");
+    const top = (Array.isArray(candidatesRaw) ? candidatesRaw : []).slice(0, 3);
+    const top3: any[] = [...top];
+    // Always show 1)/2)/3) for UI consistency, even if upstream returns only 2 candidates.
+    while (top3.length < 3) {
+      top3.push({ __pad: true });
+    }
+
+    const maxTotal = 220;
+    // Per-line truncation so the UI always retains: คำถาม + 1)/2)/3)
+    const qLine = clipLine(`คำถาม: ${q}`, 84);
+
+    const makeOption = (c: any, idx: number, includeWhere: boolean): string => {
+      if (c && c.__pad) {
+        return `${idx + 1}) อื่นๆ (กรุณาระบุเพิ่ม)`;
+      }
+      const label = labelOf(c);
+      const where = includeWhere ? (whereShortOf(c) || whereOf(c)) : "";
+      const wherePart = where ? ` (${where})` : "";
+      const line = `${idx + 1}) ${label}${wherePart}`.replace(/\s+/g, " ").trim();
+      return line;
+    };
+
+    const tryRender = (includeWhere: boolean, optMax: number): string => {
+      const optLines = top3.map((c, i) => clipLine(makeOption(c, i, includeWhere), optMax));
+      return sanitize([qLine, ...optLines].join("\n"));
+    };
+
+    // Start with informative options, then progressively compact.
+    for (const cfg of [
+      { includeWhere: true, optMax: 54 },
+      { includeWhere: false, optMax: 56 },
+      { includeWhere: false, optMax: 44 },
+      { includeWhere: false, optMax: 36 },
+    ]) {
+      const out = tryRender(cfg.includeWhere, cfg.optMax);
+      if (out.length <= maxTotal) return { text: out, trace: "ERR:AMBIGUOUS" };
+    }
+
+    // Final clamp (should rarely happen) while keeping line starts.
+    const fallback = tryRender(false, 28);
+    return { text: fallback.slice(0, maxTotal).trim(), trace: "ERR:AMBIGUOUS" };
   };
 
   const labelOf = (r: any): string => {
@@ -980,8 +1044,8 @@ export function renderThaiGeoAnswerShort(toolResult: any): { text: string; trace
     const sub = sanitize(attrs?.subdistrict);
     const post = sanitize(attrs?.postcode);
     const parts: string[] = [];
-    if (sub) parts.push(`${subdistrictLabel(prov)}${sub}`);
     if (dist) parts.push(`${districtLabel(prov)}${dist}`);
+    if (sub) parts.push(`${subdistrictLabel(prov)}${sub}`);
     if (prov) parts.push(prov);
     if (post) parts.push(post);
     return parts.join(" ").trim();
@@ -998,11 +1062,14 @@ export function renderThaiGeoAnswerShort(toolResult: any): { text: string; trace
   };
 
   if (!toolResult || typeof toolResult !== "object") {
-    return { text: "คำตอบ: ไม่พบข้อมูลภูมิศาสตร์", trace: "ERR:NOT_FOUND" };
+    return notFoundAnswer("ไม่พบข้อมูลภูมิศาสตร์");
   }
   if (toolResult.ok === false) {
     const code = String(toolResult.code || "VALIDATION_FAILED").toUpperCase();
     const msg = String(toolResult.message || "เกิดข้อผิดพลาด");
+    if (code === "NOT_FOUND") {
+      return notFoundAnswer(msg);
+    }
     const text = sanitize(msg) || "เกิดข้อผิดพลาด";
     return { text: sanitize(`คำตอบ: ${text}`) || "คำตอบ: เกิดข้อผิดพลาด", trace: `ERR:${sanitize(code)}` };
   }
@@ -1012,84 +1079,67 @@ export function renderThaiGeoAnswerShort(toolResult: any): { text: string; trace
   // validate
   if (toolResult.data?.valid === true) {
     const n: AddressNormalized = toolResult.data.normalized || {};
-    const core = fmtPlace(n.province || "", n.district, n.subdistrict, n.postcode);
-    return { text: sanitize(`คำตอบ: ตรวจสอบแล้วถูกต้อง: ${core || "(ระบุพื้นที่ไม่ครบถ้วน)"}`), trace: "OK" };
+    const lines = renderAdminLines(n.province || "", n.district, n.subdistrict, n.postcode);
+    const body = lines.length > 0 ? ["คำตอบ: ตรวจสอบแล้วถูกต้อง", ...lines].join("\n") : "คำตอบ: ตรวจสอบแล้วถูกต้อง (ระบุพื้นที่ไม่ครบถ้วน)";
+    return { text: sanitize(body), trace: "OK" };
   }
 
   // address_normalize
   if (toolResult.data?.normalized) {
     const n: AddressNormalized = toolResult.data.normalized;
     const p = sanitize(n.province);
-    const parts: string[] = [];
-    if (n.house_no) parts.push(`เลขที่ ${n.house_no}`);
-    if (n.moo) parts.push(`หมู่ ${n.moo}`);
-    if (n.soi) parts.push(`ซอย${n.soi}`);
-    if (n.road) parts.push(`ถนน${n.road}`);
-    if (n.subdistrict) parts.push(`${subdistrictLabel(p)}${n.subdistrict}`);
-    if (n.district) parts.push(`${districtLabel(p)}${n.district}`);
-    if (n.province) parts.push(p);
-    if (n.postcode) parts.push(String(n.postcode));
-    const text = sanitize(`คำตอบ: จัดรูปแบบที่อยู่: ${parts.join(" ")}`);
-    return { text, trace: "OK" };
+    const head: string[] = [];
+    if (n.house_no) head.push(`เลขที่ ${sanitize(n.house_no)}`);
+    if (n.moo) head.push(`หมู่ ${sanitize(n.moo)}`);
+    if (n.soi) head.push(`ซอย${sanitize(n.soi)}`);
+    if (n.road) head.push(`ถนน${sanitize(n.road)}`);
+    const lines = renderAdminLines(n.province || "", n.district, n.subdistrict, n.postcode);
+    const body = [
+      "คำตอบ: จัดรูปแบบที่อยู่",
+      ...(head.length > 0 ? [`รายละเอียด: ${head.join(" ")}`] : []),
+      ...lines,
+    ].join("\n");
+    return { text: sanitize(body), trace: "OK" };
   }
 
   const best: ThaiGeoResult | undefined = toolResult.data?.best;
   const candidates: ThaiGeoResult[] = Array.isArray(toolResult.data?.candidates) ? toolResult.data.candidates : [];
 
   if (code === "AMBIGUOUS" && candidates.length > 1) {
-    const top3 = candidates.slice(0, 3);
-    const q = ensureSingleQuestionMark(toolResult.data?.disambiguation?.question || "ต้องการพื้นที่ไหนครับ?");
-    const optionLines = top3
-      .map((c: any, idx: number) => {
-        const label = labelOf(c);
-        const where = whereShortOf(c) || whereOf(c);
-        const wherePart = where ? `(${where})` : "";
-        const line = `${idx + 1}) ${label} ${wherePart}`.replace(/\s+/g, " ").trim();
-        return line;
-      })
-      .filter(Boolean);
-
-    const lines: string[] = [];
-    lines.push("พบชื่อ/พื้นที่ที่กำกวม กรุณาเลือก 1 รายการ หรือระบุเพิ่มให้ชัดเจนครับ");
-    lines.push("ตัวเลือก (Top 3):");
-    for (const l of optionLines) lines.push(`- ${l}`);
-    lines.push(`คำถาม: ${q}`);
-
-    const text = sanitize(lines.join("\n"));
-    return { text, trace: "ERR:AMBIGUOUS" };
+    const q = String(toolResult.data?.disambiguation?.question || "ต้องการพื้นที่ไหนครับ");
+    return renderAmbiguousCompact(q, candidates);
   }
 
   if (best) {
     const t = String(best.type);
     if (t === "postcode") {
       const prov = sanitize(best.attributes?.province);
-      const place = fmtPlace(prov, best.attributes?.district, best.attributes?.subdistrict, best.name_th);
-      const text = sanitize(`คำตอบ: รหัสไปรษณีย์ ${best.name_th} อยู่${place ? " " + place : ""}`);
+      const lines = renderAdminLines(prov, best.attributes?.district, best.attributes?.subdistrict, best.name_th);
+      const text = sanitize(["คำตอบ:", ...lines].join("\n"));
       return { text, trace: "OK" };
     }
     if (t === "subdistrict") {
       const prov = sanitize(best.attributes?.province);
-      const place = fmtPlace(prov, best.attributes?.district, best.name_th, best.attributes?.postcode);
-      const text = sanitize(`คำตอบ: ${place || `${subdistrictLabel(prov)}${best.name_th}`}`);
+      const lines = renderAdminLines(prov, best.attributes?.district, best.name_th, best.attributes?.postcode);
+      const text = sanitize(["คำตอบ:", ...lines].join("\n"));
       return { text, trace: "OK" };
     }
     if (t === "district") {
       const prov = sanitize(best.attributes?.province);
       const p = prov || (isBangkok(best.name_th || "") ? "กรุงเทพมหานคร" : "");
-      const distLabel = districtLabel(p);
-      const place = fmtPlace(p, best.name_th);
-      const text = sanitize(`คำตอบ: ${place || `${distLabel}${best.name_th}${p ? " " + p : ""}`}`);
+      const lines = renderAdminLines(p, best.name_th);
+      const text = sanitize(["คำตอบ:", ...lines].join("\n"));
       return { text, trace: "OK" };
     }
     // Province-level: avoid region-centric answer for Bangkok; region is helpful for other provinces.
     if (isBangkok(best.name_th || "") || isBangkok(best.attributes?.province || "")) {
-      const text = sanitize(`คำตอบ: จังหวัด${best.name_th}`);
+      const text = sanitize(["คำตอบ:", `จังหวัด: ${sanitize(best.name_th)}`].join("\n"));
       return { text, trace: "OK" };
     }
     // Province-level: keep short and avoid trivia like "อยู่ภาค..." as the primary answer.
-    const text = sanitize(`คำตอบ: จังหวัด${best.name_th}`);
+    const text = sanitize(["คำตอบ:", `จังหวัด: ${sanitize(best.name_th)}`].join("\n"));
     return { text, trace: "OK" };
   }
 
-  return { text: "คำตอบ: ไม่พบข้อมูลภูมิศาสตร์", trace: "ERR:NOT_FOUND" };
+  return notFoundAnswer("ไม่พบข้อมูลภูมิศาสตร์");
 }

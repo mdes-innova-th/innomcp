@@ -127,7 +127,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
       const msg = String(weatherPayload.message || "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง");
       // Only enforce ERR tokens for upstream failures (not user input).
       if (String(code).toUpperCase() === "PROVINCE_MISSING") {
-        return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent: { weatherPipeline: { ok: false, code, message: msg } } };
+        return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม)", structuredContent: { weatherPipeline: { ok: false, code, message: msg } } };
       }
       return renderUpstreamWeatherErr(code, msg);
     }
@@ -159,7 +159,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
     }
     const err = String(weatherPayload?.error || "WEATHER_PIPELINE_ERROR");
     if (err === "PROVINCE_MISSING") {
-      return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
+      return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม)", structuredContent };
     }
     return renderUpstreamWeatherErr(err, "ขออภัย ยังไม่สามารถดึงข้อมูลอากาศได้ในขณะนี้");
   }
@@ -170,7 +170,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
   if (!firstOk || firstOk.type === "error") {
     const err = String(firstOk?.error || "WEATHER_PIPELINE_ERROR");
     if (err === "PROVINCE_MISSING") {
-      return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น \"พรุ่งนี้เชียงใหม่ฝนตกไหม\")", structuredContent };
+      return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม)", structuredContent };
     }
     return renderUpstreamWeatherErr(err, "ขออภัย ยังไม่สามารถดึงข้อมูลอากาศได้ในขณะนี้");
   }
@@ -195,7 +195,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
     const d = firstOk.data || {};
     const label = d.dateLabel || "พรุ่งนี้";
     const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
-    return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN} (ถ้าต้องการ \"ตาราง\" บอกได้ครับ)`, structuredContent };
+    return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN} (ถ้าต้องการตาราง บอกได้ครับ)`, structuredContent };
   }
 
   // Phase W1: strict deterministic contract renderer
@@ -683,8 +683,12 @@ function renderStructuredDirect(
         if (inferred === "evidence_records_yesterday_by_isp_top" || inferred === "evidence_records_yesterday_by_isp") {
           const lines: string[] = [];
           lines.push("สรุปหลักฐานเมื่อวานนี้ (ยังไม่พร้อมเชื่อมต่อฐานข้อมูล):");
-          lines.push("- รวม: 0 รายการ");
-          lines.push("- ISP มากที่สุด: (ไม่สามารถระบุได้) (0)");
+          lines.push("รวมทั้งหมด: 0 รายการ");
+          lines.push("Top ISP 1-3:");
+          lines.push("1) (ยังไม่มีข้อมูล)");
+          lines.push("2) (ยังไม่มีข้อมูล)");
+          lines.push("3) (ยังไม่มีข้อมูล)");
+          lines.push("มากที่สุด: ไม่มีข้อมูล");
           lines.push("ขั้นถัดไป: ติดต่อผู้ดูแลระบบให้เชื่อมต่อฐานข้อมูลหลักฐาน แล้วลองใหม่อีกครั้งครับ");
           return { text: lines.join("\n"), structuredContent };
         }
@@ -707,6 +711,12 @@ function renderStructuredDirect(
             .filter((x: any) => x.isp && Number.isFinite(x.count))
         : [];
 
+      const top3Rows: Array<{ isp: string; count: number } | { isp: null; count: null }> = (() => {
+        const out: Array<{ isp: string; count: number } | { isp: null; count: null }> = rows.slice(0, 3);
+        while (out.length < 3) out.push({ isp: null, count: null });
+        return out;
+      })();
+
       const top = (sc as any).topIsp;
       const topName = top && typeof top.isp === "string" ? String(top.isp).trim() : "";
       const topCount = top && Number.isFinite(Number(top.count)) ? Number(top.count) : NaN;
@@ -719,17 +729,19 @@ function renderStructuredDirect(
 
       const lines: string[] = [];
       lines.push("สรุปหลักฐานเมื่อวานนี้:");
-      if (Number.isFinite(total)) lines.push(`- รวม: ${total} รายการ`);
-      if (rows.length > 0) {
-        lines.push("- แยกตาม ISP (Top 3):");
-        for (const [i, r] of rows.slice(0, 3).entries()) lines.push(`  ${i + 1}) ${r.isp}: ${r.count}`);
-      }
-      if (effectiveTop) lines.push(`- ISP มากที่สุด: ${effectiveTop.isp} (${effectiveTop.count})`);
 
-      // Phase 8.1: Require either ISP มากสุด or ERR:CODE for UI quality assertions.
-      if (!effectiveTop) {
-        return { text: "ขออภัย ยังไม่สามารถแยกข้อมูลตาม ISP/ผู้ให้บริการได้ในขณะนี้ (ERR:SCHEMA)", structuredContent };
+      const totalOut = Number.isFinite(total) ? total : 0;
+      lines.push(`รวมทั้งหมด: ${totalOut} รายการ`);
+      lines.push("Top ISP 1-3:");
+      for (const [i, r] of top3Rows.entries()) {
+        if (r && (r as any).isp) {
+          const rr = r as { isp: string; count: number };
+          lines.push(`${i + 1}) ${rr.isp}: ${rr.count}`);
+        } else {
+          lines.push(`${i + 1}) (ยังไม่มีข้อมูล)`);
+        }
       }
+      lines.push(`มากที่สุด: ${effectiveTop ? effectiveTop.isp : "ไม่มีข้อมูล"}`);
 
       return { text: lines.join("\n"), structuredContent };
     }
