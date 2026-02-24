@@ -60,7 +60,7 @@
     - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase83_answer_polish.ts`
 
 - Evidence (PASS 42/42):
-  - Evidence publish commit: `ce3ada2`
+  - Evidence publish commit: `dcc5af0`
   - `innomcp-node/evidence/phase83-answer-polish-tracev3-2026-02-24T04-41-32-106Z.log`
   - `innomcp-node/evidence/phase83-answer-polish-2026-02-24T04-41-32-106Z.out.log`
 
