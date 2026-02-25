@@ -51,10 +51,18 @@ package-lock.json
 !/scripts/run_minimal_ci.ps1
 !/scripts/install-hooks.ps1
 !/scripts/run_rc_gate.ps1
+!/scripts/audit_db_ports.js
 /docs/
 /tests/
 */.env
 /CHANGELOG/
+
+# Allowlist: DB port audit report + evidence
+!/docs/
+!/docs/reports/
+!/docs/reports/DB_PORT_AUDIT_3306_vs_3308.md
+!/docs/reports/evidence/
+!/docs/reports/evidence/db-port-audit-20260225.log
 # innomcp-next/.env
 # logs/backend/
 # workspace-storage/data/

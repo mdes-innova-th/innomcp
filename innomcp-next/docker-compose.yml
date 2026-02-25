@@ -13,6 +13,9 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      # Container mode: connect to MariaDB over Docker network.
+      - DB_HOST=mariadb
+      - DB_PORT=3306
     healthcheck:
       test: ["CMD", "curl", "-f", "http://innomcp-next:3004/api/health"]
       interval: 30s

@@ -14,6 +14,9 @@ services:
     environment:
       - SERVER_HOST=innomcp-node
       - SERVER_PORT=3010
+      # Container mode: connect to MariaDB over Docker network.
+      - DB_HOST=mariadb
+      - DB_PORT=3306
     networks:
       - innomcp_network
 

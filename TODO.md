@@ -83,6 +83,20 @@
 - *********Issue: MCP SDK tool args were incorrect because `inputSchema` was missing in TMD tools, causing request context (incl. `signal`) to be passed as args -> server-side abort could not reach `fetch()` (no "TMD API aborted" evidence).*********
   - Fix: add `inputSchema: EmptyArgsSchema` to TMD tool registrations so `extra.signal` is honored; verifier now captures `[TMD:*] ... err=TMD API aborted`.
 
+\***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
+
+- Result: PASS
+- MariaDB port mapping (Docker): `mariadb/docker-compose.yml` -> `"3308:3306"`
+- Modes:
+  - Host-run services -> connect via `localhost:3308`
+  - Docker-run services -> connect via `mariadb:3306` (overrides in service docker-compose)
+- Evidence (masked, ports only):
+  - `docs/reports/evidence/db-port-audit-20260225.log`
+- Report:
+  - `docs/reports/DB_PORT_AUDIT_3306_vs_3308.md`
+- *********Issue: Repo previously mixed ports (MariaDB compose used 3308 internally while app configs defaulted to 3306/3307), creating non-deterministic dev behavior.*********
+  - Fix: normalize MariaDB internal port to 3306, keep host mapping 3308, and hard-override docker-mode DB host/port in `innomcp-*/docker-compose.yml`.
+
 \***\*\*\*\***PHASE1: GEO Round B Closure (audit) (2026-02-20)\***\*\*\*\***
 
 - Ground truth (A):

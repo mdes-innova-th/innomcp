@@ -1,0 +1,8 @@
+﻿DB_PORT_AUDIT
+mariadb.compose.ports host=3308 container=3306
+innomcp-node.hostMode dbHostKind=localhost appDbPort=3308 detectDbPort=3308
+innomcp-server-node.hostMode dbHostKind=localhost appDbPort=3308 detectDbPort=3308
+innomcp-next.hostMode dbHostKind=localhost appDbPort=3308 detectDbPort=3308
+innomcp-node.containerMode dbHostKind=docker-service appDbPort=3306 (overrides)
+innomcp-server-node.containerMode dbHostKind=docker-service appDbPort=3306 (overrides)
+innomcp-next.containerMode dbHostKind=docker-service appDbPort=3306 (overrides)
