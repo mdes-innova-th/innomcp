@@ -123,8 +123,57 @@ function groupByProvince(results: WeatherResult[]): Map<string, WeatherResult[]>
   return map;
 }
 
+function classifyErrorCode(err: string): "TIMEOUT" | "UPSTREAM" | "NO_DATA" {
+  const e = String(err || "");
+  if (e === "TIMEOUT" || e === "BUDGET_EXCEEDED") return "TIMEOUT";
+
+  // No-data style
+  if (
+    e === "STATION_NOT_FOUND" ||
+    e === "PROVINCE_NOT_FOUND_IN_FORECAST" ||
+    e === "DATA_UNAVAILABLE" ||
+    e === "STATION_SKIPPED" ||
+    e === "NWP_UNAVAILABLE" ||
+    e === "NATIONAL_DATA_UNAVAILABLE"
+  ) {
+    return "NO_DATA";
+  }
+
+  // Upstream / infra
+  return "UPSTREAM";
+}
+
+function renderErrorOnlyProvince(province: string, items: WeatherResult[]): string {
+  const errs = (items || []).filter((r) => r && r.type === "error").map((r) => String(r.error || ""));
+  const priority = errs.map(classifyErrorCode);
+
+  const kind: "TIMEOUT" | "UPSTREAM" | "NO_DATA" =
+    priority.includes("TIMEOUT") ? "TIMEOUT" :
+    priority.includes("UPSTREAM") ? "UPSTREAM" :
+    "NO_DATA";
+
+  const msg = (() => {
+    switch (kind) {
+      case "TIMEOUT":
+        return `ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา กรุณาลองใหม่อีกครั้ง (ERR:WX_TIMEOUT)`;
+      case "UPSTREAM":
+        return `ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง (ERR:WX_UPSTREAM)`;
+      case "NO_DATA":
+      default:
+        return `ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)`;
+    }
+  })();
+
+  return [`พื้นที่: ${province}`, msg].join("\n");
+}
+
 function renderOneProvince(userText: string, province: string, items: WeatherResult[]): string {
   const shaped = shapeWeatherResults(items, 10);
+
+  // Renderer-only policy: if a province has no usable data, emit a single ERR:WX_* line.
+  if (!shaped.some((r) => r && r.type !== "error")) {
+    return renderErrorOnlyProvince(province, shaped);
+  }
 
   const station = shaped.find((r) => r.type === "station3h" && Array.isArray(r.data));
   const forecast = shaped.find((r) => r.type === "forecast7d" && r.data && typeof r.data === "object");
@@ -213,6 +262,31 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
   const structuredContent = { weatherPipeline: weatherResults };
 
   const shaped = shapeWeatherResults(weatherResults, 15);
+
+  // Global all-error case (including province=""), keep operator-grade + deterministic token.
+  if (!shaped.some((r) => r && r.type !== "error")) {
+    const errs = shaped.filter((r) => r && r.type === "error").map((r) => String(r.error || ""));
+    const kinds = errs.map(classifyErrorCode);
+    const kind: "TIMEOUT" | "UPSTREAM" | "NO_DATA" =
+      kinds.includes("TIMEOUT") ? "TIMEOUT" :
+      kinds.includes("UPSTREAM") ? "UPSTREAM" :
+      "NO_DATA";
+
+    const text = (() => {
+      switch (kind) {
+        case "TIMEOUT":
+          return "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา กรุณาลองใหม่อีกครั้ง (ERR:WX_TIMEOUT)";
+        case "UPSTREAM":
+          return "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง (ERR:WX_UPSTREAM)";
+        case "NO_DATA":
+        default:
+          return "ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)";
+      }
+    })();
+
+    return { text, structuredContent };
+  }
+
   const grouped = groupByProvince(shaped);
 
   const provinces = Array.from(grouped.keys());

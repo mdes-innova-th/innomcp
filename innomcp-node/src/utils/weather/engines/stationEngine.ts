@@ -19,8 +19,11 @@ function normalizeThaiProvince(input: string): string {
     const s = String(input || "").trim();
     if (!s) return "";
     const noPrefix = s.replace(/^จังหวัด\s*/u, "");
-    const compact = noPrefix.replace(/\s+/gu, "");
-    if (/(กรุงเทพ|กรุงเทพมหานคร|กทม)/u.test(compact)) return "กรุงเทพมหานคร";
+    const compact = noPrefix
+        .replace(/[\s.·•‐‑–—_()\[\]{}'"“”‘’]+/gu, "")
+        .replace(/ฯ/gu, "")
+        .toLowerCase();
+    if (/(กรุงเทพ|กรุงเทพมหานคร|กทม|bangkok)/u.test(compact)) return "กรุงเทพมหานคร";
     return noPrefix.trim();
 }
 
@@ -47,6 +50,8 @@ export class StationEngine {
         // Track whether TMD returned data at all (vs empty Stations)
         let apiReturnedEmpty = false;
         let primaryTimedOut = false;
+        let apiError = false;
+        let stationNotFound = false;
 
         const station3hTimeoutMs = getTimeoutFromEnv("WX_STATION_TIMEOUT_MS", STATION_3H_TIMEOUT_MS);
         const stationTodayTimeoutMs = getTimeoutFromEnv("WX_STATION_07AM_TIMEOUT_MS", STATION_TODAY_TIMEOUT_MS);
@@ -75,8 +80,16 @@ export class StationEngine {
             // API responded but 0 total stations → TMD has no data right now
             // Skip 07am fallback (likely also empty), let pipeline fall through faster
             if (total === 0) apiReturnedEmpty = true;
+            // API responded with stations but none matched province -> treat as STATION_NOT_FOUND
+            // and skip 07am fallback to avoid wasted upstream calls.
+            if (total > 0) stationNotFound = true;
         } catch (error: any) {
             if (error instanceof TimeoutError) primaryTimedOut = true;
+            else apiError = true;
+        }
+
+        if (stationNotFound) {
+            return { province, type: "error", error: "STATION_NOT_FOUND" };
         }
 
         // Fallback: Today 07am stations (only if 3h didn't respond with empty data)
@@ -102,11 +115,12 @@ export class StationEngine {
                     };
                 }
             } catch (error: any) {
-                // no extra logs (keep only the required StationEngine log point)
+                apiError = true;
             }
         }
 
         if (primaryTimedOut) return { province, type: "error", error: "TIMEOUT" };
+        if (apiError) return { province, type: "error", error: "API_ERROR" };
         return { province, type: "error", error: "STATION_NOT_FOUND" };
     }
 

@@ -1,0 +1,5 @@
+RESULT: PASS
+TOTAL_HTTP_CASES: 6
+TOTAL_MS: 6974
+evidenceTraceFile=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\phase86-weather-tracev3-2026-02-25T15-03-46-827Z.log
+evidenceSummaryFile=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\phase86-weather-2026-02-25T15-03-46-827Z.log

@@ -206,6 +206,10 @@ export class WeatherPipeline {
         let budgetExceeded = false;
         const results: WeatherResult[] = [];
 
+        const shouldDisableStationForRest = (err?: string): boolean => {
+            return err === "TIMEOUT" || err === "CLIENT_NOT_FOUND" || err === "API_ERROR";
+        };
+
         for (const province of target.provinces) {
             if (signal?.aborted) {
                 return [{ province: "", type: "error", error: "TIMEOUT" }];
@@ -238,7 +242,9 @@ export class WeatherPipeline {
                     }
                     const r = await runWithBudget(() => this.stationEngine.getStationData(province, signal));
                     if (r.type === "error") {
-                        stationAvailable = false;
+                        if (shouldDisableStationForRest(r.error)) {
+                            stationAvailable = false;
+                        }
                     }
                     return r;
                 };

@@ -102,6 +102,33 @@
 - *********Issue: Cancelled/finished MCP requests were logged on socket close, so keep-alive/proxy closure could emit a late "completed" line with huge duration (e.g., >60s / minutes) after the real request had finished/aborted.*********
   - Fix: in MCP server, log completion on `res.finish` (true lifecycle), treat early `res.close` as client disconnect, and guard to prevent any second late completion.
 
+\***\*\*\*\***PHASE8.6: Weather Accuracy & Coverage (Renderer-only, routing unchanged) (2026-02-25)\***\*\*\*\***
+
+- Scope lock:
+  - Renderer-only policy unchanged (NO decision-making)
+  - Station selection reliability (Bangkok + province normalization)
+  - STATION_NOT_FOUND: avoid wasted upstream calls, fall back immediately
+  - Multi-province: per-target independent fallbacks (do not disable station on benign errors)
+  - Error policy: ERR:WX_TIMEOUT / ERR:WX_UPSTREAM / ERR:WX_NO_DATA (no internals)
+
+- Runtime:
+  - PowerShell:
+    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase86_weather_accuracy_coverage.ts`
+
+- Evidence (PASS):
+  - `innomcp-node/evidence/phase86-weather-tracev3-2026-02-25T15-03-46-827Z.log`
+  - `innomcp-node/evidence/phase86-weather-2026-02-25T15-03-46-827Z.out.log`
+  - `innomcp-node/evidence/phase86-weather-2026-02-25T15-03-46-827Z.log`
+
+- *********Issue: StationEngine performed 07am fallback even when province filter returned 0 (STATION_NOT_FOUND), wasting upstream calls and time budget.*********
+  - Fix: return STATION_NOT_FOUND immediately when 3h returns data but no province match; surface API_ERROR explicitly.
+
+- *********Issue: A station error in one target could disable station usage for all subsequent targets in a multi-province request.*********
+  - Fix: only disable station for hard failures (TIMEOUT/CLIENT_NOT_FOUND/API_ERROR); keep station available for later provinces.
+
+- *********Issue: Weather renderer could produce “empty-looking” outputs when a province had only errors, and did not consistently emit operator-grade ERR:WX_* tokens.*********
+  - Fix: if a province (or whole request) has only errors -> render a single Thai message with ERR:WX_* (NO_DATA/UPSTREAM/TIMEOUT), without leaking tool names/URLs.
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS
