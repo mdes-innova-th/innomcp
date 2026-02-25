@@ -1,0 +1,39 @@
+mapping: PASS
+mcp: starting port=56437
+mcp: health ok
+env: MCPSERVER_URL=http://127.0.0.1:56437/mcp
+chat: server port=59545
+mcpClient: connected
+Q1 status=200 durMs=698 text=ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา กรุณาลองใหม่อีกครั้ง (ERR:WX_TIMEOUT)
+MCP_STDOUT_TAIL_POST:
+[INFO] [TMD] Registered 17 tools successfully
+[INFO] ✅ Registered 48 essential tools (2026 World-Class System)
+[INFO] 🚀 Intelligence Pipeline INITIALIZED (Phase 4)
+[INFO] 🚀 MCP Server running on http://127.0.0.1:56437/mcp
+[INFO] [⏱️  1772001109885] MCP Request: initialize 
+[INFO] [⏱️  7ms] MCP Request completed: initialize 
+[INFO] [⏱️  1772001109902] MCP Request: notifications/initialized 
+[INFO] [⏱️  3ms] MCP Request completed: notifications/initialized 
+[INFO] [⏱️  1772001109911] MCP Request: tools/list 
+[INFO] [⏱️  7ms] MCP Request completed: tools/list 
+[INFO] [⏱️  1772001109949] MCP Request: tools/call (tmd_weather_3hours_all_stations)
+[INFO] [TMD:tmd_weather_3hours_all_stations] GET http://data.tmd.go.th/api/Weather3Hours/V2/?uid=api&ukey=api12345&format=json
+[INFO] [⏱️  1772001109969] MCP Request: resources/list 
+[INFO] [⏱️  2ms] MCP Request completed: resources/list 
+[INFO] [⏱️  1772001110163] MCP Request: notifications/cancelled 
+[WARN] [TMD:tmd_weather_3hours_all_stations] failed time=211ms err=TMD API aborted
+[INFO] [⏱️  6ms] MCP Request completed: notifications/cancelled 
+[INFO] [⏱️  1772001110171] MCP Request: tools/call (tmd_weather_forecast_7days_by_province)
+[INFO] [TMD:tmd_weather_forecast_7days_by_province] GET https://data.tmd.go.th/api/WeatherForecast7Days/v2/?uid=api&ukey=api12345&format=json
+[INFO] [⏱️  1772001110379] MCP Request: notifications/cancelled 
+[WARN] [TMD:tmd_weather_forecast_7days_by_province] failed time=212ms err=TMD API aborted
+[INFO] [⏱️  5ms] MCP Request completed: notifications/cancelled 
+[INFO] [⏱️  1772001110386] MCP Request: tools/call (nwp_daily_by_place)
+[NWP Daily Place] GET https://data.tmd.go.th/nwpapi/v1/forecast/location/daily/place?subarea=0&duration=7&fields=tc_max%2Ctc_min%2Crain%2Ccond
+[INFO] [⏱️  1772001110604] MCP Request: notifications/cancelled 
+[INFO] [⏱️  5ms] MCP Request completed: notifications/cancelled 
+[NWP Daily Place] Error: Request failed with status code 422
+TRACE_V3:
+[2026-02-25T06:31:49.931Z] [INFO] [ChatTrace] t=http cid=phase84-…imeout mode=auto route=in tool=- code=OK ms=0 q='ตอนนี้กรุงเทพฝนตกไหม' a='ERR:EMPTY'
+[2026-02-25T06:31:50.595Z] [INFO] [ChatTrace] t=http cid=phase84-…imeout mode=auto route=weatherGate tool=weatherPipeline code=OK ms=665 q='ตอนนี้กรุงเทพฝนตกไหม' a='ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา กรุณาลองใหม่อีกครั้ง (ERR:WX_TIMEOUT)'
+RESULT: PASS

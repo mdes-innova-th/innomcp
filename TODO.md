@@ -64,6 +64,25 @@
   - `innomcp-node/evidence/phase83-answer-polish-tracev3-2026-02-24T04-41-32-106Z.log`
   - `innomcp-node/evidence/phase83-answer-polish-2026-02-24T04-41-32-106Z.out.log`
 
+\***\*\*\*\***PHASE8.4: Weather Resilience (Deterministic routing unchanged) (2026-02-25)\***\*\*\*\***
+
+- Scope lock:
+  - Keep deterministic WeatherGate routing unchanged (no decision-making changes)
+  - Reliability only: cancellation end-to-end (client -> MCP -> upstream fetch)
+  - Reduce wasted upstream calls (avoid unnecessary parallel/fallback work)
+  - Station mapping/canonicalization: Bangkok + "จังหวัด..." variants
+  - Professional fallback wording with ERR tokens (no placeholders / no test-mode leakage)
+
+- Runtime:
+  - PowerShell:
+    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase84_weather_resilience.ts`
+
+- Evidence (PASS):
+  - `innomcp-node/evidence/phase84-20260225-133141.log`
+
+- *********Issue: MCP SDK tool args were incorrect because `inputSchema` was missing in TMD tools, causing request context (incl. `signal`) to be passed as args -> server-side abort could not reach `fetch()` (no "TMD API aborted" evidence).*********
+  - Fix: add `inputSchema: EmptyArgsSchema` to TMD tool registrations so `extra.signal` is honored; verifier now captures `[TMD:*] ... err=TMD API aborted`.
+
 \***\*\*\*\***PHASE1: GEO Round B Closure (audit) (2026-02-20)\***\*\*\*\***
 
 - Ground truth (A):

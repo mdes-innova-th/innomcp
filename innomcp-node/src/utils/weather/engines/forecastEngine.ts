@@ -6,6 +6,14 @@ import { firstNonEmptyString } from "../shaping";
 // Timeout constants (configurable)
 const FORECAST_TIMEOUT_MS = 12_000;
 
+function getTimeoutFromEnv(name: string, fallback: number): number {
+    if (process.env.SMOKE_MODE !== "1") return fallback;
+    const raw = process.env[name];
+    if (!raw) return fallback;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 
 export class ForecastEngine {
     constructor(private clients: Map<string, any>) {}
@@ -23,9 +31,11 @@ export class ForecastEngine {
         return undefined;
     }
 
-    async getForecast(province: string): Promise<WeatherResult> {
+    async getForecast(province: string, signal?: AbortSignal): Promise<WeatherResult> {
         const client = this.getClient();
         if (!client) return { province, type: "error", error: "CLIENT_NOT_FOUND" };
+
+        const forecastTimeoutMs = getTimeoutFromEnv("WX_FORECAST_TIMEOUT_MS", FORECAST_TIMEOUT_MS);
 
         try {
             let payload: any;
@@ -40,8 +50,9 @@ export class ForecastEngine {
                     client,
                     toolName,
                     args: {},
-                    timeoutMs: FORECAST_TIMEOUT_MS,
+                    timeoutMs: forecastTimeoutMs,
                     scope: "national",
+                    signal,
                 });
                 ToolCache.set(cacheKey, payload);
             }
@@ -70,9 +81,11 @@ export class ForecastEngine {
      * Fetch (or use cache) and return ALL Province[] from TMD 7-day forecast.
      * Used by national queries that need the entire country dataset.
      */
-    async getAllForecasts(): Promise<any[]> {
+    async getAllForecasts(signal?: AbortSignal): Promise<any[]> {
         const client = this.getClient();
         if (!client) return [];
+
+        const forecastTimeoutMs = getTimeoutFromEnv("WX_FORECAST_TIMEOUT_MS", FORECAST_TIMEOUT_MS);
 
         try {
             let payload: any;
@@ -86,8 +99,9 @@ export class ForecastEngine {
                     client,
                     toolName,
                     args: {},
-                    timeoutMs: FORECAST_TIMEOUT_MS,
+                    timeoutMs: forecastTimeoutMs,
                     scope: "national",
+                    signal,
                 });
                 ToolCache.set(cacheKey, payload);
             }

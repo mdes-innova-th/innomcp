@@ -6,6 +6,14 @@ import { ToolCache } from "../../cache/toolCache";
 // Timeout constants (configurable)
 const NWP_TIMEOUT_MS = 12_000;
 
+function getTimeoutFromEnv(name: string, fallback: number): number {
+    if (process.env.SMOKE_MODE !== "1") return fallback;
+    const raw = process.env[name];
+    if (!raw) return fallback;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export class NwpEngine {
     constructor(private clients: Map<string, any>) {}
 
@@ -13,9 +21,11 @@ export class NwpEngine {
         return this.clients.get("innomcp-server") || this.clients.values().next().value;
     }
 
-    async getNwpData(province: string): Promise<WeatherResult> {
+    async getNwpData(province: string, signal?: AbortSignal): Promise<WeatherResult> {
         const client = this.getClient();
         if (!client) return { province, type: "error", error: "CLIENT_NOT_FOUND" };
+
+        const nwpTimeoutMs = getTimeoutFromEnv("WX_NWP_TIMEOUT_MS", NWP_TIMEOUT_MS);
 
         // Try NWP daily by place (accepts province arg)
         try {
@@ -29,8 +39,9 @@ export class NwpEngine {
                     client,
                     toolName,
                     args,
-                    timeoutMs: NWP_TIMEOUT_MS,
+                    timeoutMs: nwpTimeoutMs,
                     scope: "province",
+                    signal,
                 });
                 ToolCache.set(cacheKey, payload);
             }
@@ -63,8 +74,9 @@ export class NwpEngine {
                     client,
                     toolName,
                     args,
-                    timeoutMs: NWP_TIMEOUT_MS,
+                    timeoutMs: nwpTimeoutMs,
                     scope: "province",
+                    signal,
                 });
                 ToolCache.set(cacheKey, payload);
             }

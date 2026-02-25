@@ -7,6 +7,23 @@ import { WeatherResult } from "../types";
 const STATION_3H_TIMEOUT_MS = 15_000;
 const STATION_TODAY_TIMEOUT_MS = 15_000;
 
+function getTimeoutFromEnv(name: string, fallback: number): number {
+    if (process.env.SMOKE_MODE !== "1") return fallback;
+    const raw = process.env[name];
+    if (!raw) return fallback;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function normalizeThaiProvince(input: string): string {
+    const s = String(input || "").trim();
+    if (!s) return "";
+    const noPrefix = s.replace(/^จังหวัด\s*/u, "");
+    const compact = noPrefix.replace(/\s+/gu, "");
+    if (/(กรุงเทพ|กรุงเทพมหานคร|กทม)/u.test(compact)) return "กรุงเทพมหานคร";
+    return noPrefix.trim();
+}
+
 export class StationEngine {
     constructor(private clients: Map<string, any>) {}
 
@@ -23,12 +40,16 @@ export class StationEngine {
         return undefined;
     }
 
-    async getStationData(province: string): Promise<WeatherResult> {
+    async getStationData(province: string, signal?: AbortSignal): Promise<WeatherResult> {
         const client = this.getClient();
         if (!client) return { province, type: "error", error: "CLIENT_NOT_FOUND" };
 
         // Track whether TMD returned data at all (vs empty Stations)
         let apiReturnedEmpty = false;
+        let primaryTimedOut = false;
+
+        const station3hTimeoutMs = getTimeoutFromEnv("WX_STATION_TIMEOUT_MS", STATION_3H_TIMEOUT_MS);
+        const stationTodayTimeoutMs = getTimeoutFromEnv("WX_STATION_07AM_TIMEOUT_MS", STATION_TODAY_TIMEOUT_MS);
 
         // Try primary: 3-hour stations
         try {
@@ -36,8 +57,9 @@ export class StationEngine {
                 client,
                 toolName: "tmd_weather_3hours_all_stations",
                 args: {},
-                timeoutMs: STATION_3H_TIMEOUT_MS,
+                timeoutMs: station3hTimeoutMs,
                 scope: "province",
+                signal,
             });
 
             const { total, filtered } = this.extractStations(payload, province);
@@ -54,18 +76,20 @@ export class StationEngine {
             // Skip 07am fallback (likely also empty), let pipeline fall through faster
             if (total === 0) apiReturnedEmpty = true;
         } catch (error: any) {
-            // no extra logs (keep only the required StationEngine log point)
+            if (error instanceof TimeoutError) primaryTimedOut = true;
         }
 
         // Fallback: Today 07am stations (only if 3h didn't respond with empty data)
-        if (!apiReturnedEmpty) {
+        // If 3h timed out, skip fallback to reduce wasted upstream calls.
+        if (!apiReturnedEmpty && !primaryTimedOut) {
             try {
                 const payload = await executeWeatherToolCall({
                     client,
                     toolName: "tmd_weather_today_07am_all_stations",
                     args: {},
-                    timeoutMs: STATION_TODAY_TIMEOUT_MS,
+                    timeoutMs: stationTodayTimeoutMs,
                     scope: "province",
+                    signal,
                 });
 
                 const { filtered } = this.extractStations(payload, province);
@@ -82,6 +106,7 @@ export class StationEngine {
             }
         }
 
+        if (primaryTimedOut) return { province, type: "error", error: "TIMEOUT" };
         return { province, type: "error", error: "STATION_NOT_FOUND" };
     }
 
@@ -98,9 +123,10 @@ export class StationEngine {
         const raw = payload?.Stations?.Station;
         const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
 
+        const targetNorm = normalizeThaiProvince(target);
         const filtered = list.filter((s: any) => {
-            const prov = (s?.Province || s?.StationProvince || "").trim();
-            return prov === target.trim();
+            const prov = normalizeThaiProvince((s?.Province || s?.StationProvince || "").trim());
+            return prov === targetNorm;
         });
 
         console.log(`[StationEngine] stationCount=${list.length} filteredCount=${filtered.length} province=${target}`);

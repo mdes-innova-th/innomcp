@@ -154,10 +154,11 @@ export class WeatherPipeline {
 
     // ─── Execution ───
 
-    public async execute(target: WeatherTarget): Promise<WeatherResult[]> {
+    public async execute(target: WeatherTarget, opts?: { signal?: AbortSignal }): Promise<WeatherResult[]> {
         const startedAt = Date.now();
         const budgetUsedMs = () => Date.now() - startedAt;
         const budgetRemainingMs = () => Math.max(0, BUDGET_MS - budgetUsedMs());
+        const signal = opts?.signal;
 
         const mode = target.intent.mode;
         const nat = detectNationwideParams(target.originalText || "");
@@ -195,7 +196,7 @@ export class WeatherPipeline {
         // New rule: if national=true, bypass PROVINCE_MISSING gate and compute nationwide from forecast array.
         if (target.provinces.length === 0) {
             if (isNational) {
-                return this.executeNationwide(target);
+                return this.executeNationwide(target, signal);
             }
             return [{ province: "", type: "error", error: "PROVINCE_MISSING" }];
         }
@@ -206,6 +207,9 @@ export class WeatherPipeline {
         const results: WeatherResult[] = [];
 
         for (const province of target.provinces) {
+            if (signal?.aborted) {
+                return [{ province: "", type: "error", error: "TIMEOUT" }];
+            }
             let result: WeatherResult | null = null;
             let shouldSupplementForecast = false;
 
@@ -223,7 +227,7 @@ export class WeatherPipeline {
 
             try {
                 if (province === "ALL_THAILAND") {
-                    const natResults = await this.executeNationwide(target);
+                    const natResults = await this.executeNationwide(target, signal);
                     results.push(...natResults);
                     continue;
                 }
@@ -232,7 +236,7 @@ export class WeatherPipeline {
                     if (!stationAvailable) {
                         return { province, type: "error", error: "STATION_SKIPPED" };
                     }
-                    const r = await runWithBudget(() => this.stationEngine.getStationData(province));
+                    const r = await runWithBudget(() => this.stationEngine.getStationData(province, signal));
                     if (r.type === "error") {
                         stationAvailable = false;
                     }
@@ -248,27 +252,27 @@ export class WeatherPipeline {
 
                     if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
                         console.log(`[WeatherPipeline] fallback=Forecast reason=StationError province=${province} error=${result.error}`);
-                        result = await runWithBudget(() => this.forecastEngine.getForecast(province));
+                        result = await runWithBudget(() => this.forecastEngine.getForecast(province, signal));
                     }
                     if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
                         console.log(`[WeatherPipeline] fallback=NWP reason=ForecastError province=${province} error=${result.error}`);
-                        result = await runWithBudget(() => this.nwpEngine.getNwpData(province));
+                        result = await runWithBudget(() => this.nwpEngine.getNwpData(province, signal));
                     }
                 } else if (mode === "future" || mode === "week") {
-                    result = await runWithBudget(() => this.forecastEngine.getForecast(province));
+                    result = await runWithBudget(() => this.forecastEngine.getForecast(province, signal));
                     if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
                         console.log(`[WeatherPipeline] fallback=NWP reason=ForecastError province=${province} error=${result.error}`);
-                        result = await runWithBudget(() => this.nwpEngine.getNwpData(province));
+                        result = await runWithBudget(() => this.nwpEngine.getNwpData(province, signal));
                     }
                 } else {
-                    result = await runWithBudget(() => this.forecastEngine.getForecast(province));
+                    result = await runWithBudget(() => this.forecastEngine.getForecast(province, signal));
                     if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
                         console.log(`[WeatherPipeline] fallback=Station reason=ForecastError province=${province} error=${result.error}`);
                         result = await tryStation();
                     }
                     if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
                         console.log(`[WeatherPipeline] fallback=NWP reason=StationError province=${province} error=${result.error}`);
-                        result = await runWithBudget(() => this.nwpEngine.getNwpData(province));
+                        result = await runWithBudget(() => this.nwpEngine.getNwpData(province, signal));
                     }
                 }
             } catch (err: any) {
@@ -281,7 +285,7 @@ export class WeatherPipeline {
             if (shouldSupplementForecast && result && result.type === "station3h" && budgetRemainingMs() > 0) {
                 const fc = await (async () => {
                     try {
-                        return await runWithBudget(() => this.forecastEngine.getForecast(province));
+                        return await runWithBudget(() => this.forecastEngine.getForecast(province, signal));
                     } catch {
                         return null;
                     }
@@ -306,9 +310,9 @@ export class WeatherPipeline {
 
     // ─── Nationwide Execution ───
 
-    private async executeNationwide(target: WeatherTarget): Promise<WeatherResult[]> {
+    private async executeNationwide(target: WeatherTarget, signal?: AbortSignal): Promise<WeatherResult[]> {
         // Single TMD call to get all provinces (uses cache if warm)
-        const allProvinces = await this.forecastEngine.getAllForecasts();
+        const allProvinces = await this.forecastEngine.getAllForecasts(signal);
         if (allProvinces.length === 0) {
             return [{ province: "", type: "error", error: "NATIONAL_DATA_UNAVAILABLE" }];
         }

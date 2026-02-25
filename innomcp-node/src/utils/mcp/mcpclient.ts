@@ -2134,10 +2134,10 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
    * Phase 7.1: Deterministic weather pipeline execution (no LLM tool planning)
    * Returns a tool-result-like object so callers can render/stream consistently.
    */
-  public async runDeterministicWeatherPipeline(userMessage: string): Promise<any> {
+  public async runDeterministicWeatherPipeline(userMessage: string, opts?: { signal?: AbortSignal }): Promise<any> {
     const pipeline = this.getWeatherPipeline();
     const target = pipeline.resolveTarget(userMessage);
-    const weatherResults = await pipeline.execute(target);
+    const weatherResults = await pipeline.execute(target, { signal: opts?.signal });
 
     const shaped = this.buildWeatherPipelineStructuredContent(weatherResults as any);
 

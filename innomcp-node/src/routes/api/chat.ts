@@ -1476,12 +1476,23 @@ wss.on("connection", (ws, req) => {
           const deep = wantsDeepExplain(messageWithFile);
           logBoth("info", `[WeatherGate] bypass=true transport=ws deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
 
+          const wxAbort = new AbortController();
+          const onWsClose = () => {
+            try { wxAbort.abort(); } catch {}
+          };
+          ws.on("close", onWsClose);
+
           // Add user message to history now (this branch returns early)
           sessionHistory.push({ sender: "user", text: messageWithFile });
           sessionManager.addMessage(currentSessionId, "user", messageWithFile);
           sessionManager.startResponse(currentSessionId);
 
-          const toolResult = await mcpClient.runDeterministicWeatherPipeline(messageWithFile);
+          let toolResult: any;
+          try {
+            toolResult = await mcpClient.runDeterministicWeatherPipeline(messageWithFile, { signal: wxAbort.signal });
+          } finally {
+            try { ws.removeListener("close", onWsClose); } catch {}
+          }
           const sc = toolResult.structuredContent;
           const payload = sc?.weatherPipeline ?? sc;
 
@@ -2398,6 +2409,13 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       const mcp = mcpClient;
       const deep = wantsDeepExplain(messageWithFile);
       logBoth("info", `[WeatherGate] bypass=true transport=http deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
+
+      const wxAbort = new AbortController();
+      const onHttpClose = () => {
+        try { wxAbort.abort(); } catch {}
+      };
+      res.on("close", onHttpClose);
+
       // Multi-district Bangkok support (robust aliases/typos): run pipeline per district when user clearly asks for 2 areas.
       const extractBangkokDistrictTargets = (text: string): string[] => {
         const raw = String(text || "");
@@ -2426,11 +2444,23 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
       const bkkTargets = extractBangkokDistrictTargets(messageWithFile);
       const multiBkk = bkkTargets.length === 2;
-      const toolResults = multiBkk
-        ? await Promise.all(
-            bkkTargets.map((d) => mcp.runDeterministicWeatherPipeline(`กรุงเทพมหานคร เขต${d} ` + messageWithFile))
-          )
-        : [await mcp.runDeterministicWeatherPipeline(messageWithFile)];
+
+      let toolResults: any[] = [];
+      try {
+        if (multiBkk) {
+          // Sequential to reduce concurrent upstream load; abort will stop in-flight calls on disconnect.
+          for (const d of bkkTargets) {
+            toolResults.push(
+              await mcp.runDeterministicWeatherPipeline(`กรุงเทพมหานคร เขต${d} ` + messageWithFile, { signal: wxAbort.signal })
+            );
+            if (wxAbort.signal.aborted) break;
+          }
+        } else {
+          toolResults = [await mcp.runDeterministicWeatherPipeline(messageWithFile, { signal: wxAbort.signal })];
+        }
+      } finally {
+        try { res.removeListener("close", onHttpClose); } catch {}
+      }
 
       const primaryToolResult = toolResults[0];
       const sc = primaryToolResult.structuredContent;

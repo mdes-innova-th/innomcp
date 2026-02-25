@@ -49,19 +49,73 @@ async function fetchWithTimeout(url: string, timeoutMs = DEFAULT_TIMEOUT_MS) {
   }
 }
 
+async function fetchWithTimeoutAndSignal(url: string, timeoutMs: number, signal?: AbortSignal) {
+  const controller = new AbortController();
+  const onAbort = () => {
+    try { controller.abort((signal as any)?.reason); } catch { try { controller.abort(); } catch {} }
+  };
 
-async function callTmdJson(toolName: string, url: string) {
+  if (signal) {
+    if (signal.aborted) onAbort();
+    else signal.addEventListener("abort", onAbort, { once: true });
+  }
+
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { method: "GET", signal: controller.signal });
+  } finally {
+    clearTimeout(t);
+    if (signal) {
+      try { signal.removeEventListener("abort", onAbort as any); } catch {}
+    }
+  }
+}
+
+function isAbortError(err: any): boolean {
+  const name = String(err?.name || "");
+  const msg = String(err?.message || err || "");
+  return name === "AbortError" || /aborted|abort/i.test(msg);
+}
+
+async function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!Number.isFinite(ms) || ms <= 0) return;
+  await new Promise<void>((resolve, reject) => {
+    const t = setTimeout(() => resolve(), ms);
+    const onAbort = () => {
+      clearTimeout(t);
+      const e: any = new Error("aborted");
+      e.name = "AbortError";
+      reject(e);
+    };
+    if (signal) {
+      if (signal.aborted) return onAbort();
+      signal.addEventListener("abort", onAbort, { once: true });
+    }
+  });
+}
+
+
+async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) {
   const finalUrl = appendFormatJson(url);
   const start = nowMs();
 
   logBoth("INFO", `[TMD:${toolName}] GET ${finalUrl}`);
 
   try {
-    const resp = await fetchWithTimeout(finalUrl, DEFAULT_TIMEOUT_MS);
+    // SMOKE verifier: allow simulating slow station calls (must never leak in answers).
+    if (process.env.SMOKE_MODE === "1") {
+      const delayAll = Number(process.env.WX_TMD_DELAY_MS || "0") || 0;
+      const delayStation = Number(process.env.WX_TMD_STATION_DELAY_MS || "0") || 0;
+      const isStationTool = toolName === "tmd_weather_3hours_all_stations" || toolName === "tmd_weather_today_07am_all_stations";
+      const delayMs = isStationTool ? delayStation : delayAll;
+      if (delayMs > 0) await abortableDelay(delayMs, signal);
+    }
+
+    const resp = await fetchWithTimeoutAndSignal(finalUrl, DEFAULT_TIMEOUT_MS, signal);
     const durationMs = nowMs() - start;
 
     const bodyText = await resp.text().catch(() => "");
-    const bodySnippet = bodyText.slice(0, 1200);
+    const bodySnippet = bodyText.slice(0, 400);
 
     logBoth(
       resp.ok ? "INFO" : "ERROR",
@@ -97,10 +151,12 @@ async function callTmdJson(toolName: string, url: string) {
     };
   } catch (err: any) {
     const durationMs = nowMs() - start;
+    const aborted = signal?.aborted || isAbortError(err);
     const isTimeout = err?.name === "AbortError";
-    const message = isTimeout ? "TMD API timeout" : String(err?.message ?? err);
+    const message = aborted ? "TMD API aborted" : (isTimeout ? "TMD API timeout" : String(err?.message ?? err));
 
-    logBoth("ERROR", `[TMD:${toolName}] failed time=${durationMs}ms err=${message}`);
+    // Avoid noisy logs when request was canceled.
+    logBoth(aborted ? "WARN" : "ERROR", `[TMD:${toolName}] failed time=${durationMs}ms err=${message}`);
 
     return {
       ok: false,
@@ -126,8 +182,12 @@ function registerSimpleTmdTool(
     {
       title: opts.title,
       description: opts.description,
+      // IMPORTANT: MCP SDK requires inputSchema to pass args correctly.
+      // Without this, the request context (incl. `signal`) may be received as `args`.
+      inputSchema: EmptyArgsSchema,
     },
-    async (args: unknown) => {
+    async (args: unknown, extra: any) => {
+      const signal: AbortSignal | undefined = extra?.signal;
       const parsed = EmptyArgsSchema.safeParse(args ?? {});
       if (!parsed.success) {
         // ปกติไม่น่าเข้า แต่กันไว้
@@ -136,11 +196,11 @@ function registerSimpleTmdTool(
         // ถ้ามี args เกินมา ถือว่า ignore แต่ log ไว้
         const extraKeys = Object.keys(parsed.data ?? {});
         if (extraKeys.length > 0) {
-          logBoth("WARN", `[TMD:${opts.name}] args ignored: ${JSON.stringify(parsed.data)}`);
+          logBoth("WARN", `[TMD:${opts.name}] args ignored: keys=${JSON.stringify(extraKeys)}`);
         }
       }
 
-      const result = await callTmdJson(opts.name, opts.url);
+      const result = await callTmdJson(opts.name, opts.url, signal);
 
       const { text, truncated } = safeStringify(result.data, 12000);
       const summary = result.ok

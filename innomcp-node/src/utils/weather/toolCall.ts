@@ -5,7 +5,13 @@ export class TimeoutError extends Error {
 }
 
 const isTimeoutText = (s: string) =>
-  /timeout|timed out|TMD API timeout/i.test(s);
+  /timeout|timed out|TMD API timeout|request timed out|Request timed out/i.test(s);
+
+function isAbortError(err: any): boolean {
+  const name = String(err?.name || "");
+  const msg = String(err?.message || err || "");
+  return name === "AbortError" || /aborted|abort/i.test(msg);
+}
 
 export async function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   let t: NodeJS.Timeout | undefined;
@@ -16,6 +22,65 @@ export async function withTimeout<T>(p: Promise<T>, ms: number, label: string): 
     return await Promise.race([p, timeout]);
   } finally {
     if (t) clearTimeout(t);
+  }
+}
+
+async function callToolWithAbort(opts: {
+  client: any;
+  toolName: string;
+  args: any;
+  timeoutMs: number;
+  signal?: AbortSignal;
+}): Promise<any> {
+  const { client, toolName, args, timeoutMs, signal } = opts;
+
+  const controller = new AbortController();
+  let timeoutHandle: NodeJS.Timeout | undefined;
+  const onParentAbort = () => {
+    try {
+      controller.abort((signal as any)?.reason);
+    } catch {
+      try { controller.abort(); } catch {}
+    }
+  };
+
+  if (signal) {
+    if (signal.aborted) {
+      onParentAbort();
+    } else {
+      signal.addEventListener("abort", onParentAbort, { once: true });
+    }
+  }
+
+  const timeoutPromise = new Promise<never>((_, rej) => {
+    timeoutHandle = setTimeout(() => {
+      // Abort the underlying MCP request so the server can stop upstream work.
+      try { controller.abort(new TimeoutError(`${toolName} timed out after ${timeoutMs}ms`)); } catch {}
+      rej(new TimeoutError(`${toolName} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    const call = client.callTool(
+      {
+        name: toolName,
+        arguments: args,
+      },
+      undefined,
+      { signal: controller.signal }
+    );
+
+    return await Promise.race([call, timeoutPromise]);
+  } catch (err: any) {
+    // Normalize aborts into TimeoutError for our callers (pipeline treats as TIMEOUT).
+    if (err instanceof TimeoutError) throw err;
+    if (isAbortError(err)) throw new TimeoutError(`${toolName} aborted`);
+    throw err;
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+    if (signal) {
+      try { signal.removeEventListener("abort", onParentAbort as any); } catch {}
+    }
   }
 }
 
@@ -95,6 +160,8 @@ export interface ToolExecutionOptions {
     timeoutMs: number;
     /** Cache scope hint (e.g. 'national' | 'province'). Used in cache key only. */
     scope?: string;
+  /** Abort signal from upstream (chat request / websocket session). */
+  signal?: AbortSignal;
 }
 
 type CacheEntry = {
@@ -157,7 +224,7 @@ function withCacheMeta(payload: any, meta: any): any {
 }
 
 export async function executeWeatherToolCall(opts: ToolExecutionOptions): Promise<any> {
-  const { client, toolName, args, timeoutMs, scope } = opts;
+  const { client, toolName, args, timeoutMs, scope, signal } = opts;
   const ttlMs = ttlForTool(toolName);
   const key = cacheKey(toolName, args, scope);
 
@@ -167,22 +234,25 @@ export async function executeWeatherToolCall(opts: ToolExecutionOptions): Promis
   }
 
     try {
-        const result = await withTimeout(
-            client.callTool({
-                name: toolName,
-                arguments: args,
-            }),
-            timeoutMs,
-            toolName
-        );
+      const result = await callToolWithAbort({
+        client,
+        toolName,
+        args,
+        timeoutMs,
+        signal,
+      });
         const safeResult = result as any;
 
         if (safeResult.isError) {
-            const errText = safeResult.content?.[0]?.text || "Tool execution error";
-            if (isTimeoutText(errText)) {
-                throw new TimeoutError(errText);
-            }
-            throw new Error(errText);
+          const errText = safeResult.content?.[0]?.text || "Tool execution error";
+          if (isTimeoutText(errText)) {
+            throw new TimeoutError(errText);
+          }
+          // Some servers report cancellation as an error result.
+          if (isAbortError({ message: errText })) {
+            throw new TimeoutError(`${toolName} aborted`);
+          }
+          throw new Error(errText);
         }
 
         const payload = parseMcpPayload(safeResult);
@@ -190,7 +260,7 @@ export async function executeWeatherToolCall(opts: ToolExecutionOptions): Promis
         return payload;
 
     } catch (error: any) {
-        if (isTimeoutText(error.message) || error instanceof TimeoutError) {
+        if (isTimeoutText(error?.message) || error instanceof TimeoutError) {
           const stale = getStaleCache(key);
           if (stale) {
             return withCacheMeta(stale.payload, { hit: true, at: stale.at, ageMs: Date.now() - stale.at, stale: true, reason: "timeout_fallback" });
