@@ -1,0 +1,13 @@
+PHASE85_VERIFY
+stamp=20260225-204252
+result=PASS
+
+LOG:
+resolver: PASS
+mcp.tools/list http=200 durMs=20 raw="{\"result\":{\"tools\":[{\"name\":\"dateTimeTool\",\"title\":\"เครื่องมือแสดงวันที่และเวลาปัจจุบัน - DateTime Tool\",\"description\":\"\\n      หน้าที่: แสดงวันที่และเวลาปัจจุบัน ณ ขณะนี้\\n      \\n      ใช้เมื่อ:\\n      - ถามว่า \\\"ตอนนี"
+cancel_accounting: PASS
+
+FAILURES:
+(none)
+
+NOTE: MCP server output is captured in-memory for timing assertions.

@@ -73,4 +73,7 @@ yarn-error.log*
 # Phase 8.4: Weather Resilience verifier
 !/scripts/verify_phase84_weather_resilience.ts
 
+# Phase 8.5: WX Accuracy + Cancel Accounting verifier
+!/scripts/verify_phase85_weather_accuracy_cancel.ts
+
 

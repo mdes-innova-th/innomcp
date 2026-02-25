@@ -1,5 +1,74 @@
 import Fuse from "fuse.js";
 
+function normalizeResolverText(input: string): { original: string; lower: string } {
+  const s = (input || "")
+    .normalize("NFKC")
+    // zero-width & BOM
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    // common punctuation → spaces (keep Thai letters)
+    .replace(/[\t\r\n]+/g, " ")
+    .replace(/[\(\)\[\]{}<>"'`~!@#$%^&*_+=|\\:;?/.,，、。·•]/g, " ")
+    // Thai punctuation
+    .replace(/[ๆฯ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return { original: s, lower: s.toLowerCase() };
+}
+
+const BKK_DISTRICTS = new Set([
+  "พระนคร",
+  "ดุสิต",
+  "หนองจอก",
+  "บางรัก",
+  "บางเขน",
+  "บางกะปิ",
+  "ปทุมวัน",
+  "ป้อมปราบศัตรูพ่าย",
+  "พระโขนง",
+  "มีนบุรี",
+  "ลาดกระบัง",
+  "ยานนาวา",
+  "สัมพันธวงศ์",
+  "พญาไท",
+  "ธนบุรี",
+  "บางกอกใหญ่",
+  "ห้วยขวาง",
+  "คลองสาน",
+  "ตลิ่งชัน",
+  "บางกอกน้อย",
+  "บางขุนเทียน",
+  "ภาษีเจริญ",
+  "หนองแขม",
+  "ราษฎร์บูรณะ",
+  "บางพลัด",
+  "ดินแดง",
+  "บึงกุ่ม",
+  "สาทร",
+  "บางซื่อ",
+  "จตุจักร",
+  "บางคอแหลม",
+  "ประเวศ",
+  "คลองเตย",
+  "สวนหลวง",
+  "จอมทอง",
+  "ดอนเมือง",
+  "ราชเทวี",
+  "ลาดพร้าว",
+  "วัฒนา",
+  "บางแค",
+  "หลักสี่",
+  "สายไหม",
+  "คันนายาว",
+  "สะพานสูง",
+  "วังทองหลาง",
+  "คลองสามวา",
+  "บางนา",
+  "ทวีวัฒนา",
+  "ทุ่งครุ",
+  "บางบอน",
+]);
+
 // 🇹🇭 Mapping: Alias/District -> Province
 const PROVINCE_MAP: Record<string, string> = {
   // Cities / Districts
@@ -123,8 +192,9 @@ const fuse = new Fuse(fuseData, {
  */
 export function resolveProvinces(text: string): string[] {
   const foundProvinces = new Set<string>();
-  const original = text || "";
-  const lowerText = original.toLowerCase();
+  const norm = normalizeResolverText(text || "");
+  const original = norm.original;
+  const lowerText = norm.lower;
 
   const toNormalizedProvince = (p: string | undefined): string | null => {
     if (!p) return null;
@@ -171,11 +241,19 @@ export function resolveProvinces(text: string): string[] {
   }
 
   // ─── Phase 2: Token-based exact match (for tokenized/comma input) ───
-  const tokens = text.replace(/,|และ|กับ|ที่|ใน|จังหวัด|อำเภอ|เขต|แขวง/g, " ").split(/\s+/);
+  const tokens = original
+    .replace(/,|และ|กับ|ที่|ใน|จังหวัด|อำเภอ|เขต|แขวง|จ\.?\s*/g, " ")
+    .split(/\s+/);
 
   for (const token of tokens) {
     const cleanToken = token.trim();
     if (cleanToken.length < 2) continue;
+
+    // Bangkok district hardening: district-only queries must resolve to กรุงเทพมหานคร.
+    if (BKK_DISTRICTS.has(cleanToken)) {
+      foundProvinces.add("กรุงเทพมหานคร");
+      continue;
+    }
 
     if (ALL_PROVINCES.has(cleanToken)) {
       foundProvinces.add(cleanToken);

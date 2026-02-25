@@ -325,10 +325,34 @@ app.post("/mcp", async (req, res) => {
     enableJsonResponse: true,
   });
 
-  res.on("close", () => {
+  let didLog = false;
+  let didCloseTransport = false;
+  const closeTransport = () => {
+    if (didCloseTransport) return;
+    didCloseTransport = true;
+    try { transport.close(); } catch {}
+  };
+
+  // FINISH = response has been fully written (true request lifecycle)
+  res.on("finish", () => {
+    if (didLog) return;
+    didLog = true;
     const duration = Date.now() - requestStartTime;
     logBoth('INFO', `[⏱️  ${duration}ms] MCP Request completed: ${method} ${toolName !== 'N/A' ? `(${toolName})` : ''}`);
-    transport.close();
+    closeTransport();
+  });
+
+  // CLOSE = underlying socket closed (may be keep-alive timeout minutes later)
+  // Only treat as cancellation if it happens before finish.
+  res.on("close", () => {
+    if (res.writableEnded || didLog) {
+      closeTransport();
+      return;
+    }
+    didLog = true;
+    const duration = Date.now() - requestStartTime;
+    logBoth('WARN', `[⏱️  ${duration}ms] MCP Request closed (client disconnect): ${method} ${toolName !== 'N/A' ? `(${toolName})` : ''}`);
+    closeTransport();
   });
 
   await mcpserver.connect(transport);

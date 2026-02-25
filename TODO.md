@@ -83,6 +83,25 @@
 - *********Issue: MCP SDK tool args were incorrect because `inputSchema` was missing in TMD tools, causing request context (incl. `signal`) to be passed as args -> server-side abort could not reach `fetch()` (no "TMD API aborted" evidence).*********
   - Fix: add `inputSchema: EmptyArgsSchema` to TMD tool registrations so `extra.signal` is honored; verifier now captures `[TMD:*] ... err=TMD API aborted`.
 
+\***\*\*\*\***PHASE8.5: WX Accuracy + Cancel Accounting (2026-02-25)\***\*\*\*\***
+
+- Scope lock:
+  - No user-facing wording changes (renderer-only rules unchanged)
+  - Reliability only: province resolver hardening + timing/cancel accounting correctness
+
+- Runtime:
+  - PowerShell:
+    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase85_weather_accuracy_cancel.ts`
+
+- Evidence (PASS):
+  - `innomcp-node/evidence/phase85-20260225-204252.log`
+
+- *********Issue: Province resolver sometimes returned resolvedProvinces=[] for Bangkok district-only queries, causing fallback to national/PROVINCE_MISSING.*********
+  - Fix: harden `resolveProvinces()` with Bangkok district set + punctuation/abbrev normalization (e.g., เขตบางเขน, แขวงปทุมวัน, กรุงเทพฯ, จ.ภูเก็ต).
+
+- *********Issue: Cancelled/finished MCP requests were logged on socket close, so keep-alive/proxy closure could emit a late "completed" line with huge duration (e.g., >60s / minutes) after the real request had finished/aborted.*********
+  - Fix: in MCP server, log completion on `res.finish` (true lifecycle), treat early `res.close` as client disconnect, and guard to prevent any second late completion.
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS
