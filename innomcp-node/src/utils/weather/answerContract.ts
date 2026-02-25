@@ -123,8 +123,9 @@ function groupByProvince(results: WeatherResult[]): Map<string, WeatherResult[]>
   return map;
 }
 
-function classifyErrorCode(err: string): "TIMEOUT" | "UPSTREAM" | "NO_DATA" {
+function classifyErrorCode(err: string): "TIMEOUT" | "UPSTREAM" | "NO_DATA" | "PROVINCE_MISSING" {
   const e = String(err || "");
+  if (e === "PROVINCE_MISSING") return "PROVINCE_MISSING";
   if (e === "TIMEOUT" || e === "BUDGET_EXCEEDED") return "TIMEOUT";
 
   // No-data style
@@ -147,8 +148,9 @@ function renderErrorOnlyProvince(province: string, items: WeatherResult[]): stri
   const errs = (items || []).filter((r) => r && r.type === "error").map((r) => String(r.error || ""));
   const priority = errs.map(classifyErrorCode);
 
-  const kind: "TIMEOUT" | "UPSTREAM" | "NO_DATA" =
+  const kind: "TIMEOUT" | "UPSTREAM" | "NO_DATA" | "PROVINCE_MISSING" =
     priority.includes("TIMEOUT") ? "TIMEOUT" :
+    priority.includes("PROVINCE_MISSING") ? "PROVINCE_MISSING" :
     priority.includes("UPSTREAM") ? "UPSTREAM" :
     "NO_DATA";
 
@@ -156,6 +158,8 @@ function renderErrorOnlyProvince(province: string, items: WeatherResult[]): stri
     switch (kind) {
       case "TIMEOUT":
         return `ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา กรุณาลองใหม่อีกครั้ง (ERR:WX_TIMEOUT)`;
+      case "PROVINCE_MISSING":
+        return "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)";
       case "UPSTREAM":
         return `ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง (ERR:WX_UPSTREAM)`;
       case "NO_DATA":
@@ -267,8 +271,9 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
   if (!shaped.some((r) => r && r.type !== "error")) {
     const errs = shaped.filter((r) => r && r.type === "error").map((r) => String(r.error || ""));
     const kinds = errs.map(classifyErrorCode);
-    const kind: "TIMEOUT" | "UPSTREAM" | "NO_DATA" =
+    const kind: "TIMEOUT" | "UPSTREAM" | "NO_DATA" | "PROVINCE_MISSING" =
       kinds.includes("TIMEOUT") ? "TIMEOUT" :
+      kinds.includes("PROVINCE_MISSING") ? "PROVINCE_MISSING" :
       kinds.includes("UPSTREAM") ? "UPSTREAM" :
       "NO_DATA";
 
@@ -276,6 +281,8 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
       switch (kind) {
         case "TIMEOUT":
           return "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา กรุณาลองใหม่อีกครั้ง (ERR:WX_TIMEOUT)";
+        case "PROVINCE_MISSING":
+          return "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)";
         case "UPSTREAM":
           return "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง (ERR:WX_UPSTREAM)";
         case "NO_DATA":

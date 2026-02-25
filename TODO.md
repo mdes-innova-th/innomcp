@@ -129,6 +129,27 @@
 - *********Issue: Weather renderer could produce “empty-looking” outputs when a province had only errors, and did not consistently emit operator-grade ERR:WX_* tokens.*********
   - Fix: if a province (or whole request) has only errors -> render a single Thai message with ERR:WX_* (NO_DATA/UPSTREAM/TIMEOUT), without leaking tool names/URLs.
 
+\***\*\*\*\***PHASE8.6.1: WX NWP Fallback Guard (PROVINCE_NOT_FOUND_IN_FORECAST) (2026-02-25)\***\*\*\*\***
+
+- Scope lock:
+  - Weather-only changes (no routing/gate changes)
+  - When ForecastEngine raises PROVINCE_NOT_FOUND_IN_FORECAST -> stop fallback chain (do NOT attempt NWP)
+  - Deterministic error tokens: ERR:WX_NO_DATA (or ERR:WX_PROVINCE_MISSING if resolver has no province)
+
+- Runtime:
+  - `npm --prefix innomcp-node run build`
+  - PowerShell:
+    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase86_1_weather_nwp_guard.ts`
+
+- Evidence (PASS):
+  - `innomcp-node/evidence/phase86_1-weather-nwp-guard-2026-02-25T15-56-04-830Z.log`
+
+- *********Issue: PROVINCE_NOT_FOUND_IN_FORECAST was treated like a generic forecast error, causing wasted NWP fallback attempts.*********
+  - Fix: short-circuit fallback chain in WeatherPipeline when error=PROVINCE_NOT_FOUND_IN_FORECAST (skip Station/NWP after that error).
+
+- *********Issue: Province-missing user prompts were not emitting a deterministic ERR token for auditing.*********
+  - Fix: emit `ERR:WX_PROVINCE_MISSING` for PROVINCE_MISSING in contract renderer + direct weather answer path.
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS

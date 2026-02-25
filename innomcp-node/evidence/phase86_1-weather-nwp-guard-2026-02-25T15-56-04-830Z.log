@@ -1,0 +1,6 @@
+C1.provinces=[]
+C1.out="กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)"
+C2.nwpCalls=0 stationCalls=0
+C2.results0={"province":"เชียงใหม่","type":"error","error":"PROVINCE_NOT_FOUND_IN_FORECAST"}
+C2.out="ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)"
+RESULT: PASS

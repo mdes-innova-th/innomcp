@@ -206,6 +206,10 @@ export class WeatherPipeline {
         let budgetExceeded = false;
         const results: WeatherResult[] = [];
 
+        const isTerminalForecastNoData = (r: WeatherResult | null | undefined): boolean => {
+            return Boolean(r && r.type === "error" && r.error === "PROVINCE_NOT_FOUND_IN_FORECAST");
+        };
+
         const shouldDisableStationForRest = (err?: string): boolean => {
             return err === "TIMEOUT" || err === "CLIENT_NOT_FOUND" || err === "API_ERROR";
         };
@@ -260,23 +264,23 @@ export class WeatherPipeline {
                         console.log(`[WeatherPipeline] fallback=Forecast reason=StationError province=${province} error=${result.error}`);
                         result = await runWithBudget(() => this.forecastEngine.getForecast(province, signal));
                     }
-                    if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
+                    if (result.type === "error" && result.error !== "BUDGET_EXCEEDED" && !isTerminalForecastNoData(result)) {
                         console.log(`[WeatherPipeline] fallback=NWP reason=ForecastError province=${province} error=${result.error}`);
                         result = await runWithBudget(() => this.nwpEngine.getNwpData(province, signal));
                     }
                 } else if (mode === "future" || mode === "week") {
                     result = await runWithBudget(() => this.forecastEngine.getForecast(province, signal));
-                    if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
+                    if (result.type === "error" && result.error !== "BUDGET_EXCEEDED" && !isTerminalForecastNoData(result)) {
                         console.log(`[WeatherPipeline] fallback=NWP reason=ForecastError province=${province} error=${result.error}`);
                         result = await runWithBudget(() => this.nwpEngine.getNwpData(province, signal));
                     }
                 } else {
                     result = await runWithBudget(() => this.forecastEngine.getForecast(province, signal));
-                    if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
+                    if (result.type === "error" && result.error !== "BUDGET_EXCEEDED" && !isTerminalForecastNoData(result)) {
                         console.log(`[WeatherPipeline] fallback=Station reason=ForecastError province=${province} error=${result.error}`);
                         result = await tryStation();
                     }
-                    if (result.type === "error" && result.error !== "BUDGET_EXCEEDED") {
+                    if (result.type === "error" && result.error !== "BUDGET_EXCEEDED" && !isTerminalForecastNoData(result)) {
                         console.log(`[WeatherPipeline] fallback=NWP reason=StationError province=${province} error=${result.error}`);
                         result = await runWithBudget(() => this.nwpEngine.getNwpData(province, signal));
                     }

@@ -79,4 +79,7 @@ yarn-error.log*
 # Phase 8.6: Weather Accuracy & Coverage verifier
 !/scripts/verify_phase86_weather_accuracy_coverage.ts
 
+# Phase 8.6.1: WX NWP Fallback Guard verifier
+!/scripts/verify_phase86_1_weather_nwp_guard.ts
+
 

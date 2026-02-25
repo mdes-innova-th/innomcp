@@ -127,7 +127,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
       const msg = String(weatherPayload.message || "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง");
       // Only enforce ERR tokens for upstream failures (not user input).
       if (String(code).toUpperCase() === "PROVINCE_MISSING") {
-        return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม)", structuredContent: { weatherPipeline: { ok: false, code, message: msg } } };
+        return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)", structuredContent: { weatherPipeline: { ok: false, code, message: msg } } };
       }
       return renderUpstreamWeatherErr(code, msg);
     }
@@ -159,7 +159,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
     }
     const err = String(weatherPayload?.error || "WEATHER_PIPELINE_ERROR");
     if (err === "PROVINCE_MISSING") {
-      return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม)", structuredContent };
+      return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)", structuredContent };
     }
     return renderUpstreamWeatherErr(err, "ขออภัย ยังไม่สามารถดึงข้อมูลอากาศได้ในขณะนี้");
   }
@@ -170,7 +170,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
   if (!firstOk || firstOk.type === "error") {
     const err = String(firstOk?.error || "WEATHER_PIPELINE_ERROR");
     if (err === "PROVINCE_MISSING") {
-      return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม)", structuredContent };
+      return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)", structuredContent };
     }
     return renderUpstreamWeatherErr(err, "ขออภัย ยังไม่สามารถดึงข้อมูลอากาศได้ในขณะนี้");
   }
