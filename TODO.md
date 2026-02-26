@@ -226,6 +226,25 @@
 
 - *********Note: SMOKE-only deterministic abort uses `WX_TMD_TIMEOUT_MS` to force `TMD API aborted` without upstream dependency.*********
 
+\***\*\*\*\***PHASE8.10B: Router Resilience (DB keyword snapshot fallback) (2026-02-26)\***\*\*\*\***
+
+- Scope lock:
+  - Router-only reliability (no tool UX/template changes)
+  - DB keyword load failure -> deterministic snapshot fallback (avoid retry spam)
+  - Expose `keywordSource=db|snapshot|defaults` in router result
+
+- Runtime:
+  - PowerShell:
+    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase810b_router_resilience.ts`
+
+- Evidence (PASS 6/6):
+  - `innomcp-node/evidence/phase810b-router-resilience-2026-02-26T15-10-05-880Z.log`
+
+- *********Issue: GodTierRouter performed repeated DB retries (keyword load + DB logging) when DB was unavailable, causing delays and noisy logs.*********
+  - Fix: add `GODTIER_KEYWORDS_SOURCE=auto|db|snapshot|defaults`, snapshot fallback + failure backoff, expose `keywordSource`, and skip DB logging when DB is not operational.
+
+- *********Note: Snapshot keywords are deterministic and stored in `innomcp-node/src/utils/mcp/keywordSnapshot.ts`.*********
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS

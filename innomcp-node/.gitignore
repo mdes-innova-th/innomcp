@@ -94,4 +94,7 @@ yarn-error.log*
 # Phase 8.10A: Weather reliability verifier
 !/scripts/verify_phase810a_weather_reliability.ts
 
+# Phase 8.10B: Router resilience verifier
+!/scripts/verify_phase810b_router_resilience.ts
+
 

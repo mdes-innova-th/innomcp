@@ -18,6 +18,7 @@ import { Ollama } from 'ollama';
 import { LRUCache } from 'lru-cache';
 import { withDbConnection } from '../db'; // MariaDB connection helper
 import { logBoth } from '../mcpLogger';
+import { KEYWORD_SNAPSHOT, type KeywordSource, type SnapshotKeyword } from './keywordSnapshot';
 
 // ========================================
 // Configuration (God-Tier Settings)
@@ -51,6 +52,7 @@ const CONFIG = {
   DB: {
     KEYWORD_CACHE_SIZE: 500,
     KEYWORD_REFRESH_INTERVAL: 1000 * 60 * 10, // 10 minutes
+    FAILURE_BACKOFF_MS: 1000 * 60, // 60 seconds
   }
 };
 
@@ -74,6 +76,7 @@ export interface RouterResult {
   isAmbiguous: boolean;
   usedFallback: boolean;
   reasoning: string;
+  keywordSource?: KeywordSource;
   matchedKeywords?: string[];
   semanticScore?: number;
   keywordScore?: number;
@@ -227,6 +230,9 @@ export class GodTierRouter {
   private categories: ToolCategory[] = CATEGORIES.filter(c => c.enabled);
   private dbKeywords: Map<string, DBKeyword[]> = new Map(); // category -> keywords
   private lastKeywordRefresh: number = 0;
+  private keywordSource: KeywordSource = 'defaults';
+  private dbOperational: boolean = false;
+  private dbBackoffUntil: number = 0;
   private initialized: boolean = false;
   
   constructor() {
@@ -258,7 +264,7 @@ export class GodTierRouter {
       logBoth('info', '[GodTierRouter] 🚀 Initializing God-Tier Router...');
       
       // 1. Load keywords from DB
-      await this.loadKeywordsFromDB();
+      await this.loadKeywords();
       
       // 2. Pre-calculate embeddings for all categories
       await this.precalculateEmbeddings();
@@ -271,8 +277,77 @@ export class GodTierRouter {
     }
   }
   
-  private async loadKeywordsFromDB(): Promise<void> {
+  private getKeywordMode(): 'auto' | 'db' | 'snapshot' | 'defaults' {
+    const raw = String(process.env.GODTIER_KEYWORDS_SOURCE || 'auto').trim().toLowerCase();
+    if (raw === 'db' || raw === 'snapshot' || raw === 'defaults') return raw;
+    return 'auto';
+  }
+
+  private loadKeywordsFromSnapshot(): number {
+    this.dbKeywords.clear();
+
+    const rows: DBKeyword[] = (KEYWORD_SNAPSHOT || [])
+      .filter((k: SnapshotKeyword) => !!k && typeof k.keyword === 'string' && typeof k.category === 'string')
+      .map((k: SnapshotKeyword, idx: number) => ({
+        id: idx + 1,
+        keyword: String(k.keyword),
+        category: String(k.category),
+        confidence_score: Number(k.confidence_score),
+        priority_level: String(k.priority_level),
+      }));
+
+    for (const row of rows) {
+      const existing = this.dbKeywords.get(row.category) || [];
+      existing.push(row);
+      this.dbKeywords.set(row.category, existing);
+    }
+
+    return rows.length;
+  }
+
+  private async loadKeywords(): Promise<void> {
+    const mode = this.getKeywordMode();
+    const now = Date.now();
+
+    // Always mark refresh time so we don't spam retries on every request.
+    this.lastKeywordRefresh = now;
+
+    if (mode === 'defaults') {
+      this.dbKeywords.clear();
+      this.keywordSource = 'defaults';
+      this.dbOperational = false;
+      logBoth('info', `[GodTierRouter] 📚 Keywords source=defaults (hardcoded only)`);
+      return;
+    }
+
+    if (mode === 'snapshot') {
+      const count = this.loadKeywordsFromSnapshot();
+      this.keywordSource = 'snapshot';
+      this.dbOperational = false;
+      logBoth('info', `[GodTierRouter] 📚 Keywords source=snapshot (rows=${count})`);
+      return;
+    }
+
+    // mode=auto|db: try DB unless we're in backoff.
+    if (now < this.dbBackoffUntil) {
+      if (mode === 'db') {
+        this.dbKeywords.clear();
+        this.keywordSource = 'defaults';
+        this.dbOperational = false;
+        logBoth('warn', `[GodTierRouter] ⚠️ DB backoff active; keywords fall back to defaults (until ${new Date(this.dbBackoffUntil).toISOString()})`);
+        return;
+      }
+
+      const count = this.loadKeywordsFromSnapshot();
+      this.keywordSource = 'snapshot';
+      this.dbOperational = false;
+      logBoth('warn', `[GodTierRouter] ⚠️ DB backoff active; keywords fall back to snapshot (rows=${count})`);
+      return;
+    }
+
     try {
+      this.dbKeywords.clear();
+
       const rows = await withDbConnection(async (conn) => {
         const [result] = await conn.query<any[]>(`
           SELECT id, keyword, category, confidence_score, priority_level
@@ -282,17 +357,41 @@ export class GodTierRouter {
         `);
         return result;
       });
-      
+
       rows.forEach((row: DBKeyword) => {
         const existing = this.dbKeywords.get(row.category) || [];
         existing.push(row);
         this.dbKeywords.set(row.category, existing);
       });
-      
-      this.lastKeywordRefresh = Date.now();
-      logBoth('info', `[GodTierRouter] 📚 Loaded ${rows.length} keywords from DB`);
+
+      this.keywordSource = 'db';
+      this.dbOperational = true;
+      logBoth('info', `[GodTierRouter] 📚 Keywords source=db (rows=${rows.length})`);
+      return;
     } catch (error) {
-      logBoth('warn', `[GodTierRouter] ⚠️ DB keyword load failed, using defaults: ${error}`);
+      this.dbOperational = false;
+      this.dbBackoffUntil = Date.now() + CONFIG.DB.FAILURE_BACKOFF_MS;
+      logBoth('warn', `[GodTierRouter] ⚠️ DB keyword load failed: ${error}`);
+
+      if (mode === 'db') {
+        this.dbKeywords.clear();
+        this.keywordSource = 'defaults';
+        this.dbOperational = false;
+        logBoth('warn', `[GodTierRouter] ⚠️ Keywords fall back to defaults (db-only mode)`);
+        return;
+      }
+
+      const count = this.loadKeywordsFromSnapshot();
+      if (count > 0) {
+        this.keywordSource = 'snapshot';
+        this.dbOperational = false;
+        logBoth('warn', `[GodTierRouter] ⚠️ Keywords fall back to snapshot (rows=${count})`);
+      } else {
+        this.dbKeywords.clear();
+        this.keywordSource = 'defaults';
+        this.dbOperational = false;
+        logBoth('warn', `[GodTierRouter] ⚠️ Snapshot empty; keywords fall back to defaults`);
+      }
     }
   }
   
@@ -529,7 +628,7 @@ B. ${cat2?.name} (${(top2.score * 100).toFixed(1)}%) - ${cat2?.description}
       
       // Refresh keywords if needed
       if (Date.now() - this.lastKeywordRefresh > CONFIG.DB.KEYWORD_REFRESH_INTERVAL) {
-        await this.loadKeywordsFromDB();
+        await this.loadKeywords();
       }
       
       // Stage 1: Context Fusion
@@ -632,6 +731,7 @@ B. ${cat2?.name} (${(top2.score * 100).toFixed(1)}%) - ${cat2?.description}
       isAmbiguous,
       usedFallback,
       reasoning,
+      keywordSource: this.keywordSource,
       responseTime,
       aiMode,
     };
@@ -648,6 +748,7 @@ B. ${cat2?.name} (${(top2.score * 100).toFixed(1)}%) - ${cat2?.description}
       isAmbiguous: false,
       usedFallback: true,
       reasoning: reason,
+      keywordSource: this.keywordSource,
       responseTime: Date.now() - startTime,
     };
   }
@@ -670,6 +771,9 @@ B. ${cat2?.name} (${(top2.score * 100).toFixed(1)}%) - ${cat2?.description}
     responseTime: number,
     success: boolean
   ): Promise<void> {
+    if (!this.dbOperational) {
+      return;
+    }
     try {
       await withDbConnection(async (conn) => {
         await conn.query(
@@ -679,6 +783,8 @@ B. ${cat2?.name} (${(top2.score * 100).toFixed(1)}%) - ${cat2?.description}
         );
       });
     } catch (error) {
+      this.dbOperational = false;
+      this.dbBackoffUntil = Date.now() + CONFIG.DB.FAILURE_BACKOFF_MS;
       logBoth('warn', `[GodTierRouter] ⚠️ Query log failed: ${error}`);
     }
   }
@@ -689,6 +795,9 @@ B. ${cat2?.name} (${(top2.score * 100).toFixed(1)}%) - ${cat2?.description}
     top2: { category: string; score: number },
     decision: string
   ): Promise<void> {
+    if (!this.dbOperational) {
+      return;
+    }
     try {
       await withDbConnection(async (conn) => {
         const [result] = await conn.query<any>(
@@ -707,6 +816,8 @@ B. ${cat2?.name} (${(top2.score * 100).toFixed(1)}%) - ${cat2?.description}
         );
       });
     } catch (error) {
+      this.dbOperational = false;
+      this.dbBackoffUntil = Date.now() + CONFIG.DB.FAILURE_BACKOFF_MS;
       logBoth('warn', `[GodTierRouter] ⚠️ Ambiguity log failed: ${error}`);
     }
   }
