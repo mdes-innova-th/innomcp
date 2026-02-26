@@ -1396,7 +1396,7 @@ Evidence (Trace v3, 12 lines)
     - $env:NODE_OPTIONS="";
     - node -e "require('./dist/mcp/tools/evidenceTool').evidenceTool.execute({action: 'list_tables'}).then(console.log).catch(console.error)"
   - Result:
-    - Error: Access denied for user 'root'@'node-ulg.pool-182-53.dynamic.nt-isp.net' (using password: YES)
+    - Error: Access denied for user 'root'@'<REDACTED_HOST>' (using password: YES)
   - Action needed (infra/config):
     - grant remote access for DETECT_DB_USER หรือเปลี่ยนเป็น user ที่อนุญาต remote read
 
@@ -1841,7 +1841,7 @@ Evidence (Trace v3, 12 lines)
       - `Push-Location innomcp-server-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase72_officer_evidenceTool_v1.ts; Pop-Location`
     - Result:
       - ok=false
-      - error=`Access denied for user 'root'@'182.53.154.233' (using password: NO)`
+      - error=`Access denied for user 'root'@'<REDACTED_IP>' (using password: NO)`
       - exit code=2
     - \***\*\*\*\***Issue: Verify script blocked by Detect DB credentials (DETECT_DB_PASSWORD missing). ต้องตั้งค่า DETECT_DB_PASSWORD (และ host allowlist) เพื่อใช้งานกับ DB จริง\***\*\*\*\***
 
@@ -1865,10 +1865,10 @@ Evidence (Trace v3, 12 lines)
     - DB start:
       - `docker compose -f mariadb/docker-compose.yml up -d`
     - Seed (minimal tables for machines/nip/record):
-      - `docker exec -i mariadb-innomcp mariadb -uroot -prockbottom -D "innomcp-db" -e "CREATE TABLE IF NOT EXISTS machines (id INT AUTO_INCREMENT PRIMARY KEY, is_online TINYINT NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS record (id INT AUTO_INCREMENT PRIMARY KEY, create_date DATETIME NOT NULL); CREATE TABLE IF NOT EXISTS nip (id INT AUTO_INCREMENT PRIMARY KEY, create_date DATETIME NOT NULL);"`
-      - `docker exec -i mariadb-innomcp mariadb -uroot -prockbottom -D "innomcp-db" -e "TRUNCATE TABLE machines; TRUNCATE TABLE record; TRUNCATE TABLE nip; INSERT INTO machines (is_online) VALUES (1),(1),(1),(0),(0); INSERT INTO record (create_date) VALUES (NOW()),(NOW()),(NOW()),(NOW() - INTERVAL 1 DAY); INSERT INTO nip (create_date) VALUES (NOW()),(NOW()),(NOW()),(NOW()),(NOW() - INTERVAL 1 DAY);"`
+      - `docker exec -i mariadb-innomcp mariadb -uroot -p<REDACTED> -D "innomcp-db" -e "CREATE TABLE IF NOT EXISTS machines (id INT AUTO_INCREMENT PRIMARY KEY, is_online TINYINT NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS record (id INT AUTO_INCREMENT PRIMARY KEY, create_date DATETIME NOT NULL); CREATE TABLE IF NOT EXISTS nip (id INT AUTO_INCREMENT PRIMARY KEY, create_date DATETIME NOT NULL);"`
+      - `docker exec -i mariadb-innomcp mariadb -uroot -p<REDACTED> -D "innomcp-db" -e "TRUNCATE TABLE machines; TRUNCATE TABLE record; TRUNCATE TABLE nip; INSERT INTO machines (is_online) VALUES (1),(1),(1),(0),(0); INSERT INTO record (create_date) VALUES (NOW()),(NOW()),(NOW()),(NOW() - INTERVAL 1 DAY); INSERT INTO nip (create_date) VALUES (NOW()),(NOW()),(NOW()),(NOW()),(NOW() - INTERVAL 1 DAY);"`
     - Run command:
-      - `Push-Location innomcp-server-node; $env:TS_NODE_CACHE='false'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npx ts-node scripts/verify_phase72_officer_evidenceTool_v1.ts; Pop-Location`
+      - `Push-Location innomcp-server-node; $env:TS_NODE_CACHE='false'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='<REDACTED>'; $env:DETECT_DB_NAME='innomcp-db'; npx ts-node scripts/verify_phase72_officer_evidenceTool_v1.ts; Pop-Location`
     - Stdout excerpt:
       - `[Q] ตอนนี้เครื่องออนไลน์กี่เครื่อง` => `ตอนนี้เครื่องออนไลน์: 3 เครื่อง`
       - `[Q] วันนี้จัดเก็บหลักฐานวิดีโอแล้วได้ทั้งหมดเท่าไหร่` => `วันนี้จัดเก็บหลักฐานวิดีโอแล้ว: 3 รายการ`
@@ -2029,15 +2029,15 @@ Evidence (Trace v3, 12 lines)
     - Verify (repro commands)
       - DB (repo root):
         - `docker compose -f mariadb/docker-compose.yml up -d`
-        - `docker exec -i mariadb-innomcp mariadb -uroot -prockbottom -D "innomcp-db" -e "CREATE TABLE IF NOT EXISTS machines (id INT AUTO_INCREMENT PRIMARY KEY, is_online TINYINT NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS record (id INT AUTO_INCREMENT PRIMARY KEY, create_date DATETIME NOT NULL);"`
-        - `docker exec -i mariadb-innomcp mariadb -uroot -prockbottom -D "innomcp-db" -e "ALTER TABLE machines ADD COLUMN last_check_in DATETIME NULL; ALTER TABLE machines ADD COLUMN create_datetime DATETIME NULL;"`
-        - `docker exec -i mariadb-innomcp mariadb -uroot -prockbottom -D "innomcp-db" -e "TRUNCATE TABLE machines; TRUNCATE TABLE record; INSERT INTO machines (is_online, last_check_in, create_datetime) VALUES (1, NOW(), NOW()),(1, NOW(), NOW()),(1, NOW(), NOW()),(0, NOW(), NOW()),(0, NOW(), NOW()),(1, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 1 DAY); INSERT INTO record (create_date) VALUES (NOW()),(NOW()),(NOW()),(NOW() - INTERVAL 1 DAY);"`
+        - `docker exec -i mariadb-innomcp mariadb -uroot -p<REDACTED> -D "innomcp-db" -e "CREATE TABLE IF NOT EXISTS machines (id INT AUTO_INCREMENT PRIMARY KEY, is_online TINYINT NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS record (id INT AUTO_INCREMENT PRIMARY KEY, create_date DATETIME NOT NULL);"`
+        - `docker exec -i mariadb-innomcp mariadb -uroot -p<REDACTED> -D "innomcp-db" -e "ALTER TABLE machines ADD COLUMN last_check_in DATETIME NULL; ALTER TABLE machines ADD COLUMN create_datetime DATETIME NULL;"`
+        - `docker exec -i mariadb-innomcp mariadb -uroot -p<REDACTED> -D "innomcp-db" -e "TRUNCATE TABLE machines; TRUNCATE TABLE record; INSERT INTO machines (is_online, last_check_in, create_datetime) VALUES (1, NOW(), NOW()),(1, NOW(), NOW()),(1, NOW(), NOW()),(0, NOW(), NOW()),(0, NOW(), NOW()),(1, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 1 DAY); INSERT INTO record (create_date) VALUES (NOW()),(NOW()),(NOW()),(NOW() - INTERVAL 1 DAY);"`
 
       - Terminal A (MCP server):
-        - `cd innomcp-server-node; $env:SERVER_PORT='3014'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
+        - `cd innomcp-server-node; $env:SERVER_PORT='3014'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='<REDACTED>'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
 
       - Terminal B (backend):
-        - `cd innomcp-node; $env:CHAT_TRACE_QA='1'; $env:SERVER_PORT='3030'; $env:MCPSERVER_URL='http://localhost:3014/mcp'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
+        - `cd innomcp-node; $env:CHAT_TRACE_QA='1'; $env:SERVER_PORT='3030'; $env:MCPSERVER_URL='http://localhost:3014/mcp'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='<REDACTED>'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
 
       - Terminal C (verifier):
         - `npx ts-node scripts/verify_phase724_officer_evidence_v1.ts --port 3030`
@@ -2091,9 +2091,9 @@ Evidence (Trace v3, 12 lines)
 
     - Verify (repro commands)
       - Terminal A (MCP server):
-        - `cd innomcp-server-node; $env:SERVER_PORT='3015'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
+        - `cd innomcp-server-node; $env:SERVER_PORT='3015'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='<REDACTED>'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
       - Terminal B (backend):
-        - `cd innomcp-node; $env:CHAT_TRACE_QA='1'; $env:SERVER_PORT='3035'; $env:MCPSERVER_URL='http://localhost:3015/mcp'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
+        - `cd innomcp-node; $env:CHAT_TRACE_QA='1'; $env:SERVER_PORT='3035'; $env:MCPSERVER_URL='http://localhost:3015/mcp'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='<REDACTED>'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
       - Terminal C (verifier):
         - `npx ts-node scripts/verify_phase725_trace_v3.ts --port 3035`
 

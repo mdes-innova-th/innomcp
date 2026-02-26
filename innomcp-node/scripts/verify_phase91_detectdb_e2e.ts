@@ -75,6 +75,15 @@ function looksLikeBadLeak(text: string): boolean {
   return /(process\.env|DETECT_DB_PASSWORD|EVIDENCE_DB_PASSWORD|Authorization|Bearer\s+)/i.test(text);
 }
 
+function getMariadbPasswordOrEmpty(): string {
+  return (
+    process.env.MARIADB_ROOT_PASSWORD ||
+    process.env.MARIADB_PASSWORD ||
+    process.env.INNOMCP_MARIADB_PASSWORD ||
+    ""
+  );
+}
+
 function setEnvForMissingDetectDbCreds() {
   // Force the EvidenceDB resolver to throw MISSING_DETECT_DB_CREDS via missing env.
   // Do NOT use DETECT_DB_DISABLED here (Phase 9.1.1 requirement).
@@ -88,10 +97,12 @@ function setEnvForMissingDetectDbCreds() {
 }
 
 function setEnvForRealDetectDb() {
+  const password = getMariadbPasswordOrEmpty();
+  if (!password) throw new Error("MISSING_MARIADB_PASSWORD_ENV");
   process.env.DETECT_DB_HOST = "127.0.0.1";
   process.env.DETECT_DB_PORT = "3308";
   process.env.DETECT_DB_USER = "root";
-  process.env.DETECT_DB_PASSWORD = "rockbottom";
+  process.env.DETECT_DB_PASSWORD = password;
   process.env.DETECT_DB_NAME = "phase91_detectdb";
 }
 
@@ -116,6 +127,13 @@ async function ensureDetectDbSeeded(logLines: string[], failures: string[]) {
   const repoRoot = path.resolve(__dirname, "..", "..");
   const composeFile = path.resolve(repoRoot, "mariadb", "docker-compose.yml");
 
+  const password = getMariadbPasswordOrEmpty();
+  if (!password) {
+    failures.push("BLOCKED:MISSING_MARIADB_PASSWORD_ENV");
+    logLines.push("detectdb seed blocked: missing env MARIADB_ROOT_PASSWORD/MARIADB_PASSWORD");
+    return;
+  }
+
   const up = tryDockerComposeUp(composeFile, path.dirname(composeFile));
   logLines.push(`detectdb docker up: ok=${up.ok} cmd=${up.cmd}`);
   if (!up.ok) {
@@ -129,7 +147,7 @@ async function ensureDetectDbSeeded(logLines: string[], failures: string[]) {
   let lastErr: any = null;
   while (Date.now() < connectDeadline) {
     try {
-      conn = await mysql.createConnection({ host: "127.0.0.1", port: 3308, user: "root", password: "rockbottom" });
+      conn = await mysql.createConnection({ host: "127.0.0.1", port: 3308, user: "root", password });
       await conn.ping();
       break;
     } catch (e: any) {

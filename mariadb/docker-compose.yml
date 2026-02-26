@@ -11,9 +11,9 @@ services:
     volumes:
       - innomcp-db_volume:/var/lib/mysql
     environment:
-      - MARIADB_ROOT_PASSWORD=rockbottom
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
       - MARIADB_USER=jlapps
-      - MARIADB_PASSWORD=rockbottom
+      - MARIADB_PASSWORD=${MARIADB_PASSWORD}
       - MARIADB_DATABASE=innomcp-db
     networks:
       - innomcp_network
