@@ -8,10 +8,8 @@
 			"args": [
 				"--prefix",
 				"innomcp-server-node",
-				"test",
-				"--",
-				"--runInBand",
-				"thaiGeoTool.spec.ts"
+				"run",
+				"test:thaiGeoTool"
 			],
 			"isBackground": false,
 			"problemMatcher": [],

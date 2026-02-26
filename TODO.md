@@ -863,6 +863,7 @@ Verify (local host)
 Evidence (before)
 
 - `innomcp-server-node/package.json` ไม่มี Jest/Vitest; test file ใช้ `node:test` (ต้องรันด้วย `node --test` + ts-node)
+- *********Issue: Task `shell: test:thaiGeoTool` เรียก `npm --prefix innomcp-server-node test ...` แต่ `scripts.test` ยังเป็น placeholder (“Error: no test specified”) ทำให้ fail แม้ `node --test` จะผ่าน*********
 - รัน `node --test -r ts-node/register src/mcp/tools/thaiGeoTool.spec.ts --test-reporter=spec` พบว่าเคส `alias match (โคราช)` fail (`body.success false !== true`) และ suite ใช้เวลานาน ~69s พร้อมข้อความ `'Promise resolution is still pending but the event loop has already resolved'` (ลักษณะเหมือนมี async handle ค้างจากการแตะ MariaDB)
 
 Fix (minimal)
@@ -870,12 +871,18 @@ Fix (minimal)
 - ปรับ `innomcp-server-node/src/mcp/tools/thaiGeoTool.spec.ts` ให้เป็น unit test จริง (ไม่พึ่ง MariaDB):
   - `beforeEach()` ตั้ง `setGeoDb(new InMemoryGeoDb(THAI_GEO_SEED))`
   - หลัง test fallback ให้ restore กลับเป็น InMemory (ไม่ restore ไป MariaDbGeoDb)
+- เพิ่ม npm scripts ให้รันเทสได้จริง:
+  - `innomcp-server-node/package.json`: เพิ่ม `test:thaiGeoTool` และทำ `npm test` เรียก `npm run test:thaiGeoTool`
+  - `.vscode/tasks.json`: ปรับ task `test:thaiGeoTool` ให้เรียก `npm --prefix innomcp-server-node run test:thaiGeoTool`
 
 Evidence (after)
 
 - Task: `shell: node-test:thaiGeoTool`
   - Command: `cd innomcp-server-node && node --require ts-node/register --test src\mcp\tools\thaiGeoTool.spec.ts`
   - Result: PASS 5/5, duration_ms ~1532
+- Task: `shell: test:thaiGeoTool`
+  - Command: `npm --prefix innomcp-server-node run test:thaiGeoTool`
+  - Result: PASS 5/5, duration_ms ~1630
 
 \***\*\*\*\***[VIT] Phase2-Infra: system_status_tool (timeout-safe) + stabilize thaiGeoTool tests\***\*\*\*\***
 
