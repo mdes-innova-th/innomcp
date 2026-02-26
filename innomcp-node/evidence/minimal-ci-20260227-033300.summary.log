@@ -1,0 +1,163 @@
+MINIMAL_CI_START=2026-02-27T03:33:00.6450938+07:00
+WORKSPACE_ROOT=C:\Users\USER-NT\DEV\innomcp
+INCLUDE_FRONTEND_BUILD=False
+SKIP_WEATHER=True
+SKIP_TRACEV3=True
+RUN_GEO=True
+[KILL] workspaceRoot=C:\Users\USER-NT\DEV\innomcp
+[KILL] killedCount=0
+[KILL] workspaceRoot=C:\Users\USER-NT\DEV\innomcp
+[KILL] killedCount=0
+
+[STEP] build:backend
+CMD=npm --prefix innomcp-node run build
+TIMEOUT_SEC=600
+START=2026-02-27T03:33:01.3341788+07:00
+RESULT=EXIT exitCode=0 END=2026-02-27T03:33:05.2361690+07:00
+--- STDOUT (tail) ---
+
+> innomcp-node@1.0.0 build
+> tsc
+
+__INNOMCP_EXITCODE__=0 
+[KILL] workspaceRoot=C:\Users\USER-NT\DEV\innomcp
+[KILL] killedCount=0
+
+[STEP] build:mcp
+CMD=npm --prefix innomcp-server-node run build
+TIMEOUT_SEC=600
+START=2026-02-27T03:33:05.3714888+07:00
+RESULT=EXIT exitCode=0 END=2026-02-27T03:33:08.2077241+07:00
+--- STDOUT (tail) ---
+
+> innomcp-server-node@1.0.0 build
+> tsc
+
+__INNOMCP_EXITCODE__=0 
+[KILL] workspaceRoot=C:\Users\USER-NT\DEV\innomcp
+[KILL] killedCount=0
+
+[STEP] test:thaiGeoTool
+CMD=npm --prefix innomcp-server-node run test:thaiGeoTool
+TIMEOUT_SEC=120
+START=2026-02-27T03:33:08.3441606+07:00
+RESULT=EXIT exitCode=0 END=2026-02-27T03:33:10.6345741+07:00
+--- STDOUT (tail) ---
+
+> innomcp-server-node@1.0.0 test:thaiGeoTool
+> node --require ts-node/register --test src/mcp/tools/thaiGeoTool.spec.ts
+
+âœ” thai_geo_tool: name is stable (0.6792ms)
+âœ” thai_geo_tool: empty query -> INVALID_QUERY (0.5508ms)
+âœ” thai_geo_tool: alias match (à¹‚à¸„à¸£à¸²à¸Š) returns à¸™à¸„à¸£à¸£à¸²à¸Šà¸ªà¸µà¸¡à¸² (0.4881ms)
+âœ” thai_geo_tool: confidence_required gates low confidence (0.3269ms)
+âœ” thai_geo_tool: DB adapter error triggers fallback to stub (0.4356ms)
+â„¹ tests 5
+â„¹ suites 0
+â„¹ pass 5
+â„¹ fail 0
+â„¹ cancelled 0
+â„¹ skipped 0
+â„¹ todo 0
+â„¹ duration_ms 1642.9606
+__INNOMCP_EXITCODE__=0 
+[KILL] workspaceRoot=C:\Users\USER-NT\DEV\innomcp
+[KILL] killedCount=0
+
+[STEP] test:geo
+CMD=npm --prefix innomcp-node run test:geo
+TIMEOUT_SEC=420
+START=2026-02-27T03:33:10.7777366+07:00
+RESULT=EXIT exitCode=0 END=2026-02-27T03:33:15.5809971+07:00
+--- STDOUT (tail) ---
+
+> innomcp-node@1.0.0 test:geo
+> npm run build && node --test tests/geo/*.test.js
+
+
+> innomcp-node@1.0.0 build
+> tsc
+
+âœ” 1) 24h + coords => nwp_hourly_by_location (2.5486ms)
+âœ” 2) Tomorrow + Korat => daily forecast plan (by place) (0.2944ms)
+âœ” 3) 'à¸£à¸²à¸¢à¸Šà¸±à¹ˆà¸§à¹‚à¸¡à¸‡' keyword => hourly (0.1301ms)
+âœ” 4) '7 à¸§à¸±à¸™' keyword => daily (0.1062ms)
+[GeoGuard] Retrying fake_tool (reason: Timeout after 15ms)
+[GeoGuard] fake_tool failed after retry: Timeout after 15ms
+[GeoService] Processing: "à¸žà¸¢à¸²à¸à¸£à¸“à¹Œà¸­à¸²à¸à¸²à¸¨ 24 à¸Šà¸¡ à¸—à¸µà¹ˆà¸žà¸´à¸à¸±à¸” 14.97,102.09"
+  -> Intent: {"domain":"weather","subdomain":"nwp_hourly","features":{"has_coords":true,"has_time_range_24h":true,"wants_hourly":true,"wants_daily":false,"location_terms":[],"coords":{"lat":14.97,"lon":102.09}},"confidence":0.9,"raw_input":"à¸žà¸¢à¸²à¸à¸£à¸“à¹Œà¸­à¸²à¸à¸²à¸¨ 24 à¸Šà¸¡ à¸—à¸µà¹ˆà¸žà¸´à¸à¸±à¸” 14.97,102.09"}
+  -> Plan: {"primary":{"tool_name":"nwp_hourly_by_location","params":{"lat":14.97,"lon":102.09},"reason":"24h + coords â†’ hourly by location"},"fallbacks":[{"tool_name":"nwp_daily_by_location","params":{"lat":14.97,"lon":102.09},"reason":"fallback: daily by location"}]}
+  -> Trying fallback: nwp_daily_by_location (fallback: daily by location)
+[GeoGuard] Retrying nwp_hourly_by_location (reason: ECONNREFUSED)
+[GeoGuard] nwp_hourly_by_location failed after retry: ECONNREFUSED
+[GeoGuard] Retrying nwp_daily_by_location (reason: ECONNREFUSED)
+[GeoGuard] nwp_daily_by_location failed after retry: ECONNREFUSED
+  -> All tools failed
+[GeoService] Processing: "à¸žà¸¢à¸²à¸à¸£à¸“à¹Œà¸­à¸²à¸à¸²à¸¨"
+  -> Intent: {"domain":"weather","subdomain":"nwp_daily","features":{"has_coords":false,"has_time_range_24h":false,"wants_hourly":false,"wants_daily":false,"location_terms":[]},"confidence":0.7,"raw_input":"à¸žà¸¢à¸²à¸à¸£à¸“à¹Œà¸­à¸²à¸à¸²à¸¨"}
+âœ” 5) Tool timeout => retry then degrade (56.0028ms)
+âœ” 6) Remote down => local fallback WeatherPacket produced (1.5292ms)
+âœ” 7) Language mismatch => normalize summary to Thai when possible (0.509ms)
+âœ” 8) Ambiguous location => ask follow-up (0.4518ms)
+âœ” geo_lookup: empty query => INVALID_QUERY (1.4885ms)
+âœ” address_normalize: Bangkok + soi/moo + Thai digits postcode (1.78ms)
+âœ” address_normalize: Thai abbreviations à¸ˆ./à¸­./à¸•. (0.3607ms)
+âœ” geo_lookup: postcode 10500 => postcode entity (1.6113ms)
+âœ” geo_lookup: Thai digits postcode à¹‘à¹à¹•à¹à¹ => postcode entity (0.6145ms)
+âœ” geo_lookup: subdistrict à¸ªà¸µà¸¥à¸¡ => subdistrict entity (0.5689ms)
+âœ” geo_validate: postcode mismatch (10500 but Chiang Mai) => POSTCODE_MISMATCH (0.2449ms)
+âœ” geo_validate: postcode mismatch (10500 but wrong district) => POSTCODE_MISMATCH (0.1863ms)
+âœ” geo_validate: subdistrict-district mismatch => SUBDISTRICT_MISMATCH (0.1624ms)
+âœ” geo_lookup: ambiguous common name => Top3 + exactly 1 follow-up question (1.0902ms)
+âœ” render: NOT_FOUND stays fence-free and safe (0.1784ms)
+âœ” geo_lookup seed case 1: à¸à¸£à¸¸à¸‡à¹€à¸—à¸žà¸¡à¸«à¸²à¸™à¸„à¸£ (0.4083ms)
+âœ” geo_lookup seed case 2: à¸à¸—à¸¡ (0.3496ms)
+âœ” geo_lookup seed case 3: à¹€à¸Šà¸µà¸¢à¸‡à¹ƒà¸«à¸¡à¹ˆ (0.3422ms)
+âœ” geo_lookup seed case 4: à¹€à¸Šà¸µà¸¢à¸‡à¸£à¸²à¸¢ (0.3317ms)
+âœ” geo_lookup seed case 5: à¸™à¸„à¸£à¸£à¸²à¸Šà¸ªà¸µà¸¡à¸² (0.3136ms)
+âœ” geo_lookup seed case 6: à¹‚à¸„à¸£à¸²à¸Š (0.3243ms)
+âœ” geo_lookup seed case 7: à¸‚à¸­à¸™à¹à¸à¹ˆà¸™ (0.3372ms)
+âœ” geo_lookup seed case 8: à¹€à¸¡à¸·à¸­à¸‡à¸«à¸¡à¸­à¹à¸„à¸™ (0.3444ms)
+âœ” geo_lookup seed case 9: à¸Šà¸¥à¸šà¸¸à¸£à¸µ (0.5062ms)
+âœ” geo_lookup seed case 10: à¸šà¸²à¸‡à¹à¸ªà¸™ (0.5218ms)
+âœ” geo_lookup seed case 11: à¸ à¸¹à¹€à¸à¹‡à¸• (0.5803ms)
+âœ” geo_lookup seed case 12: phuket (0.6992ms)
+âœ” geo_lookup seed case 13: à¸ªà¸‡à¸‚à¸¥à¸² (1.2449ms)
+âœ” geo_lookup seed case 14: à¸™à¸„à¸£à¸¨à¸£à¸µà¸˜à¸£à¸£à¸¡à¸£à¸²à¸Š (0.3217ms)
+âœ” geo_lookup seed case 15: à¹€à¸¡à¸·à¸­à¸‡à¸„à¸­à¸™ (0.3865ms)
+âœ” geo_lookup seed case 16: à¸›à¸—à¸¸à¸¡à¸˜à¸²à¸™à¸µ (0.3916ms)
+âœ” geo_lookup seed case 17: à¸­à¸¢à¸¸à¸˜à¸¢à¸² (0.3262ms)
+âœ” geo_lookup seed case 18: à¸­à¸¸à¸šà¸¥à¸£à¸²à¸Šà¸˜à¸²à¸™à¸µ (0.3846ms)
+âœ” geo_lookup seed case 19: à¸šà¸²à¸‡à¸£à¸±à¸ (0.2771ms)
+âœ” geo_lookup seed case 20: à¸›à¸—à¸¸à¸¡à¸§à¸±à¸™ (0.3017ms)
+âœ” geo_lookup seed case 21: à¸ˆà¸•à¸¸à¸ˆà¸±à¸à¸£ (0.3506ms)
+âœ” geo_lookup seed case 22: à¸¥à¸¸à¸¡à¸žà¸´à¸™à¸µ (0.2646ms)
+âœ” geo_lookup seed case 23: à¸ªà¸µà¹ˆà¸žà¸£à¸°à¸¢à¸² (0.264ms)
+âœ” geo_lookup seed case 24: 10500 à¸šà¸²à¸‡à¸£à¸±à¸ (0.3215ms)
+âœ” geo_lookup seed case 25: à¸£à¸«à¸±à¸ªà¹„à¸›à¸£à¸©à¸“à¸µà¸¢à¹Œ 10330 (0.2219ms)
+âœ” geo_lookup seed case 26: 10900 (0.3101ms)
+â„¹ tests 45
+â„¹ suites 0
+â„¹ pass 45
+â„¹ fail 0
+â„¹ cancelled 0
+â„¹ skipped 0
+â„¹ todo 0
+â„¹ duration_ms 163.6506
+__INNOMCP_EXITCODE__=0 
+[KILL] workspaceRoot=C:\Users\USER-NT\DEV\innomcp
+[KILL] killedCount=0
+
+[STEP] verify:geo_roundC
+CMD=cd innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phase1_geo_roundC.ts
+TIMEOUT_SEC=420
+START=2026-02-27T03:33:15.7390750+07:00
+RESULT=EXIT exitCode=0 END=2026-02-27T03:33:23.9346568+07:00
+--- STDOUT (tail) ---
+__INNOMCP_EXITCODE__=0 
+--- STDERR (tail) ---
+(node:27640) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+ERR Expected at least one GEO ambiguous OUT containing 'à¸•à¸±à¸§à¹€à¸¥à¸·à¸­à¸ 3'
+MINIMAL_CI_END=2026-02-27T03:33:23.9400159+07:00
+RESULT=PASS

@@ -1,0 +1,18 @@
+
+> innomcp-server-node@1.0.0 test:thaiGeoTool
+> node --require ts-node/register --test src/mcp/tools/thaiGeoTool.spec.ts
+
+✔ thai_geo_tool: name is stable (0.6792ms)
+✔ thai_geo_tool: empty query -> INVALID_QUERY (0.5508ms)
+✔ thai_geo_tool: alias match (โคราช) returns นครราชสีมา (0.4881ms)
+✔ thai_geo_tool: confidence_required gates low confidence (0.3269ms)
+✔ thai_geo_tool: DB adapter error triggers fallback to stub (0.4356ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1642.9606
+__INNOMCP_EXITCODE__=0 

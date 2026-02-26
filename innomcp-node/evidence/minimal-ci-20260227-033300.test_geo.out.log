@@ -1,0 +1,75 @@
+
+> innomcp-node@1.0.0 test:geo
+> npm run build && node --test tests/geo/*.test.js
+
+
+> innomcp-node@1.0.0 build
+> tsc
+
+✔ 1) 24h + coords => nwp_hourly_by_location (2.5486ms)
+✔ 2) Tomorrow + Korat => daily forecast plan (by place) (0.2944ms)
+✔ 3) 'รายชั่วโมง' keyword => hourly (0.1301ms)
+✔ 4) '7 วัน' keyword => daily (0.1062ms)
+[GeoGuard] Retrying fake_tool (reason: Timeout after 15ms)
+[GeoGuard] fake_tool failed after retry: Timeout after 15ms
+[GeoService] Processing: "พยากรณ์อากาศ 24 ชม ที่พิกัด 14.97,102.09"
+  -> Intent: {"domain":"weather","subdomain":"nwp_hourly","features":{"has_coords":true,"has_time_range_24h":true,"wants_hourly":true,"wants_daily":false,"location_terms":[],"coords":{"lat":14.97,"lon":102.09}},"confidence":0.9,"raw_input":"พยากรณ์อากาศ 24 ชม ที่พิกัด 14.97,102.09"}
+  -> Plan: {"primary":{"tool_name":"nwp_hourly_by_location","params":{"lat":14.97,"lon":102.09},"reason":"24h + coords → hourly by location"},"fallbacks":[{"tool_name":"nwp_daily_by_location","params":{"lat":14.97,"lon":102.09},"reason":"fallback: daily by location"}]}
+  -> Trying fallback: nwp_daily_by_location (fallback: daily by location)
+[GeoGuard] Retrying nwp_hourly_by_location (reason: ECONNREFUSED)
+[GeoGuard] nwp_hourly_by_location failed after retry: ECONNREFUSED
+[GeoGuard] Retrying nwp_daily_by_location (reason: ECONNREFUSED)
+[GeoGuard] nwp_daily_by_location failed after retry: ECONNREFUSED
+  -> All tools failed
+[GeoService] Processing: "พยากรณ์อากาศ"
+  -> Intent: {"domain":"weather","subdomain":"nwp_daily","features":{"has_coords":false,"has_time_range_24h":false,"wants_hourly":false,"wants_daily":false,"location_terms":[]},"confidence":0.7,"raw_input":"พยากรณ์อากาศ"}
+✔ 5) Tool timeout => retry then degrade (56.0028ms)
+✔ 6) Remote down => local fallback WeatherPacket produced (1.5292ms)
+✔ 7) Language mismatch => normalize summary to Thai when possible (0.509ms)
+✔ 8) Ambiguous location => ask follow-up (0.4518ms)
+✔ geo_lookup: empty query => INVALID_QUERY (1.4885ms)
+✔ address_normalize: Bangkok + soi/moo + Thai digits postcode (1.78ms)
+✔ address_normalize: Thai abbreviations จ./อ./ต. (0.3607ms)
+✔ geo_lookup: postcode 10500 => postcode entity (1.6113ms)
+✔ geo_lookup: Thai digits postcode ๑๐๕๐๐ => postcode entity (0.6145ms)
+✔ geo_lookup: subdistrict สีลม => subdistrict entity (0.5689ms)
+✔ geo_validate: postcode mismatch (10500 but Chiang Mai) => POSTCODE_MISMATCH (0.2449ms)
+✔ geo_validate: postcode mismatch (10500 but wrong district) => POSTCODE_MISMATCH (0.1863ms)
+✔ geo_validate: subdistrict-district mismatch => SUBDISTRICT_MISMATCH (0.1624ms)
+✔ geo_lookup: ambiguous common name => Top3 + exactly 1 follow-up question (1.0902ms)
+✔ render: NOT_FOUND stays fence-free and safe (0.1784ms)
+✔ geo_lookup seed case 1: กรุงเทพมหานคร (0.4083ms)
+✔ geo_lookup seed case 2: กทม (0.3496ms)
+✔ geo_lookup seed case 3: เชียงใหม่ (0.3422ms)
+✔ geo_lookup seed case 4: เชียงราย (0.3317ms)
+✔ geo_lookup seed case 5: นครราชสีมา (0.3136ms)
+✔ geo_lookup seed case 6: โคราช (0.3243ms)
+✔ geo_lookup seed case 7: ขอนแก่น (0.3372ms)
+✔ geo_lookup seed case 8: เมืองหมอแคน (0.3444ms)
+✔ geo_lookup seed case 9: ชลบุรี (0.5062ms)
+✔ geo_lookup seed case 10: บางแสน (0.5218ms)
+✔ geo_lookup seed case 11: ภูเก็ต (0.5803ms)
+✔ geo_lookup seed case 12: phuket (0.6992ms)
+✔ geo_lookup seed case 13: สงขลา (1.2449ms)
+✔ geo_lookup seed case 14: นครศรีธรรมราช (0.3217ms)
+✔ geo_lookup seed case 15: เมืองคอน (0.3865ms)
+✔ geo_lookup seed case 16: ปทุมธานี (0.3916ms)
+✔ geo_lookup seed case 17: อยุธยา (0.3262ms)
+✔ geo_lookup seed case 18: อุบลราชธานี (0.3846ms)
+✔ geo_lookup seed case 19: บางรัก (0.2771ms)
+✔ geo_lookup seed case 20: ปทุมวัน (0.3017ms)
+✔ geo_lookup seed case 21: จตุจักร (0.3506ms)
+✔ geo_lookup seed case 22: ลุมพินี (0.2646ms)
+✔ geo_lookup seed case 23: สี่พระยา (0.264ms)
+✔ geo_lookup seed case 24: 10500 บางรัก (0.3215ms)
+✔ geo_lookup seed case 25: รหัสไปรษณีย์ 10330 (0.2219ms)
+✔ geo_lookup seed case 26: 10900 (0.3101ms)
+ℹ tests 45
+ℹ suites 0
+ℹ pass 45
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 163.6506
+__INNOMCP_EXITCODE__=0 

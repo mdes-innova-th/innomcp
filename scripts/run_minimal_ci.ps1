@@ -20,6 +20,7 @@ param(
   [int]$TimeoutBuildBackendSec = 600,
   [int]$TimeoutBuildMcpSec = 600,
   [int]$TimeoutBuildFrontendSec = 900,
+  [int]$TimeoutThaiGeoToolTestSec = 120,
   [int]$TimeoutWeatherVerifierSec = 300,
   [int]$TimeoutTraceV3VerifierSec = 180,
   [int]$TimeoutGeoTestSec = 420,
@@ -215,6 +216,7 @@ try {
 $steps = @()
 $steps += @{ Name = 'build:backend'; Cmd = 'npm --prefix innomcp-node run build'; Timeout = $TimeoutBuildBackendSec }
 $steps += @{ Name = 'build:mcp'; Cmd = 'npm --prefix innomcp-server-node run build'; Timeout = $TimeoutBuildMcpSec }
+$steps += @{ Name = 'test:thaiGeoTool'; Cmd = 'npm --prefix innomcp-server-node run test:thaiGeoTool'; Timeout = $TimeoutThaiGeoToolTestSec }
 if ($IncludeFrontendBuild) {
   $steps += @{ Name = 'build:frontend'; Cmd = 'npm --prefix innomcp-next run build'; Timeout = $TimeoutBuildFrontendSec }
 }

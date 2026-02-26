@@ -21,6 +21,12 @@ innomcp-next/tests/
 innomcp-server-node/tests/
 innomcp-node/tests/
 
+# Allowlist: deterministic GEO unit tests used by `npm --prefix innomcp-node run test:geo`
+!innomcp-node/tests/
+innomcp-node/tests/*
+!innomcp-node/tests/geo/
+!innomcp-node/tests/geo/*.test.js
+
 # Database files
 mariadb/data/
 

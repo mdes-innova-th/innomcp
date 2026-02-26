@@ -671,6 +671,13 @@
 
 - \***\*\*\*\***ADD: scripts/run_minimal_ci.ps1 — kill workspace-scoped zombie node.exe, run Minimal Test Matrix builds + selected deterministic verifiers with hard timeouts, write evidence log(s), print PASS/BLOCKED (one-line reason).\***\*\*\*\***
   - Use the known working batch runner for GUI/e2e instead
+  - Status: DONE
+  - Evidence (deterministic run, no upstream):
+    - `powershell -ExecutionPolicy Bypass -File scripts\run_minimal_ci.ps1 -SkipWeather -SkipTraceV3 -RunGeo` => PASS
+    - `innomcp-node/evidence/minimal-ci-20260227-033300.summary.log`
+  - Notes:
+    - Minimal CI now includes `npm --prefix innomcp-server-node run test:thaiGeoTool`
+    - `npm --prefix innomcp-node run test:geo` stabilized (RoundC expectations) => PASS 45/45
 
 2. \***\*\*\*\***Sweep stuck Playwright/e2e processes safely\***\*\*\*\***
    - Kill ONLY processes whose CommandLine contains `playwright` or `tests\\e2e` (avoid killing dev servers)
