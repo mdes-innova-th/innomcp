@@ -274,6 +274,19 @@
   - CMD:
     - `cd /d innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phase91_detectdb_e2e.ts`
 
+\***\*\*\*\*\*\*\*\*PHASE9.2: Evidence Dashboard UI (structuredContent-only) (2026-02-26)\***\*\*\*\*\*\*\*\*
+
+- Scope lock:
+  - Render ONLY `structuredContent` for evidence (no LLM-generated numbers)
+  - KPI chips + line chart + table; light/dark; green accent
+
+- Work (WIP):
+  - Frontend renderer:
+    - `innomcp-next/src/app/components/chat/EvidenceDashboard.tsx`
+    - wired in `innomcp-next/src/app/components/chat/ChatMessage.tsx`
+  - UI test:
+    - `tests/e2e/tests/evidence-dashboard.spec.ts`
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS

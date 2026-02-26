@@ -7,6 +7,7 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { useTheme } from "@/app/context/ThemeContext";
 import { useAuth } from "@/app/context/AuthContext";
 import ToolTypeBadge from "./ToolTypeBadge";
+import EvidenceDashboard from "./EvidenceDashboard";
 
 type Props = {
   html: string;
@@ -60,6 +61,9 @@ export default function ChatMessage({
   return (
     <div className={className ?? ""}>
       <div className="prose prose-sm wrap-break-word dark:prose-invert">
+        {/* Evidence Dashboard (structuredContent-only) */}
+        <EvidenceDashboard structuredContent={structuredContent} />
+
         {/* Display NASA APOD Image if available */}
         {structuredContent?.url && structuredContent?.media_type === 'image' && (
           <div className="mb-4">
