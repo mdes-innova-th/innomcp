@@ -199,6 +199,33 @@
   - `innomcp-node/evidence/phase89-weather-ux-station-accuracy-2026-02-26T09-27-03-372Z.out.log`
   - `innomcp-node/evidence/phase89-weather-ux-station-accuracy-2026-02-26T09-27-03-372Z.report.json`
 
+\***\*\*\*\***PHASE8.10A: Weather Reliability (key-safe logs + station cache + resolver hygiene) (2026-02-26)\***\*\*\*\***
+
+- Scope lock:
+  - Weather-only + logging-only (no routing/gate changes)
+  - Key-safe policy: fetch uses raw URL (uid/ukey kept), logs/meta must not include uid/ukey
+  - Station list caching: TTL 5 minutes, deterministic key
+
+- Runtime:
+  - PowerShell:
+    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase810a_weather_reliability.ts`
+
+- Evidence (PASS 6/6):
+  - `innomcp-node/evidence/phase810a-weather-reliability-2026-02-26T14-57-31-378Z.log`
+
+- *********Issue: TMD tool logging could leak auth params (uid/ukey) when printing full URLs.*********
+  - Fix: two-layer URL policy in MCP TMD tools (rawUrl for fetch; safeUrl for logs/meta) + `authParamsPresent=true|false` marker.
+
+- *********Issue: Station tools frequently timed out, making results unstable and wasting repeated upstream calls.*********
+  - Fix: cache station list payloads via ToolCache for `tmd_weather_3hours_all_stations` and `tmd_weather_today_07am_all_stations` with TTL=5min.
+
+- *********Issue: Resolver outputs could contain inconsistent whitespace, causing unstable province strings.*********
+  - Fix: trim + collapse whitespace normalization before returning resolved province names.
+
+- *********Note: MCP `/mcp` requires `Accept: application/json, text/event-stream` (otherwise 406). Verifier enforces this for deterministic MCP tool calls.*********
+
+- *********Note: SMOKE-only deterministic abort uses `WX_TMD_TIMEOUT_MS` to force `TMD API aborted` without upstream dependency.*********
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS

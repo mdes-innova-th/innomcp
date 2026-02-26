@@ -202,6 +202,19 @@ function cacheKey(toolName: string, args: any, scope?: string): string {
   return `${toolName}|${s}|${stableStringify(args || {})}`;
 }
 
+function shouldLogCacheEvent(): boolean {
+  // Keep production logs quiet; enable during verifiers/smoke or explicit debug.
+  return process.env.LOG_DEBUG === "1" || process.env.SMOKE_MODE === "1";
+}
+
+function logToolCacheEvent(kind: "HIT" | "SET", toolName: string, scope: string | undefined, extra?: string): void {
+  if (!shouldLogCacheEvent()) return;
+  const sc = scope ? String(scope) : "";
+  const x = extra ? ` ${extra}` : "";
+  // IMPORTANT: do NOT log the raw cache key (it may contain braces/quotes and is noisy).
+  console.log(`[ToolCache] ${kind}: tool=${toolName}${sc ? ` scope=${sc}` : ""}${x}`);
+}
+
 function getFreshCache(key: string, ttlMs: number): CacheEntry | null {
   const entry = TOOLCALL_CACHE.get(key);
   if (!entry) return null;
@@ -230,6 +243,7 @@ export async function executeWeatherToolCall(opts: ToolExecutionOptions): Promis
 
   const cached = getFreshCache(key, ttlMs);
   if (cached) {
+    logToolCacheEvent("HIT", toolName, scope, `stale=false ageMs=${Math.max(0, Date.now() - cached.at)}`);
     return withCacheMeta(cached.payload, { hit: true, at: cached.at, ageMs: Date.now() - cached.at, stale: false });
   }
 
@@ -257,12 +271,14 @@ export async function executeWeatherToolCall(opts: ToolExecutionOptions): Promis
 
         const payload = parseMcpPayload(safeResult);
         TOOLCALL_CACHE.set(key, { at: Date.now(), payload });
+        logToolCacheEvent("SET", toolName, scope, `ttlMs=${ttlMs}`);
         return payload;
 
     } catch (error: any) {
         if (isTimeoutText(error?.message) || error instanceof TimeoutError) {
           const stale = getStaleCache(key);
           if (stale) {
+            logToolCacheEvent("HIT", toolName, scope, `stale=true ageMs=${Math.max(0, Date.now() - stale.at)} reason=timeout_fallback`);
             return withCacheMeta(stale.payload, { hit: true, at: stale.at, ageMs: Date.now() - stale.at, stale: true, reason: "timeout_fallback" });
           }
           throw new TimeoutError(error.message);
@@ -281,4 +297,6 @@ export function primeWeatherToolCallCachePayload(params: {
   const { toolName, args, scope, payload, at } = params;
   const key = cacheKey(toolName, args, scope);
   TOOLCALL_CACHE.set(key, { at: at ?? Date.now(), payload });
+  // Verifier-friendly cache visibility (suppressed in TRACE_QA mode unless LOG_DEBUG=1)
+  logToolCacheEvent("SET", toolName, scope, `ttlMs=${ttlForTool(toolName)} primed=true`);
 }

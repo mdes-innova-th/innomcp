@@ -91,4 +91,7 @@ yarn-error.log*
 # Phase 8.9: Weather-only UX + station accuracy verifier
 !/scripts/verify_phase89_weather_ux_station_accuracy.ts
 
+# Phase 8.10A: Weather reliability verifier
+!/scripts/verify_phase810a_weather_reliability.ts
+
 

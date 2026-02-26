@@ -1,11 +1,16 @@
 
 import { executeWeatherToolCall, TimeoutError } from "../toolCall";
 import { WeatherResult } from "../types";
+import { ToolCache } from "../../cache/toolCache";
 
 // Timeout constants
 // Station APIs are slow (15-25s common). Keep tight to leave budget for fallback.
 const STATION_3H_TIMEOUT_MS = 15_000;
 const STATION_TODAY_TIMEOUT_MS = 15_000;
+
+// Cache the station list (national) to reduce repeated slow calls.
+// This is the main lever to reduce station timeout/abort rate.
+const STATION_CACHE_TTL_MS = 5 * 60_000;
 
 function getTimeoutFromEnv(name: string, fallback: number): number {
     if (process.env.SMOKE_MODE !== "1") return fallback;
@@ -29,6 +34,13 @@ function normalizeThaiProvince(input: string): string {
 
 export class StationEngine {
     constructor(private clients: Map<string, any>) {}
+
+    private forceStationFilterZeroFor(targetProvince: string): boolean {
+        if (process.env.SMOKE_MODE !== "1") return false;
+        const forced = String(process.env.WX_FORCE_STATION_FILTER_ZERO_FOR || "").trim();
+        if (!forced) return false;
+        return normalizeThaiProvince(forced) === normalizeThaiProvince(targetProvince);
+    }
 
     private getClient(): any {
         const c = this.clients.get("innomcp-server") || this.clients.values().next().value;
@@ -58,16 +70,27 @@ export class StationEngine {
 
         // Try primary: 3-hour stations
         try {
-            const payload = await executeWeatherToolCall({
-                client,
-                toolName: "tmd_weather_3hours_all_stations",
-                args: {},
-                timeoutMs: station3hTimeoutMs,
-                scope: "province",
-                signal,
-            });
+            const toolName = "tmd_weather_3hours_all_stations";
+            const toolArgs = { scope: "national" };
+            const cacheKey = ToolCache.generateKey(toolName, toolArgs);
+
+            let payload: any = ToolCache.get<any>(cacheKey);
+            if (!payload) {
+                payload = await executeWeatherToolCall({
+                    client,
+                    toolName,
+                    args: {},
+                    timeoutMs: station3hTimeoutMs,
+                    scope: "province",
+                    signal,
+                });
+                ToolCache.set(cacheKey, payload, STATION_CACHE_TTL_MS);
+            }
 
             const { total, filtered } = this.extractStations(payload, province);
+            if (this.forceStationFilterZeroFor(province) && total > 0) {
+                stationNotFound = true;
+            }
             if (filtered.length > 0) {
                 return {
                     province,
@@ -96,14 +119,22 @@ export class StationEngine {
         // If 3h timed out, skip fallback to reduce wasted upstream calls.
         if (!apiReturnedEmpty && !primaryTimedOut) {
             try {
-                const payload = await executeWeatherToolCall({
-                    client,
-                    toolName: "tmd_weather_today_07am_all_stations",
-                    args: {},
-                    timeoutMs: stationTodayTimeoutMs,
-                    scope: "province",
-                    signal,
-                });
+                const toolName = "tmd_weather_today_07am_all_stations";
+                const toolArgs = { scope: "national" };
+                const cacheKey = ToolCache.generateKey(toolName, toolArgs);
+
+                let payload: any = ToolCache.get<any>(cacheKey);
+                if (!payload) {
+                    payload = await executeWeatherToolCall({
+                        client,
+                        toolName,
+                        args: {},
+                        timeoutMs: stationTodayTimeoutMs,
+                        scope: "province",
+                        signal,
+                    });
+                    ToolCache.set(cacheKey, payload, STATION_CACHE_TTL_MS);
+                }
 
                 const { filtered } = this.extractStations(payload, province);
                 if (filtered.length > 0) {

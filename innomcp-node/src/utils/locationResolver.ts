@@ -16,6 +16,18 @@ function normalizeResolverText(input: string): { original: string; lower: string
   return { original: s, lower: s.toLowerCase() };
 }
 
+function normalizeProvinceOut(p: string): string {
+  return String(p || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function finalizeResolved(found: Set<string>): string[] {
+  return Array.from(found)
+    .map(normalizeProvinceOut)
+    .filter((x) => x.length > 0);
+}
+
 const BKK_DISTRICTS = new Set([
   "พระนคร",
   "ดุสิต",
@@ -236,7 +248,7 @@ export function resolveProvinces(text: string): string[] {
   }
 
   if (foundProvinces.size > 0) {
-    const resolved = Array.from(foundProvinces);
+    const resolved = finalizeResolved(foundProvinces);
     console.log(`[LocationResolver] resolvedProvinces=[${resolved.join(",")}] method=substring`);
     return resolved;
   }
@@ -268,7 +280,7 @@ export function resolveProvinces(text: string): string[] {
   }
 
   if (foundProvinces.size > 0) {
-    const resolved = Array.from(foundProvinces);
+    const resolved = finalizeResolved(foundProvinces);
     console.log(`[LocationResolver] resolvedProvinces=[${resolved.join(",")}] method=token`);
     return resolved;
   }
@@ -293,7 +305,7 @@ export function resolveProvinces(text: string): string[] {
   }
 
   if (foundProvinces.size > 0) {
-    const resolved = Array.from(foundProvinces);
+    const resolved = finalizeResolved(foundProvinces);
     console.log(`[LocationResolver] resolvedProvinces=[${resolved.join(",")}] method=fuzzy`);
     return resolved;
   }

@@ -39,6 +39,15 @@ function appendFormatJson(url: string): string {
   return url.includes("?") ? `${url}&format=json` : `${url}?format=json`;
 }
 
+function hasAuthParams(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.searchParams.has("uid") || u.searchParams.has("ukey");
+  } catch {
+    return /([?&])(uid|ukey)=/i.test(String(url || ""));
+  }
+}
+
 function redactUrlForLog(url: string): string {
   // Redact sensitive query params (uid/ukey) from logged URLs.
   // Keep other params (e.g. format=json) intact.
@@ -126,10 +135,15 @@ async function abortableDelay(ms: number, signal?: AbortSignal): Promise<void> {
 
 
 async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) {
-  const finalUrl = appendFormatJson(url);
+  // Two-layer URL policy:
+  // - rawUrl: used for fetch (may include uid/ukey)
+  // - safeUrl: used for logs/meta (must NOT include uid/ukey)
+  const rawUrl = appendFormatJson(url);
+  const safeUrl = redactUrlForLog(rawUrl);
+  const authParamsPresent = hasAuthParams(rawUrl);
   const start = nowMs();
 
-  logBoth("INFO", `[TMD:${toolName}] GET ${redactUrlForLog(finalUrl)}`);
+  logBoth("INFO", `[TMD:${toolName}] GET ${safeUrl} authParamsPresent=${authParamsPresent ? "true" : "false"}`);
 
   try {
     // SMOKE verifier: allow simulating slow station calls (must never leak in answers).
@@ -141,7 +155,15 @@ async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) 
       if (delayMs > 0) await abortableDelay(delayMs, signal);
     }
 
-    const resp = await fetchWithTimeoutAndSignal(finalUrl, DEFAULT_TIMEOUT_MS, signal);
+    // SMOKE verifier: allow forcing a small timeout to deterministically test abort behavior
+    // without relying on upstream availability.
+    let timeoutMs = DEFAULT_TIMEOUT_MS;
+    if (process.env.SMOKE_MODE === "1") {
+      const forced = Number(process.env.WX_TMD_TIMEOUT_MS || "0") || 0;
+      if (Number.isFinite(forced) && forced > 0) timeoutMs = forced;
+    }
+
+    const resp = await fetchWithTimeoutAndSignal(rawUrl, timeoutMs, signal);
     const durationMs = nowMs() - start;
 
     const bodyText = await resp.text().catch(() => "");
@@ -172,7 +194,8 @@ async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) 
       ok: true,
       meta: {
         tool: toolName,
-        url: finalUrl,
+        url: safeUrl,
+        authParamsPresent,
         status: resp.status,
         durationMs,
         fetchedAt: new Date().toISOString(),
@@ -192,7 +215,8 @@ async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) 
       ok: false,
       meta: {
         tool: toolName,
-        url: appendFormatJson(url),
+        url: safeUrl,
+        authParamsPresent,
         status: null,
         durationMs,
         fetchedAt: new Date().toISOString(),
