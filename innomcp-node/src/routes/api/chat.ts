@@ -123,13 +123,19 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
   // - error:   { ok:false, code:"PROVINCE_MISSING"|"TIMEOUT"|"NO_DATA"|"UPSTREAM_ERROR", message:"..." }
   if (weatherPayload && typeof weatherPayload === "object" && !Array.isArray(weatherPayload)) {
     if (weatherPayload.ok === false) {
-      const code = String(weatherPayload.code || "UPSTREAM_ERROR");
-      const msg = String(weatherPayload.message || "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง");
-      // Only enforce ERR tokens for upstream failures (not user input).
-      if (String(code).toUpperCase() === "PROVINCE_MISSING") {
-        return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)", structuredContent: { weatherPipeline: { ok: false, code, message: msg } } };
+      // If we have result[] (even if all error), prefer contract renderer so UX stays operator-grade
+      // with per-area blocks + deterministic tokens (no LLM guessing).
+      if (Array.isArray(weatherPayload.result)) {
+        weatherPayload = weatherPayload.result;
+      } else {
+        const code = String(weatherPayload.code || "UPSTREAM_ERROR");
+        const msg = String(weatherPayload.message || "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง");
+        // Only enforce ERR tokens for upstream failures (not user input).
+        if (String(code).toUpperCase() === "PROVINCE_MISSING") {
+          return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)", structuredContent: { weatherPipeline: { ok: false, code, message: msg } } };
+        }
+        return renderUpstreamWeatherErr(code, msg);
       }
-      return renderUpstreamWeatherErr(code, msg);
     }
     if (weatherPayload.ok === true && Array.isArray(weatherPayload.result)) {
       weatherPayload = weatherPayload.result;
@@ -165,18 +171,10 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
   }
 
   const weatherResults = weatherPayload as any[];
-  const firstOk = weatherResults.find((r: any) => r && r.type !== "error") || weatherResults[0];
-
-  if (!firstOk || firstOk.type === "error") {
-    const err = String(firstOk?.error || "WEATHER_PIPELINE_ERROR");
-    if (err === "PROVINCE_MISSING") {
-      return { text: "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)", structuredContent };
-    }
-    return renderUpstreamWeatherErr(err, "ขออภัย ยังไม่สามารถดึงข้อมูลอากาศได้ในขณะนี้");
-  }
+  const firstOk = weatherResults.find((r: any) => r && r.type !== "error") || null;
 
   if (wantsTable) {
-    if (firstOk.type === "national") {
+    if (firstOk && firstOk.type === "national") {
       const d = firstOk.data || {};
       const label = d.dateLabel || "พรุ่งนี้";
       const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
@@ -191,7 +189,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
     };
   }
 
-  if (firstOk.type === "national") {
+  if (firstOk && firstOk.type === "national") {
     const d = firstOk.data || {};
     const label = d.dateLabel || "พรุ่งนี้";
     const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
@@ -2445,13 +2443,19 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       const bkkTargets = extractBangkokDistrictTargets(messageWithFile);
       const multiBkk = bkkTargets.length === 2;
 
+      const bkkRunTexts = multiBkk
+        ? bkkTargets.map((d) => `กรุงเทพมหานคร เขต${d} ` + messageWithFile)
+        : [messageWithFile];
+
       let toolResults: any[] = [];
       try {
         if (multiBkk) {
           // Sequential to reduce concurrent upstream load; abort will stop in-flight calls on disconnect.
-          for (const d of bkkTargets) {
+          for (let i = 0; i < bkkTargets.length; i++) {
+            const d = bkkTargets[i];
+            const runText = bkkRunTexts[i] || (`กรุงเทพมหานคร เขต${d} ` + messageWithFile);
             toolResults.push(
-              await mcp.runDeterministicWeatherPipeline(`กรุงเทพมหานคร เขต${d} ` + messageWithFile, { signal: wxAbort.signal })
+              await mcp.runDeterministicWeatherPipeline(runText, { signal: wxAbort.signal })
             );
             if (wxAbort.signal.aborted) break;
           }
@@ -2476,28 +2480,27 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         toolResults.length > 1
           ? {
               text: (() => {
-                const blocks: string[] = [];
-
-                const districtRuns = toolResults.map((tr: any, idx: number) => {
-                  const label = `เขต${bkkTargets[idx] || ""}`.trim() || `พื้นที่ที่ ${idx + 1}`;
-                  const d = directOne(tr, messageWithFile);
-                  const rawLines = String(d.text || "").trim().split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
-                  const header = rawLines.find((l) => /^ช่วงเวลา\s*:/i.test(l)) || "";
-                  const lines = rawLines.filter((l) => !/^ช่วงเวลา\s*:/i.test(l));
-                  return { label, header, lines };
+                const renderedRuns = toolResults.map((tr: any, idx: number) => {
+                  const runText = bkkRunTexts[idx] || messageWithFile;
+                  return directOne(tr, runText);
                 });
 
-                const header = districtRuns.map((r) => r.header).find(Boolean) || "";
-                if (header) blocks.push(header);
-                blocks.push(`สรุปสภาพอากาศ: กรุงเทพมหานคร (${bkkTargets[0]} + ${bkkTargets[1]})`);
+                const headers = renderedRuns
+                  .map((r) => String(r?.text || "").split(/\r?\n/).map((x) => x.trim()))
+                  .map((lines) => lines.find((l) => /^ช่วงเวลา\s*:/i.test(l)) || "")
+                  .filter(Boolean);
+                const header = headers[0] || "";
 
-                for (const r of districtRuns) {
-                  blocks.push(`- ${r.label}`);
-                  for (const l of r.lines) blocks.push(`  ${l}`);
-                }
+                const blocks = renderedRuns
+                  .map((r) => String(r?.text || "").trim())
+                  .map((t) => {
+                    const lines = t.split(/\r?\n/);
+                    const body = lines.filter((l) => !/^\s*ช่วงเวลา\s*:/i.test(l)).join("\n").trim();
+                    return body;
+                  })
+                  .filter(Boolean);
 
-                blocks.push("หมายเหตุ: ข้อมูลพยากรณ์อาจเป็นระดับจังหวัด จึงใช้ร่วมกันสำหรับพื้นที่ในกรุงเทพมหานคร");
-                return blocks.join("\n").trim();
+                return [header, ...blocks].filter(Boolean).join("\n\n").trim();
               })(),
               structuredContent: {
                 weatherPipeline: {

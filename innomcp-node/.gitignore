@@ -88,4 +88,7 @@ yarn-error.log*
 # Phase 8.8: Logging Hygiene Hardening verifier
 !/scripts/verify_phase88_log_hygiene.ts
 
+# Phase 8.9: Weather-only UX + station accuracy verifier
+!/scripts/verify_phase89_weather_ux_station_accuracy.ts
+
 

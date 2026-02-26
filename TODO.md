@@ -175,6 +175,30 @@
 
 - *********Note: Verifier abort cases send `Accept: application/json, text/event-stream` to avoid `406` and force real client abort (status=0).*********
 
+\***\*\*\*\***PHASE8.9: Weather-only UX + Station Accuracy (2026-02-26)\***\*\*\*\***
+
+- Scope lock:
+  - Weather-only + renderer-only changes (no GEO/EVI/General routing/gates)
+  - User-visible weather blocks are per-area and always include:
+    - พื้นที่:
+    - โอกาสฝน:
+    - ช่วงเวลาเสี่ยง:
+    - อุณหภูมิ:
+    - ลม:
+    - ข้อควรระวัง:
+  - No placeholders/test-mode leakage; no raw JSON / code fences in user-visible answers
+  - Policy kept: if `PROVINCE_NOT_FOUND_IN_FORECAST` -> do NOT call NWP
+
+- Runtime:
+  - `npm --prefix innomcp-node run build`
+  - PowerShell:
+    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase89_weather_ux_station_accuracy.ts`
+
+- Evidence (PASS):
+  - `innomcp-node/evidence/phase89-weather-ux-station-accuracy-2026-02-26T09-27-03-372Z.tracev3.log`
+  - `innomcp-node/evidence/phase89-weather-ux-station-accuracy-2026-02-26T09-27-03-372Z.out.log`
+  - `innomcp-node/evidence/phase89-weather-ux-station-accuracy-2026-02-26T09-27-03-372Z.report.json`
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS

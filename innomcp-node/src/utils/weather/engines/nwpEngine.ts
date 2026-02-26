@@ -22,6 +22,15 @@ export class NwpEngine {
     }
 
     async getNwpData(province: string, signal?: AbortSignal): Promise<WeatherResult> {
+        // Phase 8.9 verifier support: allow asserting whether NWP was called.
+        // Gated to SMOKE_MODE + WX_VERIFY_COUNTER to avoid production log noise.
+        if (process.env.SMOKE_MODE === "1" && process.env.WX_VERIFY_COUNTER === "1") {
+            const g: any = globalThis as any;
+            const ctr = (g.__wxCounter = g.__wxCounter || { nwpCalls: 0 });
+            ctr.nwpCalls = Number(ctr.nwpCalls || 0) + 1;
+            console.log(`[WX_COUNTER] nwp_call count=${ctr.nwpCalls} province=${province}`);
+        }
+
         const client = this.getClient();
         if (!client) return { province, type: "error", error: "CLIENT_NOT_FOUND" };
 

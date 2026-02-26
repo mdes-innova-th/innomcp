@@ -2115,7 +2115,7 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     })();
 
     return {
-      structuredContent: { weatherPipeline: { ok: false, code, message } },
+      structuredContent: { weatherPipeline: { ok: false, code, message, result: weatherResults } },
       success: false,
       isError: true,
       error: code,

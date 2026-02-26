@@ -214,12 +214,21 @@ export class WeatherPipeline {
             return err === "TIMEOUT" || err === "CLIENT_NOT_FOUND" || err === "API_ERROR";
         };
 
+        const wantsDetailed = /ละเอียด|แบบละเอียด|จงบอกแบบละเอียด/i.test(target.originalText || "");
+        const wantsBangkokDistrict = (() => {
+            const t = String(target.originalText || "");
+            if (!/(กรุงเทพ|กรุงเทพมหานคร|กทม|bkk|bangkok)/i.test(t)) return false;
+            // Must-have districts + generic district marker
+            return /เขต|หลักสี่|ลาดกระบัง/i.test(t);
+        })();
+
         for (const province of target.provinces) {
             if (signal?.aborted) {
                 return [{ province: "", type: "error", error: "TIMEOUT" }];
             }
             let result: WeatherResult | null = null;
             let shouldSupplementForecast = false;
+            let stationSupplement: WeatherResult | null = null;
 
             const runWithBudget = async (fn: () => Promise<WeatherResult>): Promise<WeatherResult> => {
                 if (budgetRemainingMs() <= 0) {
@@ -284,12 +293,38 @@ export class WeatherPipeline {
                         console.log(`[WeatherPipeline] fallback=NWP reason=StationError province=${province} error=${result.error}`);
                         result = await runWithBudget(() => this.nwpEngine.getNwpData(province, signal));
                     }
+
+                    // Phase 8.9: Bangkok district UX requires station data when available.
+                    // Keep this scoped to explicit district/detailed asks to avoid wasted upstream.
+                    if (
+                        result &&
+                        result.type !== "error" &&
+                        province === "กรุงเทพมหานคร" &&
+                        stationAvailable &&
+                        (wantsBangkokDistrict || wantsDetailed) &&
+                        budgetRemainingMs() > 0
+                    ) {
+                        const st = await (async () => {
+                            try {
+                                return await runWithBudget(() => this.stationEngine.getStationData(province, signal));
+                            } catch {
+                                return null;
+                            }
+                        })();
+                        if (st && st.type !== "error") {
+                            stationSupplement = st;
+                        }
+                    }
                 }
             } catch (err: any) {
                 result = { province, type: "error", error: err.message || "UNEXPECTED_ERROR" };
             }
 
             results.push(result || { province, type: "error", error: "DATA_UNAVAILABLE" });
+
+            if (stationSupplement) {
+                results.push(stationSupplement);
+            }
 
             // Supplement forecast (non-blocking) when station succeeded and we still have budget.
             if (shouldSupplementForecast && result && result.type === "station3h" && budgetRemainingMs() > 0) {

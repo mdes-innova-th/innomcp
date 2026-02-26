@@ -25,6 +25,28 @@ const THAI_DIGIT_MAP: Record<string, string> = {
   "๙": "9",
 };
 
+// Wind direction degrees → Thai cardinal (snap 45°)
+const WIND_DIR: Record<string, string> = {
+  "0": "เหนือ",
+  "360": "เหนือ",
+  "45": "ตะวันออกเฉียงเหนือ",
+  "90": "ตะวันออก",
+  "135": "ตะวันออกเฉียงใต้",
+  "180": "ใต้",
+  "225": "ตะวันตกเฉียงใต้",
+  "270": "ตะวันตก",
+  "315": "ตะวันตกเฉียงเหนือ",
+};
+
+function windDirLabel(raw: unknown): string {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  const n = Number(s);
+  if (!Number.isFinite(n)) return s;
+  const snapped = Math.round(n / 45) * 45;
+  return WIND_DIR[String(((snapped % 360) + 360) % 360)] || `${n}°`;
+}
+
 function thaiDigitsToArabic(raw: string): string {
   return String(raw || "").replace(/[๐-๙]/g, (ch) => THAI_DIGIT_MAP[ch] ?? ch);
 }
@@ -81,8 +103,45 @@ function pickStationTempC(stationItems: any[]): number | null {
 function pickStationWind(stationItems: any[]): { speedKmh: number | null; dir: string } {
   const s = (Array.isArray(stationItems) ? stationItems : [])[0] || {};
   const speed = toNumberOrNull(s.WindSpeed) ?? toNumberOrNull(s.WindSpeedKmh) ?? toNumberOrNull(s.Wind);
-  const dir = firstNonEmptyString(s.WindDirection, s.WindDir, s.WindDirectionDeg, s.WindDirectionDegree);
-  return { speedKmh: speed, dir };
+  const dirRaw = firstNonEmptyString(s.WindDirection, s.WindDir, s.WindDirectionDeg, s.WindDirectionDegree);
+  return { speedKmh: speed, dir: windDirLabel(dirRaw) };
+}
+
+function detectBangkokDistrict(userText: string): string | null {
+  const t = String(userText || "");
+  // Prefer explicit district marker first (handles multi-target texts safely).
+  const m = t.match(/เขต\s*(หลักสี่|ลาดกระบัง|ดอนเมือง|จตุจักร|ปทุมวัน|บางรัก)/i);
+  if (m?.[1]) return String(m[1]);
+  // Must-have
+  if (/หลักสี่/i.test(t)) return "หลักสี่";
+  if (/ลาดกระบัง/i.test(t)) return "ลาดกระบัง";
+
+  // Common districts (best-effort)
+  if (/ดอนเมือง/i.test(t)) return "ดอนเมือง";
+  if (/จตุจักร/i.test(t)) return "จตุจักร";
+  if (/ปทุมวัน/i.test(t)) return "ปทุมวัน";
+  if (/บางรัก/i.test(t)) return "บางรัก";
+  return null;
+}
+
+function pickStationItemsForArea(userText: string, province: string, stationItems: any[]): any[] {
+  if (normalizeProvinceDisplayName(province) !== "กรุงเทพมหานคร") return stationItems;
+  const d = detectBangkokDistrict(userText);
+  if (!d) return stationItems;
+
+  const filtered = (Array.isArray(stationItems) ? stationItems : []).filter((s: any) => {
+    const nameTh = String(s?.StationNameThai || s?.StationName || "");
+    const nameEn = String(s?.StationNameEng || s?.StationNameEN || "");
+    return nameTh.includes(d) || nameEn.toLowerCase().includes(d.toLowerCase());
+  });
+  return filtered.length > 0 ? filtered : stationItems;
+}
+
+function areaLabelForProvince(userText: string, province: string): string {
+  const p = normalizeProvinceDisplayName(province);
+  if (p !== "กรุงเทพมหานคร") return p;
+  const d = detectBangkokDistrict(userText);
+  return d ? `กรุงเทพมหานคร (${d})` : p;
 }
 
 function pickForecastDayIndex(forecast: any, offsetDays: number): number {
@@ -168,7 +227,15 @@ function renderErrorOnlyProvince(province: string, items: WeatherResult[]): stri
     }
   })();
 
-  return [`พื้นที่: ${province}`, msg].join("\n");
+  // Operator-grade: always emit the same 5 fields for every area block.
+  return [
+    `พื้นที่: ${province}`,
+    `โอกาสฝน: ยังไม่มีข้อมูล`,
+    `ช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล`,
+    `อุณหภูมิ: ยังไม่มีข้อมูล`,
+    `ลม: ยังไม่มีข้อมูล`,
+    `ข้อควรระวัง: ${msg}`,
+  ].join("\n");
 }
 
 function renderOneProvince(userText: string, province: string, items: WeatherResult[]): string {
@@ -183,6 +250,7 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
   const forecast = shaped.find((r) => r.type === "forecast7d" && r.data && typeof r.data === "object");
 
   const stationItems = (station && Array.isArray(station.data)) ? station.data : [];
+  const stationItemsArea = pickStationItemsForArea(userText, province, stationItems);
   const forecastBlock = forecast?.data?.forecast;
 
   const offset = parseDayOffset(userText);
@@ -196,10 +264,10 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
 
   const forecastWind = {
     speedKmh: toNumberOrNull(forecastBlock?.WindSpeed?.[dayIdx]),
-    dir: firstNonEmptyString(forecastBlock?.WindDirection?.[dayIdx]),
+    dir: windDirLabel(firstNonEmptyString(forecastBlock?.WindDirection?.[dayIdx])),
   };
 
-  const stationWind = pickStationWind(stationItems);
+  const stationWind = pickStationWind(stationItemsArea);
 
   const wind = (() => {
     // NOW/TODAY -> prefer station, FUTURE -> forecast.
@@ -212,30 +280,30 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
     };
   })();
 
-  const obsTime = pickStationUpdateTime(stationItems);
+  const obsTime = pickStationUpdateTime(stationItemsArea);
   const forecastTime = firstNonEmptyString(forecast?.data?.lastBuildDate, forecastBlock?.LastBuildDate);
 
   const tempFallback = (() => {
-    const t = pickStationTempC(stationItems);
+    const t = pickStationTempC(stationItemsArea);
     return t !== null ? `${t}°C` : "";
   })();
 
   const tempText = tempRange ? tempRange : tempFallback;
 
-  const rainText = rainPct !== null ? `${rainPct}%` : "ไม่พบข้อมูล";
+  const rainText = rainPct !== null ? `${rainPct}%` : "ยังไม่มีข้อมูล";
   const windText = (() => {
     const w = fmtWind(wind.speedKmh, wind.dir);
-    return w ? w : "ไม่พบข้อมูล";
+    return w ? w : "ยังไม่มีข้อมูล";
   })();
-  const tempOut = tempText ? tempText : "ไม่พบข้อมูล";
+  const tempOut = tempText ? tempText : "ยังไม่มีข้อมูล";
 
   const timeRisk = (() => {
     if (isTodayRainQuestion(userText)) {
-      const obs = obsTime || "ไม่พบข้อมูล";
-      const fc = forecastTime || "ไม่พบข้อมูล";
+      const obs = obsTime || "ยังไม่มีข้อมูล";
+      const fc = forecastTime || "ยังไม่มีข้อมูล";
       return `เช้า: สังเกตการณ์ล่าสุด (${obs}) | บ่าย-เย็น: พยากรณ์วันนี้ (${fc})`;
     }
-    return "ไม่พบข้อมูลช่วงเวลา (มีเฉพาะรายวัน)";
+    return "ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)";
   })();
 
   const advice = (() => {
@@ -247,12 +315,12 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
     if (wind.speedKmh !== null && wind.speedKmh >= 40) tips.push("ระวังลมแรง");
 
     if (tips.length > 0) return tips.join(" | ");
-    if (rainPct === null && wind.speedKmh === null) return "ไม่พบข้อมูลคำเตือน";
+    if (rainPct === null && wind.speedKmh === null) return "ยังไม่มีข้อมูลคำเตือน";
     return "ไม่มีคำเตือนพิเศษ";
   })();
 
   const lines: string[] = [];
-  lines.push(`พื้นที่: ${province}`);
+  lines.push(`พื้นที่: ${areaLabelForProvince(userText, province)}`);
   lines.push(`โอกาสฝน: ${rainText}`);
   lines.push(`ช่วงเวลาเสี่ยง: ${timeRisk}`);
   lines.push(`อุณหภูมิ: ${tempOut}`);
@@ -267,8 +335,19 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
 
   const shaped = shapeWeatherResults(weatherResults, 15);
 
+  const grouped = groupByProvince(shaped);
+  const provinces = Array.from(grouped.keys());
+
   // Global all-error case (including province=""), keep operator-grade + deterministic token.
   if (!shaped.some((r) => r && r.type !== "error")) {
+    // If we still have explicit provinces, render per-province blocks (required for UX correctness).
+    if (provinces.length > 0) {
+      const tw = timeWindowLabel(userText);
+      const header = `ช่วงเวลา: ${tw.label} (${tw.date})`;
+      const blocks = provinces.map((p) => renderErrorOnlyProvince(p, grouped.get(p) || []));
+      return { text: [header, ...blocks].join("\n\n"), structuredContent };
+    }
+
     const errs = shaped.filter((r) => r && r.type === "error").map((r) => String(r.error || ""));
     const kinds = errs.map(classifyErrorCode);
     const kind: "TIMEOUT" | "UPSTREAM" | "NO_DATA" | "PROVINCE_MISSING" =
@@ -293,10 +372,6 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
 
     return { text, structuredContent };
   }
-
-  const grouped = groupByProvince(shaped);
-
-  const provinces = Array.from(grouped.keys());
   if (provinces.length === 0) {
     return { text: "ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)", structuredContent };
   }
