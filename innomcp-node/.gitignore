@@ -82,4 +82,7 @@ yarn-error.log*
 # Phase 8.6.1: WX NWP Fallback Guard verifier
 !/scripts/verify_phase86_1_weather_nwp_guard.ts
 
+# Phase 8.7: Weather Resolver Accuracy + Log Hygiene verifier
+!/scripts/verify_phase87_weather_resolver_loghygiene.ts
+
 

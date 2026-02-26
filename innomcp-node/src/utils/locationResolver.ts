@@ -133,6 +133,7 @@ const PROVINCE_MAP: Record<string, string> = {
   "กรุงเทพ": "กรุงเทพมหานคร",
   "บางกอก": "กรุงเทพมหานคร",
   "bangkok": "กรุงเทพมหานคร",
+  "bkk": "กรุงเทพมหานคร",
   "korat": "นครราชสีมา",
   "chiangmai": "เชียงใหม่",
   "phuket": "ภูเก็ต",
@@ -242,7 +243,7 @@ export function resolveProvinces(text: string): string[] {
 
   // ─── Phase 2: Token-based exact match (for tokenized/comma input) ───
   const tokens = original
-    .replace(/,|และ|กับ|ที่|ใน|จังหวัด|อำเภอ|เขต|แขวง|จ\.?\s*/g, " ")
+    .replace(/,|และ|กับ|ที่|ใน|จังหวัด|อำเภอ|เขต|แขวง|ตำบล|จ\.?\s*/g, " ")
     .split(/\s+/);
 
   for (const token of tokens) {

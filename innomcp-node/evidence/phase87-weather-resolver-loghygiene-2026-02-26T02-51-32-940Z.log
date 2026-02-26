@@ -1,0 +1,14 @@
+resolver.unit: PASS
+wx.resolveTarget1 provinces=["กรุงเทพมหานคร"]
+wx.resolveTarget2 provinces=["กรุงเทพมหานคร"]
+wx.resolveTarget3 provinces=["กรุงเทพมหานคร"]
+wx.resolver: PASS
+national.execute type=national
+national: PASS
+abort1.http=0 aborted=true durMs=212
+abort2.http=0 aborted=true durMs=215
+mcp.finalize.count=2
+mcp.finalize.durations=[206,211]
+mcp.tmd.abort.count=0
+mcp.timing: PASS
+RESULT: PASS

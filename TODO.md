@@ -150,6 +150,31 @@
 - *********Issue: Province-missing user prompts were not emitting a deterministic ERR token for auditing.*********
   - Fix: emit `ERR:WX_PROVINCE_MISSING` for PROVINCE_MISSING in contract renderer + direct weather answer path.
 
+\***\*\*\*\***PHASE8.7: Weather Resolver Accuracy + Log Hygiene (Small but High Impact) (2026-02-26)\***\*\*\*\***
+
+- Scope lock:
+  - Weather-only + logging-only changes
+  - No routing/gate changes; resolver accuracy only
+  - MCP tool timing finalizes exactly once (no late “completed ...ms” after abort/close)
+
+- Runtime:
+  - `npm --prefix innomcp-node run build`
+  - PowerShell:
+    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase87_weather_resolver_loghygiene.ts`
+  - CMD:
+    - `cd /d innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phase87_weather_resolver_loghygiene.ts`
+
+- Evidence (PASS):
+  - `innomcp-node/evidence/phase87-weather-resolver-loghygiene-2026-02-26T02-51-32-940Z.log`
+
+- *********Issue: Bangkok district/abbrev queries (หลักสี่/ลาดกระบัง/กทม/กรุงเทพ/กรุงเทพฯ/BKK) could yield resolvedProvinces=[] and degrade WX target resolution.*********
+  - Fix: add alias `bkk` -> `กรุงเทพมหานคร`, and strip `ตำบล` token during normalization in location resolver.
+
+- *********Issue: MCP `/mcp` request lifecycle could log/finalize more than once (finish/close/aborted/error), causing late/duplicate timing lines.*********
+  - Fix: finalize-once guard in MCP server (treat `finish` as completed; `close` as client disconnect; handle `aborted/error` without double-finalize).
+
+- *********Note: Verifier abort cases send `Accept: application/json, text/event-stream` to avoid `406` and force real client abort (status=0).*********
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS

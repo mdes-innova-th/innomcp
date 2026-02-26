@@ -275,10 +275,14 @@ if (USE_INTELLIGENCE_PIPELINE) {
 // Handle incoming MCP requests /////////////////////////////
 app.post("/mcp", async (req, res) => {
   const requestStartTime = Date.now();
-  const method = req.body?.method || 'unknown';
-  const toolName = req.body?.params?.name || 'N/A';
-  
-  logBoth('INFO', `[⏱️  ${requestStartTime}] MCP Request: ${method} ${toolName !== 'N/A' ? `(${toolName})` : ''}`);
+  const method = req.body?.method || "unknown";
+  const toolName = req.body?.params?.name || "N/A";
+
+  // Log start as 0ms (not epoch) for consistency/debuggability.
+  logBoth(
+    "INFO",
+    `[⏱️  0ms] MCP Request started: ${method} ${toolName !== "N/A" ? `(${toolName})` : ""}`
+  );
   
   // Basic validation for JSON-RPC request body
   const body = req.body;
@@ -325,7 +329,7 @@ app.post("/mcp", async (req, res) => {
     enableJsonResponse: true,
   });
 
-  let didLog = false;
+  let finalized = false;
   let didCloseTransport = false;
   const closeTransport = () => {
     if (didCloseTransport) return;
@@ -333,26 +337,52 @@ app.post("/mcp", async (req, res) => {
     try { transport.close(); } catch {}
   };
 
+  const finalizeOnce = (level: "INFO" | "WARN" | "ERROR", msg: string) => {
+    if (finalized) return;
+    finalized = true;
+    logBoth(level, msg);
+    closeTransport();
+  };
+
   // FINISH = response has been fully written (true request lifecycle)
   res.on("finish", () => {
-    if (didLog) return;
-    didLog = true;
     const duration = Date.now() - requestStartTime;
-    logBoth('INFO', `[⏱️  ${duration}ms] MCP Request completed: ${method} ${toolName !== 'N/A' ? `(${toolName})` : ''}`);
-    closeTransport();
+    finalizeOnce(
+      "INFO",
+      `[⏱️  ${duration}ms] MCP Request completed: ${method} ${toolName !== "N/A" ? `(${toolName})` : ""}`
+    );
   });
 
   // CLOSE = underlying socket closed (may be keep-alive timeout minutes later)
   // Only treat as cancellation if it happens before finish.
   res.on("close", () => {
-    if (res.writableEnded || didLog) {
+    if (res.writableEnded) {
       closeTransport();
       return;
     }
-    didLog = true;
     const duration = Date.now() - requestStartTime;
-    logBoth('WARN', `[⏱️  ${duration}ms] MCP Request closed (client disconnect): ${method} ${toolName !== 'N/A' ? `(${toolName})` : ''}`);
-    closeTransport();
+    finalizeOnce(
+      "WARN",
+      `[⏱️  ${duration}ms] MCP Request closed (client disconnect): ${method} ${toolName !== "N/A" ? `(${toolName})` : ""}`
+    );
+  });
+
+  // ABORTED = client aborted request before response finished
+  req.on("aborted", () => {
+    const duration = Date.now() - requestStartTime;
+    finalizeOnce(
+      "WARN",
+      `[⏱️  ${duration}ms] MCP Request aborted (client abort): ${method} ${toolName !== "N/A" ? `(${toolName})` : ""}`
+    );
+  });
+
+  // ERROR = request/response stream error
+  req.on("error", (e: any) => {
+    const duration = Date.now() - requestStartTime;
+    finalizeOnce(
+      "ERROR",
+      `[⏱️  ${duration}ms] MCP Request error: ${method} ${toolName !== "N/A" ? `(${toolName})` : ""} err=${String(e?.message || e)}`
+    );
   });
 
   await mcpserver.connect(transport);
