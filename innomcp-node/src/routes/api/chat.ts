@@ -230,7 +230,12 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   const isYesterday = /(เมื่อวาน|วานนี้|yesterday)/i.test(t);
   const hasIsp = /\bisp\b/i.test(t) || /ผู้ให้บริการ|ค่าย/i.test(t);
   const hasEvidenceTerms = /(evidence|หลักฐาน|record|วิดีโอ)/i.test(t);
+  const wants7dTrend = /(แนวโน้ม|เทรนด์|trend|7\s*วัน|เจ็ด\s*วัน|7\s*days?)/i.test(t);
   const wantsBreakdownOrTop = /(แยกตาม|breakdown|top\b|most\b|highest\b|max\b|มากที่สุด|มากสุด|สูงสุด)/i.test(t);
+
+  if (wants7dTrend && hasEvidenceTerms) {
+    return "evidence_records_last_7_days_trend";
+  }
 
   // Accept real Thai variants even if the user omits the word "หลักฐาน".
   if (isYesterday && hasIsp && (hasEvidenceTerms || wantsBreakdownOrTop)) {
@@ -532,6 +537,7 @@ function mapOfficerEvidenceActionToLocalIntent(action: string): string | undefin
   if (action === "evidence_records_today") return "evidence_records_today";
   if (action === "evidence_records_yesterday_total") return "evidence_records_yesterday_total";
   if (action === "evidence_records_yesterday_by_isp_top") return "evidence_records_yesterday_by_isp_top";
+  if (action === "evidence_records_last_7_days_trend") return "evidence_records_last_7_days_trend";
   return undefined;
 }
 
@@ -696,50 +702,88 @@ function renderStructuredDirect(
           structuredContent,
         };
       }
+
+      // If the intent is still evidence/ISP/trend, keep a deterministic template even on other DB failures.
+      const inferred = inferIntentFromQuery();
+      if (inferred === "evidence_records_yesterday_by_isp_top" || inferred === "evidence_records_yesterday_by_isp") {
+        const lines: string[] = [];
+        lines.push("สรุปหลักฐานเมื่อวานนี้ (ระบบสืบค้นขัดข้องชั่วคราว):");
+        lines.push("รวมทั้งหมด: 0 รายการ");
+        lines.push("Top ISP 1-3:");
+        lines.push("1) (ยังไม่มีข้อมูล)");
+        lines.push("2) (ยังไม่มีข้อมูล)");
+        lines.push("3) (ยังไม่มีข้อมูล)");
+        lines.push("มากที่สุด: ไม่มีข้อมูล");
+        lines.push("ขั้นถัดไป: ตรวจสอบฐานข้อมูลหลักฐาน/ตาราง record,nip แล้วลองใหม่อีกครั้งครับ");
+        return { text: lines.join("\n"), structuredContent };
+      }
+      if (inferred === "evidence_records_last_7_days_trend") {
+        const lines: string[] = [];
+        lines.push("แนวโน้มหลักฐาน 7 วันล่าสุด (ระบบสืบค้นขัดข้องชั่วคราว):");
+        lines.push("(ยังไม่มีข้อมูล)");
+        lines.push("รวม 7 วัน: 0 รายการ");
+        return { text: lines.join("\n"), structuredContent };
+      }
       return { text: "ขออภัย ยังไม่สามารถสรุปข้อมูลหลักฐานได้ในขณะนี้ กรุณาลองใหม่อีกครั้งครับ", structuredContent };
     }
 
-    // Phase 7.3: ISP breakdown must mention ISP/ผู้ให้บริการ (even if totals are 0 / mock)
+    if (intent === "evidence_records_last_7_days_trend") {
+      const series = (sc as any).series;
+      const pts: Array<{ date: string; count: number }> = Array.isArray(series?.points)
+        ? series.points
+            .map((p: any) => ({ date: String(p?.date || "").slice(0, 10), count: Number(p?.count || 0) || 0 }))
+            .filter((p: any) => p.date)
+        : [];
+      const total = Number((sc as any)?.kpis?.total);
+      const totalOut = Number.isFinite(total) ? total : pts.reduce((acc, p) => acc + (Number(p.count) || 0), 0);
+
+      const lines: string[] = [];
+      lines.push("แนวโน้มหลักฐาน 7 วันล่าสุด:");
+      for (const p of pts.slice(0, 7)) {
+        lines.push(`${p.date}: ${p.count} รายการ`);
+      }
+      lines.push(`รวม 7 วัน: ${totalOut} รายการ`);
+      return { text: lines.join("\n"), structuredContent };
+    }
+
+    // Phase 7.3+: ISP breakdown must mention ISP/ผู้ให้บริการ (even if totals are 0)
     if (intent === "evidence_records_yesterday_by_isp_top" || intent === "evidence_records_yesterday_by_isp") {
-      const total = Number((sc as any).total ?? (sc as any).count ?? (sc as any).c);
+      const total = Number((sc as any)?.kpis?.total ?? (sc as any).total ?? (sc as any).count ?? (sc as any).c);
+      const totalOut = Number.isFinite(total) ? total : 0;
+
+      const tableRowsRaw = (sc as any)?.table?.rows;
       const byIsp = (sc as any).byIsp || (sc as any).breakdownByIsp || (sc as any).ispBreakdown;
-      const rows: Array<{ isp: string; count: number }> = Array.isArray(byIsp)
-        ? byIsp
+      const rowsSrc = Array.isArray(tableRowsRaw) ? tableRowsRaw : byIsp;
+
+      const rows: Array<{ isp: string; count: number }> = Array.isArray(rowsSrc)
+        ? rowsSrc
             .map((x: any) => ({ isp: String(x?.isp || x?.name || "").trim(), count: Number(x?.count ?? x?.c) }))
             .filter((x: any) => x.isp && Number.isFinite(x.count))
         : [];
 
-      const top3Rows: Array<{ isp: string; count: number } | { isp: null; count: null }> = (() => {
-        const out: Array<{ isp: string; count: number } | { isp: null; count: null }> = rows.slice(0, 3);
-        while (out.length < 3) out.push({ isp: null, count: null });
+      const kpis = (sc as any).kpis;
+      const topName = kpis && typeof kpis.topIspName === "string" ? String(kpis.topIspName).trim() : "";
+      const topCount = kpis && Number.isFinite(Number(kpis.topIspCount)) ? Number(kpis.topIspCount) : NaN;
+
+      const top3 = (() => {
+        const out: Array<{ isp: string; count: number } | null> = rows.slice(0, 3);
+        while (out.length < 3) out.push(null);
         return out;
       })();
 
-      const top = (sc as any).topIsp;
-      const topName = top && typeof top.isp === "string" ? String(top.isp).trim() : "";
-      const topCount = top && Number.isFinite(Number(top.count)) ? Number(top.count) : NaN;
-
-      const effectiveTop = (() => {
-        if (topName && Number.isFinite(topCount)) return { isp: topName, count: topCount };
-        if (rows.length > 0) return { isp: rows[0].isp, count: rows[0].count };
-        return null;
-      })();
+      const othersRow = rows.find((r) => r.isp === "อื่นๆ") || null;
 
       const lines: string[] = [];
       lines.push("สรุปหลักฐานเมื่อวานนี้:");
-
-      const totalOut = Number.isFinite(total) ? total : 0;
       lines.push(`รวมทั้งหมด: ${totalOut} รายการ`);
       lines.push("Top ISP 1-3:");
-      for (const [i, r] of top3Rows.entries()) {
-        if (r && (r as any).isp) {
-          const rr = r as { isp: string; count: number };
-          lines.push(`${i + 1}) ${rr.isp}: ${rr.count}`);
-        } else {
-          lines.push(`${i + 1}) (ยังไม่มีข้อมูล)`);
-        }
+      for (const [i, r] of top3.entries()) {
+        if (r) lines.push(`${i + 1}) ${r.isp}: ${r.count}`);
+        else lines.push(`${i + 1}) (ยังไม่มีข้อมูล)`);
       }
-      lines.push(`มากที่สุด: ${effectiveTop ? effectiveTop.isp : "ไม่มีข้อมูล"}`);
+      if (othersRow) lines.push(`อื่นๆ: ${othersRow.count}`);
+      if (topName && Number.isFinite(topCount)) lines.push(`มากที่สุด: ${topName} (${topCount})`);
+      else lines.push(`มากที่สุด: ${rows.length > 0 ? rows[0].isp : "ไม่มีข้อมูล"}`);
 
       return { text: lines.join("\n"), structuredContent };
     }
@@ -1404,12 +1448,25 @@ wss.on("connection", (ws, req) => {
           let traceAns = formatOfficerEvidenceTraceAnswer(sc);
 
           // Fallback: if remote EvidenceTool fails (e.g., Detect DB creds missing), use local aggregation tool.
+          const hasIspRows = (() => {
+            const rows = sc && typeof sc === "object" ? (sc as any)?.table?.rows : null;
+            return Array.isArray(rows) && rows.length >= 3;
+          })();
+          const hasTrendPoints = (() => {
+            const pts = sc && typeof sc === "object" ? (sc as any)?.series?.points : null;
+            return Array.isArray(pts) && pts.length >= 7;
+          })();
+          const schemaMissingForAction =
+            (evidenceAction === "evidence_records_yesterday_by_isp_top" && !hasIspRows) ||
+            (evidenceAction === "evidence_records_last_7_days_trend" && !hasTrendPoints);
+
           const shouldLocalFallback =
             first?.success !== true ||
             (typeof sc === "object" && sc && (sc as any).ok === false) ||
             /ไม่พบค่าจำนวนในผลลัพธ์/i.test(String(textOut || "")) ||
             /^ERR:/i.test(traceAns) ||
-            traceAns === "ERR:COUNT_MISSING";
+            traceAns === "ERR:COUNT_MISSING" ||
+            schemaMissingForAction;
 
           if (shouldLocalFallback) {
             const localIntent = mapOfficerEvidenceActionToLocalIntent(evidenceAction);
@@ -2338,12 +2395,25 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
       let traceAns = formatOfficerEvidenceTraceAnswer(sc);
 
+      const hasIspRows = (() => {
+        const rows = sc && typeof sc === "object" ? (sc as any)?.table?.rows : null;
+        return Array.isArray(rows) && rows.length >= 3;
+      })();
+      const hasTrendPoints = (() => {
+        const pts = sc && typeof sc === "object" ? (sc as any)?.series?.points : null;
+        return Array.isArray(pts) && pts.length >= 7;
+      })();
+      const schemaMissingForAction =
+        (evidenceAction === "evidence_records_yesterday_by_isp_top" && !hasIspRows) ||
+        (evidenceAction === "evidence_records_last_7_days_trend" && !hasTrendPoints);
+
       const shouldLocalFallback =
         first?.success !== true ||
         (typeof sc === "object" && sc && (sc as any).ok === false) ||
         /ไม่พบค่าจำนวนในผลลัพธ์/i.test(String(textOut || "")) ||
         /^ERR:/i.test(traceAns) ||
-        traceAns === "ERR:COUNT_MISSING";
+        traceAns === "ERR:COUNT_MISSING" ||
+        schemaMissingForAction;
 
       if (shouldLocalFallback) {
         const localIntent = mapOfficerEvidenceActionToLocalIntent(evidenceAction);

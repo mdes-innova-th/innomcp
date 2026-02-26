@@ -28,6 +28,7 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
           "evidence_records_today",
           "evidence_records_yesterday_total",
           "evidence_records_yesterday_by_isp_top",
+          "evidence_records_last_7_days_trend",
           "pending_evidence",
           "recent_threats",
         ],
@@ -45,68 +46,85 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
 export async function handleEvidenceTool(args: any): Promise<any> {
   const { intent } = args || {};
 
-  const assertDetectDbCreds = (currentIntent?: string): { ok: true } | { ok: false; code: string; message: string } => {
-    const host = process.env.DETECT_DB_HOST;
-    const user = process.env.DETECT_DB_USER;
-    const password = process.env.DETECT_DB_PASSWORD;
-    const db = process.env.DETECT_DB_NAME;
+  const placeholderIspTable = () => ({
+    rows: [
+      { isp: "(ยังไม่มีข้อมูล)", count: 0 },
+      { isp: "(ยังไม่มีข้อมูล)", count: 0 },
+      { isp: "(ยังไม่มีข้อมูล)", count: 0 },
+      { isp: "อื่นๆ", count: 0 },
+    ],
+  });
 
-    if (!host || !user || !password || !db) {
-      return {
-        ok: false,
-        code: "MISSING_DETECT_DB_CREDS",
-        message: "ยังไม่ได้ตั้งค่าการเชื่อมต่อฐานข้อมูล Detect จึงยังไม่สามารถดึงสถิติหลักฐานจริงได้ในตอนนี้",
-      };
-    }
-    return { ok: true };
+  const buildKpis = (total: number, topIspName?: string | null, topIspCount?: number | null) => {
+    const t = Number(total);
+    return {
+      total: Number.isFinite(t) ? t : 0,
+      topIspName: topIspName ?? null,
+      topIspCount: typeof topIspCount === "number" && Number.isFinite(topIspCount) ? topIspCount : null,
+    };
   };
 
-  const mockNoDb = (currentIntent: string) => {
-    const base = {
-      ok: true,
+  const buildMissingCreds = (currentIntent: string) => {
+    const base: any = {
+      ok: false,
+      code: "MISSING_DETECT_DB_CREDS",
       intent: currentIntent,
-      mock: true,
-      code: "MOCK_NO_DB",
-      note: "ยังไม่ได้ตั้งค่าการเชื่อมต่อฐานข้อมูล Detect (แสดงผลแบบจำลอง/0 ชั่วคราว)",
-    } as any;
+      message: "ขออภัย ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน กรุณาติดต่อผู้ดูแลระบบหรือลองใหม่ภายหลังครับ",
+      kpis: buildKpis(0, null, null),
+      table: {
+        rows: [
+          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
+          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
+          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
+          { isp: "อื่นๆ", count: 0 },
+        ],
+      },
+    };
 
-    const today = getBangkokDate(0);
-    const yesterday = getBangkokDate(-1);
-
-    if (currentIntent === "active_evidence_machines" || currentIntent === "machine_status") {
-      return { ...base, intent: "active_evidence_machines", count: 0, summary: "ตอนนี้เครื่องออนไลน์: 0 เครื่อง (ยังไม่เชื่อมต่อฐานข้อมูล)" };
-    }
-    if (currentIntent === "active_evidence_machines_offline") {
-      return { ...base, count: 0, summary: "ตอนนี้เครื่องออฟไลน์: 0 เครื่อง (ยังไม่เชื่อมต่อฐานข้อมูล)" };
-    }
-    if (currentIntent === "machines_evidence_active_today") {
-      return { ...base, date: today, count: 0, summary: "วันนี้ machine evidence ทำงาน: 0 เครื่อง (ยังไม่เชื่อมต่อฐานข้อมูล)" };
-    }
-    if (currentIntent === "evidence_records_today") {
-      return { ...base, date: today, count: 0, summary: "วันนี้จัดเก็บหลักฐานวิดีโอได้: 0 รายการ (ยังไม่เชื่อมต่อฐานข้อมูล)" };
-    }
-    if (currentIntent === "evidence_records_yesterday_total") {
-      return { ...base, date: yesterday, count: 0, summary: "เมื่อวานนี้จัดเก็บหลักฐานวิดีโอได้: 0 รายการ (ยังไม่เชื่อมต่อฐานข้อมูล)" };
-    }
-    if (currentIntent === "evidence_records_yesterday_by_isp_top") {
-      const byIsp = [{ isp: "(ไม่สามารถระบุได้)", count: 0 }];
-      return {
-        ...base,
-        date: yesterday,
-        total: 0,
-        byIsp,
-        topIsp: byIsp[0],
-        summary: "เมื่อวานนี้รวม 0 รายการ | ISP มากที่สุด: (ไม่สามารถระบุได้) (0) | หมายเหตุ: ยังไม่เชื่อมต่อฐานข้อมูล",
+    if (currentIntent === "evidence_records_last_7_days_trend") {
+      const end = getBangkokDate(0);
+      const start = getBangkokDate(-6);
+      base.range = { start, end };
+      base.series = {
+        label: "หลักฐานต่อวัน",
+        points: Array.from({ length: 7 }).map((_, idx) => ({ date: getBangkokDate(-6 + idx), count: 0 })),
       };
     }
-    if (currentIntent === "pending_evidence") {
-      return { ...base, date: today, count: 0, summary: "หลักฐานค้างดำเนินการวันนี้: 0 รายการ (ยังไม่เชื่อมต่อฐานข้อมูล)" };
-    }
-    if (currentIntent === "recent_threats") {
-      return { ...base, date: today, count: 0, summary: "เหตุการณ์ (NIP) วันนี้: 0 รายการ (ยังไม่เชื่อมต่อฐานข้อมูล)" };
+
+    return base;
+  };
+
+  const buildErrorShell = (currentIntent: string, code: string) => {
+    const base: any = {
+      ok: false,
+      code,
+      intent: currentIntent,
+      message: "ขออภัย ระบบสืบค้นฐานข้อมูลหลักฐานขัดข้อง กรุณาลองใหม่อีกครั้งครับ",
+      kpis: buildKpis(0, null, null),
+    };
+
+    if (currentIntent === "evidence_records_yesterday_by_isp_top") {
+      base.table = {
+        rows: [
+          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
+          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
+          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
+          { isp: "อื่นๆ", count: 0 },
+        ],
+      };
     }
 
-    return { ...base, summary: "ยังไม่เชื่อมต่อฐานข้อมูล Detect" };
+    if (currentIntent === "evidence_records_last_7_days_trend") {
+      const end = getBangkokDate(0);
+      const start = getBangkokDate(-6);
+      base.range = { start, end };
+      base.series = {
+        label: "หลักฐานต่อวัน",
+        points: Array.from({ length: 7 }).map((_, idx) => ({ date: getBangkokDate(-6 + idx), count: 0 })),
+      };
+    }
+
+    return base;
   };
 
   const getBangkokDate = (offsetDays: number): string => {
@@ -145,11 +163,6 @@ export async function handleEvidenceTool(args: any): Promise<any> {
   try {
     if (!intent) {
       return { ok: false, code: "MISSING_INTENT", message: "intent is required" };
-    }
-
-    const creds = assertDetectDbCreds(intent);
-    if (!creds.ok) {
-      return mockNoDb(intent);
     }
 
     const today = getBangkokDate(0);
@@ -238,6 +251,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         intent,
         date: yesterday,
         count: n,
+        kpis: buildKpis(n, null, null),
         dateColumn: createdCol,
         summary: `เมื่อวานนี้จัดเก็บหลักฐานวิดีโอได้: ${n} รายการ`,
       };
@@ -254,7 +268,17 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]);
 
       if (!createdCol) {
-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", table: "record", columns: recordCols };
+        return {
+          ok: false,
+          intent,
+          code: "MISSING_DATE_COLUMN",
+          dbTable: "record",
+          columns: recordCols,
+          kpis: buildKpis(0, null, null),
+          tableShape: "isp_top3_plus_others",
+          table: placeholderIspTable(),
+          summary: "ยังไม่สามารถสรุปแยกตาม ISP ได้ เพราะไม่พบคอลัมน์วันที่ในตาราง record",
+        };
       }
 
       // Always compute total (even if we cannot join)
@@ -267,6 +291,9 @@ export async function handleEvidenceTool(args: any): Promise<any> {
           code: "MISSING_REQUIRED_COLUMNS",
           date: yesterday,
           total,
+          kpis: buildKpis(total, null, null),
+          tableShape: "isp_top3_plus_others",
+          table: placeholderIspTable(),
           missing: {
             recordNipCol: recordNipCol || null,
             nipNoCol: nipNoCol || null,
@@ -277,7 +304,6 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         };
       }
 
-      const limit = Number(args?.limit || 10);
       const rows = await queryEvidence<any>(
         `SELECT n.\`${ispCol}\` as isp, COUNT(*) as c\n` +
           `FROM record r\n` +
@@ -285,8 +311,8 @@ export async function handleEvidenceTool(args: any): Promise<any> {
           `WHERE DATE(r.\`${createdCol}\`) = ?\n` +
           `GROUP BY n.\`${ispCol}\`\n` +
           `ORDER BY c DESC\n` +
-          `LIMIT ?`,
-        [yesterday, limit]
+          `LIMIT 3`,
+        [yesterday]
       );
 
       const byIsp = Array.isArray(rows)
@@ -297,16 +323,68 @@ export async function handleEvidenceTool(args: any): Promise<any> {
 
       const top = byIsp.length > 0 ? byIsp[0] : null;
 
+      const sumTop = byIsp.reduce((acc: number, r: any) => acc + (Number(r.count) || 0), 0);
+      const others = Math.max(0, total - sumTop);
+
+      const tableRows: Array<{ isp: string; count: number }> = (() => {
+        const out = byIsp.slice(0, 3);
+        while (out.length < 3) out.push({ isp: "(ยังไม่มีข้อมูล)", count: 0 });
+        out.push({ isp: "อื่นๆ", count: others });
+        return out;
+      })();
+
       return {
         ok: true,
         intent,
         date: yesterday,
         total,
-        byIsp,
+        byIsp: tableRows,
         topIsp: top,
+        kpis: buildKpis(total, top ? top.isp : null, top ? top.count : null),
+        table: { rows: tableRows },
         summary: top
           ? `เมื่อวานนี้รวม ${total} รายการ | ISP มากสุด: ${top.isp} (${top.count})`
           : `เมื่อวานนี้รวม ${total} รายการ`,
+      };
+    }
+
+    if (intent === "evidence_records_last_7_days_trend") {
+      const cols = await getColumns("record");
+      const createdCol = pickFirstColumn(cols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
+      if (!createdCol) {
+        return { ok: false, intent, code: "MISSING_DATE_COLUMN", table: "record", columns: cols };
+      }
+
+      const end = getBangkokDate(0);
+      const start = getBangkokDate(-6);
+      const rows = await queryEvidence<any>(
+        `SELECT DATE(\`${createdCol}\`) as d, COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) BETWEEN ? AND ? GROUP BY DATE(\`${createdCol}\`) ORDER BY d ASC`,
+        [start, end]
+      );
+
+      const byDate = new Map<string, number>();
+      if (Array.isArray(rows)) {
+        for (const r of rows) {
+          const d = String(r?.d || "").slice(0, 10);
+          const c = Number(r?.c || 0) || 0;
+          if (d) byDate.set(d, c);
+        }
+      }
+
+      const points = Array.from({ length: 7 }).map((_, idx) => {
+        const date = getBangkokDate(-6 + idx);
+        return { date, count: byDate.get(date) ?? 0 };
+      });
+      const total = points.reduce((acc, p) => acc + (Number(p.count) || 0), 0);
+
+      return {
+        ok: true,
+        intent,
+        range: { start, end },
+        kpis: buildKpis(total, null, null),
+        series: { label: "หลักฐานต่อวัน", points },
+        dateColumn: createdCol,
+        summary: `แนวโน้ม 7 วันล่าสุด: รวม ${total} รายการ`,
       };
     }
 
@@ -340,10 +418,12 @@ export async function handleEvidenceTool(args: any): Promise<any> {
 
     return { ok: false, code: "UNKNOWN_INTENT", message: `Unknown intent: ${String(intent)}` };
   } catch (error: any) {
-    return {
-      ok: false,
-      code: "EVIDENCE_QUERY_FAILED",
-      message: String(error?.message || error),
-    };
+    const code = String(error?.code || "").toUpperCase();
+    if (code === "MISSING_DETECT_DB_CREDS") {
+      return buildMissingCreds(String(intent || "unknown"));
+    }
+
+    // Keep schema deterministic even on failures (no raw error details).
+    return buildErrorShell(String(intent || "unknown"), "EVIDENCE_QUERY_FAILED");
   }
 }

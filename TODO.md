@@ -245,6 +245,35 @@
 
 - *********Note: Snapshot keywords are deterministic and stored in `innomcp-node/src/utils/mcp/keywordSnapshot.ts`.*********
 
+\***\*\*\*\*\*\*\*\*PHASE9.1: DetectDB E2E (Deterministic host/container) (2026-02-26)\***\*\*\*\*\*\*\*\*
+
+- Scope lock:
+  - Deterministic evidence routing + renderer-only text (NO JSON blocks)
+  - DetectDB connectivity deterministic:
+    - Host mode: `127.0.0.1:3308`
+    - Container mode: `mariadb:3306`
+  - Aggregation-only + parameterized SQL (no raw rows/PII)
+
+- Result: PASS
+
+- Evidence:
+  - `innomcp-node/evidence/phase91-20260226-233415.log`
+
+- Work (DONE):
+  - Backend DetectDB resolver: `innomcp-node/src/utils/db/evidenceConnection.ts` (remove `EVIDENCE_DB_*` fallback)
+  - Evidence tool schema: `structuredContent.kpis/table/series` + new intent `evidence_records_last_7_days_trend`
+    - `innomcp-node/src/utils/mcp/tools/evidenceTool.ts`
+  - Deterministic routing + renderer:
+    - `innomcp-node/src/routes/api/chat.ts`
+  - Verifier:
+    - `innomcp-node/scripts/verify_phase91_detectdb_e2e.ts`
+
+- Runtime:
+  - PowerShell:
+    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase91_detectdb_e2e.ts`
+  - CMD:
+    - `cd /d innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phase91_detectdb_e2e.ts`
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS

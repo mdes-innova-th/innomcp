@@ -20,35 +20,29 @@ type DetectDbConfig = {
 };
 
 function resolveDetectDbConfig(): DetectDbConfig {
-    const host =
-        process.env.DETECT_DB_HOST ||
-        process.env.EVIDENCE_DB_HOST ||
-        process.env.DB_HOST ||
-        "localhost";
+    if (process.env.DETECT_DB_DISABLED === "1") {
+        const e: any = new Error("Detect DB disabled");
+        e.code = "MISSING_DETECT_DB_CREDS";
+        throw e;
+    }
 
-    const port =
-        Number(process.env.DETECT_DB_PORT || process.env.EVIDENCE_DB_PORT || process.env.DB_PORT || "3306") ||
-        3306;
+    // Deterministic defaults:
+    // - Host mode (Node on host, MariaDB in Docker): 127.0.0.1:3308
+    // - Container mode (Node in Docker): mariadb:3306 (DB_HOST is overridden in compose)
+    // NOTE: avoid falling back to EVIDENCE_DB_* to prevent accidental remote connections.
+    const appDbHost = String(process.env.DB_HOST || "").trim();
+    const isContainerMode = /^mariadb$/i.test(appDbHost);
 
-    const user =
-        process.env.DETECT_DB_USER ||
-        process.env.EVIDENCE_DB_USER ||
-        process.env.DB_USER ||
-        "root";
+    const host = String(process.env.DETECT_DB_HOST || (isContainerMode ? "mariadb" : "127.0.0.1")).trim();
+    const portRaw = process.env.DETECT_DB_PORT || (isContainerMode ? "3306" : "3308");
+    const port = Number(portRaw) || (isContainerMode ? 3306 : 3308);
 
-    const password =
-        process.env.DETECT_DB_PASSWORD ||
-        process.env.EVIDENCE_DB_PASSWORD ||
-        process.env.DB_PASSWORD ||
-        "";
-
-    const database =
-        process.env.DETECT_DB_NAME ||
-        process.env.EVIDENCE_DB_NAME ||
-        "detect";
+    const user = String(process.env.DETECT_DB_USER || process.env.DB_USER || "").trim();
+    const password = String(process.env.DETECT_DB_PASSWORD || process.env.DB_PASSWORD || "");
+    const database = String(process.env.DETECT_DB_NAME || "innomcp-db").trim();
 
     if (!host || !user || !database || !password) {
-        const e: any = new Error("Detect DB is not configured (missing DETECT_DB_* credentials)");
+        const e: any = new Error("Detect DB is not configured");
         e.code = "MISSING_DETECT_DB_CREDS";
         throw e;
     }
