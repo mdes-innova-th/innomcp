@@ -39,6 +39,36 @@ function appendFormatJson(url: string): string {
   return url.includes("?") ? `${url}&format=json` : `${url}?format=json`;
 }
 
+function redactUrlForLog(url: string): string {
+  // Redact sensitive query params (uid/ukey) from logged URLs.
+  // Keep other params (e.g. format=json) intact.
+  try {
+    const u = new URL(url);
+    u.searchParams.delete("uid");
+    u.searchParams.delete("ukey");
+    return u.toString();
+  } catch {
+    // Best-effort for invalid URLs
+    let s = String(url || "");
+    s = s.replace(/([?&])(uid|ukey)=[^&]*/gi, "$1$2=<redacted>");
+    // Remove the param name too (operator-grade logs should not include ukey=/uid=)
+    s = s.replace(/([?&])(uid|ukey)=<redacted>/gi, "");
+    s = s.replace(/\?&/, "?");
+    s = s.replace(/[?&]$/, "");
+    return s;
+  }
+}
+
+function sanitizeSnippetForLog(input: string, maxChars = 200): string {
+  let s = String(input ?? "");
+  s = s.replace(/[\r\n\t]+/g, " ");
+  s = s.replace(/\s+/g, " ").trim();
+  // Remove braces/quotes/backticks to avoid dumping JSON-ish content.
+  s = s.replace(/[{}"'`]/g, "");
+  if (s.length > maxChars) s = s.slice(0, maxChars);
+  return s;
+}
+
 async function fetchWithTimeout(url: string, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -99,7 +129,7 @@ async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) 
   const finalUrl = appendFormatJson(url);
   const start = nowMs();
 
-  logBoth("INFO", `[TMD:${toolName}] GET ${finalUrl}`);
+  logBoth("INFO", `[TMD:${toolName}] GET ${redactUrlForLog(finalUrl)}`);
 
   try {
     // SMOKE verifier: allow simulating slow station calls (must never leak in answers).
@@ -115,11 +145,11 @@ async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) 
     const durationMs = nowMs() - start;
 
     const bodyText = await resp.text().catch(() => "");
-    const bodySnippet = bodyText.slice(0, 400);
+    const snippet = sanitizeSnippetForLog(bodyText, 200);
 
     logBoth(
       resp.ok ? "INFO" : "ERROR",
-      `[TMD:${toolName}] status=${resp.status} time=${durationMs}ms bodySnippet=${JSON.stringify(bodySnippet)}`
+      `[TMD:${toolName}] status=${resp.status} time=${durationMs}ms snippet=${snippet || "<empty>"}`
     );
 
     if (!resp.ok) {
@@ -196,7 +226,7 @@ function registerSimpleTmdTool(
         // ถ้ามี args เกินมา ถือว่า ignore แต่ log ไว้
         const extraKeys = Object.keys(parsed.data ?? {});
         if (extraKeys.length > 0) {
-          logBoth("WARN", `[TMD:${opts.name}] args ignored: keys=${JSON.stringify(extraKeys)}`);
+          logBoth("WARN", `[TMD:${opts.name}] args ignored: argsKeys=${extraKeys.join(",")}`);
         }
       }
 

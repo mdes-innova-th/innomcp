@@ -1,0 +1,7 @@
+wx1.http=200 durMs=5455
+wx2.http=200 durMs=15016
+wx3.http=200 durMs=8
+mcp.abort.http=0 aborted=true durMs=208
+scan.lines=83
+scan.tmdSnippets=1
+RESULT: PASS

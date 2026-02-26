@@ -85,4 +85,7 @@ yarn-error.log*
 # Phase 8.7: Weather Resolver Accuracy + Log Hygiene verifier
 !/scripts/verify_phase87_weather_resolver_loghygiene.ts
 
+# Phase 8.8: Logging Hygiene Hardening verifier
+!/scripts/verify_phase88_log_hygiene.ts
+
 

@@ -15,6 +15,14 @@ import { parseMcpPayload, primeWeatherToolCallCachePayload } from "../weather/to
 
 type ToolCostTier = "light" | "heavy";
 
+const HEALTHCHECK_LOG_ENABLED = !(process.env.CHAT_TRACE_QA === "1" && process.env.LOG_DEBUG !== "1");
+function hcLog(...args: any[]) {
+  if (HEALTHCHECK_LOG_ENABLED) console.log(...args);
+}
+function hcError(...args: any[]) {
+  if (HEALTHCHECK_LOG_ENABLED) console.error(...args);
+}
+
 function getToolCostTier(toolName: string): ToolCostTier {
   const name = String(toolName || "");
   if (
@@ -84,19 +92,19 @@ export class ToolHealthCheckSystem {
       if (Number.isFinite(parsed) && parsed > 0) this.heavyCheckIntervalMs = parsed;
     }
 
-    console.log(chalk.cyan(`\n[HealthCheck] 🏥 Tool Health Check System Started`));
-    console.log(
+    hcLog(chalk.cyan(`\n[HealthCheck] 🏥 Tool Health Check System Started`));
+    hcLog(
       chalk.gray(`[HealthCheck]   Light interval: ${this.checkIntervalMs / 1000}s`)
     );
-    console.log(
+    hcLog(
       chalk.gray(
         `[HealthCheck]   Heavy interval: ${this.heavyCheckIntervalMs ? `${this.heavyCheckIntervalMs / 1000}s` : "disabled"}`
       )
     );
-    console.log(
+    hcLog(
       chalk.gray(`[HealthCheck]   Max concurrent: ${this.maxConcurrentChecks}`)
     );
-    console.log(chalk.gray(`[HealthCheck]   Timeout: ${this.checkTimeout / 1000}s\n`));
+    hcLog(chalk.gray(`[HealthCheck]   Timeout: ${this.checkTimeout / 1000}s\n`));
 
     // Initial check after 10 seconds
     setTimeout(() => this.performHealthCheck({ tiers: ["light"], reason: "interval", includeHeavyPriming: false }), 10000);
@@ -121,7 +129,7 @@ export class ToolHealthCheckSystem {
     if (this.checkInterval) {
       clearInterval(this.checkInterval);
       this.checkInterval = null;
-      console.log(chalk.yellow("\n[HealthCheck] ⏸️  Tool health checks stopped\n"));
+      hcLog(chalk.yellow("\n[HealthCheck] ⏸️  Tool health checks stopped\n"));
     }
     if (this.heavyCheckInterval) {
       clearInterval(this.heavyCheckInterval);
@@ -134,7 +142,7 @@ export class ToolHealthCheckSystem {
    */
   public async performHealthCheck(options: HealthCheckOptions = {}): Promise<void> {
     if (this.isChecking) {
-      console.log(chalk.gray("[HealthCheck] Check already in progress, skipping..."));
+      hcLog(chalk.gray("[HealthCheck] Check already in progress, skipping..."));
       return;
     }
 
@@ -145,7 +153,7 @@ export class ToolHealthCheckSystem {
       const tools = this.client.getAvailableTools().filter((t) => tiers.includes(getToolCostTier(t.name)));
       
       if (tools.length === 0) {
-        console.log(chalk.red("\n[HealthCheck] ❌ No tools available to check\n"));
+        hcLog(chalk.red("\n[HealthCheck] ❌ No tools available to check\n"));
         return;
       }
 
@@ -173,11 +181,11 @@ export class ToolHealthCheckSystem {
       const shouldPrime = Boolean(options.includeHeavyPriming) || this.primeWeatherCacheOnCheck;
       if (shouldPrime) {
         await this.primeWeatherCaches().catch((e) => {
-          console.log(chalk.gray(`[HealthCheck] primeWeatherCaches skipped: ${String(e)}`));
+          hcLog(chalk.gray(`[HealthCheck] primeWeatherCaches skipped: ${String(e)}`));
         });
       }
     } catch (error) {
-      console.error(chalk.red(`\n[HealthCheck] Error: ${error}\n`));
+      hcError(chalk.red(`\n[HealthCheck] Error: ${error}\n`));
     } finally {
       this.isChecking = false;
     }
