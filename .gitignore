@@ -52,10 +52,16 @@ package-lock.json
 !/scripts/install-hooks.ps1
 !/scripts/run_rc_gate.ps1
 !/scripts/audit_db_ports.js
+!/scripts/run_ui_smoke_evidence_dashboard.ps1
 /docs/
 /tests/
 */.env
 /CHANGELOG/
+
+# Allowlist: single deterministic UI spec (evidence dashboard)
+!/tests/e2e/
+!/tests/e2e/tests/
+!/tests/e2e/tests/evidence-dashboard.spec.ts
 
 # Allowlist: DB port audit report + evidence
 !/docs/

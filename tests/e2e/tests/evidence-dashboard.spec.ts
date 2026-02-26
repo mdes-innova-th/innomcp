@@ -34,8 +34,8 @@ test.describe("Evidence Dashboard", () => {
       }
     });
 
-    await page.goto("http://localhost:3000");
-    await page.waitForLoadState("networkidle");
+    await page.goto("http://localhost:3000", { waitUntil: "domcontentloaded" });
+    await expect(page.locator('[data-testid="chat-input"]')).toBeVisible({ timeout: 20000 });
   });
 
   test("renders KPI/table for ISP evidence", async ({ page }) => {

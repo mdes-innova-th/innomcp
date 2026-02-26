@@ -97,4 +97,7 @@ yarn-error.log*
 # Phase 8.10B: Router resilience verifier
 !/scripts/verify_phase810b_router_resilience.ts
 
+# Phase 9.1: DetectDB deterministic E2E verifier
+!/scripts/verify_phase91_detectdb_e2e.ts
+
 

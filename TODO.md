@@ -274,18 +274,63 @@
   - CMD:
     - `cd /d innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phase91_detectdb_e2e.ts`
 
+\***\*\*\*\*\*\*\*\*PHASE9.1.1: DetectDB Provenance + Placeholder Contract (2026-02-27)\***\*\*\*\*\*\*\*\*
+
+- Scope lock:
+  - Tool-layer provenance tagging only (no new UX beyond placeholder note)
+  - Always return contract shape (kpis/table/series), but set:
+    - `structuredContent.meta.dataSource = detectdb | placeholder`
+    - `structuredContent.meta.note` (polite, no env/secret leakage) when placeholder
+  - Verifier must prove:
+    - A) placeholder path via unset creds
+    - B) real DetectDB path via seeded MariaDB
+
+- Result: PASS
+
+- Evidence:
+  - `innomcp-node/evidence/phase91-20260227-015410.log`
+
+- Work (DONE):
+  - Evidence tool meta: `innomcp-node/src/utils/mcp/tools/evidenceTool.ts`
+  - Verifier upgrade (placeholder + seeded real): `innomcp-node/scripts/verify_phase91_detectdb_e2e.ts`
+
 \***\*\*\*\*\*\*\*\*PHASE9.2: Evidence Dashboard UI (structuredContent-only) (2026-02-26)\***\*\*\*\*\*\*\*\*
 
 - Scope lock:
   - Render ONLY `structuredContent` for evidence (no LLM-generated numbers)
   - KPI chips + line chart + table; light/dark; green accent
 
-- Work (WIP):
+- Result: PASS
+
+- Work (DONE):
   - Frontend renderer:
     - `innomcp-next/src/app/components/chat/EvidenceDashboard.tsx`
     - wired in `innomcp-next/src/app/components/chat/ChatMessage.tsx`
   - UI test:
     - `tests/e2e/tests/evidence-dashboard.spec.ts`
+
+\***\*\*\*\*\*\*\*\*PHASE9.2.1: Windows UI Smoke Runner (Evidence Dashboard) (2026-02-27)\***\*\*\*\*\*\*\*\*
+
+- Scope lock:
+  - Windows-safe runner that:
+    - kills Node process tree
+    - starts MCP + backend + frontend in `SMOKE_MODE=1`
+    - runs exactly one Playwright spec with a hard timeout
+    - writes evidence logs and prints `PASS` or `BLOCKED:<reason>`
+  - Minimal gitignore allowlisting for exactly the runner + single spec
+
+- Result: PASS
+
+- Evidence:
+  - `innomcp-node/evidence/ui-smoke-evidence-dashboard-20260227-021224.log`
+
+- Runtime:
+  - PowerShell (repo root):
+    - `powershell -ExecutionPolicy Bypass -File scripts\run_ui_smoke_evidence_dashboard.ps1`
+
+- Work (DONE):
+  - Runner script: `scripts/run_ui_smoke_evidence_dashboard.ps1`
+  - Spec stabilized for dev (avoid `networkidle`): `tests/e2e/tests/evidence-dashboard.spec.ts`
 
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 

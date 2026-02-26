@@ -46,6 +46,19 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
 export async function handleEvidenceTool(args: any): Promise<any> {
   const { intent } = args || {};
 
+  type EvidenceDataSource = "detectdb" | "placeholder";
+
+  const PLACEHOLDER_NOTE =
+    "หมายเหตุ: ข้อมูลชุดนี้เป็นค่าตัวอย่าง (placeholder) เนื่องจากระบบฐานข้อมูลหลักฐานยังไม่พร้อมใช้งานครับ";
+
+  const metaFor = (dataSource: EvidenceDataSource, note?: string) => {
+    const meta: any = { dataSource };
+    if (dataSource === "placeholder") {
+      meta.note = String(note || PLACEHOLDER_NOTE);
+    }
+    return meta;
+  };
+
   const placeholderIspTable = () => ({
     rows: [
       { isp: "(ยังไม่มีข้อมูล)", count: 0 },
@@ -69,6 +82,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       ok: false,
       code: "MISSING_DETECT_DB_CREDS",
       intent: currentIntent,
+      meta: metaFor("placeholder"),
       message: "ขออภัย ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน กรุณาติดต่อผู้ดูแลระบบหรือลองใหม่ภายหลังครับ",
       kpis: buildKpis(0, null, null),
       table: {
@@ -99,6 +113,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       ok: false,
       code,
       intent: currentIntent,
+      meta: metaFor("placeholder"),
       message: "ขออภัย ระบบสืบค้นฐานข้อมูลหลักฐานขัดข้อง กรุณาลองใหม่อีกครั้งครับ",
       kpis: buildKpis(0, null, null),
     };
@@ -162,7 +177,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
 
   try {
     if (!intent) {
-      return { ok: false, code: "MISSING_INTENT", message: "intent is required" };
+      return { ok: false, code: "MISSING_INTENT", meta: metaFor("placeholder"), message: "intent is required" };
     }
 
     const today = getBangkokDate(0);
@@ -174,6 +189,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       return {
         ok: true,
         intent: intent === "machine_status" ? "active_evidence_machines" : intent,
+        meta: metaFor("detectdb"),
         count: online,
         summary: `ตอนนี้เครื่องออนไลน์: ${online} เครื่อง`,
       };
@@ -185,6 +201,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       return {
         ok: true,
         intent,
+        meta: metaFor("detectdb"),
         count: offline,
         summary: `ตอนนี้เครื่องออฟไลน์: ${offline} เครื่อง`,
       };
@@ -201,6 +218,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
           ok: false,
           intent,
           code: "MISSING_DATE_COLUMN",
+          meta: metaFor("placeholder"),
           table: "machines",
           columns: cols,
         };
@@ -215,6 +233,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       return {
         ok: true,
         intent,
+        meta: metaFor("detectdb"),
         count: n,
         dateColumn: dateCol,
         summary: `วันนี้ machine evidence ทำงาน: ${n} เครื่อง`,
@@ -226,12 +245,13 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       const cols = await getColumns("record");
       const createdCol = pickFirstColumn(cols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
       if (!createdCol) {
-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", table: "record", columns: cols };
+        return { ok: false, intent, code: "MISSING_DATE_COLUMN", meta: metaFor("placeholder"), table: "record", columns: cols };
       }
       const n = await countQuery(`SELECT COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) = ?`, [today]);
       return {
         ok: true,
         intent,
+        meta: metaFor("detectdb"),
         count: n,
         dateColumn: createdCol,
         summary: `วันนี้จัดเก็บหลักฐานวิดีโอได้: ${n} รายการ`,
@@ -243,12 +263,13 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       const cols = await getColumns("record");
       const createdCol = pickFirstColumn(cols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
       if (!createdCol) {
-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", table: "record", columns: cols };
+        return { ok: false, intent, code: "MISSING_DATE_COLUMN", meta: metaFor("placeholder"), table: "record", columns: cols };
       }
       const n = await countQuery(`SELECT COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) = ?`, [yesterday]);
       return {
         ok: true,
         intent,
+        meta: metaFor("detectdb"),
         date: yesterday,
         count: n,
         kpis: buildKpis(n, null, null),
@@ -272,6 +293,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
           ok: false,
           intent,
           code: "MISSING_DATE_COLUMN",
+          meta: metaFor("placeholder"),
           dbTable: "record",
           columns: recordCols,
           kpis: buildKpis(0, null, null),
@@ -289,6 +311,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
           ok: false,
           intent,
           code: "MISSING_REQUIRED_COLUMNS",
+          meta: metaFor("placeholder"),
           date: yesterday,
           total,
           kpis: buildKpis(total, null, null),
@@ -336,6 +359,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       return {
         ok: true,
         intent,
+        meta: metaFor("detectdb"),
         date: yesterday,
         total,
         byIsp: tableRows,
@@ -352,13 +376,13 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       const cols = await getColumns("record");
       const createdCol = pickFirstColumn(cols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
       if (!createdCol) {
-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", table: "record", columns: cols };
+        return { ok: false, intent, code: "MISSING_DATE_COLUMN", meta: metaFor("placeholder"), table: "record", columns: cols };
       }
 
       const end = getBangkokDate(0);
       const start = getBangkokDate(-6);
       const rows = await queryEvidence<any>(
-        `SELECT DATE(\`${createdCol}\`) as d, COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) BETWEEN ? AND ? GROUP BY DATE(\`${createdCol}\`) ORDER BY d ASC`,
+        `SELECT DATE_FORMAT(\`${createdCol}\`, '%Y-%m-%d') as d, COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) BETWEEN ? AND ? GROUP BY DATE(\`${createdCol}\`) ORDER BY d ASC`,
         [start, end]
       );
 
@@ -380,6 +404,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       return {
         ok: true,
         intent,
+        meta: metaFor("detectdb"),
         range: { start, end },
         kpis: buildKpis(total, null, null),
         series: { label: "หลักฐานต่อวัน", points },
@@ -394,7 +419,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       const nipCreatedCol = pickFirstColumn(nipCols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
       const nipNoCol = pickFirstColumn(nipCols, ["nip_no", "nipNo", "nip_id", "id"]);
       if (!nipCreatedCol || !nipNoCol) {
-        return { ok: false, intent, code: "MISSING_REQUIRED_COLUMNS", table: "nip", columns: nipCols };
+        return { ok: false, intent, code: "MISSING_REQUIRED_COLUMNS", meta: metaFor("placeholder"), table: "nip", columns: nipCols };
       }
 
       // Best-effort: count NIP created today where status_rec is NULL OR not in record.
@@ -403,20 +428,20 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         `SELECT COUNT(*) as c FROM nip WHERE DATE(\`${nipCreatedCol}\`) = ? AND (status_rec IS NULL OR \`${nipNoCol}\` NOT IN (SELECT \`${nipNoCol}\` FROM record))`,
         [today]
       );
-      return { ok: true, intent, count: n, summary: `หลักฐานค้างดำเนินการวันนี้: ${n} รายการ` };
+      return { ok: true, intent, meta: metaFor("detectdb"), count: n, summary: `หลักฐานค้างดำเนินการวันนี้: ${n} รายการ` };
     }
 
     if (intent === "recent_threats") {
       const nipCols = await getColumns("nip");
       const nipCreatedCol = pickFirstColumn(nipCols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
       if (!nipCreatedCol) {
-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", table: "nip", columns: nipCols };
+        return { ok: false, intent, code: "MISSING_DATE_COLUMN", meta: metaFor("placeholder"), table: "nip", columns: nipCols };
       }
       const n = await countQuery(`SELECT COUNT(*) as c FROM nip WHERE DATE(\`${nipCreatedCol}\`) = ?`, [today]);
-      return { ok: true, intent, count: n, summary: `เหตุการณ์ (NIP) วันนี้: ${n} รายการ` };
+      return { ok: true, intent, meta: metaFor("detectdb"), count: n, summary: `เหตุการณ์ (NIP) วันนี้: ${n} รายการ` };
     }
 
-    return { ok: false, code: "UNKNOWN_INTENT", message: `Unknown intent: ${String(intent)}` };
+    return { ok: false, code: "UNKNOWN_INTENT", meta: metaFor("placeholder"), message: `Unknown intent: ${String(intent)}` };
   } catch (error: any) {
     const code = String(error?.code || "").toUpperCase();
     if (code === "MISSING_DETECT_DB_CREDS") {
