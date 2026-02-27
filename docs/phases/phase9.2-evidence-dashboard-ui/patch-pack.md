@@ -32,6 +32,7 @@ _This document outlines the explicit locations VIT must modify during frontend i
 3. Run `npx playwright test tests/e2e/smoke.spec.ts`.
 4. Gracefully and aggressively tear down processes (`taskkill /F /IM node.exe /T` or capturing background PIDs and `Stop-Process`).
 5. Final stdout MUST be either strictly `PASS` or `BLOCKED` in **1 line** at the bottom of the log (using `cmd /c exitcode` or similar).
+6. Execution MUST output a deterministic UI smoke PASS evidence log to `innomcp-node/evidence/ui_smoke_evidence.log`.
 
 ## 4. Operator Notes
 
