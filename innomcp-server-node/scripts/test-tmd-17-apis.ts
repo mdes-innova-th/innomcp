@@ -15,6 +15,32 @@
 
 // ─── helpers ───────────────────────────────────────────────────────
 const TIMEOUT_MS = 35_000;
+function requireTmdAuthParams(): { uid: string; ukey: string } {
+  const uid = String(process.env.TMD_UID || "").trim();
+  const ukey = String(process.env.TMD_UKEY || "").trim();
+  if (!uid || !ukey) {
+    throw new Error("TMD_API_PARAMS_MISSING (set env TMD_UID, TMD_UKEY)");
+  }
+  return { uid, ukey };
+}
+
+const TMD_AUTH = (() => {
+  try {
+    return requireTmdAuthParams();
+  } catch (e: any) {
+    console.error(String(e?.message || e || "TMD_API_PARAMS_MISSING"));
+    console.error("This script requires TMD_UID and TMD_UKEY environment variables.");
+    process.exit(2);
+  }
+})();
+
+function withTmdAuthParams(urlBase: string): string {
+  const { uid, ukey } = TMD_AUTH;
+  const u = new URL(urlBase);
+  u.searchParams.set("uid", uid);
+  u.searchParams.set("ukey", ukey);
+  return u.toString();
+}
 
 async function fetchTmd(url: string): Promise<{ status: number; body: string; json: any }> {
   const finalUrl = url.includes("format=") ? url : url.includes("?") ? `${url}&format=json` : `${url}?format=json`;
@@ -89,23 +115,23 @@ function isNumericString(v: any): boolean {
 
 // ─── endpoints ─────────────────────────────────────────────────────
 const E = {
-  dailySeismicEvent:        "http://data.tmd.go.th/api/DailySeismicEvent/v1/?uid=api&ukey=api12345",
-  thailandClimateNormal:    "http://data.tmd.go.th/api/ThailandClimateNormal/v1/?uid=api&ukey=api12345",
-  weatherToday:             "https://data.tmd.go.th/api/WeatherToday/V2/?uid=api&ukey=api12345",
-  weather3Hours:            "http://data.tmd.go.th/api/Weather3Hours/V2/?uid=api&ukey=api12345",
-  thailandMonthlyRainfall:  "http://data.tmd.go.th/api/ThailandMonthlyRainfall/v1/index.php?uid=api&ukey=api12345",
-  rainRegions:              "https://data.tmd.go.th/api/RainRegions/v1/?uid=api&ukey=api12345",
-  station:                  "http://data.tmd.go.th/api/Station/v1/?uid=demo&ukey=demokey",
-  weatherForecast7Days:     "https://data.tmd.go.th/api/WeatherForecast7Days/v2/?uid=api&ukey=api12345",
-  dailyForecast:            "https://data.tmd.go.th/api/DailyForecast/v2/?uid=api&ukey=api12345",
-  weatherWarningNews:       "http://data.tmd.go.th/api/WeatherWarningNews/v2/?uid=demo&ukey=demokey",
-  forecast7DaysByRegion:    "https://data.tmd.go.th/api/WeatherForecast7DaysByRegion/v2/?uid=demo&ukey=demokey",
-  weather3HoursByHydro:     "http://data.tmd.go.th/api/Weather3HoursByHydro/V1/?uid=api&ukey=api12345",
-  weather3HoursByAgro:      "http://data.tmd.go.th/api/Weather3HoursByAgro/V1/?uid=api&ukey=api12345",
-  weather3HoursBySynop:     "http://data.tmd.go.th/api/Weather3HoursBySynop/V1/?uid=api&ukey=api12345",
-  weatherTodayByHydro:      "http://data.tmd.go.th/api/WeatherTodayByHydro/V1/?uid=api&ukey=api12345",
-  weatherTodayByAgro:       "http://data.tmd.go.th/api/WeatherTodayByAgro/V1/?uid=api&ukey=api12345",
-  weatherTodayBySynop:      "http://data.tmd.go.th/api/weathertodayBySynop/V1/?uid=api&ukey=api12345",
+  dailySeismicEvent:        withTmdAuthParams("http://data.tmd.go.th/api/DailySeismicEvent/v1/"),
+  thailandClimateNormal:    withTmdAuthParams("http://data.tmd.go.th/api/ThailandClimateNormal/v1/"),
+  weatherToday:             withTmdAuthParams("https://data.tmd.go.th/api/WeatherToday/V2/"),
+  weather3Hours:            withTmdAuthParams("http://data.tmd.go.th/api/Weather3Hours/V2/"),
+  thailandMonthlyRainfall:  withTmdAuthParams("http://data.tmd.go.th/api/ThailandMonthlyRainfall/v1/index.php"),
+  rainRegions:              withTmdAuthParams("https://data.tmd.go.th/api/RainRegions/v1/"),
+  station:                  withTmdAuthParams("http://data.tmd.go.th/api/Station/v1/"),
+  weatherForecast7Days:     withTmdAuthParams("https://data.tmd.go.th/api/WeatherForecast7Days/v2/"),
+  dailyForecast:            withTmdAuthParams("https://data.tmd.go.th/api/DailyForecast/v2/"),
+  weatherWarningNews:       withTmdAuthParams("http://data.tmd.go.th/api/WeatherWarningNews/v2/"),
+  forecast7DaysByRegion:    withTmdAuthParams("https://data.tmd.go.th/api/WeatherForecast7DaysByRegion/v2/"),
+  weather3HoursByHydro:     withTmdAuthParams("http://data.tmd.go.th/api/Weather3HoursByHydro/V1/"),
+  weather3HoursByAgro:      withTmdAuthParams("http://data.tmd.go.th/api/Weather3HoursByAgro/V1/"),
+  weather3HoursBySynop:     withTmdAuthParams("http://data.tmd.go.th/api/Weather3HoursBySynop/V1/"),
+  weatherTodayByHydro:      withTmdAuthParams("http://data.tmd.go.th/api/WeatherTodayByHydro/V1/"),
+  weatherTodayByAgro:       withTmdAuthParams("http://data.tmd.go.th/api/WeatherTodayByAgro/V1/"),
+  weatherTodayBySynop:      withTmdAuthParams("http://data.tmd.go.th/api/weathertodayBySynop/V1/"),
 };
 
 // ─── test suites ───────────────────────────────────────────────────

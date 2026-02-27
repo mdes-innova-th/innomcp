@@ -17,14 +17,14 @@ MCP_STDOUT_TAIL_POST:
 [INFO] [⏱️  1772001109911] MCP Request: tools/list 
 [INFO] [⏱️  7ms] MCP Request completed: tools/list 
 [INFO] [⏱️  1772001109949] MCP Request: tools/call (tmd_weather_3hours_all_stations)
-[INFO] [TMD:tmd_weather_3hours_all_stations] GET http://data.tmd.go.th/api/Weather3Hours/V2/?uid=api&ukey=api12345&format=json
+[INFO] [TMD:tmd_weather_3hours_all_stations] GET http://data.tmd.go.th/api/Weather3Hours/V2/?format=json
 [INFO] [⏱️  1772001109969] MCP Request: resources/list 
 [INFO] [⏱️  2ms] MCP Request completed: resources/list 
 [INFO] [⏱️  1772001110163] MCP Request: notifications/cancelled 
 [WARN] [TMD:tmd_weather_3hours_all_stations] failed time=211ms err=TMD API aborted
 [INFO] [⏱️  6ms] MCP Request completed: notifications/cancelled 
 [INFO] [⏱️  1772001110171] MCP Request: tools/call (tmd_weather_forecast_7days_by_province)
-[INFO] [TMD:tmd_weather_forecast_7days_by_province] GET https://data.tmd.go.th/api/WeatherForecast7Days/v2/?uid=api&ukey=api12345&format=json
+[INFO] [TMD:tmd_weather_forecast_7days_by_province] GET https://data.tmd.go.th/api/WeatherForecast7Days/v2/?format=json
 [INFO] [⏱️  1772001110379] MCP Request: notifications/cancelled 
 [WARN] [TMD:tmd_weather_forecast_7days_by_province] failed time=212ms err=TMD API aborted
 [INFO] [⏱️  5ms] MCP Request completed: notifications/cancelled 

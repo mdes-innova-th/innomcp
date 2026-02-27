@@ -294,6 +294,43 @@
   - Evidence tool meta: `innomcp-node/src/utils/mcp/tools/evidenceTool.ts`
   - Verifier upgrade (placeholder + seeded real): `innomcp-node/scripts/verify_phase91_detectdb_e2e.ts`
 
+\***\*\*\*\*\*\*\*PHASE9.0S: STOP LEAK (TMD key + evidence/log redaction) (2026-02-27)\***\*\*\*\*\*\*\*
+
+- Scope lock:
+  - `.env` must not be tracked (allow `.env.example` only)
+  - No hard-coded credential-like literals in repo/evidence (example: [REDACTED])
+  - TMD tool URLs must not embed `uid/ukey` values; credentials must come from env only
+  - Log output must redact `uid/ukey`
+
+- Result: PASS
+
+- Work (DONE):
+  - TMD tools: require `TMD_UID/TMD_UKEY` env, remove hard-coded values
+    - `innomcp-server-node/src/mcp/tools/tmdTools.ts`
+  - TMD test script: require `TMD_UID/TMD_UKEY` env, remove hard-coded values
+    - `innomcp-server-node/scripts/test-tmd-17-apis.ts`
+  - Evidence redaction for old leaked query params:
+    - `innomcp-node/evidence/phase84-20260225-133141.log`
+
+\***\*\*\*\*\*\*\*PHASE9.1.2: DetectDB Real Proof (Deterministic seed + trend date format) (2026-02-27)\***\*\*\*\*\*\*\*
+
+- Scope lock:
+  - Must output new evidence log name prefix: `phase912-*.log`
+  - Must prove non-placeholder DetectDB signals:
+    - ISP top is real + counts > 0
+    - 7-day trend points are exactly 7 and at least one day count > 0
+    - date format must be `YYYY-MM-DD`
+  - Deterministic Docker seed must not be affected by stale volumes/old passwords
+
+- Result: PASS
+
+- Evidence:
+  - `innomcp-node/evidence/phase912-20260227-130837.log`
+
+- Work (DONE):
+  - Verifier hardening (docker down -v then up, strict trend/date checks):
+    - `innomcp-node/scripts/verify_phase91_detectdb_e2e.ts`
+
 \***\*\*\*\*\*\*\*\*PHASE9.2: Evidence Dashboard UI (structuredContent-only) (2026-02-26)\***\*\*\*\*\*\*\*\*
 
 - Scope lock:
@@ -331,6 +368,23 @@
 - Work (DONE):
   - Runner script: `scripts/run_ui_smoke_evidence_dashboard.ps1`
   - Spec stabilized for dev (avoid `networkidle`): `tests/e2e/tests/evidence-dashboard.spec.ts`
+
+\***\*\*\*\*\*\*\*PHASE9.2.2: UI Smoke Runner Determinism (host fallback + port conflict) (2026-02-27)\***\*\*\*\*\*\*\*
+
+- Scope lock:
+  - Health probes must prefer `localhost` then fallback `127.0.0.1` (backend/frontend)
+  - Playwright must be invoked from repo root `node_modules/.bin/playwright.cmd`
+  - Runner must be deterministic on Windows even when ports are occupied
+
+- Result: PASS
+
+- Evidence:
+  - `innomcp-node/evidence/ui-smoke-evidence-dashboard-20260227-131315.log`
+
+- *********Issue: Runner could BLOCKED with `EADDRINUSE ::1:3000` when a non-node process occupied port 3000.*********
+  - Fix: kill port listeners for 3000/3011/3012/3013 before starting services
+  - Work:
+    - `scripts/run_ui_smoke_evidence_dashboard.ps1`
 
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 

@@ -78,6 +78,23 @@ function sanitizeSnippetForLog(input: string, maxChars = 200): string {
   return s;
 }
 
+function requireTmdAuthParams(): { uid: string; ukey: string } {
+  const uid = String(process.env.TMD_UID || "").trim();
+  const ukey = String(process.env.TMD_UKEY || "").trim();
+  if (!uid || !ukey) {
+    throw new Error("TMD_API_PARAMS_MISSING");
+  }
+  return { uid, ukey };
+}
+
+function withTmdAuthParams(urlBase: string): string {
+  const { uid, ukey } = requireTmdAuthParams();
+  const u = new URL(urlBase);
+  u.searchParams.set("uid", uid);
+  u.searchParams.set("ukey", ukey);
+  return u.toString();
+}
+
 async function fetchWithTimeout(url: string, timeoutMs = DEFAULT_TIMEOUT_MS) {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
@@ -229,7 +246,7 @@ async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) 
 
 function registerSimpleTmdTool(
   mcpserver: McpServer,
-  opts: { name: string; title: string; description: string; url: string }
+  opts: { name: string; title: string; description: string; urlBase: string }
 ) {
   mcpserver.registerTool(
     opts.name,
@@ -254,7 +271,36 @@ function registerSimpleTmdTool(
         }
       }
 
-      const result = await callTmdJson(opts.name, opts.url, signal);
+      let url = "";
+      try {
+        url = withTmdAuthParams(opts.urlBase);
+      } catch (e: any) {
+        const message = String(e?.message || e || "TMD_API_PARAMS_MISSING");
+        logBoth("ERROR", `[TMD:${opts.name}] blocked: ${message} (set TMD_UID/TMD_UKEY)`);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: `ล้มเหลว: ${opts.title} -> ${message} (ต้องตั้งค่า env: TMD_UID, TMD_UKEY)`,
+            },
+          ],
+          structuredContent: {
+            ok: false,
+            meta: {
+              tool: opts.name,
+              url: opts.urlBase,
+              authParamsPresent: false,
+              status: null,
+              durationMs: 0,
+              fetchedAt: new Date().toISOString(),
+            },
+            data: null,
+            error: message,
+          },
+        };
+      }
+
+      const result = await callTmdJson(opts.name, url, signal);
 
       const { text, truncated } = safeStringify(result.data, 12000);
       const summary = result.ok
@@ -282,72 +328,55 @@ function registerSimpleTmdTool(
 // ========== URLs (Hardcode ตามที่คุณให้มา) ==========
 const TMD_ENDPOINTS = {
   // 1
-  dailySeismicEvent:
-    "http://data.tmd.go.th/api/DailySeismicEvent/v1/?uid=api&ukey=api12345",
+  dailySeismicEvent: "http://data.tmd.go.th/api/DailySeismicEvent/v1/",
 
   // 2
-  thailandClimateNormal:
-    "http://data.tmd.go.th/api/ThailandClimateNormal/v1/?uid=api&ukey=api12345",
+  thailandClimateNormal: "http://data.tmd.go.th/api/ThailandClimateNormal/v1/",
 
   // 3 (เดิม)
-  weatherToday:
-    "https://data.tmd.go.th/api/WeatherToday/V2/?uid=api&ukey=api12345",
+  weatherToday: "https://data.tmd.go.th/api/WeatherToday/V2/",
 
   // 4
-  weather3Hours:
-    "http://data.tmd.go.th/api/Weather3Hours/V2/?uid=api&ukey=api12345",
+  weather3Hours: "http://data.tmd.go.th/api/Weather3Hours/V2/",
 
   // 5
-  thailandMonthlyRainfall:
-    "http://data.tmd.go.th/api/ThailandMonthlyRainfall/v1/index.php?uid=api&ukey=api12345",
+  thailandMonthlyRainfall: "http://data.tmd.go.th/api/ThailandMonthlyRainfall/v1/index.php",
 
   // 6
-  rainRegions:
-    "https://data.tmd.go.th/api/RainRegions/v1/?uid=api&ukey=api12345",
+  rainRegions: "https://data.tmd.go.th/api/RainRegions/v1/",
 
   // 7
-  station:
-    "http://data.tmd.go.th/api/Station/v1/?uid=demo&ukey=demokey",
+  station: "http://data.tmd.go.th/api/Station/v1/",
 
   // 8
-  weatherForecast7DaysProvince:
-    "https://data.tmd.go.th/api/WeatherForecast7Days/v2/?uid=api&ukey=api12345",
+  weatherForecast7DaysProvince: "https://data.tmd.go.th/api/WeatherForecast7Days/v2/",
 
   // 9
-  dailyForecast:
-    "https://data.tmd.go.th/api/DailyForecast/v2/?uid=api&ukey=api12345",
+  dailyForecast: "https://data.tmd.go.th/api/DailyForecast/v2/",
 
   // 10 
-  weatherWarningNews:
-    "http://data.tmd.go.th/api/WeatherWarningNews/v2/?uid=demo&ukey=demokey",
+  weatherWarningNews: "http://data.tmd.go.th/api/WeatherWarningNews/v2/",
 
   // 11
-  weatherForecast7DaysByRegion:
-    "https://data.tmd.go.th/api/WeatherForecast7DaysByRegion/v2/?uid=demo&ukey=demokey",
+  weatherForecast7DaysByRegion: "https://data.tmd.go.th/api/WeatherForecast7DaysByRegion/v2/",
 
   // 12
-  weather3HoursByHydro:
-    "http://data.tmd.go.th/api/Weather3HoursByHydro/V1/?uid=api&ukey=api12345",
+  weather3HoursByHydro: "http://data.tmd.go.th/api/Weather3HoursByHydro/V1/",
 
   // 13
-  weather3HoursByAgro:
-    "http://data.tmd.go.th/api/Weather3HoursByAgro/V1/?uid=api&ukey=api12345",
+  weather3HoursByAgro: "http://data.tmd.go.th/api/Weather3HoursByAgro/V1/",
 
   // 14
-  weather3HoursBySynop:
-    "http://data.tmd.go.th/api/Weather3HoursBySynop/V1/?uid=api&ukey=api12345",
+  weather3HoursBySynop: "http://data.tmd.go.th/api/Weather3HoursBySynop/V1/",
 
   // 15
-  weatherTodayByHydro:
-    "http://data.tmd.go.th/api/WeatherTodayByHydro/V1/?uid=api&ukey=api12345",
+  weatherTodayByHydro: "http://data.tmd.go.th/api/WeatherTodayByHydro/V1/",
 
   // 16
-  weatherTodayByAgro:
-    "http://data.tmd.go.th/api/WeatherTodayByAgro/V1/?uid=api&ukey=api12345",
+  weatherTodayByAgro: "http://data.tmd.go.th/api/WeatherTodayByAgro/V1/",
 
   // 17
-  weatherTodayBySynop:
-    "http://data.tmd.go.th/api/weathertodayBySynop/V1/?uid=api&ukey=api12345",
+  weatherTodayBySynop: "http://data.tmd.go.th/api/weathertodayBySynop/V1/",
 } as const;
 
 // ========== Registration ==========
@@ -358,63 +387,63 @@ export function registerTmdTool(mcpserver: McpServer) {
     name: "tmd_seismic_daily_events",
     title: "รายงานแผ่นดินไหวรายวัน (ไทย/ใกล้เคียง/ทั่วโลก) - TMD",
     description: "ดึงรายงานการเกิดแผ่นดินไหวล่าสุดจาก TMD (DailySeismicEvent) - earthquake, seismic, แผ่นดินไหว, ริกเตอร์, richter แบบ JSON",
-    url: TMD_ENDPOINTS.dailySeismicEvent,
+    urlBase: TMD_ENDPOINTS.dailySeismicEvent,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_thailand_climate_normal_1981_2010",
     title: "ค่าสถิติภูมิอากาศค่าปกติประเทศไทย 1981-2010 - TMD",
     description: "ดึง Climate Normal (ThailandClimateNormal) แบบ JSON",
-    url: TMD_ENDPOINTS.thailandClimateNormal,
+    urlBase: TMD_ENDPOINTS.thailandClimateNormal,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_weather_today_07am_all_stations",
     title: "ผลตรวจวัดอากาศรายวัน 07:00 (ทุกสถานี) - TMD",
     description: "ผลตรวจวัดลักษณะอากาศรายวันเวลา 07:00 น. (WeatherToday V2) แบบ JSON",
-    url: TMD_ENDPOINTS.weatherToday,
+    urlBase: TMD_ENDPOINTS.weatherToday,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_weather_3hours_all_stations",
     title: "ผลตรวจวัดอากาศราย 3 ชั่วโมง (ทุกสถานี) - TMD",
     description: "ผลตรวจวัดทุกสถานีทุก 3 ชม. (Weather3Hours V2) แบบ JSON",
-    url: TMD_ENDPOINTS.weather3Hours,
+    urlBase: TMD_ENDPOINTS.weather3Hours,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_thailand_monthly_rainfall",
     title: "ปริมาณฝนสะสมรายเดือน/จำนวนวันฝนตก (ประเทศไทย) - TMD",
     description: "ThailandMonthlyRainfall v1 แบบ JSON (ไม่มีพารามิเตอร์ตามที่คุณยืนยัน)",
-    url: TMD_ENDPOINTS.thailandMonthlyRainfall,
+    urlBase: TMD_ENDPOINTS.thailandMonthlyRainfall,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_rain_regions",
     title: "ผลตรวจวัดฝนอำเภอแบ่งตามรายภาค - TMD",
     description: "RainRegions v1 แบบ JSON",
-    url: TMD_ENDPOINTS.rainRegions,
+    urlBase: TMD_ENDPOINTS.rainRegions,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_station_list",
     title: "รายชื่อสถานีอุตุนิยมวิทยา (Station) - TMD",
     description: "ดึงข้อมูลสถานี (Station v1) แบบ JSON (ใช้ demo key ตาม URL ที่คุณให้มา)",
-    url: TMD_ENDPOINTS.station,
+    urlBase: TMD_ENDPOINTS.station,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_weather_forecast_7days_by_province",
     title: "พยากรณ์อากาศล่วงหน้า 7 วัน รายจังหวัด - TMD",
     description: "WeatherForecast7Days v2 แบบ JSON",
-    url: TMD_ENDPOINTS.weatherForecast7DaysProvince,
+    urlBase: TMD_ENDPOINTS.weatherForecast7DaysProvince,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_daily_forecast_4_times",
     title: "พยากรณ์อากาศรายวัน (06/12/17/23 น.) - TMD",
     description: "DailyForecast v2 แบบ JSON",
-    url: TMD_ENDPOINTS.dailyForecast,
+    urlBase: TMD_ENDPOINTS.dailyForecast,
   });
 
   // #10 
@@ -423,7 +452,7 @@ export function registerTmdTool(mcpserver: McpServer) {
     title: "ข่าวเตือนภัย/ติดตามสภาพอากาศร้าย (ตามรายการ #10) - TMD",
     description:
       "ดึงข้อมูลจาก weatherWarningNews v2 แบบ JSON",
-    url: TMD_ENDPOINTS.weatherWarningNews,
+    urlBase: TMD_ENDPOINTS.weatherWarningNews,
   });
 
   // #11
@@ -431,49 +460,49 @@ export function registerTmdTool(mcpserver: McpServer) {
     name: "tmd_weather_forecast_7days_by_region",
     title: "พยากรณ์อากาศ 7 วัน รายภาค - TMD",
     description: "WeatherForecast7DaysByRegion v2 แบบ JSON",
-    url: TMD_ENDPOINTS.weatherForecast7DaysByRegion,
+    urlBase: TMD_ENDPOINTS.weatherForecast7DaysByRegion,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_weather_3hours_by_hydro",
     title: "ผลตรวจวัดอากาศราย 3 ชั่วโมง (สถานีอุทก) - TMD",
     description: "Weather3HoursByHydro V1 แบบ JSON",
-    url: TMD_ENDPOINTS.weather3HoursByHydro,
+    urlBase: TMD_ENDPOINTS.weather3HoursByHydro,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_weather_3hours_by_agro",
     title: "ผลตรวจวัดอากาศราย 3 ชั่วโมง (สถานีเกษตร) - TMD",
     description: "Weather3HoursByAgro V1 แบบ JSON",
-    url: TMD_ENDPOINTS.weather3HoursByAgro,
+    urlBase: TMD_ENDPOINTS.weather3HoursByAgro,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_weather_3hours_by_synop",
     title: "ผลตรวจวัดอากาศราย 3 ชั่วโมง (สถานีผิวพื้น) - TMD",
     description: "Weather3HoursBySynop V1 แบบ JSON",
-    url: TMD_ENDPOINTS.weather3HoursBySynop,
+    urlBase: TMD_ENDPOINTS.weather3HoursBySynop,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_weather_today_by_hydro_07am",
     title: "ผลตรวจวัดอากาศรายวัน 07:00 (สถานีอุทก) - TMD",
     description: "WeatherTodayByHydro V1 แบบ JSON",
-    url: TMD_ENDPOINTS.weatherTodayByHydro,
+    urlBase: TMD_ENDPOINTS.weatherTodayByHydro,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_weather_today_by_agro_07am",
     title: "ผลตรวจวัดอากาศรายวัน 07:00 (สถานีเกษตร) - TMD",
     description: "WeatherTodayByAgro V1 แบบ JSON",
-    url: TMD_ENDPOINTS.weatherTodayByAgro,
+    urlBase: TMD_ENDPOINTS.weatherTodayByAgro,
   });
 
   registerSimpleTmdTool(mcpserver, {
     name: "tmd_weather_today_by_synop_07am",
     title: "ผลตรวจวัดอากาศรายวัน 07:00 (สถานีผิวพื้น) - TMD",
     description: "WeatherTodayBySynop V1 แบบ JSON",
-    url: TMD_ENDPOINTS.weatherTodayBySynop,
+    urlBase: TMD_ENDPOINTS.weatherTodayBySynop,
   });
 
   logBoth("INFO", `[TMD] Registered 17 tools successfully`);

@@ -108,8 +108,8 @@ function setEnvForRealDetectDb() {
 
 function tryDockerComposeUp(composeFile: string, cwd: string): { ok: boolean; cmd: string; out: string } {
   const attempts: Array<{ cmd: string; args: string[] }> = [
-    { cmd: "docker", args: ["compose", "-f", composeFile, "up", "-d"] },
-    { cmd: "docker-compose", args: ["-f", composeFile, "up", "-d"] },
+    { cmd: "docker", args: ["compose", "-f", composeFile, "up", "-d", "--force-recreate", "--remove-orphans"] },
+    { cmd: "docker-compose", args: ["-f", composeFile, "up", "-d", "--force-recreate", "--remove-orphans"] },
   ];
 
   for (const a of attempts) {
@@ -123,6 +123,23 @@ function tryDockerComposeUp(composeFile: string, cwd: string): { ok: boolean; cm
   return { ok: false, cmd: `${last.cmd} ${last.args.join(" ")}`, out: "docker compose failed or not available" };
 }
 
+function tryDockerComposeDown(composeFile: string, cwd: string): { ok: boolean; cmd: string; out: string } {
+  const attempts: Array<{ cmd: string; args: string[] }> = [
+    { cmd: "docker", args: ["compose", "-f", composeFile, "down", "-v", "--remove-orphans"] },
+    { cmd: "docker-compose", args: ["-f", composeFile, "down", "-v", "--remove-orphans"] },
+  ];
+
+  for (const a of attempts) {
+    const r = spawnSync(a.cmd, a.args, { cwd, encoding: "utf8" });
+    const out = String(r.stdout || "") + String(r.stderr || "");
+    if (r.error && (r.error as any).code === "ENOENT") continue;
+    if (r.status === 0) return { ok: true, cmd: `${a.cmd} ${a.args.join(" ")}`, out };
+  }
+
+  const last = attempts[0];
+  return { ok: false, cmd: `${last.cmd} ${last.args.join(" ")}`, out: "docker compose down failed or not available" };
+}
+
 async function ensureDetectDbSeeded(logLines: string[], failures: string[]) {
   const repoRoot = path.resolve(__dirname, "..", "..");
   const composeFile = path.resolve(repoRoot, "mariadb", "docker-compose.yml");
@@ -133,6 +150,9 @@ async function ensureDetectDbSeeded(logLines: string[], failures: string[]) {
     logLines.push("detectdb seed blocked: missing env MARIADB_ROOT_PASSWORD/MARIADB_PASSWORD");
     return;
   }
+
+  const down = tryDockerComposeDown(composeFile, path.dirname(composeFile));
+  logLines.push(`detectdb docker down: ok=${down.ok} cmd=${down.cmd}`);
 
   const up = tryDockerComposeUp(composeFile, path.dirname(composeFile));
   logLines.push(`detectdb docker up: ok=${up.ok} cmd=${up.cmd}`);
@@ -266,7 +286,7 @@ async function main() {
   const stamp = nowStamp();
   const evidenceDir = path.resolve(__dirname, "..", "evidence");
   fs.mkdirSync(evidenceDir, { recursive: true });
-  const evidenceLog = path.join(evidenceDir, `phase91-${stamp}.log`);
+  const evidenceLog = path.join(evidenceDir, `phase912-${stamp}.log`);
 
   const logLines: string[] = [];
   const failures: string[] = [];
@@ -276,7 +296,7 @@ async function main() {
   const closeEvidencePool: undefined | (() => Promise<void>) = evConnMod?.closeEvidencePool;
 
   const { port, stop } = await startEphemeralServer();
-  logLines.push(`phase91 verifier start: port=${port}`);
+  logLines.push(`phase912 verifier start: port=${port}`);
 
   try {
     // ------------------------------------------------------------
@@ -290,7 +310,7 @@ async function main() {
       port,
       "/api/chat",
       { message: q0, messages: [] },
-      { "X-Smoke-Run": "1", "X-Correlation-Id": `phase91-${stamp}-missing` }
+      { "X-Smoke-Run": "1", "X-Correlation-Id": `phase912-${stamp}-missing` }
     );
     const t0 = String((r0.json as ChatResponse)?.text || r0.raw || "");
     const sc0 = (r0.json as ChatResponse)?.structuredContent;
@@ -318,7 +338,7 @@ async function main() {
       port,
       "/api/chat",
       { message: q1, messages: [] },
-      { "X-Smoke-Run": "1", "X-Correlation-Id": `phase91-${stamp}-isp` }
+      { "X-Smoke-Run": "1", "X-Correlation-Id": `phase912-${stamp}-isp` }
     );
 
     const t1 = String((r1.json as ChatResponse)?.text || r1.raw || "");
@@ -347,7 +367,7 @@ async function main() {
       port,
       "/api/chat",
       { message: q2, messages: [] },
-      { "X-Smoke-Run": "1", "X-Correlation-Id": `phase91-${stamp}-total` }
+      { "X-Smoke-Run": "1", "X-Correlation-Id": `phase912-${stamp}-total` }
     );
     const t2 = String((r2.json as ChatResponse)?.text || r2.raw || "");
     const sc2 = (r2.json as ChatResponse)?.structuredContent;
@@ -367,7 +387,7 @@ async function main() {
       port,
       "/api/chat",
       { message: q3, messages: [] },
-      { "X-Smoke-Run": "1", "X-Correlation-Id": `phase91-${stamp}-trend` }
+      { "X-Smoke-Run": "1", "X-Correlation-Id": `phase912-${stamp}-trend` }
     );
     const t3 = String((r3.json as ChatResponse)?.text || r3.raw || "");
     const sc3 = (r3.json as ChatResponse)?.structuredContent;
@@ -378,6 +398,17 @@ async function main() {
     assertOk(sc3?.meta?.dataSource === "detectdb", "Q3: structuredContent.meta.dataSource must be detectdb", failures);
     assertOk(Array.isArray(sc3?.series?.points), "Q3: structuredContent.series.points must be array", failures);
     assertOk((sc3?.series?.points?.length || 0) === 7, "Q3: structuredContent.series.points must have 7 points", failures);
+
+    const pts: Array<{ date: string; count: number }> = Array.isArray(sc3?.series?.points) ? sc3.series.points : [];
+    const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+    for (const [idx, p] of pts.entries()) {
+      const d = String((p as any)?.date || "").slice(0, 10);
+      const c = Number((p as any)?.count ?? (p as any)?.c ?? 0);
+      assertOk(dateRe.test(d), `Q3: points[${idx}].date must be YYYY-MM-DD`, failures);
+      assertOk(Number.isFinite(c), `Q3: points[${idx}].count must be number`, failures);
+    }
+    assertOk(pts.some((p: any) => Number(p?.count ?? 0) > 0), "Q3: at least one day must have count > 0 (real detectdb proof)", failures);
+
     assertOk(/แนวโน้ม|7\s*วัน/i.test(t3), "Q3: text must mention trend/7 days", failures);
     assertOk(!looksLikeBadLeak(t3), "Q3: must not leak env/secrets into text", failures);
 

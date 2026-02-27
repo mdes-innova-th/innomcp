@@ -28,6 +28,30 @@ function Kill-NodeTrees {
   }
 }
 
+function Kill-ProcessOnPort {
+  Param([int]$Port)
+
+  try {
+    $pids = @()
+    try {
+      $pids = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty OwningProcess -Unique
+    } catch {
+      $pids = @()
+    }
+
+    foreach ($pid in ($pids | Where-Object { $_ -and ($_ -as [int]) -gt 0 })) {
+      try {
+        Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+      } catch {
+        # ignore
+      }
+    }
+  } catch {
+    # ignore
+  }
+}
+
 function Wait-HttpOk {
   Param(
     [string]$Url,
@@ -54,6 +78,30 @@ function Resolve-McpHealthUrl {
     'http://127.0.0.1:3012/health',
     'http://localhost:3013/health',
     'http://127.0.0.1:3013/health'
+  )
+
+  foreach ($u in $candidates) {
+    if (Wait-HttpOk -Url $u -WaitSeconds 2) { return $u }
+  }
+  return $candidates[0]
+}
+
+function Resolve-BackendHealthUrl {
+  $candidates = @(
+    'http://localhost:3011/health',
+    'http://127.0.0.1:3011/health'
+  )
+
+  foreach ($u in $candidates) {
+    if (Wait-HttpOk -Url $u -WaitSeconds 2) { return $u }
+  }
+  return $candidates[0]
+}
+
+function Resolve-FrontendUrl {
+  $candidates = @(
+    'http://localhost:3000',
+    'http://127.0.0.1:3000'
   )
 
   foreach ($u in $candidates) {
@@ -109,6 +157,8 @@ $pwErr  = Join-Path $evidenceDir ("ui-smoke-playwright-$stamp.err.log")
 try {
   Write-LogLine "cleanup: kill node trees"
   Kill-NodeTrees
+  Write-LogLine "cleanup: kill port listeners (3000/3011/3012/3013)"
+  foreach ($p in @(3000, 3011, 3012, 3013)) { Kill-ProcessOnPort -Port $p }
 
   Write-LogLine "start: MCP server (innomcp-server-node)"
   Write-LogLine "mcp logs: out=$mcpOut err=$mcpErr"
@@ -139,8 +189,9 @@ try {
     throw "BLOCKED:$blockedReason"
   }
 
-  Write-LogLine "wait: Backend health http://127.0.0.1:3011/health"
-  if (-not (Wait-HttpOk -Url 'http://localhost:3011/health' -WaitSeconds 120)) {
+  $backendHealth = Resolve-BackendHealthUrl
+  Write-LogLine "wait: Backend health $backendHealth"
+  if (-not (Wait-HttpOk -Url $backendHealth -WaitSeconds 120)) {
     $blockedReason = 'BACKEND_NOT_READY'
     throw "BLOCKED:$blockedReason"
   }
@@ -156,8 +207,9 @@ try {
     throw "BLOCKED:$blockedReason"
   }
 
-  Write-LogLine "wait: Frontend http://127.0.0.1:3000"
-  if (-not (Wait-HttpOk -Url 'http://localhost:3000' -WaitSeconds 120)) {
+  $frontendUrl = Resolve-FrontendUrl
+  Write-LogLine "wait: Frontend $frontendUrl"
+  if (-not (Wait-HttpOk -Url $frontendUrl -WaitSeconds 120)) {
     $blockedReason = 'FRONTEND_NOT_READY'
     throw "BLOCKED:$blockedReason"
   }
@@ -167,6 +219,11 @@ try {
   $cfg = 'playwright.config.ts'
   Write-LogLine "run: Playwright cmd=$pwCmd cfg=$cfg spec=$spec"
   Write-LogLine "playwright logs: out=$pwOut err=$pwErr"
+
+  if (-not (Test-Path $pwCmd)) {
+    $blockedReason = 'PLAYWRIGHT_CMD_NOT_FOUND'
+    throw "BLOCKED:$blockedReason"
+  }
 
   $pwCmdLine = "`"$pwCmd`" test $spec --config $cfg --reporter=line"
   $pwProc = Start-Process -FilePath 'cmd' -ArgumentList @('/d','/c',$pwCmdLine) -WorkingDirectory $repoRoot -WindowStyle Hidden -RedirectStandardOutput $pwOut -RedirectStandardError $pwErr -PassThru
