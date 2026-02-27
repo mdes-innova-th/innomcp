@@ -13,11 +13,19 @@ type DetectDbConfig = {
 };
 
 function resolveDetectDbConfig(): DetectDbConfig {
-  const host = process.env.DETECT_DB_HOST || "209.15.105.27";
-  const port = parseInt(process.env.DETECT_DB_PORT || "3306", 10);
-  const user = process.env.DETECT_DB_USER || "root";
+  // Deterministic defaults:
+  // - Host mode (Node on host, MariaDB in Docker): 127.0.0.1:3308
+  // - Container mode (Node in Docker): mariadb:3306 (DB_HOST overridden in compose)
+  // We still require explicit DETECT_DB_USER/PASSWORD/NAME to avoid accidental remote connections.
+  const appDbHost = String(process.env.DB_HOST || "").trim();
+  const isContainerMode = /^mariadb$/i.test(appDbHost);
+
+  const host = String(process.env.DETECT_DB_HOST || (isContainerMode ? "mariadb" : "127.0.0.1")).trim();
+  const portRaw = process.env.DETECT_DB_PORT || (isContainerMode ? "3306" : "3308");
+  const port = parseInt(String(portRaw), 10) || (isContainerMode ? 3306 : 3308);
+  const user = String(process.env.DETECT_DB_USER || "").trim();
   const password = String(process.env.DETECT_DB_PASSWORD || "");
-  const database = process.env.DETECT_DB_NAME || "detect";
+  const database = String(process.env.DETECT_DB_NAME || "").trim();
 
   if (!host || !user || !database || !password) {
     const e: any = new Error("Detect DB is not configured (missing DETECT_DB_* credentials)");
@@ -63,7 +71,8 @@ export async function checkDetectConnection(): Promise<boolean> {
     connection.release();
     return true;
   } catch (error) {
-    console.error("Detect Database connection failed:", error);
+    // Avoid noisy/secret-ish logs; callers should surface structured placeholder instead.
+    console.error("Detect Database connection failed");
     return false;
   }
 }

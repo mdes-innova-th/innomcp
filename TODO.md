@@ -386,6 +386,56 @@
   - Work:
     - `scripts/run_ui_smoke_evidence_dashboard.ps1`
 
+\***\*\*\*\*\*\*\*PHASE9.3: DetectDB Real Connect (No Placeholder) + Router/Tool Robust (2026-02-27)\***\*\*\*\*\*\*\*
+
+- DoD:
+  - evidence tool returns `structuredContent.meta.dataSource="detectdb"` for at least 1 real case
+  - creds unset => `meta.dataSource="placeholder"` + `meta.note` polite (no leaks)
+  - docker seed => deterministic non-zero proof: kpis/table/series not all zero
+  - “เมื่อวาน + ISP + มากที่สุด” => `table.rows >= 3` (padding allowed) and at least one real non-zero row
+  - No noisy user-visible `Access denied` / `jlapps` / `ERR:` prefixes in chat response
+
+- Result: PASS
+
+- Evidence:
+  - `innomcp-node/evidence/phase93-20260227-150653.log`
+
+- Rerun:
+  - `npm --prefix innomcp-node run build`
+  - `cd innomcp-node; $env:TS_NODE_CACHE='false'; $env:MARIADB_ROOT_PASSWORD='phase9_local_pw'; $env:MARIADB_PASSWORD='phase9_local_pw'; npx ts-node scripts/verify_phase93_detectdb_real_connect.ts`
+
+- Work (DONE):
+  - Require explicit DetectDB creds (avoid accidental app DB fallback):
+    - `innomcp-node/src/utils/db/evidenceConnection.ts`
+  - New verifier + evidence log prefix `phase93-*.log`:
+    - `innomcp-node/scripts/verify_phase93_detectdb_real_connect.ts`
+  - MCP server DetectDB defaults hardened (remove remote IP, deterministic host/port defaults):
+    - `innomcp-server-node/src/utils/dbDetect.ts`
+  - MCP server evidenceTool structuredContent meta alignment + polite placeholder:
+    - `innomcp-server-node/src/mcp/tools/evidenceTool.ts`
+
+- innova-bot prep pack (DB config scan + host-vs-container plan, 20 lines):
+  - App DB connector (retry): `innomcp-node/src/utils/db.ts` uses `DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME`
+  - Legacy pool (defaults): `innomcp-node/src/utils/db/connector.ts` loads `.env` and defaults `localhost/root`
+  - Evidence/DetectDB pool: `innomcp-node/src/utils/db/evidenceConnection.ts` uses explicit `DETECT_DB_*`
+  - EvidenceConnection mode detect: `DB_HOST=mariadb` => container mode
+  - Host mode default: `127.0.0.1:3308`
+  - Container mode default: `mariadb:3306`
+  - Docker mapping: `mariadb/docker-compose.yml` maps host `3308 -> 3306`
+  - Seed/verifiers connect via `root@127.0.0.1:3308` + `MARIADB_ROOT_PASSWORD`
+  - MCP server DetectDB: `innomcp-server-node/src/utils/dbDetect.ts` requires `DETECT_DB_*` (no remote default)
+  - MCP server tool gate: `innomcp-server-node/src/mcp/tools/evidenceTool.ts` checks `DETECT_DB_HOST/USER/PASSWORD/NAME`
+  - Avoid `EVIDENCE_DB_*` fallback for DetectDB to prevent accidental remote connections
+  - Host-run policy: set `DETECT_DB_HOST=127.0.0.1` and `DETECT_DB_PORT=3308`
+  - Compose-run policy: set `DB_HOST=mariadb` and use `mariadb:3306` inside network
+  - Always set `DETECT_DB_USER/PASSWORD/NAME` explicitly for officer/evidence flows
+  - Verifier DB name is explicit (`phase93_detectdb`) to avoid cross-test contamination
+  - Placeholder path must include `meta.note` and must not dump JSON/env
+  - Real path must include non-zero KPIs and non-zero series point(s)
+  - Determinism: always `docker compose down -v` before `up -d --force-recreate`
+  - If MCP server is down, SMOKE_MODE bypasses health checks and evidence fastpath still works locally
+  - Ops: treat `Access denied` as config issue; respond with structured placeholder (no crash/no noisy text)
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS

@@ -34,6 +34,15 @@ export const evidenceTool = {
     const { action, tableName, limit } = args;
     const safeLimit = Math.min(Math.max(1, limit || 5), 20);
 
+    type EvidenceDataSource = "detectdb" | "placeholder";
+    const PLACEHOLDER_NOTE =
+      "หมายเหตุ: ข้อมูลชุดนี้เป็นค่าตัวอย่าง (placeholder) เนื่องจากระบบฐานข้อมูลหลักฐานยังไม่พร้อมใช้งานครับ";
+    const metaFor = (dataSource: EvidenceDataSource, note?: string) => {
+      const meta: any = { dataSource };
+      if (dataSource === "placeholder") meta.note = String(note || PLACEHOLDER_NOTE);
+      return meta;
+    };
+
     const assertDetectDbCreds = (): { ok: true } | { ok: false; code: string; message: string } => {
       const host = process.env.DETECT_DB_HOST;
       const user = process.env.DETECT_DB_USER;
@@ -101,8 +110,19 @@ export const evidenceTool = {
       const creds = assertDetectDbCreds();
       if (!creds.ok) {
         return {
-          content: [{ type: "text" as const, text: `ERR:${creds.code} ${creds.message}` }],
-          structuredContent: { ok: false, intent: action, code: creds.code, message: creds.message },
+          content: [
+            {
+              type: "text" as const,
+              text: "ขออภัย ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน กรุณาติดต่อผู้ดูแลระบบหรือลองใหม่ภายหลังครับ",
+            },
+          ],
+          structuredContent: {
+            ok: false,
+            intent: action,
+            code: creds.code,
+            message: creds.message,
+            meta: metaFor("placeholder"),
+          },
         };
       }
 
@@ -115,7 +135,7 @@ export const evidenceTool = {
         );
         return {
           content: [{ type: "text" as const, text: `ตอนนี้เครื่องออฟไลน์: ${n} เครื่อง` }],
-          structuredContent: { ok: true, intent: action, count: n },
+          structuredContent: { ok: true, intent: action, count: n, meta: metaFor("detectdb") },
         };
       }
 
@@ -127,7 +147,7 @@ export const evidenceTool = {
         );
         return {
           content: [{ type: "text" as const, text: `ตอนนี้เครื่องออนไลน์: ${n} เครื่อง` }],
-          structuredContent: { ok: true, intent: action, count: n },
+          structuredContent: { ok: true, intent: action, count: n, meta: metaFor("detectdb") },
         };
       }
 
@@ -140,7 +160,13 @@ export const evidenceTool = {
           logBoth("WARN", `[EvidenceTool] query=machines_evidence_active_today missing_date_column cols=${cols.join(",")}`);
           return {
             content: [{ type: "text" as const, text: "ไม่พบคอลัมน์ last_check_in หรือ create_datetime ในตาราง machines" }],
-            structuredContent: { ok: false, intent: action, code: "MISSING_DATE_COLUMN", table: "machines" },
+            structuredContent: {
+              ok: false,
+              intent: action,
+              code: "MISSING_DATE_COLUMN",
+              table: "machines",
+              meta: metaFor("placeholder"),
+            },
           };
         }
 
@@ -158,7 +184,7 @@ export const evidenceTool = {
             );
         return {
           content: [{ type: "text" as const, text: `วันนี้ machine evidence ทำงาน: ${n} เครื่อง` }],
-          structuredContent: { ok: true, intent: action, count: n, dateColumn: dateCol, today },
+          structuredContent: { ok: true, intent: action, count: n, dateColumn: dateCol, today, meta: metaFor("detectdb") },
         };
       }
 
@@ -169,7 +195,7 @@ export const evidenceTool = {
           logBoth("WARN", `[EvidenceTool] query=evidence_records_today missing_created_date_column cols=${cols.join(",")}`);
           return {
             content: [{ type: "text" as const, text: "ไม่พบคอลัมน์วันที่สร้างในตาราง record" }],
-            structuredContent: { ok: false, intent: action, code: "MISSING_DATE_COLUMN", table: "record" },
+            structuredContent: { ok: false, intent: action, code: "MISSING_DATE_COLUMN", table: "record", meta: metaFor("placeholder") },
           };
         }
 
@@ -181,7 +207,7 @@ export const evidenceTool = {
         );
         return {
           content: [{ type: "text" as const, text: `วันนี้จัดเก็บหลักฐานวิดีโอแล้ว: ${n} รายการ` }],
-          structuredContent: { ok: true, intent: action, count: n, dateColumn: createdCol, today },
+          structuredContent: { ok: true, intent: action, count: n, dateColumn: createdCol, today, meta: metaFor("detectdb") },
         };
       }
 
@@ -192,7 +218,7 @@ export const evidenceTool = {
           logBoth("WARN", `[EvidenceTool] query=detected_urls_today missing_created_date_column cols=${cols.join(",")}`);
           return {
             content: [{ type: "text" as const, text: "ไม่พบคอลัมน์วันที่สร้างในตาราง nip" }],
-            structuredContent: { ok: false, intent: action, code: "MISSING_DATE_COLUMN", table: "nip" },
+            structuredContent: { ok: false, intent: action, code: "MISSING_DATE_COLUMN", table: "nip", meta: metaFor("placeholder") },
           };
         }
 
@@ -204,7 +230,7 @@ export const evidenceTool = {
         );
         return {
           content: [{ type: "text" as const, text: `วันนี้ตรวจพบ URL แล้ว: ${n} รายการ` }],
-          structuredContent: { ok: true, intent: action, count: n, dateColumn: createdCol, today },
+          structuredContent: { ok: true, intent: action, count: n, dateColumn: createdCol, today, meta: metaFor("detectdb") },
         };
       }
 
@@ -294,6 +320,7 @@ export const evidenceTool = {
         const structuredContent: any = {
           ok: true,
           today,
+          meta: metaFor("detectdb"),
           machines: {
             online_count,
             evidence_active_count,
@@ -341,6 +368,7 @@ export const evidenceTool = {
           content: [
             { type: "text" as const, text: names.length > 0 ? names.join("\n") : "(no tables)" },
           ],
+          structuredContent: { ok: true, intent: action, meta: metaFor("detectdb"), tables: names },
         };
       }
 
@@ -355,6 +383,7 @@ export const evidenceTool = {
           content: [
             { type: "text" as const, text: names.length > 0 ? names.join(",") : "(no columns)" },
           ],
+          structuredContent: { ok: true, intent: action, meta: metaFor("detectdb"), table: tableName, columns: names },
         };
       }
 
@@ -362,10 +391,15 @@ export const evidenceTool = {
     } catch (error: any) {
       const code = String((error as any)?.code || "EVIDENCE_TOOL_FAILED");
       const message = String(error?.message || error);
-      logBoth("ERROR", `[EvidenceTool] Error code=${code} message=${message}`);
+      logBoth("ERROR", `[EvidenceTool] Error code=${code}`);
       return {
-        content: [{ type: "text" as const, text: `ERR:${code} ${message}` }],
-        structuredContent: { ok: false, intent: action, code, message },
+        content: [
+          {
+            type: "text" as const,
+            text: "ขออภัย ระบบสืบค้นฐานข้อมูลหลักฐานขัดข้อง กรุณาลองใหม่อีกครั้งครับ",
+          },
+        ],
+        structuredContent: { ok: false, intent: action, code, message, meta: metaFor("placeholder") },
       };
     }
   },

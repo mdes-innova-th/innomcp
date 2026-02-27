@@ -37,9 +37,11 @@ function resolveDetectDbConfig(): DetectDbConfig {
     const portRaw = process.env.DETECT_DB_PORT || (isContainerMode ? "3306" : "3308");
     const port = Number(portRaw) || (isContainerMode ? 3306 : 3308);
 
-    const user = String(process.env.DETECT_DB_USER || process.env.DB_USER || "").trim();
-    const password = String(process.env.DETECT_DB_PASSWORD || process.env.DB_PASSWORD || "");
-    const database = String(process.env.DETECT_DB_NAME || "innomcp-db").trim();
+    // Require explicit DetectDB creds to avoid accidentally using the app DB user/password
+    // (which can cause noisy "Access denied" during routing/keyword flows).
+    const user = String(process.env.DETECT_DB_USER || "").trim();
+    const password = String(process.env.DETECT_DB_PASSWORD || "");
+    const database = String(process.env.DETECT_DB_NAME || "").trim();
 
     if (!host || !user || !database || !password) {
         const e: any = new Error("Detect DB is not configured");

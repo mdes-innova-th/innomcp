@@ -100,4 +100,7 @@ yarn-error.log*
 # Phase 9.1: DetectDB deterministic E2E verifier
 !/scripts/verify_phase91_detectdb_e2e.ts
 
+# Phase 9.3: DetectDB real-connect verifier
+!/scripts/verify_phase93_detectdb_real_connect.ts
+
 
