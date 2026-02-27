@@ -28,6 +28,12 @@ function Kill-NodeTrees {
   }
 }
 
+function Hard-KillNodeProcessTrees {
+  try { cmd /d /c "taskkill /F /IM node.exe /T" | Out-Null } catch {}
+  try { cmd /d /c "taskkill /F /IM npm.exe /T" | Out-Null } catch {}
+  try { cmd /d /c "taskkill /F /IM npx.exe /T" | Out-Null } catch {}
+}
+
 function Kill-ProcessOnPort {
   Param([int]$Port)
 
@@ -137,6 +143,9 @@ $pass = $false
 $blockedReason = ''
 
 $env:SMOKE_MODE = '1'
+$env:CHAT_TRACE_QA = '1'
+$env:LOG_DEBUG = '0'
+$env:TS_NODE_CACHE = 'false'
 $env:NODE_ENV = 'test'
 $env:WEATHER_FIXTURE_W1 = '1'
 
@@ -156,6 +165,7 @@ $pwErr  = Join-Path $evidenceDir ("ui-smoke-playwright-$stamp.err.log")
 
 try {
   Write-LogLine "cleanup: kill node trees"
+  Hard-KillNodeProcessTrees
   Kill-NodeTrees
   Write-LogLine "cleanup: kill port listeners (3000/3011/3012/3013)"
   foreach ($p in @(3000, 3011, 3012, 3013)) { Kill-ProcessOnPort -Port $p }
@@ -214,6 +224,8 @@ try {
     throw "BLOCKED:$blockedReason"
   }
 
+  $env:UI_BASE_URL = $frontendUrl
+
   $pwCmd = Join-Path $repoRoot 'node_modules\\.bin\\playwright.cmd'
   $spec = 'tests/e2e/tests/evidence-dashboard.spec.ts'
   $cfg = 'playwright.config.ts'
@@ -255,6 +267,7 @@ try {
   }
 
   Write-LogLine "cleanup: kill node trees"
+  Hard-KillNodeProcessTrees
   Kill-NodeTrees
 
   Write-LogLine "cleanup: stop service procs"
@@ -266,12 +279,14 @@ try {
 }
 
 if ($pass) {
+  Write-LogLine "SUMMARY: ui-smoke evidence-dashboard spec PASS"
   Write-LogLine "RESULT: PASS"
   Write-Output "PASS"
   Write-Output ("evidence:{0}" -f $script:EvidenceLog)
   exit 0
 }
 
+Write-LogLine ("SUMMARY: ui-smoke evidence-dashboard BLOCKED:{0}" -f $blockedReason)
 Write-LogLine ("RESULT: BLOCKED:{0}" -f $blockedReason)
 Write-Output ("BLOCKED:{0}" -f $blockedReason)
 Write-Output ("evidence:{0}" -f $script:EvidenceLog)

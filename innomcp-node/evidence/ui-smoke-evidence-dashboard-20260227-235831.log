@@ -1,0 +1,21 @@
+﻿2026-02-27 23:58:31  ui-smoke start
+2026-02-27 23:58:31  repoRoot=C:\Users\USER-NT\DEV\innomcp
+2026-02-27 23:58:31  timeoutSeconds=420
+2026-02-27 23:58:31  cleanup: kill node trees
+2026-02-27 23:58:31  cleanup: kill port listeners (3000/3011/3012/3013)
+2026-02-27 23:58:33  start: MCP server (innomcp-server-node)
+2026-02-27 23:58:33  mcp logs: out=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\ui-smoke-mcp-20260227-235831.out.log err=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\ui-smoke-mcp-20260227-235831.err.log
+2026-02-27 23:58:37  wait: MCP health http://localhost:3012/health
+2026-02-27 23:58:37  start: Backend (innomcp-node)
+2026-02-27 23:58:37  backend logs: out=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\ui-smoke-backend-20260227-235831.out.log err=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\ui-smoke-backend-20260227-235831.err.log
+2026-02-27 23:58:46  wait: Backend health http://localhost:3011/health
+2026-02-27 23:58:46  start: Frontend (innomcp-next)
+2026-02-27 23:58:46  frontend logs: out=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\ui-smoke-frontend-20260227-235831.out.log err=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\ui-smoke-frontend-20260227-235831.err.log
+2026-02-27 23:58:51  wait: Frontend http://localhost:3000
+2026-02-27 23:58:52  run: Playwright cmd=C:\Users\USER-NT\DEV\innomcp\node_modules\\.bin\\playwright.cmd cfg=playwright.config.ts spec=tests/e2e/tests/evidence-dashboard.spec.ts
+2026-02-27 23:58:52  playwright logs: out=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\ui-smoke-playwright-20260227-235831.out.log err=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\ui-smoke-playwright-20260227-235831.err.log
+2026-02-27 23:58:56  cleanup: stop Playwright
+2026-02-27 23:58:56  cleanup: kill node trees
+2026-02-27 23:58:56  cleanup: stop service procs
+2026-02-27 23:58:56  SUMMARY: ui-smoke evidence-dashboard spec PASS
+2026-02-27 23:58:56  RESULT: PASS

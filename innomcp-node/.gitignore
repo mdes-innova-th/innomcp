@@ -31,6 +31,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# UI smoke runner (keep summary evidence log, ignore service stdout/stderr)
+/evidence/ui-smoke-*.out.log
+/evidence/ui-smoke-*.err.log
+
 # env files (can opt-in for committing if needed)
 .env
 .env.local

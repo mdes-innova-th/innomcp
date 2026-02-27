@@ -7,6 +7,11 @@
 
 import { test, expect, Page } from "@playwright/test";
 
+function resolveBaseUrl(): string {
+  const fromEnv = process.env.UI_BASE_URL || process.env.PLAYWRIGHT_BASE_URL;
+  return (fromEnv && fromEnv.trim()) ? fromEnv.trim() : "http://localhost:3000";
+}
+
 async function sendMessageAndWaitForAssistant(page: Page, message: string, timeout = 45000) {
   const textInput = page.locator('[data-testid="chat-input"]');
   const sendBtn = page.locator('[data-testid="send-btn"]');
@@ -34,7 +39,7 @@ test.describe("Evidence Dashboard", () => {
       }
     });
 
-    await page.goto("http://localhost:3000", { waitUntil: "domcontentloaded" });
+    await page.goto(resolveBaseUrl(), { waitUntil: "domcontentloaded" });
     await expect(page.locator('[data-testid="chat-input"]')).toBeVisible({ timeout: 20000 });
   });
 

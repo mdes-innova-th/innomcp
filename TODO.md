@@ -379,12 +379,34 @@
 - Result: PASS
 
 - Evidence:
-  - `innomcp-node/evidence/ui-smoke-evidence-dashboard-20260227-131315.log`
+  - `innomcp-node/evidence/ui-smoke-evidence-dashboard-20260227-235831.log`
 
-- *********Issue: Runner could BLOCKED with `EADDRINUSE ::1:3000` when a non-node process occupied port 3000.*********
-  - Fix: kill port listeners for 3000/3011/3012/3013 before starting services
+- Rerun:
+  - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run_ui_smoke_evidence_dashboard.ps1 -TimeoutSeconds 420`
+
+- *********Issue: Runner could BLOCKED due to host/loopback mismatch or occupied ports (ex: `EADDRINUSE ::1:3000`).*********
+  - Fix:
+    - Probe health with `localhost` first then fallback `127.0.0.1`
+    - Kill port listeners for 3000/3011/3012/3013 before starting services
+    - Pass resolved UI base URL into Playwright via env (`UI_BASE_URL`)
+    - Aggressive cleanup via `taskkill /F /IM node.exe /T`
   - Work:
     - `scripts/run_ui_smoke_evidence_dashboard.ps1`
+    - `tests/e2e/tests/evidence-dashboard.spec.ts`
+
+- *********innova-bot: Docker ports + repo hygiene scan (2026-02-27)*********
+  - Docker containers/ports (docker ps):
+    - `mariadb-innomcp` -> host `3308:3306`
+    - `innomcp-mariadb` -> host `3306:3306`
+    - `innomcp-redis` -> host `6379:6379`
+    - `innomcp-workspace-storage` -> host `8090:80`
+    - `innova-bot` -> host `7010:7010`
+  - Repo untracked scan (git ls-files --others):
+    - OK keep (handoff artifacts, do not commit): `handoff/*.bundle`
+    - OK keep (patch archive, do not commit): `patches_phase9/*.patch`
+    - DELETE/ignore noise: `innomcp-node/evidence/ui-smoke-*.out.log` + `.err.log` (runner captures these per-run)
+  - Risk note:
+    - Two MariaDB containers are publishing different host ports (3306 and 3308); for DetectDB verifiers use `127.0.0.1:3308` to match deterministic compose mapping.
 
 \***\*\*\*\*\*\*\*PHASE9.3: DetectDB Real Connect (No Placeholder) + Router/Tool Robust (2026-02-27)\***\*\*\*\*\*\*\*
 
