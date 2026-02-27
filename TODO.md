@@ -424,7 +424,7 @@
 
 - Rerun:
   - `npm --prefix innomcp-node run build`
-  - `cd innomcp-node; $env:TS_NODE_CACHE='false'; $env:MARIADB_ROOT_PASSWORD='phase9_local_pw'; $env:MARIADB_PASSWORD='phase9_local_pw'; npx ts-node scripts/verify_phase93_detectdb_real_connect.ts`
+  - `cd innomcp-node; $env:TS_NODE_CACHE='false'; $env:MARIADB_ROOT_PASSWORD='<set-locally>'; $env:MARIADB_PASSWORD='<set-locally>'; npx ts-node scripts/verify_phase93_detectdb_real_connect.ts`
 
 - Work (DONE):
   - Require explicit DetectDB creds (avoid accidental app DB fallback):
