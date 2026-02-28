@@ -30,6 +30,9 @@ export default function ChatMessage({
 }: Props) {
   const [copiedChart, setCopiedChart] = React.useState(false);
   const { theme } = useTheme();
+  const mapTiles = Array.isArray(structuredContent?.weatherPayload?.mapTiles)
+    ? structuredContent.weatherPayload.mapTiles
+    : [];
 
   const handleCopyChartCode = async () => {
     try {
@@ -105,6 +108,26 @@ export default function ChatMessage({
                 </svg>
                 เปิดภาพขนาดเต็ม
               </a>
+            </div>
+          </div>
+        )}
+
+        {/* Weather map tiles (Phase 10.1B minimal contract renderer) */}
+        {mapTiles.length > 0 && (
+          <div data-testid="weather-map-tiles" className="mb-4 rounded-lg border border-green-500/20 bg-green-50/30 p-3 dark:border-green-400/20 dark:bg-green-900/10">
+            <div className="mb-2 text-sm font-semibold text-green-800 dark:text-green-200">แผนที่สภาพอากาศ</div>
+            <div className="space-y-3">
+              {mapTiles.slice(0, 3).map((tile: any, idx: number) => {
+                const url = String(tile?.url || "").trim();
+                const label = String(tile?.label || tile?.area || "แผนที่อากาศ").trim();
+                if (!url) return null;
+                return (
+                  <div key={`${url}-${idx}`} className="overflow-hidden rounded-md border border-green-500/20 dark:border-green-400/20">
+                    <img src={url} alt={label} className="h-auto w-full" loading="lazy" />
+                    <div className="px-2 py-1 text-xs text-gray-700 dark:text-gray-200">{label}</div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

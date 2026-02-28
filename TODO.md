@@ -579,6 +579,28 @@
     - `innomcp-node/src/routes/api/chat.ts`
     - `innomcp-node/scripts/verify_phase101a_weather_contract.ts`
 
+  \***\*\*\*\*\*\*PHASE10.1B: Weather Map Rendering Minimal (2026-02-28)\***\*\*\*\*\*\*
+
+  - DoD:
+    - Add `mapTiles[]` into weatherPayload contract with deterministic local static URL
+    - Frontend renders weather map image block when `weatherPayload.mapTiles` exists
+    - Verifier validates map tile contract (`area`, `label`, local static `url`)
+
+  - Result: PASS
+
+  - Evidence:
+    - `innomcp-node/evidence/phase101b-20260228-174144.log`
+
+  - Rerun:
+    - `cmd /d /c "taskkill /F /IM node.exe /T"`
+    - `npm --prefix innomcp-node run build`
+    - `cd innomcp-node; $env:SMOKE_MODE='1'; $env:CHAT_TRACE_QA='1'; $env:LOG_DEBUG='0'; $env:TS_NODE_CACHE='false'; $env:WEATHER_FIXTURE_W1='1'; npx ts-node scripts/verify_phase101b_weather_map.ts`
+
+  - Work (DONE):
+    - `innomcp-next/src/app/components/chat/ChatMessage.tsx`
+    - `innomcp-next/public/weather-tiles/default.svg`
+    - `innomcp-node/scripts/verify_phase101b_weather_map.ts`
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS
