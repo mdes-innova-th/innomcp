@@ -1712,7 +1712,9 @@ wss.on("connection", (ws, req) => {
           semanticCategory = routingResult.category;
           const latency = Date.now() - startTime;
 
-          logBoth('info', `[God-Tier Router] 🎯 Category: "${semanticCategory}" (confidence: ${routingResult.confidence.toFixed(2)}, ${latency}ms)`);
+          const kwSrc = String((routingResult as any)?.keywordSource || "-");
+          const dbOp = (routingResult as any)?.dbOperational === true ? "up" : "down";
+          logBoth('info', `[God-Tier Router] 🎯 Category: "${semanticCategory}" (confidence: ${routingResult.confidence.toFixed(2)}, ${latency}ms, keywordSource=${kwSrc}, dbOperational=${dbOp})`);
 
           if (routingResult.isAmbiguous) {
             logBoth('info', `[God-Tier Router] ⚠️  Ambiguous query - used reasoning: ${routingResult.reasoning}`);

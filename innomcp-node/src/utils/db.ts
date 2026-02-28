@@ -4,6 +4,8 @@ import "dotenv/config";
 // กำหนดค่าการลองใหม่สำหรับการเชื่อมต่อฐานข้อมูล
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 วินาที
+const RETRY_LOG_COOLDOWN_MS = 15000;
+let lastRetryLogAt = 0;
 
 // ฟังก์ชันดำเนินการกับฐานข้อมูลและจัดการการเชื่อมต่อ
 export async function withDbConnection<T>(
@@ -49,13 +51,29 @@ export async function connectWithRetry(
     await connection.ping();
     console.log("[db-connectWithRetry] Database connection successful");
     return connection;
-  } catch (error) {
+  } catch (error: any) {
+    const code = String(error?.code || "").toUpperCase();
+    const isAccessDenied = code === "ER_ACCESS_DENIED_ERROR" || /access denied/i.test(String(error?.message || ""));
+
+    if (isAccessDenied) {
+      const now = Date.now();
+      if (now - lastRetryLogAt > RETRY_LOG_COOLDOWN_MS) {
+        lastRetryLogAt = now;
+        console.log("[db-connectWithRetry] Access denied - stop retry and return failure");
+      }
+      throw error;
+    }
+
     if (retries > 0) {
-      console.log(
-        `[db-connectWithRetry] Database connection failed, retrying... (${
-          MAX_RETRIES - retries + 1
-        }/${MAX_RETRIES})`
-      );
+      const now = Date.now();
+      if (now - lastRetryLogAt > RETRY_LOG_COOLDOWN_MS) {
+        lastRetryLogAt = now;
+        console.log(
+          `[db-connectWithRetry] Database connection failed, retrying... (${ 
+            MAX_RETRIES - retries + 1
+          }/${MAX_RETRIES})`
+        );
+      }
       await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
       return connectWithRetry(retries - 1);
     }

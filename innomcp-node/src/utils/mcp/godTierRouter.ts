@@ -77,6 +77,7 @@ export interface RouterResult {
   usedFallback: boolean;
   reasoning: string;
   keywordSource?: KeywordSource;
+  dbOperational?: boolean;
   matchedKeywords?: string[];
   semanticScore?: number;
   keywordScore?: number;
@@ -233,6 +234,7 @@ export class GodTierRouter {
   private keywordSource: KeywordSource = 'defaults';
   private dbOperational: boolean = false;
   private dbBackoffUntil: number = 0;
+  private lastDbFailureLogAt: number = 0;
   private initialized: boolean = false;
   
   constructor() {
@@ -371,7 +373,14 @@ export class GodTierRouter {
     } catch (error) {
       this.dbOperational = false;
       this.dbBackoffUntil = Date.now() + CONFIG.DB.FAILURE_BACKOFF_MS;
-      logBoth('warn', `[GodTierRouter] ⚠️ DB keyword load failed: ${error}`);
+      const nowTs = Date.now();
+      const errCode = String((error as any)?.code || 'DB_ERROR');
+      const errMsg = String((error as any)?.message || error || 'unknown').replace(/\s+/g, ' ').slice(0, 180);
+      if (nowTs - this.lastDbFailureLogAt > 15000) {
+        this.lastDbFailureLogAt = nowTs;
+        logBoth('warn', `[GodTierRouter] ⚠️ DB keyword load failed code=${errCode}; fallback mode active (backoff=${CONFIG.DB.FAILURE_BACKOFF_MS}ms)`);
+        logBoth('warn', `[GodTierRouter] ⚠️ DB error summary: ${errMsg}`);
+      }
 
       if (mode === 'db') {
         this.dbKeywords.clear();
@@ -732,6 +741,7 @@ B. ${cat2?.name} (${(top2.score * 100).toFixed(1)}%) - ${cat2?.description}
       usedFallback,
       reasoning,
       keywordSource: this.keywordSource,
+      dbOperational: this.dbOperational,
       responseTime,
       aiMode,
     };
@@ -749,6 +759,7 @@ B. ${cat2?.name} (${(top2.score * 100).toFixed(1)}%) - ${cat2?.description}
       usedFallback: true,
       reasoning: reason,
       keywordSource: this.keywordSource,
+      dbOperational: this.dbOperational,
       responseTime: Date.now() - startTime,
     };
   }

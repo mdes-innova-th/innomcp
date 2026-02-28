@@ -458,6 +458,55 @@
   - If MCP server is down, SMOKE_MODE bypasses health checks and evidence fastpath still works locally
   - Ops: treat `Access denied` as config issue; respond with structured placeholder (no crash/no noisy text)
 
+\***\*\*\*\*\*\*PHASE9.4: AppDB / GodTierRouter DB-Degrade Reliability (2026-02-28)\***\*\*\*\*\*\*
+
+- DoD:
+  - Surface `keywordSource` + `dbOperational` in router logs (operator-only; not user response)
+  - DB access denied path must not spam retries and must not block general chat response
+  - Verifier covers DB-down fallback + DB-up seeded path with deterministic evidence
+
+- Result: PASS
+
+- Evidence:
+  - `innomcp-node/evidence/phase94-20260228-090957.log`
+
+- Rerun:
+  - `cmd /d /c "taskkill /F /IM node.exe /T"`
+  - `npm --prefix innomcp-node run build`
+  - `cd innomcp-node; $env:SMOKE_MODE='1'; $env:CHAT_TRACE_QA='1'; $env:LOG_DEBUG='0'; $env:TS_NODE_CACHE='false'; $env:MARIADB_ROOT_PASSWORD='<set-locally>'; $env:MARIADB_PASSWORD='<set-locally>'; npx ts-node scripts/verify_phase94_router_db_degrade.ts`
+  - `cmd /d /c "taskkill /F /IM node.exe /T"`
+
+- Work (DONE):
+  - Router result/log enrichment: `keywordSource` + `dbOperational`
+    - `innomcp-node/src/utils/mcp/godTierRouter.ts`
+    - `innomcp-node/src/routes/api/chat.ts`
+  - DB retry hardening (access denied -> no retry loop + throttled retry log)
+    - `innomcp-node/src/utils/db.ts`
+  - Deterministic verifier (Case A DB down, Case B DB up with seeded keywords)
+    - `innomcp-node/scripts/verify_phase94_router_db_degrade.ts`
+
+- *********innova-bot labor summary (docker/cleanup/secrets scan, 20 lines)*********
+  - 01) Docker: `mariadb-innomcp` host `3308` -> container `3306`
+  - 02) Docker: `innomcp-mariadb` host `3306` -> container `3306`
+  - 03) Docker: `innomcp-redis` host `6379` -> container `6379`
+  - 04) Docker: `innomcp-workspace-storage` host `8090` -> container `80`
+  - 05) Docker: `innova-bot` host `7010` -> container `7010`
+  - 06) Keep: `handoff/*.bundle` (handoff artifacts, not for normal source commit)
+  - 07) Keep: `patches_phase9/*.patch` (release patch archive)
+  - 08) Candidate remove: legacy local bundle at repo root (`innomcp_local_ahead.bundle`)
+  - 09) Candidate ignore/remove: repeated transient UI smoke `.out/.err` logs
+  - 10) No `docs/ADDON_CODE` untracked junk detected in current scan
+  - 11) No `.vscode/mcp.json` untracked junk detected in current scan
+  - 12) No `dist/` untracked junk detected in current scan snapshot
+  - 13) `api12345` literal scan: not found in tracked files
+  - 14) `demokey` literal scan: not found in tracked files
+  - 15) `uid=` pattern appears in hygiene verifiers/docs checks (test policy strings)
+  - 16) `ukey=` pattern appears in hygiene verifiers/docs checks (test policy strings)
+  - 17) `Authorization`/`Bearer` appear in auth/proxy/weather tool code paths by design
+  - 18) `requestInfo.headers` appears in hygiene verifier assertions by design
+  - 19) Secret-like hardcoded values in tracked files: not detected by this scan pass
+  - 20) Recommendation: keep security scans in verifier gates; avoid storing credential literals in TODO/evidence
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS

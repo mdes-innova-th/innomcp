@@ -107,4 +107,7 @@ yarn-error.log*
 # Phase 9.3: DetectDB real-connect verifier
 !/scripts/verify_phase93_detectdb_real_connect.ts
 
+# Phase 9.4: Router DB-degrade verifier
+!/scripts/verify_phase94_router_db_degrade.ts
+
 
