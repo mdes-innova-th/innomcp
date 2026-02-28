@@ -113,4 +113,7 @@ yarn-error.log*
 # Phase 9.5: DetectDB real quality verifier
 !/scripts/verify_phase95_evidence_real_quality.ts
 
+# Phase 10.1A: Weather contract verifier
+!/scripts/verify_phase101a_weather_contract.ts
+
 

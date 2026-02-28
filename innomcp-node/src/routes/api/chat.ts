@@ -108,14 +108,25 @@ function syncChatAIModeIfChanged() {
 }
 
 function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { text: string; structuredContent: any } {
-  const structuredContent = { weatherPipeline: weatherPayload };
+  const payloadContract =
+    weatherPayload && typeof weatherPayload === "object" && !Array.isArray(weatherPayload)
+      ? (weatherPayload as any).weatherPayload
+      : null;
+  const structuredContent = payloadContract
+    ? { weatherPipeline: weatherPayload, weatherPayload: payloadContract }
+    : { weatherPipeline: weatherPayload };
 
   const renderUpstreamWeatherErr = (codeRaw: string, messageRaw?: string): { text: string; structuredContent: any } => {
     const code = String(codeRaw || "UPSTREAM_ERROR").toUpperCase();
     const errToken = `ERR:WX_${code}`;
     const base = String(messageRaw || "ขออภัย ยังไม่สามารถดึงข้อมูลอากาศได้ในขณะนี้").trim();
     const msg = base.includes("ERR:") ? base : `${base} (${errToken})`;
-    return { text: msg, structuredContent: { weatherPipeline: { ok: false, code, message: msg } } };
+    return {
+      text: msg,
+      structuredContent: payloadContract
+        ? { weatherPipeline: { ok: false, code, message: msg, weatherPayload: payloadContract }, weatherPayload: payloadContract }
+        : { weatherPipeline: { ok: false, code, message: msg } },
+    };
   };
 
   // Phase 7.1: support normalized weather payload wrapper
@@ -198,7 +209,14 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
 
   // Phase W1: strict deterministic contract renderer
   // Must include: จังหวัด, โอกาสฝน (%), อุณหภูมิ, ลม, เวลาอัปเดตข้อมูล (Observation/LastBuildDate)
-  return renderWeatherContractAnswer(userText || "", weatherResults as any);
+  const rendered = renderWeatherContractAnswer(userText || "", weatherResults as any);
+  if (payloadContract) {
+    rendered.structuredContent = {
+      ...(rendered.structuredContent || {}),
+      weatherPayload: payloadContract,
+    };
+  }
+  return rendered;
 }
 
 function wantsDeepExplain(text: string): boolean {

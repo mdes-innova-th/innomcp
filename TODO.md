@@ -556,6 +556,29 @@
     - `tests/e2e/tests/evidence-dashboard.spec.ts`
     - `scripts/run_ui_smoke_evidence_dashboard.ps1`
 
+  \***\*\*\*\*\*\*PHASE10.1A: Weather Fusion Contract + Verifier (2026-02-28)\***\*\*\*\*\*\*
+
+  - DoD:
+    - Define `structuredContent.weatherPayload` contract (`areas`, `sourcesUsed`, `confidence`, `errTaxonomy`)
+    - Deterministic weather route keeps renderer-only answer and exposes contract payload in structured content
+    - Verifier validates payload shape and per-area required 5 fields in fixture mode
+
+  - Result: PASS
+
+  - Evidence:
+    - `innomcp-node/evidence/phase101a-20260228-112814.log`
+
+  - Rerun:
+    - `cmd /d /c "taskkill /F /IM node.exe /T"`
+    - `npm --prefix innomcp-node run build`
+    - `cd innomcp-node; $env:SMOKE_MODE='1'; $env:CHAT_TRACE_QA='1'; $env:LOG_DEBUG='0'; $env:TS_NODE_CACHE='false'; $env:WEATHER_FIXTURE_W1='1'; npx ts-node scripts/verify_phase101a_weather_contract.ts`
+
+  - Work (DONE):
+    - `innomcp-node/src/utils/weather/weatherPayloadContract.ts`
+    - `innomcp-node/src/utils/mcp/mcpclient.ts`
+    - `innomcp-node/src/routes/api/chat.ts`
+    - `innomcp-node/scripts/verify_phase101a_weather_contract.ts`
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS

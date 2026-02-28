@@ -31,6 +31,7 @@ import {
 } from "./types";
 import { ToolSelectionEngine } from "./toolSelection";
 import { WeatherPipeline } from "../weather/weatherPipeline";
+import { buildWeatherPayloadContract } from "../weather/weatherPayloadContract";
 import { EVIDENCE_TOOL_DEF, handleEvidenceTool, EVIDENCE_TOOL_NAME } from "./tools/evidenceTool";
 import { THAI_GEO_TOOL_DEF, handleThaiGeoTool } from "./tools/thai_geo_tool";
 import { SYSTEM_STATUS_TOOL_DEF, handleSystemStatusTool } from "./tools/system_status_tool";
@@ -2061,10 +2062,11 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     error?: string;
   } {
     const anySuccess = Array.isArray(weatherResults) && weatherResults.some((r: any) => r && r.type && r.type !== "error");
+    const weatherPayload = buildWeatherPayloadContract(Array.isArray(weatherResults) ? weatherResults : []);
 
     if (anySuccess) {
       return {
-        structuredContent: { weatherPipeline: { ok: true, result: weatherResults } },
+        structuredContent: { weatherPipeline: { ok: true, result: weatherResults, weatherPayload }, weatherPayload },
         success: true,
         isError: false,
       };
@@ -2115,7 +2117,7 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     })();
 
     return {
-      structuredContent: { weatherPipeline: { ok: false, code, message, result: weatherResults } },
+      structuredContent: { weatherPipeline: { ok: false, code, message, result: weatherResults, weatherPayload }, weatherPayload },
       success: false,
       isError: true,
       error: code,
