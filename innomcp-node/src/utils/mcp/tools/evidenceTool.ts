@@ -153,6 +153,11 @@ export async function handleEvidenceTool(args: any): Promise<any> {
     return `${yyyy}-${mm}-${dd}`;
   };
 
+  const toYmd = (value: any, fallback: string): string => {
+    const raw = String(value ?? "").slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : fallback;
+  };
+
   const pickFirstColumn = (cols: string[], candidates: string[]): string | undefined => {
     const lower = new Map(cols.map((c) => [c.toLowerCase(), c] as const));
     for (const want of candidates) {
@@ -389,14 +394,14 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       const byDate = new Map<string, number>();
       if (Array.isArray(rows)) {
         for (const r of rows) {
-          const d = String(r?.d || "").slice(0, 10);
+          const d = toYmd(r?.d, "");
           const c = Number(r?.c || 0) || 0;
           if (d) byDate.set(d, c);
         }
       }
 
       const points = Array.from({ length: 7 }).map((_, idx) => {
-        const date = getBangkokDate(-6 + idx);
+        const date = toYmd(getBangkokDate(-6 + idx), getBangkokDate(-6 + idx));
         return { date, count: byDate.get(date) ?? 0 };
       });
       const total = points.reduce((acc, p) => acc + (Number(p.count) || 0), 0);

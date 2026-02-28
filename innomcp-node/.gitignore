@@ -110,4 +110,7 @@ yarn-error.log*
 # Phase 9.4: Router DB-degrade verifier
 !/scripts/verify_phase94_router_db_degrade.ts
 
+# Phase 9.5: DetectDB real quality verifier
+!/scripts/verify_phase95_evidence_real_quality.ts
+
 

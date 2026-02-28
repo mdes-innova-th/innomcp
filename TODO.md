@@ -507,6 +507,31 @@
   - 19) Secret-like hardcoded values in tracked files: not detected by this scan pass
   - 20) Recommendation: keep security scans in verifier gates; avoid storing credential literals in TODO/evidence
 
+  \***\*\*\*\*\*\*PHASE9.5: Detect/Evidence Real Stats Quality Gate (2026-02-28)\***\*\*\*\*\*\*
+
+  - DoD:
+    - `structuredContent.meta.dataSource=detectdb` on successful detectdb reads
+    - `meta.note` appears only on placeholder path
+    - Trend series dates are normalized as `YYYY-MM-DD` strings
+    - Real detectdb quality checks pass: `rows>=3`, top ISP non-empty, trend sum > 0
+
+  - Result: PASS
+
+  - Evidence:
+    - `innomcp-node/evidence/phase95-20260228-100939.log`
+
+  - Rerun:
+    - `cmd /d /c "taskkill /F /IM node.exe /T"`
+    - `npm --prefix innomcp-node run build`
+    - `cd innomcp-node; $env:SMOKE_MODE='1'; $env:CHAT_TRACE_QA='1'; $env:LOG_DEBUG='0'; $env:TS_NODE_CACHE='false'; $env:MARIADB_ROOT_PASSWORD='<set-locally>'; $env:MARIADB_PASSWORD='<set-locally>'; npx ts-node scripts/verify_phase95_evidence_real_quality.ts`
+    - `cmd /d /c "taskkill /F /IM node.exe /T"`
+
+  - Work (DONE):
+    - Trend date normalization hardening (`YYYY-MM-DD`) in evidence tool
+      - `innomcp-node/src/utils/mcp/tools/evidenceTool.ts`
+    - New deterministic verifier + seed for quality gate
+      - `innomcp-node/scripts/verify_phase95_evidence_real_quality.ts`
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS
