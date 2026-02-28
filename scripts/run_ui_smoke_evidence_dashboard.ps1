@@ -1,5 +1,6 @@
 Param(
-  [int]$TimeoutSeconds = 420
+  [int]$TimeoutSeconds = 420,
+  [string]$SpecPath = 'tests/e2e/tests/evidence-dashboard.spec.ts'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -227,7 +228,7 @@ try {
   $env:UI_BASE_URL = $frontendUrl
 
   $pwCmd = Join-Path $repoRoot 'node_modules\\.bin\\playwright.cmd'
-  $spec = 'tests/e2e/tests/evidence-dashboard.spec.ts'
+  $spec = $SpecPath
   $cfg = 'playwright.config.ts'
   Write-LogLine "run: Playwright cmd=$pwCmd cfg=$cfg spec=$spec"
   Write-LogLine "playwright logs: out=$pwOut err=$pwErr"

@@ -532,6 +532,30 @@
     - New deterministic verifier + seed for quality gate
       - `innomcp-node/scripts/verify_phase95_evidence_real_quality.ts`
 
+  \***\*\*\*\*\*\*PHASE9.6: Evidence Dashboard UI v2 + UI Smoke Gate (2026-02-28)\***\*\*\*\*\*\*
+
+  - DoD:
+    - Dashboard v2 includes KPI chips + sortable table + ISP bar chart + trend line tooltip
+    - UI displays data source badge (`detectdb`/`placeholder`) clearly
+    - Playwright spec validates dashboard + badge=`detectdb` under seeded detectdb env
+    - UI smoke runner supports explicit single-spec path for fast execution
+
+  - Result: PASS
+
+  - Evidence:
+    - `innomcp-node/evidence/ui-smoke-evidence-dashboard-20260228-104535.log`
+
+  - Rerun:
+    - `cmd /d /c "taskkill /F /IM node.exe /T"`
+    - `$env:SMOKE_MODE='1'; $env:CHAT_TRACE_QA='1'; $env:LOG_DEBUG='0'; $env:TS_NODE_CACHE='false'`
+    - `$env:MARIADB_ROOT_PASSWORD='<set-locally>'; $env:MARIADB_PASSWORD='<set-locally>'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='<set-locally>'; $env:DETECT_DB_NAME='phase95_detectdb'`
+    - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_ui_smoke_evidence_dashboard.ps1 -TimeoutSeconds 420 -SpecPath "tests/e2e/tests/evidence-dashboard.spec.ts"`
+
+  - Work (DONE):
+    - `innomcp-next/src/app/components/chat/EvidenceDashboard.tsx`
+    - `tests/e2e/tests/evidence-dashboard.spec.ts`
+    - `scripts/run_ui_smoke_evidence_dashboard.ps1`
+
 \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
 
 - Result: PASS

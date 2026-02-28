@@ -54,10 +54,18 @@ test.describe("Evidence Dashboard", () => {
     const dashboard = lastAssistant.locator('[data-testid="evidence-dashboard"]');
     await expect(dashboard).toBeVisible({ timeout: 30000 });
 
+    const sourceBadge = dashboard.locator('[data-testid="evidence-datasource-badge"]');
+    await expect(sourceBadge).toBeVisible();
+    await expect(sourceBadge).toContainText("detectdb");
+
     await expect(dashboard.locator('[data-testid="evidence-kpi-total"]')).toBeVisible();
     await expect(dashboard.locator('[data-testid="evidence-kpi-topisp"]')).toBeVisible();
     await expect(dashboard.locator('[data-testid="evidence-kpi-topcount"]')).toBeVisible();
 
+    await expect(dashboard.locator('[data-testid="evidence-line-chart"]')).toBeVisible();
+    await expect(dashboard.locator('[data-testid="evidence-bar-chart"]')).toBeVisible();
+    await expect(dashboard.locator('[data-testid="evidence-sort-count"]')).toBeVisible();
+    await expect(dashboard.locator('[data-testid="evidence-sort-isp"]')).toBeVisible();
     await expect(dashboard.locator('[data-testid="evidence-table"]')).toBeVisible();
   });
 });
