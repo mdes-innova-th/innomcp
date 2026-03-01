@@ -2409,10 +2409,10 @@ Evidence (Trace v3, 12 lines)
   12) Untracked candidate: handoff/innomcp_local_ahead_phase93.bundle
   13) Untracked candidate: patches_phase9/0001-0009*.patch
   14) Recommended action: keep handoff/*.bundle & patches_phase9/*.patch as release artifacts; ignore .vscode/mcp.json
-  15) Banned literal scan: `api12345` not found in tracked files
-  16) Banned literal scan: `demokey` not found in tracked files
-  17) Pattern hits `uid=` / `ukey=` found in verifier scripts (policy assertions, not credentials)
-  18) Pattern hits `Authorization` / `Bearer` found in auth/proxy/weather code paths (expected runtime headers)
-  19) Pattern hits `requestInfo.headers` found in hygiene verifier checks (negative assertions)
-  20) Secret gate verdict: no concrete secret literal detected; continue phase execution with redact-on-write policy
+  15) Banned literal scan: high-risk sample A not found in tracked files
+  16) Banned literal scan: high-risk sample B not found in tracked files
+  17) Pattern hits found in verifier policy assertions (non-credential context)
+  18) Pattern hits found in auth/proxy/weather code paths (runtime header handling)
+  19) Pattern hits found in hygiene verifier checks (negative assertions)
+  20) Secret gate verdict: redact-on-write active; further cleanup required before release gate
   *********END INNOVA-BOT LABOR REPORT*********
