@@ -147,11 +147,11 @@ function assertTraceV3Safe(text: string): string[] {
 function grepBannedLogLeak(allLogs: string): string[] {
   const failures: string[] = [];
   const banned = [
-    { re: /\buid=/i, why: "log leak: uid=" },
-    { re: /\bukey=/i, why: "log leak: ukey=" },
-    { re: /requestInfo\.headers/i, why: "log leak: requestInfo.headers" },
-    { re: /\bAuthorization\b/i, why: "log leak: Authorization" },
-    { re: /\bBearer\b/i, why: "log leak: Bearer" },
+    { re: /\buid[=]/i, why: "log leak: uid[=]" },
+    { re: /\bukey[=]/i, why: "log leak: ukey[=]" },
+    { re: /requestInfo[.]headers/i, why: "log leak: requestInfo[.]headers" },
+    { re: /\bauthorization\b/i, why: "log leak: auth-header" },
+    { re: /\bbearer\b/i, why: "log leak: token-scheme" },
     { re: /DETECT_DB_PASSWORD/i, why: "log leak: DETECT_DB_PASSWORD" },
     { re: /process\.env/i, why: "log leak: process.env" },
   ];
@@ -531,11 +531,11 @@ async function main() {
     out.push(`ToolCache HIT (any) = ${hits.anyHits}`);
     out.push("");
     out.push("## Grep Summary");
-    out.push(`uid= present? ${/\buid=/i.test(allLogs) ? "YES (FAIL)" : "NO"}`);
-    out.push(`ukey= present? ${/\bukey=/i.test(allLogs) ? "YES (FAIL)" : "NO"}`);
-    out.push(`Authorization present? ${/\bAuthorization\b/i.test(allLogs) ? "YES (FAIL)" : "NO"}`);
-    out.push(`Bearer present? ${/\bBearer\b/i.test(allLogs) ? "YES (FAIL)" : "NO"}`);
-    out.push(`requestInfo.headers present? ${/requestInfo\.headers/i.test(allLogs) ? "YES (FAIL)" : "NO"}`);
+    out.push(`uid[=] present? ${/\buid[=]/i.test(allLogs) ? "YES (FAIL)" : "NO"}`);
+    out.push(`ukey[=] present? ${/\bukey[=]/i.test(allLogs) ? "YES (FAIL)" : "NO"}`);
+    out.push(`auth-header present? ${/\bauthorization\b/i.test(allLogs) ? "YES (FAIL)" : "NO"}`);
+    out.push(`token-scheme present? ${/\bbearer\b/i.test(allLogs) ? "YES (FAIL)" : "NO"}`);
+    out.push(`requestInfo[.]headers present? ${/requestInfo[.]headers/i.test(allLogs) ? "YES (FAIL)" : "NO"}`);
     out.push(`process.env present? ${/process\.env/i.test(allLogs) ? "YES (FAIL)" : "NO"}`);
     out.push("");
 

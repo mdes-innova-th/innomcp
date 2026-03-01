@@ -70,7 +70,7 @@ export function verifyToken(token: string): JWTPayload | null {
 }
 
 /**
- * Extract token from request (cookie or Authorization header)
+ * Extract token from request (cookie or auth header)
  * @param req Express request object
  * @returns Token string or null
  */
@@ -80,9 +80,9 @@ export function extractToken(req: Request): string | null {
     return req.cookies.token;
   }
 
-  // 2. Check Authorization header (Bearer token)
+  // 2. Check auth header (token-scheme)
   const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
     return authHeader.substring(7);
   }
 

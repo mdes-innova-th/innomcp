@@ -61,7 +61,7 @@ function Sanitize-EvidenceText {
 
   # Redact common secrets (best-effort)
   $t = $t -replace '(?i)\b(authorization|bearer|token|api[_-]?key|apikey|password|pwd)\b\s*[:=]\s*[^\s,;]+' , '$1=[REDACTED]'
-  $t = $t -replace '(?i)bearer\s+[A-Za-z0-9\-\._~\+\/]+=*', 'Bearer [REDACTED]'
+  $t = $t -replace '(?i)bearer\s+[A-Za-z0-9\-\._~\+\/]+=*', 'bearer [REDACTED]'
 
   # Redact JSON-ish blobs
   $t = $t -replace '(\{[^\}]{0,800}\})', '[JSON_REDACTED]'

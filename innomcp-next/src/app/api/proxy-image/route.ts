@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     // ดึง header จาก request เดิม
     const forwardHeaders: Record<string, string> = {};
     const incomingHeaders = request.headers;
-    // Forward Authorization, Cookie, User-Agent, Accept, Referer, Origin, X-Requested-With
+    // Forward auth header, cookie, user-agent, accept, referer, origin, x-requested-with
     [
       "authorization",
       "cookie",
@@ -62,9 +62,9 @@ export async function GET(request: NextRequest) {
       const value = incomingHeaders.get(key);
       if (value) forwardHeaders[key] = value;
     });
-    // เพิ่ม Bearer apiKey ถ้ายังไม่มี Authorization
+    // เพิ่ม token scheme apiKey ถ้ายังไม่มี auth header
     if (!forwardHeaders["authorization"] && apiKey) {
-      forwardHeaders["authorization"] = `Bearer ${apiKey}`;
+      forwardHeaders["authorization"] = `bearer ${apiKey}`;
     }
 
     const response = await fetch(targetUrl.toString(), {

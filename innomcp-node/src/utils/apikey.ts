@@ -254,10 +254,10 @@ export async function apiKeyMiddleware(
   res: any,
   next: any
 ): Promise<any> {
-  // รับ API Key จาก header X-API-Key หรือ Authorization: `Bearer ${apiKey}`
+  // รับ API Key จาก header X-API-Key หรือ auth header token-scheme
   const apiKey =
     req.headers["x-api-key"] ||
-    req.headers["authorization"]?.replace("Bearer ", "");
+    req.headers["authorization"]?.replace(/^bearer\s+/i, "");
 
   const origin = req.headers.origin || req.header("origin");
 

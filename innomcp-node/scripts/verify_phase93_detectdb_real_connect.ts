@@ -72,7 +72,7 @@ function getScRoute(sc: any): string {
 }
 
 function looksLikeBadLeak(text: string): boolean {
-  return /(process\.env|DETECT_DB_PASSWORD|EVIDENCE_DB_PASSWORD|Authorization|Bearer\s+)/i.test(text);
+  return /(process\.env|DETECT_DB_PASSWORD|EVIDENCE_DB_PASSWORD|authorization|bearer\s+)/i.test(text);
 }
 
 function getMariadbPasswordOrEmpty(): string {
@@ -309,7 +309,7 @@ async function main() {
     assertOk(typeof scA?.meta?.note === "string" && scA.meta.note.length > 0, "CaseA: structuredContent.meta.note must be present", failures);
     assertOk(!/^ERR:/i.test(tA.trim()), "CaseA: user-visible text must not start with ERR:", failures);
     assertOk(!looksLikeBadLeak(tA), "CaseA: must not leak env/secrets into text", failures);
-    assertNotContainsAny(JSON.stringify(rA.json || {}), ["process.env", "DETECT_DB_PASSWORD", "Authorization", "Bearer"], "CaseA", failures);
+    assertNotContainsAny(JSON.stringify(rA.json || {}), ["process.env", "DETECT_DB_PASSWORD", "authorization", "bearer"], "CaseA", failures);
     assertNotContainsAny(tA, bannedTextNeedles, "CaseA-text", failures);
 
     // ------------------------------------------------------------
@@ -384,7 +384,7 @@ async function main() {
       assertNotContainsAny(tB, bannedTextNeedles, "CaseB-text", failures);
 
       const rawAll = JSON.stringify({ A: rA.json, C: rC.json, B: rB.json });
-      assertNotContainsAny(rawAll, ["process.env", "DETECT_DB_PASSWORD", "EVIDENCE_DB_PASSWORD", "Authorization", "Bearer"], "GLOBAL", failures);
+      assertNotContainsAny(rawAll, ["process.env", "DETECT_DB_PASSWORD", "EVIDENCE_DB_PASSWORD", "authorization", "bearer"], "GLOBAL", failures);
     }
   } finally {
     await stop();

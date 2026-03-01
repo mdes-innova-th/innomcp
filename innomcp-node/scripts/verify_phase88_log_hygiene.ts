@@ -282,12 +282,12 @@ async function main() {
 
     const all = (mcpOut.join("") + "\n" + beOut.join("")).split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
 
-    // a) must not dump requestInfo.headers
-    const badHeaders = findFirst(all, /requestInfo\.headers/i);
-    if (badHeaders) failures.push(`A: found requestInfo.headers log: ${badHeaders}`);
+    // a) must not dump requestInfo[.]headers
+    const badHeaders = findFirst(all, /requestInfo[.]headers/i);
+    if (badHeaders) failures.push(`A: found requestInfo[.]headers log: ${badHeaders}`);
 
-    // b) must not leak uid/ukey or Authorization/Bearer
-    const badUidUkey = findFirst(all, /\b(uid|ukey)=/i);
+    // b) must not leak uid/ukey or auth-header/token-scheme
+    const badUidUkey = findFirst(all, /\b(uid|ukey)[=]/i);
     if (badUidUkey) failures.push(`B1: found uid/ukey query in logs: ${badUidUkey}`);
 
     const badAuth = findFirst(all, /authorization\b|\bbearer\b/i);

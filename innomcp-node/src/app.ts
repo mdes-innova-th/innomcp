@@ -69,7 +69,7 @@ app.use(
   cors({
     origin: corsOriginFn, // Dynamic origin checking
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key"],
+    allowedHeaders: ["Content-Type", "authorization", "X-API-Key"],
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,

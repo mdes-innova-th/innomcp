@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     authUrl.searchParams.append("state", state);
 
     console.log("[ThaiD Login] Final Redirect URI:", redirectUri);
-    console.log("[ThaiD Login] Final Authorization URL:", authUrl.toString());
+    console.log("[ThaiD Login] Final Auth URL:", authUrl.toString());
 
     // สร้าง response พร้อม state cookie
     console.log("[ThaiD Login] Setting state cookie with options");

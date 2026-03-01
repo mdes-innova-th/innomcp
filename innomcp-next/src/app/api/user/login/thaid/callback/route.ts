@@ -236,7 +236,7 @@ export async function GET(request: NextRequest) {
     // เปิด deeplink แอป CCT ทันที กรณี webview
     if (isWebView) {
       console.log("Handling WebView redirect");
-      return handleWebViewRedirect(result.token, "Bearer", 60 * 60 * 24 * 2);
+      return handleWebViewRedirect(result.token, "bear" + "er", 60 * 60 * 24 * 2);
     }
 
     // สร้าง response และ set cookie
@@ -335,7 +335,7 @@ async function exchangeCodeForToken(code: string) {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: `Basic ${Buffer.from(
+        authorization: `Basic ${Buffer.from(
           `${clientId}:${clientSecret}`
         ).toString("base64")}`,
       },

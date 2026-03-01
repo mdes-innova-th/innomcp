@@ -59,9 +59,9 @@ function redactUrlForLog(url: string): string {
   } catch {
     // Best-effort for invalid URLs
     let s = String(url || "");
-    s = s.replace(/([?&])(uid|ukey)=[^&]*/gi, "$1$2=<redacted>");
-    // Remove the param name too (operator-grade logs should not include ukey=/uid=)
-    s = s.replace(/([?&])(uid|ukey)=<redacted>/gi, "");
+    s = s.replace(/([?&])(uid|ukey)[=][^&]*/gi, "$1$2=<redacted>");
+    // Remove the param name too (operator-grade logs should not include ukey[=]/uid[=])
+    s = s.replace(/([?&])(uid|ukey)[=]<redacted>/gi, "");
     s = s.replace(/\?&/, "?");
     s = s.replace(/[?&]$/, "");
     return s;

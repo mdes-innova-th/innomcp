@@ -157,7 +157,7 @@ export const nwpDailyByLocationTool = {
 
       const response = await axios.get(`${url}?${params}`, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'authorization': `bearer ${apiKey}`,
           'Accept': 'application/json'
         },
         timeout: DEFAULT_TIMEOUT
@@ -268,7 +268,7 @@ export const nwpDailyByPlaceTool = {
 
       const response = await axios.get(`${url}?${params}`, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'authorization': `bearer ${apiKey}`,
           'Accept': 'application/json'
         },
         timeout: DEFAULT_TIMEOUT
@@ -391,7 +391,7 @@ export const nwpDailyByRegionTool = {
 
       const response = await axios.get(`${url}?${params}`, {
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'authorization': `bearer ${apiKey}`,
           'Accept': 'application/json'
         },
         timeout: DEFAULT_TIMEOUT

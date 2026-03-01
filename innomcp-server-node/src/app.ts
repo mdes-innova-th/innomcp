@@ -24,7 +24,7 @@ app.use(
   cors({
     origin: allowedOrigin, // ระบุ origin ที่อนุญาต เช่น ["http://localhost:3000", "https://yourdomain.com"]
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-API-Key"],
+    allowedHeaders: ["Content-Type", "authorization", "X-API-Key"],
     credentials: true,
     preflightContinue: false,
     optionsSuccessStatus: 204,

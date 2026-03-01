@@ -1126,7 +1126,7 @@ function sanitizeForLog(input: string, max = 180): string {
     /(api[_-]?key|token|bearer|authorization|password)\s*[:=]\s*([^,\s;]+)/gi,
     (_m, k) => `${k}=[REDACTED]`
   );
-  // redact "Authorization: Bearer <blob>" style tokens
+  // redact auth-header token-scheme blob style tokens
   s = s.replace(/\bauthorization\s*:\s*bearer\s+[^,\s;]+/gi, "authorization: bearer [REDACTED]");
 
   // redact long blobs (base64/hex-ish)

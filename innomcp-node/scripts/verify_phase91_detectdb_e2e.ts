@@ -72,7 +72,7 @@ function getScRoute(sc: any): string {
 }
 
 function looksLikeBadLeak(text: string): boolean {
-  return /(process\.env|DETECT_DB_PASSWORD|EVIDENCE_DB_PASSWORD|Authorization|Bearer\s+)/i.test(text);
+  return /(process\.env|DETECT_DB_PASSWORD|EVIDENCE_DB_PASSWORD|authorization|bearer\s+)/i.test(text);
 }
 
 function getMariadbPasswordOrEmpty(): string {
@@ -321,7 +321,7 @@ async function main() {
     assertOk(typeof sc0?.meta?.note === "string" && sc0.meta.note.length > 0, "Q0: structuredContent.meta.note must be present for placeholder", failures);
     assertOk(!/^ERR:/i.test(t0.trim()), "Q0: user-visible text must not start with ERR:", failures);
     assertOk(!looksLikeBadLeak(t0), "Q0: must not leak env/secrets into text", failures);
-    assertNotContainsAny(JSON.stringify(r0.json || {}), ["process.env", "DETECT_DB_PASSWORD", "Authorization", "Bearer"], "Q0", failures);
+    assertNotContainsAny(JSON.stringify(r0.json || {}), ["process.env", "DETECT_DB_PASSWORD", "authorization", "bearer"], "Q0", failures);
 
     // ------------------------------------------------------------
     // Case B: Real DetectDB (Docker MariaDB + seeded schema)
@@ -414,7 +414,7 @@ async function main() {
 
     // Global negative checks
     const rawAll = JSON.stringify({ r0: r0.json, r1: r1.json, r2: r2.json, r3: r3.json });
-    assertNotContainsAny(rawAll, ["process.env", "DETECT_DB_PASSWORD", "EVIDENCE_DB_PASSWORD", "Authorization", "Bearer"], "GLOBAL", failures);
+    assertNotContainsAny(rawAll, ["process.env", "DETECT_DB_PASSWORD", "EVIDENCE_DB_PASSWORD", "authorization", "bearer"], "GLOBAL", failures);
   } finally {
     await stop();
   }

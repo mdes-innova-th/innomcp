@@ -39,7 +39,8 @@ export async function apiKeyMiddleware(
   handler: (req: NextRequest) => Promise<NextResponse>
 ): Promise<NextResponse> {
   // รับ API Key จาก header
-  const apiKey = req.headers.get("x-api-key") || req.headers.get("Authorization")?.replace("Bearer ", "") || null;
+  const authHeader = req.headers.get("authorization") || "";
+  const apiKey = req.headers.get("x-api-key") || authHeader.replace(/^bearer\s+/i, "") || null;
   console.log("[middleware] API Key received");
   const origin = req.headers.get("origin");
   // ดึง IP

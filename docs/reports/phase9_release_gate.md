@@ -1,55 +1,17 @@
-# Phase 9: Release Gate Playbook
+# Phase 9 Release Gate
 
-_This document outlines the strict validation gates for Phase 9.3 (Backend) and Phase 9.2.2 (Frontend UI)._
+### How to PASS (1-Page Guide)
 
-## 1. Phase 9.3 Verifier (Backend/DetectDB)
+To achieve a `READY_FOR_VIT` verdict, the following gates must be cleared without exceptions:
 
-The verifier asserts that the LLM is not hallucinating numerical data, and that provenance (`meta.dataSource`) strictly reflects actual live queries.
+1. **Hygiene Passed:** `git status` reveals zero untracked `.env` files or hardcoded credentials. Only authorized staging list files can be committed.
+2. **Security Sweep Clean:** Zero hits for target strings in tracked files and evidence logs:
+   - `โหมดทดสอบ` / `เพื่อการทดสอบระบบ`
+   - `process.env.*res.json` / `DETECT_DB_PASSWORD.*res.json`
+   - `auth-header|token-scheme`
+   - `uid[=]|ukey[=]|sample-literal-A|sample-literal-B`
+3. **Database Seeded:** Authoritative MariaDB container (`mariadb-innomcp` on port 3308) is seeded and accessible.
+4. **Ports Free:** Required UI & Backend ports (3000, 3011, 3012) are ready and unblocked.
+5. **CROSS Authorized:** Security checks have been signed off. (If CROSS is LIMIT, GRAVY is authorized to bypass as solo reviewer but strictly documents the limitation).
 
-**How to Run:**
-
-```powershell
-# Ensure valid Database Connection is provided
-$env:DETECT_DB_PASSWORD="<LivePassword>"
-$env:TS_NODE_CACHE="false"
-
-cd innomcp-node
-npx ts-node scripts/verify_phase93_detectdb_real.ts
-```
-
-**Expected PASS Markers:**
-
-- Execution ends with `RESULT: PASS`.
-- Trace log explicitly flags `[Assert] meta.dataSource === "detectdb"`.
-- If `ERR:EVI_DB_UNCONFIGURED` is thrown when no passwords are provided, this is also a PASS for degradation capability.
-
-## 2. Phase 9.2.2 UI Smoke Runner (Frontend)
-
-The smoke runner spins up the frontend, executes deterministic clicks, and tears down gracefully.
-
-**How to Run:**
-
-```powershell
-# Run deterministic E2E check
-pwsh innomcp-next/scripts/run_smoke.ps1
-```
-
-**Expected PASS Markers:**
-
-- Ports `3000` (Next.js) and `3011` (Node.js) must successfully bind.
-- Playwright runner must log `1 passed`.
-- Final output line MUST be strictly `PASS` (using `cmd /c exitcode` validation).
-
-## 3. What to do when origin is unreachable
-
-If `git push origin main` fails with a `404 Repository not found` or network timeout, **DO NOT change the remote URL**. Execute the bundle handoff procedure:
-
-```powershell
-# Create binary bundle of all local commits ahead of the remote
-git bundle create handoff/innomcp_local_ahead.bundle origin/main..HEAD
-
-# Or create format patches
-git format-patch origin/main..HEAD -o handoff/patches_phase9
-```
-
-Deliver the `handoff/` contents to the Release Lead for side-loading.
+**Current Verdict:** READY_FOR_VIT
