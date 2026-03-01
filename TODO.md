@@ -2393,3 +2393,26 @@ Evidence (Trace v3, 12 lines)
       - PII Redaction: **PASS** (Log reviewed: no email/IP/token).
       - SQL Safety: **PASS** (Parameterized queries in `evidenceTool.ts`).
     - **Verdict**: **PASS (Local-Only)**
+
+  *********INNOVA-BOT LABOR REPORT (20 lines, 2026-03-01)*********
+  01) Source: mcp_innovabot_run_command_shell + meta.project=innomcp (workspace=/workspace/target)
+  02) Docker containers/ports via innova-bot: BLOCKED (docker not in exec allowlist)
+  03) Proof: run_command_shell => "คำสั่งไม่อยู่ใน allowlist: docker"
+  04) Next action: add `docker` to EXEC_ALLOWLIST + install docker CLI + mount docker socket if required
+  05) Untracked candidate: .vscode/mcp.json
+  06) Untracked candidate: innomcp_local_ahead.bundle
+  07) Untracked candidate: handoff/innomcp-main-ahead-20260227-1600.bundle
+  08) Untracked candidate: handoff/innomcp-main-ahead-20260228-002148.bundle
+  09) Untracked candidate: handoff/innomcp-main-ahead-20260228-002251.bundle
+  10) Untracked candidate: handoff/innomcp-main-ahead-20260228-182049.bundle
+  11) Untracked candidate: handoff/innomcp-origin-main..HEAD-20260227-133224.bundle
+  12) Untracked candidate: handoff/innomcp_local_ahead_phase93.bundle
+  13) Untracked candidate: patches_phase9/0001-0009*.patch
+  14) Recommended action: keep handoff/*.bundle & patches_phase9/*.patch as release artifacts; ignore .vscode/mcp.json
+  15) Banned literal scan: `api12345` not found in tracked files
+  16) Banned literal scan: `demokey` not found in tracked files
+  17) Pattern hits `uid=` / `ukey=` found in verifier scripts (policy assertions, not credentials)
+  18) Pattern hits `Authorization` / `Bearer` found in auth/proxy/weather code paths (expected runtime headers)
+  19) Pattern hits `requestInfo.headers` found in hygiene verifier checks (negative assertions)
+  20) Secret gate verdict: no concrete secret literal detected; continue phase execution with redact-on-write policy
+  *********END INNOVA-BOT LABOR REPORT*********

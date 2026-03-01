@@ -87,8 +87,7 @@ async function seedDb(logs: string[], failures: string[], dbName: string) {
   const composeFile = path.resolve(repoRoot, "mariadb", "docker-compose.yml");
   const pwd = getMariadbPasswordOrEmpty();
   if (!pwd) {
-    failures.push("BLOCKED:MISSING_MARIADB_PASSWORD_ENV");
-    return;
+    logs.push("seed: no MARIADB password env found -> fallback to empty password attempt");
   }
 
   const down = tryDockerCompose(composeFile, path.dirname(composeFile), "down");
@@ -233,23 +232,18 @@ async function main() {
   await seedDb(logs, failures, dbName);
 
   const pwd = getMariadbPasswordOrEmpty();
-  if (!pwd) {
-    failures.push("BLOCKED:MISSING_MARIADB_PASSWORD_ENV");
-    logs.push("CaseB blocked: missing MARIADB_ROOT_PASSWORD/MARIADB_PASSWORD env");
-  } else {
-    process.env.GODTIER_KEYWORDS_SOURCE = "db";
-    process.env.DB_HOST = "127.0.0.1";
-    process.env.DB_PORT = "3308";
-    process.env.DB_USER = "root";
-    process.env.DB_PASSWORD = pwd;
-    process.env.DB_NAME = dbName;
+  process.env.GODTIER_KEYWORDS_SOURCE = "db";
+  process.env.DB_HOST = "127.0.0.1";
+  process.env.DB_PORT = "3308";
+  process.env.DB_USER = "root";
+  process.env.DB_PASSWORD = pwd;
+  process.env.DB_NAME = dbName;
 
-    const routerB = new GodTierRouter();
-    const routeB = await routerB.route("phase94-ทั่วไป ช่วยสรุปความสามารถระบบ");
-    logs.push(`CaseB route: category=${routeB.category} source=${routeB.keywordSource || "-"} dbOperational=${routeB.dbOperational === true ? "up" : "down"} usedFallback=${routeB.usedFallback}`);
-    assertOk(routeB.keywordSource === "db", "CaseB: keywordSource must be db when DB seeded/up", failures);
-    assertOk(routeB.dbOperational === true, "CaseB: dbOperational must be true when DB seeded/up", failures);
-  }
+  const routerB = new GodTierRouter();
+  const routeB = await routerB.route("phase94-ทั่วไป ช่วยสรุปความสามารถระบบ");
+  logs.push(`CaseB route: category=${routeB.category} source=${routeB.keywordSource || "-"} dbOperational=${routeB.dbOperational === true ? "up" : "down"} usedFallback=${routeB.usedFallback}`);
+  assertOk(routeB.keywordSource === "db", "CaseB: keywordSource must be db when DB seeded/up", failures);
+  assertOk(routeB.dbOperational === true, "CaseB: dbOperational must be true when DB seeded/up", failures);
 
   const ok = failures.length === 0;
   logs.push(ok ? "SUMMARY: router db degrade pass (down->fallback, up->db)" : "SUMMARY: router db degrade failed");
