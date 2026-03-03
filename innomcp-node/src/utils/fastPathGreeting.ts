@@ -105,6 +105,9 @@ const DEFAULT_DICT: GreetingDict = {
   ],
   thanks: [
     "ขอบคุณ",
+    "ขอบคุณมาก",
+    "ขอบคุณครับ",
+    "ขอบคุณค่ะ",
     "ขอบใจ",
     "แต๊ง",
     "thank you",

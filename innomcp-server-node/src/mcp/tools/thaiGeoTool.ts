@@ -206,9 +206,15 @@ function normalizeDbRowToEntity(row: any): ThaiGeoEntity {
   const domain = String(row.domain ?? "geo") as ThaiKnowledgeDomain;
   const name_th = String(row.name_th ?? "");
 
-  const aliases = safeJsonParse<string[]>(row.aliases, []);
+  const parsedAliases = safeJsonParse<unknown>(row.aliases, []);
+  const aliases = Array.isArray(parsedAliases)
+    ? parsedAliases.filter((item): item is string => typeof item === "string")
+    : [];
   const attributes = safeJsonParse<any>(row.attributes, {});
   const relations = safeJsonParse<any[]>(row.relations, []);
+  const lat = Number(attributes.lat);
+  const lon = Number(attributes.lon);
+  const confidenceNumber = Number(row.confidence);
 
   const sourceRaw = row.source;
   const sourceObj: ThaiGeoSource =
@@ -226,12 +232,12 @@ function normalizeDbRowToEntity(row: any): ThaiGeoEntity {
       province: String(attributes.province ?? name_th),
       district: attributes.district,
       region: String(attributes.region ?? ""),
-      lat: typeof attributes.lat === "number" ? attributes.lat : undefined,
-      lon: typeof attributes.lon === "number" ? attributes.lon : undefined,
+      lat: Number.isFinite(lat) ? lat : undefined,
+      lon: Number.isFinite(lon) ? lon : undefined,
     },
     relations,
     source: sourceObj,
-    confidence: typeof row.confidence === "number" ? row.confidence : 1.0,
+    confidence: Number.isFinite(confidenceNumber) ? confidenceNumber : 1.0,
     version: String(row.version ?? "1.0.0"),
     updated_at: String(row.updated_at ?? new Date().toISOString()),
   };
@@ -262,6 +268,7 @@ function computeConfidence(entities: ThaiGeoEntity[], queryText: string): number
 
   if (first.name_th.toLowerCase() === q) return 0.95;
   if ((first.aliases ?? []).some((a) => a.toLowerCase() === q)) return 0.92;
+  if (first.attributes.region?.toLowerCase() === q) return 0.8;
   if (first.name_th.toLowerCase().includes(q)) return 0.85;
   return 0.75;
 }

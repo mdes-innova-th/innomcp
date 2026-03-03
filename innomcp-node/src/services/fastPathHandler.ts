@@ -330,6 +330,12 @@ export async function handleFastPathMessage(
       fastPathHit: fp.hit,
       fastPathLatencyMs: latencyMs,
       fastPathAt: nowIso(),
+      __render: {
+        route: "general",
+        llmUsed: false,
+        routeDecider: "deterministic",
+        version: "phase10.2",
+      },
       dictInfo: getFastPathDictInfo(),
       extraPhrasesCounts: {
         greeting: extra.greeting?.length || 0,
@@ -412,6 +418,12 @@ export async function tryFastPathWebSocket(
         fastPath: true,
         fastPathHit: hit,
         result: responseText,
+        __render: {
+          route: "general",
+          llmUsed: false,
+          routeDecider: "deterministic",
+          version: "phase10.2",
+        },
         ...(extraStructured || {}),
       },
     });

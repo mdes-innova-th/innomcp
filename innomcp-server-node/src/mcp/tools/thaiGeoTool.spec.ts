@@ -47,6 +47,23 @@ test("thai_geo_tool: confidence_required gates low confidence", async () => {
   assert.equal(body.error_code, "NOT_FOUND");
 });
 
+test("thai_geo_tool: exact region match (อีสาน) returns confidence 0.8", async () => {
+  const result = await thaiGeoTool.execute({ query: "อีสาน" });
+  const body = parseToolText(result);
+
+  assert.equal(body.success, true);
+  assert.equal(body.confidence, 0.8);
+  assert.equal(body.note, "matched by region");
+});
+
+test("thai_geo_tool: unknown query returns NOT_FOUND", async () => {
+  const result = await thaiGeoTool.execute({ query: "จังหวัดทดลองไม่มีจริง" });
+  const body = parseToolText(result);
+
+  assert.equal(body.success, false);
+  assert.equal(body.error_code, "NOT_FOUND");
+});
+
 test("thai_geo_tool: DB adapter error triggers fallback to stub", async () => {
   const throwingAdapter: GeoDbAdapter = {
     async search(): Promise<any[]> {
