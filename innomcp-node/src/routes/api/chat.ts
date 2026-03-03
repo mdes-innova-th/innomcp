@@ -27,6 +27,7 @@ import { renderWeatherMarkdownTable } from "../../utils/weather/tableRenderer";
 import { renderWeatherContractAnswer } from "../../utils/weather/answerContract";
 import { sanitizeForTraceV3, normalizeTraceAnswerV3ByRoute } from "../../utils/traceSanitizer";
 import { renderThaiGeoAnswerShort } from "../../utils/mcp/tools/thai_geo_tool";
+import { planAnswer } from "../../utils/mcp/answerPlanner";
 
 dotenv.config();
 
@@ -587,9 +588,20 @@ function structuredKeysSummary(structuredContent: any): string {
   return typeof structuredContent;
 }
 
-function withRenderMeta(structuredContent: any, meta: { route: "weather" | "geo" | "evidence" | "general"; llmUsed: boolean; routeDecider: "deterministic"; version: "phase8" }): any {
+function withRenderMeta(structuredContent: any, meta: { route: "weather" | "geo" | "evidence" | "general" | "web-record"; llmUsed: boolean; routeDecider: "deterministic"; version: "phase8" | "phase10.2" }): any {
   const base = structuredContent && typeof structuredContent === "object" && !Array.isArray(structuredContent) ? structuredContent : {};
   return { ...(base as any), __render: meta };
+}
+
+function buildWebRecordPayload(query: string) {
+  return {
+    query,
+    hits: [],
+    summary: "ไม่พบข้อมูลในคลัง",
+    stats: { hitCount: 0 },
+    sources: ["local-index:none"],
+    meta: { dataSource: "none", note: "placeholder" },
+  };
 }
 
 function extractEvidenceCount(structuredContent: any): number | null {
@@ -1431,6 +1443,8 @@ wss.on("connection", (ws, req) => {
 
         const traceStartMs = Date.now();
         const evidenceAction = inferOfficerEvidenceAction(messageWithFile);
+        const answerPlan = planAnswer(messageWithFile);
+        logBoth("info", `[AnswerPlanner] transport=ws intent=${answerPlan.intent} steps=${answerPlan.steps.map((s) => s.name).join(",") || "none"}`);
 
         // Session id helper used across branches (WeatherGate returns early)
         const currentSessionId = (ws as any).sessionId;
@@ -1444,12 +1458,36 @@ wss.on("connection", (ws, req) => {
         // Route machine/evidence online/offline patterns directly to EvidenceTool with forced args.
         // Applies even when uiMode is not officer.
         // =====================================
-        if (mcpClient && evidenceAction) {
+        if (mcpClient && (evidenceAction || answerPlan.intent === "evidence")) {
           logBoth("info", `[EvidenceFastPath] deterministicEvidence=true transport=ws action=${evidenceAction} uiMode=${uiMode}`);
 
           sessionHistory.push({ sender: "user", text: messageWithFile });
           sessionManager.addMessage(currentSessionId, "user", messageWithFile);
           sessionManager.startResponse(currentSessionId);
+
+          if (!evidenceAction) {
+            const placeholderText = "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)";
+            const placeholderSc = withRenderMeta(
+              {
+                ok: false,
+                code: "EVIDENCE_PLACEHOLDER",
+                message: "fallback placeholder",
+                meta: { dataSource: "placeholder", note: "operator-grade fallback" },
+                table: { rows: [] },
+                stats: { total: 0 },
+              },
+              { route: "evidence", llmUsed: false, routeDecider: "deterministic", version: "phase10.2" }
+            );
+
+            const aiMessage: any = { sender: "ai", text: placeholderText, structuredContent: placeholderSc, toolsUsed: ["none"] };
+            sessionHistory.push(aiMessage);
+            sessionManager.addMessage(currentSessionId, "assistant", placeholderText, []);
+            sessionManager.completeResponse(currentSessionId);
+            sendSafe(ws, { type: "message", sender: "ai", text: placeholderText, structuredContent: placeholderSc, toolsUsed: [] });
+            sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [] });
+            sendDoneOnce();
+            return;
+          }
 
           const primaryToolName = "innomcp-server:evidenceTool";
           let toolNameUsed = primaryToolName;
@@ -1542,9 +1580,9 @@ wss.on("connection", (ws, req) => {
         // =====================================
         const geoLike = looksLikeDeterministicGeoQuery(messageWithFile);
         const weatherLike = looksLikeDeterministicWeatherQuery(messageWithFile);
-        const allowWeatherGate = !officerMode
+        const allowWeatherGate = answerPlan.intent === "weather" || (!officerMode
           ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(messageWithFile))
-          : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile);
+          : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile));
         if (mcpClient && allowWeatherGate) {
           const deep = wantsDeepExplain(messageWithFile);
           logBoth("info", `[WeatherGate] bypass=true transport=ws deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
@@ -1649,6 +1687,25 @@ wss.on("connection", (ws, req) => {
             q: messageWithFile,
             ans: textOut,
           });
+          return;
+        }
+
+        // =====================================
+        // Phase 10.2: Web-record deterministic fallback gate (contract v0)
+        // =====================================
+        if (answerPlan.intent === "web-record") {
+          const recordPayload = buildWebRecordPayload(messageWithFile);
+          const textOut = `สรุปการค้นข้อมูลอ้างอิง: ${recordPayload.summary}`;
+          const scOut = withRenderMeta({ recordPayload }, { route: "web-record", llmUsed: false, routeDecider: "deterministic", version: "phase10.2" });
+
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [] };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, []);
+          sessionManager.completeResponse(currentSessionId);
+
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [] });
+          sendDoneOnce();
           return;
         }
 
@@ -2377,6 +2434,8 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
     const traceStartMs = Date.now();
     const evidenceAction = inferOfficerEvidenceAction(messageWithFile);
+    const answerPlan = planAnswer(messageWithFile);
+    logBoth("info", `[AnswerPlanner] transport=http intent=${answerPlan.intent} steps=${answerPlan.steps.map((s) => s.name).join(",") || "none"}`);
 
     // Best-effort sessionId/requestId correlation for HTTP parity
     const cookieMap = String(req.headers.cookie || "")
@@ -2399,8 +2458,26 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     // Phase 7.2.5: Deterministic Evidence Fastpath (NO LLM classify/tool-select)
     // =====================================
-    if (mcpClient && evidenceAction) {
+    if (mcpClient && (evidenceAction || answerPlan.intent === "evidence")) {
       logBoth("info", `[EvidenceFastPath] deterministicEvidence=true transport=http action=${evidenceAction} uiMode=${uiMode}`);
+
+      if (!evidenceAction) {
+        const textOut = "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)";
+        const scOut = withRenderMeta(
+          {
+            ok: false,
+            code: "EVIDENCE_PLACEHOLDER",
+            message: "fallback placeholder",
+            meta: { dataSource: "placeholder", note: "operator-grade fallback" },
+            table: { rows: [] },
+            stats: { total: 0 },
+          },
+          { route: "evidence", llmUsed: false, routeDecider: "deterministic", version: "phase10.2" }
+        );
+
+        sessionHistory.push({ sender: "ai", text: textOut } as any);
+        return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: false, mcpResults: null });
+      }
 
       const primaryToolName = "innomcp-server:evidenceTool";
       let toolNameUsed = primaryToolName;
@@ -2490,9 +2567,9 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     const geoLike = looksLikeDeterministicGeoQuery(messageWithFile);
     const weatherLike = looksLikeDeterministicWeatherQuery(messageWithFile);
-    const allowWeatherGate = !officerMode
+    const allowWeatherGate = answerPlan.intent === "weather" || (!officerMode
       ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(messageWithFile))
-      : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile);
+      : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile));
     if (mcpClient && allowWeatherGate) {
       const mcp = mcpClient;
       const deep = wantsDeepExplain(messageWithFile);
@@ -2674,6 +2751,23 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         messages: sessionHistory,
         mcpUsed: true,
         mcpResults: toolResults,
+      });
+    }
+
+    // =====================================
+    // Phase 10.2: Web-record deterministic fallback gate (contract v0)
+    // =====================================
+    if (answerPlan.intent === "web-record") {
+      const recordPayload = buildWebRecordPayload(messageWithFile);
+      const textOut = `สรุปการค้นข้อมูลอ้างอิง: ${recordPayload.summary}`;
+      const scOut = withRenderMeta({ recordPayload }, { route: "web-record", llmUsed: false, routeDecider: "deterministic", version: "phase10.2" });
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+      return res.json({
+        text: textOut,
+        structuredContent: scOut,
+        messages: sessionHistory,
+        mcpUsed: false,
+        mcpResults: null,
       });
     }
 
