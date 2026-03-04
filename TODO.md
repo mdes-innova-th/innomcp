@@ -2803,3 +2803,13 @@ PHASE10.1B summary: PASS mapTiles image URL contract
 06) sanity check: `PROVINCE_ROWS=77`
 07) note: this continues Gravy/CROSS design-stub handoff without changing chat runtime logic
 ********* END PHASE 10.2 CONTINUE FROM GRAVY HANDOFF *********
+
+********* PHASE 10.2 DB INIT EXECUTION (2026-03-04) *********
+01) target action: execute `innomcp-node/scripts/seed_thai_geo.ts` against local docker MariaDB (`3308`)
+02) runtime mode: explicit env override for DB host/port/user/dbname
+03) execution result: `BLOCKED`
+04) evidence log: `innomcp-node/evidence/phase102-dbinit-auth-20260304-155602.log`
+05) blocker class: `ER_ACCESS_DENIED_ERROR` from DB connector (`db.ts`) during login
+06) status impact: schema/seed files are prepared in `database/init`, but runtime seed apply cannot proceed until DB credential alignment is fixed
+07) required next action: align `DB_USER/DB_PASSWORD/DB_NAME` in active `.env` profile with running `mariadb-innomcp` credentials, then rerun seed and verify row count
+********* END PHASE 10.2 DB INIT EXECUTION *********
