@@ -28,6 +28,7 @@ import { renderWeatherContractAnswer } from "../../utils/weather/answerContract"
 import { sanitizeForTraceV3, normalizeTraceAnswerV3ByRoute } from "../../utils/traceSanitizer";
 import { renderThaiGeoAnswerShort } from "../../utils/mcp/tools/thai_geo_tool";
 import { planAnswer } from "../../utils/mcp/answerPlanner";
+import { retrieveRecordsPayload } from "../../utils/chat/recordsRetrieval";
 
 dotenv.config();
 
@@ -588,20 +589,13 @@ function structuredKeysSummary(structuredContent: any): string {
   return typeof structuredContent;
 }
 
-function withRenderMeta(structuredContent: any, meta: { route: "weather" | "geo" | "evidence" | "general" | "web-record"; llmUsed: boolean; routeDecider: "deterministic"; version: "phase8" | "phase10.2" }): any {
+function withRenderMeta(structuredContent: any, meta: { route: "weather" | "geo" | "evidence" | "general" | "web-record"; llmUsed: boolean; routeDecider: "deterministic"; version: "phase8" | "phase10.2" | "phase10.3" | "phase10.4" }): any {
   const base = structuredContent && typeof structuredContent === "object" && !Array.isArray(structuredContent) ? structuredContent : {};
   return { ...(base as any), __render: meta };
 }
 
 function buildWebRecordPayload(query: string) {
-  return {
-    query,
-    hits: [],
-    summary: "ไม่พบข้อมูลในคลัง",
-    stats: { hitCount: 0 },
-    sources: ["local-index:none"],
-    meta: { dataSource: "none", note: "placeholder" },
-  };
+  return retrieveRecordsPayload(query);
 }
 
 function extractEvidenceCount(structuredContent: any): number | null {
@@ -1691,12 +1685,12 @@ wss.on("connection", (ws, req) => {
         }
 
         // =====================================
-        // Phase 10.2: Web-record deterministic fallback gate (contract v0)
+        // Phase 10.4: Web-record deterministic quality gate
         // =====================================
         if (answerPlan.intent === "web-record") {
           const recordPayload = buildWebRecordPayload(messageWithFile);
           const textOut = `สรุปการค้นข้อมูลอ้างอิง: ${recordPayload.summary}`;
-          const scOut = withRenderMeta({ recordPayload }, { route: "web-record", llmUsed: false, routeDecider: "deterministic", version: "phase10.2" });
+          const scOut = withRenderMeta({ recordPayload }, { route: "web-record", llmUsed: false, routeDecider: "deterministic", version: "phase10.4" });
 
           const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [] };
           sessionHistory.push(aiMessage);
@@ -1772,6 +1766,8 @@ wss.on("connection", (ws, req) => {
 
         // 🎯 God-Tier Router: 4-stage context-aware intent classification (Keyword + Semantic + Ambiguity + LLM)
         let semanticCategory: string | null = null;
+        let godTierConfidence = 1;
+        let godTierFallbackUsed = false;
         try {
           const godTierRouter = getGodTierRouter();
           const startTime = Date.now();
@@ -1785,6 +1781,8 @@ wss.on("connection", (ws, req) => {
 
           const routingResult = await godTierRouter.route(messageWithFile, conversationHistory);
           semanticCategory = routingResult.category;
+          godTierConfidence = Number((routingResult as any)?.confidence ?? 0);
+          godTierFallbackUsed = Boolean((routingResult as any)?.usedFallback || (routingResult as any)?.fallbackUsed);
           const latency = Date.now() - startTime;
 
           const kwSrc = String((routingResult as any)?.keywordSource || "-");
@@ -1803,7 +1801,35 @@ wss.on("connection", (ws, req) => {
             logBoth('info', `[God-Tier Router] 📊 Keyword: ${routingResult.keywordScore.toFixed(2)} | Semantic: ${routingResult.semanticScore.toFixed(2)}`);
           }
         } catch (err) {
+          godTierFallbackUsed = true;
           logBoth('warn', `[God-Tier Router] ⚠️  Routing failed: ${err}, falling back to MCP default`);
+        }
+
+        if (godTierFallbackUsed || godTierConfidence < 0.6) {
+          const lowConfidenceText = "ขออภัย ข้อมูลไม่เพียงพอหรือคำถามไม่ตรงกับโดเมน (Low Confidence). กรุณาระบุคำถามให้ชัดเจนขึ้นครับ";
+          const aiMessage: any = { sender: "ai", text: lowConfidenceText, toolsUsed: [] };
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", lowConfidenceText, []);
+          sessionManager.completeResponse(currentSessionId);
+
+          sendSafe(ws, { type: "message", sender: "ai", text: lowConfidenceText, toolsUsed: [] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [] });
+          sendDoneOnce();
+
+          chatTraceOut({
+            transport: "ws",
+            sid: currentSessionId,
+            cid,
+            uiMode,
+            route: "general",
+            tool: "none",
+            code: 200,
+            durMs: Date.now() - traceStartMs,
+            q: messageWithFile,
+            ans: lowConfidenceText,
+          });
+          return;
         }
 
       // 🎯 Intent-based handling: DISABLED FOR WEATHER (use MCP tools instead)
@@ -2755,12 +2781,12 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     }
 
     // =====================================
-    // Phase 10.2: Web-record deterministic fallback gate (contract v0)
+    // Phase 10.4: Web-record deterministic quality gate
     // =====================================
     if (answerPlan.intent === "web-record") {
       const recordPayload = buildWebRecordPayload(messageWithFile);
       const textOut = `สรุปการค้นข้อมูลอ้างอิง: ${recordPayload.summary}`;
-      const scOut = withRenderMeta({ recordPayload }, { route: "web-record", llmUsed: false, routeDecider: "deterministic", version: "phase10.2" });
+      const scOut = withRenderMeta({ recordPayload }, { route: "web-record", llmUsed: false, routeDecider: "deterministic", version: "phase10.4" });
       sessionHistory.push({ sender: "ai", text: textOut } as any);
       return res.json({
         text: textOut,
