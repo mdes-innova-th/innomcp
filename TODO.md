@@ -2813,3 +2813,13 @@ PHASE10.1B summary: PASS mapTiles image URL contract
 06) status impact: schema/seed files are prepared in `database/init`, but runtime seed apply cannot proceed until DB credential alignment is fixed
 07) required next action: align `DB_USER/DB_PASSWORD/DB_NAME` in active `.env` profile with running `mariadb-innomcp` credentials, then rerun seed and verify row count
 ********* END PHASE 10.2 DB INIT EXECUTION *********
+
+********* PHASE 10.2 DB INIT EXECUTION (FOLLOW-UP, 2026-03-04) *********
+01) blocker analysis: initial `ER_ACCESS_DENIED_ERROR` resolved by aligning DB grants/user to docker runtime env of `mariadb-innomcp`
+02) schema apply: `database/init/01-tables.sql` applied to active DB (`innomcp-db`) to create missing `knowledge_entities`
+03) seed rerun: `innomcp-node/scripts/seed_thai_geo.ts` completed with `Seeding Complete: 77 provinces.`
+04) runtime evidence (seed run): `innomcp-node/evidence/phase102-dbinit-authfix-20260304-162159.log`
+05) verification evidence (row count): `innomcp-node/evidence/phase102-dbinit-verify-20260304-162222.log`
+06) verification result: `ROW_COUNT=77` and `RESULT: PASS`
+07) status transition: Phase 10.2 DB init execution moved from `BLOCKED` -> `PASS`
+********* END PHASE 10.2 DB INIT EXECUTION (FOLLOW-UP) *********
