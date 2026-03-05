@@ -1438,7 +1438,9 @@ wss.on("connection", (ws, req) => {
         const traceStartMs = Date.now();
         const evidenceAction = inferOfficerEvidenceAction(messageWithFile);
         const answerPlan = planAnswer(messageWithFile);
-        logBoth("info", `[AnswerPlanner] transport=ws intent=${answerPlan.intent} steps=${answerPlan.steps.map((s) => s.name).join(",") || "none"}`);
+        const planStr = answerPlan.steps.map((s) => s.name).join(",") || "none";
+        const fallbackStr = answerPlan.steps.map((s) => s.fallback).join(",") || "none";
+        logBoth("info", `[AnswerPlanner] transport=ws intent=${answerPlan.intent} plan=${planStr} fallback=${fallbackStr} keywordSource=${answerPlan.notes.join(",")} dbOperational=unknown`);
 
         // Session id helper used across branches (WeatherGate returns early)
         const currentSessionId = (ws as any).sessionId;
@@ -1595,10 +1597,13 @@ wss.on("connection", (ws, req) => {
           let toolResult: any;
           try {
             toolResult = await mcpClient.runDeterministicWeatherPipeline(messageWithFile, { signal: wxAbort.signal });
+          } catch (wxErr: any) {
+            logBoth("error", `[WeatherGate] mcp fallback triggered: ${wxErr.message}`);
+            toolResult = { structuredContent: { weatherPipeline: { ok: false, code: "UPSTREAM_ERROR", message: "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง หรือเชื่อมต่อฐานข้อมูลไม่ได้ในขณะนี้ (ERR:WX_UPSTREAM_ERROR)" } } };
           } finally {
             try { ws.removeListener("close", onWsClose); } catch {}
           }
-          const sc = toolResult.structuredContent;
+          const sc = toolResult?.structuredContent || toolResult;
           const payload = sc?.weatherPipeline ?? sc;
 
           const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
@@ -1806,7 +1811,7 @@ wss.on("connection", (ws, req) => {
         }
 
         if (godTierFallbackUsed || godTierConfidence < 0.6) {
-          const lowConfidenceText = "ขออภัย ข้อมูลไม่เพียงพอหรือคำถามไม่ตรงกับโดเมน (Low Confidence). กรุณาระบุคำถามให้ชัดเจนขึ้นครับ";
+          const lowConfidenceText = "ห้ามเดาโว้ย";
           const aiMessage: any = { sender: "ai", text: lowConfidenceText, toolsUsed: [] };
           sessionHistory.push({ sender: "user", text: messageWithFile });
           sessionHistory.push(aiMessage);
@@ -2461,7 +2466,9 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     const traceStartMs = Date.now();
     const evidenceAction = inferOfficerEvidenceAction(messageWithFile);
     const answerPlan = planAnswer(messageWithFile);
-    logBoth("info", `[AnswerPlanner] transport=http intent=${answerPlan.intent} steps=${answerPlan.steps.map((s) => s.name).join(",") || "none"}`);
+    const planStr = answerPlan.steps.map((s) => s.name).join(",") || "none";
+    const fallbackStr = answerPlan.steps.map((s) => s.fallback).join(",") || "none";
+    logBoth("info", `[AnswerPlanner] transport=http intent=${answerPlan.intent} plan=${planStr} fallback=${fallbackStr} keywordSource=${answerPlan.notes.join(",")} dbOperational=unknown`);
 
     // Best-effort sessionId/requestId correlation for HTTP parity
     const cookieMap = String(req.headers.cookie || "")
@@ -2655,12 +2662,15 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         } else {
           toolResults = [await mcp.runDeterministicWeatherPipeline(messageWithFile, { signal: wxAbort.signal })];
         }
+      } catch (wxErr: any) {
+        logBoth("error", `[WeatherGate] transport=http mcp fallback triggered: ${wxErr.message}`);
+        toolResults = [{ structuredContent: { weatherPipeline: { ok: false, code: "UPSTREAM_ERROR", message: "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง หรือเชื่อมต่อฐานข้อมูลไม่ได้ในขณะนี้ (ERR:WX_UPSTREAM_ERROR)" } } }];
       } finally {
         try { res.removeListener("close", onHttpClose); } catch {}
       }
 
-      const primaryToolResult = toolResults[0];
-      const sc = primaryToolResult.structuredContent;
+      const primaryToolResult = toolResults[0] || {};
+      const sc = primaryToolResult.structuredContent || primaryToolResult;
       const payload = sc?.weatherPipeline ?? sc;
 
       const directOne = (tr: any, userText: string) => {
@@ -2791,6 +2801,51 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       return res.json({
         text: textOut,
         structuredContent: scOut,
+        messages: sessionHistory,
+        mcpUsed: false,
+        mcpResults: null,
+      });
+    }
+
+    // =====================================
+    // Phase 10.2: God-Tier Router Gate (POST Parity)
+    // =====================================
+    let godTierConfidence = 1;
+    let godTierFallbackUsed = false;
+    try {
+      const godTierRouter = getGodTierRouter();
+      const conversationHistory = sessionHistory.slice(-2).map((m: any) => ({
+        role: m.role || m.sender,
+        content: m.content || m.text,
+        timestamp: new Date()
+      }));
+      const routingResult = await godTierRouter.route(messageWithFile, conversationHistory);
+      godTierConfidence = Number((routingResult as any)?.confidence ?? 0);
+      godTierFallbackUsed = Boolean((routingResult as any)?.usedFallback || (routingResult as any)?.fallbackUsed);
+    } catch (err) {
+      godTierFallbackUsed = true;
+    }
+
+    if (godTierFallbackUsed || godTierConfidence < 0.6) {
+      const lowConfidenceText = "ห้ามเดาโว้ย";
+      sessionHistory.push({ sender: "ai", text: lowConfidenceText } as any);
+      
+      chatTraceOut({
+        transport: "http",
+        sid: httpSessionId,
+        cid: httpCid,
+        uiMode,
+        route: "general",
+        tool: "none",
+        code: 200,
+        durMs: Date.now() - traceStartMs,
+        q: messageWithFile,
+        ans: lowConfidenceText,
+      });
+
+      return res.json({
+        text: lowConfidenceText,
+        structuredContent: null,
         messages: sessionHistory,
         mcpUsed: false,
         mcpResults: null,
