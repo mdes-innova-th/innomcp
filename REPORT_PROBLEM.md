@@ -3,31 +3,6 @@
 อัปเดตล่าสุด: 2026-03-06
 
 ## OPEN
-
-### [P-20260305-125] INNOVA-BOT FIRST step 1.0 blocked: innova command sandbox path traversal
-
-- ID: P-20260305-125 | Status: OPEN
-- Symptom:
-  - รัน `docker compose up -d --build` ผ่าน `mcp_innovabot_run_command` ไม่ได้ เมื่อชี้ `cwd` ไป `C:\Users\USER-NT\DEV\innova-bot-template`
-  - tool ตอบ `Path traversal blocked`
-- Repro:
-  - MCP call: `run_command(cmd="docker", args=["compose","-f","C:\\Users\\USER-NT\\DEV\\innova-bot-template\\docker-compose.innova-bot.yml","up","-d","--build"], cwd="C:\\Users\\USER-NT\\DEV\\innova-bot-template")`
-  - result: `Error calling tool 'run_command': Path traversal blocked: C:\Users\USER-NT\DEV\innova-bot-template`
-- Suspected root cause:
-  - innova-bot command tools ถูก sandbox ให้วิ่งได้เฉพาะ workspace `innomcp` จึงเข้าถึง repo ข้างเคียง `innova-bot-template` ไม่ได้
-- Fix:
-  - ต้องมี compose/health assets อยู่ภายใต้ workspace ที่ tool อนุญาต หรือปรับ runtime/workspace binding ของ innova-bot ให้เข้าถึง path เป้าหมายได้
-  - หลังแก้ ต้อง rerun INNOVA-BOT FIRST ตั้งแต่ step 1.0 ใหม่
-- Verify:
-  - `run_command` คำสั่ง docker compose คืน exit 0 ผ่าน MCP
-  - จากนั้น health check + tool gate 100% PASS
-- Notes/Risk:
-  - ตาม policy ต้อง STOP flow ที่เหลือจนกว่า preflight จะผ่าน
-
-- Update (2026-03-05, WIT-102-006):
-  - ทดลอง workaround โดยใช้ `cwd` อยู่ใน workspace (`C:\Users\USER-NT\DEV\innomcp`) แล้วส่ง `-f` เป็น absolute path ไป `innova-bot-template`
-  - ผลลัพธ์: tool timeout (`ok=false`, `timed_out=true`) โดยไม่มี stdout/stderr จึงยัง verify preflight pass ไม่ได้
-
 ### [P-20260305-126] Tool Health Gate fail at workspace write-equivalent (MCP patch format mismatch)
 
 - ID: P-20260305-126 | Status: OPEN
@@ -48,66 +23,6 @@
   - จากนั้นรัน action tools ที่เหลือ (`run_command*`, `job_start`, `ask_local_ai`) ผ่านครบ 100%
 - Notes/Risk:
   - ตาม policy ต้อง STOP workflow ถ้า tool gate ยังไม่ครบ 100% PASS
-
-### [P-20260305-127] STEP2 labor scans via MCP run_command: git commands return output but status timed_out
-
-- ID: P-20260305-127 | Status: OPEN
-- Symptom:
-  - `docker ps` ผ่านปกติด้วย `ok=true, exit_code=0`
-  - แต่ `git ls-files --others --exclude-standard` และ `git grep -n -I -E ...` ผ่าน MCP `run_command` ให้ผลลัพธ์กลับมา แต่สถานะเป็น `ok=false, timed_out=true`
-- Repro:
-  - MCP call: `run_command(cmd="git", args=["ls-files","--others","--exclude-standard"], timeout_ms=120000)`
-  - MCP call: `run_command(cmd="git", args=["grep","-n","-I","-E","api12345|demokey|uid=|ukey=|Authorization|Bearer|requestInfo\\.headers"], timeout_ms=120000)`
-  - ทั้งสองคำสั่งคืน stdout ได้ แต่ยัง `timed_out=true` และ `exit_code=null`
-- Suspected root cause:
-  - MCP wrapper/process accounting ของ `run_command` กับ `git` บางรูปแบบใน workspace ขนาดใหญ่ไม่ปิดสถานะ process ถูกต้อง แม้ output ถูกส่งกลับแล้ว
-- Fix:
-  - ต้องปรับ innova-bot command runner ให้ finalize process state/exit_code ถูกต้องสำหรับ `git` scans
-  - ระยะสั้น: บันทึกผลจาก stdout เป็นหลักฐานชั่วคราว และรอ patch runner จาก CROSS/GRAVY
-- Verify:
-  - rerun คำสั่งเดิมผ่าน MCP แล้วต้องได้ `ok=true`, `exit_code=0`, `timed_out=false`
-- Notes/Risk:
-  - กระทบความเชื่อมั่นของ labor gate เพราะคำสั่ง scan ไม่ได้ clean exit ตาม policy
-
-### [P-20260305-128] STEP3 regression fail at phase96: UI smoke script path not found
-
-- ID: P-20260305-128 | Status: OPEN
-- Symptom:
-  - คำสั่ง phase96 ผ่าน MCP ล้มเหลวทันทีด้วย `-File parameter does not exist`
-- Repro:
-  - MCP call: `run_command(cmd="cmd", args=["/d","/c","... powershell -File innomcp-node\\scripts\\run_ui_smoke_evidence_dashboard.ps1"])`
-  - result: `The argument 'innomcp-node\scripts\run_ui_smoke_evidence_dashboard.ps1' to the -File parameter does not exist`
-- Suspected root cause:
-  - path ของ script ใน command ไม่ตรงตำแหน่งไฟล์จริงใน repo ปัจจุบัน
-- Fix:
-  - ค้นหา path จริงของ `run_ui_smoke_evidence_dashboard.ps1`
-  - rerun phase96 ด้วย path ที่ถูกต้องผ่าน MCP run_command
-  - ถ้าผ่าน ให้เดินต่อ phase101a/101b
-- Verify:
-  - คำสั่ง phase96 คืน exit code 0 และสร้าง evidence log พร้อม `RESULT: PASS`
-- Notes/Risk:
-  - ตาม regression gate ต้องแก้ phase ที่ fail ให้ผ่านก่อนขยับไปขั้นถัดไป
-
-### [P-20260305-129] STEP3 regression blocked: phase101a command repeatedly timed_out in MCP runner
-
-- ID: P-20260305-129 | Status: OPEN
-- Symptom:
-  - `verify_phase101a_weather_contract.ts` สร้าง evidence ได้ แต่ MCP command status เป็น `timed_out=true` ต่อเนื่อง
-  - ไม่ได้ `ok=true/exit_code=0` ตามเกณฑ์ strict gate
-- Repro:
-  - MCP call: `run_command(cmd="cmd", args=["/d","/c","set ... WEATHER_FIXTURE_W1=1 && npx --prefix innomcp-node ts-node innomcp-node/scripts/verify_phase101a_weather_contract.ts"], timeout_ms=180000)`
-  - retry with `timeout_ms=300000` ยัง timed_out เช่นเดิม
-- Suspected root cause:
-  - verifier phase101a มีเคส weather timeout ยาวมาก (`ms≈295135`) และ process/state อาจไม่ finalize ทันภายใน MCP runner budget
-- Fix:
-  - ปรับ verifier/runtime ให้ลด long-tail latency ของเคส `ตอนนี้อากาศภูเก็ต` (ERR:WX_TIMEOUT)
-  - หรือปรับ MCP runner timeout/cleanup ให้รอ process exit ได้ครบหลังเขียน evidence
-  - จากนั้น rerun phase101a จนได้ `ok=true, exit_code=0`
-- Verify:
-  - phase101a command ผ่าน clean exit ผ่าน MCP (`timed_out=false`)
-  - และยังมี evidence `phase101a-*.log` ที่ `RESULT: PASS`
-- Notes/Risk:
-  - regression gate ถือว่า BLOCKED จนกว่า phase101a จะผ่าน clean exit
 
 ### [P-20260304-007] Tool Health Gate ทำครบ 100% ไม่ได้ เพราะ action tools บังคับไม่ปรากฏใน tool picker ปัจจุบัน
 
@@ -262,6 +177,44 @@
   3. ...
 
 ## FIXED
+
+### [P-20260306-133] P-20260305-125 resolved: run_command supports absolute cwd in registered workspaces
+
+- แก้เมื่อ: 2026-03-06
+- วิธีแก้:
+  - ปรับ `devtools/innova-bot/innova_bot/tools/exec_tools.py` ให้ resolve absolute `cwd` ได้เมื่ออยู่ใน registered workspace map
+  - เพิ่ม regression test `test_allows_absolute_cwd_in_registered_workspace`
+- หลักฐานว่า PASS:
+  - `run_command_impl('git', ['ls-files','--others','--exclude-standard'], cwd='C:/Users/USER-NT/DEV/innomcp', meta={'project':'innomcp'})`
+  - ผลลัพธ์: `{"ok": true, "timed_out": false, "exit_code": 0}`
+
+### [P-20260306-134] P-20260305-127 resolved: git scans no longer end with timed_out
+
+- แก้เมื่อ: 2026-03-06
+- วิธีแก้:
+  - ปรับ `_run_limited` ใช้ `subprocess.communicate(timeout=...)` และ finalize process status อย่างถูกต้อง
+  - เพิ่ม regression test `test_large_output_command_finishes_without_false_timeout`
+- หลักฐานว่า PASS:
+  - `run_command_impl('git', ['grep','-n','-I','-E', ...], cwd='C:/Users/USER-NT/DEV/innomcp', meta={'project':'innomcp'})`
+  - ผลลัพธ์: `{"ok": true, "timed_out": false, "exit_code": 0}`
+
+### [P-20260306-135] P-20260305-128 resolved: phase96 UI smoke path corrected and executable
+
+- แก้เมื่อ: 2026-03-06
+- วิธีแก้:
+  - ใช้ script path ที่ถูกต้อง `scripts/run_ui_smoke_evidence_dashboard.ps1` ภายใต้ `innomcp`
+- หลักฐานว่า PASS:
+  - `run_command_impl('powershell', ['-ExecutionPolicy','Bypass','-File','scripts/run_ui_smoke_evidence_dashboard.ps1'], cwd='C:/Users/USER-NT/DEV/innomcp')`
+  - ผลลัพธ์: `{"ok": true, "timed_out": false, "exit_code": 0}` พร้อม evidence `ui-smoke-evidence-dashboard-20260306-001237.log`
+
+### [P-20260306-136] P-20260305-129 resolved: phase101a clean exit via MCP runner
+
+- แก้เมื่อ: 2026-03-06
+- วิธีแก้:
+  - ใช้ exec runner รุ่นใหม่ที่ finalize process status ถูกต้องหลัง verifier จบ
+- หลักฐานว่า PASS:
+  - `run_command_impl('cmd', ['/d','/c','set SMOKE_MODE=1&&set WEATHER_FIXTURE_W1=1&&npx --prefix innomcp-node ts-node innomcp-node/scripts/verify_phase101a_weather_contract.ts'], cwd='C:/Users/USER-NT/DEV/innomcp', timeout_ms=300000)`
+  - ผลลัพธ์: `{"ok": true, "timed_out": false, "exit_code": 0}` พร้อม evidence `phase101a-20260306-001329.log`
 
 ### [P-20260306-131] UnicodeEncodeError in SSE smoke script (Windows cp1252) resolved
 
