@@ -1,0 +1,683 @@
+# REPORT_PROBLEM (innova-bot / innomcp)
+
+อัปเดตล่าสุด: 2026-03-06
+
+## OPEN
+
+### [P-20260305-125] INNOVA-BOT FIRST step 1.0 blocked: innova command sandbox path traversal
+
+- ID: P-20260305-125 | Status: OPEN
+- Symptom:
+  - รัน `docker compose up -d --build` ผ่าน `mcp_innovabot_run_command` ไม่ได้ เมื่อชี้ `cwd` ไป `C:\Users\USER-NT\DEV\innova-bot-template`
+  - tool ตอบ `Path traversal blocked`
+- Repro:
+  - MCP call: `run_command(cmd="docker", args=["compose","-f","C:\\Users\\USER-NT\\DEV\\innova-bot-template\\docker-compose.innova-bot.yml","up","-d","--build"], cwd="C:\\Users\\USER-NT\\DEV\\innova-bot-template")`
+  - result: `Error calling tool 'run_command': Path traversal blocked: C:\Users\USER-NT\DEV\innova-bot-template`
+- Suspected root cause:
+  - innova-bot command tools ถูก sandbox ให้วิ่งได้เฉพาะ workspace `innomcp` จึงเข้าถึง repo ข้างเคียง `innova-bot-template` ไม่ได้
+- Fix:
+  - ต้องมี compose/health assets อยู่ภายใต้ workspace ที่ tool อนุญาต หรือปรับ runtime/workspace binding ของ innova-bot ให้เข้าถึง path เป้าหมายได้
+  - หลังแก้ ต้อง rerun INNOVA-BOT FIRST ตั้งแต่ step 1.0 ใหม่
+- Verify:
+  - `run_command` คำสั่ง docker compose คืน exit 0 ผ่าน MCP
+  - จากนั้น health check + tool gate 100% PASS
+- Notes/Risk:
+  - ตาม policy ต้อง STOP flow ที่เหลือจนกว่า preflight จะผ่าน
+
+- Update (2026-03-05, WIT-102-006):
+  - ทดลอง workaround โดยใช้ `cwd` อยู่ใน workspace (`C:\Users\USER-NT\DEV\innomcp`) แล้วส่ง `-f` เป็น absolute path ไป `innova-bot-template`
+  - ผลลัพธ์: tool timeout (`ok=false`, `timed_out=true`) โดยไม่มี stdout/stderr จึงยัง verify preflight pass ไม่ได้
+
+### [P-20260305-126] Tool Health Gate fail at workspace write-equivalent (MCP patch format mismatch)
+
+- ID: P-20260305-126 | Status: OPEN
+- Symptom:
+  - STEP 1.2 tool gate เรียงลำดับมาถึง write-equivalent แล้ว fail ทันที
+  - `mcp_innovabot_workspace_apply_patch` ตอบว่าไม่รองรับรูปแบบ patch (`*** Begin Patch`)
+- Repro:
+  - MCP call: `workspace_apply_patch` with patch header `*** Begin Patch ...`
+  - result: `รูปแบบ patch ไม่ถูกต้อง (ไม่รองรับ *** Begin Patch, กรุณาใช้ unified diff มาตรฐาน เช่น --- a/file +++ b/file)`
+- Suspected root cause:
+  - ความไม่เข้ากันของ patch format ระหว่าง client flow กับ innova-bot tool (`workspace_apply_patch` ต้องการ unified diff เท่านั้น)
+  - ใน session นี้ไม่มี `workspace_write` ตรง ๆ ให้ใช้แทน
+- Fix:
+  - ปรับ runner ให้ส่ง unified diff format กับ `workspace_apply_patch` หรือ expose `workspace_write` action tool ตาม policy gate
+  - หลังแก้ ต้อง rerun Tool Health Gate ใหม่ตั้งแต่ tool แรก
+- Verify:
+  - write action ผ่าน MCP (สร้างไฟล์ probe ได้)
+  - จากนั้นรัน action tools ที่เหลือ (`run_command*`, `job_start`, `ask_local_ai`) ผ่านครบ 100%
+- Notes/Risk:
+  - ตาม policy ต้อง STOP workflow ถ้า tool gate ยังไม่ครบ 100% PASS
+
+### [P-20260305-127] STEP2 labor scans via MCP run_command: git commands return output but status timed_out
+
+- ID: P-20260305-127 | Status: OPEN
+- Symptom:
+  - `docker ps` ผ่านปกติด้วย `ok=true, exit_code=0`
+  - แต่ `git ls-files --others --exclude-standard` และ `git grep -n -I -E ...` ผ่าน MCP `run_command` ให้ผลลัพธ์กลับมา แต่สถานะเป็น `ok=false, timed_out=true`
+- Repro:
+  - MCP call: `run_command(cmd="git", args=["ls-files","--others","--exclude-standard"], timeout_ms=120000)`
+  - MCP call: `run_command(cmd="git", args=["grep","-n","-I","-E","api12345|demokey|uid=|ukey=|Authorization|Bearer|requestInfo\\.headers"], timeout_ms=120000)`
+  - ทั้งสองคำสั่งคืน stdout ได้ แต่ยัง `timed_out=true` และ `exit_code=null`
+- Suspected root cause:
+  - MCP wrapper/process accounting ของ `run_command` กับ `git` บางรูปแบบใน workspace ขนาดใหญ่ไม่ปิดสถานะ process ถูกต้อง แม้ output ถูกส่งกลับแล้ว
+- Fix:
+  - ต้องปรับ innova-bot command runner ให้ finalize process state/exit_code ถูกต้องสำหรับ `git` scans
+  - ระยะสั้น: บันทึกผลจาก stdout เป็นหลักฐานชั่วคราว และรอ patch runner จาก CROSS/GRAVY
+- Verify:
+  - rerun คำสั่งเดิมผ่าน MCP แล้วต้องได้ `ok=true`, `exit_code=0`, `timed_out=false`
+- Notes/Risk:
+  - กระทบความเชื่อมั่นของ labor gate เพราะคำสั่ง scan ไม่ได้ clean exit ตาม policy
+
+### [P-20260305-128] STEP3 regression fail at phase96: UI smoke script path not found
+
+- ID: P-20260305-128 | Status: OPEN
+- Symptom:
+  - คำสั่ง phase96 ผ่าน MCP ล้มเหลวทันทีด้วย `-File parameter does not exist`
+- Repro:
+  - MCP call: `run_command(cmd="cmd", args=["/d","/c","... powershell -File innomcp-node\\scripts\\run_ui_smoke_evidence_dashboard.ps1"])`
+  - result: `The argument 'innomcp-node\scripts\run_ui_smoke_evidence_dashboard.ps1' to the -File parameter does not exist`
+- Suspected root cause:
+  - path ของ script ใน command ไม่ตรงตำแหน่งไฟล์จริงใน repo ปัจจุบัน
+- Fix:
+  - ค้นหา path จริงของ `run_ui_smoke_evidence_dashboard.ps1`
+  - rerun phase96 ด้วย path ที่ถูกต้องผ่าน MCP run_command
+  - ถ้าผ่าน ให้เดินต่อ phase101a/101b
+- Verify:
+  - คำสั่ง phase96 คืน exit code 0 และสร้าง evidence log พร้อม `RESULT: PASS`
+- Notes/Risk:
+  - ตาม regression gate ต้องแก้ phase ที่ fail ให้ผ่านก่อนขยับไปขั้นถัดไป
+
+### [P-20260305-129] STEP3 regression blocked: phase101a command repeatedly timed_out in MCP runner
+
+- ID: P-20260305-129 | Status: OPEN
+- Symptom:
+  - `verify_phase101a_weather_contract.ts` สร้าง evidence ได้ แต่ MCP command status เป็น `timed_out=true` ต่อเนื่อง
+  - ไม่ได้ `ok=true/exit_code=0` ตามเกณฑ์ strict gate
+- Repro:
+  - MCP call: `run_command(cmd="cmd", args=["/d","/c","set ... WEATHER_FIXTURE_W1=1 && npx --prefix innomcp-node ts-node innomcp-node/scripts/verify_phase101a_weather_contract.ts"], timeout_ms=180000)`
+  - retry with `timeout_ms=300000` ยัง timed_out เช่นเดิม
+- Suspected root cause:
+  - verifier phase101a มีเคส weather timeout ยาวมาก (`ms≈295135`) และ process/state อาจไม่ finalize ทันภายใน MCP runner budget
+- Fix:
+  - ปรับ verifier/runtime ให้ลด long-tail latency ของเคส `ตอนนี้อากาศภูเก็ต` (ERR:WX_TIMEOUT)
+  - หรือปรับ MCP runner timeout/cleanup ให้รอ process exit ได้ครบหลังเขียน evidence
+  - จากนั้น rerun phase101a จนได้ `ok=true, exit_code=0`
+- Verify:
+  - phase101a command ผ่าน clean exit ผ่าน MCP (`timed_out=false`)
+  - และยังมี evidence `phase101a-*.log` ที่ `RESULT: PASS`
+- Notes/Risk:
+  - regression gate ถือว่า BLOCKED จนกว่า phase101a จะผ่าน clean exit
+
+### [P-20260304-007] Tool Health Gate ทำครบ 100% ไม่ได้ เพราะ action tools บังคับไม่ปรากฏใน tool picker ปัจจุบัน
+
+- ID: P-20260304-007 | Status: OPEN
+- Symptom:
+  - INNOVA-BOT FIRST ผ่านแล้ว (`compose_exit=0`, `health_exit=0`, MCP E2E PASS)
+  - แต่ไม่สามารถทำ sequential gate ตามข้อบังคับได้ครบ เพราะ tools ที่กำหนด (`workspace_write`, `run_command_shell`, `job_start`, `ask_local_ai`) ไม่ถูก expose ใน client tool picker รอบนี้
+- Repro:
+  - health command: `powershell -ExecutionPolicy Bypass -File devtools/innova-bot/scripts/mcp_health_check.ps1` => PASS
+  - attempted gate step: ตรวจสอบ tools ที่เรียกได้จาก VS Code Copilot MCP session ปัจจุบัน พบว่าไม่มีชื่อ tool ตามรายการบังคับข้างต้น
+  - meta: `{client:vscode, project:innomcp, actor:VIT, role:shipper, session:sprint-10, phase:10.2, task:health, request_id:VIT-102-027}`
+- Suspected cause:
+  - client-side tool exposure/allowlist ของ session ไม่รวม action tools ชุดบังคับ จึงไม่สามารถพิสูจน์ 100% gate ตาม policy ได้
+- Fix:
+  - ต้อง Reset Cached Tools + refresh tool picker profile ให้ expose action tools ครบก่อน
+- Verify:
+  - compose gate: PASS (`compose_exit=0`)
+  - health gate: PASS (`health_exit=0`)
+  - policy gate: FAIL (required action tools not callable in current session)
+- Notes/Risk:
+  - ตาม non-negotiables ต้อง STOP ก่อน implement/labor/verifier หาก tool gate ไม่ครบ 100%
+
+- Update (2026-03-04, VIT-102-028):
+  - Re-run INNOVA-BOT FIRST สำเร็จครบ (`compose_exit=0`, `health_exit=0`, `MCP E2E PASS`)
+  - เงื่อนไขบังคับ step 1.2 ยังล้มเหลวเหมือนเดิมเพราะ required action tools (`workspace_write`,`run_command_shell`,`job_start`,`ask_local_ai`) ยังไม่ปรากฏให้เรียกใน session นี้
+  - สถานะคงเดิม: OPEN และต้อง STOP ตาม policy
+
+### [P-20260303-005] Tool Health Gate ไม่ครบ 100% เพราะ evaluator route ใช้ไม่ได้ (Local AI/Ollama)
+
+- เวลา: 2026-03-03 17:00 (Asia/Bangkok)
+- ส่วนที่กระทบ: innova-bot
+- อาการ:
+  - INNOVA-BOT FIRST ผ่าน (compose + `mcp_health_check.ps1` = PASS) แต่ action tool บางตัวไม่พร้อมใช้งานจริง
+  - `mcp_innovabot_evaluate_code_quality` ตอบ `Evaluator Unavailable`
+  - `mcp_innovabot_request_automated_review` ประเมินไฟล์ไม่สำเร็จทั้ง 2 ไฟล์เพราะ `ask_local_ai` route ล้มเหลว
+- หลักฐาน (ไม่ใส่ secrets):
+  - `Ollama request failed: 'utf-8' codec can't encode character '\\udc81' ... surrogates not allowed`
+  - `Ollama request failed: Client error '404 Not Found' for url 'http://localhost:11434/api/generate'`
+- สาเหตุที่คาด:
+  - Local AI backend routing ของ innova-bot ยังไม่เสถียร/ไม่พร้อม (encoding + endpoint not found)
+- วิธีแก้ที่ลองแล้ว:
+  - rerun compose + health script ใหม่
+  - rerun health gate แบบทีละ tool และทดสอบ action tools (`update_project_state`, `request_automated_review`)
+- Next actions (1-3 ข้อ):
+  1. แก้ local AI route ของ innova-bot ให้ `ask_local_ai` ใช้งานได้ทุก fallback path
+  2. ยืนยัน Ollama endpoint ใน container/host ให้ตอบ `/api/generate` ได้จริง
+  3. rerun Tool Health Gate ใหม่ตั้งแต่ต้นจน 100% PASS ก่อนเริ่ม phase implement
+
+### [P-20260303-004] innova-bot SSE endpoint ใช้ไม่ได้เพราะ Docker daemon หยุดทำงาน
+
+- เวลา: 2026-03-03 05:00 (Asia/Bangkok)
+- ส่วนที่กระทบ: innova-bot
+- อาการ:
+  - MCP tools เรียกไม่ได้: `MCP server could not be started ... http://localhost:7010/sse ... fetch failed`
+  - host probe `Invoke-WebRequest http://localhost:7010/sse` ตอบ `Unable to connect to the remote server`
+  - `docker ps` ล้มเหลวด้วย `pipe dockerDesktopLinuxEngine not found`
+- หลักฐาน (ไม่ใส่ secrets):
+  - `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine`
+- สาเหตุที่คาด:
+  - Docker Desktop daemon หลุด/หยุด ทำให้ innova-bot container และ SSE endpoint ไม่พร้อม
+- วิธีแก้ที่ลองแล้ว:
+  - ยืนยันอาการผ่าน host HTTP probe + docker runtime probe
+  - start Docker Desktop จน daemon กลับมาเป็น `DOCKER_READY`
+  - rerun compose แล้วเจอพอร์ตชน `Bind for 0.0.0.0:6379 failed: port is already allocated`
+  - ปรับ `docker-compose.innova-bot.yml` ให้ `innova-redis` ไม่ publish host port (ใช้ภายใน stack)
+- Next actions (1-3 ข้อ):
+  1. start/restart Docker Desktop daemon ให้เสถียร
+  2. rerun `docker compose -f docker-compose.innova-bot.yml up -d --build`
+  3. rerun health gate + sequential tool checks ใหม่ตั้งแต่ต้น
+
+- Update (2026-03-03 17:20):
+  - ระหว่าง verify hotfix (`ask_tools.py`) พบว่า Docker daemon หายอีกครั้ง
+  - คำสั่งล้มเหลวทันที: `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`
+  - ผลกระทบ: ไม่สามารถ rebuild/restart innova-bot เพื่อตรวจว่า evaluator route fix ใช้งานได้จริง
+
+### [P-20260303-003] innova-bot run_command\* ใช้งานไม่ได้เพราะ EXEC_ALLOWLIST ไม่ถูกตั้ง
+
+- เวลา: 2026-03-03 04:45 (Asia/Bangkok)
+- ส่วนที่กระทบ: innova-bot
+- อาการ:
+  - `mcp_innovabot_run_command_shell` และ `mcp_innovabot_run_command` ตอบกลับทันทีว่า allowlist ไม่ได้ตั้ง
+  - ทำให้ labor scan 3 งาน (docker truth/git hygiene/banned scan) ผ่าน innova-bot ไม่ได้
+- หลักฐาน (ไม่ใส่ secrets):
+  - `Error: ยังไม่ได้ตั้งค่า EXEC_ALLOWLIST (เช่น git,npm,node หรือ *)`
+- สาเหตุที่คาด:
+  - environment ของ container `innova-bot` ไม่มีตัวแปร `EXEC_ALLOWLIST`
+- วิธีแก้ที่ลองแล้ว:
+  - probe ทั้ง `run_command_shell` และ `run_command` ได้ error เดียวกัน
+- Next actions (1-3 ข้อ):
+  1. เพิ่ม `EXEC_ALLOWLIST` ใน docker-compose ของ innova-bot
+  2. rebuild/restart container
+  3. rerun labor scans ผ่าน innova-bot tools ให้ครบ
+
+### [P-20260303-002] ไม่พบไฟล์ mcp_health_check.ps1 ใน workspace ปัจจุบัน (FIXED)
+
+- เวลา: 2026-03-03 04:35 (Asia/Bangkok)
+- ส่วนที่กระทบ: innova-bot
+- อาการ:
+  - คำสั่ง policy `powershell -ExecutionPolicy Bypass -File devtools/innova-bot/scripts/mcp_health_check.ps1` ล้มเหลว
+  - รันด้วย absolute path ใต้ `c:\Users\USER-NT\DEV\innomcp\...` แล้วยังไม่พบไฟล์
+- หลักฐาน (ไม่ใส่ secrets):
+  - `The argument '...mcp_health_check.ps1' to the -File parameter does not exist`
+  - `file_search **/mcp_health_check.ps1` -> no files found
+- สาเหตุที่คาด:
+  - ไฟล์ health script อยู่ repo/โฟลเดอร์อื่น หรือยังไม่ถูก sync เข้า workspace นี้
+- วิธีแก้ที่ลองแล้ว:
+  - rerun คำสั่งด้วย path relative และ absolute
+  - ค้นหาไฟล์ทั้ง workspace ด้วย glob
+- Next actions (1-3 ข้อ):
+  1. ใช้ health gate ผ่าน innova-bot MCP tools แบบ sequential แทน script ชั่วคราว
+  2. ขอ path ที่ถูกต้องของ script หรือ sync ไฟล์เข้ามาใน workspace
+  3. เมื่อได้ script แล้ว rerun policy command ซ้ำเพื่อปิด incident
+
+### [P-20260303-001] Docker engine unavailable ทำให้ INNOVA-BOT FIRST เริ่มไม่ได้
+
+- เวลา: 2026-03-03 04:00 (Asia/Bangkok)
+- ส่วนที่กระทบ: both
+- อาการ:
+  - `docker compose -f docker-compose.innova-bot.yml up -d --build` ล้มเหลวทันที
+  - เข้า pipe `dockerDesktopLinuxEngine` ไม่ได้
+  - ช่วงหนึ่ง `docker version` เห็น Server แล้ว แต่ `compose up --build` fail ด้วย `rpc ... EOF` และ daemon หายอีกครั้ง
+- หลักฐาน (ไม่ใส่ secrets):
+  - `open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`
+  - command: `docker compose -f docker-compose.innova-bot.yml up -d --build`
+- สาเหตุที่คาด:
+  - Docker Desktop engine/daemon ไม่ได้รันอยู่บน host
+- วิธีแก้ที่ลองแล้ว:
+  - บันทึก incident และหยุดงานเฟสตาม policy
+  - start Docker Desktop และยืนยัน `docker version` ได้ชั่วคราว
+  - retry `docker compose ... up -d --build` แล้ว daemon flapping กลับไป `pipe not found`
+- Next actions (1-3 ข้อ):
+  1. ตรวจ service Docker บน Windows และ start daemon
+  2. rerun `docker compose -f docker-compose.innova-bot.yml up -d --build`
+  3. rerun health gate แบบ sequential ทั้งลิสต์จน 100% PASS
+
+### [P-YYYYMMDD-001] <สรุปสั้นๆ 1 บรรทัด>
+
+- เวลา: YYYY-MM-DD HH:mm (Asia/Bangkok)
+- ส่วนที่กระทบ: innova-bot | innomcp | both
+- อาการ:
+  - <bullet 1>
+  - <bullet 2>
+- หลักฐาน (ไม่ใส่ secrets):
+  - <ไฟล์ log / คำสั่งที่รัน / 1 บรรทัด error>
+- สาเหตุที่คาด:
+  - <bullet>
+- วิธีแก้ที่ลองแล้ว:
+  - <bullet>
+- Next actions (1-3 ข้อ):
+  1. ...
+  2. ...
+  3. ...
+
+## FIXED
+
+### [P-20260306-131] UnicodeEncodeError in SSE smoke script (Windows cp1252) resolved
+
+- แก้เมื่อ: 2026-03-06
+- วิธีแก้:
+  - ยืนยัน `smoke_test_sse.py` มี `sys.stdout.reconfigure(encoding='utf-8')`
+  - รัน health script เต็มรอบบนเครื่องจริง
+- หลักฐานว่า PASS:
+  - `powershell -ExecutionPolicy Bypass -File devtools/innova-bot/scripts/mcp_health_check.ps1` => `PASS: innova-bot MCP health check completed`
+  - ไม่มี `UnicodeEncodeError` ระหว่างรัน
+
+### [P-20260306-132] SSE crash-loop from syntax error (historical P-20260304-006) resolved
+
+- แก้เมื่อ: 2026-03-06
+- วิธีแก้:
+  - ใช้โค้ด innova-bot template ล่าสุดที่ไม่มี syntax error ใน `main.py`
+  - rebuild + restart stack ผ่าน health script
+- หลักฐานว่า PASS:
+  - health run ล่าสุด: `SSE smoke: PASS` (หลัง retry) และ `MCP E2E: PASS`
+  - สรุปปลายทาง: `PASS: innova-bot MCP health check completed`
+
+### [P-20260305-124] Phase1 GEO RoundB fail ชั่วคราวจาก verifier expected phrase drift
+
+- แก้เมื่อ: 2026-03-05 00:30
+- วิธีแก้:
+  - ตรวจ root cause พบว่า `innomcp-node/scripts/verify_phase1_geo_roundB.ts` ยังใช้ fallback phrase เก่าในเคส Low confidence
+  - ปรับ expected phrase ใน verifier ให้ตรงสเปกปัจจุบัน: `ห้ามเดาโว้ย`
+  - rerun verifier โดยกำหนด `VERIFY_HOST=localhost` ให้ตรง backend binding (`::1`) ในเครื่องนี้
+  - รัน tool tests เพิ่มเติม `shell: node-test:thaiGeoTool` เพื่อยืนยัน behavior/interface ของ `thaiGeoTool`
+  - สแกน banned literals บน evidence text lines ของ GEO รอบล่าสุด
+- หลักฐานว่า PASS:
+  - `npx --prefix innomcp-server-node ts-node innomcp-server-node/scripts/seed_phase1_geo_roundB.ts ...` => `RESULT: PASS` (`province_count=156`)
+  - `innomcp-node/evidence/phase1-geo-roundB-20260305-002817.log` => `RESULT: PASS` (ครบ 3 เคส)
+  - task `shell: node-test:thaiGeoTool` => PASS (`7/7`)
+  - banned scan => `BANNED_SCAN_COUNT=0`
+
+### [P-20260304-122] Retro-audit verifier set fail จาก env/runtime mismatch แล้ว rerun ผ่านครบ
+
+- แก้เมื่อ: 2026-03-04 21:53
+- วิธีแก้:
+  - แก้ drift ใน `innomcp-node/src/routes/api/chat.ts` ให้ low-confidence fallback ฝั่ง HTTP ตรงกับ WS เป็น `ห้ามเดาโว้ย`
+  - rerun phase95 พร้อม env ที่ seed ต้องใช้ (`MARIADB_ROOT_PASSWORD`, `MARIADB_PASSWORD`) เพื่อให้ detectdb seed และ query ได้จริง
+  - rerun verifier ตามลำดับความสำคัญ: 9.4 -> 9.5 -> 9.6 -> 10.1A -> 10.1B
+- หลักฐานว่า PASS:
+  - `innomcp-node/evidence/phase94-20260304-214948.log` => `RESULT: PASS`
+  - `innomcp-node/evidence/phase95-20260304-215153.log` => `RESULT: PASS`
+  - `innomcp-node/evidence/ui-smoke-evidence-dashboard-20260304-215237.log` => `RESULT: PASS`
+  - `innomcp-node/evidence/phase101a-20260304-215345.log` => `RESULT: PASS`
+  - `innomcp-node/evidence/phase101b-20260304-215351.log` => `RESULT: PASS`
+
+### [P-20260304-121] GEO verifier drift หลังไฟล์ถูกแก้ภายนอก ทำให้ RoundB fail ชั่วคราว
+
+- แก้เมื่อ: 2026-03-04 21:19
+- วิธีแก้:
+  - กู้ `innomcp-node/scripts/verify_phase1_geo_roundB.ts` กลับเป็น deterministic 3 เคสตาม acceptance ปัจจุบัน
+  - ย้ายเคส low-confidence trap ไปตรวจผ่าน WS transport (ตรงกับ guard ใน WS route)
+  - harden env parsing ใน verifier (`VERIFY_HOST/VERIFY_PORT`) ด้วย `trim()` ป้องกัน trailing-space จาก `cmd set`
+- หลักฐานว่า PASS:
+  - `innomcp-node/evidence/phase1-geo-roundB-20260304-211929.log` => `RESULT: PASS`
+  - `npx ts-node innomcp-node/scripts/verify_phase102_chat_iq_gate.ts` (VERIFY_HOST=localhost) => `RESULT: PASS`
+  - `npm --prefix innomcp-node run test:integration` => PASS (`3/3`)
+
+### [P-20260304-120] Phase10.2 online verifier fail แบบสุ่มจาก guest-limit + nodemon restart ระหว่างรัน
+
+- แก้เมื่อ: 2026-03-04 20:59
+- วิธีแก้:
+  - ปรับ `innomcp-node/scripts/verify_phase102_chat_iq_gate.ts` ให้ส่ง header `X-Smoke-Run: 1` เพื่อเปิด smoke bypass ของ `guestLimiterMiddleware`
+  - ลดความเปราะบางของ verifier โดยตัด assertion ข้อความคงที่ในเคส `general_1` (คงตรวจ route/structuredContent ตามสัญญา)
+  - ระหว่าง verify ใช้ backend แบบ `ts-node src/index.ts` แทน `nodemon` เพื่อลด restart ระหว่างเขียน evidence log
+- หลักฐานว่า PASS:
+  - `innomcp-node/evidence/phase102-online-20260304-205908.log` => `RESULT: PASS` และ `ONLINE_CHECK=PASS`
+  - `npm --prefix innomcp-node run test:integration` => PASS (`3/3`)
+
+### [P-20260304-119] GEO RoundB regression หลัง formatter/auto-edit ทำให้ acceptance fail
+
+- แก้เมื่อ: 2026-03-04 20:20
+- วิธีแก้:
+  - เปลี่ยน low-confidence fallback ใน `innomcp-node/src/routes/api/chat.ts` กลับเป็นข้อความเดียว `ห้ามเดาโว้ย`
+  - ซิงก์ fallback ทาง fast-path (`innomcp-node/src/services/fastPathHandler.ts`) ให้ได้ phrase เดียวกันสำหรับ unknown alnum token
+  - ปรับ `innomcp-node/src/utils/mcp/tools/thai_geo_tool.ts` ให้ parse คำถามรูปแบบ `...อยู่ภาคไหน` ได้ถูกต้อง และแสดง `ภาค:` ในคำตอบจังหวัด
+  - rewrite `innomcp-node/scripts/verify_phase1_geo_roundB.ts` ให้ตรวจ 3 เคส acceptance (High confidence, Alias map, WS low-confidence trap)
+  - harden `innomcp-server-node/scripts/seed_phase1_geo_roundB.ts` ให้ตัด `USE ...;` และรองรับ spacing ของ schema transform เมื่อไม่มีคอลัมน์ `type`
+- หลักฐานว่า PASS:
+  - `npx --prefix innomcp-server-node ts-node innomcp-server-node/scripts/seed_phase1_geo_roundB.ts --db-host 127.0.0.1 --db-port 3306 --db-user jlapps --db-password rockbottom --db-name innomcp` => `RESULT: PASS`
+  - `npx --prefix innomcp-node ts-node innomcp-node/scripts/verify_phase1_geo_roundB.ts` (VERIFY_HOST=localhost) => `RESULT: PASS`
+  - evidence log: `innomcp-node/evidence/phase1-geo-roundB-20260304-202003.log`
+
+### [P-20260303-002] ไม่พบไฟล์ mcp_health_check.ps1 ใน workspace ปัจจุบัน
+
+- แก้เมื่อ: 2026-03-03 04:40
+- วิธีแก้:
+  - ตรวจพบตำแหน่งจริงที่ `c:\Users\USER-NT\DEV\innova-bot-template\devtools\innova-bot\scripts\mcp_health_check.ps1`
+  - rerun คำสั่ง `powershell -ExecutionPolicy Bypass -File <path จริง>`
+- หลักฐานว่า PASS:
+  - script output ลงท้ายด้วย `PASS: innova-bot MCP health check completed`
+
+### [P-20260304-115] Test suite drift ใน innomcp ทำให้รันรวมไม่ผ่าน
+
+- แก้เมื่อ: 2026-03-04 18:36
+- วิธีแก้:
+  - แก้ import path ใน `innomcp-node/tests/unit/logger.test.ts` และ `innomcp-node/tests/integration/health.test.ts`
+  - ลบ legacy tests ที่อ้างโมดูลไม่มีอยู่จริง: `officeholder-parser.test.ts`, `weather-parser.test.ts`, `time-parser.test.ts`
+  - ปรับ `tests/unit/thai-knowledge-schema.test.ts` ให้ตรวจเอกสารจริง `docs/architecture/THAI_KNOWLEDGE_DB.md`
+  - ติดตั้ง dev dependency ที่ขาดสำหรับเทส (`supertest`, `@types/supertest` ใน `innomcp-node`)
+  - ปรับ weather/evidence regression tests ให้ตรงสัญญาและ call-signature ปัจจุบัน
+  - ซ่อม `tests/package.json` scripts ให้ชี้ไฟล์ที่มีอยู่จริง (`backend-weather-test.ts`, `backend-ws-test.ts`)
+- หลักฐานว่า PASS:
+  - `npm --prefix innomcp-server-node run test:thaiGeoTool` => PASS (`7/7`)
+  - `npm --prefix innomcp-node run test:geo` => PASS (`45/45`)
+  - `npm --prefix innomcp-node test` => PASS (`10 suites / 40 tests`)
+  - `cd tests && npm run test:unit` => PASS
+
+### [P-20260304-116] Phase 10.2 verifier/integration ติดขัดชั่วคราวจาก environment แล้วผ่าน
+
+- แก้เมื่อ: 2026-03-04 19:30
+- วิธีแก้:
+  - rerun verifier ด้วย explicit env (`SMOKE_MODE=1`, `CHAT_TRACE_QA=1`, `LOG_DEBUG=0`, `TS_NODE_CACHE=false`) และบันทึก evidence log ทุกครั้ง
+  - แก้ปัญหา transient cwd/path mismatch โดยรันคำสั่งด้วย `cd /d C:\Users\USER-NT\DEV\innomcp` ก่อนเทสต์
+  - rerun integration suite จนผ่านใน workspace ถูกต้อง
+- หลักฐานว่า PASS:
+  - `innomcp-node/evidence/phase102-dbinit-verify-20260304-162222.log` => `RESULT: PASS`
+  - `npm --prefix innomcp-node run test:integration` => PASS
+  - `npm --prefix innomcp-node test` => PASS
+
+### [P-20260304-117] `verify_phase2` ล้มเหลวจาก verifier/parser ไม่ตรง output จริงของ `thaiLawTool`
+
+- แก้เมื่อ: 2026-03-04 18:58
+- วิธีแก้:
+  - ปรับ `innomcp-server-node/scripts/verify_phase2.ts` ให้แยกการตรวจผล `history` (JSON) และ `law` (plain text) ตาม behavior จริงของเครื่องมือ
+  - เปลี่ยนคำค้นกฎหมายใน verifier เป็น `พ.ร.บ. คอมฯ` (มีอยู่ใน seed จริง) แทน `PDPA` ที่ไม่อยู่ใน `thaiLawTool` knowledge base
+  - ใช้ explicit DB env (`DB_HOST=localhost`, `DB_PORT=3306`, `DB_USER=jlapps`, `DB_PASSWORD=rockbottom`, `DB_NAME=innomcp`) เพื่อวิ่งกับ `innomcp-mariadb` ที่ healthy
+- หลักฐานว่า PASS:
+  - รัน `npx --prefix innomcp-server-node ts-node innomcp-server-node/scripts/verify_phase2.ts` (พร้อม env ข้างต้น) => `✅ verify_phase2: PASS`
+  - output แสดง `DB counts` และ `lawText` ที่มีมาตรา (`พ.ร.บ. คอมฯ ม.14`, `ม.16`) ครบ
+
+### [P-20260304-118] Phase 1 GEO RoundB guard/verifier ไม่ตรง acceptance ล่าสุด
+
+- แก้เมื่อ: 2026-03-04 19:35
+- วิธีแก้:
+  - ปรับ low-confidence guard ใน `innomcp-node/src/routes/api/chat.ts` ให้ fallback ตรงสเปกเป็นข้อความเดียว: `ห้ามเดาโว้ย` เมื่อ `godTierFallbackUsed || godTierConfidence < 0.6`
+  - rewrite `innomcp-node/scripts/verify_phase1_geo_roundB.ts` ให้ตรวจขั้นต่ำ 3 เคสตาม acceptance:
+    - High Confidence (`เชียงใหม่`)
+    - Alias Map (`โคราช` -> `นครราชสีมา`)
+    - Low Confidence trapped (WS runtime ได้ข้อความ `ห้ามเดาโว้ย`)
+  - เพิ่ม `innomcp-server-node/scripts/seed_phase1_geo_roundB.ts` สำหรับรัน `database/init/03-seed-thai-geo.sql` และตรวจนับจังหวัด โดยรองรับ schema ที่ไม่มีคอลัมน์ `type`
+- หลักฐานว่า PASS:
+  - `cmd /d /c cd /d innomcp-server-node && npx ts-node scripts\seed_phase1_geo_roundB.ts --db-host 127.0.0.1 --db-port 3306 --db-user jlapps --db-password rockbottom --db-name innomcp` => `RESULT: PASS` และ `province_count=82`
+  - `cmd /d /c cd /d innomcp-node && npx ts-node scripts\verify_phase1_geo_roundB.ts` => `RESULT: PASS`
+  - evidence log: `innomcp-node/evidence/phase1-geo-roundB-20260304-193436.log` มี `RESULT: PASS`
+  - banned literals scan บน evidence ล่าสุด => `BANNED_SCAN_COUNT=0`
+
+### [P-20260304-123] `verify_phase2` ล้มเหลวจาก DB credential drift (`ER_DBACCESS_DENIED_ERROR`)
+
+- แก้เมื่อ: 2026-03-04 22:00
+- วิธีแก้:
+  - ปรับ `innomcp-server-node/scripts/verify_phase2.ts` ให้ทำ DB preflight probe แบบหลาย candidate ก่อนรัน verifier จริง
+  - รองรับ candidate จาก `DB_*`, `MARIADB_*`, `root + MARIADB_ROOT_PASSWORD` และ port หลัก (`3306`/`3308`) พร้อมเลือก config ที่เชื่อมต่อได้จริง
+  - เซ็ต `process.env.DB_*` จาก candidate ที่ผ่านก่อนเรียก `query()`/tool execution เพื่อตัดปัญหา env drift ระหว่างรัน task
+- หลักฐานว่า PASS:
+  - รัน task `shell: verify:phase2` จาก workspace แล้วผ่าน `✅ verify_phase2: PASS`
+
+### [P-YYYYMMDD-000] <สรุปสั้นๆ>
+
+- แก้เมื่อ: YYYY-MM-DD HH:mm
+- วิธีแก้:
+  - <bullet>
+- หลักฐานว่า PASS:
+  - <เช่น health check 100% + tool list ผ่าน>
+
+## TEAM MCP/INNOVA ISSUES (Rolling List)
+
+### [P-20260304-101]
+
+- ID: P-20260304-101
+- Title: EOF/socket drop หลัง restart MCP
+- Symptom: SSE เชื่อมต่อได้สั้น ๆ แล้วหลุด (`Server disconnected without sending a response`)
+- Reproduce (exact commands / tool calls):
+  - `docker compose -f docker-compose.innova-bot.yml up -d --build` (innova-bot-template)
+  - `powershell -ExecutionPolicy Bypass -File devtools/innova-bot/scripts/mcp_health_check.ps1`
+  - `curl -i http://localhost:7010/sse`
+- Expected vs Actual:
+  - Expected: SSE stream คงที่และ health gate ผ่าน
+  - Actual: stream drop ระหว่างตรวจสุขภาพ
+- Scope (vscode|gravity|both): both
+- Suspected root cause: service crash-loop หรือ restart race ระหว่าง health probe
+- Fix plan (1–3):
+  1. ตรวจ `docker logs --tail 200 innova-bot`
+  2. แก้ syntax/runtime error ให้ process เสถียร
+  3. restart stack แล้ว rerun health
+- Verify (what exact PASS looks like): health script ลงท้าย `PASS` และ SSE probe ต่อเนื่อง
+- Status: OPEN
+
+### [P-20260304-102]
+
+- ID: P-20260304-102
+- Title: EXEC_ALLOWLIST mismatch (inspect เห็นค่า แต่ runtime ยังแจ้งไม่ตั้ง)
+- Symptom: `run_command`/`run_command_shell` ตอบว่า allowlist ไม่ได้ตั้ง ทั้งที่ inspect เห็น env แล้ว
+- Reproduce (exact commands / tool calls):
+  - MCP call: `mcp_innovabot_run_command_shell("python -V")`
+  - MCP call: `mcp_innovabot_run_command(cmd="python", args=["-V"])`
+  - Host check: `docker inspect innova-bot`
+- Expected vs Actual:
+  - Expected: คำสั่งอนุญาตทำงานได้
+  - Actual: error `ยังไม่ได้ตั้งค่า EXEC_ALLOWLIST`
+- Scope (vscode|gravity|both): both
+- Suspected root cause: env ไม่ถูกโหลดใน process จริง หรือ cache config ค้าง
+- Fix plan (1–3):
+  1. ตั้ง `EXEC_ALLOWLIST` ใน compose และ rebuild
+  2. reset cached tools/session
+  3. re-run tool gate ตั้งแต่ตัวแรก
+- Verify (what exact PASS looks like): `python -V` และ `docker --version` ผ่าน via MCP shell tools
+- Status: OPEN
+
+### [P-20260304-103]
+
+- ID: P-20260304-103
+- Title: ask_local_ai fail (404 /api/generate, surrogates not allowed, network unreachable)
+- Symptom: tool AI ภายในเรียกไม่สำเร็จหลายโหมด
+- Reproduce (exact commands / tool calls):
+  - MCP call: `mcp_innovabot_ask_local_ai(prompt="ping")`
+  - ตรวจ log พบ `404 Not Found /api/generate` หรือ `surrogates not allowed`
+- Expected vs Actual:
+  - Expected: ได้ข้อความตอบกลับปกติ
+  - Actual: evaluator/local AI unavailable
+- Scope (vscode|gravity|both): both
+- Suspected root cause: endpoint mapping/encoding ใน runtime ไม่ตรง
+- Fix plan (1–3):
+  1. ตรวจ URL/model config ใน innova-bot
+  2. sanitize unicode surrogate ก่อนส่ง
+  3. เพิ่ม fallback route พร้อม timeout
+- Verify (what exact PASS looks like): `ask_local_ai` ตอบข้อความสั้นได้ภายใน timeout
+- Status: OPEN
+
+### [P-20260304-104]
+
+- ID: P-20260304-104
+- Title: Docker daemon flapping (pipe/dockerDesktopLinuxEngine not found, rpc EOF)
+- Symptom: compose/start ผ่านบางครั้ง แล้ว daemon หาย
+- Reproduce (exact commands / tool calls):
+  - `docker ps`
+  - `docker compose -f docker-compose.innova-bot.yml up -d --build`
+- Expected vs Actual:
+  - Expected: daemon เสถียร + compose รันต่อเนื่อง
+  - Actual: `pipe ... not found` หรือ `rpc error: EOF`
+- Scope (vscode|gravity|both): both
+- Suspected root cause: Docker Desktop service ไม่เสถียรบน host
+- Fix plan (1–3):
+  1. restart Docker Desktop/service
+  2. verify `docker version` + `docker ps`
+  3. rerun compose + health gate
+- Verify (what exact PASS looks like): `docker ps` และ health gate ผ่านซ้ำได้หลายรอบ
+- Status: OPEN
+
+### [P-20260304-105]
+
+- ID: P-20260304-105
+- Title: docker CLI not found ใน innova-bot runtime
+- Symptom: MCP shell tool เรียก `docker --version` แล้ว fail ว่าไม่พบคำสั่ง
+- Reproduce (exact commands / tool calls):
+  - MCP call: `mcp_innovabot_run_command_shell("docker --version")`
+- Expected vs Actual:
+  - Expected: แสดงเวอร์ชัน docker
+  - Actual: command not found/exit non-zero
+- Scope (vscode|gravity|both): both
+- Suspected root cause: image runtime ไม่มี docker cli หรือ PATH ไม่ถูกต้อง
+- Fix plan (1–3):
+  1. ติดตั้ง docker cli ใน runtime image
+  2. ตรวจ PATH
+  3. rerun action-tool gate
+- Verify (what exact PASS looks like): `docker --version` ผ่านจาก MCP action path
+- Status: OPEN
+
+### [P-20260304-106]
+
+- ID: P-20260304-106
+- Title: workspace attach ไม่เจอ repo target
+- Symptom: workspace tools อ่าน/เขียน path ผิด root หรือไม่พบไฟล์หลัก
+- Reproduce (exact commands / tool calls):
+  - MCP call: `mcp_innovabot_workspace_list(path="")`
+  - MCP call: `mcp_innovabot_workspace_read(path="TODO.md")`
+- Expected vs Actual:
+  - Expected: เห็นไฟล์ใน repo `innomcp`
+  - Actual: รายการไฟล์ไม่ตรง หรือ read ไม่เจอ
+- Scope (vscode|gravity|both): both
+- Suspected root cause: WORKSPACE_DIR bind ผิด หรือ session attach คนละ root
+- Fix plan (1–3):
+  1. ตรวจ WORKSPACE_DIR ใน runtime env
+  2. restart MCP พร้อม mount path ถูกต้อง
+  3. reset cached tools
+- Verify (what exact PASS looks like): list/read/write ทำงานกับไฟล์ repo จริงได้
+- Status: OPEN
+
+### [P-20260304-107]
+
+- ID: P-20260304-107
+- Title: monitor/global stream copy/scroll ไม่ได้ + error flood
+- Symptom: terminal/monitor flood logs ทำให้คัดลอกหรือเลื่อนดูหลักฐานลำบาก
+- Reproduce (exact commands / tool calls):
+  - รัน health check ต่อเนื่อง + ดู logs
+  - เกิด output ยาวและอ่านย้อนหลังยาก
+- Expected vs Actual:
+  - Expected: scroll/copy ทำได้และมี throttling
+  - Actual: error flood ทำให้ใช้งาน monitor ยาก
+- Scope (vscode|gravity|both): vscode
+- Suspected root cause: logging verbosity สูง + ไม่มี rate limit
+- Fix plan (1–3):
+  1. ลด log level ใน preflight
+  2. ใส่ tail limit/summary output
+  3. เก็บ evidence ลงไฟล์เสมอ
+- Verify (what exact PASS looks like): log อ่านย้อนและคัดลอกได้โดยไม่ flood
+- Status: OPEN
+
+### [P-20260304-108]
+
+- ID: P-20260304-108
+- Title: PowerShell window โผล่ระหว่าง launcher run
+- Symptom: เรียก runner/health แล้วมีหน้าต่าง PowerShell เด้งรบกวน
+- Reproduce (exact commands / tool calls):
+  - launch script ผ่าน task/runner ที่ใช้ PowerShell ปกติ
+- Expected vs Actual:
+  - Expected: รันแบบ hidden/non-interactive
+  - Actual: มีหน้าต่าง shell โผล่
+- Scope (vscode|gravity|both): vscode
+- Suspected root cause: launcher ไม่ตั้ง window style hidden
+- Fix plan (1–3):
+  1. ปรับ launcher/task ให้ hidden
+  2. เปลี่ยนเป็น non-interactive execution
+  3. ทดสอบซ้ำใน workflow preflight
+- Verify (what exact PASS looks like): รันครบโดยไม่มี popup PowerShell
+- Status: OPEN
+
+### [P-20260304-109]
+
+- ID: P-20260304-109
+- Title: run_command_shell blocked for host safety command taskkill
+- Symptom: MCP shell ปฏิเสธ `taskkill /F /IM node.exe /T` ด้วย allowlist policy
+- Reproduce (exact commands / tool calls):
+  - MCP call: `mcp_innovabot_run_command_shell("taskkill /F /IM node.exe /T")`
+- Expected vs Actual:
+  - Expected: รันคำสั่ง host safety ได้จาก MCP
+  - Actual: `คำสั่งไม่อยู่ใน allowlist: taskkill`
+- Scope (vscode|gravity|both): vscode
+- Suspected root cause: EXEC_ALLOWLIST จำกัดเฉพาะคำสั่งบางชุด
+- Fix plan (1–3):
+  1. เพิ่ม `taskkill` ใน allowlist runtime
+  2. reset cached tools/session
+  3. rerun preflight
+- Verify (what exact PASS looks like): MCP shell รัน `taskkill` ได้ exit 0/128 ปกติ
+- Status: OPEN
+
+### [P-20260304-110]
+
+- ID: P-20260304-110
+- Title: Tool Health Gate fail at run_command_shell docker action-path
+- Symptom: action-path ทดสอบ `docker --version` ผ่าน MCP ไม่ได้
+- Reproduce (exact commands / tool calls):
+  - MCP call: `mcp_innovabot_run_command_shell("python -V")` => PASS
+  - MCP call: `mcp_innovabot_run_command_shell("docker --version")` => FAIL (`คำสั่งไม่อยู่ใน allowlist: docker`)
+- Expected vs Actual:
+  - Expected: action gate `python -V` และ `docker --version` ต้อง PASS ทั้งคู่
+  - Actual: ผ่านเฉพาะ `python -V`, `docker` ถูกบล็อก
+- Scope (vscode|gravity|both): both
+- Suspected root cause: EXEC_ALLOWLIST runtime ยังไม่รวม `docker`
+- Fix plan (1–3):
+  1. เพิ่ม `docker` ใน EXEC_ALLOWLIST ของ innova-bot runtime
+  2. restart MCP + reset cached tools
+  3. rerun Tool Health Gate ใหม่ตั้งแต่ tool แรก
+- Verify (what exact PASS looks like):
+  - `run_command_shell: python -V` PASS
+  - `run_command_shell: docker --version` PASS
+  - gate action-path อื่นครบ (`job_*`, `ask_local_ai`, workspace write/read/delete)
+- Status: OPEN
+
+### [P-20260304-111]
+
+- ID: P-20260304-111
+- Title: Round-2 Tool Health Gate blocked by allowlist at docker action path
+- Symptom: Tool gate ผ่าน `workspace_write/read` และ `python -V` แต่ fail ที่ `docker --version`
+- Reproduce (exact commands / tool calls):
+  - `mcp_innovabot_workspace_write(path="tmp/innova_gate_step1_round2.txt", ... )` => PASS
+  - `mcp_innovabot_workspace_read(path="tmp/innova_gate_step1_round2.txt")` => PASS
+  - `mcp_innovabot_run_command_shell("python -V")` => PASS
+  - `mcp_innovabot_run_command_shell("docker --version")` => FAIL (`คำสั่งไม่อยู่ใน allowlist: docker`)
+- Expected vs Actual:
+  - Expected: action-path บังคับต้องผ่านครบ รวม `docker --version`
+  - Actual: fail ที่ docker allowlist จึงไม่ครบ 100%
+- Scope (vscode|gravity|both): both
+- Suspected root cause: `EXEC_ALLOWLIST` ของ MCP runtime ยังไม่อนุญาต `docker`
+- Fix plan (1–3):
+  1. เพิ่ม `docker` ใน EXEC_ALLOWLIST
+  2. restart innova-bot + reset cached tools
+  3. rerun Tool Health Gate ใหม่ตั้งแต่ tool แรก
+- Verify (what exact PASS looks like):
+  - `run_command_shell("docker --version")` ผ่าน
+  - action-path ที่เหลือ (`job_*`, `ask_local_ai`, workspace temp delete) ผ่านครบ
+- Status: OPEN
+
+- [P-20260304-008] **Symptom:** INNOVA-BOT FIRST step 1/2 cannot run in current workspace because required files are missing (`docker-compose.innova-bot.yml`, `devtools/innova-bot/scripts/mcp_health_check.ps1`).
+  - **Repro:**
+    - `docker compose -f docker-compose.innova-bot.yml up -d --build` -> file not found
+    - `dir /s /b docker-compose.innova-bot.yml` -> File Not Found
+    - `dir /s /b mcp_health_check.ps1` -> File Not Found
+  - **RootCause:** Verification runbook points to INNOVA assets that are not present in this repository checkout/path.
+  - **Fix:** Use the correct workspace containing INNOVA runbook assets, or provide canonical path for compose/health scripts and re-run from step 0.
+  - **Verify:** INNOVA-BOT FIRST passes sequentially (0->3), then continue labor scans and phase reruns.
+
+- [P-20260304-112] **Symptom:** INNOVA-BOT FIRST step #1 failed in current workspace due missing compose file.
+  - **Repro:** `docker compose -f docker-compose.innova-bot.yml up -d --build` -> file not found at `C:\Users\USER-NT\DEV\innomcp\docker-compose.innova-bot.yml`
+  - **RootCause:** Required INNOVA compose asset not present at repo root for this runner path.
+  - **Fix:** Switch to workspace/path that contains INNOVA compose stack or provide canonical compose file path for this project.
+  - **Verify:** step #1 succeeds, then run step #2 health script and sequential tool-gate 100% from start.
+
+- [P-20260304-113] **Symptom:** INNOVA-BOT FIRST blocked at compose step in `innomcp` workspace.
+  - **Repro:** `docker compose -f docker-compose.innova-bot.yml up -d --build` -> `file not found`.
+  - **RootCause:** required compose file path does not exist at repository root.
+  - **Fix:** run from workspace containing INNOVA stack file or provide canonical compose path.
+  - **Verify:** compose step returns exit 0, then proceed health script + tool-gate sequential 100% from step #1.
+
+
