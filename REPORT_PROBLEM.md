@@ -116,26 +116,6 @@
   2. rebuild/restart container
   3. rerun labor scans ผ่าน innova-bot tools ให้ครบ
 
-### [P-20260303-002] ไม่พบไฟล์ mcp_health_check.ps1 ใน workspace ปัจจุบัน (FIXED)
-
-- เวลา: 2026-03-03 04:35 (Asia/Bangkok)
-- ส่วนที่กระทบ: innova-bot
-- อาการ:
-  - คำสั่ง policy `powershell -ExecutionPolicy Bypass -File devtools/innova-bot/scripts/mcp_health_check.ps1` ล้มเหลว
-  - รันด้วย absolute path ใต้ `c:\Users\USER-NT\DEV\innomcp\...` แล้วยังไม่พบไฟล์
-- หลักฐาน (ไม่ใส่ secrets):
-  - `The argument '...mcp_health_check.ps1' to the -File parameter does not exist`
-  - `file_search **/mcp_health_check.ps1` -> no files found
-- สาเหตุที่คาด:
-  - ไฟล์ health script อยู่ repo/โฟลเดอร์อื่น หรือยังไม่ถูก sync เข้า workspace นี้
-- วิธีแก้ที่ลองแล้ว:
-  - rerun คำสั่งด้วย path relative และ absolute
-  - ค้นหาไฟล์ทั้ง workspace ด้วย glob
-- Next actions (1-3 ข้อ):
-  1. ใช้ health gate ผ่าน innova-bot MCP tools แบบ sequential แทน script ชั่วคราว
-  2. ขอ path ที่ถูกต้องของ script หรือ sync ไฟล์เข้ามาใน workspace
-  3. เมื่อได้ script แล้ว rerun policy command ซ้ำเพื่อปิด incident
-
 ### [P-20260303-001] Docker engine unavailable ทำให้ INNOVA-BOT FIRST เริ่มไม่ได้
 
 - เวลา: 2026-03-03 04:00 (Asia/Bangkok)
@@ -157,24 +137,6 @@
   1. ตรวจ service Docker บน Windows และ start daemon
   2. rerun `docker compose -f docker-compose.innova-bot.yml up -d --build`
   3. rerun health gate แบบ sequential ทั้งลิสต์จน 100% PASS
-
-### [P-YYYYMMDD-001] <สรุปสั้นๆ 1 บรรทัด>
-
-- เวลา: YYYY-MM-DD HH:mm (Asia/Bangkok)
-- ส่วนที่กระทบ: innova-bot | innomcp | both
-- อาการ:
-  - <bullet 1>
-  - <bullet 2>
-- หลักฐาน (ไม่ใส่ secrets):
-  - <ไฟล์ log / คำสั่งที่รัน / 1 บรรทัด error>
-- สาเหตุที่คาด:
-  - <bullet>
-- วิธีแก้ที่ลองแล้ว:
-  - <bullet>
-- Next actions (1-3 ข้อ):
-  1. ...
-  2. ...
-  3. ...
 
 ## FIXED
 
@@ -375,14 +337,6 @@
   - เซ็ต `process.env.DB_*` จาก candidate ที่ผ่านก่อนเรียก `query()`/tool execution เพื่อตัดปัญหา env drift ระหว่างรัน task
 - หลักฐานว่า PASS:
   - รัน task `shell: verify:phase2` จาก workspace แล้วผ่าน `✅ verify_phase2: PASS`
-
-### [P-YYYYMMDD-000] <สรุปสั้นๆ>
-
-- แก้เมื่อ: YYYY-MM-DD HH:mm
-- วิธีแก้:
-  - <bullet>
-- หลักฐานว่า PASS:
-  - <เช่น health check 100% + tool list ผ่าน>
 
 ## TEAM MCP/INNOVA ISSUES (Rolling List)
 
