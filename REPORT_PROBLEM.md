@@ -3,27 +3,6 @@
 อัปเดตล่าสุด: 2026-03-06
 
 ## OPEN
-### [P-20260305-126] Tool Health Gate fail at workspace write-equivalent (MCP patch format mismatch)
-
-- ID: P-20260305-126 | Status: OPEN
-- Symptom:
-  - STEP 1.2 tool gate เรียงลำดับมาถึง write-equivalent แล้ว fail ทันที
-  - `mcp_innovabot_workspace_apply_patch` ตอบว่าไม่รองรับรูปแบบ patch (`*** Begin Patch`)
-- Repro:
-  - MCP call: `workspace_apply_patch` with patch header `*** Begin Patch ...`
-  - result: `รูปแบบ patch ไม่ถูกต้อง (ไม่รองรับ *** Begin Patch, กรุณาใช้ unified diff มาตรฐาน เช่น --- a/file +++ b/file)`
-- Suspected root cause:
-  - ความไม่เข้ากันของ patch format ระหว่าง client flow กับ innova-bot tool (`workspace_apply_patch` ต้องการ unified diff เท่านั้น)
-  - ใน session นี้ไม่มี `workspace_write` ตรง ๆ ให้ใช้แทน
-- Fix:
-  - ปรับ runner ให้ส่ง unified diff format กับ `workspace_apply_patch` หรือ expose `workspace_write` action tool ตาม policy gate
-  - หลังแก้ ต้อง rerun Tool Health Gate ใหม่ตั้งแต่ tool แรก
-- Verify:
-  - write action ผ่าน MCP (สร้างไฟล์ probe ได้)
-  - จากนั้นรัน action tools ที่เหลือ (`run_command*`, `job_start`, `ask_local_ai`) ผ่านครบ 100%
-- Notes/Risk:
-  - ตาม policy ต้อง STOP workflow ถ้า tool gate ยังไม่ครบ 100% PASS
-
 ### [P-20260304-007] Tool Health Gate ทำครบ 100% ไม่ได้ เพราะ action tools บังคับไม่ปรากฏใน tool picker ปัจจุบัน
 
 - ID: P-20260304-007 | Status: OPEN
@@ -177,6 +156,17 @@
 - หลักฐานว่า PASS:
   - `run_command_impl('cmd', ['/d','/c','set SMOKE_MODE=1&&set WEATHER_FIXTURE_W1=1&&npx --prefix innomcp-node ts-node innomcp-node/scripts/verify_phase101a_weather_contract.ts'], cwd='C:/Users/USER-NT/DEV/innomcp', timeout_ms=300000)`
   - ผลลัพธ์: `{"ok": true, "timed_out": false, "exit_code": 0}` พร้อม evidence `phase101a-20260306-001329.log`
+
+### [P-20260306-137] P-20260305-126 resolved: workspace_apply_patch accepts Begin/End wrapped unified diff
+
+- แก้เมื่อ: 2026-03-06
+- วิธีแก้:
+  - ปรับ `devtools/innova-bot/innova_bot/tools/workspace_tools.py` ให้ normalize แพตช์ที่ครอบ `*** Begin Patch ... *** End Patch` ไปเป็น unified diff ก่อน apply
+  - เพิ่ม regression test `test_apply_patch_accepts_wrapped_unified_diff`
+- หลักฐานว่า PASS:
+  - runtime proof: `workspace_apply_patch_impl("*** Begin Patch ... *** End Patch")` => `apply_patch สำเร็จ: probe.txt`
+  - verification: เนื้อหาไฟล์เปลี่ยนจาก `one` เป็น `two`
+  - tests: `pytest test_workspace_tools.py test_exec_tools.py` => `19 passed`
 
 ### [P-20260306-131] UnicodeEncodeError in SSE smoke script (Windows cp1252) resolved
 
