@@ -157,7 +157,7 @@
   - `run_command_impl('cmd', ['/d','/c','set SMOKE_MODE=1&&set WEATHER_FIXTURE_W1=1&&npx --prefix innomcp-node ts-node innomcp-node/scripts/verify_phase101a_weather_contract.ts'], cwd='C:/Users/USER-NT/DEV/innomcp', timeout_ms=300000)`
   - ผลลัพธ์: `{"ok": true, "timed_out": false, "exit_code": 0}` พร้อม evidence `phase101a-20260306-001329.log`
 
-### [P-20260306-137] P-20260305-126 resolved: workspace_apply_patch accepts Begin/End wrapped unified diff
+### [P-20260306-138] P-20260305-126 resolved: workspace_apply_patch accepts Begin/End wrapped unified diff
 
 - แก้เมื่อ: 2026-03-06
 - วิธีแก้:
@@ -167,6 +167,17 @@
   - runtime proof: `workspace_apply_patch_impl("*** Begin Patch ... *** End Patch")` => `apply_patch สำเร็จ: probe.txt`
   - verification: เนื้อหาไฟล์เปลี่ยนจาก `one` เป็น `two`
   - tests: `pytest test_workspace_tools.py test_exec_tools.py` => `19 passed`
+
+### [P-20260306-137] INNOVA-BOT FIRST step 0 compose clean exit restored (runner cancellation cleared)
+
+- แก้เมื่อ: 2026-03-06
+- วิธีแก้:
+  - ใช้ exec runner ที่รองรับ timeout ยาวและ finalize process state ถูกต้อง
+  - rerun คำสั่ง preflight step0 เดิมตาม incident
+- หลักฐานว่า PASS:
+  - `run_command_impl('docker', ['compose','-f','C:/Users/USER-NT/DEV/innova-bot-template/docker-compose.innova-bot.yml','up','-d','--build'], cwd='C:/Users/USER-NT/DEV/innomcp', timeout_ms=600000, meta={'project':'innomcp'})`
+  - ผลลัพธ์: `{"ok": true, "timed_out": false, "exit_code": 0}`
+  - stderr tail ลงท้ายสถานะปกติ: `Container innova-bot Started`
 
 ### [P-20260306-131] UnicodeEncodeError in SSE smoke script (Windows cp1252) resolved
 
