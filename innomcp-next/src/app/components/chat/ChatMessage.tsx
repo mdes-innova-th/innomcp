@@ -30,9 +30,16 @@ export default function ChatMessage({
 }: Props) {
   const [copiedChart, setCopiedChart] = React.useState(false);
   const { theme } = useTheme();
-  const mapTiles = Array.isArray(structuredContent?.weatherPayload?.mapTiles)
+  const rawMapTiles = Array.isArray(structuredContent?.weatherPayload?.mapTiles)
     ? structuredContent.weatherPayload.mapTiles
     : [];
+  const hasProvinceMissingError = Array.isArray(structuredContent?.weatherPipeline)
+    ? structuredContent.weatherPipeline.some((item: any) => String(item?.error || "") === "PROVINCE_MISSING")
+    : false;
+  const mapTiles = rawMapTiles.filter((tile: any) => {
+    const area = String(tile?.area || "").trim();
+    return area.length > 0 && area !== "ไม่ระบุพื้นที่";
+  });
 
   const handleCopyChartCode = async () => {
     try {
@@ -113,7 +120,7 @@ export default function ChatMessage({
         )}
 
         {/* Weather map tiles (Phase 10.1B minimal contract renderer) */}
-        {mapTiles.length > 0 && (
+        {!hasProvinceMissingError && mapTiles.length > 0 && (
           <div data-testid="weather-map-tiles" className="mb-4 rounded-lg border border-green-500/20 bg-green-50/30 p-3 dark:border-green-400/20 dark:bg-green-900/10">
             <div className="mb-2 text-sm font-semibold text-green-800 dark:text-green-200">แผนที่สภาพอากาศ</div>
             <div className="space-y-3">

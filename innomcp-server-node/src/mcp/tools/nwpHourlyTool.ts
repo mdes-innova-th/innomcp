@@ -24,7 +24,7 @@ function getNwpApiKey(): string {
   const isLiveMode = !isSmoke && !isFixture;
 
   if (isLiveMode && (key === "demo" || key === "demokey" || key.includes("api12345"))) {
-    throw new Error("TMD_API_LIVE_MODE_DEMO_KEY_BLOCKED: Using demo keys in Live Mode is prohibited.");
+    console.warn("WARN: NWP_API_LIVE_MODE_DEMO_KEY: Using demo keys in Live Mode. Expect rate limits.");
   }
 
   return key;

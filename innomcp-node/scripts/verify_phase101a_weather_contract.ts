@@ -131,6 +131,9 @@ async function main() {
     "ตอนนี้อากาศภูเก็ต",
   ];
 
+  lines.push("CONFIG: SMOKE_MODE=1 WEATHER_FIXTURE_W1=1 CHAT_TRACE_QA=1 LOG_DEBUG=0");
+  lines.push("CONFIG: verifier requires fixture-only behavior (no external weather API)");
+
   const { port, stop } = await startEphemeralServer();
   try {
     for (let i = 0; i < cases.length; i++) {
@@ -158,15 +161,10 @@ async function main() {
 
   fs.writeFileSync(evidence, lines.join("\n") + "\n", "utf8");
   console.log(`evidence: ${evidence}`);
-  
-  setTimeout(() => {
-    process.exit(ok ? 0 : 1);
-  }, 250);
+  process.exit(ok ? 0 : 1);
 }
 
-main().then(() => {
-  setTimeout(() => process.exit(0), 100);
-}).catch((err) => {
+main().catch((err) => {
   console.error("verify_phase101a_weather_contract failed:", err);
-  setTimeout(() => process.exit(1), 100);
+  process.exit(1);
 });

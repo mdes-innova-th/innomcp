@@ -54,6 +54,7 @@ import { registerCalculatorTool } from "./mcp/tools/calculatorTool";
 import { registerThaiGeoTool } from "./mcp/tools/thaiGeoTool";
 import { registerThaiHistoryTool } from "./mcp/tools/thaiHistoryTool";
 import { registerThaiLawTool } from "./mcp/tools/thaiLawTool";
+import { registerThaiKnowledgeTool } from "./mcp/tools/thaiKnowledgeTool";
 import { registerThaiReligionTool } from "./mcp/tools/thaiReligionTool";
 
 // NEW: Session 8.8 - Data Access & Calculation Tools
@@ -132,6 +133,7 @@ registerCalculatorTool(mcpserver); // Enhanced as MathTool
 registerThaiGeoTool(mcpserver);
 registerThaiHistoryTool(mcpserver);
 registerThaiLawTool(mcpserver);
+registerThaiKnowledgeTool(mcpserver);
 registerThaiReligionTool(mcpserver); // New Phase 5 Tools
 
 // Register NEW Session 8.8 tools (direct tool objects)
@@ -261,7 +263,94 @@ mcpserver.registerTool(nwpDailyByRegionTool.name, {
   inputSchema: nwpDailyByRegionTool.inputSchema,
 }, nwpDailyByRegionTool.execute);
 
-logBoth('INFO', `✅ Registered ${Object.keys(toolsRegistry).length} essential tools (2026 World-Class System)`);
+logBoth('INFO', `[BOOT] Registered ${Object.keys(toolsRegistry).length} essential tools (2026 World-Class System)`);
+
+// ============================================================
+// Boot Readiness Report — แสดงทุกครั้งที่ server start
+// ============================================================
+(function printReadinessReport() {
+  const mode = String(process.env.INNOMCP_MODE || "offline").toLowerCase();
+  const smokeMode = process.env.SMOKE_MODE === "1";
+  const weatherFixtureW1 = process.env.WEATHER_FIXTURE_W1 === "1";
+
+  type ReadinessEntry = { key: string; ready: boolean; note: string; requiredOnline: boolean };
+  const checks: ReadinessEntry[] = [
+    {
+      key: "TMD (TMD_UID / TMD_UKEY)",
+      ready: !!(String(process.env.TMD_UID || "").trim() && String(process.env.TMD_UKEY || "").trim()),
+      note: "tmdTools.ts — 17 tools",
+      requiredOnline: true,
+    },
+    {
+      key: "NWP (NWP_API_KEY)",
+      ready: !!String(process.env.NWP_API_KEY || "").trim(),
+      note: "nwpDailyTool + nwpHourlyTool — 6 tools",
+      requiredOnline: true,
+    },
+    {
+      key: "WEBDDSB (WEBDDSB_HOST / WEBDDSB_APIKEY)",
+      ready: !!(String(process.env.WEBDDSB_HOST || "").trim() && String(process.env.WEBDDSB_APIKEY || "").trim()),
+      note: "webdTools.ts — 3 tools",
+      requiredOnline: false,
+    },
+    {
+      key: "OpenWeather (OPENWEATHER_API_KEY)",
+      ready: !!String(process.env.OPENWEATHER_API_KEY || "").trim(),
+      note: "weatherTool.ts",
+      requiredOnline: false,
+    },
+    {
+      key: "DetectDB (DETECT_DB_HOST / DETECT_DB_USER / DETECT_DB_NAME)",
+      ready: !!(
+        String(process.env.DETECT_DB_HOST || "").trim() &&
+        String(process.env.DETECT_DB_USER || "").trim() &&
+        String(process.env.DETECT_DB_NAME || "").trim()
+      ),
+      note: "evidenceTool.ts",
+      requiredOnline: false,
+    },
+    {
+      key: "AppDB (DB_HOST / DB_USER / DB_NAME)",
+      ready: !!(
+        String(process.env.DB_HOST || "").trim() &&
+        String(process.env.DB_USER || "").trim() &&
+        String(process.env.DB_NAME || "").trim()
+      ),
+      note: "db.ts",
+      requiredOnline: false,
+    },
+  ];
+
+  const notReadyRequired = checks.filter((c) => c.requiredOnline && !c.ready);
+  const deprecatedEnvDetected = [
+    String(process.env.TMD_API_UID || "").trim() ? "TMD_API_UID" : "",
+    String(process.env.TMD_API_UKEY || "").trim() ? "TMD_API_UKEY" : "",
+  ].filter(Boolean);
+  const notReadyOptional = checks.filter((c) => !c.requiredOnline && !c.ready);
+
+  logBoth("INFO", `[READINESS] INNOMCP_MODE=${mode}${smokeMode ? " SMOKE_MODE=1" : ""}${weatherFixtureW1 ? " WEATHER_FIXTURE_W1=1" : ""}`);
+  for (const c of checks) {
+    const mark = c.ready ? "READY  " : (c.requiredOnline ? "MISSING*" : "missing ");
+    logBoth(c.ready ? "INFO" : "WARN", `[READINESS]   ${mark} ${c.key}  (${c.note})`);
+  }
+
+  if (deprecatedEnvDetected.length > 0) {
+    logBoth("WARN", `[READINESS] deprecated env vars detected (ignored): ${deprecatedEnvDetected.join(", ")}. Use TMD_UID/TMD_UKEY instead.`);
+  }
+
+  if (mode === "online" && notReadyRequired.length > 0) {
+    logBoth("ERROR", `[READINESS] MODE=online แต่ขาด key จำเป็น: ${notReadyRequired.map((c) => c.key).join(", ")}`);
+    logBoth("ERROR", "[READINESS] *** online tools จะ error จนกว่าจะตั้งค่า env ครบ ***");
+  } else if (mode === "offline" && notReadyRequired.length > 0) {
+    logBoth("INFO", "[READINESS] MODE=offline — external keys ไม่จำเป็น (ใช้ fixture/smoke)");
+  } else if (mode === "online") {
+    logBoth("INFO", "[READINESS] MODE=online — keys ครบ พร้อมใช้งาน");
+  }
+
+  if (notReadyOptional.length > 0) {
+    logBoth("WARN", `[READINESS] optional tools ไม่พร้อม (ไม่ critical): ${notReadyOptional.map((c) => c.key).join(", ")}`);
+  }
+})();
 
 // Initialize Pipeline (if enabled)
 let pipeline: IntelligencePipeline | null = null;

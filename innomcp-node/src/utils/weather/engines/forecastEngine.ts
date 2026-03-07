@@ -18,6 +18,10 @@ function getTimeoutFromEnv(name: string, fallback: number): number {
 export class ForecastEngine {
     constructor(private clients: Map<string, any>) {}
 
+    private isFixtureMode(): boolean {
+        return process.env.WEATHER_FIXTURE_W1 === "1";
+    }
+
     private getClient(): any {
         const c = this.clients.get("innomcp-server") || this.clients.values().next().value;
         if (c) return c;
@@ -45,6 +49,10 @@ export class ForecastEngine {
             payload = ToolCache.get(cacheKey);
 
             if (!payload) {
+                // Fixture mode must never call upstream APIs.
+                if (this.isFixtureMode()) {
+                    return { province, type: "error", error: "FIXTURE_FORECAST_MISS" };
+                }
                 // TMD 7-Day Forecast: returns all 77 provinces, we cache + filter
                 payload = await executeWeatherToolCall({
                     client,
@@ -95,6 +103,10 @@ export class ForecastEngine {
             payload = ToolCache.get(cacheKey);
 
             if (!payload) {
+                // Fixture mode must never call upstream APIs.
+                if (this.isFixtureMode()) {
+                    return [];
+                }
                 payload = await executeWeatherToolCall({
                     client,
                     toolName,

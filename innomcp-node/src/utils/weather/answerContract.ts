@@ -1,6 +1,14 @@
 import { shapeWeatherResults, firstNonEmptyString, normalizeProvinceDisplayName, toNumberOrNull } from "./shaping";
 import { WeatherResult } from "./types";
 
+const PROVINCE_DISTRICT_HINTS: Record<string, string[]> = {
+  "เชียงใหม่": ["เมืองเชียงใหม่", "แม่ริม", "สันทราย"],
+  "กรุงเทพมหานคร": ["จตุจักร", "ลาดกระบัง", "ดอนเมือง"],
+  "นครราชสีมา": ["เมืองนครราชสีมา", "ปากช่อง", "สูงเนิน"],
+  "ขอนแก่น": ["เมืองขอนแก่น", "ชุมแพ", "บ้านไผ่"],
+  "ภูเก็ต": ["เมืองภูเก็ต", "กะทู้", "ถลาง"],
+};
+
 function bkkDateStr(offsetDays: number): string {
   const now = new Date();
   const bkkMs = now.getTime() + 7 * 60 * 60 * 1000;
@@ -144,6 +152,11 @@ function areaLabelForProvince(userText: string, province: string): string {
   return d ? `กรุงเทพมหานคร (${d})` : p;
 }
 
+function districtHintsForProvince(province: string): string[] {
+  const p = normalizeProvinceDisplayName(province);
+  return PROVINCE_DISTRICT_HINTS[p] || [];
+}
+
 function pickForecastDayIndex(forecast: any, offsetDays: number): number {
   const f = forecast && typeof forecast === "object" ? forecast : {};
   const dates: string[] = Array.isArray((f as any).ForecastDate) ? (f as any).ForecastDate : [];
@@ -228,14 +241,21 @@ function renderErrorOnlyProvince(province: string, items: WeatherResult[]): stri
   })();
 
   // Operator-grade: always emit the same 5 fields for every area block.
-  return [
+  const lines = [
     `พื้นที่: ${province}`,
     `โอกาสฝน: ยังไม่มีข้อมูล`,
     `ช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล`,
     `อุณหภูมิ: ยังไม่มีข้อมูล`,
     `ลม: ยังไม่มีข้อมูล`,
     `ข้อควรระวัง: ${msg}`,
-  ].join("\n");
+  ];
+
+  const districtHints = districtHintsForProvince(province);
+  if (districtHints.length > 0) {
+    lines.push(`อำเภอที่ควรติดตาม: ${districtHints.join(", ")}`);
+  }
+
+  return lines.join("\n");
 }
 
 function renderOneProvince(userText: string, province: string, items: WeatherResult[]): string {
@@ -327,6 +347,11 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
   lines.push(`ลม: ${windText}`);
   lines.push(`ข้อควรระวัง: ${advice}`);
 
+  const districtHints = districtHintsForProvince(province);
+  if (districtHints.length > 0) {
+    lines.push(`อำเภอที่ควรติดตาม: ${districtHints.join(", ")}`);
+  }
+
   return lines.join("\n");
 }
 
@@ -366,6 +391,9 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
           return "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง (ERR:WX_UPSTREAM)";
         case "NO_DATA":
         default:
+          if (errs.includes("NATIONAL_DATA_UNAVAILABLE")) {
+            return "ค่าเริ่มต้นเป็นประเทศไทยแล้ว แต่ยังไม่มีข้อมูลทั่วประเทศในขณะนี้ (ERR:WX_NO_DATA)";
+          }
           return "ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)";
       }
     })();

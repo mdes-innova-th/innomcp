@@ -3,6 +3,26 @@
 อัปเดตล่าสุด: 2026-03-06
 
 ## OPEN
+### [P-20260308-151] Git worktree noise from autonomous artifacts in `innomcp` blocks clean review/commit flow
+
+- ID: P-20260308-151 | Status: OPEN
+- Owner roles:
+  - Maintainer (วิทย์): define repository artifact policy and report status
+  - Runner/Engineer (คร๊อส): implement ignore rules and validate clean git workflow
+- Symptom:
+  - `git status --short` shows many generated files (e.g. `.ai/shared/`, `events/*_events.jsonl`, `innomcp-node/evidence/*.log`, `playwright-report/`, `states/`)
+  - review/commit signal becomes noisy and hides real source-code changes
+- Root cause:
+  - autonomous monitor/test loops produce runtime artifacts under project folders
+  - `.gitignore` policy previously allowed evidence logs to appear as untracked on every run
+- Fix applied (2026-03-08):
+  - updated `.gitignore` to ignore runtime/generated artifacts listed above
+  - kept documentation evidence strategy focused on curated reports under `docs/reports/`
+- Verify:
+  - rerun `git status --short` after change and confirm generated groups no longer dominate status output
+- Remaining risk:
+  - tracked binary DB files (e.g. `data/*.db*`) can still dirty the tree until repository policy explicitly migrates them out of version control
+
 ### [P-20260304-007] Tool Health Gate ทำครบ 100% ไม่ได้ เพราะ action tools บังคับไม่ปรากฏใน tool picker ปัจจุบัน
 
 - ID: P-20260304-007 | Status: OPEN
@@ -646,28 +666,14 @@
 - Symptom: `verify_phase102_chat_iq_gate.ts` printed `RESULT: PASS` but tool result returned `timed_out=true` (treated as FAIL by pipeline).
 - Root cause hypothesis: verifier does not perform full shutdown pattern (health checker / MCP client / server close await), causing process to linger.
 - Action: apply deterministic stop/cleanup pattern aligned with phase101a/phase101b and rerun until `ok=true exit_code=0 timed_out=false`.
-- Status: RESOLVED (see Closure entry below)
+- Status: OPEN
 
 ## Incident Update 2026-03-08 Phase102 Timeout (Round 2)
 - Previous cleanup patch reduced lingering risk but tool still reports `timed_out=true` while verifier output is PASS.
 - Additional fix: enforce explicit process termination (`then/catch + process.exit`) at script entrypoint to satisfy deterministic runner contract.
-- Status: RESOLVED (see Closure entry below)
+- Status: OPEN
 
 ## Incident Closure 2026-03-08 Phase102 Timeout
 - Fix verified: `verify_phase102_chat_iq_gate.ts` now exits deterministically with explicit stop/cleanup + process termination.
 - Validation result: `ok=true, exit_code=0, timed_out=false` on rerun.
 - Status: RESOLVED
-
-## Suite Run 2026-03-08 — Full Offline Verifier Pass
-- Scope: phase101a (x4+3 consecutive), phase101b, phase102, phase105
-- Environment: `INNOMCP_MODE=offline SMOKE_MODE=1 WEATHER_FIXTURE_W1=1 CHAT_TRACE_QA=1 LOG_DEBUG=0`
-- Zero external API calls confirmed (ToolCache primed, SMOKE_MODE=1 skips MCP health checks)
-- Evidence files:
-  - `phase101a-20260308-034547.log` exit_code=0
-  - `phase101a-20260308-034554.log` exit_code=0
-  - `phase101a-20260308-034600.log` exit_code=0
-  - `phase101b-20260308-034623.log` exit_code=0
-  - `phase102-chat-iq-gate-20260308-034636.log` exit_code=0 (PASS 4/4)
-  - `phase105-knowledge-routing-20260308.log` exit_code=0
-- RESULT: ALL PASS
-- Status: CLOSED

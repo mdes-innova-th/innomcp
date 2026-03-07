@@ -6,6 +6,7 @@
   "scripts": {
     "test": "npm run test:thaiGeoTool",
     "test:thaiGeoTool": "node --require ts-node/register --test src/mcp/tools/thaiGeoTool.spec.ts",
+    "test:thaiKnowledgeTool": "node --require ts-node/register --test src/mcp/tools/thaiKnowledgeTool.spec.ts",
     "dev": "nodemon --exec ts-node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js"

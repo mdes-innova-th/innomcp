@@ -68,11 +68,31 @@ async function startEphemeralServer() {
   });
 
   const address = server.address() as any;
-  return { server, port: address.port };
+
+  const stop = async () => {
+    try {
+      const chatMod: any = await import("../src/routes/api/chat");
+      const toolHealthChecker = chatMod?.toolHealthChecker;
+      const mcpClient = chatMod?.mcpClient;
+      if (toolHealthChecker && typeof toolHealthChecker.stopHealthChecks === "function") {
+        toolHealthChecker.stopHealthChecks();
+      }
+      if (mcpClient && typeof mcpClient.shutdown === "function") {
+        await mcpClient.shutdown();
+      } else if (mcpClient && typeof mcpClient.stopHealthCheck === "function") {
+        mcpClient.stopHealthCheck();
+      }
+    } catch {
+      // ignore
+    }
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  };
+
+  return { stop, port: address.port };
 }
 
 async function runTests() {
-  const { server, port } = await startEphemeralServer();
+  const { stop, port } = await startEphemeralServer();
   const failures: string[] = [];
   const logLines: string[] = [];
   const startMs = Date.now();
@@ -125,11 +145,20 @@ async function runTests() {
   await runCase("4. intent=unknown: Low Confidence Chat IQ Gate Fallback", { message: "sadsadwewqeq213dasd" },
     (res) => {
       assertOk(res.status === 200, `status should be 200, got ${res.status}`, failures);
-      assertOk(res.json?.text?.includes("ห้ามเดาโว้ย") || res.json?.text?.includes("ขออภัย"), "chat gate fallback failed", failures);
+      const text = String(res.json?.text || "");
+      const route = String(res.json?.structuredContent?.__render?.route || "");
+      const mcpUsed = Boolean(res.json?.mcpUsed);
+      const mcpResults = res.json?.mcpResults;
+
+      // Deterministic gate contract should be structure-first, not message-literal-first.
+      assertOk(route === "general" || route === "", "chat gate fallback route invalid", failures);
+      assertOk(mcpUsed === false, "chat gate fallback must not execute MCP tools", failures);
+      assertOk(mcpResults == null, "chat gate fallback must keep mcpResults=null", failures);
+      assertOk(text.length > 0, "chat gate fallback text must not be empty", failures);
     }
   );
 
-  server.close();
+  await stop();
   
   const dur = Date.now() - startMs;
   logLines.push("====================================");
@@ -150,4 +179,9 @@ async function runTests() {
   if (failures.length > 0) process.exit(1);
 }
 
-runTests().catch(console.error);
+runTests().then(() => {
+  process.exit(0);
+}).catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

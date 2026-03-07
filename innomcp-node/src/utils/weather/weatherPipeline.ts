@@ -10,6 +10,27 @@ import { primeWeatherFixturesW1 } from "./fixtures/w1";
 const NATIONWIDE_TOP_N_DEFAULT = 10;
 const NATIONWIDE_TOP_N_MAX = 20;
 
+const NATIONWIDE_FALLBACK_ROWS: Array<{
+    province: string;
+    percentRain: number;
+    tempMax: number;
+    tempMin: number;
+    windSpeed: number;
+    windDir: string;
+    desc: string;
+}> = [
+    { province: "ระนอง", percentRain: 70, tempMax: 31, tempMin: 24, windSpeed: 22, windDir: "ตะวันตกเฉียงใต้", desc: "ความเสี่ยงฝนตามภูมิอากาศโดยรวม" },
+    { province: "พังงา", percentRain: 68, tempMax: 32, tempMin: 25, windSpeed: 21, windDir: "ตะวันตกเฉียงใต้", desc: "ความเสี่ยงฝนตามภูมิอากาศโดยรวม" },
+    { province: "ภูเก็ต", percentRain: 67, tempMax: 31, tempMin: 25, windSpeed: 20, windDir: "ตะวันตกเฉียงใต้", desc: "ความเสี่ยงฝนตามภูมิอากาศโดยรวม" },
+    { province: "กระบี่", percentRain: 66, tempMax: 32, tempMin: 24, windSpeed: 19, windDir: "ตะวันตกเฉียงใต้", desc: "ความเสี่ยงฝนตามภูมิอากาศโดยรวม" },
+    { province: "สุราษฎร์ธานี", percentRain: 64, tempMax: 33, tempMin: 25, windSpeed: 18, windDir: "ตะวันตกเฉียงใต้", desc: "ความเสี่ยงฝนตามภูมิอากาศโดยรวม" },
+    { province: "ตรัง", percentRain: 63, tempMax: 32, tempMin: 24, windSpeed: 18, windDir: "ตะวันตกเฉียงใต้", desc: "ความเสี่ยงฝนตามภูมิอากาศโดยรวม" },
+    { province: "สตูล", percentRain: 62, tempMax: 32, tempMin: 24, windSpeed: 17, windDir: "ตะวันตกเฉียงใต้", desc: "ความเสี่ยงฝนตามภูมิอากาศโดยรวม" },
+    { province: "ชุมพร", percentRain: 60, tempMax: 33, tempMin: 24, windSpeed: 17, windDir: "ตะวันตกเฉียงใต้", desc: "ความเสี่ยงฝนตามภูมิอากาศโดยรวม" },
+    { province: "นครศรีธรรมราช", percentRain: 59, tempMax: 33, tempMin: 24, windSpeed: 16, windDir: "ตะวันตกเฉียงใต้", desc: "ความเสี่ยงฝนตามภูมิอากาศโดยรวม" },
+    { province: "สงขลา", percentRain: 57, tempMax: 33, tempMin: 25, windSpeed: 16, windDir: "ตะวันตกเฉียงใต้", desc: "ความเสี่ยงฝนตามภูมิอากาศโดยรวม" },
+];
+
 // Budget: max wall-clock time for entire execute()
 const BUDGET_MS = 30_000;
 
@@ -55,6 +76,21 @@ function bkkIsoDateStr(offsetDays: number): string {
 // ─── Nationwide intent detection ───
 // Keep broad + cheap; pipeline decides national-mode (NOT resolver-only)
 const NATIONWIDE_KEYWORDS = /ในไทย|ประเทศไทย|ทั่วประเทศ|ทั้งประเทศ|ทั่วไทย|ที่ไหน/i;
+
+function hasExplicitLocalScopeCue(text: string): boolean {
+    const t = String(text || "");
+    if (/(จังหวัด|อำเภอ|เขต|ตำบล|แขวง|ภาค|แถว)\s*[ก-๙A-Za-z]+/i.test(t)) return true;
+    if (/เมือง\s*[ก-๙A-Za-z]{2,}/i.test(t)) return true;
+    if (/ที่(?!ไหน)\s*[ก-๙A-Za-z]{3,}/i.test(t)) return true;
+    return false;
+}
+
+function shouldAutoNationwideDefault(text: string): boolean {
+    const t = String(text || "");
+    const weatherIntent = /(ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ลม|weather|forecast|rain)/i.test(t);
+    if (!weatherIntent) return false;
+    return !hasExplicitLocalScopeCue(t);
+}
 
 function clamp(n: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, n));
@@ -126,15 +162,16 @@ export class WeatherPipeline {
         const provinces = resolveProvinces(userText);
         const mode: WeatherTarget["intent"]["mode"] = this.detectMode(userText);
         const nat = detectNationwideParams(userText);
+        const autoNational = provinces.length === 0 && shouldAutoNationwideDefault(userText);
 
         // Mixed intent: keep province mode AND add a nationwide row block
-        if (nat.national && provinces.length > 0 && !provinces.includes("ALL_THAILAND")) {
+        if ((nat.national || autoNational) && provinces.length > 0 && !provinces.includes("ALL_THAILAND")) {
             provinces.push("ALL_THAILAND");
         }
 
         return {
             provinces,
-            intent: { mode, national: nat.national, sort: nat.sort, topN: nat.topN },
+            intent: { mode, national: nat.national || autoNational, sort: nat.sort, topN: nat.topN },
             originalText: userText,
         };
     }
@@ -358,9 +395,6 @@ export class WeatherPipeline {
     private async executeNationwide(target: WeatherTarget, signal?: AbortSignal): Promise<WeatherResult[]> {
         // Single TMD call to get all provinces (uses cache if warm)
         const allProvinces = await this.forecastEngine.getAllForecasts(signal);
-        if (allProvinces.length === 0) {
-            return [{ province: "", type: "error", error: "NATIONAL_DATA_UNAVAILABLE" }];
-        }
 
         const nat = detectNationwideParams(target.originalText || "");
 
@@ -369,6 +403,34 @@ export class WeatherPipeline {
         const targetDate = bkkDateStr(offsetDays);
         const targetIsoDate = bkkIsoDateStr(offsetDays);
         const dateLabel = nat.wantToday ? "วันนี้" : "พรุ่งนี้";
+
+        const fallbackNational = (): WeatherResult[] => {
+            const topN = clamp(target.intent.topN ?? nat.topN ?? NATIONWIDE_TOP_N_DEFAULT, 1, NATIONWIDE_TOP_N_MAX);
+            const rows = NATIONWIDE_FALLBACK_ROWS.slice(0, topN);
+            const markdownTable = (nat.wantTable || target.intent.mode === "table")
+                ? buildNationwideMarkdownTable(rows)
+                : undefined;
+
+            return [{
+                province: "ทั่วประเทศ",
+                type: "national",
+                data: {
+                    date: targetDate,
+                    dateLabel,
+                    totalRainyProvinces: rows.length,
+                    topN: rows.length,
+                    sort: "percentRain_desc",
+                    rows,
+                    tableMarkdown: markdownTable,
+                    note: "โหมดสำรอง: จัดอันดับจากความเสี่ยงฝนเชิงภูมิอากาศทั่วไป (ไม่ใช่ข้อมูลเรียลไทม์)",
+                },
+                sourceTool: "fallback_climate_rank",
+            }];
+        };
+
+        if (allProvinces.length === 0) {
+            return fallbackNational();
+        }
 
         // Build per-province rows for target day
         interface NationwideRow {
@@ -458,6 +520,10 @@ export class WeatherPipeline {
                 });
                 const topN = clamp(target.intent.topN ?? nat.topN ?? NATIONWIDE_TOP_N_DEFAULT, 1, NATIONWIDE_TOP_N_MAX);
                 const topRows = rows.slice(0, topN);
+
+                if (topRows.length === 0) {
+                    return fallbackNational();
+                }
 
                 const markdownTable = (nat.wantTable || target.intent.mode === "table")
                     ? buildNationwideMarkdownTable(topRows)

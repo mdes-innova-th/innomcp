@@ -39,7 +39,7 @@ export class NwpEngine {
         // Try NWP daily by place (accepts province arg)
         try {
             const toolName = "nwp_daily_by_place";
-            const args = { place: province };
+            const args = { province: province };
             const cacheKey = ToolCache.generateKey(toolName, args);
             
             let payload = ToolCache.get(cacheKey);
@@ -74,7 +74,7 @@ export class NwpEngine {
         // Fallback: NWP hourly by place
         try {
             const toolName = "nwp_hourly_by_place";
-            const args = { place: province };
+            const args = { province: province };
             const cacheKey = ToolCache.generateKey(toolName, args);
 
             let payload = ToolCache.get(cacheKey);

@@ -78,6 +78,30 @@ function sanitizeSnippetForLog(input: string, maxChars = 200): string {
   return s;
 }
 
+function getInnomcpMode(): "offline" | "online" {
+  return String(process.env.INNOMCP_MODE || "offline").trim().toLowerCase() === "online" ? "online" : "offline";
+}
+
+function isTmdExternalAllowed(): boolean {
+  const mode = getInnomcpMode();
+  const isSmoke = process.env.SMOKE_MODE === "1";
+  const isFixture = process.env.WEATHER_FIXTURE_W1 === "1" || process.env.CHAT_TRACE_QA === "1";
+  return mode === "online" && !isSmoke && !isFixture;
+}
+
+function isAuthFailLikeText(input: string): boolean {
+  const t = String(input || "").toLowerCase();
+  return t.includes("authentication fail") || t.includes("auth fail") || t.includes("invalid ukey") || t.includes("invalid uid");
+}
+
+function isAuthFailLikePayload(payload: any): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const bag = [payload.status,payload.message,payload.error,payload.msg,payload.result,payload.detail,payload.reason,payload.code]
+    .map((v) => String(v || ""))
+    .join(" | " );
+  return isAuthFailLikeText(bag);
+}
+
 function requireTmdAuthParams(): { uid: string; ukey: string } {
   const uid = String(process.env.TMD_UID || "").trim();
   const ukey = String(process.env.TMD_UKEY || "").trim();
@@ -89,10 +113,10 @@ function requireTmdAuthParams(): { uid: string; ukey: string } {
   // Live Mode validation:
   const isSmoke = process.env.SMOKE_MODE === "1";
   const isFixture = process.env.WEATHER_FIXTURE_W1 === "1" || process.env.CHAT_TRACE_QA === "1";
-  const isLiveMode = !isSmoke && !isFixture;
+  const isLiveMode = getInnomcpMode() === "online" && !isSmoke && !isFixture;
 
   if (isLiveMode && (uid === "demo" || ukey === "demokey" || uid === "api" || ukey.includes("api12345"))) {
-    throw new Error("TMD_API_LIVE_MODE_DEMO_KEY_BLOCKED: Using demo keys in Live Mode is prohibited. Please configure real keys.");
+    console.warn("WARN: TMD_API_LIVE_MODE_DEMO_KEY: Using demo keys in Live Mode. Expect rate limits.");
   }
 
   return { uid, ukey };
@@ -210,8 +234,8 @@ async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) 
     let data: any = null;
     const cleaned = bodyText.replace(/^\uFEFF/, "").trim();
     
-    if (cleaned.includes("Authentication fail")) {
-      throw new Error("TMD API Authentication fail (Check TMD_UID/TMD_UKEY)");
+    if (isAuthFailLikeText(cleaned)) {
+      throw new Error("TMD_API_AUTH_FAIL: Authentication fail (Check TMD_UID/TMD_UKEY)");
     }
 
     try {
@@ -220,6 +244,10 @@ async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) 
       // ถ้า parse ไม่ได้ ให้คืนเป็น text ไป (แต่ยังถือว่า ok)
       logBoth("WARN", `[TMD:${toolName}] JSON parse failed, returning raw text. err=${String(e)}`);
       data = { rawText: bodyText };
+    }
+
+    if (isAuthFailLikePayload(data)) {
+      throw new Error("TMD_API_AUTH_FAIL: Authentication fail payload (Check TMD_UID/TMD_UKEY)");
     }
 
     return {
@@ -284,6 +312,34 @@ function registerSimpleTmdTool(
         if (extraKeys.length > 0) {
           logBoth("WARN", `[TMD:${opts.name}] args ignored: argsKeys=${extraKeys.join(",")}`);
         }
+      }
+
+      if (!isTmdExternalAllowed()) {
+        const mode = getInnomcpMode();
+        const message = `TMD_EXTERNAL_BLOCKED_BY_MODE: INNOMCP_MODE=${mode} (set online and disable smoke/fixture to call external TMD API)`;
+        logBoth("WARN", `[TMD:${opts.name}] blocked: ${message}`);
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text" as const,
+              text: `ล้มเหลว: ${opts.title} -> ${message}`,
+            },
+          ],
+          structuredContent: {
+            ok: false,
+            meta: {
+              tool: opts.name,
+              url: opts.urlBase,
+              authParamsPresent: false,
+              status: null,
+              durationMs: 0,
+              fetchedAt: new Date().toISOString(),
+            },
+            data: null,
+            error: message,
+          },
+        };
       }
 
       let url = "";

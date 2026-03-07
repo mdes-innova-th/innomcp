@@ -42,6 +42,10 @@ export class StationEngine {
         return normalizeThaiProvince(forced) === normalizeThaiProvince(targetProvince);
     }
 
+    private isFixtureMode(): boolean {
+        return process.env.WEATHER_FIXTURE_W1 === "1";
+    }
+
     private getClient(): any {
         const c = this.clients.get("innomcp-server") || this.clients.values().next().value;
         if (c) return c;
@@ -76,6 +80,10 @@ export class StationEngine {
 
             let payload: any = ToolCache.get<any>(cacheKey);
             if (!payload) {
+                // Fixture mode must never call upstream APIs.
+                if (this.isFixtureMode()) {
+                    return { province, type: "error", error: "FIXTURE_STATION_MISS" };
+                }
                 payload = await executeWeatherToolCall({
                     client,
                     toolName,
@@ -100,7 +108,7 @@ export class StationEngine {
                 };
             }
 
-            // API responded but 0 total stations → TMD has no data right now
+            // API responded but 0 total stations -> TMD has no data right now
             // Skip 07am fallback (likely also empty), let pipeline fall through faster
             if (total === 0) apiReturnedEmpty = true;
             // API responded with stations but none matched province -> treat as STATION_NOT_FOUND
@@ -125,6 +133,10 @@ export class StationEngine {
 
                 let payload: any = ToolCache.get<any>(cacheKey);
                 if (!payload) {
+                    // Fixture mode must never call upstream APIs.
+                    if (this.isFixtureMode()) {
+                        return { province, type: "error", error: "FIXTURE_STATION_07AM_MISS" };
+                    }
                     payload = await executeWeatherToolCall({
                         client,
                         toolName,

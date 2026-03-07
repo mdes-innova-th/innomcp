@@ -82,6 +82,15 @@ function confidenceBySources(sources: SourceKind[]): number {
 export function buildWeatherPayloadContract(results: WeatherResult[]): WeatherPayloadContract {
   const srcSet = new Set<SourceKind>();
   const byProvince = new Map<string, WeatherResult[]>();
+  const nationalRows: Array<{
+    province: string;
+    percentRain: number;
+    tempMax: number | null;
+    tempMin: number | null;
+    windSpeed: number | null;
+    windDir: string | null;
+    desc: string | null;
+  }> = [];
 
   const errTaxonomy = {
     timeout: 0,
@@ -102,6 +111,23 @@ export function buildWeatherPayloadContract(results: WeatherResult[]): WeatherPa
       continue;
     }
 
+    if (r.type === "national") {
+      const rows = Array.isArray((r as any)?.data?.rows) ? (r as any).data.rows : [];
+      for (const row of rows) {
+        const province = String(row?.province || "").trim();
+        if (!province) continue;
+        nationalRows.push({
+          province,
+          percentRain: Number(row?.percentRain ?? 0) || 0,
+          tempMax: asNum(row?.tempMax),
+          tempMin: asNum(row?.tempMin),
+          windSpeed: asNum(row?.windSpeed),
+          windDir: row?.windDir ? String(row.windDir) : null,
+          desc: row?.desc ? String(row.desc) : null,
+        });
+      }
+    }
+
     const src = normalizeType(String(r.type || ""));
     if (src) srcSet.add(src);
   }
@@ -109,6 +135,10 @@ export function buildWeatherPayloadContract(results: WeatherResult[]): WeatherPa
   const areas: WeatherAreaPayload[] = [];
 
   for (const [province, rows] of byProvince.entries()) {
+    if (nationalRows.length > 0 && province === "ทั่วประเทศ") {
+      continue;
+    }
+
     const station = rows.find((r) => r.type === "station3h");
     const forecast = rows.find((r) => r.type === "forecast7d");
     const nwp = rows.find((r) => r.type === "nwp");
@@ -183,12 +213,40 @@ export function buildWeatherPayloadContract(results: WeatherResult[]): WeatherPa
     });
   }
 
+  if (nationalRows.length > 0) {
+    for (const row of nationalRows) {
+      const tempText =
+        row.tempMin !== null && row.tempMax !== null
+          ? `${row.tempMin}–${row.tempMax}°C`
+          : row.tempMax !== null
+          ? `${row.tempMax}°C`
+          : "ยังไม่มีข้อมูล";
+      const windText = row.windSpeed !== null ? `${row.windSpeed} ${row.windDir || ""}`.trim() : "ยังไม่มีข้อมูล";
+
+      areas.push({
+        area: row.province,
+        rainChancePct: row.percentRain,
+        temperature: tempText,
+        wind: windText,
+        updateTime: "พยากรณ์รายวัน",
+        summary: row.desc || "ข้อมูลฝนรายจังหวัด",
+        sourcesUsed: ["national"],
+        confidence: 0.8,
+      });
+    }
+  }
+
   const sourcesUsed = Array.from(srcSet.values());
   const confidence = areas.length > 0 ? Number((areas.reduce((acc, a) => acc + a.confidence, 0) / areas.length).toFixed(2)) : 0.4;
 
   if (areas.length === 0) {
+    const hasNationalUnavailable = (results || []).some(
+      (r: any) => r && r.type === "error" && String(r.error || "") === "NATIONAL_DATA_UNAVAILABLE",
+    );
+    const fallbackArea = hasNationalUnavailable ? "ประเทศไทย" : "ไม่ระบุพื้นที่";
+
     areas.push({
-      area: "ไม่ระบุพื้นที่",
+      area: fallbackArea,
       rainChancePct: null,
       temperature: "ยังไม่มีข้อมูล",
       wind: "ยังไม่มีข้อมูล",

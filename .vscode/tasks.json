@@ -413,6 +413,138 @@
 			],
 			"isBackground": false,
 			"group": "test"
+		},
+		{
+			"label": "verify:phase2:db3306:jlapps",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && set TS_NODE_CACHE=false && set DB_HOST=127.0.0.1 && set DB_PORT=3306 && set DB_USER=jlapps && set DB_PASSWORD=rockbottom && set DB_NAME=innomcp && set MARIADB_USER=jlapps && set MARIADB_PASSWORD=rockbottom && set MARIADB_ROOT_PASSWORD=root && npx ts-node scripts\\verify_phase2.ts & echo ERRORLEVEL=%ERRORLEVEL%"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "node-test:thaiKnowledgeTool",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && node --require ts-node/register --test src\\mcp\\tools\\thaiKnowledgeTool.spec.ts"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "auto-test:tests:backend-weather",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d tests && npm test"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "auto-test:tests:backend-ws",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d tests && npm run test:ws"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "auto-test:e2e:weather-auto",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d tests\\e2e && npx playwright test weather-auto-test.spec.ts"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "auto-test:e2e:weather-auto:local",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d tests\\e2e && npm run test -- weather-auto-test.spec.ts"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "auto-test:e2e:tmd-spec",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d tests\\e2e && npx @playwright/test test tmd/tmd-seismic.spec.ts"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "auto-test:phase101a-weather-contract",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d C:\\Users\\USER-NT\\DEV\\innomcp && set SMOKE_MODE=1 && set WEATHER_FIXTURE_W1=1 && set TS_NODE_CACHE=false && npx --prefix innomcp-node ts-node innomcp-node\\scripts\\verify_phase101a_weather_contract.ts"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "auto-test:server-node:core-tools",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && npm run test:thaiGeoTool && npm run test:thaiKnowledgeTool"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "auto-test:e2e:tmd-local-cli",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d tests\\e2e && node .\\node_modules\\@playwright\\test\\cli.js test tmd\\tmd-seismic.spec.ts"
+			],
+			"isBackground": false,
+			"group": "test"
+		},
+		{
+			"label": "auto-test:e2e:tmd-seismic-fixed",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d tests\\e2e && npm run test -- tmd/tmd-seismic.spec.ts"
+			],
+			"isBackground": false,
+			"group": "test"
 		}
 	]
 }

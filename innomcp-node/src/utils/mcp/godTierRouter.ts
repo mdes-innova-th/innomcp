@@ -211,6 +211,14 @@ const CATEGORIES: ToolCategory[] = [
     enabled: true,
   },
   {
+    id: 'thai_knowledge',
+    name: 'Thai Knowledge & Geography',
+    description: 'ข้อมูลประเทศไทย จังหวัด อำเภอ ตำบล ภูมิศาสตร์ ประวัติศาสตร์ กฎหมาย วัฒนธรรม',
+    keywords: ['ประเทศไทย', 'จังหวัด', 'อำเภอ', 'ตำบล', 'ภาค', 'ภูมิศาสตร์', 'ประวัติศาสตร์', 'กฎหมาย', 'ศาสนา', 'วัฒนธรรม', 'thai', 'thailand', 'province', 'geo', 'knowledge'],
+    priority: 1,
+    enabled: true,
+  },
+  {
     id: 'general',
     name: 'General Assistance',
     description: 'คำถามทั่วไป ข้อมูลทั่วไป fallback category',

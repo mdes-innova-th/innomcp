@@ -1,4 +1,5 @@
 import { primeWeatherToolCallCachePayload } from "../toolCall";
+import { ToolCache } from "../../cache/toolCache";
 
 let primed = false;
 
@@ -63,6 +64,18 @@ export function primeWeatherFixturesW1(): void {
             DescriptionThai: ["ฟ้าหลัวในตอนเช้า", "มีฝนฟ้าคะนอง"],
           },
         },
+        {
+          ProvinceNameThai: "ภูเก็ต",
+          SevenDaysForecast: {
+            ForecastDate: [today, tomorrow],
+            PercentRainCover: [55, 65],
+            MinimumTemperature: [25, 25],
+            MaximumTemperature: [32, 31],
+            WindDirection: [180, 200],
+            WindSpeed: [16, 18],
+            DescriptionThai: ["มีฝนฟ้าคะนองบางแห่ง", "มีฝนฟ้าคะนองกระจาย"],
+          },
+        },
       ],
     },
   };
@@ -73,6 +86,10 @@ export function primeWeatherFixturesW1(): void {
     scope: "national",
     payload: forecastPayload,
   });
+  ToolCache.set(
+    ToolCache.generateKey("tmd_weather_forecast_7days_by_province", { scope: "national" }),
+    forecastPayload
+  );
 
   const stationPayload3h = {
     Stations: {
@@ -109,6 +126,14 @@ export function primeWeatherFixturesW1(): void {
           WindSpeed: 6,
           WindDirection: 45,
         },
+        {
+          StationNameThai: "สนามบินภูเก็ต",
+          Province: "ภูเก็ต",
+          ObservationTime: lastBuildDate,
+          Temp: 30,
+          WindSpeed: 19,
+          WindDirection: 220,
+        },
       ],
     },
   };
@@ -119,6 +144,10 @@ export function primeWeatherFixturesW1(): void {
     scope: "province",
     payload: stationPayload3h,
   });
+  ToolCache.set(
+    ToolCache.generateKey("tmd_weather_3hours_all_stations", { scope: "national" }),
+    stationPayload3h
+  );
 
   // Provide fallback 07am payload too (same shape) so StationEngine never needs network.
   primeWeatherToolCallCachePayload({
@@ -127,4 +156,8 @@ export function primeWeatherFixturesW1(): void {
     scope: "province",
     payload: stationPayload3h,
   });
+  ToolCache.set(
+    ToolCache.generateKey("tmd_weather_today_07am_all_stations", { scope: "national" }),
+    stationPayload3h
+  );
 }
