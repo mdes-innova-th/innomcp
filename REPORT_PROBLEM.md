@@ -261,7 +261,7 @@
   - rewrite `innomcp-node/scripts/verify_phase1_geo_roundB.ts` ให้ตรวจ 3 เคส acceptance (High confidence, Alias map, WS low-confidence trap)
   - harden `innomcp-server-node/scripts/seed_phase1_geo_roundB.ts` ให้ตัด `USE ...;` และรองรับ spacing ของ schema transform เมื่อไม่มีคอลัมน์ `type`
 - หลักฐานว่า PASS:
-  - `npx --prefix innomcp-server-node ts-node innomcp-server-node/scripts/seed_phase1_geo_roundB.ts --db-host 127.0.0.1 --db-port 3306 --db-user jlapps --db-password rockbottom --db-name innomcp` => `RESULT: PASS`
+  - `npx --prefix innomcp-server-node ts-node innomcp-server-node/scripts/seed_phase1_geo_roundB.ts --db-host 127.0.0.1 --db-port 3306 --db-user <REDACTED_USER> --db-password <REDACTED> --db-name innomcp` => `RESULT: PASS`
   - `npx --prefix innomcp-node ts-node innomcp-node/scripts/verify_phase1_geo_roundB.ts` (VERIFY_HOST=localhost) => `RESULT: PASS`
   - evidence log: `innomcp-node/evidence/phase1-geo-roundB-20260304-202003.log`
 
@@ -308,7 +308,7 @@
 - วิธีแก้:
   - ปรับ `innomcp-server-node/scripts/verify_phase2.ts` ให้แยกการตรวจผล `history` (JSON) และ `law` (plain text) ตาม behavior จริงของเครื่องมือ
   - เปลี่ยนคำค้นกฎหมายใน verifier เป็น `พ.ร.บ. คอมฯ` (มีอยู่ใน seed จริง) แทน `PDPA` ที่ไม่อยู่ใน `thaiLawTool` knowledge base
-  - ใช้ explicit DB env (`DB_HOST=localhost`, `DB_PORT=3306`, `DB_USER=jlapps`, `DB_PASSWORD=rockbottom`, `DB_NAME=innomcp`) เพื่อวิ่งกับ `innomcp-mariadb` ที่ healthy
+  - ใช้ explicit DB env (`DB_HOST=localhost`, `DB_PORT=3306`, `DB_USER=<REDACTED_USER>`, `DB_PASSWORD=<REDACTED>`, `DB_NAME=innomcp`) เพื่อวิ่งกับ `innomcp-mariadb` ที่ healthy
 - หลักฐานว่า PASS:
   - รัน `npx --prefix innomcp-server-node ts-node innomcp-server-node/scripts/verify_phase2.ts` (พร้อม env ข้างต้น) => `✅ verify_phase2: PASS`
   - output แสดง `DB counts` และ `lawText` ที่มีมาตรา (`พ.ร.บ. คอมฯ ม.14`, `ม.16`) ครบ
@@ -324,7 +324,7 @@
     - Low Confidence trapped (WS runtime ได้ข้อความ `ห้ามเดาโว้ย`)
   - เพิ่ม `innomcp-server-node/scripts/seed_phase1_geo_roundB.ts` สำหรับรัน `database/init/03-seed-thai-geo.sql` และตรวจนับจังหวัด โดยรองรับ schema ที่ไม่มีคอลัมน์ `type`
 - หลักฐานว่า PASS:
-  - `cmd /d /c cd /d innomcp-server-node && npx ts-node scripts\seed_phase1_geo_roundB.ts --db-host 127.0.0.1 --db-port 3306 --db-user jlapps --db-password rockbottom --db-name innomcp` => `RESULT: PASS` และ `province_count=82`
+  - `cmd /d /c cd /d innomcp-server-node && npx ts-node scripts\seed_phase1_geo_roundB.ts --db-host 127.0.0.1 --db-port 3306 --db-user <REDACTED_USER> --db-password <REDACTED> --db-name innomcp` => `RESULT: PASS` และ `province_count=82`
   - `cmd /d /c cd /d innomcp-node && npx ts-node scripts\verify_phase1_geo_roundB.ts` => `RESULT: PASS`
   - evidence log: `innomcp-node/evidence/phase1-geo-roundB-20260304-193436.log` มี `RESULT: PASS`
   - banned literals scan บน evidence ล่าสุด => `BANNED_SCAN_COUNT=0`

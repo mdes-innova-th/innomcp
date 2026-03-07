@@ -283,7 +283,7 @@ async function main() {
   const { port, stop } = await startEphemeralServer();
   logLines.push(`phase93 verifier start: port=${port}`);
 
-  const bannedTextNeedles = ["Access denied", "ER_ACCESS_DENIED", "jlapps"]; // user-visible / noisy markers
+  const bannedTextNeedles = ["Access denied", "ER_ACCESS_DENIED", "<REDACTED_USER>"]; // user-visible / noisy markers
 
   try {
     // ------------------------------------------------------------

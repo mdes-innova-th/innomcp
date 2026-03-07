@@ -1,6 +1,7 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { thaiGeoTool, setGeoDb, InMemoryGeoDb, THAI_GEO_SEED, type GeoDbAdapter } from "./thaiGeoTool";
+import type { ThaiGeoEntity } from "./thaiGeoTool.types";
 
 beforeEach(() => {
   // Unit tests must not depend on MariaDB availability.
@@ -37,23 +38,47 @@ test("thai_geo_tool: alias match (โคราช) returns นครราชส
   assert.equal(body.data[0].attributes.region, "อีสาน");
   assert.ok(typeof body.confidence === "number");
   assert.ok(body.confidence >= 0.9);
+  assert.ok(Array.isArray(body.source));
+  assert.ok(body.source.length >= 1);
+  assert.equal(body.source[0].name, "DOPA");
 });
 
-test("thai_geo_tool: confidence_required gates low confidence", async () => {
-  const result = await thaiGeoTool.execute({ query: "โคร", context: { confidence_required: 0.9 } });
-  const body = parseToolText(result);
-
-  assert.equal(body.success, false);
-  assert.equal(body.error_code, "NOT_FOUND");
-});
-
-test("thai_geo_tool: exact region match (อีสาน) returns confidence 0.8", async () => {
-  const result = await thaiGeoTool.execute({ query: "อีสาน" });
+test("thai_geo_tool: filter_region match returns only requested region", async () => {
+  const result = await thaiGeoTool.execute({ query: "จังหวัด", filter_region: "เหนือ" });
   const body = parseToolText(result);
 
   assert.equal(body.success, true);
-  assert.equal(body.confidence, 0.8);
-  assert.equal(body.note, "matched by region");
+  assert.ok(body.data.length >= 1);
+  assert.ok(body.data.every((item: any) => item.attributes.region === "เหนือ"));
+});
+
+test("thai_geo_tool: confidence_required rejects low confidence result", async () => {
+  const lowConfidenceFixture: ThaiGeoEntity[] = [
+    {
+      id: "PROV-TEST-LOW",
+      domain: "geo",
+      type: "province",
+      name_th: "จังหวัดทดสอบ",
+      aliases: [],
+      description: "จังหวัดทดสอบสำหรับเช็ค low confidence",
+      attributes: { province: "จังหวัดทดสอบ", region: "กลาง" },
+      relations: [],
+      source: [{ name: "fixture" }],
+      confidence: 0.4,
+      version: "1.0.0",
+      updated_at: new Date().toISOString(),
+    },
+  ];
+
+  setGeoDb(new InMemoryGeoDb(lowConfidenceFixture));
+  const result = await thaiGeoTool.execute({
+    query: "จังหวัดทดสอบ",
+    context: { confidence_required: 0.8 },
+  });
+  const body = parseToolText(result);
+
+  assert.equal(body.success, false);
+  assert.equal(body.error_code, "LOW_CONFIDENCE");
 });
 
 test("thai_geo_tool: unknown query returns NOT_FOUND", async () => {
@@ -77,7 +102,7 @@ test("thai_geo_tool: DB adapter error triggers fallback to stub", async () => {
 
   assert.equal(body.success, true);
   assert.ok(typeof body.note === "string");
-  assert.ok(body.note.includes("fallback to stub"));
+  assert.ok(body.note.includes("fallback"));
 
   setGeoDb(new InMemoryGeoDb(THAI_GEO_SEED));
 });

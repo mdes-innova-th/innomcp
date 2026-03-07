@@ -173,7 +173,7 @@ try {
 
   Write-LogLine "start: MCP server (innomcp-server-node)"
   Write-LogLine "mcp logs: out=$mcpOut err=$mcpErr"
-  $mcpProc = Start-Process -FilePath 'cmd' -ArgumentList @('/d','/c','npm run dev') -WorkingDirectory (Join-Path $repoRoot 'innomcp-server-node') -WindowStyle Hidden -RedirectStandardOutput $mcpOut -RedirectStandardError $mcpErr -PassThru
+  $mcpProc = Start-Process -FilePath 'cmd' -ArgumentList @('/d','/c','npm.cmd run dev') -WorkingDirectory (Join-Path $repoRoot 'innomcp-server-node') -WindowStyle Hidden -RedirectStandardOutput $mcpOut -RedirectStandardError $mcpErr -PassThru
   Start-Sleep -Seconds 2
   if ($mcpProc.HasExited) {
     $blockedReason = 'MCP_EXITED_EARLY'
@@ -191,7 +191,7 @@ try {
 
   Write-LogLine "start: Backend (innomcp-node)"
   Write-LogLine "backend logs: out=$beOut err=$beErr"
-  $backendProc = Start-Process -FilePath 'cmd' -ArgumentList @('/d','/c','npm run dev') -WorkingDirectory (Join-Path $repoRoot 'innomcp-node') -WindowStyle Hidden -RedirectStandardOutput $beOut -RedirectStandardError $beErr -PassThru
+  $backendProc = Start-Process -FilePath 'cmd' -ArgumentList @('/d','/c','npm.cmd run dev') -WorkingDirectory (Join-Path $repoRoot 'innomcp-node') -WindowStyle Hidden -RedirectStandardOutput $beOut -RedirectStandardError $beErr -PassThru
   Start-Sleep -Seconds 2
   if ($backendProc.HasExited) {
     $blockedReason = 'BACKEND_EXITED_EARLY'
@@ -209,7 +209,7 @@ try {
 
   Write-LogLine "start: Frontend (innomcp-next)"
   Write-LogLine "frontend logs: out=$feOut err=$feErr"
-  $frontendProc = Start-Process -FilePath 'cmd' -ArgumentList @('/d','/c','npm run dev') -WorkingDirectory (Join-Path $repoRoot 'innomcp-next') -WindowStyle Hidden -RedirectStandardOutput $feOut -RedirectStandardError $feErr -PassThru
+  $frontendProc = Start-Process -FilePath 'cmd' -ArgumentList @('/d','/c','npm.cmd run dev') -WorkingDirectory (Join-Path $repoRoot 'innomcp-next') -WindowStyle Hidden -RedirectStandardOutput $feOut -RedirectStandardError $feErr -PassThru
   Start-Sleep -Seconds 2
   if ($frontendProc.HasExited) {
     $blockedReason = 'FRONTEND_EXITED_EARLY'

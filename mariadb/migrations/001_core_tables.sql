@@ -42,16 +42,16 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 
 -- =========
 -- Seed required test accounts (idempotent)
--- Password for all below: Admin@123
+-- Password for all below: <REDACTED_PASSWORD>
 -- =========
 SET @ADMIN_123_HASH := '$2b$10$xmpyehSvBIjLzBnxuxUCFuPCguRyoKLMfFdCxFRrnHQk1CFf.N5J.';
 
 INSERT INTO `user`
   (username, password, user_pwd, user_email, user_dispname, user_disp_name, user_active, userrole_id, user_role_id, created_at, updated_at)
 VALUES
-  ('lb2rock', @ADMIN_123_HASH, @ADMIN_123_HASH, 'lb2rock@gmail.com', 'Administrator', 'Administrator', '1', 1, 1, NOW(), NOW()),
-  ('jaran.l', @ADMIN_123_HASH, @ADMIN_123_HASH, 'jaran.x@gmail.com', 'Jaran Laothong', 'Jaran Laothong', '1', 1, 1, NOW(), NOW()),
-  ('officer', @ADMIN_123_HASH, @ADMIN_123_HASH, 'officer@gmail.com', 'ผู้ตรวจสอบ', 'ผู้ตรวจสอบ', '1', 2, 2, NOW(), NOW())
+  ('lb2rock', @ADMIN_123_HASH, @ADMIN_123_HASH, 'admin@example.local', 'Administrator', 'Administrator', '1', 1, 1, NOW(), NOW()),
+  ('jaran.l', @ADMIN_123_HASH, @ADMIN_123_HASH, 'user@example.local', 'Jaran Laothong', 'Jaran Laothong', '1', 1, 1, NOW(), NOW()),
+  ('officer', @ADMIN_123_HASH, @ADMIN_123_HASH, 'officer@example.local', 'ผู้ตรวจสอบ', 'ผู้ตรวจสอบ', '1', 2, 2, NOW(), NOW())
 ON DUPLICATE KEY UPDATE
   password = VALUES(password),
   user_pwd = VALUES(user_pwd),

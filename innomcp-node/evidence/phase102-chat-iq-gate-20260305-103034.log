@@ -1,0 +1,9 @@
+Starting Phase 10.2 Chat IQ Gate Verifier (20260305-103023)
+Server listening on port 63648
+====================================
+✅ [1. intent=weather: happy path] OK (58ms)
+✅ [2. intent=evidence: happy path] OK (10021ms)
+✅ [3. intent=web-record: happy path] OK (11ms)
+✅ [4. intent=unknown: Low Confidence Chat IQ Gate Fallback] OK (777ms)
+====================================
+RESULT: PASS (4/4 cases) in 10868ms

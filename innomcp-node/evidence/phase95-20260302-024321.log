@@ -1,7 +1,0 @@
-docker down: ok=true cmd=docker compose -f c:\Users\USER-NT\DEV\innomcp\mariadb\docker-compose.yml down -v --remove-orphans
-docker up: ok=true cmd=docker compose -f c:\Users\USER-NT\DEV\innomcp\mariadb\docker-compose.yml up -d --force-recreate --remove-orphans
-seed: detectdb rows inserted for yesterday/topISP/trend
-CaseISP: status=200 rows=4 top=AIS
-CaseTrend: status=200 points=7 trendSum=21
-SUMMARY: detectdb real stats quality PASS (isp/top/trend)
-RESULT: PASS

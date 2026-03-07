@@ -1,0 +1,10 @@
+CaseISP: status=200 rows=4 top=-
+CaseTrend: status=200 points=7 trendSum=0
+SUMMARY: detectdb real stats quality FAIL
+RESULT: FAIL
+FAILURES:
+- BLOCKED:MISSING_MARIADB_PASSWORD_ENV
+- CaseISP: meta.dataSource must be detectdb
+- CaseISP: topIspName must be non-empty real name
+- CaseTrend: meta.dataSource must be detectdb
+- CaseTrend: trend sum must be > 0

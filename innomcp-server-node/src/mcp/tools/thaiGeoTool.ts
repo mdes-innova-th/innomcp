@@ -1,90 +1,227 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { query } from "../../utils/db";
+import type {
+  ThaiGeoAttributes,
+  ThaiGeoEntity,
+  ThaiGeoToolError,
+  ThaiGeoToolInput,
+  ThaiGeoToolOutput,
+  ThaiGeoResultItem,
+  ThaiKnowledgeSource,
+} from "./thaiGeoTool.types";
 
-type ThaiKnowledgeDomain = "geo";
+const TOOL_NAME = "thai_geo_tool";
+const DEFAULT_CONFIDENCE_REQUIRED = 0.7;
 
-export interface ThaiGeoSource {
-  name: string;
-  url?: string;
-}
+const TOOL_DESC = `ค้นหาข้อมูลภูมิศาสตร์ไทย (จังหวัด/อำเภอ/ตำบล/ภูมิภาค)
+- รองรับ query + context + filter_region
+- ค้นหาจากฐานข้อมูล knowledge_entities ด้วย Full Text Search
+- ถ้า confidence ต่ำกว่า context.confidence_required จะปฏิเสธผลลัพธ์`;
 
-export interface ThaiGeoAttributes {
-  province: string;
-  district?: string;
-  region: string;
-  lat?: number;
-  lon?: number;
-}
+const DOPA_SOURCE: ThaiKnowledgeSource = { name: "DOPA", url: "https://www.dopa.go.th" };
 
-export interface ThaiGeoEntity {
-  id: string;
-  domain: ThaiKnowledgeDomain;
-  name_th: string;
-  aliases?: string[];
-  description: string;
-  attributes: ThaiGeoAttributes;
-  relations: any[];
-  source: ThaiGeoSource;
-  confidence: number;
-  version: string;
-  updated_at: string;
-}
+const now = new Date().toISOString();
 
-export interface ThaiGeoResult {
-  id: string;
-  name_th: string;
-  aliases: string[];
-  description: string;
-  attributes: ThaiGeoAttributes;
-}
-
-export type ThaiGeoToolErrorCode = "INVALID_QUERY" | "NOT_FOUND" | "DB_ERROR";
-
-export interface ThaiGeoToolError {
-  success: false;
-  error_code: ThaiGeoToolErrorCode;
-  message: string;
-}
-
-export interface ThaiGeoToolSuccess {
-  success: true;
-  domain: "geo";
-  data: ThaiGeoResult[];
-  confidence: number;
-  source: string[];
-  note?: string;
-}
-
-export type ThaiGeoToolOutput = ThaiGeoToolSuccess | ThaiGeoToolError;
+export const THAI_GEO_SEED: ThaiGeoEntity[] = [
+  {
+    id: "PROV-10",
+    domain: "geo",
+    type: "province",
+    name_th: "กรุงเทพมหานคร",
+    aliases: ["กทม", "บางกอก", "กรุงเทพฯ"],
+    description: "จังหวัดกรุงเทพมหานคร อยู่ในภาคกลาง",
+    attributes: { province: "กรุงเทพมหานคร", region: "กลาง", lat: 13.7563, lon: 100.5018 },
+    relations: [],
+    source: [DOPA_SOURCE],
+    confidence: 0.95,
+    version: "1.0.0",
+    updated_at: now,
+  },
+  {
+    id: "PROV-50",
+    domain: "geo",
+    type: "province",
+    name_th: "เชียงใหม่",
+    aliases: ["เจียงใหม่"],
+    description: "จังหวัดเชียงใหม่ อยู่ในภาคเหนือ",
+    attributes: { province: "เชียงใหม่", region: "เหนือ", lat: 18.7932, lon: 98.9853 },
+    relations: [],
+    source: [DOPA_SOURCE],
+    confidence: 0.95,
+    version: "1.0.0",
+    updated_at: now,
+  },
+  {
+    id: "PROV-30",
+    domain: "geo",
+    type: "province",
+    name_th: "นครราชสีมา",
+    aliases: ["โคราช"],
+    description: "จังหวัดนครราชสีมา อยู่ในภาคตะวันออกเฉียงเหนือ (อีสาน)",
+    attributes: { province: "นครราชสีมา", region: "อีสาน", lat: 14.9799, lon: 102.0977 },
+    relations: [],
+    source: [DOPA_SOURCE],
+    confidence: 0.95,
+    version: "1.0.0",
+    updated_at: now,
+  },
+  {
+    id: "PROV-83",
+    domain: "geo",
+    type: "province",
+    name_th: "ภูเก็ต",
+    aliases: [],
+    description: "จังหวัดภูเก็ต อยู่ในภาคใต้",
+    attributes: { province: "ภูเก็ต", region: "ใต้", lat: 7.8804, lon: 98.3923 },
+    relations: [],
+    source: [DOPA_SOURCE],
+    confidence: 0.95,
+    version: "1.0.0",
+    updated_at: now,
+  },
+];
 
 export interface GeoDbAdapter {
-  search(query: string, limit?: number): Promise<ThaiGeoEntity[]>;
+  search(input: { queryText: string; filterRegion?: string; limit?: number }): Promise<ThaiGeoEntity[]>;
+}
+
+function safeJsonParse<T>(value: unknown, fallback: T): T {
+  if (value == null) return fallback;
+  if (typeof value === "object") return value as T;
+  if (typeof value !== "string") return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeSource(value: unknown): ThaiKnowledgeSource[] {
+  const parsed = safeJsonParse<unknown>(value, value);
+  if (Array.isArray(parsed)) {
+    return parsed
+      .filter((item): item is ThaiKnowledgeSource => !!item && typeof item === "object" && typeof (item as any).name === "string")
+      .map((item) => ({ name: item.name, url: item.url }));
+  }
+  if (parsed && typeof parsed === "object" && typeof (parsed as any).name === "string") {
+    return [{ name: (parsed as any).name, url: (parsed as any).url }];
+  }
+  return [];
+}
+
+function normalizeDbRowToEntity(row: any): ThaiGeoEntity {
+  const aliasesRaw = safeJsonParse<unknown>(row.aliases, []);
+  const aliases = Array.isArray(aliasesRaw)
+    ? aliasesRaw.filter((item): item is string => typeof item === "string")
+    : [];
+
+  const attrsRaw = safeJsonParse<Record<string, unknown>>(row.attributes, {});
+  const lat = Number(attrsRaw.lat);
+  const lon = Number(attrsRaw.lon);
+  const confidence = Number(row.confidence);
+
+  const attributes: ThaiGeoAttributes = {
+    province: String(attrsRaw.province ?? row.name_th ?? ""),
+    district: typeof attrsRaw.district === "string" ? attrsRaw.district : undefined,
+    subdistrict: typeof attrsRaw.subdistrict === "string" ? attrsRaw.subdistrict : undefined,
+    region: typeof attrsRaw.region === "string" ? attrsRaw.region : undefined,
+    lat: Number.isFinite(lat) ? lat : undefined,
+    lon: Number.isFinite(lon) ? lon : undefined,
+  };
+
+  return {
+    id: String(row.id ?? ""),
+    domain: "geo",
+    type: String(row.type ?? "province"),
+    name_th: String(row.name_th ?? ""),
+    aliases,
+    description: String(row.description ?? ""),
+    attributes,
+    relations: safeJsonParse<any[]>(row.relations, []),
+    source: normalizeSource(row.source),
+    confidence: Number.isFinite(confidence) ? confidence : 0,
+    version: String(row.version ?? "1.0.0"),
+    updated_at: String(row.updated_at ?? new Date().toISOString()),
+  };
+}
+
+function makeResult(entity: ThaiGeoEntity): ThaiGeoResultItem {
+  return {
+    id: entity.id,
+    name_th: entity.name_th,
+    type: entity.type,
+    attributes: entity.attributes,
+    confidence: entity.confidence,
+  };
+}
+
+function sortMatches(entities: ThaiGeoEntity[], queryText: string): ThaiGeoEntity[] {
+  const q = queryText.trim().toLowerCase();
+
+  const score = (entity: ThaiGeoEntity): number => {
+    const name = entity.name_th.toLowerCase();
+    const aliases = entity.aliases ?? [];
+    if (name === q) return 100;
+    if (aliases.some((alias) => alias.toLowerCase() === q)) return 95;
+    if (name.includes(q)) return 90;
+    if (aliases.some((alias) => alias.toLowerCase().includes(q))) return 85;
+    if ((entity.description ?? "").toLowerCase().includes(q)) return 80;
+    return 0;
+  };
+
+  return [...entities].sort((a, b) => {
+    const scoreDiff = score(b) - score(a);
+    if (scoreDiff !== 0) return scoreDiff;
+    return b.confidence - a.confidence;
+  });
 }
 
 export class MariaDbGeoDb implements GeoDbAdapter {
-  async search(rawQuery: string, limit: number = 5): Promise<ThaiGeoEntity[]> {
-    const q = rawQuery.trim();
-    if (!q) return [];
+  async search(input: { queryText: string; filterRegion?: string; limit?: number }): Promise<ThaiGeoEntity[]> {
+    const queryText = input.queryText.trim();
+    const filterRegion = input.filterRegion?.trim();
+    const limit = input.limit ?? 5;
+    if (!queryText) return [];
 
-    const like = `%${q}%`;
+    const fulltextBase =
+      "SELECT id, domain, type, name_th, aliases, description, attributes, relations, source, confidence, version, updated_at, " +
+      "MATCH(name_th, description) AGAINST(? IN NATURAL LANGUAGE MODE) AS relevance " +
+      "FROM knowledge_entities WHERE domain='geo' " +
+      "AND MATCH(name_th, description) AGAINST(? IN NATURAL LANGUAGE MODE)";
 
-    const fulltextSql =
-      "SELECT id, domain, name_th, aliases, description, attributes, relations, source, confidence, version, updated_at " +
-      "FROM knowledge_entities WHERE domain = 'geo' AND MATCH(name_th, description) AGAINST(? IN NATURAL LANGUAGE MODE) " +
-      "LIMIT ?";
+    const fulltextParams: any[] = [queryText, queryText];
+    const regionClause = " AND JSON_UNQUOTE(JSON_EXTRACT(attributes, '$.region')) = ?";
 
-    const likeSql =
-      "SELECT id, domain, name_th, aliases, description, attributes, relations, source, confidence, version, updated_at " +
-      "FROM knowledge_entities WHERE domain = 'geo' AND (name_th LIKE ? OR aliases LIKE ? OR description LIKE ? OR attributes LIKE ?) " +
-      "LIMIT ?";
+    let fulltextSql = fulltextBase;
+    if (filterRegion) {
+      fulltextSql += regionClause;
+      fulltextParams.push(filterRegion);
+    }
+    fulltextSql += " ORDER BY relevance DESC, confidence DESC LIMIT ?";
+    fulltextParams.push(limit);
 
     try {
-      const rows = await query<any[]>(fulltextSql, [q, limit]);
-      return Array.isArray(rows) ? rows.map((r) => normalizeDbRowToEntity(r)) : [];
+      const rows = await query<any[]>(fulltextSql, fulltextParams);
+      return Array.isArray(rows) ? rows.map(normalizeDbRowToEntity) : [];
     } catch {
-      const rows = await query<any[]>(likeSql, [like, like, like, like, limit]);
-      return Array.isArray(rows) ? rows.map((r) => normalizeDbRowToEntity(r)) : [];
+      const like = `%${queryText}%`;
+      let likeSql =
+        "SELECT id, domain, type, name_th, aliases, description, attributes, relations, source, confidence, version, updated_at " +
+        "FROM knowledge_entities WHERE domain='geo' " +
+        "AND (name_th LIKE ? OR description LIKE ? OR JSON_SEARCH(aliases, 'one', ?) IS NOT NULL)";
+      const likeParams: any[] = [like, like, queryText];
+
+      if (filterRegion) {
+        likeSql += regionClause;
+        likeParams.push(filterRegion);
+      }
+
+      likeSql += " ORDER BY confidence DESC LIMIT ?";
+      likeParams.push(limit);
+
+      const rows = await query<any[]>(likeSql, likeParams);
+      return Array.isArray(rows) ? rows.map(normalizeDbRowToEntity) : [];
     }
   }
 }
@@ -92,93 +229,27 @@ export class MariaDbGeoDb implements GeoDbAdapter {
 export class InMemoryGeoDb implements GeoDbAdapter {
   constructor(private readonly entities: ThaiGeoEntity[]) {}
 
-  async search(queryText: string, limit: number = 5): Promise<ThaiGeoEntity[]> {
-    const q = queryText.trim().toLowerCase();
-    if (!q) return [];
+  async search(input: { queryText: string; filterRegion?: string; limit?: number }): Promise<ThaiGeoEntity[]> {
+    const queryText = input.queryText.trim().toLowerCase();
+    const filterRegion = input.filterRegion?.trim().toLowerCase();
+    const limit = input.limit ?? 5;
+    if (!queryText) return [];
 
-    const scored = this.entities
-      .map((e) => ({ entity: e, score: this.score(e, q) }))
-      .filter((s) => s.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit);
+    const filtered = this.entities.filter((entity) => {
+      const region = entity.attributes.region?.toLowerCase();
+      if (filterRegion && region !== filterRegion) return false;
 
-    return scored.map((s) => s.entity);
-  }
+      const aliases = entity.aliases ?? [];
+      return (
+        entity.name_th.toLowerCase().includes(queryText) ||
+        aliases.some((alias) => alias.toLowerCase().includes(queryText)) ||
+        (entity.description ?? "").toLowerCase().includes(queryText)
+      );
+    });
 
-  private score(entity: ThaiGeoEntity, q: string): number {
-    const aliases = entity.aliases ?? [];
-
-    if (entity.name_th.toLowerCase() === q) return 0.95;
-    if (aliases.some((a) => a.toLowerCase() === q)) return 0.92;
-    if (entity.name_th.toLowerCase().includes(q)) return 0.85;
-    if (aliases.some((a) => a.toLowerCase().includes(q))) return 0.82;
-
-    const attrs = entity.attributes;
-    if (attrs.region && attrs.region.toLowerCase() === q) return 0.8;
-
-    if (entity.description.toLowerCase().includes(q)) return 0.75;
-
-    return 0;
+    return sortMatches(filtered, queryText).slice(0, limit);
   }
 }
-
-const now = new Date().toISOString();
-const DOPA_SOURCE: ThaiGeoSource = { name: "DOPA", url: "https://data.go.th" };
-
-export const THAI_GEO_SEED: ThaiGeoEntity[] = [
-  {
-    id: "geo:nakhon-ratchasima",
-    domain: "geo",
-    name_th: "นครราชสีมา",
-    aliases: ["โคราช"],
-    description: "จังหวัดนครราชสีมา ภาคตะวันออกเฉียงเหนือ พื้นที่ใหญ่ที่สุดในอีสาน",
-    attributes: { province: "นครราชสีมา", region: "อีสาน", lat: 14.9799, lon: 102.0977 },
-    relations: [],
-    source: DOPA_SOURCE,
-    confidence: 0.95,
-    version: "1.0.0",
-    updated_at: now,
-  },
-  {
-    id: "geo:bangkok",
-    domain: "geo",
-    name_th: "กรุงเทพมหานคร",
-    aliases: ["กทม", "บางกอก", "กรุงเทพฯ"],
-    description: "เมืองหลวงของประเทศไทย ศูนย์กลางเศรษฐกิจและการปกครอง",
-    attributes: { province: "กรุงเทพมหานคร", region: "กลาง", lat: 13.7563, lon: 100.5018 },
-    relations: [],
-    source: DOPA_SOURCE,
-    confidence: 0.95,
-    version: "1.0.0",
-    updated_at: now,
-  },
-  {
-    id: "geo:chiang-mai",
-    domain: "geo",
-    name_th: "เชียงใหม่",
-    aliases: ["เจียงใหม่", "นพบุรีศรีนครพิงค์เชียงใหม่"],
-    description: "จังหวัดเชียงใหม่ ภาคเหนือ เมืองใหญ่อันดับ 2 ของประเทศ",
-    attributes: { province: "เชียงใหม่", region: "เหนือ", lat: 18.7883, lon: 98.9853 },
-    relations: [],
-    source: DOPA_SOURCE,
-    confidence: 0.95,
-    version: "1.0.0",
-    updated_at: now,
-  },
-  {
-    id: "geo:phuket",
-    domain: "geo",
-    name_th: "ภูเก็ต",
-    aliases: ["เมืองไข่มุกอันดามัน"],
-    description: "จังหวัดภูเก็ต ภาคใต้ เกาะที่ใหญ่ที่สุดในประเทศไทย สถานที่ท่องเที่ยวระดับโลก",
-    attributes: { province: "ภูเก็ต", region: "ใต้", lat: 7.8804, lon: 98.3923 },
-    relations: [],
-    source: DOPA_SOURCE,
-    confidence: 0.95,
-    version: "1.0.0",
-    updated_at: now,
-  },
-];
 
 let geoDb: GeoDbAdapter = new MariaDbGeoDb();
 
@@ -190,210 +261,134 @@ export function getGeoDb(): GeoDbAdapter {
   return geoDb;
 }
 
-function safeJsonParse<T>(value: unknown, fallback: T): T {
-  if (value == null) return fallback;
-  if (typeof value === "object") return value as T;
-  if (typeof value !== "string") return fallback;
+function buildSourceList(entities: ThaiGeoEntity[]): ThaiKnowledgeSource[] {
+  const unique = new Map<string, ThaiKnowledgeSource>();
 
-  try {
-    return JSON.parse(value) as T;
-  } catch {
-    return fallback;
+  for (const entity of entities) {
+    for (const src of entity.source ?? []) {
+      const key = `${src.name}|${src.url ?? ""}`;
+      if (!unique.has(key)) unique.set(key, src);
+    }
   }
+
+  return Array.from(unique.values());
 }
 
-function normalizeDbRowToEntity(row: any): ThaiGeoEntity {
-  const domain = String(row.domain ?? "geo") as ThaiKnowledgeDomain;
-  const name_th = String(row.name_th ?? "");
-
-  const parsedAliases = safeJsonParse<unknown>(row.aliases, []);
-  const aliases = Array.isArray(parsedAliases)
-    ? parsedAliases.filter((item): item is string => typeof item === "string")
-    : [];
-  const attributes = safeJsonParse<any>(row.attributes, {});
-  const relations = safeJsonParse<any[]>(row.relations, []);
-  const lat = Number(attributes.lat);
-  const lon = Number(attributes.lon);
-  const confidenceNumber = Number(row.confidence);
-
-  const sourceRaw = row.source;
-  const sourceObj: ThaiGeoSource =
-    typeof sourceRaw === "string" && sourceRaw.trim().startsWith("{")
-      ? safeJsonParse<ThaiGeoSource>(sourceRaw, { name: sourceRaw || "unknown" })
-      : { name: String(sourceRaw ?? "unknown") };
-
-  return {
-    id: String(row.id ?? ""),
-    domain,
-    name_th,
-    aliases,
-    description: String(row.description ?? ""),
-    attributes: {
-      province: String(attributes.province ?? name_th),
-      district: attributes.district,
-      region: String(attributes.region ?? ""),
-      lat: Number.isFinite(lat) ? lat : undefined,
-      lon: Number.isFinite(lon) ? lon : undefined,
-    },
-    relations,
-    source: sourceObj,
-    confidence: Number.isFinite(confidenceNumber) ? confidenceNumber : 1.0,
-    version: String(row.version ?? "1.0.0"),
-    updated_at: String(row.updated_at ?? new Date().toISOString()),
-  };
-}
-
-function entityToResult(entity: ThaiGeoEntity): ThaiGeoResult {
-  const attrs = entity.attributes;
-  return {
-    id: entity.id,
-    name_th: entity.name_th,
-    aliases: entity.aliases ?? [],
-    description: entity.description,
-    attributes: {
-      province: attrs.province ?? entity.name_th,
-      district: attrs.district,
-      region: attrs.region ?? "",
-      lat: attrs.lat,
-      lon: attrs.lon,
-    },
-  };
-}
-
-function computeConfidence(entities: ThaiGeoEntity[], queryText: string): number {
+function confidenceOf(entities: ThaiGeoEntity[]): number {
   if (entities.length === 0) return 0;
-
-  const first = entities[0];
-  const q = queryText.trim().toLowerCase();
-
-  if (first.name_th.toLowerCase() === q) return 0.95;
-  if ((first.aliases ?? []).some((a) => a.toLowerCase() === q)) return 0.92;
-  if (first.attributes.region?.toLowerCase() === q) return 0.8;
-  if (first.name_th.toLowerCase().includes(q)) return 0.85;
-  return 0.75;
+  return Math.max(...entities.map((item) => item.confidence));
 }
 
-function matchNote(entity: ThaiGeoEntity, queryText: string): string | undefined {
-  const q = queryText.trim().toLowerCase();
-
-  if (entity.name_th.toLowerCase() === q) return undefined;
-  if ((entity.aliases ?? []).some((a) => a.toLowerCase() === q)) return "matched by alias";
-  if (entity.attributes.region?.toLowerCase() === q) return "matched by region";
-  return "matched by description";
+function errorResult(error: ThaiGeoToolError): { content: Array<{ type: "text"; text: string }> } {
+  return { content: [{ type: "text", text: JSON.stringify(error) }] };
 }
 
-const TOOL_NAME = "thai_geo_tool";
-const TOOL_DESC = `ค้นหาข้อมูลภูมิศาสตร์ไทย (Thai Geography Lookup)
-ใช้เมื่อ: ต้องการข้อมูลจังหวัด/อำเภอ/ภูมิภาค ของประเทศไทย
-Input: query = ชื่อจังหวัด/ชื่อเล่น/ภาค เช่น "โคราช", "กทม", "อีสาน"
-Output: JSON พร้อม province, region, lat/lon, confidence score`;
+function successResult(output: ThaiGeoToolOutput): { content: Array<{ type: "text"; text: string }> } {
+  return { content: [{ type: "text", text: JSON.stringify(output) }] };
+}
 
 export const thaiGeoTool = {
   name: TOOL_NAME,
   description: TOOL_DESC,
   inputSchema: z.object({
-    query: z.string().min(1).describe("คำค้น เช่น ชื่อจังหวัด/ชื่อเล่น/ภาค"),
+    query: z.string().min(1),
     context: z
       .object({
+        domain: z.literal("geo").optional(),
         language: z.string().default("th").optional(),
-        confidence_required: z.number().min(0).max(1).default(0.7).optional(),
+        confidence_required: z.number().min(0).max(1).default(DEFAULT_CONFIDENCE_REQUIRED).optional(),
       })
       .optional(),
+    filter_region: z.string().min(1).optional(),
   }),
-  execute: async (args: any) => {
+  execute: async (rawArgs: unknown) => {
+    const args = rawArgs as ThaiGeoToolInput;
     const searchTerm = String(args?.query ?? "").trim();
-    const confidenceRequired = args?.context?.confidence_required ?? 0.7;
 
     if (!searchTerm) {
-      const err: ThaiGeoToolError = {
+      return errorResult({
         success: false,
         error_code: "INVALID_QUERY",
         message: "query ต้องไม่เป็นค่าว่าง",
-      };
-      return { content: [{ type: "text" as const, text: JSON.stringify(err) }] };
+      });
     }
 
-    const adapter = getGeoDb();
+    const confidenceRequired = args?.context?.confidence_required ?? DEFAULT_CONFIDENCE_REQUIRED;
+    const filterRegion = args?.filter_region?.trim();
 
     try {
-      const entities = await adapter.search(searchTerm, 5);
-
+      const entities = await getGeoDb().search({ queryText: searchTerm, filterRegion, limit: 5 });
       if (entities.length === 0) {
-        const err: ThaiGeoToolError = {
+        return errorResult({
           success: false,
           error_code: "NOT_FOUND",
           message: `ไม่พบข้อมูลภูมิศาสตร์สำหรับ '${searchTerm}'`,
-        };
-        return { content: [{ type: "text" as const, text: JSON.stringify(err) }] };
+        });
       }
 
-      const confidence = computeConfidence(entities, searchTerm);
+      const confidence = confidenceOf(entities);
       if (confidence < confidenceRequired) {
-        const err: ThaiGeoToolError = {
+        return errorResult({
           success: false,
-          error_code: "NOT_FOUND",
-          message: `ผลลัพธ์มี confidence ${confidence} ต่ำกว่าที่กำหนด ${confidenceRequired}`,
-        };
-        return { content: [{ type: "text" as const, text: JSON.stringify(err) }] };
+          error_code: "LOW_CONFIDENCE",
+          message: `confidence ต่ำกว่าค่าที่กำหนด (${confidence.toFixed(2)} < ${confidenceRequired.toFixed(2)})`,
+          note: "ปฏิเสธผลลัพธ์เพื่อป้องกันการเดา",
+        });
       }
 
-      const data = entities.map(entityToResult);
-      const note = matchNote(entities[0], searchTerm);
-      const sources = Array.from(new Set(entities.map((e) => e.source.name).filter(Boolean)));
-
-      const out: ThaiGeoToolSuccess = {
+      const sorted = sortMatches(entities, searchTerm);
+      const output: ThaiGeoToolOutput = {
         success: true,
         domain: "geo",
-        data,
+        data: sorted.map(makeResult),
         confidence,
-        source: sources,
-        ...(note ? { note } : {}),
+        source: buildSourceList(sorted),
+        note: filterRegion ? `พบข้อมูลที่ตรงคำค้นและอยู่ในภูมิภาค ${filterRegion}` : "พบข้อมูลภูมิศาสตร์ที่ตรงคำค้น",
       };
 
-      return { content: [{ type: "text" as const, text: JSON.stringify(out) }] };
+      return successResult(output);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
 
       try {
-        const fallbackEntities = await new InMemoryGeoDb(THAI_GEO_SEED).search(searchTerm, 5);
-        if (fallbackEntities.length > 0) {
-          const confidence = computeConfidence(fallbackEntities, searchTerm);
-          if (confidence < confidenceRequired) {
-            const err: ThaiGeoToolError = {
-              success: false,
-              error_code: "NOT_FOUND",
-              message: `ผลลัพธ์มี confidence ${confidence} ต่ำกว่าที่กำหนด ${confidenceRequired}`,
-            };
-            return { content: [{ type: "text" as const, text: JSON.stringify(err) }] };
-          }
-          const data = fallbackEntities.map(entityToResult);
-          const note = matchNote(fallbackEntities[0], searchTerm);
-          const sources = Array.from(
-            new Set(fallbackEntities.map((e) => e.source.name).filter(Boolean)),
-          );
+        const fallback = await new InMemoryGeoDb(THAI_GEO_SEED).search({
+          queryText: searchTerm,
+          filterRegion,
+          limit: 5,
+        });
 
-          const out: ThaiGeoToolSuccess = {
+        if (fallback.length > 0) {
+          const confidence = confidenceOf(fallback);
+          if (confidence < confidenceRequired) {
+            return errorResult({
+              success: false,
+              error_code: "LOW_CONFIDENCE",
+              message: `confidence ต่ำกว่าค่าที่กำหนด (${confidence.toFixed(2)} < ${confidenceRequired.toFixed(2)})`,
+              note: "ปฏิเสธผลลัพธ์เพื่อป้องกันการเดา",
+            });
+          }
+
+          const sorted = sortMatches(fallback, searchTerm);
+          const output: ThaiGeoToolOutput = {
             success: true,
             domain: "geo",
-            data,
+            data: sorted.map(makeResult),
             confidence,
-            source: sources,
-            note: note ? `${note} (fallback to stub)` : "fallback to stub",
+            source: buildSourceList(sorted),
+            note: "fallback to in-memory seed",
           };
 
-          return { content: [{ type: "text" as const, text: JSON.stringify(out) }] };
+          return successResult(output);
         }
       } catch {
-        // ignore fallback errors
+        // ignore fallback errors and return db_error below
       }
 
-      const err: ThaiGeoToolError = {
+      return errorResult({
         success: false,
         error_code: "DB_ERROR",
         message,
-      };
-
-      return { content: [{ type: "text" as const, text: JSON.stringify(err) }] };
+      });
     }
   },
 };

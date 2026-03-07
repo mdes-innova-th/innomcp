@@ -19,6 +19,14 @@ import debugRouter from "./routes/api/debug";
 // Initialize Express application
 const app = express();
 
+// Protect tests from crashing due to MCP SDK fetch failures when innomcp-server is down
+process.on("unhandledRejection", (err) => {
+  if (process.env.SMOKE_MODE === "1" && (String(err).includes("fetch failed") || String(err).includes("ECONNREFUSED"))) {
+    return;
+  }
+  console.error("Unhandled rejection:", err);
+});
+
 logger.info('🚀 Backend application starting...');
 const allowedOrigin = process.env.ALLOWED_ORIGIN?.split(",") || [];
 

@@ -81,9 +81,20 @@ function sanitizeSnippetForLog(input: string, maxChars = 200): string {
 function requireTmdAuthParams(): { uid: string; ukey: string } {
   const uid = String(process.env.TMD_UID || "").trim();
   const ukey = String(process.env.TMD_UKEY || "").trim();
+  
   if (!uid || !ukey) {
-    throw new Error("TMD_API_PARAMS_MISSING");
+    throw new Error("TMD_API_PARAMS_MISSING: Missing TMD_UID or TMD_UKEY");
   }
+
+  // Live Mode validation:
+  const isSmoke = process.env.SMOKE_MODE === "1";
+  const isFixture = process.env.WEATHER_FIXTURE_W1 === "1" || process.env.CHAT_TRACE_QA === "1";
+  const isLiveMode = !isSmoke && !isFixture;
+
+  if (isLiveMode && (uid === "demo" || ukey === "demokey" || uid === "api" || ukey.includes("api12345"))) {
+    throw new Error("TMD_API_LIVE_MODE_DEMO_KEY_BLOCKED: Using demo keys in Live Mode is prohibited. Please configure real keys.");
+  }
+
   return { uid, ukey };
 }
 
@@ -197,9 +208,13 @@ async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) 
 
     // พยายาม parse JSON
     let data: any = null;
+    const cleaned = bodyText.replace(/^\uFEFF/, "").trim();
+    
+    if (cleaned.includes("Authentication fail")) {
+      throw new Error("TMD API Authentication fail (Check TMD_UID/TMD_UKEY)");
+    }
+
     try {
-      // กัน BOM/whitespace แปลก ๆ
-      const cleaned = bodyText.replace(/^\uFEFF/, "").trim();
       data = cleaned ? JSON.parse(cleaned) : null;
     } catch (e) {
       // ถ้า parse ไม่ได้ ให้คืนเป็น text ไป (แต่ยังถือว่า ok)
@@ -276,12 +291,13 @@ function registerSimpleTmdTool(
         url = withTmdAuthParams(opts.urlBase);
       } catch (e: any) {
         const message = String(e?.message || e || "TMD_API_PARAMS_MISSING");
-        logBoth("ERROR", `[TMD:${opts.name}] blocked: ${message} (set TMD_UID/TMD_UKEY)`);
+        logBoth("ERROR", `[TMD:${opts.name}] blocked: ${message}`);
         return {
+          isError: true,
           content: [
             {
               type: "text" as const,
-              text: `ล้มเหลว: ${opts.title} -> ${message} (ต้องตั้งค่า env: TMD_UID, TMD_UKEY)`,
+              text: `ล้มเหลว: ${opts.title} -> ${message}`,
             },
           ],
           structuredContent: {
@@ -308,6 +324,7 @@ function registerSimpleTmdTool(
         : `ล้มเหลว: ${opts.title} (เวลา ${result.meta.durationMs}ms) -> ${result.error}`;
 
       return {
+        isError: !result.ok,
         content: [
           {
             type: "text" as const,

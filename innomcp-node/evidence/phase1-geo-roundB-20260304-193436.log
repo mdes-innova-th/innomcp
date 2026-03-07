@@ -1,0 +1,6 @@
+VERIFY: phase1_geo_roundB
+✅ High Confidence :: code=OK best=เชียงใหม่
+✅ Alias Map :: best=นครราชสีมา
+✅ Low Confidence trapped :: fallback text matched
+SUMMARY: total=3 pass=3 fail=0
+RESULT: PASS

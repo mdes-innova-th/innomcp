@@ -667,7 +667,13 @@ function normalizeAddressV2(address: string): { normalized: AddressNormalized; t
 
 function parseLookupQueryV2(queryText: string): { core_query: string; constraints: GeoConstraints; tokens: StructuredToken[] } {
   const raw = String(queryText || "").trim();
-  const norm = normalizeAddressV2(raw);
+  const normalizedRaw = canonicalizeThaiTextV2(raw);
+  const cleaned = normalizedRaw
+    .replace(/อยู่ภาคไหน|อยู่ภาคอะไร|ภาคไหน|ภาคอะไร/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const norm = normalizeAddressV2(cleaned || raw);
   const constraints: GeoConstraints = {
     province: norm.normalized.province,
     district: norm.normalized.district,
@@ -675,8 +681,8 @@ function parseLookupQueryV2(queryText: string): { core_query: string; constraint
     postcode: norm.normalized.postcode,
   };
 
-  const tail = canonicalizeThaiTextV2(raw).match(/([ก-๙A-Za-z0-9]{2,})\s*$/)?.[1];
-  const core = constraints.postcode || constraints.subdistrict || constraints.district || constraints.province || tail || canonicalizeThaiTextV2(raw);
+  const tail = (cleaned || normalizedRaw).match(/([ก-๙A-Za-z0-9]{2,})\s*$/)?.[1];
+  const core = constraints.postcode || constraints.subdistrict || constraints.district || constraints.province || tail || (cleaned || normalizedRaw);
 
   return {
     core_query: String(core || raw).trim().slice(0, 80),
@@ -1131,13 +1137,12 @@ export function renderThaiGeoAnswerShort(toolResult: any): { text: string; trace
       const text = sanitize(["คำตอบ:", ...lines].join("\n"));
       return { text, trace: "OK" };
     }
-    // Province-level: avoid region-centric answer for Bangkok; region is helpful for other provinces.
-    if (isBangkok(best.name_th || "") || isBangkok(best.attributes?.province || "")) {
-      const text = sanitize(["คำตอบ:", `จังหวัด: ${sanitize(best.name_th)}`].join("\n"));
-      return { text, trace: "OK" };
-    }
-    // Province-level: keep short and avoid trivia like "อยู่ภาค..." as the primary answer.
-    const text = sanitize(["คำตอบ:", `จังหวัด: ${sanitize(best.name_th)}`].join("\n"));
+    const regionRaw = String(best.attributes?.region || "").trim();
+    const regionMapped = REGION_MAPPING[normalizeForMatch(regionRaw)] || regionRaw;
+    const regionLine = regionMapped ? `ภาค: ${sanitize(regionMapped)}` : "";
+    const lines = ["คำตอบ:", `จังหวัด: ${sanitize(best.name_th)}`];
+    if (regionLine) lines.push(regionLine);
+    const text = sanitize(lines.join("\n"));
     return { text, trace: "OK" };
   }
 

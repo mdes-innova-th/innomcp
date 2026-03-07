@@ -1,0 +1,10 @@
+Starting Phase 10.2 Chat IQ Gate Verifier (20260305-102125)
+Server listening on port 54866
+====================================
+✅ [1. intent=weather: happy path] OK (46ms)
+✅ [2. intent=evidence: happy path] OK (10031ms)
+✅ [3. intent=web-record: happy path] OK (16ms)
+✅ [4. intent=unknown: Low Confidence Chat IQ Gate Fallback] OK (432ms)
+====================================
+RESULT: FAIL (4 passed, 1 failed) in 10525ms
+ - route should be weather

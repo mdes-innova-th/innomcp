@@ -298,7 +298,7 @@ async function main() {
 
   fs.writeFileSync(evidence, logs.join("\n") + "\n", "utf8");
   console.log(`evidence: ${evidence}`);
-  if (!ok) process.exitCode = 1;
+  process.exit(ok ? 0 : 1);
 }
 
 main().catch((err) => {

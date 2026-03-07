@@ -346,6 +346,73 @@
 			"isBackground": false,
 			"problemMatcher": [],
 			"group": "test"
+		},
+		{
+			"label": "verify-phase2-db3306-explicit",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$env:TS_NODE_CACHE='false'; $env:DB_HOST='localhost'; $env:DB_PORT='3306'; $env:DB_USER='<REDACTED_USER>'; $env:DB_PASSWORD='<REDACTED>'; $env:DB_NAME='innomcp'; npx --prefix .\\innomcp-server-node ts-node .\\innomcp-server-node\\scripts\\verify_phase2.ts"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "verify-phase2-after-fix",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-Command",
+				"$env:TS_NODE_CACHE='false'; $env:DB_HOST='localhost'; $env:DB_PORT='3306'; $env:DB_USER='<REDACTED_USER>'; $env:DB_PASSWORD='<REDACTED>'; $env:DB_NAME='innomcp'; npx --prefix .\\innomcp-server-node ts-node .\\innomcp-server-node\\scripts\\verify_phase2.ts"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "phase102-rerun-clean",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-node && set SMOKE_MODE=1 && set CHAT_TRACE_QA=1 && set LOG_DEBUG=0 && set TS_NODE_CACHE=false && npx ts-node scripts\\verify_phase102_chat_iq_gate.ts"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "integration-rerun-clean",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d C:\\Users\\USER-NT\\DEV\\innomcp && npm --prefix innomcp-node run test:integration"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "node-full-rerun-clean",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d C:\\Users\\USER-NT\\DEV\\innomcp && npm --prefix innomcp-node test"
+			],
+			"isBackground": false
+		},
+		{
+			"label": "seed:phase1:geoB",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-server-node && set TS_NODE_CACHE=false && set DB_HOST=localhost && set DB_PORT=3306 && set DB_USER=<REDACTED_USER> && set DB_PASSWORD=<REDACTED> && set DB_NAME=innomcp && npx ts-node scripts\\seed_phase1_geo_roundB.ts"
+			],
+			"isBackground": false,
+			"group": "test"
 		}
 	]
 }

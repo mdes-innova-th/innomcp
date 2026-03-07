@@ -33,6 +33,18 @@ mariadb/data/
 # Workspace storage
 workspace-storage/data/
 
+# Runtime state / local keys
+states/*.pem
+states/target_state.json
+
+# Test output artifacts
+test-results/
+
+# Local IDE / AI agent config
+.vscode/mcp.json
+.claude/settings.local.json
+.claude/settings.local_json_bak
+
 # Workspace-storage accidental artifacts
 workspace-storage/$null
 workspace-storage/docker-compose.yml
@@ -85,3 +97,6 @@ package-lock.json
 # AI archive / phase lock
 .ai/_archive/
 .ai/PHASE_LOCK.json
+
+# Historical patch packs (may contain legacy literals)
+patches_phase9/

@@ -1,0 +1,24 @@
+--- Case 1: High confidence (เชียงใหม่) ---
+transport=http
+payload={"message":"เชียงใหม่อยู่ภาคไหน","messages":[]}
+status=200
+text=คำตอบ: จังหวัด: เชียงใหม่ ภาค: เหนือ เชียงใหม่อยู่ภาคไหน คำตอบ: จังหวัด: เชียงใหม่ ภาค: เหนือ
+result=PASS
+
+--- Case 2: Alias map (โคราช) ---
+transport=http
+payload={"message":"โคราชอยู่ภาคไหน","messages":[]}
+status=200
+text=คำตอบ: จังหวัด: นครราชสีมา ภาค: อีสาน โคราชอยู่ภาคไหน คำตอบ: จังหวัด: นครราชสีมา ภาค: อีสาน
+result=PASS
+
+--- Case 3: Low confidence trap ---
+transport=ws
+payload={"message":"asdfghjkl","messages":[]}
+status=200
+text=ห้ามเดาโว้ย
+result=FAIL
+
+SUMMARY: FAIL
+RESULT: FAIL
+FAILURES: Case 3: Low confidence trap

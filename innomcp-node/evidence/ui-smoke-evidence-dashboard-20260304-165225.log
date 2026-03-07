@@ -1,0 +1,17 @@
+﻿2026-03-04 16:52:25  ui-smoke start
+2026-03-04 16:52:25  repoRoot=C:\Users\USER-NT\DEV\innomcp
+2026-03-04 16:52:25  timeoutSeconds=420
+2026-03-04 16:52:25  cleanup: kill node trees
+2026-03-04 16:52:26  cleanup: kill port listeners (3000/3011/3012/3013)
+2026-03-04 16:52:28  start: MCP server (innomcp-server-node)
+2026-03-04 16:52:28  mcp logs: out=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\ui-smoke-mcp-20260304-165225.out.log err=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\ui-smoke-mcp-20260304-165225.err.log
+2026-03-04 16:52:45  wait: MCP health http://localhost:3012/health
+2026-03-04 16:52:45  start: Backend (innomcp-node)
+2026-03-04 16:52:45  backend logs: out=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\ui-smoke-backend-20260304-165225.out.log err=C:\Users\USER-NT\DEV\innomcp\innomcp-node\evidence\ui-smoke-backend-20260304-165225.err.log
+2026-03-04 16:52:55  wait: Backend health http://localhost:3011/health
+2026-03-04 16:54:56  error: BLOCKED:BACKEND_NOT_READY
+2026-03-04 16:54:56  cleanup: stop Playwright
+2026-03-04 16:54:56  cleanup: kill node trees
+2026-03-04 16:54:56  cleanup: stop service procs
+2026-03-04 16:54:56  SUMMARY: ui-smoke evidence-dashboard BLOCKED:BACKEND_NOT_READY
+2026-03-04 16:54:56  RESULT: BLOCKED:BACKEND_NOT_READY

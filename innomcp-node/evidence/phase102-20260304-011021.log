@@ -1,6 +1,0 @@
-FASTPATH-1: status=200 q='สวัสดี' text='{"content":[{"type":"text","text":"สวัสดีครับ 😊 มีอะไรให้ช่วยไหม"}],"structuredContent":{"fastPath":true,"type":"greeti' fastPath=true route=general
-FASTPATH-2: status=200 q='ขอบคุณมาก' text='{"content":[{"type":"text","text":"ยินดีครับ 🙏 ถ้าต้องการให้ช่วยต่อ บอกได้เลย"}],"structuredContent":{"fastPath":true,"' fastPath=true route=general
-FASTPATH-3: status=200 q='ping' text='{"content":[{"type":"text","text":"อยู่ครับ ✅ ระบบพร้อมใช้งาน"}],"structuredContent":{"fastPath":true,"type":"ping","fas' fastPath=true route=general
-GENERAL-1: status=200 q='ช่วยอธิบายระบบคิวงานให้สั้นๆ 1 ประโยค' text='ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุ' route=general
-SUMMARY: phase10.2 chat iq gate PASS
-RESULT: PASS

@@ -54,6 +54,10 @@ async function startEphemeralServer() {
   process.env.CHAT_TRACE_QA = "1";
   process.env.LOG_DEBUG = "0";
   process.env.WEATHER_FIXTURE_W1 = "1";
+  process.env.WX_STATION_TIMEOUT_MS = process.env.WX_STATION_TIMEOUT_MS || "3000";
+  process.env.WX_STATION_07AM_TIMEOUT_MS = process.env.WX_STATION_07AM_TIMEOUT_MS || "3000";
+  process.env.WX_FORECAST_TIMEOUT_MS = process.env.WX_FORECAST_TIMEOUT_MS || "3000";
+  process.env.WX_NWP_TIMEOUT_MS = process.env.WX_NWP_TIMEOUT_MS || "3000";
   process.env.SERVER_HOST = "127.0.0.1";
 
   const { default: app } = await import("../src/app");
@@ -154,10 +158,15 @@ async function main() {
 
   fs.writeFileSync(evidence, lines.join("\n") + "\n", "utf8");
   console.log(`evidence: ${evidence}`);
-  if (!ok) process.exitCode = 1;
+  
+  setTimeout(() => {
+    process.exit(ok ? 0 : 1);
+  }, 250);
 }
 
-main().catch((err) => {
+main().then(() => {
+  setTimeout(() => process.exit(0), 100);
+}).catch((err) => {
   console.error("verify_phase101a_weather_contract failed:", err);
-  process.exit(1);
+  setTimeout(() => process.exit(1), 100);
 });

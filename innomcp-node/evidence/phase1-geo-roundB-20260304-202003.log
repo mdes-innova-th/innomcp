@@ -1,0 +1,16 @@
+verify_phase1_geo_roundB start host=localhost port=3011
+case1 text: คำตอบ:
+จังหวัด: เชียงใหม่
+ภาค: เหนือ
+case2 text: คำตอบ:
+จังหวัด: นครราชสีมา
+ภาค: อีสาน
+case3 wsText: ห้ามเดาโว้ย
+PASS Case 1: High Confidence (เชียงใหม่): ok: คำตอบ:
+จังหวัด: เชียงใหม่
+ภาค: เหนือ
+PASS Case 2: Alias Map (โคราช): ok: คำตอบ:
+จังหวัด: นครราชสีมา
+ภาค: อีสาน
+PASS Case 3: Low Confidence trapped (WS): ok: ห้ามเดาโว้ย
+RESULT: PASS

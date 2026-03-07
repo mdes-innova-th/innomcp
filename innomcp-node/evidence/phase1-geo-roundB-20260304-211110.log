@@ -1,0 +1,22 @@
+
+--- Running Case 1: High Confidence (Geo) ---
+✅ PASS
+
+--- Running Case 2: High Confidence (Alias) ---
+✅ PASS
+
+--- Running Case 3: Low Confidence (Gibberish) Short-Circuit ---
+❌ FAILED
+Payload: {"message":"asdfghjkl","messages":[]}
+Output: {"text":"ขออภัย ตอนนี้ตอบได้ไม่ทันเวลา ลองระบุคำถามให้แคบลงอีกนิด (เช่น เป้าหมาย/บริบท/ตัวอย่าง) แล้วผมจะสรุปให้สั้นๆ ได้ครับ","structuredContent":{"generalGate":{"route":"general","usedTools":false,"budgetMs":5000,"durMs":28,"model":"qwen2.5:0.5b","fallback":true,"reason":"ERROR","totalDurMs":29},"__render":{"route":"general","llmUsed":true,"routeDecider":"deterministic","version":"phase8"}},"messages":[{"sender":"user","text":"asdfghjkl"},{"sender":"ai","text":"ขออภัย ตอนนี้ตอบได้ไม่ทันเวลา ลองระบุคำถามให้แคบลงอีกนิด (เช่น เป้าหมาย/บริบท/ตัวอย่าง) แล้วผมจะสรุปให้สั้นๆ ได้ครับ"}],"mcpUsed":false,"mcpResults":null}
+
+--- Running Case 4: Out of Domain (No Guessing rule) ---
+❌ FAILED
+Payload: {"message":"ช่วยแต่งกลอนแปดเรื่องความรักหน่อย","messages":[]}
+Output: {"text":"ขออภัย ตอนนี้ตอบได้ไม่ทันเวลา ลองระบุคำถามให้แคบลงอีกนิด (เช่น เป้าหมาย/บริบท/ตัวอย่าง) แล้วผมจะสรุปให้สั้นๆ ได้ครับ","structuredContent":{"generalGate":{"route":"general","usedTools":false,"budgetMs":5000,"durMs":8,"model":"qwen2.5:0.5b","fallback":true,"reason":"ERROR","totalDurMs":8},"__render":{"route":"general","llmUsed":true,"routeDecider":"deterministic","version":"phase8"}},"messages":[{"sender":"user","text":"ช่วยแต่งกลอนแปดเรื่องความรักหน่อย"},{"sender":"ai","text":"ขออภัย ตอนนี้ตอบได้ไม่ทันเวลา ลองระบุคำถามให้แคบลงอีกนิด (เช่น เป้าหมาย/บริบท/ตัวอย่าง) แล้วผมจะสรุปให้สั้นๆ ได้ครับ"}],"mcpUsed":false,"mcpResults":null}
+
+SUMMARY: Phase 1 Geo Round B FAIL
+RESULT: FAILED
+FAILURES:
+- Case 3: Low Confidence (Gibberish) Short-Circuit
+- Case 4: Out of Domain (No Guessing rule)

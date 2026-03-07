@@ -12,12 +12,21 @@ import axios from "axios";
 const NWP_API_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/daily";
 const DEFAULT_TIMEOUT = 15000;
 
-// Get API key from environment
 function getNwpApiKey(): string {
-  const key = process.env.NWP_API_KEY;
+  const key = String(process.env.NWP_API_KEY || "").trim();
   if (!key) {
     throw new Error("NWP_API_KEY not found in environment variables");
   }
+
+  // Live Mode validation:
+  const isSmoke = process.env.SMOKE_MODE === "1";
+  const isFixture = process.env.WEATHER_FIXTURE_W1 === "1" || process.env.CHAT_TRACE_QA === "1";
+  const isLiveMode = !isSmoke && !isFixture;
+
+  if (isLiveMode && (key === "demo" || key === "demokey" || key.includes("api12345"))) {
+    throw new Error("TMD_API_LIVE_MODE_DEMO_KEY_BLOCKED: Using demo keys in Live Mode is prohibited.");
+  }
+
   return key;
 }
 

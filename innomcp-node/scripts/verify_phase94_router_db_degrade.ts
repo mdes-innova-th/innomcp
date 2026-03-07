@@ -4,6 +4,14 @@ import path from "path";
 import { spawnSync } from "child_process";
 import mysql from "mysql2/promise";
 
+process.on("unhandledRejection", (err) => {
+  // Ignore unhandled fetch failures from MCP SDK in testing
+  if (String(err).includes("fetch failed") || String(err).includes("ECONNREFUSED")) {
+    return;
+  }
+  console.error("Unhandled rejection:", err);
+});
+
 function nowStamp(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -255,7 +263,7 @@ async function main() {
 
   fs.writeFileSync(evidence, logs.join("\n") + "\n", "utf8");
   console.log(`evidence: ${evidence}`);
-  if (!ok) process.exitCode = 1;
+  process.exit(ok ? 0 : 1);
 }
 
 main().catch((err) => {

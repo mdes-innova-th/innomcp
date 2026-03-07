@@ -6,12 +6,12 @@
 DELETE FROM `user` WHERE username IN ('admin', 'user', 'guest');
 
 -- สร้าง User: admin (userrole_id = 0 = Super Admin)
--- Password: Admin@123
+-- Password: <REDACTED_PASSWORD>
 INSERT INTO `user` 
 (`username`, `user_pwd`, `user_email`, `user_dispname`, `user_active`, `userrole_id`, `user_disp_name`, `user_role_id`, `created_at`) 
 VALUES 
 ('admin', 
- '$2b$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGqeePe7JOHCU9yDC/.jN2m', -- bcrypt hash of 'Admin@123'
+ '$2b$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGqeePe7JOHCU9yDC/.jN2m', -- bcrypt hash of '<REDACTED_PASSWORD>'
  'admin@innomcp.local', 
  'System Administrator', 
  '1', 
@@ -21,7 +21,7 @@ VALUES
  NOW());
 
 -- สร้าง User: user (userrole_id = 1 = Regular User)
--- Password: User@123
+-- Password: <REDACTED_PASSWORD>
 INSERT INTO `user` 
 (`username`, `user_pwd`, `user_email`, `user_dispname`, `user_active`, `userrole_id`, `user_disp_name`, `user_role_id`, `created_at`) 
 VALUES 

@@ -1,0 +1,21 @@
+--- Case 1: High confidence (เชียงใหม่) ---
+transport=http
+payload={"message":"เชียงใหม่อยู่ภาคไหน","messages":[]}
+error=connect ECONNREFUSED 127.0.0.1:3011
+result=FAIL
+
+--- Case 2: Alias map (โคราช) ---
+transport=http
+payload={"message":"โคราชอยู่ภาคไหน","messages":[]}
+error=connect ECONNREFUSED 127.0.0.1:3011
+result=FAIL
+
+--- Case 3: Low confidence trap ---
+transport=ws
+payload={"message":"asdfghjkl","messages":[]}
+error=connect ECONNREFUSED 127.0.0.1:3011
+result=FAIL
+
+SUMMARY: FAIL
+RESULT: FAIL
+FAILURES: Case 1: High confidence (เชียงใหม่), Case 2: Alias map (โคราช), Case 3: Low confidence trap

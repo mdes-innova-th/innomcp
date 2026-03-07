@@ -4,23 +4,23 @@
 
 USE `innomcp-db`;
 
--- อัปเดต password สำหรับ admin (lb2rock@gmail.com)
--- Password: Admin@123
+-- อัปเดต password สำหรับ admin (admin@example.local)
+-- Password: <REDACTED_PASSWORD>
 UPDATE `user` 
 SET `password` = '$2b$10$xmpyehSvBIjLzBnxuxUCFuPCguRyoKLMfFdCxFRrnHQk1CFf.N5J.'
-WHERE user_email = 'lb2rock@gmail.com';
+WHERE user_email = 'admin@example.local';
 
--- อัปเดต password สำหรับ admin (jaran.x@gmail.com)
--- Password: Admin@123
+-- อัปเดต password สำหรับ admin (user@example.local)
+-- Password: <REDACTED_PASSWORD>
 UPDATE `user` 
 SET `password` = '$2b$10$xmpyehSvBIjLzBnxuxUCFuPCguRyoKLMfFdCxFRrnHQk1CFf.N5J.'
-WHERE user_email = 'jaran.x@gmail.com';
+WHERE user_email = 'user@example.local';
 
 -- อัปเดต password สำหรับ officer
--- Password: Admin@123
+-- Password: <REDACTED_PASSWORD>
 UPDATE `user` 
 SET `password` = '$2b$10$xmpyehSvBIjLzBnxuxUCFuPCguRyoKLMfFdCxFRrnHQk1CFf.N5J.'
-WHERE user_email = 'officer@gmail.com';
+WHERE user_email = 'officer@example.local';
 
 -- สร้าง user ทดสอบ (ถ้ายังไม่มี)
 INSERT IGNORE INTO `user` 
@@ -38,17 +38,17 @@ VALUES
 SELECT 'Passwords updated successfully!' AS result;
 SELECT user_id, username, user_email, user_dispname, userrole_id, user_role_id
 FROM `user` 
-WHERE user_email IN ('lb2rock@gmail.com', 'jaran.x@gmail.com', 'officer@gmail.com', 'user@innomcp.local')
+WHERE user_email IN ('admin@example.local', 'user@example.local', 'officer@example.local', 'user@innomcp.local')
 ORDER BY userrole_id;
 
 -- ========================================
 -- คำแนะนำการ Login
 -- ========================================
 -- Admin Users:
---   lb2rock@gmail.com / Admin@123
---   jaran.x@gmail.com / Admin@123
---   officer@gmail.com / Admin@123
+--   admin@example.local / <REDACTED_PASSWORD>
+--   user@example.local / <REDACTED_PASSWORD>
+--   officer@example.local / <REDACTED_PASSWORD>
 -- 
 -- Regular User:
---   user@innomcp.local / User@123
+--   user@innomcp.local / <REDACTED_PASSWORD>
 -- ========================================

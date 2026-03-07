@@ -1,8 +1,0 @@
-CaseA route: category=general source=snapshot dbOperational=down usedFallback=true
-CaseA chat: status=200 ms=46 text='ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุ'
-docker down: ok=true cmd=docker compose -f C:\Users\USER-NT\DEV\innomcp\mariadb\docker-compose.yml down -v --remove-orphans
-docker up: ok=true cmd=docker compose -f C:\Users\USER-NT\DEV\innomcp\mariadb\docker-compose.yml up -d --force-recreate --remove-orphans
-seed: keyword_training rows inserted=2
-CaseB route: category=general source=db dbOperational=up usedFallback=true
-SUMMARY: router db degrade pass (down->fallback, up->db)
-RESULT: PASS

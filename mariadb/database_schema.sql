@@ -148,9 +148,9 @@ CREATE TABLE `user` (
 LOCK TABLES `user` WRITE;
 /*!40000 ALTER TABLE `user` DISABLE KEYS */;
 INSERT INTO `user` VALUES
-(26,'jlapps','$2b$10$LjoQz/d1dnZmK60AsJvDTO35ygxx2ORLBsF52Tjpm2vRF.FH4S9uO','lb2rock@gmail.com','Administrator',NULL,'1',NULL,NULL,0,NULL),
-(28,'jaran.l','$2b$10$LjoQz/d1dnZmK60AsJvDTO35ygxx2ORLBsF52Tjpm2vRF.FH4S9uO','jaran.x@gmail.com','Jaran Laothong',NULL,'1',NULL,NULL,0,'0876636364'),
-(30,'officer','$2b$10$LjoQz/d1dnZmK60AsJvDTO35ygxx2ORLBsF52Tjpm2vRF.FH4S9uO','officer@gmail.com','ผู้ตรวจสอบ',NULL,'1',NULL,NULL,2,NULL);
+(26,'jlapps','$2b$10$LjoQz/d1dnZmK60AsJvDTO35ygxx2ORLBsF52Tjpm2vRF.FH4S9uO','admin@example.local','Administrator',NULL,'1',NULL,NULL,0,NULL),
+(28,'jaran.l','$2b$10$LjoQz/d1dnZmK60AsJvDTO35ygxx2ORLBsF52Tjpm2vRF.FH4S9uO','user@example.local','Jaran Laothong',NULL,'1',NULL,NULL,0,'0876636364'),
+(30,'officer','$2b$10$LjoQz/d1dnZmK60AsJvDTO35ygxx2ORLBsF52Tjpm2vRF.FH4S9uO','officer@example.local','ผู้ตรวจสอบ',NULL,'1',NULL,NULL,2,NULL);
 /*!40000 ALTER TABLE `user` ENABLE KEYS */;
 UNLOCK TABLES;
 

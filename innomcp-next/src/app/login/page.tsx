@@ -91,9 +91,9 @@ export default function LoginPage() {
                 🔑 Test Credentials
               </p>
               <div className="space-y-1 text-xs text-blue-700 dark:text-blue-400 font-mono">
-                <p><strong>Admin:</strong> lb2rock@gmail.com / Admin@123</p>
-                <p><strong>Admin:</strong> jaran.x@gmail.com / Admin@123</p>
-                <p><strong>Officer:</strong> officer@gmail.com / Admin@123</p>
+                <p><strong>Admin:</strong> admin@example.local / &lt;REDACTED_PASSWORD&gt;</p>
+                <p><strong>User:</strong> user@example.local / &lt;REDACTED_PASSWORD&gt;</p>
+                <p><strong>Officer:</strong> officer@example.local / &lt;REDACTED_PASSWORD&gt;</p>
               </div>
             </div>
 

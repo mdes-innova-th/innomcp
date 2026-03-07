@@ -1,0 +1,11 @@
+Starting Phase 10.2 Chat IQ Gate Verifier (20260305-101531)
+Server listening on port 65081
+====================================
+✅ [1. intent=weather: happy path] OK (54ms)
+✅ [2. intent=evidence: happy path] OK (10023ms)
+✅ [3. intent=web-record: happy path] OK (10ms)
+✅ [4. intent=unknown: Low Confidence Chat IQ Gate Fallback] OK (1463ms)
+====================================
+RESULT: FAIL (4 passed, 2 failed) in 11551ms
+ - weather pipeline should be ok
+ - weather result missing expected province

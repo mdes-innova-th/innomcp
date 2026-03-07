@@ -1,0 +1,4 @@
+verify_phase1_geo_roundB start host=127.0.0.1 port=3011
+runtime error: connect ECONNREFUSED 127.0.0.1:3011
+FAIL Verifier runtime: connect ECONNREFUSED 127.0.0.1:3011
+RESULT: FAIL (1)
