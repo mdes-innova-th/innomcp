@@ -100,3 +100,13 @@ package-lock.json
 
 # Historical patch packs (may contain legacy literals)
 patches_phase9/
+
+# Autonomous/runtime artifacts (do not version)
+.ai/shared/
+events/target_events.jsonl
+events/workspace_events.jsonl
+states/
+playwright-report/
+
+# Evidence logs are generated per run; keep reports in docs/reports instead
+innomcp-node/evidence/*.log
