@@ -32,6 +32,8 @@ import { retrieveRecordsPayload } from "../../utils/chat/recordsRetrieval";
 
 dotenv.config();
 
+const LOW_CONFIDENCE_FALLBACK_TEXT = "ขอข้อมูลเพิ่มอีกนิดเพื่อให้ตอบได้แม่นยำขึ้น เช่น ระบุจังหวัดหรือหัวข้อที่ต้องการ";
+
 // ========================================
 // MULTI-AI CONFIGURATION
 // ========================================
@@ -206,7 +208,13 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
     const d = firstOk.data || {};
     const label = d.dateLabel || "พรุ่งนี้";
     const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
-    return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN} (ถ้าต้องการตาราง บอกได้ครับ)`, structuredContent };
+    const topRows = Array.isArray(d.rows) ? d.rows : [];
+    const topSummary = topRows
+      .slice(0, 5)
+      .map((r: any) => `${String(r?.province || "-")} (${Number(r?.percentRain ?? 0)}%)`)
+      .join(", ");
+    const suffix = topSummary ? `: ${topSummary}` : "";
+    return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${suffix} (ถ้าต้องการตาราง บอกได้ครับ)`, structuredContent };
   }
 
   // Phase W1: strict deterministic contract renderer
@@ -324,6 +332,15 @@ function looksLikeEvidenceKeywordQuery(text: string): boolean {
 
 function looksLikeGeoLikeQuery(text: string): boolean {
   return /(เขต|แขวง|อำเภอ|ตำบล|รหัสไปรษณีย์|postcode|อยู่ที่ไหน|อยู่ตรงไหน|แถวไหน|พิกัด|lat\b|lon\b|ละติจูด|ลองจิจูด)/i.test(String(text || ""));
+}
+
+function prefersThaiKnowledgeRoute(text: string): boolean {
+  const t = String(text || "");
+  if (/(ประเทศไทย|thai|thailand|ประวัติศาสตร์|กฎหมาย|ศาสนา|วัฒนธรรม|ภูมิศาสตร์)/i.test(t)) return true;
+
+  const hasGeoEntity = /(จังหวัด|อำเภอ|ตำบล|ภาค)/i.test(t);
+  const hasKnowledgeIntent = /(อยู่ภาค|ภาคอะไร|มีกี่|ข้อมูล|ความรู้|รายละเอียด|สำคัญ|คืออะไร|คืออะไรบ้าง)/i.test(t);
+  return hasGeoEntity && hasKnowledgeIntent;
 }
 
 function looksLikeDateTimeLikeQuery(text: string): boolean {
@@ -1639,7 +1656,7 @@ wss.on("connection", (ws, req) => {
         // Phase 1 GEO Round B: Deterministic GEO Gate (NO LLM tool planning)
         // Minimal Happy Path: address_normalize / geo_lookup / geo_validate
         // =====================================
-        if (mcpClient && geoLike) {
+        if (mcpClient && geoLike && !prefersThaiKnowledgeRoute(messageWithFile)) {
           const geoToolName = "local-tools:thai_geo_tool";
           const action = inferGeoAction(messageWithFile);
           const toolArgs: any =
@@ -1811,7 +1828,7 @@ wss.on("connection", (ws, req) => {
         }
 
         if (godTierFallbackUsed || godTierConfidence < 0.6) {
-          const lowConfidenceText = "ห้ามเดาโว้ย";
+          const lowConfidenceText = LOW_CONFIDENCE_FALLBACK_TEXT;
           const aiMessage: any = { sender: "ai", text: lowConfidenceText, toolsUsed: [] };
           sessionHistory.push({ sender: "user", text: messageWithFile });
           sessionHistory.push(aiMessage);
@@ -2057,9 +2074,15 @@ wss.on("connection", (ws, req) => {
                 const d = firstOk.data || {};
                 const label = d.dateLabel || "พรุ่งนี้";
                 const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
+                const topRows = Array.isArray(d.rows) ? d.rows : [];
+                const topSummary = topRows
+                  .slice(0, 5)
+                  .map((r: any) => `${String(r?.province || "-")} (${Number(r?.percentRain ?? 0)}%)`)
+                  .join(", ");
                 const note = d.note ? `\n\nหมายเหตุ: ${d.note}` : "";
                 const table = d.tableMarkdown ? `\n\n${d.tableMarkdown}` : "";
-                finalText = `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${table}${note}`;
+                const suffix = topSummary ? `: ${topSummary}` : "";
+                finalText = `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${suffix}${table}${note}`;
               } else if (firstOk.type === "forecast7d") {
                 const province = firstOk.province || "";
                 const f = firstOk.data?.forecast;
@@ -2746,7 +2769,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Phase 1 GEO Round B: Deterministic GEO Gate (NO LLM tool planning)
     // Minimal Happy Path: address_normalize / geo_lookup / geo_validate
     // =====================================
-    if (mcpClient && geoLike) {
+    if (mcpClient && geoLike && !prefersThaiKnowledgeRoute(messageWithFile)) {
       const geoToolName = "local-tools:thai_geo_tool";
       const action = inferGeoAction(messageWithFile);
       const toolArgs: any =
@@ -2810,6 +2833,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     // Phase 10.2: God-Tier Router Gate (POST Parity)
     // =====================================
+    let semanticCategory: string | undefined = undefined;
     let godTierConfidence = 1;
     let godTierFallbackUsed = false;
     try {
@@ -2820,6 +2844,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         timestamp: new Date()
       }));
       const routingResult = await godTierRouter.route(messageWithFile, conversationHistory);
+      semanticCategory = String((routingResult as any)?.category || "").trim() || undefined;
       godTierConfidence = Number((routingResult as any)?.confidence ?? 0);
       godTierFallbackUsed = Boolean((routingResult as any)?.usedFallback || (routingResult as any)?.fallbackUsed);
     } catch (err) {
@@ -2827,7 +2852,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     }
 
     if (godTierFallbackUsed || godTierConfidence < 0.6) {
-      const lowConfidenceText = "ห้ามเดาโว้ย";
+      const lowConfidenceText = LOW_CONFIDENCE_FALLBACK_TEXT;
       sessionHistory.push({ sender: "ai", text: lowConfidenceText } as any);
       
       chatTraceOut({
@@ -2926,7 +2951,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       try {
         const mcpResult = await mcpClient.processMessage(
           messageWithFile,
-          undefined,
+          semanticCategory,
           officerMode
             ? { uiMode: "officer", boostedTools: ["evidenceTool", "detect_evidence_stats", "webdTool"] }
             : { uiMode }

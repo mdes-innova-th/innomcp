@@ -35,6 +35,7 @@ import { buildWeatherPayloadContract } from "../weather/weatherPayloadContract";
 import { EVIDENCE_TOOL_DEF, handleEvidenceTool, EVIDENCE_TOOL_NAME } from "./tools/evidenceTool";
 import { THAI_GEO_TOOL_DEF, handleThaiGeoTool } from "./tools/thai_geo_tool";
 import { SYSTEM_STATUS_TOOL_DEF, handleSystemStatusTool } from "./tools/system_status_tool";
+import { THAI_KNOWLEDGE_LOCAL_TOOL_DEF, handleThaiKnowledgeTool } from "./tools/thai_knowledge_tool";
 
 // ========================================
 // SYSTEM PROMPT (Enhanced 2026)
@@ -380,6 +381,7 @@ class IntelligentMCPClient extends EventEmitter {
     this.registerLocalTool(EVIDENCE_TOOL_DEF, handleEvidenceTool);
     this.registerLocalTool(THAI_GEO_TOOL_DEF, handleThaiGeoTool);
     this.registerLocalTool(SYSTEM_STATUS_TOOL_DEF, handleSystemStatusTool);
+    this.registerLocalTool(THAI_KNOWLEDGE_LOCAL_TOOL_DEF, handleThaiKnowledgeTool);
   }
 
 
@@ -1930,6 +1932,11 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
       selectedTools = ["innomcp-server:govdata"];
       logger.info(`[Process] ✅ Fast path matched: govdata`);
     }
+    // Thai Knowledge patterns (Phase 10.5)
+    else if (selectedTools.length === 0 && (semanticHint === 'thai_knowledge' || /(?:จังหวัด|อำเภอ|ตำบล|ประเทศไทย|ประวัติศาสตร์|กฎหมาย|ศาสนา|วัฒนธรรม|ความรู้|ภูมิศาสตร์)/.test(msg))) {
+      selectedTools = ["local-tools:thaiKnowledgeTool"];
+      logger.info(`[Process] ✅ Fast path matched: thaiKnowledgeTool`);
+    }
     // Weather patterns - ⚠️ DISABLED: Use AI selection with Priority Boost instead
     // Reason: Fast path bypasses NWP/TMD priority boost system (TODO #1-22)
     // All weather queries now go through selectTools() → priority boost → NWP/TMD
@@ -2317,6 +2324,14 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
         delete callArgs.signal;
         delete callArgs.requestId;
         delete callArgs.requestInfo;
+
+        // Deterministic fallback for local Thai Knowledge route when fast arg generation fails.
+        if (actualToolName === "thaiKnowledgeTool") {
+          const q = String(callArgs.query || "").trim();
+          if (!q) {
+            callArgs.query = String(userMessage || "").trim();
+          }
+        }
 
         if (actualToolName && (actualToolName === "evidenceTool" || actualToolName.includes("webdTool"))) {
           console.log(`[OfficerMode] resolvedClient=${clientName} tool=${actualToolName}`);

@@ -1,0 +1,4 @@
+CASE_GEO: status=200 mcpUsed=true text='ผลลัพธ์จากเครื่องมือ local-tools:thaiKnowledgeTool: ```json { "success": false, "error_code": "NOT_FOUND", "message": "ไ'
+CASE_LOW_CONF: status=200 mcpUsed=false text='ขอข้อมูลเพิ่มอีกนิดเพื่อให้ตอบได้แม่นยำขึ้น เช่น ระบุจังหวัดหรือหัวข้อที่ต้องการ'
+SUMMARY: phase10.5 thai knowledge routing PASS
+RESULT: PASS
