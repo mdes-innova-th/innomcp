@@ -170,6 +170,24 @@ export default function ChatMessage({
           </div>
         )}
 
+        {/* Weather unavailable notice: shown when weather was attempted but no real data */}
+        {structuredContent?.weatherPayload && !hasProvinceMissingError &&
+          (mapTiles.length === 0 || !hasRealWeatherData(structuredContent?.weatherPayload)) && (() => {
+          const tax = structuredContent.weatherPayload?.errTaxonomy;
+          const errTotal = tax ? (tax.timeout || 0) + (tax.noData || 0) + (tax.upstream || 0) : 0;
+          const sources = Array.isArray(structuredContent.weatherPayload?.sourcesUsed)
+            ? structuredContent.weatherPayload.sourcesUsed : [];
+          if (errTotal === 0 && sources.length === 0) return null; // not a weather query
+          const reason = sources.length === 0
+            ? "ขณะนี้ไม่สามารถดึงข้อมูลอากาศจาก TMD/NWP ได้ (อาจเกิดจาก credentials หรือ mode=offline)"
+            : "ข้อมูลอากาศที่ได้รับยังไม่ครบถ้วนสำหรับการแสดงแผนที่";
+          return (
+            <div className="mb-3 rounded-lg border border-yellow-400/30 bg-yellow-50/30 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-400/20 dark:bg-yellow-900/10 dark:text-yellow-300">
+              ⚠️ {reason}
+            </div>
+          );
+        })()}
+
         {/* Weather map tiles (Phase 10.1B minimal contract renderer) */}
         {!hasProvinceMissingError && mapTiles.length > 0 && hasRealWeatherData(structuredContent?.weatherPayload) && (
           <div data-testid="weather-map-tiles" className="mb-4 rounded-lg border border-green-500/20 bg-green-50/30 p-3 dark:border-green-400/20 dark:bg-green-900/10">

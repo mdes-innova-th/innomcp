@@ -39,13 +39,17 @@ function getNwpApiKey(): string {
     console.warn("WARN: NWP_API_LIVE_MODE_DEMO_KEY: Using demo keys in online mode. Expect rate limits.");
   }
 
-  // Scope check: warn if JWT is missing required scopes (will result in 401)
+  // Scope check: hard-block if JWT has NO scopes (guaranteed 401); warn if partially missing
   const scopeCheck = checkNwpScopes();
   if (!scopeCheck.ok) {
     if (scopeCheck.present.length === 0) {
-      console.warn(`WARN: NWP_JWT_EMPTY_SCOPES: JWT has no scopes (scopes=[]). All NWP endpoints will return 401. Missing: [${scopeCheck.missing.join(", ")}]. Request a new token at https://data.tmd.go.th/nwpapi/`);
+      throw new Error(
+        `NWP_JWT_EMPTY_SCOPES: JWT has no scopes (scopes=[]). All NWP daily endpoints will return 401. ` +
+        `Required: [${scopeCheck.missing.join(", ")}]. ` +
+        `Request a new token with full scopes at https://data.tmd.go.th/nwpapi/`
+      );
     } else {
-      console.warn(`WARN: NWP_JWT_MISSING_SCOPES: Missing scopes [${scopeCheck.missing.join(", ")}] — some NWP endpoints may return 401.`);
+      console.warn(`WARN: NWP_JWT_MISSING_SCOPES: Missing scopes [${scopeCheck.missing.join(", ")}] — some NWP daily endpoints may return 401.`);
     }
   }
 
