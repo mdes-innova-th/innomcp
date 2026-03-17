@@ -41,6 +41,27 @@ export default function ChatMessage({
     return area.length > 0 && area !== "ไม่ระบุพื้นที่";
   });
 
+  // Returns true only when the weather payload contains actual retrieved data,
+  // not just a generated placeholder. Guards against showing the map section
+  // when all upstream tools returned errors (TMD_AUTH_FAIL, NWP_UNAVAILABLE, etc.).
+  const hasRealWeatherData = (payload: any): boolean => {
+    if (!payload || typeof payload !== "object") return false;
+    // Top-level sourcesUsed: any entry means at least one tool returned real data
+    const topSources = Array.isArray(payload.sourcesUsed) ? payload.sourcesUsed : [];
+    if (topSources.length > 0) return true;
+    const areas = Array.isArray(payload.areas) ? payload.areas : [];
+    // Area-level sourcesUsed
+    if (areas.some((a: any) => Array.isArray(a?.sourcesUsed) && a.sourcesUsed.length > 0)) return true;
+    // Area has a numeric rainChancePct — only set when real forecast data exists
+    if (areas.some((a: any) => typeof a?.rainChancePct === "number")) return true;
+    // Area has a non-placeholder temperature string
+    if (areas.some((a: any) => {
+      const t = String(a?.temperature || "").trim();
+      return t.length > 0 && !t.startsWith("ยังไม่") && t !== "ยังไม่มีข้อมูล";
+    })) return true;
+    return false;
+  };
+
   const handleCopyChartCode = async () => {
     try {
       if (structuredContent?.chartSvg) {
@@ -120,7 +141,7 @@ export default function ChatMessage({
         )}
 
         {/* Weather map tiles (Phase 10.1B minimal contract renderer) */}
-        {!hasProvinceMissingError && mapTiles.length > 0 && (
+        {!hasProvinceMissingError && mapTiles.length > 0 && hasRealWeatherData(structuredContent?.weatherPayload) && (
           <div data-testid="weather-map-tiles" className="mb-4 rounded-lg border border-green-500/20 bg-green-50/30 p-3 dark:border-green-400/20 dark:bg-green-900/10">
             <div className="mb-2 text-sm font-semibold text-green-800 dark:text-green-200">แผนที่สภาพอากาศ</div>
             <div className="space-y-3">
@@ -511,6 +532,14 @@ export function MessageView({
     }
   };
 
+  const chatMeta = (message as any)?.structuredContent?.chatMeta;
+  const modeBadge = chatMeta?.mode === "online" ? "online" : "offline";
+  const metaTools = Array.isArray(chatMeta?.toolsUsed) ? chatMeta.toolsUsed : [];
+  const metaConfidence = Number(chatMeta?.confidence);
+  const confidenceLabel = Number.isFinite(metaConfidence) ? metaConfidence.toFixed(2) : "-";
+  const reasonCode = String(chatMeta?.reason_code || "");
+  const guidance = Array.isArray(chatMeta?.userGuidance) ? chatMeta.userGuidance.slice(0, 2) : [];
+
   return (
     <div
       className={`relative group p-3 rounded-lg ${
@@ -837,6 +866,25 @@ export function MessageView({
             </div>
           )}
           
+          {message.sender === "ai" && (
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+              <span className="inline-flex items-center rounded px-2 py-0.5 font-semibold bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                MODE {modeBadge}
+              </span>
+              <span className="text-gray-500 dark:text-gray-400">Used tools: {metaTools.length > 0 ? metaTools.map((t: any) => String(t?.name || "")).filter(Boolean).join(", ") : "none"}</span>
+              <span className="text-gray-500 dark:text-gray-400">Confidence: {confidenceLabel}</span>
+              {reasonCode ? <span className="text-gray-400">{reasonCode}</span> : null}
+            </div>
+          )}
+
+          {message.sender === "ai" && guidance.length > 0 && (
+            <div className="mb-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
+              {guidance.map((g: string, idx: number) => (
+                <div key={idx}>- {g}</div>
+              ))}
+            </div>
+          )}
+
           {/* Message content */}
           <div className="whitespace-pre-wrap wrap-break-word">
             {/* Progress indicator - แสดงขณะรอ AI พร้อมกรอบและ font เล็ก */}
