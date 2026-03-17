@@ -4,6 +4,21 @@
 
 ## OPEN
 
+### [P-20260317-155] Weather map still shows when only placeholder/fallback data present (FIXED in 10.9+)
+
+- ID: P-20260317-155 | Status: FIXED (2026-03-17 Phase 10.9+)
+- เวลา: 2026-03-17
+- Symptom:
+  - แผนที่อากาศแสดง placeholder tile "ไม่ระบุพื้นที่" เมื่อ upstream tools ทั้งหมด error
+  - `hasRealWeatherData()` เดิมตรวจแค่ `sourcesUsed` และ `rainChancePct` ไม่ครอบคลุมกรณี errTaxonomy
+- Root Cause:
+  - `buildWeatherPayloadContract()` สร้าง fallback area "ไม่ระบุพื้นที่" พร้อม `sourcesUsed:[]` เสมอเมื่อทุก tool error
+  - `mapTiles` filter ไม่ได้ตัด bare `/weather-tiles/default.svg` (ไม่มี `?area=`)
+- Fix (ChatMessage.tsx):
+  - `mapTiles` filter: ตัด area ว่าง / "ไม่ระบุพื้นที่" / "ประเทศไทย" + ตัด bare default.svg URL
+  - `hasRealWeatherData()`: เพิ่ม PLACEHOLDER_STRINGS, isPlaceholder(), errTaxonomy fast-fail, wind check
+- Verified: verifiers phase101a/101b pass × 2 rounds (fixture mode)
+
 ### [P-20260317-154] Online mode blocked: TMD demo credentials + NWP JWT no-scopes
 
 - ID: P-20260317-154 | Status: OPEN (credential dependency)

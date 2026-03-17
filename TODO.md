@@ -1,4 +1,28 @@
-﻿********* PHASE10.9 TMD Key Tier Split & NWP Scope Hardening (2026-03-17) *********
+﻿********* PHASE10.9+ Weather Map Guard & Fixture Expansion (2026-03-17) *********
+01) Scope: เสริม hasRealWeatherData() + mapTiles filter + ขยาย fixture coverage
+02) ChatMessage.tsx — mapTiles filter อัปเกรด:
+    - ตัด area ว่าง / "ไม่ระบุพื้นที่" / "ประเทศไทย" ออก
+    - ตัด bare /weather-tiles/default.svg (ไม่มี ?area=) ออก
+03) ChatMessage.tsx — hasRealWeatherData() เสริม:
+    - เพิ่ม PLACEHOLDER_STRINGS set: "—", "-", "N/A", "null", "undefined", ""
+    - เพิ่ม isPlaceholder() helper
+    - fast-fail: errTaxonomy.total > 0 && sourcesUsed.length === 0 → false
+    - เพิ่ม wind check: realAreas.some(a => !isPlaceholder(a?.wind))
+    - กรอง realAreas ตัด "ไม่ระบุพื้นที่" ออกก่อน check
+04) w1.ts fixture — ขยาย province coverage จาก 3 → 7 จังหวัด:
+    - เพิ่ม forecast: เชียงใหม่, ขอนแก่น, ชลบุรี, สงขลา
+    - เพิ่ม station: สนามบินเชียงใหม่, เมืองขอนแก่น, พัทยา, หาดใหญ่
+05) Offline verifiers (WEATHER_FIXTURE_W1=1 SMOKE_MODE=1) × 2 rounds:
+    - verify_phase101a_weather_contract.ts => PASS × 2
+    - verify_phase101b_weather_map.ts => PASS × 2
+    - verify_phase105_thai_knowledge_routing.ts => PASS
+    - verify_phase107_tool_transparency.ts => PASS
+    - เชียงใหม่ query resolves correctly ใน round 1+2 (new fixture data)
+06) Verifier observation: ForecastEngine provinceCount=7 (fixture ครบ 7 จังหวัด)
+07) StationEngine stationCount=9 (ครบ 9 สถานี: 3 BKK + CR + PKT + CNX + KKN + CBI + SGK)
+********* END PHASE10.9+ *********
+
+********* PHASE10.9 TMD Key Tier Split & NWP Scope Hardening (2026-03-17) *********
 01) Scope: แยก TMD credentials เป็น 2 tier (api/demo) + ปรับ error message + อัปเดต docs.
 02) Code: innomcp-server-node/src/mcp/tools/tmdTools.ts
     - เพิ่ม TmdKeyTier = "api" | "demo"

@@ -36,29 +36,59 @@ export default function ChatMessage({
   const hasProvinceMissingError = Array.isArray(structuredContent?.weatherPipeline)
     ? structuredContent.weatherPipeline.some((item: any) => String(item?.error || "") === "PROVINCE_MISSING")
     : false;
+  // Filter tiles: exclude fallback/no-area tiles and bare default.svg URLs without area context
   const mapTiles = rawMapTiles.filter((tile: any) => {
     const area = String(tile?.area || "").trim();
-    return area.length > 0 && area !== "ไม่ระบุพื้นที่";
+    const url = String(tile?.url || "").trim();
+    if (!area || area === "ไม่ระบุพื้นที่" || area === "ประเทศไทย") return false;
+    // Exclude bare /weather-tiles/default.svg with no area query parameter
+    if (url === "/weather-tiles/default.svg") return false;
+    return true;
   });
+
+  // Placeholder strings emitted by backend when a field has no real data
+  const PLACEHOLDER_STRINGS = new Set([
+    "ยังไม่มีข้อมูล", "ยังไม่มี", "—", "-", "N/A", "n/a", "null", "undefined", "",
+  ]);
+  const isPlaceholder = (v: any): boolean => {
+    const s = String(v ?? "").trim();
+    return PLACEHOLDER_STRINGS.has(s) || s.startsWith("ยังไม่");
+  };
 
   // Returns true only when the weather payload contains actual retrieved data,
   // not just a generated placeholder. Guards against showing the map section
   // when all upstream tools returned errors (TMD_AUTH_FAIL, NWP_UNAVAILABLE, etc.).
   const hasRealWeatherData = (payload: any): boolean => {
     if (!payload || typeof payload !== "object") return false;
+
+    // Fast-fail: if ALL errTaxonomy buckets > 0 and no sources used, no real data
+    const tax = payload.errTaxonomy;
+    if (tax && typeof tax === "object") {
+      const errTotal = (tax.timeout || 0) + (tax.noData || 0) + (tax.upstream || 0);
+      const topSrc = Array.isArray(payload.sourcesUsed) ? payload.sourcesUsed.length : 0;
+      if (errTotal > 0 && topSrc === 0) return false;
+    }
+
     // Top-level sourcesUsed: any entry means at least one tool returned real data
     const topSources = Array.isArray(payload.sourcesUsed) ? payload.sourcesUsed : [];
     if (topSources.length > 0) return true;
+
     const areas = Array.isArray(payload.areas) ? payload.areas : [];
+    // Exclude fallback-only areas ("ไม่ระบุพื้นที่" / "ประเทศไทย" without sources)
+    const realAreas = areas.filter((a: any) => {
+      const name = String(a?.area || "").trim();
+      return name && name !== "ไม่ระบุพื้นที่";
+    });
+
     // Area-level sourcesUsed
-    if (areas.some((a: any) => Array.isArray(a?.sourcesUsed) && a.sourcesUsed.length > 0)) return true;
+    if (realAreas.some((a: any) => Array.isArray(a?.sourcesUsed) && a.sourcesUsed.length > 0)) return true;
     // Area has a numeric rainChancePct — only set when real forecast data exists
-    if (areas.some((a: any) => typeof a?.rainChancePct === "number")) return true;
-    // Area has a non-placeholder temperature string
-    if (areas.some((a: any) => {
-      const t = String(a?.temperature || "").trim();
-      return t.length > 0 && !t.startsWith("ยังไม่") && t !== "ยังไม่มีข้อมูล";
-    })) return true;
+    if (realAreas.some((a: any) => typeof a?.rainChancePct === "number")) return true;
+    // Area has a real temperature value (not a placeholder)
+    if (realAreas.some((a: any) => !isPlaceholder(a?.temperature))) return true;
+    // Area has a real wind value (not a placeholder)
+    if (realAreas.some((a: any) => !isPlaceholder(a?.wind))) return true;
+
     return false;
   };
 
