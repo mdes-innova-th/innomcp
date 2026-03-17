@@ -890,26 +890,25 @@ const ChatPage: React.FC = () => {
               {isWaitingForResponse &&
                 (!messages.length ||
                   messages[messages.length - 1].sender !== "ai" ||
-                  !messages[messages.length - 1].isAnimating) && (
-                  <div
-                    className={`relative p-2 max-w-full self-start pr-5 mb-5 text-left`}
-                  >
-                    <span className="inline-flex items-center gap-1">
-                      <span
-                        className="w-2 h-2 rounded-full bg-secondary dark:bg-secondary/80 animate-bounce"
-                        style={{ animationDelay: "0s" }}
-                      />
-                      <span
-                        className="w-2 h-2 rounded-full bg-secondary dark:bg-secondary/80 animate-bounce"
-                        style={{ animationDelay: "0.08s" }}
-                      />
-                      <span
-                        className="w-2 h-2 rounded-full bg-secondary dark:bg-secondary/80 animate-bounce"
-                        style={{ animationDelay: "0.16s" }}
-                      />
-                    </span>
-                  </div>
-                )}
+                  !messages[messages.length - 1].isAnimating) && (() => {
+                  const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+                  const stage = lastMsg && (lastMsg as any).isProgress ? (lastMsg as any).progressStage as string : undefined;
+                  // Blue = tool/thinking phase, Amber = LLM processing phase, secondary = default
+                  const dotColor = stage === "processing"
+                    ? "bg-amber-400 dark:bg-amber-400/80"
+                    : stage === "thinking"
+                    ? "bg-blue-400 dark:bg-blue-400/80"
+                    : "bg-secondary dark:bg-secondary/80";
+                  return (
+                    <div className="relative p-2 max-w-full self-start pr-5 mb-5 text-left">
+                      <span className="inline-flex items-center gap-1">
+                        <span className={`w-2 h-2 rounded-full ${dotColor} animate-bounce`} style={{ animationDelay: "0s" }} />
+                        <span className={`w-2 h-2 rounded-full ${dotColor} animate-bounce`} style={{ animationDelay: "0.08s" }} />
+                        <span className={`w-2 h-2 rounded-full ${dotColor} animate-bounce`} style={{ animationDelay: "0.16s" }} />
+                      </span>
+                    </div>
+                  );
+                })()}
             </div>
           </div>
 

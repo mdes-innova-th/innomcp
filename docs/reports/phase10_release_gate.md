@@ -1,6 +1,6 @@
 # Phase 10 Release Gate
 
-Updated: 2026-03-18T00:00:00+07:00
+Updated: 2026-03-18T02:00:00+07:00
 
 ## Evidence Summary
 
@@ -38,6 +38,29 @@ Updated: 2026-03-18T00:00:00+07:00
 | TMD API auth fail | `TMD_UID_API=api` / `TMD_UKEY_API=api12345` (placeholder) | สมัคร registered credentials ที่ https://data.tmd.go.th/ → ตั้ง `TMD_UID_API` + `TMD_UKEY_API` |
 | NWP 401 Unauthorized | `NWP_API_KEY` JWT มี `scopes:[]` | ขอ token ใหม่จาก https://data.tmd.go.th/nwpapi/ พร้อม 4 scopes |
 | TMD demo 5 endpoints | `TMD_UID_DEMO=demo` / `TMD_UKEY_DEMO=demokey` | ทดสอบด้วย demo/demo (public; อาจใช้ได้โดยไม่ต้องสมัคร) |
+
+## Phase 10.11 UI Improvements (2026-03-18)
+
+- [x] **ChatInput.tsx:** Placeholder updated → "พิมพ์ถามสภาพอากาศ หรือข้อมูลอื่น ๆ..."
+- [x] **ChatPage.tsx:** Typing balloon dots are stage-aware (blue=thinking/tool phase, amber=processing/LLM phase)
+- [x] **ChatMessage.tsx:** Weather unavailable notice improved with errTaxonomy-specific messages
+  - `upstream > 0` → credentials / API key error
+  - `timeout > 0` → connection timeout
+  - `noData > 0` → station/area no data
+  - default → offline/credentials
+- [x] **ModeStatusBar:** New component wired into layout — shows `INNOMCP_MODE` + readiness status
+- [x] **`/api/health` (Next.js):** Proxies to `innomcp-node /api/health/keys` → returns `mode`, `mode_ready`, `missing_keys`
+- [x] **Playwright E2E:** `innomcp-next/e2e/chat.spec.ts` — 5 scenarios (weather, fallback notice, Phuket, Thai knowledge, mode bar)
+- [x] **Phase 10.7 Verifier:** PASS × 3 rounds post-UI changes
+
+### E2E Test Commands
+
+```bash
+# Requires: all 3 services running
+cd innomcp-next
+npm run e2e         # headless
+npm run e2e:ui      # interactive
+```
 
 ## Phase 10.10 Online Test (pending credentials)
 

@@ -178,9 +178,18 @@ export default function ChatMessage({
           const sources = Array.isArray(structuredContent.weatherPayload?.sourcesUsed)
             ? structuredContent.weatherPayload.sourcesUsed : [];
           if (errTotal === 0 && sources.length === 0) return null; // not a weather query
-          const reason = sources.length === 0
-            ? "ขณะนี้ไม่สามารถดึงข้อมูลอากาศจาก TMD/NWP ได้ (อาจเกิดจาก credentials หรือ mode=offline)"
-            : "ข้อมูลอากาศที่ได้รับยังไม่ครบถ้วนสำหรับการแสดงแผนที่";
+          let reason: string;
+          if (sources.length > 0) {
+            reason = "ข้อมูลอากาศที่ได้รับยังไม่ครบถ้วนสำหรับการแสดงแผนที่";
+          } else if (tax?.upstream > 0) {
+            reason = "ข้อมูลอากาศจริงไม่พร้อมใช้งาน — TMD/NWP ตอบกลับผิดปกติ (อาจเกิดจาก credentials หรือ API key ไม่ถูกต้อง)";
+          } else if (tax?.timeout > 0) {
+            reason = "การเชื่อมต่อ TMD/NWP ใช้เวลานานเกินไป — ลองถามใหม่อีกครั้ง";
+          } else if (tax?.noData > 0) {
+            reason = "ไม่พบข้อมูลอากาศสำหรับพื้นที่ที่ต้องการ (สถานีไม่มีข้อมูล)";
+          } else {
+            reason = "ขณะนี้ไม่สามารถดึงข้อมูลอากาศจาก TMD/NWP ได้ (อาจเกิดจาก credentials หรือ mode=offline)";
+          }
           return (
             <div className="mb-3 rounded-lg border border-yellow-400/30 bg-yellow-50/30 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-400/20 dark:bg-yellow-900/10 dark:text-yellow-300">
               ⚠️ {reason}

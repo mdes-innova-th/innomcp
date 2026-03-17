@@ -1,4 +1,18 @@
-﻿********* PHASE10.10 Online Integration Prep (2026-03-18) *********
+﻿********* PHASE10.11 UI Improvements (2026-03-18) *********
+01) Scope: ปรับปรุง UI Chat — placeholder, loading indicators, error taxonomy, mode status bar, E2E tests
+02) ChatInput.tsx — placeholder → "พิมพ์ถามสภาพอากาศ หรือข้อมูลอื่น ๆ..."
+03) ChatPage.tsx — typing dots เป็น stage-aware (blue=thinking, amber=processing, secondary=default)
+04) ChatMessage.tsx — weather unavailable notice แยก errTaxonomy (upstream/timeout/noData/offline)
+05) ModeStatusBar.tsx — wire เข้า layout.tsx (fixed top-16, proxies /api/health/keys จาก backend)
+06) innomcp-next/api/health/route.ts — proxy ไปยัง innomcp-node /api/health/keys
+07) Playwright E2E — @playwright/test installed, playwright.config.ts + e2e/chat.spec.ts (5 scenarios)
+08) package.json innomcp-next — เพิ่ม scripts "e2e" + "e2e:ui"
+09) Phase 10.7 verifier PASS × 3 rounds post-UI changes
+10) innomcp-next build: zero errors/warnings
+11) docs/reports/phase10_release_gate.md — อัปเดต Phase 10.11 section
+********* END PHASE10.11 *********
+
+********* PHASE10.10 Online Integration Prep (2026-03-18) *********
 01) Scope: เตรียมระบบให้พร้อม online integration — NWP hard-block, weather fallback UI, release gate update
 02) nwpDailyTool.ts + nwpHourlyTool.ts — ปรับ scope check จาก warn → throw NWP_JWT_EMPTY_SCOPES ทันที
     เมื่อ JWT scopes=[] (ป้องกัน API call ที่รู้แน่ว่า 401 ทุกครั้ง)

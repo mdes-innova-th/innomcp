@@ -119,7 +119,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             // Shift+Enter allows new line (default textarea behavior)
           }}
           rows={1}
-          placeholder="มีอะไรให้ช่วยไหม? (Enter เพื่อส่ง, Shift+Enter เพื่อเว้นบรรทัด)"
+          placeholder="พิมพ์ถามสภาพอากาศ หรือข้อมูลอื่น ๆ... (Enter เพื่อส่ง, Shift+Enter เพื่อเว้นบรรทัด)"
           className="w-full resize-none focus:outline-none transition-all max-h-60 overflow-y-auto"
           data-testid="chat-input"
         />

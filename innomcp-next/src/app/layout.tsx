@@ -7,6 +7,7 @@ import "dotenv/config";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "@/app/context/ThemeContext";
 import Header from "@/app/components/Header";
+import ModeStatusBar from "@/app/components/ModeStatusBar";
 import GlobalLoadingOverlay from "@/app/components/common/GlobalLoadingOverlay";
 import FooterWrapper from "@/app/components/FooterWrapper";
 import { config } from "@fortawesome/fontawesome-svg-core";
@@ -89,6 +90,7 @@ export default async function RootLayout({
         <AuthProvider>
           <ThemeProvider>
             <Header />
+            <ModeStatusBar />
             <GlobalLoadingOverlay />
             <main className="flex-1 pt-24 pb-8 relative">
               {children}
