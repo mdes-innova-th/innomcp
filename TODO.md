@@ -1,4 +1,30 @@
-﻿********* PHASE10.9+ Weather Map Guard & Fixture Expansion (2026-03-17) *********
+﻿********* PHASE10.9 ENV/Health/Docs Hardening (2026-03-17) *********
+01) Scope: อัปเดต ENV_SETUP.md, health.ts, .env.example ให้รองรับ TMD tier + NWP scopes
+02) ENV_SETUP.md — rewrote sections 3-10:
+    - section 3: online mode guide ชี้ TMD_UID_API/TMD_UKEY_API/TMD_UID_DEMO/TMD_UKEY_DEMO
+    - section 4: TMD Tier System table (api tier 12 tools vs demo tier 5 tools)
+    - section 5 (NEW): NWP Required Scopes — ระบุชื่อ scope ครบ 4 ตัว:
+        nwp.api.forecast_location / nwp.api.location.forecast_hourly
+        nwp.api.location.forecast_daily / nwp.api.forecast_area
+    - section 5: เพิ่มวิธีตรวจสอบ JWT scopes + วิธีขอ token ใหม่
+    - section 6: env vars table เพิ่ม TMD_UID_API/TMD_UKEY_API/TMD_UID_DEMO/TMD_UKEY_DEMO
+    - section 10: Error taxonomy table
+03) health.ts (GET /api/health/keys) — split TMD check เป็น 2 entries:
+    - tools.tmd_api: ตรวจ TMD_UID_API → TMD_UID (fallback) [required_for_online=true]
+    - tools.tmd_demo: ตรวจ TMD_UID_DEMO → TMD_UID (fallback); default demo/demo [required_for_online=false]
+    - เพิ่ม note เตือน fallback → "migrate to TMD_UID_API/TMD_UKEY_API"
+04) .env.example (NWP section) — เพิ่ม 4 scope names พร้อมคำอธิบาย endpoint mapping
+05) TypeScript compile: PASS (npx tsc --noEmit)
+06) Offline verifiers × 3 rounds (WEATHER_FIXTURE_W1=1 SMOKE_MODE=1):
+    - verify_phase101a_weather_contract.ts => PASS × 3
+    - verify_phase101b_weather_map.ts => PASS × 2
+    - verify_phase105_thai_knowledge_routing.ts => PASS × 3
+    - verify_phase107_tool_transparency.ts => PASS × 2
+07) BLOCKER: NWP_API_KEY scopes=[] — ต้องขอ token ใหม่จาก https://data.tmd.go.th/nwpapi/
+08) BLOCKER: TMD_UID_API ยัง api/api12345 (ทดสอบเท่านั้น) — สมัคร registered credentials จริง
+********* END PHASE10.9 *********
+
+********* PHASE10.9+ Weather Map Guard & Fixture Expansion (2026-03-17) *********
 01) Scope: เสริม hasRealWeatherData() + mapTiles filter + ขยาย fixture coverage
 02) ChatMessage.tsx — mapTiles filter อัปเกรด:
     - ตัด area ว่าง / "ไม่ระบุพื้นที่" / "ประเทศไทย" ออก

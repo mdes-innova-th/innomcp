@@ -19,6 +19,17 @@
   - `hasRealWeatherData()`: เพิ่ม PLACEHOLDER_STRINGS, isPlaceholder(), errTaxonomy fast-fail, wind check
 - Verified: verifiers phase101a/101b pass × 2 rounds (fixture mode)
 
+### [P-20260317-156] GET /api/health/keys ไม่แสดง TMD tier แยก (FIXED in Phase10.9)
+
+- ID: P-20260317-156 | Status: FIXED (2026-03-17)
+- Symptom: `/api/health/keys` แสดงเพียง `tools.tmd` โดยใช้ deprecated `TMD_UID`/`TMD_UKEY`
+  ไม่ได้ตรวจ `TMD_UID_API`/`TMD_UKEY_API` และ `TMD_UID_DEMO`/`TMD_UKEY_DEMO` แยกกัน
+- Fix (health.ts):
+  - เพิ่ม `tools.tmd_api`: ตรวจ `TMD_UID_API` → `TMD_UID` fallback [required_for_online=true]
+  - เพิ่ม `tools.tmd_demo`: ตรวจ `TMD_UID_DEMO` → `TMD_UID` fallback; default demo/demo
+  - เพิ่ม note เตือนเมื่อใช้ legacy fallback
+- Verified: tsc --noEmit PASS; verifiers PASS × 3 rounds
+
 ### [P-20260317-154] Online mode blocked: TMD demo credentials + NWP JWT no-scopes
 
 - ID: P-20260317-154 | Status: OPEN (credential dependency)
