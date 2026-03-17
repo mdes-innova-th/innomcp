@@ -1,4 +1,27 @@
-﻿********* PHASE10.9 ENV/Health/Docs Hardening (2026-03-17) *********
+﻿********* PHASE10.9 Full Endpoint Coverage (2026-03-17) *********
+01) Scope: สร้าง endpoint test script ครอบคลุม 17 TMD + 6 NWP + offline verifier
+02) innomcp-server-node/scripts/test_all_tmd_nwp.ts (NEW):
+    - INNOMCP_MODE guard: offline → SKIP external, only ENV structure check
+    - TMD demo-tier: test 5 endpoints (#1 seismic, #2 climate, #5 rainfall, #6 rain_regions, #7 station)
+    - TMD api-tier: test 12 endpoints (#3 WeatherToday, #4 Weather3Hours, #8 Forecast7Days,
+      #9 DailyForecast, #10 WarningNews, #11 Forecast7DaysByRegion, #12-17 Hydro/Agro/Synop)
+    - NWP 6 endpoints: daily/hourly × location/place/region — JWT scope-aware
+    - JWT scope decode (no HTTP): checks 4 required scopes from JWT payload
+    - Evidence written to innomcp-node/evidence/test_all_tmd_nwp-*.log
+03) innomcp-node/scripts/verify_phase109_tmd_nwp_endpoints.ts (NEW):
+    - 49 static checks (no external API):
+      1) ENV_SETUP.md: 4 NWP scopes + TMD_UID_API/TMD_UID_DEMO documented
+      2) .env.example: NWP scopes + TMD tier vars
+      3) tmdTools.ts: 5 demo tools + 5 api tools have correct keyTier
+      4) health.ts: tmd_api/tmd_demo entries + required_for_online flags
+      5) test_all_tmd_nwp.ts: ≥17 TMD + ≥4 NWP calls + INNOMCP_MODE guard
+      6) Evidence logs: phase101a covers BKK/เชียงใหม่/ภูเก็ต/สงขลา + status=200
+    - PASS × 3 rounds (49/49)
+04) BLOCKER (unchanged): NWP_API_KEY scopes=[] → must request new token
+05) BLOCKER (unchanged): TMD_UID_API still test-only (api/api12345)
+********* END PHASE10.9 Full Endpoint Coverage *********
+
+********* PHASE10.9 ENV/Health/Docs Hardening (2026-03-17) *********
 01) Scope: อัปเดต ENV_SETUP.md, health.ts, .env.example ให้รองรับ TMD tier + NWP scopes
 02) ENV_SETUP.md — rewrote sections 3-10:
     - section 3: online mode guide ชี้ TMD_UID_API/TMD_UKEY_API/TMD_UID_DEMO/TMD_UKEY_DEMO

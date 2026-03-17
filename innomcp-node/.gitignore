@@ -117,4 +117,23 @@ yarn-error.log*
 !/scripts/verify_phase101a_weather_contract.ts
 !/scripts/verify_phase101b_weather_map.ts
 
+# Phase 10.2: Chat IQ gate verifier
+!/scripts/verify_phase102_chat_iq_gate.ts
+
+# Phase 10.3: Records retrieval verifier
+!/scripts/verify_phase103_records_retrieval.ts
+
+# Phase 10.4: Records quality gate verifier
+!/scripts/verify_phase104_records_quality_gate.ts
+
+# Phase 10.5: Thai knowledge routing verifier
+!/scripts/verify_phase105_thai_knowledge_routing.ts
+
+# Phase 10.7: Tool transparency verifiers
+!/scripts/verify_phase107_tool_transparency.ts
+!/scripts/verify_phase107_chat_pro_iq.ts
+
+# Phase 10.9: TMD+NWP full endpoint coverage verifier
+!/scripts/verify_phase109_tmd_nwp_endpoints.ts
+
 
