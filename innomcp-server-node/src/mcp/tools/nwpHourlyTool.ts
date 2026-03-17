@@ -1,5 +1,6 @@
 import { z } from "zod";
 import axios from "axios";
+import { checkNwpScopes } from "../tmdApiConfig";
 
 /**
  * NWP Hourly Forecast Tool
@@ -12,19 +13,40 @@ import axios from "axios";
 const NWP_API_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly";
 const DEFAULT_TIMEOUT = 15000;
 
-function getNwpApiKey(): string {
-  const key = String(process.env.NWP_API_KEY || "").trim();
-  if (!key) {
-    throw new Error("NWP_API_KEY not found in environment variables");
-  }
+function normalizeMode(raw: string | undefined): "offline" | "online" {
+  return String(raw || "offline").trim().toLowerCase() === "online" ? "online" : "offline";
+}
 
-  // Live Mode validation:
+function isNwpExternalAllowed(): boolean {
+  const mode = normalizeMode(process.env.INNOMCP_MODE);
   const isSmoke = process.env.SMOKE_MODE === "1";
   const isFixture = process.env.WEATHER_FIXTURE_W1 === "1" || process.env.CHAT_TRACE_QA === "1";
-  const isLiveMode = !isSmoke && !isFixture;
+  return mode === "online" && !isSmoke && !isFixture;
+}
 
-  if (isLiveMode && (key === "demo" || key === "demokey" || key.includes("api12345"))) {
-    console.warn("WARN: NWP_API_LIVE_MODE_DEMO_KEY: Using demo keys in Live Mode. Expect rate limits.");
+function getNwpApiKey(): string {
+  const mode = normalizeMode(process.env.INNOMCP_MODE);
+  if (!isNwpExternalAllowed()) {
+    throw new Error("NWP_EXTERNAL_BLOCKED_BY_MODE: INNOMCP_MODE=" + mode + " (set online and disable smoke/fixture to call external NWP API)");
+  }
+
+  const key = String(process.env.NWP_API_KEY || "").trim();
+  if (!key) {
+    throw new Error("NWP_API_KEY_MISSING: set NWP_API_KEY before online mode");
+  }
+
+  if (key === "demo" || key === "demokey" || key.includes("api12345")) {
+    console.warn("WARN: NWP_API_LIVE_MODE_DEMO_KEY: Using demo keys in online mode. Expect rate limits.");
+  }
+
+  // Scope check: warn if JWT is missing required scopes (will result in 401)
+  const scopeCheck = checkNwpScopes();
+  if (!scopeCheck.ok) {
+    if (scopeCheck.present.length === 0) {
+      console.warn(`WARN: NWP_JWT_EMPTY_SCOPES: JWT has no scopes (scopes=[]). All NWP endpoints will return 401. Missing: [${scopeCheck.missing.join(", ")}]. Request a new token at https://data.tmd.go.th/nwpapi/`);
+    } else {
+      console.warn(`WARN: NWP_JWT_MISSING_SCOPES: Missing scopes [${scopeCheck.missing.join(", ")}] — some NWP endpoints may return 401.`);
+    }
   }
 
   return key;

@@ -98,6 +98,78 @@ if (envExPath) {
   ok(false, ".env.example found", "missing at innomcp-server-node/.env.example");
 }
 
+// ─── Test 2b: tmdApiConfig.ts exists and is complete ─────────────────────────
+section("Test 2b: tmdApiConfig.ts — Endpoint→Tier Config Module");
+
+const tmdApiConfigPath = findFile([path.join(SERVER_ROOT, "src/mcp/tmdApiConfig.ts")]);
+if (tmdApiConfigPath) {
+  const src = fs.readFileSync(tmdApiConfigPath, "utf8");
+  ok(true, "tmdApiConfig.ts exists at innomcp-server-node/src/mcp/");
+
+  // Check all 17 TMD tool names are present
+  const ALL_17_TMD_TOOLS = [
+    "tmd_seismic_daily_events",
+    "tmd_thailand_climate_normal_1981_2010",
+    "tmd_thailand_monthly_rainfall",
+    "tmd_rain_regions",
+    "tmd_station_list",
+    "tmd_weather_today_07am_all_stations",
+    "tmd_weather_3hours_all_stations",
+    "tmd_weather_forecast_7days_by_province",
+    "tmd_daily_forecast_4_times",
+    "tmd_weather_warning_news",
+    "tmd_weather_forecast_7days_by_region",
+    "tmd_weather_3hours_by_hydro",
+    "tmd_weather_3hours_by_agro",
+    "tmd_weather_3hours_by_synop",
+    "tmd_weather_today_by_hydro",
+    "tmd_weather_today_by_agro",
+    "tmd_weather_today_by_synop",
+  ];
+  let toolCount = 0;
+  for (const tool of ALL_17_TMD_TOOLS) {
+    if (src.includes(tool)) toolCount++;
+  }
+  ok(toolCount === 17, `TMD_ENDPOINT_TIERS has all 17 tools`, `found ${toolCount}/17`);
+
+  // Check demo assignments
+  ok(src.includes(`tmd_seismic_daily_events`), "seismic in config");
+  ok(src.includes(`"demo"`), "demo tier present in config");
+  ok(src.includes(`"api"`), "api tier present in config");
+  ok(src.includes("getTmdCredsForTier"), "getTmdCredsForTier() exported");
+  ok(src.includes("getTmdTierForTool"), "getTmdTierForTool() exported");
+  ok(src.includes("checkNwpScopes"), "checkNwpScopes() exported");
+  ok(src.includes("decodeNwpJwtScopes"), "decodeNwpJwtScopes() exported");
+  ok(src.includes("NWP_REQUIRED_SCOPES"), "NWP_REQUIRED_SCOPES exported");
+  ok(src.includes("nwp.api.forecast_location"), "NWP scope: nwp.api.forecast_location");
+  ok(src.includes("nwp.api.location.forecast_daily"), "NWP scope: nwp.api.location.forecast_daily");
+  ok(src.includes("nwp.api.location.forecast_hourly"), "NWP scope: nwp.api.location.forecast_hourly");
+  ok(src.includes("nwp.api.forecast_area"), "NWP scope: nwp.api.forecast_area");
+} else {
+  ok(false, "tmdApiConfig.ts found", "missing at innomcp-server-node/src/mcp/tmdApiConfig.ts");
+}
+
+// ─── Test 2c: NWP tools import tmdApiConfig ───────────────────────────────────
+section("Test 2c: NWP Tools — tmdApiConfig Integration");
+
+const nwpDailyPath = findFile([path.join(SERVER_ROOT, "src/mcp/tools/nwpDailyTool.ts")]);
+const nwpHourlyPath = findFile([path.join(SERVER_ROOT, "src/mcp/tools/nwpHourlyTool.ts")]);
+if (nwpDailyPath) {
+  const src = fs.readFileSync(nwpDailyPath, "utf8");
+  ok(src.includes("tmdApiConfig"), "nwpDailyTool.ts imports tmdApiConfig");
+  ok(src.includes("checkNwpScopes"), "nwpDailyTool.ts calls checkNwpScopes()");
+  ok(src.includes("NWP_JWT_EMPTY_SCOPES") || src.includes("NWP_JWT_MISSING_SCOPES"), "nwpDailyTool.ts has scope warn log");
+} else {
+  ok(false, "nwpDailyTool.ts found", "missing");
+}
+if (nwpHourlyPath) {
+  const src = fs.readFileSync(nwpHourlyPath, "utf8");
+  ok(src.includes("tmdApiConfig"), "nwpHourlyTool.ts imports tmdApiConfig");
+  ok(src.includes("checkNwpScopes"), "nwpHourlyTool.ts calls checkNwpScopes()");
+} else {
+  ok(false, "nwpHourlyTool.ts found", "missing");
+}
+
 // ─── Test 3: tmdTools.ts tier assignments ────────────────────────────────────
 section("Test 3: tmdTools.ts — Tier Assignments");
 
