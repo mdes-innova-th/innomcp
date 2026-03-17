@@ -1,8 +1,58 @@
 # REPORT_PROBLEM (innova-bot / innomcp)
 
-อัปเดตล่าสุด: 2026-03-17
+อัปเดตล่าสุด: 2026-03-18
 
 ## OPEN
+
+### [P-20260318-158] NWP_API_KEY JWT has empty scopes — all NWP endpoints 401
+
+- ID: P-20260318-158 | Status: OPEN (credential dependency)
+- เวลา: 2026-03-18
+- Symptom:
+  - NWP tools ทุกตัว (nwp_daily_by_location, nwp_daily_by_place, nwp_hourly_by_location, ฯลฯ)
+    ได้รับ error `NWP_JWT_EMPTY_SCOPES` และไม่ยิง API call (Phase 10.10 hard-block)
+  - ก่อนหน้า Phase 10.10 จะได้ 401 Unauthorized จาก TMD NWP API
+- Root Cause:
+  - `NWP_API_KEY` JWT ใน innomcp-server-node/.env มี `"scopes":[]`
+  - Token นี้ถูกออกโดย TMD portal แต่ไม่ได้ขอ scope NWP data access
+- Evidence:
+  - `test_all_tmd_nwp.ts` offline: ⚠️ WARN NWP JWT has scopes — scopes=[]
+  - `checkNwpScopes()` → `{ ok: false, missing: [4 scopes], present: [] }`
+- Required scopes (4 ตัว):
+  - `nwp.api.forecast_location` → nwp_daily_by_place
+  - `nwp.api.location.forecast_daily` → nwp_daily_by_location
+  - `nwp.api.location.forecast_hourly` → nwp_hourly_by_location + nwp_hourly_by_place
+  - `nwp.api.forecast_area` → nwp_daily_by_region + nwp_hourly_by_region
+- Next actions:
+  1. Login ที่ https://data.tmd.go.th/nwpapi/ (ต้องมีบัญชี registered)
+  2. ขอ access token ใหม่ที่มี 4 scopes ข้างต้น
+  3. อัปเดต `NWP_API_KEY=<new_jwt>` ใน innomcp-server-node/.env
+  4. Verify: `node -e "const j=process.env.NWP_API_KEY; const p=j.split('.')[1]; console.log(JSON.parse(Buffer.from(p,'base64').toString()).scopes)"`
+  5. Re-run: `INNOMCP_MODE=online npx tsx innomcp-server-node/scripts/test_all_tmd_nwp.ts`
+- Impact: NWP tools ทุกตัวใช้งานไม่ได้ใน online mode; offline/fixture ปกติ
+- Status: OPEN — รอ credentials จาก TMD portal
+
+### [P-20260318-159] TMD api-tier credentials are placeholders — all v2 endpoints auth fail
+
+- ID: P-20260318-159 | Status: OPEN (credential dependency)
+- เวลา: 2026-03-18
+- Symptom:
+  - TMD api-tier tools ทุกตัว (tmd_weather_forecast_7days_by_province, tmd_weather_3hours_all_stations ฯลฯ)
+    ได้รับ `TMD_API_AUTH_FAIL: Authentication fail` จาก TMD v2 API
+- Root Cause:
+  - `TMD_UID_API=api` / `TMD_UKEY_API=api12345` ใน .env เป็น placeholder test credentials
+  - TMD v2 API ต้องการ registered account credentials จริง
+- Evidence:
+  - `curl ...WeatherForecast7Days/v2?uid=api&ukey=api12345...` → `{"status":{"code":400,...}}`
+  - health.ts: `tools.tmd_api = { status: "ready", ... }` (keys present but not valid)
+- Next actions:
+  1. สมัครบัญชีที่ https://data.tmd.go.th/ (ต้องลงทะเบียนองค์กร/บุคคล)
+  2. รับ UID/UKEY สำหรับ v2 API
+  3. อัปเดต `TMD_UID_API=<real_uid>` และ `TMD_UKEY_API=<real_ukey>` ใน innomcp-server-node/.env
+  4. Re-run: `INNOMCP_MODE=online npx tsx innomcp-server-node/scripts/test_all_tmd_nwp.ts`
+- Note: TMD demo-tier (5 endpoints) ใช้ `TMD_UID_DEMO=demo/TMD_UKEY_DEMO=demo` อาจใช้ได้ (public access)
+- Impact: v2 weather endpoints ทั้ง 12 ใช้งานไม่ได้ใน online mode
+- Status: OPEN — รอ credentials จาก TMD portal
 
 ### [P-20260317-155] Weather map still shows when only placeholder/fallback data present (FIXED in 10.9+)
 

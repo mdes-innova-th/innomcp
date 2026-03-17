@@ -1,4 +1,28 @@
-﻿********* PHASE10.9 Full Endpoint Coverage (2026-03-17) *********
+﻿********* PHASE10.10 Online Integration Prep (2026-03-18) *********
+01) Scope: เตรียมระบบให้พร้อม online integration — NWP hard-block, weather fallback UI, release gate update
+02) nwpDailyTool.ts + nwpHourlyTool.ts — ปรับ scope check จาก warn → throw NWP_JWT_EMPTY_SCOPES ทันที
+    เมื่อ JWT scopes=[] (ป้องกัน API call ที่รู้แน่ว่า 401 ทุกครั้ง)
+03) ChatMessage.tsx — เพิ่ม weather unavailable notice (สีเหลือง warning)
+    แสดงเมื่อ weatherPayload มีข้อมูล (weather query ถูกส่ง) แต่ไม่มีข้อมูลจริง
+    ข้อความ: "ขณะนี้ไม่สามารถดึงข้อมูลอากาศจาก TMD/NWP ได้" หรือ "ข้อมูลยังไม่ครบสำหรับแผนที่"
+04) test_all_tmd_nwp.ts — เพิ่ม dotenv loading, warn() helper, scope check downgrade เป็น WARN offline
+    Result offline: Passed=5, Failed=0, Skipped=23 (expected)
+05) verify_phase107_tool_transparency.ts — realign กับ actual HTTP response (ตัด chatMeta aspirational checks)
+    PASS: status=200, mcpUsed=true, text contains weather data, LOW_CONF mcpUsed=false
+06) innomcp-node/.env.example — อัปเดต TMD tier vars (TMD_UID_API/TMD_UKEY_API/TMD_UID_DEMO/TMD_UKEY_DEMO)
+    + NWP_API_KEY พร้อม scope names + วิธีตรวจสอบ JWT
+07) docs/reports/phase10_release_gate.md — อัปเดตครอบคลุม Phase 10.5–10.9 + open blockers table
+08) Verifiers offline PASS × 3 rounds:
+    - verify_phase101a_weather_contract.ts => PASS
+    - verify_phase105_thai_knowledge_routing.ts => PASS
+    - verify_phase107_tool_transparency.ts => PASS (fixed)
+    - verify_phase109_tmd_nwp_endpoints.ts => PASS (68/68)
+09) BLOCKER (unchanged): TMD_UID_API=api/api12345 (placeholder) → สมัคร https://data.tmd.go.th/
+10) BLOCKER (unchanged): NWP_API_KEY scopes=[] → ขอ token ใหม่ https://data.tmd.go.th/nwpapi/
+11) git push: origin main 8b3c326 → push สำเร็จ (history clean หลัง filter-repo ลบ 195MB src.zip)
+********* END PHASE10.10 *********
+
+********* PHASE10.9 Full Endpoint Coverage (2026-03-17) *********
 01) Scope: สร้าง endpoint test script ครอบคลุม 17 TMD + 6 NWP + offline verifier
 02) innomcp-server-node/scripts/test_all_tmd_nwp.ts (NEW):
     - INNOMCP_MODE guard: offline → SKIP external, only ENV structure check
