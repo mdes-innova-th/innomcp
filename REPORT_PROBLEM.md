@@ -1,27 +1,84 @@
 # REPORT_PROBLEM (innova-bot / innomcp)
 
-อัปเดตล่าสุด: 2026-03-06
+อัปเดตล่าสุด: 2026-03-17
 
 ## OPEN
-### [P-20260308-151] Git worktree noise from autonomous artifacts in `innomcp` blocks clean review/commit flow
 
-- ID: P-20260308-151 | Status: OPEN
-- Owner roles:
-  - Maintainer (วิทย์): define repository artifact policy and report status
-  - Runner/Engineer (คร๊อส): implement ignore rules and validate clean git workflow
+### [P-20260317-154] Online mode blocked: TMD demo credentials + NWP JWT no-scopes
+
+- ID: P-20260317-154 | Status: OPEN (credential dependency)
+- เวลา: 2026-03-17
 - Symptom:
-  - `git status --short` shows many generated files (e.g. `.ai/shared/`, `events/*_events.jsonl`, `innomcp-node/evidence/*.log`, `playwright-report/`, `states/`)
-  - review/commit signal becomes noisy and hides real source-code changes
-- Root cause:
-  - autonomous monitor/test loops produce runtime artifacts under project folders
-  - `.gitignore` policy previously allowed evidence logs to appear as untracked on every run
-- Fix applied (2026-03-08):
-  - updated `.gitignore` to ignore runtime/generated artifacts listed above
-  - kept documentation evidence strategy focused on curated reports under `docs/reports/`
-- Verify:
-  - rerun `git status --short` after change and confirm generated groups no longer dominate status output
-- Remaining risk:
-  - tracked binary DB files (e.g. `data/*.db*`) can still dirty the tree until repository policy explicitly migrates them out of version control
+  - TMD weather tools ได้ `TMD_API_AUTH_FAIL: Authentication fail` ทุก endpoint
+  - NWP tools ได้ `401 Unauthorized` จาก real TMD NWP API
+  - Chat response แสดง `ERR:WX_NO_DATA` แทนข้อมูลอากาศจริง
+- Root Cause:
+  1. `TMD_UID=demo` / `TMD_UKEY=demo` ใน innomcp-server-node/.env ไม่ใช่ credentials จริง
+  2. `NWP_API_KEY` JWT มี `"scopes":[]` — ไม่ได้รับอนุญาต NWP data access
+- Evidence:
+  - `curl http://localhost:3012/mcp tools/call tmd_weather_forecast_7days_by_province` => `TMD_API_AUTH_FAIL`
+  - `curl http://localhost:3012/mcp tools/call nwp_daily_by_place` => `401 Unauthorized`
+  - GET /api/health/keys => tmd=ready, nwp=ready (แสดงว่า keys present แต่ไม่ valid จริง)
+- Impact:
+  - ระบบออนไลน์ใช้งานไม่ได้จริง; offline fixture ยังทำงานปกติ
+- Phase 10.9 Fix (2026-03-17):
+  - แยก credentials เป็น 2 tier: TMD_UID_API/TMD_UKEY_API (api) + TMD_UID_DEMO/TMD_UKEY_DEMO (demo)
+  - เพิ่ม fallback chain ใน requireTmdAuthForTier() — ยังรองรับ TMD_UID/TMD_UKEY เดิม
+  - ปรับ error message ชี้ไปที่ ENV_SETUP.md เพื่อให้ขั้นตอนชัดเจน
+  - Online chat test 3 rounds: reason_code=TOOL_OK (ไม่ crash/timeout)
+- Next actions:
+  1. สมัคร TMD API จริงที่ https://data.tmd.go.th/ รับ UID/UKEY → ตั้ง TMD_UID_API / TMD_UKEY_API
+  2. สมัคร NWP JWT ที่ https://data.tmd.go.th/nwpapi/ ขอ scope full access → อัปเดต NWP_API_KEY
+  3. Restart server-node และ re-run online verifier (WEATHER_FIXTURE_W1=0)
+  4. บันทึก evidence ใน evidence/phase101a-online-REAL-*.log
+- Status: OPEN — รอ credentials จริงจาก TMD
+
+
+
+### [P-20260308-152] Phase10.7 verifier fail: tool transparency reason/tool list mismatch
+
+- ID: P-20260308-152 | Status: FIXED
+- เวลา: 2026-03-08
+- Symptom:
+  - `scripts/verify_phase107_tool_transparency.ts` ล้มเหลว
+  - weather happy-path ได้ `reason_code=FIXTURE_MODE` และ `toolsUsed=[]` ทั้งที่ควรเป็น `TOOL_OK` พร้อมรายการเครื่องมือ
+- Evidence:
+  - `innomcp-node/evidence/phase107-tool-transparency-20260308-053213.log`
+  - Failure: `CASE_WEATHER reason_code should be TOOL_OK`
+- Suspected cause:
+  - `enrichSingleChatPayload()` ประเมิน reason จาก `toolsUsed` อย่างเดียว และ fallback เป็น `FIXTURE_MODE` เมื่อ offline fixture โดยไม่ได้ยกระดับกรณี `mcpUsed=true`
+  - payload บางเส้นทางไม่ได้ส่ง `toolsUsed` กลับมาที่ top-level จึงทำให้ verifier มองว่าไม่ใช้เครื่องมือ
+- Next actions:
+  1. ปรับ enrichment ให้ infer tool เมื่อ `mcpUsed=true` และไม่มี `toolsUsed`
+  2. ปรับ reason ให้ weather/tool-backed path เป็น `TOOL_OK`
+  3. rerun phase107 verifier ทั้ง 2 ตัวและบันทึก evidence ใหม่
+- Fix update (2026-03-08):
+  - ปรับ `innomcp-node/src/routes/api/chat.ts` ให้ infer tool จาก `structuredContent`/`mcpUsed` เมื่อ top-level tools ว่าง
+  - rerun `scripts/verify_phase107_tool_transparency.ts` => PASS
+  - PASS evidence: `innomcp-node/evidence/phase107-tool-transparency-20260308-053324.log`
+
+### [P-20260308-153] Phase10.7 verifier fail: chat pro IQ clear-intent path marked as fixture
+
+- ID: P-20260308-153 | Status: FIXED
+- เวลา: 2026-03-08
+- Symptom:
+  - `scripts/verify_phase107_chat_pro_iq.ts` ล้มเหลว
+  - clear intent weather case ได้ `tools=[]` และ `reason=FIXTURE_MODE`
+- Evidence:
+  - `innomcp-node/evidence/phase107-chat-pro-iq-20260308-053213.log`
+  - Failures:
+    - `CASE_CLEAR should use at least one tool`
+    - `CASE_CLEAR reason_code should be TOOL_OK`
+- Suspected cause:
+  - response enrichment ไม่ propagate tool usage จากสัญญาณ `mcpUsed`/structured weather payload เมื่อ top-level `toolsUsed` ว่าง
+- Next actions:
+  1. แก้ contract normalization ใน `chat.ts`
+  2. rerun `verify_phase107_chat_pro_iq.ts`
+  3. ถ้า PASS ให้เปลี่ยนสถานะ incident เป็น FIXED พร้อมหลักฐานใหม่
+- Fix update (2026-03-08):
+  - ใช้ fix เดียวกับ P-20260308-152 เพื่อให้ clear-intent weather response มี tool metadata ครบ
+  - rerun `scripts/verify_phase107_chat_pro_iq.ts` => PASS
+  - PASS evidence: `innomcp-node/evidence/phase107-chat-pro-iq-20260308-053335.log`
 
 ### [P-20260304-007] Tool Health Gate ทำครบ 100% ไม่ได้ เพราะ action tools บังคับไม่ปรากฏใน tool picker ปัจจุบัน
 
@@ -138,6 +195,16 @@
   3. rerun health gate แบบ sequential ทั้งลิสต์จน 100% PASS
 
 ## FIXED
+
+### [P-20260308-151] Git worktree noise — RESOLVED
+
+- แก้เมื่อ: 2026-03-08
+- วิธีแก้:
+  - อัป `.gitignore` ให้ ignore `events/` ทั้ง folder, `.innova/`, `states/`, `playwright-report/`, `.ai/shared/`, `innomcp-node/evidence/*.log`
+  - `git rm --cached events/innomcp_events.jsonl` เพื่อ untrack runtime artifact ที่ track ไว้ก่อนหน้า
+- หลักฐานว่า PASS:
+  - `git status --short` หลัง fix: ไม่มี `events/`, `evidence/`, `.ai/shared/`, `playwright-report/`, `states/` ในรายการแล้ว
+  - เหลือเฉพาะ source changes ที่แท้จริง + `data/*.db*` (tracked binary DB — remaining risk ที่ยอมรับได้)
 
 ### [P-20260307-140] TMD/NWP browser test drift and backend weather typo resolved; verification PASS
 
@@ -677,3 +744,114 @@
 - Fix verified: `verify_phase102_chat_iq_gate.ts` now exits deterministically with explicit stop/cleanup + process termination.
 - Validation result: `ok=true, exit_code=0, timed_out=false` on rerun.
 - Status: RESOLVED
+
+
+## INCIDENT 2026-03-08-PR1-001
+- Time: 2026-03-08
+- Phase: PR-1 Unified Operating Mode + Health/Readiness Truth
+- Status: OPEN
+- Symptom: Patch command failed with Node inline-template parse error while rewriting `innomcp-server-node/src/routes/api/health.ts`.
+- Error: `SyntaxError: Unexpected identifier 'WEBDDSB'` from nested template string in `node -e` command.
+- Impact: No source file changed by this failed command.
+- Next Action: Re-run patch using escaped string builder / non-template literal writer, then verify file write and compile checks.
+
+
+## INCIDENT 2026-03-08-PR1-002
+- Time: 2026-03-08
+- Phase: PR-1 Unified Operating Mode + Health/Readiness Truth
+- Status: OPEN
+- Symptom: Automated replacement command for `nwpDailyTool.ts` failed due nested backtick parsing in `node -e`.
+- Error: `SyntaxError: Unexpected identifier 'NWP_EXTERNAL_BLOCKED_BY_MODE'`.
+- Impact: No confirmed write for NWP files from this failed command.
+- Next Action: Switch to scripted patch file (`logs/pr1_patch.js`) and execute via `node` to avoid shell quoting failures.
+
+
+## INCIDENT 2026-03-08-PR1-003
+- Time: 2026-03-08
+- Phase: PR-1 Unified Operating Mode + Health/Readiness Truth
+- Status: OPEN
+- Symptom: Batch patch partially completed; failed at `webdTools.ts` anchor lookup.
+- Error: `Error: WebdInput anchor not found` from `logs/pr1_patch.js`.
+- Impact: `nwpDailyTool.ts` and `nwpHourlyTool.ts` patched; remaining files pending.
+- Next Action: Apply newline-agnostic regex patch for `webdTools.ts`, then continue remaining files (`server.ts`, `config/env.template`).
+
+
+## INCIDENT 2026-03-08-PR1-004
+- Time: 2026-03-08
+- Phase: STEP-1 verifier loop
+- Status: OPEN
+- Symptom: Third run of phase101a verifier failed with process crash.
+- Error: `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` and MCP client close noise.
+- Root Cause (likely): phase101a was launched in parallel 3 processes, causing shared MCP/runtime teardown race.
+- Impact: One run failed; deterministic requirement (3 consecutive passes) not yet satisfied.
+- Next Action: Re-run phase101a sequentially 3 times (non-parallel) and continue remaining verifiers sequentially.
+
+
+## INCIDENT 2026-03-08-P107-001
+- Time: 2026-03-08
+- Phase: 10.7 PR-1 patching
+- Status: OPEN
+- Symptom: automated patch script failed before write
+- Error: `pattern not found` on `withRenderMeta(...)` anchor in `logs/phase107_patch_chat.js`
+- Impact: `innomcp-node/src/routes/api/chat.ts` not modified by this failed script
+- Next Action: switch to regex-based patch with smaller atomic replacements and rerun
+
+
+## INCIDENT 2026-03-08-P107-002
+- Time: 2026-03-08
+- Phase: 10.7 PR-1 patching
+- Status: OPEN
+- Symptom: second automated patch script failed to match helper anchor
+- Error: `helper anchor not found` in `logs/phase107_patch_chat_v2.js`
+- Impact: `chat.ts` still unchanged by this failed script
+- Next Action: switch to line-index patching (deterministic by discovered line numbers) and apply in smaller chunks
+
+
+## INCIDENT 2026-03-08-P107-003
+- Time: 2026-03-08
+- Phase: 10.7 PR-2 frontend patching
+- Status: OPEN
+- Symptom: frontend patch script failed to match ChatPage anchor
+- Error: `ChatPage pattern1 not found` in `logs/phase107_patch_frontend_v2.js`
+- Impact: frontend files unchanged by this failed run
+- Next Action: apply line-number driven patch for ChatPage + anchor-driven insertion for ChatMessage
+
+
+## INCIDENT 2026-03-08-P107-004
+- Time: 2026-03-08
+- Phase: 10.7 PR-2 frontend patching
+- Status: OPEN
+- Symptom: patch script parse failed before execution
+- Error: `SyntaxError: Invalid or unexpected token` in `logs/phase107_patch_frontend_v3.js`
+- Impact: no frontend file changes from this failed run
+- Next Action: rewrite patch script using plain-string lines (no template-literal nesting), then re-run
+
+## Sentinel Heartbeat
+- Phase 45 Multi-IDE Sentinel heartbeat: verified `2026-03-08`
+
+## Sentinel Heartbeat
+- Phase 45 Multi-IDE Sentinel heartbeat: verified `2026-03-09`
+
+## Sentinel Heartbeat
+- Phase 45 Multi-IDE Sentinel heartbeat: verified `2026-03-10`
+
+## Sentinel Heartbeat
+- Phase 45 Multi-IDE Sentinel heartbeat: verified `2026-03-11`
+
+## Sentinel Heartbeat
+- Phase 45 Multi-IDE Sentinel heartbeat: verified `2026-03-12`
+
+## Sentinel Heartbeat
+- Phase 45 Multi-IDE Sentinel heartbeat: verified `2026-03-13`
+
+## Sentinel Heartbeat
+- Phase 45 Multi-IDE Sentinel heartbeat: verified `2026-03-14`
+
+## Sentinel Heartbeat
+- Phase 45 Multi-IDE Sentinel heartbeat: verified `2026-03-15`
+
+## Sentinel Heartbeat
+- Phase 45 Multi-IDE Sentinel heartbeat: verified `2026-03-16`
+
+## Sentinel Heartbeat
+- Phase 45 Multi-IDE Sentinel heartbeat: verified `2026-03-17`

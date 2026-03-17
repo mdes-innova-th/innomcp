@@ -1,4 +1,66 @@
-﻿********* INNOVA-BOT LABOR REPORT (20 lines, 2026-03-05 WIT-102-017/018/019) *********
+﻿********* PHASE10.9 TMD Key Tier Split & NWP Scope Hardening (2026-03-17) *********
+01) Scope: แยก TMD credentials เป็น 2 tier (api/demo) + ปรับ error message + อัปเดต docs.
+02) Code: innomcp-server-node/src/mcp/tools/tmdTools.ts
+    - เพิ่ม TmdKeyTier = "api" | "demo"
+    - เพิ่ม requireTmdAuthForTier(tier) — fallback chain: TMD_UID_API → TMD_UID (deprecated)
+    - ปรับ withTmdAuthParams(urlBase, tier) รับ tier argument
+    - ปรับ registerSimpleTmdTool รับ keyTier option
+    - demo tier: seismic, climate, station, rainfall, rain-regions (v1 public)
+    - api tier: weatherToday/V2, weather3Hours/V2, forecast7Days/v2, dailyForecast/v2, warning, region, hyro/agro/synop
+    - ปรับ error message ชี้ไปที่ TMD_UID_API/TMD_UKEY_API + ENV_SETUP.md
+03) Config: innomcp-server-node/.env — เพิ่ม TMD_UID_API=, TMD_UKEY_API=, TMD_UID_DEMO=demo, TMD_UKEY_DEMO=demo
+04) Config: innomcp-server-node/.env.example — อัปเดต TMD section ครบทุก key + comments
+05) Docs: ENV_SETUP.md — อัปเดต TMD section ชี้ tier/endpoint mapping + NWP scopes requirement
+06) TypeScript compile: PASS (npx tsc --noEmit)
+07) Offline verifiers (WEATHER_FIXTURE_W1=1) × 3 rounds:
+    - verify_phase101a_weather_contract.ts => PASS × 3 (phase101a-20260317-151643/151657/151704.log)
+    - verify_phase105_thai_knowledge_routing.ts => PASS
+    - verify_phase107_tool_transparency.ts => PASS
+08) Online chat test (WEATHER_FIXTURE_W1=0, INNOMCP_MODE=online) × 3 rounds:
+    - 3 queries: อากาศเชียงใหม่/ภูเก็ต/กรุงเทพ => reason_code=TOOL_OK × 3 rounds (fast, no timeout)
+    - Response: WX_NO_DATA (expected — demo TMD creds rejected by real API)
+09) BLOCKER: TMD_UID_API / TMD_UKEY_API ยังว่าง — ต้องสมัคร https://data.tmd.go.th/
+10) BLOCKER: NWP_API_KEY scopes=[] — ต้องขอ full-access token ใหม่
+11) Incident: P-20260317-154 status = OPEN (credential dependency)
+********* END PHASE10.9 *********
+
+********* PHASE10.8 Online Mode Upgrade & Credential Hardening (2026-03-17) *********
+01) Scope: ยกระดับ innomcp ให้พร้อมออนไลน์จริง — fix ENV, credential check, HTTP timeout, offline verifier re-run.
+02) Fix: innomcp-server-node/.env — เพิ่ม INNOMCP_MODE=online, TMD_UID=demo, TMD_UKEY=demo; ลบ stray bcrypt hash จาก line 18.
+03) Fix: innomcp-node/.env — เพิ่ม INNOMCP_MODE=online; ลบ trailing whitespace จาก TMD_UID/TMD_UKEY.
+04) Fix: innomcp-server-node/.env — ลบ duplicate TMD_UID/TMD_UKEY entries ที่ท้ายไฟล์ (lines 77-78, มี trailing space).
+05) Verified: GET /api/health/keys => mode=online, tmd=ready, nwp=ready, mode_ready=true.
+06) Verified: HTTP /api/chat — responding fast (<1s); ไม่มี 30s timeout อีกต่อไป (was caused by INNOMCP_MODE missing).
+07) Verified: TMD tools reach real API => TMD_API_AUTH_FAIL (expected with demo creds; not blocked offline).
+08) Verified: NWP tool reach real API => 401 Unauthorized (JWT scopes=[] ไม่มีสิทธิ์ NWP; ต้องใช้ token จริง).
+09) Created: ENV_SETUP.md — คู่มือ offline/online mode, credential setup, restart procedure.
+10) Regression PASS (3x): verify_phase101a_weather_contract.ts => PASS (evidence: phase101a-20260317-*.log).
+11) Regression PASS: verify_phase105_thai_knowledge_routing.ts => PASS.
+12) Regression PASS: verify_phase107_tool_transparency.ts => PASS.
+13) BLOCKER: TMD_UID/TMD_UKEY ปัจจุบันใช้ค่า demo — ต้องสมัครที่ https://data.tmd.go.th/ เพื่อรับ credentials จริง.
+14) BLOCKER: NWP_API_KEY มี scopes=[] — ต้องสมัคร scope full access จาก TMD NWP portal.
+15) Incident logged: P-20260317-154 (credential blocker).
+********* END PHASE10.8 *********
+
+********* PHASE10.7 Chat Pro Quality Uplift (2026-03-08) *********
+01) Scope: ปรับ chat contract ให้โปร่งใสเรื่อง tool usage + confidence/reason_code ทั้ง HTTP/WS.
+02) Preflight: อ่าน `chat.ts`, `ChatPage.tsx`, `ChatMessage.tsx`, verifier styles (phase102/105).
+03) Added verifiers: `scripts/verify_phase107_tool_transparency.ts` และ `scripts/verify_phase107_chat_pro_iq.ts`.
+04) Regression STEP-1: `verify_phase101a_weather_contract.ts` => PASS.
+05) Regression STEP-1: `verify_phase101b_weather_map.ts` => PASS.
+06) Regression STEP-1: `verify_phase102_chat_iq_gate.ts` => PASS (4/4).
+07) Regression STEP-1: `verify_phase105_thai_knowledge_routing.ts` => PASS.
+08) STEP-2 รอบแรก FAIL: phase107 ทั้งสองตัวตกเพราะ `reason_code=FIXTURE_MODE` และ `toolsUsed=[]` ใน weather clear-intent.
+09) Incident-first logged: `P-20260308-152`, `P-20260308-153` ใน `REPORT_PROBLEM.md`.
+10) Fix applied: `innomcp-node/src/routes/api/chat.ts` เพิ่ม tool inference จาก `structuredContent` และ `mcpUsed` เมื่อ tools ว่าง.
+11) STEP-2 rerun: `verify_phase107_tool_transparency.ts` => PASS.
+12) STEP-2 rerun: `verify_phase107_chat_pro_iq.ts` => PASS.
+13) Evidence PASS: `innomcp-node/evidence/phase107-tool-transparency-20260308-053324.log`.
+14) Evidence PASS: `innomcp-node/evidence/phase107-chat-pro-iq-20260308-053335.log`.
+15) Incident status updated: `P-20260308-152` FIXED, `P-20260308-153` FIXED.
+********* END PHASE10.7 *********
+
+********* INNOVA-BOT LABOR REPORT (20 lines, 2026-03-05 WIT-102-017/018/019) *********
 01) Source: STEP2 labor scans via innova-bot MCP tools only.
 02) Precondition: INNOVA-BOT FIRST step1.0 PASS (docker compose up -d --build exit 0).
 03) Precondition: INNOVA-BOT FIRST step1.1 PASS (mcp_health_check.ps1 PASS).
@@ -2723,3 +2785,43 @@ Bundle: innomcp_phase102.bundle
 *** END PHASE 10.2 DETERMINISTIC STATUS (2026-03-08 runner loop) ***
 
 CORRECTION: phase102 deterministic evidence path = `innomcp-node/evidence/phase102-chat-iq-gate-20260308-033626.log` (latest PASS run).
+
+*** PHASE 10.5 IMPLEMENTATION QUEUE (SA RELEASE, 2026-03-08) ***
+- [x] Q1 Routing Integration (GodTierRouter): route Thai geo/knowledge intent to `thaiKnowledgeTool` before generic LLM path.
+- [x] Q2 Confidence Gate Re-check: ensure low-confidence queries return deterministic graceful fallback.
+- [x] Q3 Deterministic Verifier: run/maintain `innomcp-node/scripts/verify_phase105_thai_knowledge_routing.ts` with `SMOKE_MODE=1`.
+- [x] Q4 Evidence Log: produce `innomcp-node/evidence/phase105-knowledge-routing-YYYYMMDD.log` and attach pass summary.
+- [x] Q5 Report Back: publish `CODE_READY` payload to QE with file refs + test/evidence command used.
+*** END PHASE 10.5 IMPLEMENTATION QUEUE ***
+
+
+*** PR-1/PR-2 OFFLINE-ONLINE DETERMINISTIC VERIFICATION (2026-03-08) ***
+01) PR-1 applied: unified INNOMCP_MODE gating in NWP/WEBD tools + readiness payload hardened.
+02) PR-2 applied: frontend mode/readiness bar via next health proxy endpoint.
+03) STEP-1 offline verifier pass: phase101a x3, phase101b, phase102, phase103, phase104, phase105 all exit_code=0 timed_out=false.
+04) Evidence: innomcp-node/evidence/phase101a-20260308-050308.log
+05) Evidence: innomcp-node/evidence/phase101a-20260308-050321.log
+06) Evidence: innomcp-node/evidence/phase101a-20260308-050331.log
+07) Evidence: innomcp-node/evidence/phase101b-20260308-050342.log
+08) Evidence: innomcp-node/evidence/phase102-chat-iq-gate-20260308-050359.log
+09) Evidence: innomcp-node/evidence/phase103-20260304-045615.log
+10) Evidence: innomcp-node/evidence/phase104-20260304-072031.log
+11) Evidence: innomcp-node/evidence/phase105-knowledge-routing-20260308.log
+12) STEP-2 online(no-keys): health reports mode=online mode_ready=false and missing_keys contains tmd/nwp/webddsb/detect_db; NWP tool returns fail-fast NWP_API_KEY_MISSING.
+13) STEP-2 offline guard check: NWP tool returns fail-fast NWP_EXTERNAL_BLOCKED_BY_MODE.
+*** END PR-1/PR-2 OFFLINE-ONLINE DETERMINISTIC VERIFICATION ***
+
+*** CODE_READY — Phase 10.5 (2026-03-08) ***
+01) actor: คร๊อส (Core Dev / ClaudeCode CLI)
+02) phase: 10.5 Thai Knowledge GodTierRouter Integration
+03) Q1 DONE: GodTierRouter routes Thai geo/knowledge intent to thaiKnowledgeTool before generic LLM path.
+04) Q2 DONE: Low-confidence queries return deterministic graceful fallback.
+05) Q3 DONE: verify_phase105_thai_knowledge_routing.ts runs SMOKE_MODE=1 => exitCode=0.
+06) Q4 DONE: evidence log => innomcp-node/evidence/phase105-knowledge-routing-20260308.log RESULT: PASS
+07) Q5 DONE: Release gate updated => docs/reports/phase10_release_gate.md (Phase 10.5 row added).
+08) DoD DONE: phase10.5_implementation_queue.md all checkboxes marked [x].
+09) Full offline suite status: phase101a PASS, phase101b PASS, phase102 PASS, phase103 PASS, phase104 PASS, phase105 PASS.
+10) Git hygiene: .gitignore updated — events/, .innova/, states/, playwright-report/ no longer tracked as noise.
+11) P-20260308-151 RESOLVED (REPORT_PROBLEM.md updated, closure verified via git status).
+12) Requesting QE review and SA sign-off on Phase 10.5 + PR-1/PR-2 changes.
+*** END CODE_READY ***

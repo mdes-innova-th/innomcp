@@ -59,6 +59,7 @@ package-lock.json
 *.txt
 
 !TODO.md
+!ENV_SETUP.md
 
 # Folders
 /config/
@@ -103,10 +104,16 @@ patches_phase9/
 
 # Autonomous/runtime artifacts (do not version)
 .ai/shared/
-events/target_events.jsonl
-events/workspace_events.jsonl
+events/
 states/
 playwright-report/
+.innova/
+
+# Runtime databases and transient sqlite sidecars
+data/*.db
+data/*.sqlite
+data/*.db-*
+data/*.sqlite-*
 
 # Evidence logs are generated per run; keep reports in docs/reports instead
 innomcp-node/evidence/*.log
