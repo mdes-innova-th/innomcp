@@ -153,7 +153,9 @@ function requireTmdAuthForTier(tier: TmdKeyTier): { uid: string; ukey: string } 
   const isFixture = process.env.WEATHER_FIXTURE_W1 === "1" || process.env.CHAT_TRACE_QA === "1";
   const isLiveMode = getInnomcpMode() === "online" && !isSmoke && !isFixture;
   if (isLiveMode && tier === "api" && (uid === "demo" || ukey === "demo" || ukey.includes("api12345"))) {
-    console.warn(`WARN: TMD_API_LIVE_MODE_DEMO_KEY [tier=${tier}]: Using demo-like keys on api-tier endpoint. Expect TMD_API_AUTH_FAIL.`);
+    console.warn(`WARN: TMD_API_LIVE_MODE_DEMO_KEY [tier=${tier}] uid=${uid}: Using demo/placeholder keys on api-tier endpoint. Expect TMD_API_AUTH_FAIL. Set TMD_UID_API + TMD_UKEY_API in .env.`);
+  } else if (isLiveMode) {
+    console.log(`[tmdTools] credential resolved tier=${tier} uid=${uid} mode=online`);
   }
 
   return { uid, ukey };

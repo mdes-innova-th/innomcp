@@ -8,6 +8,7 @@ import apiRouter from "./routes/api";
 import apiCsrfRouter from "./routes/api/csrf";
 import aiModeRouter from "./routes/api/aiMode";
 import metricsRouter from "./routes/api/metrics";
+import { healthRouter } from "./routes/api/health";
 import authRouter from "./routes/api/auth";
 import workspaceRouter from "./routes/api/workspace";
 import { apiKeyMiddleware } from "./utils/apikey";
@@ -108,6 +109,10 @@ app.use("/api-get/csrf", apiCsrfRouter);
 
 // Router สำหรับ Metrics (ไม่ต้อง auth เพือ monitoring)
 app.use("/api/metrics", metricsRouter);
+
+// Router สำหรับ Health Check (ไม่ต้อง auth — ใช้สำหรับ internal health probe และ Next.js proxy)
+// ต้องอยู่ก่อน /api middleware เพื่อไม่ให้ถูก apiKeyMiddleware บล็อก
+app.use("/api/health", healthRouter);
 
 // Router สำหรับ AI Mode (ไม่ต้อง auth เพือ testsuit - ต้องอยู่ก่อน /api middleware)
 app.use("/api/ai-mode", aiModeRouter);

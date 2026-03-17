@@ -178,44 +178,69 @@ export default function ChatMessage({
           const sources = Array.isArray(structuredContent.weatherPayload?.sourcesUsed)
             ? structuredContent.weatherPayload.sourcesUsed : [];
           if (errTotal === 0 && sources.length === 0) return null; // not a weather query
+
+          // Color-coded severity: red=auth/upstream, amber=timeout, blue=noData, yellow=offline
+          let icon: string;
           let reason: string;
-          if (sources.length > 0) {
-            reason = "ข้อมูลอากาศที่ได้รับยังไม่ครบถ้วนสำหรับการแสดงแผนที่";
-          } else if (tax?.upstream > 0) {
-            reason = "ข้อมูลอากาศจริงไม่พร้อมใช้งาน — TMD/NWP ตอบกลับผิดปกติ (อาจเกิดจาก credentials หรือ API key ไม่ถูกต้อง)";
+          let colorClass: string;
+          if (tax?.upstream > 0) {
+            icon = "🔴";
+            reason = "ขออภัย ไม่สามารถดึงข้อมูลสภาพอากาศได้ในขณะนี้ — TMD/NWP ตอบกลับผิดปกติ (อาจเกิดจาก credentials หรือ API key ไม่ถูกต้อง)";
+            colorClass = "border-red-400/30 bg-red-50/30 text-red-800 dark:border-red-400/20 dark:bg-red-900/10 dark:text-red-300";
           } else if (tax?.timeout > 0) {
+            icon = "🟠";
             reason = "การเชื่อมต่อ TMD/NWP ใช้เวลานานเกินไป — ลองถามใหม่อีกครั้ง";
-          } else if (tax?.noData > 0) {
-            reason = "ไม่พบข้อมูลอากาศสำหรับพื้นที่ที่ต้องการ (สถานีไม่มีข้อมูล)";
+            colorClass = "border-orange-400/30 bg-orange-50/30 text-orange-800 dark:border-orange-400/20 dark:bg-orange-900/10 dark:text-orange-300";
+          } else if (tax?.noData > 0 && sources.length === 0) {
+            icon = "🔵";
+            reason = "ไม่พบข้อมูลอากาศสำหรับพื้นที่ที่ต้องการ (สถานีไม่มีข้อมูล หรืออาจระบุจังหวัดไม่ชัดเจน)";
+            colorClass = "border-blue-400/30 bg-blue-50/30 text-blue-800 dark:border-blue-400/20 dark:bg-blue-900/10 dark:text-blue-300";
+          } else if (sources.length > 0) {
+            icon = "⚠️";
+            reason = "ข้อมูลอากาศที่ได้รับยังไม่ครบถ้วนสำหรับการแสดงแผนที่";
+            colorClass = "border-yellow-400/30 bg-yellow-50/30 text-yellow-800 dark:border-yellow-400/20 dark:bg-yellow-900/10 dark:text-yellow-300";
           } else {
-            reason = "ขณะนี้ไม่สามารถดึงข้อมูลอากาศจาก TMD/NWP ได้ (อาจเกิดจาก credentials หรือ mode=offline)";
+            icon = "⚠️";
+            reason = "ขออภัย ไม่สามารถดึงข้อมูลสภาพอากาศได้ในขณะนี้ (อาจเกิดจาก credentials หรือ mode=offline)";
+            colorClass = "border-yellow-400/30 bg-yellow-50/30 text-yellow-800 dark:border-yellow-400/20 dark:bg-yellow-900/10 dark:text-yellow-300";
           }
           return (
-            <div className="mb-3 rounded-lg border border-yellow-400/30 bg-yellow-50/30 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-400/20 dark:bg-yellow-900/10 dark:text-yellow-300">
-              ⚠️ {reason}
+            <div className={`mb-3 rounded-lg border px-3 py-2 text-xs ${colorClass}`}>
+              {icon} {reason}
             </div>
           );
         })()}
 
         {/* Weather map tiles (Phase 10.1B minimal contract renderer) */}
-        {!hasProvinceMissingError && mapTiles.length > 0 && hasRealWeatherData(structuredContent?.weatherPayload) && (
-          <div data-testid="weather-map-tiles" className="mb-4 rounded-lg border border-green-500/20 bg-green-50/30 p-3 dark:border-green-400/20 dark:bg-green-900/10">
-            <div className="mb-2 text-sm font-semibold text-green-800 dark:text-green-200">แผนที่สภาพอากาศ</div>
-            <div className="space-y-3">
-              {mapTiles.slice(0, 3).map((tile: any, idx: number) => {
-                const url = String(tile?.url || "").trim();
-                const label = String(tile?.label || tile?.area || "แผนที่อากาศ").trim();
-                if (!url) return null;
-                return (
-                  <div key={`${url}-${idx}`} className="overflow-hidden rounded-md border border-green-500/20 dark:border-green-400/20">
-                    <img src={url} alt={label} className="h-auto w-full" loading="lazy" />
-                    <div className="px-2 py-1 text-xs text-gray-700 dark:text-gray-200">{label}</div>
-                  </div>
-                );
-              })}
+        {!hasProvinceMissingError && mapTiles.length > 0 && hasRealWeatherData(structuredContent?.weatherPayload) && (() => {
+          const sourcesUsed: string[] = Array.isArray(structuredContent?.weatherPayload?.sourcesUsed)
+            ? structuredContent.weatherPayload.sourcesUsed : [];
+          return (
+            <div data-testid="weather-map-tiles" className="mb-4 rounded-xl border border-emerald-500/20 bg-gradient-to-b from-emerald-50/40 to-transparent p-3 shadow-sm dark:border-emerald-400/20 dark:from-emerald-900/10">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">🗺️ แผนที่สภาพอากาศ</span>
+                {sourcesUsed.length > 0 && (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                    {sourcesUsed.join(" · ")}
+                  </span>
+                )}
+              </div>
+              <div className="space-y-3">
+                {mapTiles.slice(0, 3).map((tile: any, idx: number) => {
+                  const url = String(tile?.url || "").trim();
+                  const label = String(tile?.label || tile?.area || "แผนที่อากาศ").trim();
+                  if (!url) return null;
+                  return (
+                    <div key={`${url}-${idx}`} className="overflow-hidden rounded-lg border border-emerald-500/20 dark:border-emerald-400/20">
+                      <img src={url} alt={label} className="h-auto w-full" loading="lazy" />
+                      <div className="bg-white/60 px-2 py-1 text-xs text-gray-700 dark:bg-black/20 dark:text-gray-200">{label}</div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Display SVG chart if available */}
         {structuredContent?.chartSvg && (

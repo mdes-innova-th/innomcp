@@ -276,4 +276,35 @@ TMD API อาจคืน HTTP 200 พร้อม body ว่า `Authenticati
 
 ---
 
-*อัปเดตล่าสุด: 2026-03-17*
+## 11. MariaDB Connection (innomcp-node)
+
+MariaDB ทำงานใน Docker container และ port mapping แตกต่างกันตาม context:
+
+| Context | DB_HOST | DB_PORT | หมายเหตุ |
+|---|---|---|---|
+| Host (npm run dev) | `127.0.0.1` | `3308` | Docker maps container:3306 → host:3308 |
+| Docker container | `mariadb` | `3306` | ใช้ชื่อ service ใน Docker network |
+
+**ปัญหา `Access denied for 'jlapps'@'172.19.0.1'`:**
+- `MARIADB_PASSWORD` ใน docker-compose ต้องตรงกับ `DB_PASSWORD` ใน `.env.local`
+- ตรวจสอบ: `docker inspect mariadb-innomcp | grep MARIADB_PASSWORD`
+- แก้: อัปเดต `DB_PASSWORD=<actual>` ใน innomcp-node/.env.local ให้ตรงกัน
+
+## 12. Health Check Proxy (innomcp-next)
+
+Next.js `/api/health` route proxies ไปยัง innomcp-node `/api/health/keys`:
+
+```
+innomcp-next:3000/api/health → innomcp-node:3011/api/health/keys
+```
+
+ตัวแปรที่ใช้ (เลือก env var แรกที่ set):
+- `NEXT_PUBLIC_BACKEND_URL` (Phase 10.11+)
+- `NEXT_PUBLIC_NODE_HOST` (fallback — set ใน .env.local)
+- default: `http://localhost:3011`
+
+**Phase 10.12 fix**: `/api/health` ถูก exempt จาก `apiKeyMiddleware` แล้ว (ไม่ต้อง auth ใด ๆ)
+
+---
+
+*อัปเดตล่าสุด: 2026-03-18 (Phase 10.12)*

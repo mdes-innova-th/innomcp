@@ -1,4 +1,26 @@
-﻿********* PHASE10.11 UI Improvements (2026-03-18) *********
+﻿********* PHASE10.12 Health Fix + UI Polish + DB Docs (2026-03-18) *********
+01) Scope: แก้ health 401, Next.js proxy, UI polish, DB docs, E2E tests
+02) innomcp-node/src/app.ts — ย้าย healthRouter ออกจาก apiKeyMiddleware
+    Mount: app.use("/api/health", healthRouter) ก่อน app.use("/api", apiKeyMiddleware, ...)
+    → /api/health/keys ไม่ต้อง auth แล้ว (fix 401 ที่ Next.js proxy เจอ)
+03) innomcp-node/src/routes/api/index.ts — ลบ health ออกจาก apiRouter (เพื่อไม่ double-mount)
+04) innomcp-next/src/app/api/health/route.ts — fallback หลาย env vars (NEXT_PUBLIC_BACKEND_URL / NEXT_PUBLIC_NODE_HOST)
+05) innomcp-node/.env.example — อัปเดต DB section (port 3308 vs 3306, password docs)
+06) ChatMessage.tsx — weather notice color-coded:
+    🔴 upstream error (credentials fail) / 🟠 timeout / 🔵 noData / ⚠️ offline
+07) ChatMessage.tsx — weather map header: gradient bg, source badge, rounded-xl
+08) ChatInput.tsx — placeholder → "ถามอากาศวันนี้หรือเรื่องใดก็ได้..."
+09) tmdTools.ts — log resolved credential tier + uid ใน live mode
+10) e2e/chat.spec.ts — 8 scenarios (page load, placeholder, weather, notice color, Phuket, Thai, typing dots, health API)
+11) REPORT_PROBLEM.md — เพิ่ม P-20260318-160 (DB Access Denied - port/password mismatch)
+12) docs/ENV_SETUP.md — Section 11 (MariaDB port mapping) + Section 12 (Health proxy)
+13) Phase 10.7 verifier PASS × 3 rounds
+14) innomcp-next build: zero errors
+15) Commit + push
+BLOCKER (unchanged): P-158 NWP JWT scopes=[] / P-159 TMD placeholder creds / P-160 DB password mismatch
+********* END PHASE10.12 *********
+
+********* PHASE10.11 UI Improvements (2026-03-18) *********
 01) Scope: ปรับปรุง UI Chat — placeholder, loading indicators, error taxonomy, mode status bar, E2E tests
 02) ChatInput.tsx — placeholder → "พิมพ์ถามสภาพอากาศ หรือข้อมูลอื่น ๆ..."
 03) ChatPage.tsx — typing dots เป็น stage-aware (blue=thinking, amber=processing, secondary=default)

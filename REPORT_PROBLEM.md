@@ -1,8 +1,29 @@
 # REPORT_PROBLEM (innova-bot / innomcp)
 
-อัปเดตล่าสุด: 2026-03-18
+อัปเดตล่าสุด: 2026-03-18 (Phase 10.12)
 
 ## OPEN
+
+### [P-20260318-160] MariaDB Access Denied for jlapps — DB_PORT or MARIADB_PASSWORD mismatch
+
+- ID: P-20260318-160 | Status: OPEN (config dependency)
+- เวลา: 2026-03-18
+- Symptom:
+  - `Database operation error: Error: Access denied for user 'jlapps'@'172.19.0.1' (using password: YES)`
+  - Chat ยังทำงานได้ (DB ไม่ required สำหรับ chat flow หลัก) แต่ session/history features อาจไม่ทำงาน
+- Root Cause (2 สาเหตุเป็นไปได้):
+  1. `MARIADB_PASSWORD` ใน docker compose ไม่ตรงกับ `DB_PASSWORD=rockbottom` ใน .env.local
+     - MariaDB user `jlapps` ถูกสร้างด้วย password ว่าง (ถ้า MARIADB_PASSWORD env ไม่ถูก set)
+  2. `DB_PORT=3306` ใน .env.local แต่ Docker maps mariadb container:3306 → host:3308
+     - Connection ควรใช้ port 3308 เมื่อ connect จาก host (npm run dev)
+- Fix (config-only):
+  1. ตรวจสอบ MARIADB_PASSWORD ใน shell ที่ start docker: `docker inspect mariadb-innomcp | grep MARIADB_PASSWORD`
+  2. อัปเดต `DB_PASSWORD=<actual_password>` ใน innomcp-node/.env.local ให้ตรงกัน
+  3. อัปเดต `DB_PORT=3308` ใน innomcp-node/.env.local (host-side connection)
+  4. หรือ start mariadb ด้วย `-e MARIADB_PASSWORD=rockbottom` ให้ตรงกับ .env.local
+- หมายเหตุ: `.env.example` อัปเดตแล้วให้มี comment อธิบาย port mapping
+- Impact: DB-dependent features (chat history persistence, session) ไม่ทำงาน; core chat ปกติ
+- Status: OPEN — รอ config fix จาก ops team
 
 ### [P-20260318-158] NWP_API_KEY JWT has empty scopes — all NWP endpoints 401
 

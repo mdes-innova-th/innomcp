@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:3011";
+  // Accept multiple env var names — NEXT_PUBLIC_NODE_HOST is set in .env.local for dev
+  const backendUrl = (
+    process.env.NEXT_PUBLIC_BACKEND_URL ??
+    process.env.NEXT_PUBLIC_NODE_HOST ??
+    "http://localhost:3011"
+  ).replace(/\/$/, "");
   try {
     const res = await fetch(`${backendUrl}/api/health/keys`, {
       cache: "no-store",
