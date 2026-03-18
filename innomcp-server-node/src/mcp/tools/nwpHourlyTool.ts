@@ -189,21 +189,22 @@ export const nwpHourlyByLocationTool = {
 
     try {
       const apiKey = getNwpApiKey();
-      const url = `${NWP_API_BASE}/at`;
-      
-      const params = buildQueryParams({
-        lat: input.lat,
-        lon: input.lon,
-        date: input.starttime || input.date,
-        hour: input.hour,
-        duration: input.duration,
-        domain: input.domain,
-        fields: input.fields || ["tc", "rh", "cond"]
-      });
 
-      console.log(`[NWP Hourly] GET ${url}?${params}`);
+      // Use /forecast/area/box with small bbox — location/at returns 401 with scopes:[] JWT
+      const today = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+      const areaDate = input.starttime || input.date || today;
+      const hourStr = input.hour !== undefined ? String(input.hour).padStart(2, "0") : "00";
+      const starttime = areaDate.includes("T") ? areaDate : `${areaDate}T${hourStr}:00:00`;
+      const fields = (input.fields || ["tc", "rh", "cond"]).join(",");
+      const delta = 0.25;
+      const bl = `${(input.lat - delta).toFixed(4)},${(input.lon - delta).toFixed(4)}`;
+      const tr = `${(input.lat + delta).toFixed(4)},${(input.lon + delta).toFixed(4)}`;
+      const durationSuffix = input.duration ? `&duration=${input.duration}` : "";
+      const url = `${NWP_AREA_BASE}?domain=2&bottom-left=${bl}&top-right=${tr}&fields=${fields}&starttime=${starttime}${durationSuffix}`;
 
-      const response = await axios.get(`${url}?${params}`, {
+      console.log(`[NWP Hourly] GET ${url}`);
+
+      const response = await axios.get(url, {
         headers: {
           'authorization': `bearer ${apiKey}`,
           'Accept': 'application/json'
@@ -304,23 +305,35 @@ export const nwpHourlyByPlaceTool = {
 
     try {
       const apiKey = getNwpApiKey();
-      const url = `${NWP_API_BASE}/place`;
 
-      const params = buildQueryParams({
-        province: normalizedPlace.province,
-        amphoe: normalizedPlace.amphoe,
-        tambon: normalizedPlace.tambon,
-        subarea: input.subarea ? 1 : 0,
-        date: input.starttime || input.date,
-        hour: input.hour,
-        duration: input.duration,
-        domain: input.domain,
-        fields: input.fields || ["tc", "rh", "cond"]
-      });
+      // Use /forecast/area/box with province bbox — location/place returns 401 with scopes:[] JWT
+      const coords = coordsFallback;
+      if (!coords) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({
+              success: false,
+              error: `ไม่พบพิกัดสำหรับ "${normalizedPlace.province || "(ไม่ระบุ)"}"`,
+              hint: "ระบุ province เป็นชื่อภาษาไทย เช่น กรุงเทพมหานคร, เชียงใหม่"
+            }, null, 2)
+          }]
+        };
+      }
+      const today = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+      const areaDate = input.starttime || input.date || today;
+      const hourStr = input.hour !== undefined ? String(input.hour).padStart(2, "0") : "00";
+      const starttime = areaDate.includes("T") ? areaDate : `${areaDate}T${hourStr}:00:00`;
+      const fields = (input.fields || ["tc", "rh", "cond"]).join(",");
+      const delta = 0.25;
+      const bl = `${(coords.lat - delta).toFixed(4)},${(coords.lon - delta).toFixed(4)}`;
+      const tr = `${(coords.lat + delta).toFixed(4)},${(coords.lon + delta).toFixed(4)}`;
+      const durationSuffix = input.duration ? `&duration=${input.duration}` : "";
+      const url = `${NWP_AREA_BASE}?domain=2&bottom-left=${bl}&top-right=${tr}&fields=${fields}&starttime=${starttime}${durationSuffix}`;
 
-      console.log(`[NWP Hourly Place] GET ${url}?${params}`);
+      console.log(`[NWP Hourly Place] GET ${url}`);
 
-      const response = await axios.get(`${url}?${params}`, {
+      const response = await axios.get(url, {
         headers: {
           'authorization': `bearer ${apiKey}`,
           'Accept': 'application/json'
@@ -366,51 +379,6 @@ export const nwpHourlyByPlaceTool = {
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || "เกิดข้อผิดพลาด";
       console.error(`[NWP Hourly Place] Error: ${errorMessage}`);
-
-      // Fallback: try ByLocation with province lat/lon if place lookup failed
-      if (coordsFallback) {
-        try {
-          const apiKey = getNwpApiKey();
-          const fallbackUrl = `${NWP_API_BASE}/at`;
-          const fallbackParams = buildQueryParams({
-            lat: coordsFallback.lat,
-            lon: coordsFallback.lon,
-            date: input.starttime || input.date,
-            hour: input.hour,
-            duration: input.duration,
-            domain: input.domain,
-            fields: input.fields || ["tc", "rh", "cond"]
-          });
-          console.log(`[NWP Hourly Place] Fallback to coords: GET ${fallbackUrl}?${fallbackParams}`);
-          const fallbackResp = await axios.get(`${fallbackUrl}?${fallbackParams}`, {
-            headers: { authorization: `bearer ${apiKey}`, Accept: "application/json" },
-            timeout: DEFAULT_TIMEOUT
-          });
-          const fData = fallbackResp.data;
-          console.log(`[NWP Hourly Place] Fallback success via coords lat=${coordsFallback.lat} lon=${coordsFallback.lon}`);
-          return {
-            content: [{
-              type: "text" as const,
-              text: JSON.stringify({
-                source: "NWP High Performance Computing (2km resolution) [via coordinate fallback]",
-                location: {
-                  province: normalizedPlace.province,
-                  lat: coordsFallback.lat,
-                  lon: coordsFallback.lon,
-                  note: "ใช้พิกัดละติจูด/ลองจิจูดของจังหวัดแทน (place endpoint ไม่รู้จักชื่อ)"
-                },
-                duration: `${input.duration || 24} hours`,
-                data: fData,
-                success: true,
-                timestamp: new Date().toISOString()
-              }, null, 2)
-            }]
-          };
-        } catch (fallbackErr: any) {
-          console.error(`[NWP Hourly Place] Fallback also failed: ${fallbackErr.message}`);
-        }
-      }
-
       return {
         content: [{
           type: "text" as const,
