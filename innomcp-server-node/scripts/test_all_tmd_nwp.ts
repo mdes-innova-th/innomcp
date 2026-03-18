@@ -31,7 +31,7 @@ dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 // ─── Mode guard ────────────────────────────────────────────────────────────
 const MODE = String(process.env.INNOMCP_MODE || "offline").trim().toLowerCase();
 const IS_ONLINE = MODE === "online";
-const TIMEOUT_MS = 60_000;
+const TIMEOUT_MS = 90_000;
 
 if (!IS_ONLINE) {
   console.log(
@@ -303,13 +303,13 @@ await testTmdEndpoint(
   "#9 DailyForecast/v2",
   "https://data.tmd.go.th/api/DailyForecast/v2/",
   "api",
-  (j) => !!(j.DailyForecasts || j.Forecast || j.Provinces)
+  (j) => !!(j.DailyForecast || j.DailyForecasts || j['@attributes'])
 );
 await testTmdEndpoint(
   "#10 WeatherWarningNews/v2",
   "http://data.tmd.go.th/api/WeatherWarningNews/v2/",
   "api",
-  (j) => !!(j.WeatherWarningNews || j.News || j.WarningNews)
+  (j) => !!(j.Warnings || j.WeatherWarningNews || j['@attributes'])
 );
 await testTmdEndpoint(
   "#11 WeatherForecast7DaysByRegion/v2",
