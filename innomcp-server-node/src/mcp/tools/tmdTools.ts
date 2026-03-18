@@ -137,9 +137,12 @@ function requireTmdAuthForTier(tier: TmdKeyTier): { uid: string; ukey: string } 
     ukey = String(process.env.TMD_UKEY_DEMO || "").trim();
   }
 
-  // Fallback to deprecated TMD_UID / TMD_UKEY for backwards compatibility
-  if (!uid) uid = String(process.env.TMD_UID || "").trim();
-  if (!ukey) ukey = String(process.env.TMD_UKEY || "").trim();
+  // Fallback chain (newest → deprecated):
+  // 1. tier-specific TMD_UID_API / TMD_UKEY_API (or DEMO variants)
+  // 2. flat TMD_UID / TMD_UKEY
+  // 3. legacy alias TMD_API_UID / TMD_API_UKEY (older env naming)
+  if (!uid) uid = String(process.env.TMD_UID || process.env.TMD_API_UID || "").trim();
+  if (!ukey) ukey = String(process.env.TMD_UKEY || process.env.TMD_API_UKEY || "").trim();
 
   if (!uid || !ukey) {
     const hint = tier === "api"
@@ -148,12 +151,17 @@ function requireTmdAuthForTier(tier: TmdKeyTier): { uid: string; ukey: string } 
     throw new Error(`TMD_API_PARAMS_MISSING [tier=${tier}]: ${hint}`);
   }
 
-  // Live Mode: warn if demo-like keys are used for api-tier endpoints
+  // Live Mode: warn only — actual block requires TMD_STRICT_DEMO_BLOCK=1
   const isSmoke = process.env.SMOKE_MODE === "1";
   const isFixture = process.env.WEATHER_FIXTURE_W1 === "1" || process.env.CHAT_TRACE_QA === "1";
   const isLiveMode = getInnomcpMode() === "online" && !isSmoke && !isFixture;
-  if (isLiveMode && tier === "api" && (uid === "demo" || ukey === "demo" || ukey.includes("api12345"))) {
-    console.warn(`WARN: TMD_API_LIVE_MODE_DEMO_KEY [tier=${tier}] uid=${uid}: Using demo/placeholder keys on api-tier endpoint. Expect TMD_API_AUTH_FAIL. Set TMD_UID_API + TMD_UKEY_API in .env.`);
+  const strictBlock = process.env.TMD_STRICT_DEMO_BLOCK === "1";
+  const isDemoLike = uid === "demo" || ukey === "demo" || uid === "api" || ukey.includes("api12345");
+  if (isLiveMode && tier === "api" && isDemoLike) {
+    if (strictBlock) {
+      throw new Error(`TMD_API_LIVE_MODE_DEMO_KEY_BLOCKED [tier=${tier}]: Credential blocked by TMD_STRICT_DEMO_BLOCK=1. Set real TMD_UID_API + TMD_UKEY_API.`);
+    }
+    console.warn(`WARN: TMD_API_LIVE_MODE_DEMO_KEY [tier=${tier}] uid=${uid}: Using demo/placeholder keys. API may return auth fail. Set TMD_STRICT_DEMO_BLOCK=1 to block, or update TMD_UID_API + TMD_UKEY_API.`);
   } else if (isLiveMode) {
     console.log(`[tmdTools] credential resolved tier=${tier} uid=${uid} mode=online`);
   }

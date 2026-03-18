@@ -1,6 +1,5 @@
 import { z } from "zod";
 import axios from "axios";
-import { checkNwpScopes } from "../tmdApiConfig";
 
 /**
  * NWP Daily Forecast Tool
@@ -13,44 +12,19 @@ import { checkNwpScopes } from "../tmdApiConfig";
 const NWP_API_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/daily";
 const DEFAULT_TIMEOUT = 15000;
 
-function normalizeMode(raw: string | undefined): "offline" | "online" {
-  return String(raw || "offline").trim().toLowerCase() === "online" ? "online" : "offline";
-}
-
-function isNwpExternalAllowed(): boolean {
-  const mode = normalizeMode(process.env.INNOMCP_MODE);
-  const isSmoke = process.env.SMOKE_MODE === "1";
-  const isFixture = process.env.WEATHER_FIXTURE_W1 === "1" || process.env.CHAT_TRACE_QA === "1";
-  return mode === "online" && !isSmoke && !isFixture;
-}
-
 function getNwpApiKey(): string {
-  const mode = normalizeMode(process.env.INNOMCP_MODE);
-  if (!isNwpExternalAllowed()) {
-    throw new Error("NWP_EXTERNAL_BLOCKED_BY_MODE: INNOMCP_MODE=" + mode + " (set online and disable smoke/fixture to call external NWP API)");
-  }
-
   const key = String(process.env.NWP_API_KEY || "").trim();
   if (!key) {
-    throw new Error("NWP_API_KEY_MISSING: set NWP_API_KEY before online mode");
+    throw new Error("NWP_API_KEY not found in environment variables");
   }
 
-  if (key === "demo" || key === "demokey" || key.includes("api12345")) {
-    console.warn("WARN: NWP_API_LIVE_MODE_DEMO_KEY: Using demo keys in online mode. Expect rate limits.");
-  }
+  // Live Mode validation:
+  const isSmoke = process.env.SMOKE_MODE === "1";
+  const isFixture = process.env.WEATHER_FIXTURE_W1 === "1" || process.env.CHAT_TRACE_QA === "1";
+  const isLiveMode = !isSmoke && !isFixture;
 
-  // Scope check: hard-block if JWT has NO scopes (guaranteed 401); warn if partially missing
-  const scopeCheck = checkNwpScopes();
-  if (!scopeCheck.ok) {
-    if (scopeCheck.present.length === 0) {
-      throw new Error(
-        `NWP_JWT_EMPTY_SCOPES: JWT has no scopes (scopes=[]). All NWP daily endpoints will return 401. ` +
-        `Required: [${scopeCheck.missing.join(", ")}]. ` +
-        `Request a new token with full scopes at https://data.tmd.go.th/nwpapi/`
-      );
-    } else {
-      console.warn(`WARN: NWP_JWT_MISSING_SCOPES: Missing scopes [${scopeCheck.missing.join(", ")}] — some NWP daily endpoints may return 401.`);
-    }
+  if (isLiveMode && (key === "demo" || key === "demokey" || key.includes("api12345"))) {
+    throw new Error("TMD_API_LIVE_MODE_DEMO_KEY_BLOCKED: Using demo keys in Live Mode is prohibited.");
   }
 
   return key;
@@ -90,6 +64,7 @@ export const nwpDailyByLocationSchema = z.object({
 
 // Schema for location by place name
 export const nwpDailyByPlaceSchema = z.object({
+  place: z.string().optional().describe("ชื่อสถานที่แบบสั้น เช่น จังหวัดหรืออำเภอ (alias ของ province เพื่อรองรับตัวเรียกเก่า)"),
   province: z.string().optional().describe("ชื่อจังหวัด (ภาษาไทย)"),
   amphoe: z.string().optional().describe("ชื่ออำเภอ (ภาษาไทย)"),
   tambon: z.string().optional().describe("ชื่อตำบล (ภาษาไทย)"),
@@ -97,10 +72,7 @@ export const nwpDailyByPlaceSchema = z.object({
   date: z.string().optional().describe("วันที่เริ่มต้น (YYYY-MM-DD)"),
   duration: z.number().min(1).max(126).optional().default(7).describe("จำนวนวัน (1-126)"),
   fields: z.array(z.enum(AVAILABLE_FIELDS)).optional().describe("ตัวแปรที่ต้องการ"),
-}).refine(
-  (data) => !!(data.province || data.amphoe || data.tambon),
-  { message: "ต้องระบุจังหวัด อำเภอ หรือ ตำบลอย่างน้อย 1 ค่า" }
-);
+});
 
 // Schema for location by region
 export const nwpDailyByRegionSchema = z.object({
@@ -113,6 +85,36 @@ export const nwpDailyByRegionSchema = z.object({
 type NwpDailyByLocationInput = z.infer<typeof nwpDailyByLocationSchema>;
 type NwpDailyByPlaceInput = z.infer<typeof nwpDailyByPlaceSchema>;
 type NwpDailyByRegionInput = z.infer<typeof nwpDailyByRegionSchema>;
+
+// Helper: sanitize place name
+function sanitizePlaceName(value?: string): string | undefined {
+  const v = String(value || "").trim();
+  return v || undefined;
+}
+
+// Helper: normalize place input — map `place` → `province` alias
+function normalizePlaceInput(input: NwpDailyByPlaceInput & { place?: string }) {
+  const province = sanitizePlaceName(input.province) || sanitizePlaceName(input.place);
+  const amphoe = sanitizePlaceName(input.amphoe);
+  const tambon = sanitizePlaceName(input.tambon);
+  return { province, amphoe, tambon };
+}
+
+// Helper: extract forecast entries from multiple NWP response shapes
+// Supports: WeatherForcasts, WeatherForecast, weather_forecast.locations, locations, root array
+function extractDailyEntries(data: any): any[] {
+  const candidates = [
+    data?.WeatherForcasts,
+    data?.WeatherForecast,
+    data?.weather_forecast?.locations,
+    data?.locations,
+    Array.isArray(data) ? data : null,
+  ];
+  for (const c of candidates) {
+    if (Array.isArray(c)) return c;
+  }
+  return [];
+}
 
 // Helper: Build query parameters
 function buildQueryParams(params: Record<string, any>): string {
@@ -201,19 +203,18 @@ export const nwpDailyByLocationTool = {
         timeout: DEFAULT_TIMEOUT
       });
 
-      // Interpret weather conditions
+      // Interpret weather conditions across legacy/current response shapes
       const data = response.data;
-      if (data.WeatherForcasts && Array.isArray(data.WeatherForcasts)) {
-        data.WeatherForcasts.forEach((forecast: any) => {
-          if (forecast.forecasts && Array.isArray(forecast.forecasts)) {
-            forecast.forecasts.forEach((f: any) => {
-              if (f.data && f.data.cond !== undefined) {
-                f.data.condMeaning = interpretCondition(f.data.cond);
-              }
-            });
-          }
-        });
-      }
+      const locations = extractDailyEntries(data);
+      locations.forEach((forecast: any) => {
+        if (forecast.forecasts && Array.isArray(forecast.forecasts)) {
+          forecast.forecasts.forEach((f: any) => {
+            if (f.data && f.data.cond !== undefined) {
+              f.data.condMeaning = interpretCondition(f.data.cond);
+            }
+          });
+        }
+      });
 
       const result = {
         source: "NWP High Performance Computing (18-27km resolution)",
@@ -287,15 +288,16 @@ export const nwpDailyByPlaceTool = {
     }
 
     const input = parsed.data;
+    const normalizedPlace = normalizePlaceInput(input as NwpDailyByPlaceInput & { place?: string });
 
     try {
       const apiKey = getNwpApiKey();
       const url = `${NWP_API_BASE}/place`;
       
       const params = buildQueryParams({
-        province: input.province,
-        amphoe: input.amphoe,
-        tambon: input.tambon,
+        province: normalizedPlace.province,
+        amphoe: normalizedPlace.amphoe,
+        tambon: normalizedPlace.tambon,
         subarea: input.subarea ? 1 : 0,
         date: input.date,
         duration: input.duration,
@@ -312,26 +314,25 @@ export const nwpDailyByPlaceTool = {
         timeout: DEFAULT_TIMEOUT
       });
 
-      // Interpret weather conditions
+      // Interpret weather conditions across legacy/current response shapes
       const data = response.data;
-      if (data.WeatherForcasts && Array.isArray(data.WeatherForcasts)) {
-        data.WeatherForcasts.forEach((forecast: any) => {
-          if (forecast.forecasts && Array.isArray(forecast.forecasts)) {
-            forecast.forecasts.forEach((f: any) => {
-              if (f.data && f.data.cond !== undefined) {
-                f.data.condMeaning = interpretCondition(f.data.cond);
-              }
-            });
-          }
-        });
-      }
+      const locations = extractDailyEntries(data);
+      locations.forEach((forecast: any) => {
+        if (forecast.forecasts && Array.isArray(forecast.forecasts)) {
+          forecast.forecasts.forEach((f: any) => {
+            if (f.data && f.data.cond !== undefined) {
+              f.data.condMeaning = interpretCondition(f.data.cond);
+            }
+          });
+        }
+      });
 
       const result = {
         source: "NWP High Performance Computing (18-27km resolution)",
         location: {
-          province: input.province,
-          amphoe: input.amphoe,
-          tambon: input.tambon
+          province: normalizedPlace.province,
+          amphoe: normalizedPlace.amphoe,
+          tambon: normalizedPlace.tambon
         },
         duration: `${input.duration || 7} days`,
         data: data,
@@ -339,7 +340,7 @@ export const nwpDailyByPlaceTool = {
         timestamp: new Date().toISOString()
       };
 
-      console.log(`[NWP Daily Place] Success: ${data.WeatherForcasts?.length || 0} locations`);
+      console.log(`[NWP Daily Place] Success: ${locations.length} locations`);
 
       return {
         content: [{
@@ -358,9 +359,9 @@ export const nwpDailyByPlaceTool = {
           text: JSON.stringify({
             source: "NWP High Performance Computing",
             location: {
-              province: input.province,
-              amphoe: input.amphoe,
-              tambon: input.tambon
+              province: normalizedPlace.province,
+              amphoe: normalizedPlace.amphoe,
+              tambon: normalizedPlace.tambon
             },
             success: false,
             error: errorMessage,
@@ -437,17 +438,16 @@ export const nwpDailyByRegionTool = {
 
       // Interpret weather conditions
       const data = response.data;
-      if (data.WeatherForecast && Array.isArray(data.WeatherForecast)) {
-        data.WeatherForecast.forEach((forecast: any) => {
-          if (forecast.forecasts && Array.isArray(forecast.forecasts)) {
-            forecast.forecasts.forEach((f: any) => {
-              if (f.data && f.data.cond !== undefined) {
-                f.data.condMeaning = interpretCondition(f.data.cond);
-              }
-            });
-          }
-        });
-      }
+      const regions = extractDailyEntries(data);
+      regions.forEach((forecast: any) => {
+        if (forecast.forecasts && Array.isArray(forecast.forecasts)) {
+          forecast.forecasts.forEach((f: any) => {
+            if (f.data && f.data.cond !== undefined) {
+              f.data.condMeaning = interpretCondition(f.data.cond);
+            }
+          });
+        }
+      });
 
       const regionNames = {
         C: "ภาคกลาง", N: "ภาคเหนือ", NE: "ภาคตะวันออกเฉียงเหนือ",
@@ -459,13 +459,13 @@ export const nwpDailyByRegionTool = {
         region: regionNames[input.region],
         regionCode: input.region,
         duration: `${input.duration || 7} days`,
-        provinces: data.WeatherForecast?.length || 0,
+        provinces: regions.length,
         data: data,
         success: true,
         timestamp: new Date().toISOString()
       };
 
-      console.log(`[NWP Daily Region] Success: ${data.WeatherForecast?.length || 0} provinces`);
+      console.log(`[NWP Daily Region] Success: ${regions.length} provinces`);
 
       return {
         content: [{
