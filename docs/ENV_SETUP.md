@@ -307,4 +307,66 @@ innomcp-next:3000/api/health → innomcp-node:3011/api/health/keys
 
 ---
 
-*อัปเดตล่าสุด: 2026-03-18 (Phase 10.12)*
+## 13. NWP API — JWT Bearer Token & Scope Requirements
+
+### Token Setup
+ขอ Bearer token ได้ที่ [https://data.tmd.go.th/nwpapi/](https://data.tmd.go.th/nwpapi/)
+Token เป็น JWT ที่มี payload ระบุ `scopes` หรือ `scope`
+
+```bash
+NWP_API_KEY=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### ตรวจสอบ Scope ใน JWT
+
+```bash
+# Decode payload (cross-platform)
+echo "<your_token>" | cut -d. -f2 | base64 -d 2>/dev/null | python3 -m json.tool | grep -i scope
+
+# หรือด้วย Node.js:
+node -e "const t='<token>'; console.log(JSON.parse(Buffer.from(t.split('.')[1],'base64').toString()))"
+```
+
+### Scopes ที่ต้องมี (ตาม NWP API docs)
+
+| Scope | ใช้โดย |
+|---|---|
+| `nwp.api.forecast_location` | nwp_daily_by_place, nwp_hourly_by_place |
+| `nwp.api.location.forecast_daily` | nwp_daily_by_location, nwp_daily_by_place |
+| `nwp.api.location.forecast_hourly` | nwp_hourly_by_location, nwp_hourly_by_place |
+| `nwp.api.forecast_area` | nwp_daily_by_region, nwp_hourly_by_region |
+
+> **หมายเหตุ Phase 10.12.5**: ระบบ innomcp ไม่ validate scopes ใน JWT โดยตรง
+> (scope check ถูกลบออกตาม NWP API docs: 401 = invalid/expired token เท่านั้น)
+> Token ที่ `"scopes": []` จะ fail เมื่อ call API จริง — ขอ token ใหม่ที่มี scope ครบ
+
+### TMD API Tier System
+
+| Tier | Env Vars | ใช้โดย Endpoint |
+|---|---|---|
+| `api` | `TMD_UID_API` / `TMD_UKEY_API` | WeatherToday/V2, Weather3Hours/V2, WeatherForecast7Days/v2, DailyForecast/v2, WeatherWarningNews/v2, WeatherForecast7DaysByRegion/v2, ByX/V1 series |
+| `demo` | `TMD_UID_DEMO` / `TMD_UKEY_DEMO` | DailySeismicEvent/v1, ThailandClimateNormal/v1, Station/v1, ThailandMonthlyRainfall/v1, RainRegions/v1 |
+
+Fallback chain (ถ้าไม่ set tier-specific vars):
+`TMD_UID_API` → `TMD_UID` → `TMD_API_UID` (deprecated)
+
+### Guard: TMD_STRICT_DEMO_BLOCK
+
+```bash
+TMD_STRICT_DEMO_BLOCK=1   # Block เมื่อใช้ placeholder credentials ใน online mode
+TMD_STRICT_DEMO_BLOCK=0   # แค่ warn (default)
+```
+
+---
+
+## 14. NWP Province → Lat/Lon Fallback (Phase 10.13)
+
+เมื่อ NWP `forecast/location/daily/place` ไม่รู้จักชื่อจังหวัด
+ระบบจะ fallback ไปใช้ `forecast/location/daily/at` ด้วยพิกัดจาก `nwpApiConfig.ts`
+
+Config: `innomcp-server-node/src/mcp/config/nwpApiConfig.ts`
+รองรับ: 77 จังหวัด รวมตัวสะกดแตกต่าง เช่น `ภูเก็ต` / `ภูเกตุ` / `กรุงเทพ` / `กทม`
+
+---
+
+*อัปเดตล่าสุด: 2026-03-18 (Phase 10.13)*

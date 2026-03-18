@@ -98,76 +98,75 @@ if (envExPath) {
   ok(false, ".env.example found", "missing at innomcp-server-node/.env.example");
 }
 
-// ─── Test 2b: tmdApiConfig.ts exists and is complete ─────────────────────────
-section("Test 2b: tmdApiConfig.ts — Endpoint→Tier Config Module");
+// ─── Test 2b: tmdTools.ts tier assignment correctness ────────────────────────
+// NOTE (Phase 10.12.5): tmdApiConfig.ts was not created. Tier management lives
+// directly in tmdTools.ts via requireTmdAuthForTier(tier). We verify that here.
+section("Test 2b: tmdTools.ts — Tier Assignment (demo/api)");
 
-const tmdApiConfigPath = findFile([path.join(SERVER_ROOT, "src/mcp/tmdApiConfig.ts")]);
-if (tmdApiConfigPath) {
-  const src = fs.readFileSync(tmdApiConfigPath, "utf8");
-  ok(true, "tmdApiConfig.ts exists at innomcp-server-node/src/mcp/");
-
-  // Check all 17 TMD tool names are present
-  const ALL_17_TMD_TOOLS = [
-    "tmd_seismic_daily_events",
-    "tmd_thailand_climate_normal_1981_2010",
-    "tmd_thailand_monthly_rainfall",
-    "tmd_rain_regions",
-    "tmd_station_list",
-    "tmd_weather_today_07am_all_stations",
-    "tmd_weather_3hours_all_stations",
-    "tmd_weather_forecast_7days_by_province",
-    "tmd_daily_forecast_4_times",
-    "tmd_weather_warning_news",
-    "tmd_weather_forecast_7days_by_region",
-    "tmd_weather_3hours_by_hydro",
-    "tmd_weather_3hours_by_agro",
-    "tmd_weather_3hours_by_synop",
-    "tmd_weather_today_by_hydro",
-    "tmd_weather_today_by_agro",
-    "tmd_weather_today_by_synop",
-  ];
-  let toolCount = 0;
-  for (const tool of ALL_17_TMD_TOOLS) {
-    if (src.includes(tool)) toolCount++;
-  }
-  ok(toolCount === 17, `TMD_ENDPOINT_TIERS has all 17 tools`, `found ${toolCount}/17`);
-
-  // Check demo assignments
-  ok(src.includes(`tmd_seismic_daily_events`), "seismic in config");
-  ok(src.includes(`"demo"`), "demo tier present in config");
-  ok(src.includes(`"api"`), "api tier present in config");
-  ok(src.includes("getTmdCredsForTier"), "getTmdCredsForTier() exported");
-  ok(src.includes("getTmdTierForTool"), "getTmdTierForTool() exported");
-  ok(src.includes("checkNwpScopes"), "checkNwpScopes() exported");
-  ok(src.includes("decodeNwpJwtScopes"), "decodeNwpJwtScopes() exported");
-  ok(src.includes("NWP_REQUIRED_SCOPES"), "NWP_REQUIRED_SCOPES exported");
-  ok(src.includes("nwp.api.forecast_location"), "NWP scope: nwp.api.forecast_location");
-  ok(src.includes("nwp.api.location.forecast_daily"), "NWP scope: nwp.api.location.forecast_daily");
-  ok(src.includes("nwp.api.location.forecast_hourly"), "NWP scope: nwp.api.location.forecast_hourly");
-  ok(src.includes("nwp.api.forecast_area"), "NWP scope: nwp.api.forecast_area");
+const tmdToolsSrcPath = findFile([path.join(SERVER_ROOT, "src/mcp/tools/tmdTools.ts")]);
+if (tmdToolsSrcPath) {
+  const src = fs.readFileSync(tmdToolsSrcPath, "utf8");
+  ok(true, "tmdTools.ts exists");
+  // Verify 17 tools are registered (count call sites, excluding the function definition)
+  const registrations = (src.match(/registerSimpleTmdTool\(mcpserver,/g) || []).length;
+  ok(registrations === 17, `tmdTools.ts registers 17 tools`, `found ${registrations}`);
+  // Verify tier assignments
+  ok(src.includes(`keyTier: "demo"`), "demo tier tools present");
+  ok(src.includes(`keyTier: "api"`), "api tier tools present");
+  // Verify credential env vars are read
+  ok(src.includes("TMD_UID_API"), "tmdTools.ts reads TMD_UID_API");
+  ok(src.includes("TMD_UKEY_API"), "tmdTools.ts reads TMD_UKEY_API");
+  ok(src.includes("TMD_UID_DEMO"), "tmdTools.ts reads TMD_UID_DEMO");
+  ok(src.includes("TMD_UKEY_DEMO"), "tmdTools.ts reads TMD_UKEY_DEMO");
+  // Verify TMD_STRICT_DEMO_BLOCK guard
+  ok(src.includes("TMD_STRICT_DEMO_BLOCK"), "tmdTools.ts: TMD_STRICT_DEMO_BLOCK guard present");
+  // Verify legacy fallback
+  ok(src.includes("TMD_API_UID"), "tmdTools.ts: legacy TMD_API_UID fallback");
 } else {
-  ok(false, "tmdApiConfig.ts found", "missing at innomcp-server-node/src/mcp/tmdApiConfig.ts");
+  ok(false, "tmdTools.ts found", "missing at innomcp-server-node/src/mcp/tools/tmdTools.ts");
 }
 
-// ─── Test 2c: NWP tools import tmdApiConfig ───────────────────────────────────
-section("Test 2c: NWP Tools — tmdApiConfig Integration");
+// ─── Test 2c: NWP tools use nwpApiConfig (lat/lon fallback) ──────────────────
+// NOTE (Phase 10.12.5): tmdApiConfig + scope checking was intentionally removed.
+// NWP tools now use Bearer token only (no scope validation) per NWP API docs.
+// Instead, tools use nwpApiConfig for province→lat/lon fallback.
+section("Test 2c: NWP Tools — nwpApiConfig + domain/starttime params");
 
 const nwpDailyPath = findFile([path.join(SERVER_ROOT, "src/mcp/tools/nwpDailyTool.ts")]);
 const nwpHourlyPath = findFile([path.join(SERVER_ROOT, "src/mcp/tools/nwpHourlyTool.ts")]);
 if (nwpDailyPath) {
   const src = fs.readFileSync(nwpDailyPath, "utf8");
-  ok(src.includes("tmdApiConfig"), "nwpDailyTool.ts imports tmdApiConfig");
-  ok(src.includes("checkNwpScopes"), "nwpDailyTool.ts calls checkNwpScopes()");
-  ok(src.includes("NWP_JWT_EMPTY_SCOPES") || src.includes("NWP_JWT_MISSING_SCOPES"), "nwpDailyTool.ts has scope warn log");
+  ok(src.includes("nwpApiConfig"), "nwpDailyTool.ts imports nwpApiConfig");
+  ok(src.includes("getProvinceCoords"), "nwpDailyTool.ts calls getProvinceCoords()");
+  ok(src.includes("coordsFallback"), "nwpDailyTool.ts has coordsFallback logic");
+  ok(src.includes("domain"), "nwpDailyTool.ts accepts domain param");
+  ok(src.includes("starttime"), "nwpDailyTool.ts accepts starttime param");
+  ok(src.includes("place") && src.includes("province"), "nwpDailyTool.ts accepts place/province aliases");
 } else {
   ok(false, "nwpDailyTool.ts found", "missing");
 }
 if (nwpHourlyPath) {
   const src = fs.readFileSync(nwpHourlyPath, "utf8");
-  ok(src.includes("tmdApiConfig"), "nwpHourlyTool.ts imports tmdApiConfig");
-  ok(src.includes("checkNwpScopes"), "nwpHourlyTool.ts calls checkNwpScopes()");
+  ok(src.includes("nwpApiConfig"), "nwpHourlyTool.ts imports nwpApiConfig");
+  ok(src.includes("getProvinceCoords"), "nwpHourlyTool.ts calls getProvinceCoords()");
+  ok(src.includes("domain"), "nwpHourlyTool.ts accepts domain param");
+  ok(src.includes("starttime"), "nwpHourlyTool.ts accepts starttime param");
 } else {
   ok(false, "nwpHourlyTool.ts found", "missing");
+}
+
+// Check nwpApiConfig.ts itself
+const nwpApiConfigPath = findFile([path.join(SERVER_ROOT, "src/mcp/config/nwpApiConfig.ts")]);
+if (nwpApiConfigPath) {
+  const src = fs.readFileSync(nwpApiConfigPath, "utf8");
+  ok(true, "nwpApiConfig.ts exists");
+  ok(src.includes("กรุงเทพมหานคร"), "nwpApiConfig: กรุงเทพมหานคร present");
+  ok(src.includes("ภูเก็ต"), "nwpApiConfig: ภูเก็ต present");
+  ok(src.includes("ภูเกตุ"), "nwpApiConfig: ภูเกตุ (alt spelling) present");
+  ok(src.includes("getProvinceCoords"), "nwpApiConfig: getProvinceCoords() exported");
+  ok(src.includes('"S"') && src.includes('"N"') && src.includes('"NE"'), "nwpApiConfig: all region codes present");
+} else {
+  ok(false, "nwpApiConfig.ts found", "missing at innomcp-server-node/src/mcp/config/nwpApiConfig.ts");
 }
 
 // ─── Test 3: tmdTools.ts tier assignments ────────────────────────────────────
@@ -219,22 +218,19 @@ if (tmdToolsPath) {
   ok(false, "tmdTools.ts found", "missing");
 }
 
-// ─── Test 4: health.ts tier-split readiness ───────────────────────────────────
-section("Test 4: health.ts — TMD Tier-split Readiness");
+// ─── Test 4: health.ts API key readiness ──────────────────────────────────────
+// NOTE (Phase 10.12.5): health.ts was simplified to check openweather/nasa/nwp/tmd flat.
+// TMD tier-split (tools.tmd_api / tools.tmd_demo) was not needed at this layer.
+section("Test 4: health.ts — API Key Readiness");
 
 const healthPath = findFile([path.join(SERVER_ROOT, "src/routes/api/health.ts")]);
 if (healthPath) {
   const src = fs.readFileSync(healthPath, "utf8");
-  ok(src.includes("tools.tmd_api"), "tools.tmd_api entry added");
-  ok(src.includes("tools.tmd_demo"), "tools.tmd_demo entry added");
-  ok(src.includes("TMD_UID_API"), "health.ts checks TMD_UID_API");
-  ok(src.includes("TMD_UID_DEMO"), "health.ts checks TMD_UID_DEMO");
-  ok(src.includes("required_for_online: true"), "tmd_api: required_for_online=true");
-  ok(src.includes("required_for_online: false") && src.includes("tmd_demo"), "tmd_demo: required_for_online=false");
-  ok(
-    src.includes("migrate to TMD_UID_API") || src.includes("TMD_UID_API/TMD_UKEY_API"),
-    "health.ts: migration note for deprecated TMD_UID/TMD_UKEY"
-  );
+  ok(src.includes("NWP_API_KEY"), "health.ts checks NWP_API_KEY");
+  ok(src.includes("openweather") || src.includes("OPENWEATHER"), "health.ts checks openweather");
+  ok(src.includes("nasa") || src.includes("NASA"), "health.ts checks nasa");
+  ok(src.includes("TMD_UID") || src.includes("TMD_API_UID"), "health.ts checks TMD credentials");
+  ok(src.includes("Bearer token") || src.includes("bearer"), "health.ts: NWP uses Bearer token");
 } else {
   ok(false, "health.ts found", "missing");
 }

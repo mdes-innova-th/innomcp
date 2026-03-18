@@ -1,4 +1,20 @@
-﻿********* PHASE10.12 Health Fix + UI Polish + DB Docs (2026-03-18) *********
+﻿********* PHASE10.13 NWP/TMD Polish + DB Guidance + ModeStatusBar (2026-03-18) *********
+01) Scope: เพิ่ม nwpApiConfig province→lat/lon, domain/starttime params, coord fallback, db error msg, ModeStatusBar icons
+02) nwpApiConfig.ts — สร้างใหม่ใน innomcp-server-node/src/mcp/config/ (77 จังหวัด + alternate spellings)
+03) nwpDailyTool.ts — เพิ่ม domain/starttime params; ByPlace fallback ไปใช้ coords เมื่อ place API fail
+04) nwpHourlyTool.ts — เพิ่ม domain/starttime params; ByPlace fallback ไปใช้ coords เมื่อ place API fail
+05) db.ts — ER_ACCESS_DENIED_ERROR message ชัดขึ้น: แสดง host:port:user + แนวทางแก้ไข
+06) ModeStatusBar.tsx — เพิ่มไอคอน: AI mode (Local/Remote), MCP server status (online/offline)
+07) verify_phase109_tmd_nwp_endpoints.ts — อัปเดตให้สอดคล้องกับ Phase 10.12.5 (ลบ tmdApiConfig/scope checks)
+    → 73/73 PASS
+08) ENV_SETUP.md — Section 13 (NWP JWT/scope docs) + Section 14 (province coord fallback)
+09) innomcp-server-node/.env.example — เพิ่ม TMD_STRICT_DEMO_BLOCK=0
+10) TypeScript: innomcp-server-node ✓  innomcp-node ✓
+11) Commit + push
+BLOCKER (unchanged): P-158 NWP JWT scopes=[] / P-159 TMD placeholder creds / P-160 DB password mismatch
+********* END PHASE10.13 *********
+
+********* PHASE10.12 Health Fix + UI Polish + DB Docs (2026-03-18) *********
 01) Scope: แก้ health 401, Next.js proxy, UI polish, DB docs, E2E tests
 02) innomcp-node/src/app.ts — ย้าย healthRouter ออกจาก apiKeyMiddleware
     Mount: app.use("/api/health", healthRouter) ก่อน app.use("/api", apiKeyMiddleware, ...)

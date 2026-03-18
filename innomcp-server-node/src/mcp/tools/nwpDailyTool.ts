@@ -1,5 +1,6 @@
 import { z } from "zod";
 import axios from "axios";
+import { getProvinceCoords } from "../config/nwpApiConfig";
 
 /**
  * NWP Daily Forecast Tool
@@ -58,7 +59,9 @@ export const nwpDailyByLocationSchema = z.object({
   lat: z.number().min(-90).max(90).describe("พิกัดละติจูด (latitude)"),
   lon: z.number().min(-180).max(180).describe("พิกัดลองจิจูด (longitude)"),
   date: z.string().optional().describe("วันที่เริ่มต้น (YYYY-MM-DD) Default: วันนี้"),
+  starttime: z.string().optional().describe("alias ของ date (YYYY-MM-DD) — ใช้แทน date ได้"),
   duration: z.number().min(1).max(126).optional().default(7).describe("จำนวนวัน (1-126) Default: 7"),
+  domain: z.string().optional().describe("NWP forecast domain (เช่น thai, sea) Default: ใช้ค่า default ของ API"),
   fields: z.array(z.enum(AVAILABLE_FIELDS)).optional().describe("ตัวแปรที่ต้องการ Default: tc_max,tc_min,rain,cond"),
 });
 
@@ -70,7 +73,9 @@ export const nwpDailyByPlaceSchema = z.object({
   tambon: z.string().optional().describe("ชื่อตำบล (ภาษาไทย)"),
   subarea: z.boolean().optional().describe("แนบข้อมูลสถานที่ย่อยด้วย Default: false"),
   date: z.string().optional().describe("วันที่เริ่มต้น (YYYY-MM-DD)"),
+  starttime: z.string().optional().describe("alias ของ date (YYYY-MM-DD)"),
   duration: z.number().min(1).max(126).optional().default(7).describe("จำนวนวัน (1-126)"),
+  domain: z.string().optional().describe("NWP forecast domain (เช่น thai, sea) Default: ใช้ค่า default ของ API"),
   fields: z.array(z.enum(AVAILABLE_FIELDS)).optional().describe("ตัวแปรที่ต้องการ"),
 });
 
@@ -188,8 +193,9 @@ export const nwpDailyByLocationTool = {
       const params = buildQueryParams({
         lat: input.lat,
         lon: input.lon,
-        date: input.date,
+        date: input.starttime || input.date,
         duration: input.duration,
+        domain: input.domain,
         fields: input.fields || ["tc_max", "tc_min", "rain", "cond"]
       });
 
@@ -290,17 +296,23 @@ export const nwpDailyByPlaceTool = {
     const input = parsed.data;
     const normalizedPlace = normalizePlaceInput(input as NwpDailyByPlaceInput & { place?: string });
 
+    // Hoist coords fallback so it's accessible in catch block
+    const coordsFallback = normalizedPlace.province
+      ? getProvinceCoords(normalizedPlace.province)
+      : undefined;
+
     try {
       const apiKey = getNwpApiKey();
       const url = `${NWP_API_BASE}/place`;
-      
+
       const params = buildQueryParams({
         province: normalizedPlace.province,
         amphoe: normalizedPlace.amphoe,
         tambon: normalizedPlace.tambon,
         subarea: input.subarea ? 1 : 0,
-        date: input.date,
+        date: input.starttime || input.date,
         duration: input.duration,
+        domain: input.domain,
         fields: input.fields || ["tc_max", "tc_min", "rain", "cond"]
       });
 
@@ -352,6 +364,49 @@ export const nwpDailyByPlaceTool = {
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || error.message || "เกิดข้อผิดพลาด";
       console.error(`[NWP Daily Place] Error: ${errorMessage}`);
+
+      // Fallback: try ByLocation with province lat/lon if place lookup failed
+      if (coordsFallback) {
+        try {
+          const apiKey = getNwpApiKey();
+          const fallbackUrl = `${NWP_API_BASE}/at`;
+          const fallbackParams = buildQueryParams({
+            lat: coordsFallback.lat,
+            lon: coordsFallback.lon,
+            date: input.starttime || input.date,
+            duration: input.duration,
+            domain: input.domain,
+            fields: input.fields || ["tc_max", "tc_min", "rain", "cond"]
+          });
+          console.log(`[NWP Daily Place] Fallback to coords: GET ${fallbackUrl}?${fallbackParams}`);
+          const fallbackResp = await axios.get(`${fallbackUrl}?${fallbackParams}`, {
+            headers: { authorization: `bearer ${apiKey}`, Accept: "application/json" },
+            timeout: DEFAULT_TIMEOUT
+          });
+          const fData = fallbackResp.data;
+          console.log(`[NWP Daily Place] Fallback success via coords lat=${coordsFallback.lat} lon=${coordsFallback.lon}`);
+          return {
+            content: [{
+              type: "text" as const,
+              text: JSON.stringify({
+                source: "NWP High Performance Computing (18-27km resolution) [via coordinate fallback]",
+                location: {
+                  province: normalizedPlace.province,
+                  lat: coordsFallback.lat,
+                  lon: coordsFallback.lon,
+                  note: "ใช้พิกัดละติจูด/ลองจิจูดของจังหวัดแทน (place endpoint ไม่รู้จักชื่อ)"
+                },
+                duration: `${input.duration || 7} days`,
+                data: fData,
+                success: true,
+                timestamp: new Date().toISOString()
+              }, null, 2)
+            }]
+          };
+        } catch (fallbackErr: any) {
+          console.error(`[NWP Daily Place] Fallback also failed: ${fallbackErr.message}`);
+        }
+      }
 
       return {
         content: [{

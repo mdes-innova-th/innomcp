@@ -59,7 +59,16 @@ export async function connectWithRetry(
       const now = Date.now();
       if (now - lastRetryLogAt > RETRY_LOG_COOLDOWN_MS) {
         lastRetryLogAt = now;
-        console.log("[db-connectWithRetry] Access denied - stop retry and return failure");
+        const dbHost = process.env.DB_HOST || "(not set)";
+        const dbPort = process.env.DB_PORT || "(not set)";
+        const dbUser = process.env.DB_USER || "(not set)";
+        console.error(
+          `[db-connectWithRetry] ER_ACCESS_DENIED_ERROR: host=${dbHost}:${dbPort} user=${dbUser}\n` +
+          "  แนวทางแก้ไข:\n" +
+          "  1. ตรวจสอบว่า DB_PASSWORD ใน .env.local ตรงกับ MARIADB_PASSWORD ใน docker-compose\n" +
+          "  2. DB_PORT ต้องเป็น 3308 (host) ไม่ใช่ 3306 (container) เมื่อรันด้วย npm run dev\n" +
+          "  3. ดูรายละเอียดเพิ่มเติมใน docs/ENV_SETUP.md ส่วนที่ 11"
+        );
       }
       throw error;
     }
