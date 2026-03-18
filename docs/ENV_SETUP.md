@@ -60,7 +60,7 @@ TMD_UKEY_API=<ukey-จาก-data.tmd.go.th>
 
 # Demo tier (v1 public datasets: seismic, climate, station, rainfall)
 TMD_UID_DEMO=demo
-TMD_UKEY_DEMO=demo
+TMD_UKEY_DEMO=demokey
 
 # NWP JWT Bearer token (ต้องมี scopes — ดูหัวข้อ 4)
 NWP_API_KEY=<your-jwt-token>
@@ -91,7 +91,7 @@ endpoint เหล่านี้เรียก v2 API ที่ต้องก
 | `tmd_weather_today_by_agro` | WeatherTodayByAgro/V1 |
 | `tmd_weather_today_by_synop` | weathertodayBySynop/V1 |
 
-### demo tier — ใช้ `TMD_UID_DEMO` / `TMD_UKEY_DEMO` (default: `demo`/`demo`)
+### demo tier — ใช้ `TMD_UID_DEMO` / `TMD_UKEY_DEMO` (default: `demo`/`demokey`)
 
 endpoint เหล่านี้เป็น v1 public datasets ที่ใช้ demo credentials ได้:
 
