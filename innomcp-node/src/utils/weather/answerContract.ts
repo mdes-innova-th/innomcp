@@ -339,8 +339,12 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
     return "ไม่มีคำเตือนพิเศษ";
   })();
 
+  const updateTimeStr = firstNonEmptyString(obsTime, forecastTime);
+
   const lines: string[] = [];
   lines.push(`พื้นที่: ${areaLabelForProvince(userText, province)}`);
+  // Keep update time early (2nd line) so trace sanitizer 220-char truncation never drops it.
+  if (updateTimeStr) lines.push(`เวลาอัปเดตข้อมูล: ${updateTimeStr}`);
   lines.push(`โอกาสฝน: ${rainText}`);
   lines.push(`ช่วงเวลาเสี่ยง: ${timeRisk}`);
   lines.push(`อุณหภูมิ: ${tempOut}`);

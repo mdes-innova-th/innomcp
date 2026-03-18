@@ -2740,7 +2740,8 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
             }
           : directOne(primaryToolResult, messageWithFile);
 
-      const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
+      const scBase = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
+      const scOut = { ...scBase, chatMeta: { reason_code: "TOOL_OK" } };
 
       sessionHistory.push({ sender: "ai", text: direct.text } as any);
 
@@ -2762,6 +2763,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         messages: sessionHistory,
         mcpUsed: true,
         mcpResults: toolResults,
+        toolsUsed: ["weatherPipeline"],
       });
     }
 
@@ -2870,7 +2872,12 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
       return res.json({
         text: lowConfidenceText,
-        structuredContent: null,
+        structuredContent: {
+          chatMeta: {
+            reason_code: "LOW_CONTEXT",
+            userGuidance: ["ระบุจังหวัดหรือหัวข้อที่ต้องการให้ชัดเจนขึ้น", "เช่น 'อากาศกรุงเทพวันนี้' หรือ 'ฝนตกภูเก็ตไหม'"],
+          },
+        },
         messages: sessionHistory,
         mcpUsed: false,
         mcpResults: null,

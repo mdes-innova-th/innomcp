@@ -126,31 +126,33 @@ if (tmdToolsSrcPath) {
   ok(false, "tmdTools.ts found", "missing at innomcp-server-node/src/mcp/tools/tmdTools.ts");
 }
 
-// ─── Test 2c: NWP tools use nwpApiConfig (lat/lon fallback) ──────────────────
-// NOTE (Phase 10.12.5): tmdApiConfig + scope checking was intentionally removed.
-// NWP tools now use Bearer token only (no scope validation) per NWP API docs.
-// Instead, tools use nwpApiConfig for province→lat/lon fallback.
-section("Test 2c: NWP Tools — nwpApiConfig + domain/starttime params");
+// ─── Test 2c: NWP tools use correct endpoints per API type ───────────────────
+// NOTE (Phase 10.13): Tools now use proper location vs area endpoints per docs:
+//   location endpoints: /forecast/location/{daily,hourly}/at|place  (date= param)
+//   area endpoint:      /forecast/area/region                        (starttime= param)
+// getProvinceCoords is no longer needed — province param passed directly to /place endpoint.
+section("Test 2c: NWP Tools — correct endpoints + Bearer header");
 
 const nwpDailyPath = findFile([path.join(SERVER_ROOT, "src/mcp/tools/nwpDailyTool.ts")]);
 const nwpHourlyPath = findFile([path.join(SERVER_ROOT, "src/mcp/tools/nwpHourlyTool.ts")]);
 if (nwpDailyPath) {
   const src = fs.readFileSync(nwpDailyPath, "utf8");
-  ok(src.includes("nwpApiConfig"), "nwpDailyTool.ts imports nwpApiConfig");
-  ok(src.includes("getProvinceCoords"), "nwpDailyTool.ts calls getProvinceCoords()");
-  ok(src.includes("coordsFallback"), "nwpDailyTool.ts has coordsFallback logic");
+  ok(src.includes("forecast/location/daily"), "nwpDailyTool.ts uses /forecast/location/daily endpoint");
+  ok(src.includes("forecast/area/region"), "nwpDailyTool.ts uses /forecast/area/region for region queries");
   ok(src.includes("domain"), "nwpDailyTool.ts accepts domain param");
-  ok(src.includes("starttime"), "nwpDailyTool.ts accepts starttime param");
+  ok(src.includes("starttime") || src.includes("date"), "nwpDailyTool.ts accepts date/starttime param");
   ok(src.includes("place") && src.includes("province"), "nwpDailyTool.ts accepts place/province aliases");
+  ok(src.includes("Bearer"), "nwpDailyTool.ts uses Bearer (capital B) auth header");
 } else {
   ok(false, "nwpDailyTool.ts found", "missing");
 }
 if (nwpHourlyPath) {
   const src = fs.readFileSync(nwpHourlyPath, "utf8");
-  ok(src.includes("nwpApiConfig"), "nwpHourlyTool.ts imports nwpApiConfig");
-  ok(src.includes("getProvinceCoords"), "nwpHourlyTool.ts calls getProvinceCoords()");
+  ok(src.includes("forecast/location/hourly"), "nwpHourlyTool.ts uses /forecast/location/hourly endpoint");
+  ok(src.includes("forecast/area/region"), "nwpHourlyTool.ts uses /forecast/area/region for region queries");
   ok(src.includes("domain"), "nwpHourlyTool.ts accepts domain param");
-  ok(src.includes("starttime"), "nwpHourlyTool.ts accepts starttime param");
+  ok(src.includes("starttime") || src.includes("date"), "nwpHourlyTool.ts accepts date/starttime param");
+  ok(src.includes("Bearer"), "nwpHourlyTool.ts uses Bearer (capital B) auth header");
 } else {
   ok(false, "nwpHourlyTool.ts found", "missing");
 }
@@ -250,8 +252,11 @@ if (testScriptPath) {
   const tmdCalls = (src.match(/testTmdEndpoint\(/g) || []).length;
   ok(tmdCalls >= 17, `≥17 TMD testTmdEndpoint() calls`, `found ${tmdCalls}`);
 
-  const nwpCalls = (src.match(/testNwpEndpoint\(/g) || []).length;
-  ok(nwpCalls >= 4, `≥4 NWP testNwpEndpoint() calls`, `found ${nwpCalls}`);
+  // Script uses fetchNwpRaw + checkNwpResult pattern (refactored from testNwpEndpoint in phase10.13)
+  const nwpRawCalls = (src.match(/fetchNwpRaw\(/g) || []).length;
+  const nwpLegacyCalls = (src.match(/testNwpEndpoint\(/g) || []).length;
+  const nwpTotalCoverage = nwpRawCalls + nwpLegacyCalls;
+  ok(nwpTotalCoverage >= 4, `≥4 NWP endpoint calls (fetchNwpRaw or testNwpEndpoint)`, `found ${nwpTotalCoverage}`);
 
   // Verify demo-tier tools are tested with demo creds
   ok(src.includes(`"demo"`), "demo-tier tests use creds labeled demo");
