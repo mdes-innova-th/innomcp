@@ -137,7 +137,7 @@ async function fetchNwp(
     const res = await fetch(u.toString(), {
       signal: ctrl.signal,
       headers: {
-        authorization: `bearer ${NWP_KEY}`,
+        authorization: `Bearer ${NWP_KEY}`,
         Accept: "application/json",
       },
     });
@@ -402,185 +402,108 @@ async function testNwpEndpoint(
   if (extraCheck && r.json) ok(extraCheck(r.json), "Data structure OK");
 }
 
-const NWP_DAILY_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/daily";
-const NWP_HOURLY_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly";
-const NWP_AREA_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/area/box";
-// Test bounding box (small area near Bangkok coast — same as documented curl example)
-const TEST_AREA_BL = "13.10,100.10";  // bottom-left lat,lon
-const TEST_AREA_TR = "13.20,100.20";  // top-right lat,lon
+const NWP_DAILY_LOC_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/daily";
+const NWP_HOURLY_LOC_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly";
+const NWP_AREA_REGION_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/area/region";
 
-// NWP 1: Daily by location — use area/box with small bbox; location/at returns 401 with scopes:[] JWT
-log("\n  → NWP#1 nwp_daily_by_location (area/box centered on Bangkok coords)");
-log(`     scope: nwp.api.forecast_location`);
-if (!IS_ONLINE || !NWP_KEY) {
-  skip("NWP#1 nwp_daily_by_location", IS_ONLINE ? "NWP_API_KEY not set" : "offline mode");
-} else {
-  const areaUrl1 = `${NWP_AREA_BASE}?domain=2&bottom-left=${BKK_LAT - 0.25},${BKK_LON - 0.25}&top-right=${BKK_LAT + 0.25},${BKK_LON + 0.25}&fields=tc_max,rh&starttime=${TODAY}T00:00:00`;
-  const r1 = await (async () => {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    try {
-      const res = await fetch(areaUrl1, { signal: ctrl.signal, headers: { authorization: `bearer ${NWP_KEY}`, Accept: "application/json" } });
-      const body = await res.text();
-      let json: any = null;
-      try { json = JSON.parse(body.replace(/^\uFEFF/, "").trim()); } catch { /* noop */ }
-      return { status: res.status, body, json };
-    } catch (err: any) { return { status: 0, body: "", json: null, error: String(err?.message || err) }; }
-    finally { clearTimeout(t); }
-  })();
-  if ((r1 as any).error) { failed++; log(`  ❌ Network error — ${(r1 as any).error}`); }
-  else if (r1.status === 401) { ok(false, `HTTP 401 Unauthorized`, `check NWP_API_KEY`); }
-  else if (r1.status === 403) { ok(false, `HTTP 403 Forbidden`, `status=403`); }
-  else {
-    ok(r1.status === 200, `HTTP 200`, `status=${r1.status}`);
-    ok(r1.json !== null, "JSON parseable");
-    ok(!!(r1.json?.WeatherForecasts || r1.json?.WeatherForcasts), "Data structure OK");
+/** Current Thai time (UTC+7) formatted as YYYY-MM-DDTHH:00:00 — required for area endpoint starttime */
+function currentThaiHourStr(): string {
+  const nowTH = new Date(Date.now() + 7 * 3600 * 1000);
+  const date = nowTH.toISOString().slice(0, 10);
+  const hour = String(nowTH.getUTCHours()).padStart(2, "0");
+  return `${date}T${hour}:00:00`;
+}
+
+/** Shared raw-fetch helper for NWP calls (handles abortController + JSON parse) */
+async function fetchNwpRaw(url: string): Promise<{ status: number; body: string; json: any; error?: string }> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(url, {
+      signal: ctrl.signal,
+      headers: { authorization: `Bearer ${NWP_KEY}`, Accept: "application/json" },
+    });
+    const body = await res.text();
+    let json: any = null;
+    try { json = JSON.parse(body.replace(/^\uFEFF/, "").trim()); } catch { /* noop */ }
+    return { status: res.status, body, json };
+  } catch (err: any) {
+    return { status: 0, body: "", json: null, error: String(err?.message || err) };
+  } finally {
+    clearTimeout(t);
   }
 }
 
-// NWP 2: Daily by place — use area/box with Bangkok bbox
-log("\n  → NWP#2 nwp_daily_by_place (area/box near Bangkok)");
+function checkNwpResult(r: { status: number; body: string; json: any; error?: string }, dataKey: string): void {
+  if ((r as any).error) { failed++; log(`  ❌ Network error — ${(r as any).error}`); return; }
+  if (r.status === 422) { ok(false, `HTTP 422 Unprocessable`, `body=${r.body.slice(0, 200)}`); return; }
+  if (r.status === 401) { ok(false, `HTTP 401 Unauthorized`, `check NWP_API_KEY is valid`); return; }
+  if (r.status === 403) { ok(false, `HTTP 403 Forbidden`, `status=403`); return; }
+  ok(r.status === 200, `HTTP 200`, `status=${r.status}`);
+  ok(r.json !== null, "JSON parseable");
+  ok(!!(r.json?.[dataKey] || r.json?.WeatherForecasts || r.json?.WeatherForcasts), `Data structure OK (${dataKey})`);
+}
+
+// NWP#1: Daily by location — /forecast/location/daily/at
+log("\n  → NWP#1 nwp_daily_by_location (/forecast/location/daily/at)");
+log(`     scope: nwp.api.location.forecast_daily`);
+if (!IS_ONLINE || !NWP_KEY) {
+  skip("NWP#1 nwp_daily_by_location", IS_ONLINE ? "NWP_API_KEY not set" : "offline mode");
+} else {
+  const p1 = new URLSearchParams({ lat: String(BKK_LAT), lon: String(BKK_LON), date: TODAY, duration: "1", fields: "tc_max,rh" });
+  checkNwpResult(await fetchNwpRaw(`${NWP_DAILY_LOC_BASE}/at?${p1}`), "WeatherForecasts");
+}
+
+// NWP#2: Daily by place — /forecast/location/daily/place
+log("\n  → NWP#2 nwp_daily_by_place (/forecast/location/daily/place)");
 log(`     scope: nwp.api.location.forecast_daily`);
 if (!IS_ONLINE || !NWP_KEY) {
   skip("NWP#2 nwp_daily_by_place", IS_ONLINE ? "NWP_API_KEY not set" : "offline mode");
 } else {
-  const areaUrl2 = `${NWP_AREA_BASE}?domain=2&bottom-left=${TEST_AREA_BL}&top-right=${TEST_AREA_TR}&fields=tc_max,rh&starttime=${TODAY}T00:00:00`;
-  const r2 = await (async () => {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    try {
-      const res = await fetch(areaUrl2, { signal: ctrl.signal, headers: { authorization: `bearer ${NWP_KEY}`, Accept: "application/json" } });
-      const body = await res.text();
-      let json: any = null;
-      try { json = JSON.parse(body.replace(/^\uFEFF/, "").trim()); } catch { /* noop */ }
-      return { status: res.status, body, json };
-    } catch (err: any) { return { status: 0, body: "", json: null, error: String(err?.message || err) }; }
-    finally { clearTimeout(t); }
-  })();
-  if ((r2 as any).error) { failed++; log(`  ❌ Network error — ${(r2 as any).error}`); }
-  else if (r2.status === 401) { ok(false, `HTTP 401 Unauthorized`, `check NWP_API_KEY`); }
-  else if (r2.status === 403) { ok(false, `HTTP 403 Forbidden`, `status=403`); }
-  else {
-    ok(r2.status === 200, `HTTP 200`, `status=${r2.status}`);
-    ok(r2.json !== null, "JSON parseable");
-    ok(!!(r2.json?.WeatherForecasts || r2.json?.WeatherForcasts), "Data structure OK");
-  }
+  const p2 = new URLSearchParams({ province: "กรุงเทพมหานคร", date: TODAY, duration: "1", fields: "tc_max,rh" });
+  checkNwpResult(await fetchNwpRaw(`${NWP_DAILY_LOC_BASE}/place?${p2}`), "WeatherForecasts");
 }
 
-// NWP 3: Hourly by location — use area/box with small bbox
-log("\n  → NWP#3 nwp_hourly_by_location (area/box centered on Bangkok coords)");
+// NWP#3: Hourly by location — /forecast/location/hourly/at
+log("\n  → NWP#3 nwp_hourly_by_location (/forecast/location/hourly/at)");
 log(`     scope: nwp.api.location.forecast_hourly`);
 if (!IS_ONLINE || !NWP_KEY) {
   skip("NWP#3 nwp_hourly_by_location", IS_ONLINE ? "NWP_API_KEY not set" : "offline mode");
 } else {
-  const areaUrl3 = `${NWP_AREA_BASE}?domain=2&bottom-left=${BKK_LAT - 0.25},${BKK_LON - 0.25}&top-right=${BKK_LAT + 0.25},${BKK_LON + 0.25}&fields=tc,rh&starttime=${TODAY}T00:00:00`;
-  const r3 = await (async () => {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    try {
-      const res = await fetch(areaUrl3, { signal: ctrl.signal, headers: { authorization: `bearer ${NWP_KEY}`, Accept: "application/json" } });
-      const body = await res.text();
-      let json: any = null;
-      try { json = JSON.parse(body.replace(/^\uFEFF/, "").trim()); } catch { /* noop */ }
-      return { status: res.status, body, json };
-    } catch (err: any) { return { status: 0, body: "", json: null, error: String(err?.message || err) }; }
-    finally { clearTimeout(t); }
-  })();
-  if ((r3 as any).error) { failed++; log(`  ❌ Network error — ${(r3 as any).error}`); }
-  else if (r3.status === 401) { ok(false, `HTTP 401 Unauthorized`, `check NWP_API_KEY`); }
-  else if (r3.status === 403) { ok(false, `HTTP 403 Forbidden`, `status=403`); }
-  else {
-    ok(r3.status === 200, `HTTP 200`, `status=${r3.status}`);
-    ok(r3.json !== null, "JSON parseable");
-    ok(!!(r3.json?.WeatherForecasts || r3.json?.WeatherForcasts), "Data structure OK");
-  }
+  const p3 = new URLSearchParams({ lat: String(BKK_LAT), lon: String(BKK_LON), date: TODAY, hour: "0", duration: "1", fields: "tc,rh" });
+  checkNwpResult(await fetchNwpRaw(`${NWP_HOURLY_LOC_BASE}/at?${p3}`), "WeatherForecasts");
 }
 
-// NWP 4: Hourly by place — use area/box near Bangkok
-log("\n  → NWP#4 nwp_hourly_by_place (area/box near Bangkok)");
+// NWP#4: Hourly by place — /forecast/location/hourly/place
+log("\n  → NWP#4 nwp_hourly_by_place (/forecast/location/hourly/place)");
 log(`     scope: nwp.api.location.forecast_hourly`);
 if (!IS_ONLINE || !NWP_KEY) {
   skip("NWP#4 nwp_hourly_by_place", IS_ONLINE ? "NWP_API_KEY not set" : "offline mode");
 } else {
-  const areaUrl4 = `${NWP_AREA_BASE}?domain=2&bottom-left=${TEST_AREA_BL}&top-right=${TEST_AREA_TR}&fields=tc,rh&starttime=${TODAY}T00:00:00`;
-  const r4 = await (async () => {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    try {
-      const res = await fetch(areaUrl4, { signal: ctrl.signal, headers: { authorization: `bearer ${NWP_KEY}`, Accept: "application/json" } });
-      const body = await res.text();
-      let json: any = null;
-      try { json = JSON.parse(body.replace(/^\uFEFF/, "").trim()); } catch { /* noop */ }
-      return { status: res.status, body, json };
-    } catch (err: any) { return { status: 0, body: "", json: null, error: String(err?.message || err) }; }
-    finally { clearTimeout(t); }
-  })();
-  if ((r4 as any).error) { failed++; log(`  ❌ Network error — ${(r4 as any).error}`); }
-  else if (r4.status === 401) { ok(false, `HTTP 401 Unauthorized`, `check NWP_API_KEY`); }
-  else if (r4.status === 403) { ok(false, `HTTP 403 Forbidden`, `status=403`); }
-  else {
-    ok(r4.status === 200, `HTTP 200`, `status=${r4.status}`);
-    ok(r4.json !== null, "JSON parseable");
-    ok(!!(r4.json?.WeatherForecasts || r4.json?.WeatherForcasts), "Data structure OK");
-  }
+  const p4 = new URLSearchParams({ province: "กรุงเทพมหานคร", date: TODAY, hour: "0", duration: "1", fields: "tc,rh" });
+  checkNwpResult(await fetchNwpRaw(`${NWP_HOURLY_LOC_BASE}/place?${p4}`), "WeatherForecasts");
 }
 
-// NWP 5: Daily area/box — raw URL to preserve commas in lat,lon params
-log("\n  → NWP#5 nwp_daily_by_region (area/box, Central sample bbox)");
+// NWP#5: Daily by region — /forecast/area/region (domain=2 only, starttime=current Thai hour)
+log("\n  → NWP#5 nwp_daily_by_region (/forecast/area/region?domain=2&region=C)");
 log(`     scope: nwp.api.forecast_area`);
 if (!IS_ONLINE || !NWP_KEY) {
   skip("NWP#5 nwp_daily_by_region", IS_ONLINE ? "NWP_API_KEY not set" : "offline mode");
 } else {
-  const areaUrl5 = `${NWP_AREA_BASE}?domain=2&bottom-left=${TEST_AREA_BL}&top-right=${TEST_AREA_TR}&fields=tc_max,rh&starttime=${TODAY}T00:00:00`;
-  const r5 = await (async () => {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    try {
-      const res = await fetch(areaUrl5, { signal: ctrl.signal, headers: { authorization: `bearer ${NWP_KEY}`, Accept: "application/json" } });
-      const body = await res.text();
-      let json: any = null;
-      try { json = JSON.parse(body.replace(/^\uFEFF/, "").trim()); } catch { /* noop */ }
-      return { status: res.status, body, json };
-    } catch (err: any) { return { status: 0, body: "", json: null, error: String(err?.message || err) }; }
-    finally { clearTimeout(t); }
-  })();
-  if ((r5 as any).error) { failed++; log(`  ❌ Network error — ${(r5 as any).error}`); }
-  else if (r5.status === 401) { ok(false, `HTTP 401 Unauthorized`, `scope hint: nwp.api.forecast_area — check NWP_API_KEY`); }
-  else if (r5.status === 403) { ok(false, `HTTP 403 Forbidden`, `status=403`); }
-  else {
-    ok(r5.status === 200, `HTTP 200`, `status=${r5.status}`);
-    ok(r5.json !== null, "JSON parseable");
-    ok(!!(r5.json?.WeatherForecasts || r5.json?.WeatherForcasts), "Data structure OK");
-  }
+  const st5 = currentThaiHourStr();
+  const url5 = `${NWP_AREA_REGION_BASE}?domain=2&region=C&starttime=${st5}&fields=tc_max,rh`;
+  checkNwpResult(await fetchNwpRaw(url5), "WeatherForecasts");
 }
 
-// NWP 6: Hourly area/box — raw URL to preserve commas in lat,lon params
-log("\n  → NWP#6 nwp_hourly_by_region (area/box, Central sample bbox)");
+// NWP#6: Hourly by region — /forecast/area/region (domain=2, starttime=current Thai hour)
+log("\n  → NWP#6 nwp_hourly_by_region (/forecast/area/region?domain=2&region=C)");
 log(`     scope: nwp.api.forecast_area`);
 if (!IS_ONLINE || !NWP_KEY) {
   skip("NWP#6 nwp_hourly_by_region", IS_ONLINE ? "NWP_API_KEY not set" : "offline mode");
 } else {
-  const areaUrl6 = `${NWP_AREA_BASE}?domain=2&bottom-left=${TEST_AREA_BL}&top-right=${TEST_AREA_TR}&fields=tc,rh&starttime=${TODAY}T00:00:00`;
-  const r6 = await (async () => {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    try {
-      const res = await fetch(areaUrl6, { signal: ctrl.signal, headers: { authorization: `bearer ${NWP_KEY}`, Accept: "application/json" } });
-      const body = await res.text();
-      let json: any = null;
-      try { json = JSON.parse(body.replace(/^\uFEFF/, "").trim()); } catch { /* noop */ }
-      return { status: res.status, body, json };
-    } catch (err: any) { return { status: 0, body: "", json: null, error: String(err?.message || err) }; }
-    finally { clearTimeout(t); }
-  })();
-  if ((r6 as any).error) { failed++; log(`  ❌ Network error — ${(r6 as any).error}`); }
-  else if (r6.status === 401) { ok(false, `HTTP 401 Unauthorized`, `scope hint: nwp.api.forecast_area — check NWP_API_KEY`); }
-  else if (r6.status === 403) { ok(false, `HTTP 403 Forbidden`, `status=403`); }
-  else {
-    ok(r6.status === 200, `HTTP 200`, `status=${r6.status}`);
-    ok(r6.json !== null, "JSON parseable");
-    ok(!!(r6.json?.WeatherForecasts || r6.json?.WeatherForcasts), "Data structure OK");
-  }
+  const st6 = currentThaiHourStr();
+  const url6 = `${NWP_AREA_REGION_BASE}?domain=2&region=C&starttime=${st6}&fields=tc,rh`;
+  checkNwpResult(await fetchNwpRaw(url6), "WeatherForecasts");
 }
 
 // ─── Summary ──────────────────────────────────────────────────────────────────

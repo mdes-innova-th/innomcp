@@ -1,6 +1,5 @@
 import { z } from "zod";
 import axios from "axios";
-import { getProvinceCoords, getRegionBbox } from "../config/nwpApiConfig";
 
 /**
  * NWP Daily Forecast Tool
@@ -11,7 +10,7 @@ import { getProvinceCoords, getRegionBbox } from "../config/nwpApiConfig";
  */
 
 const NWP_API_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/daily";
-const NWP_AREA_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/area/box";
+const NWP_AREA_REGION_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/area/region";
 const DEFAULT_TIMEOUT = 15000;
 
 function getNwpApiKey(): string {
@@ -110,6 +109,7 @@ function normalizePlaceInput(input: NwpDailyByPlaceInput & { place?: string }) {
 // Supports: WeatherForcasts, WeatherForecast, weather_forecast.locations, locations, root array
 function extractDailyEntries(data: any): any[] {
   const candidates = [
+    data?.WeatherForecasts,
     data?.WeatherForcasts,
     data?.WeatherForecast,
     data?.weather_forecast?.locations,
@@ -190,22 +190,24 @@ export const nwpDailyByLocationTool = {
     try {
       const apiKey = getNwpApiKey();
 
-      // Use /forecast/area/box with small bbox — location/at returns 401 with scopes:[] JWT
+      // Use /forecast/location/daily/at — confirmed working with scopes:[] JWT
       const today = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
-      const areaDate = input.starttime || input.date || today;
-      const starttime = areaDate.includes("T") ? areaDate : `${areaDate}T00:00:00`;
+      const date = (input.starttime || input.date || today).slice(0, 10);
       const fields = (input.fields || ["tc_max", "tc_min", "rain", "cond"]).join(",");
-      const delta = 0.25;
-      const bl = `${(input.lat - delta).toFixed(4)},${(input.lon - delta).toFixed(4)}`;
-      const tr = `${(input.lat + delta).toFixed(4)},${(input.lon + delta).toFixed(4)}`;
-      const durationSuffix = input.duration ? `&duration=${input.duration}` : "";
-      const url = `${NWP_AREA_BASE}?domain=2&bottom-left=${bl}&top-right=${tr}&fields=${fields}&starttime=${starttime}${durationSuffix}`;
+      const params = new URLSearchParams({
+        lat: String(input.lat),
+        lon: String(input.lon),
+        date: date,
+        duration: String(input.duration || 7),
+        fields: fields,
+      });
+      const url = `${NWP_API_BASE}/at?${params.toString()}`;
 
       console.log(`[NWP Daily] GET ${url}`);
 
       const response = await axios.get(url, {
         headers: {
-          'authorization': `bearer ${apiKey}`,
+          'authorization': `Bearer ${apiKey}`,
           'Accept': 'application/json'
         },
         timeout: DEFAULT_TIMEOUT
@@ -298,43 +300,28 @@ export const nwpDailyByPlaceTool = {
     const input = parsed.data;
     const normalizedPlace = normalizePlaceInput(input as NwpDailyByPlaceInput & { place?: string });
 
-    // Hoist coords fallback so it's accessible in catch block
-    const coordsFallback = normalizedPlace.province
-      ? getProvinceCoords(normalizedPlace.province)
-      : undefined;
-
     try {
       const apiKey = getNwpApiKey();
 
-      // Use /forecast/area/box with province bbox — location/place returns 401 with scopes:[] JWT
-      const coords = coordsFallback;
-      if (!coords) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({
-              success: false,
-              error: `ไม่พบพิกัดสำหรับ "${normalizedPlace.province || "(ไม่ระบุ)"}"`,
-              hint: "ระบุ province เป็นชื่อภาษาไทย เช่น กรุงเทพมหานคร, เชียงใหม่"
-            }, null, 2)
-          }]
-        };
-      }
+      // Use /forecast/location/daily/place — confirmed working with scopes:[] JWT
       const today = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
-      const areaDate = input.starttime || input.date || today;
-      const starttime = areaDate.includes("T") ? areaDate : `${areaDate}T00:00:00`;
+      const date = (input.starttime || input.date || today).slice(0, 10);
       const fields = (input.fields || ["tc_max", "tc_min", "rain", "cond"]).join(",");
-      const delta = 0.25;
-      const bl = `${(coords.lat - delta).toFixed(4)},${(coords.lon - delta).toFixed(4)}`;
-      const tr = `${(coords.lat + delta).toFixed(4)},${(coords.lon + delta).toFixed(4)}`;
-      const durationSuffix = input.duration ? `&duration=${input.duration}` : "";
-      const url = `${NWP_AREA_BASE}?domain=2&bottom-left=${bl}&top-right=${tr}&fields=${fields}&starttime=${starttime}${durationSuffix}`;
+      const placeParams: Record<string, string> = {
+        date: date,
+        duration: String(input.duration || 7),
+        fields: fields,
+      };
+      if (normalizedPlace.province) placeParams.province = normalizedPlace.province;
+      if (normalizedPlace.amphoe) placeParams.amphoe = normalizedPlace.amphoe;
+      if (normalizedPlace.tambon) placeParams.tambon = normalizedPlace.tambon;
+      const url = `${NWP_API_BASE}/place?${new URLSearchParams(placeParams).toString()}`;
 
       console.log(`[NWP Daily Place] GET ${url}`);
 
       const response = await axios.get(url, {
         headers: {
-          'authorization': `bearer ${apiKey}`,
+          'authorization': `Bearer ${apiKey}`,
           'Accept': 'application/json'
         },
         timeout: DEFAULT_TIMEOUT
@@ -442,29 +429,21 @@ export const nwpDailyByRegionTool = {
 
     try {
       const apiKey = getNwpApiKey();
-      const bbox = getRegionBbox(input.region);
-      if (!bbox) {
-        return {
-          content: [{
-            type: "text" as const,
-            text: JSON.stringify({ success: false, error: `Unknown region: ${input.region}` }, null, 2)
-          }]
-        };
-      }
 
-      // Use /forecast/area/box — works with scopes:[] JWT, unlike /region endpoint
-      const today = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
-      const areaDate = input.date || today;
-      const starttime = `${areaDate}T00:00:00`;
+      // Use /forecast/area/region with domain=2 (6km, 72hrs) — only domain=2 is active in area/region
+      // starttime must be >= current Thai time (UTC+7)
+      const nowTH = new Date(Date.now() + 7 * 3600 * 1000);
+      const today = nowTH.toISOString().slice(0, 10);
+      const currentHour = String(nowTH.getUTCHours()).padStart(2, "0");
+      const starttime = `${today}T${currentHour}:00:00`;
       const fields = (input.fields || ["tc_max", "tc_min", "rain", "cond"]).join(",");
-      const durationSuffix = input.duration ? `&duration=${input.duration}` : "";
-      const url = `${NWP_AREA_BASE}?domain=2&bottom-left=${bbox.bottomLeft}&top-right=${bbox.topRight}&fields=${fields}&starttime=${starttime}${durationSuffix}`;
+      const url = `${NWP_AREA_REGION_BASE}?domain=2&region=${input.region}&starttime=${starttime}&fields=${fields}`;
 
       console.log(`[NWP Daily Region] GET ${url}`);
 
       const response = await axios.get(url, {
         headers: {
-          'authorization': `bearer ${apiKey}`,
+          'authorization': `Bearer ${apiKey}`,
           'Accept': 'application/json'
         },
         timeout: DEFAULT_TIMEOUT
