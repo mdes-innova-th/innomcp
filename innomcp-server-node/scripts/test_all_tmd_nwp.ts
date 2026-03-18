@@ -404,6 +404,10 @@ async function testNwpEndpoint(
 
 const NWP_DAILY_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/daily";
 const NWP_HOURLY_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly";
+const NWP_AREA_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/area/box";
+// Test bounding box (small area near Bangkok coast — same as documented curl example)
+const TEST_AREA_BL = "13.10,100.10";  // bottom-left lat,lon
+const TEST_AREA_TR = "13.20,100.20";  // top-right lat,lon
 
 // NWP 1: Daily by location (lat/lon)
 await testNwpEndpoint(
@@ -441,23 +445,63 @@ await testNwpEndpoint(
   (j) => !!(j.WeatherForcasts || j.forecasts || j.data)
 );
 
-// NWP 5: Daily by region — uses /region path segment, not query param
-await testNwpEndpoint(
-  "NWP#5 nwp_daily_by_region (region=C → Central)",
-  `${NWP_DAILY_BASE}/region`,
-  { region: "C", date: TODAY, duration: 3, fields: "tc_max,tc_min,rain,cond" },
-  "nwp.api.forecast_area",
-  (j) => !!(j.WeatherForcasts || j.WeatherForecasts || j.forecasts || j.data)
-);
+// NWP 5: Daily area/box — raw URL to preserve commas in lat,lon params
+log("\n  → NWP#5 nwp_daily_by_region (area/box, Central sample bbox)");
+log(`     scope: nwp.api.forecast_area`);
+if (!IS_ONLINE || !NWP_KEY) {
+  skip("NWP#5 nwp_daily_by_region", IS_ONLINE ? "NWP_API_KEY not set" : "offline mode");
+} else {
+  const areaUrl5 = `${NWP_AREA_BASE}?domain=2&bottom-left=${TEST_AREA_BL}&top-right=${TEST_AREA_TR}&fields=tc_max,rh&starttime=${TODAY}T00:00:00`;
+  const r5 = await (async () => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    try {
+      const res = await fetch(areaUrl5, { signal: ctrl.signal, headers: { authorization: `bearer ${NWP_KEY}`, Accept: "application/json" } });
+      const body = await res.text();
+      let json: any = null;
+      try { json = JSON.parse(body.replace(/^\uFEFF/, "").trim()); } catch { /* noop */ }
+      return { status: res.status, body, json };
+    } catch (err: any) { return { status: 0, body: "", json: null, error: String(err?.message || err) }; }
+    finally { clearTimeout(t); }
+  })();
+  if ((r5 as any).error) { failed++; log(`  ❌ Network error — ${(r5 as any).error}`); }
+  else if (r5.status === 401) { ok(false, `HTTP 401 Unauthorized`, `scope hint: nwp.api.forecast_area — check NWP_API_KEY`); }
+  else if (r5.status === 403) { ok(false, `HTTP 403 Forbidden`, `status=403`); }
+  else {
+    ok(r5.status === 200, `HTTP 200`, `status=${r5.status}`);
+    ok(r5.json !== null, "JSON parseable");
+    ok(!!(r5.json?.WeatherForecasts || r5.json?.WeatherForcasts), "Data structure OK");
+  }
+}
 
-// NWP 6: Hourly by region — uses /region path segment, not query param
-await testNwpEndpoint(
-  "NWP#6 nwp_hourly_by_region (region=C → Central)",
-  `${NWP_HOURLY_BASE}/region`,
-  { region: "C", date: TODAY, duration: 24, fields: "tc,rain,cond" },
-  "nwp.api.forecast_area",
-  (j) => !!(j.WeatherForcasts || j.WeatherForecasts || j.forecasts || j.data)
-);
+// NWP 6: Hourly area/box — raw URL to preserve commas in lat,lon params
+log("\n  → NWP#6 nwp_hourly_by_region (area/box, Central sample bbox)");
+log(`     scope: nwp.api.forecast_area`);
+if (!IS_ONLINE || !NWP_KEY) {
+  skip("NWP#6 nwp_hourly_by_region", IS_ONLINE ? "NWP_API_KEY not set" : "offline mode");
+} else {
+  const areaUrl6 = `${NWP_AREA_BASE}?domain=2&bottom-left=${TEST_AREA_BL}&top-right=${TEST_AREA_TR}&fields=tc,rh&starttime=${TODAY}T00:00:00`;
+  const r6 = await (async () => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    try {
+      const res = await fetch(areaUrl6, { signal: ctrl.signal, headers: { authorization: `bearer ${NWP_KEY}`, Accept: "application/json" } });
+      const body = await res.text();
+      let json: any = null;
+      try { json = JSON.parse(body.replace(/^\uFEFF/, "").trim()); } catch { /* noop */ }
+      return { status: res.status, body, json };
+    } catch (err: any) { return { status: 0, body: "", json: null, error: String(err?.message || err) }; }
+    finally { clearTimeout(t); }
+  })();
+  if ((r6 as any).error) { failed++; log(`  ❌ Network error — ${(r6 as any).error}`); }
+  else if (r6.status === 401) { ok(false, `HTTP 401 Unauthorized`, `scope hint: nwp.api.forecast_area — check NWP_API_KEY`); }
+  else if (r6.status === 403) { ok(false, `HTTP 403 Forbidden`, `status=403`); }
+  else {
+    ok(r6.status === 200, `HTTP 200`, `status=${r6.status}`);
+    ok(r6.json !== null, "JSON parseable");
+    ok(!!(r6.json?.WeatherForecasts || r6.json?.WeatherForcasts), "Data structure OK");
+  }
+}
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 section("Summary");

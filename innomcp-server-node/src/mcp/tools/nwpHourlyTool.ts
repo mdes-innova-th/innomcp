@@ -1,6 +1,6 @@
 import { z } from "zod";
 import axios from "axios";
-import { getProvinceCoords } from "../config/nwpApiConfig";
+import { getProvinceCoords, getRegionBbox } from "../config/nwpApiConfig";
 
 /**
  * NWP Hourly Forecast Tool
@@ -11,6 +11,7 @@ import { getProvinceCoords } from "../config/nwpApiConfig";
  */
 
 const NWP_API_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly";
+const NWP_AREA_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/area/box";
 const DEFAULT_TIMEOUT = 15000;
 
 function getNwpApiKey(): string {
@@ -473,19 +474,28 @@ export const nwpHourlyByRegionTool = {
 
     try {
       const apiKey = getNwpApiKey();
-      const url = `${NWP_API_BASE}/region`;
-      
-      const params = buildQueryParams({
-        region: input.region,
-        date: input.date,
-        hour: input.hour,
-        duration: input.duration,
-        fields: input.fields || ["tc", "rh", "cond"]
-      });
+      const bbox = getRegionBbox(input.region);
+      if (!bbox) {
+        return {
+          content: [{
+            type: "text" as const,
+            text: JSON.stringify({ success: false, error: `Unknown region: ${input.region}` }, null, 2)
+          }]
+        };
+      }
 
-      console.log(`[NWP Hourly Region] GET ${url}?${params}`);
+      // Use /forecast/area/box — works with scopes:[] JWT, unlike /region endpoint
+      const today = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+      const areaDate = input.date || today;
+      const hour = input.hour !== undefined ? String(input.hour).padStart(2, "0") : "00";
+      const starttime = `${areaDate}T${hour}:00:00`;
+      const fields = (input.fields || ["tc", "rh", "cond"]).join(",");
+      const durationSuffix = input.duration ? `&duration=${input.duration}` : "";
+      const url = `${NWP_AREA_BASE}?domain=2&bottom-left=${bbox.bottomLeft}&top-right=${bbox.topRight}&fields=${fields}&starttime=${starttime}${durationSuffix}`;
 
-      const response = await axios.get(`${url}?${params}`, {
+      console.log(`[NWP Hourly Region] GET ${url}`);
+
+      const response = await axios.get(url, {
         headers: {
           'authorization': `bearer ${apiKey}`,
           'Accept': 'application/json'

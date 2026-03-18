@@ -145,3 +145,27 @@ export const NWP_REGION_NAMES: Record<string, string> = {
   S: "ภาคใต้",
   W: "ภาคตะวันตก",
 };
+
+export interface RegionBbox {
+  /** "lat,lon" — bottom-left corner for /forecast/area/box */
+  bottomLeft: string;
+  /** "lat,lon" — top-right corner for /forecast/area/box */
+  topRight: string;
+}
+
+/**
+ * NWP region code → bounding box สำหรับ /forecast/area/box endpoint
+ * ใช้แทน /forecast/location/daily|hourly/region ที่ต้องการ scope พิเศษ
+ */
+export const NWP_REGION_BBOX: Record<string, RegionBbox> = {
+  C:  { bottomLeft: "11.0,98.0",  topRight: "17.0,101.5" },  // ภาคกลาง
+  N:  { bottomLeft: "16.5,97.5",  topRight: "21.0,101.5" },  // ภาคเหนือ
+  NE: { bottomLeft: "14.0,101.0", topRight: "18.5,105.5" },  // ภาคตะวันออกเฉียงเหนือ
+  E:  { bottomLeft: "12.0,100.5", topRight: "14.5,102.8" },  // ภาคตะวันออก
+  S:  { bottomLeft: "5.5,98.5",   topRight: "12.0,101.8" },  // ภาคใต้
+  W:  { bottomLeft: "13.0,97.5",  topRight: "18.0,100.0" },  // ภาคตะวันตก
+};
+
+export function getRegionBbox(region: string): RegionBbox | undefined {
+  return NWP_REGION_BBOX[region];
+}
