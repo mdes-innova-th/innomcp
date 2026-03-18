@@ -230,7 +230,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
 }
 
 function wantsDeepExplain(text: string): boolean {
-  return /อธิบายเชิงลึก|ละเอียด|สรุปเป็นภาษาคน|เหตุผล|วิเคราะห์/i.test(text || "");
+  return /อธิบายเชิงลึก|ละเอียด|สรุปเป็นภาษาคน|เหตุผล|วิเคราะห์|เปรียบเทียบ|เทียบ|ความสัมพันธ์|สรุปภาพรวม|trend|แนวโน้ม|correlation|อธิบาย|explain/i.test(text || "");
 }
 
 function looksLikeDeterministicWeatherQuery(text: string): boolean {
@@ -244,8 +244,17 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
   // Weather-specific patterns that often omit the word "อากาศ"
   const hasWeatherSpecific = /รายชั่วโมง|รายวัน|ตารางสถานี|สถานีอากาศ|รายสถานี|พยากรณ์\s*7\s*วัน|7\s*วัน|สัปดาห์/i.test(t);
 
+  // Station type keywords (hydro/synop/agro — all sub-types of weather data)
+  const hasStationType = /สถานีผิวพื้น|สถานีอุทก|สถานีเกษตร|surface\s*station|hydro\s*station|agro\s*station|\bsynop\b|\bhydro\b|\bagro\b/i.test(t);
+
+  // Regional/national weather summaries
+  const hasRegionWeather = /(ภาคกลาง|ภาคเหนือ|ภาคอีสาน|ภาคใต้|ภาคตะวันออก|ภาคตะวันตก|ภาคตะวันออกเฉียงเหนือ).*(อากาศ|ฝน|อุณหภูมิ|ความชื้น|พยากรณ์)|(อากาศ|ฝน|พยากรณ์).*(ภาคกลาง|ภาคเหนือ|ภาคอีสาน|ภาคใต้)/i.test(t);
+
+  // Water level / flood hydrology queries
+  const hasHydroWater = /น้ำ.*(ขึ้น|ลง|ท่วม|หลาก|ระดับ)|ระดับน้ำ|น้ำท่วม|ปริมาณน้ำ|ปริมาณฝน/i.test(t);
+
   // We only gate when it's clearly weather-related
-  return hasWeatherCore || hasWeatherSpecific;
+  return hasWeatherCore || hasWeatherSpecific || hasStationType || hasRegionWeather || hasHydroWater;
 }
 
 function hasExplicitWeatherIntentKeywords(text: string): boolean {
@@ -606,9 +615,17 @@ function structuredKeysSummary(structuredContent: any): string {
   return typeof structuredContent;
 }
 
-function withRenderMeta(structuredContent: any, meta: { route: "weather" | "geo" | "evidence" | "general" | "web-record"; llmUsed: boolean; routeDecider: "deterministic"; version: "phase8" | "phase10.2" | "phase10.3" | "phase10.4" }): any {
+function withRenderMeta(structuredContent: any, meta: { route: "weather" | "geo" | "evidence" | "general" | "web-record"; llmUsed: boolean; routeDecider: "deterministic"; version: "phase8" | "phase10.2" | "phase10.3" | "phase10.4" }, toolsUsed?: string[]): any {
   const base = structuredContent && typeof structuredContent === "object" && !Array.isArray(structuredContent) ? structuredContent : {};
-  return { ...(base as any), __render: meta };
+  const existingChatMeta = (base as any).chatMeta && typeof (base as any).chatMeta === "object" ? (base as any).chatMeta : {};
+  const resolvedTools = Array.isArray(toolsUsed) ? toolsUsed : [];
+  const chatMeta = {
+    ...existingChatMeta,
+    mode: "online",
+    toolsUsed: resolvedTools.map((t) => ({ name: t })),
+    reason_code: existingChatMeta.reason_code || (meta.route.toUpperCase() + "_GATE"),
+  };
+  return { ...(base as any), __render: meta, chatMeta };
 }
 
 function buildWebRecordPayload(query: string) {
@@ -1560,7 +1577,7 @@ wss.on("connection", (ws, req) => {
             }
           }
 
-          const scOut = withRenderMeta(sc, { route: "evidence", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
+          const scOut = withRenderMeta(sc, { route: "evidence", llmUsed: false, routeDecider: "deterministic", version: "phase8" }, [toolNameUsed]);
 
           const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [toolNameUsed] };
           sessionHistory.push(aiMessage);
@@ -1623,32 +1640,66 @@ wss.on("connection", (ws, req) => {
           const sc = toolResult?.structuredContent || toolResult;
           const payload = sc?.weatherPipeline ?? sc;
 
-          const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
-          const textOut = direct.text;
-          const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
+          if (deep) {
+            // Deep/analytical queries: synthesize via Ollama using weather facts as context
+            const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
+            const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: true, routeDecider: "deterministic", version: "phase8" }, ["weatherPipeline"]);
+            const weatherFacts = direct.text;
+            logBoth("info", `[WeatherGate] deep=true → synthesizing via Ollama (factLen=${weatherFacts.length})`);
+            sendSafe(ws, { type: "mcp-status", text: "กำลังวิเคราะห์ข้อมูลอากาศ...", tools: ["weatherPipeline"] });
+            try {
+              const synthesisMessages = [
+                { role: "system", content: buildSystemPrompt({ includeTools: false, includeCapabilities: false, includeGuidelines: true }) },
+                { role: "user", content: `ข้อมูลสภาพอากาศจากระบบตรวจวัด:\n${weatherFacts}\n\nคำถามผู้ใช้: ${messageWithFile}\n\nกรุณาวิเคราะห์และตอบเป็นภาษาไทย โดยอ้างอิงข้อมูลข้างต้น` }
+              ];
+              const synthesisStream = await ollama.chat({
+                model: ollamaModel, messages: synthesisMessages as any, stream: true,
+                options: { temperature: 0.5, num_ctx: 2048, num_predict: 1024 }
+              });
+              let aiResponse = "";
+              for await (const chunk of synthesisStream) {
+                if (!chunk.message?.content) continue;
+                aiResponse += chunk.message.content;
+                sendSafe(ws, { type: "chunk", text: chunk.message.content, structuredContent: scOut });
+              }
+              const aiMessage: any = { sender: "ai", text: aiResponse, structuredContent: scOut, toolsUsed: ["weatherPipeline"] };
+              sessionHistory.push(aiMessage);
+              sessionManager.addMessage(currentSessionId, "assistant", aiResponse, ["weatherPipeline"]);
+              sessionManager.completeResponse(currentSessionId);
+              sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["weatherPipeline"] });
+              sendDoneOnce();
+              chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "weatherGate", tool: "weatherPipeline", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: aiResponse });
+            } catch (synthErr: any) {
+              logBoth("error", `[WeatherGate] deep synthesis failed: ${synthErr.message}`);
+              const aiMessage: any = { sender: "ai", text: weatherFacts, structuredContent: scOut, toolsUsed: ["weatherPipeline"] };
+              sessionHistory.push(aiMessage);
+              sessionManager.addMessage(currentSessionId, "assistant", weatherFacts, ["weatherPipeline"]);
+              sessionManager.completeResponse(currentSessionId);
+              sendSafe(ws, { type: "chunk", text: weatherFacts, structuredContent: scOut });
+              sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["weatherPipeline"] });
+              sendDoneOnce();
+            }
+          } else {
+            const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
+            const textOut = direct.text;
+            const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase8" }, ["weatherPipeline"]);
 
-          // Send response + history update
-          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["weatherPipeline"] };
-          sessionHistory.push(aiMessage);
-          sessionManager.addMessage(currentSessionId, "assistant", textOut, ["weatherPipeline"]);
-          sessionManager.completeResponse(currentSessionId);
+            // Send response + history update
+            const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["weatherPipeline"] };
+            sessionHistory.push(aiMessage);
+            sessionManager.addMessage(currentSessionId, "assistant", textOut, ["weatherPipeline"]);
+            sessionManager.completeResponse(currentSessionId);
 
-          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["weatherPipeline"] });
-          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["weatherPipeline"] });
-          sendDoneOnce();
+            sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["weatherPipeline"] });
+            sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["weatherPipeline"] });
+            sendDoneOnce();
 
-          chatTraceOut({
-            transport: "ws",
-            sid: currentSessionId,
-            cid,
-            uiMode,
-            route: "weatherGate",
-            tool: "weatherPipeline",
-            code: 200,
-            durMs: Date.now() - traceStartMs,
-            q: messageWithFile,
-            ans: textOut,
-          });
+            chatTraceOut({
+              transport: "ws", sid: currentSessionId, cid, uiMode,
+              route: "weatherGate", tool: "weatherPipeline", code: 200,
+              durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut,
+            });
+          }
           return;
         }
 
@@ -1680,7 +1731,7 @@ wss.on("connection", (ws, req) => {
 
           const rendered = renderThaiGeoAnswerShort(sc);
           const textOut = rendered.text;
-          const scOut = withRenderMeta(sc, { route: "geo", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
+          const scOut = withRenderMeta(sc, { route: "geo", llmUsed: false, routeDecider: "deterministic", version: "phase8" }, [geoToolName]);
 
           const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [geoToolName] };
           sessionHistory.push(aiMessage);
@@ -1828,30 +1879,10 @@ wss.on("connection", (ws, req) => {
         }
 
         if (godTierFallbackUsed || godTierConfidence < 0.6) {
-          const lowConfidenceText = LOW_CONFIDENCE_FALLBACK_TEXT;
-          const aiMessage: any = { sender: "ai", text: lowConfidenceText, toolsUsed: [] };
-          sessionHistory.push({ sender: "user", text: messageWithFile });
-          sessionHistory.push(aiMessage);
-          sessionManager.addMessage(currentSessionId, "assistant", lowConfidenceText, []);
-          sessionManager.completeResponse(currentSessionId);
-
-          sendSafe(ws, { type: "message", sender: "ai", text: lowConfidenceText, toolsUsed: [] });
-          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [] });
-          sendDoneOnce();
-
-          chatTraceOut({
-            transport: "ws",
-            sid: currentSessionId,
-            cid,
-            uiMode,
-            route: "general",
-            tool: "none",
-            code: 200,
-            durMs: Date.now() - traceStartMs,
-            q: messageWithFile,
-            ans: lowConfidenceText,
-          });
-          return;
+          // Low confidence: do NOT short-circuit. Clear the category hint and let MCP tool selection
+          // handle it via its own pattern matching (calc, nasa, etc. have regex fast-paths in mcpclient).
+          logBoth('info', `[God-Tier Router] ⚠️  Low confidence (${godTierConfidence.toFixed(2)}) — clearing category, proceeding to MCP`);
+          semanticCategory = null;
         }
 
       // 🎯 Intent-based handling: DISABLED FOR WEATHER (use MCP tools instead)
@@ -2740,8 +2771,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
             }
           : directOne(primaryToolResult, messageWithFile);
 
-      const scBase = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
-      const scOut = { ...scBase, chatMeta: { reason_code: "TOOL_OK" } };
+      const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase8" }, ["weatherPipeline"]);
 
       sessionHistory.push({ sender: "ai", text: direct.text } as any);
 
@@ -2789,7 +2819,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       const sc = first?.structuredContent ?? first?.result;
       const rendered = renderThaiGeoAnswerShort(sc);
       const textOut = rendered.text;
-      const scOut = withRenderMeta(sc, { route: "geo", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
+      const scOut = withRenderMeta(sc, { route: "geo", llmUsed: false, routeDecider: "deterministic", version: "phase8" }, [geoToolName]);
 
       sessionHistory.push({ sender: "ai", text: textOut } as any);
 
@@ -2854,34 +2884,9 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     }
 
     if (godTierFallbackUsed || godTierConfidence < 0.6) {
-      const lowConfidenceText = LOW_CONFIDENCE_FALLBACK_TEXT;
-      sessionHistory.push({ sender: "ai", text: lowConfidenceText } as any);
-      
-      chatTraceOut({
-        transport: "http",
-        sid: httpSessionId,
-        cid: httpCid,
-        uiMode,
-        route: "general",
-        tool: "none",
-        code: 200,
-        durMs: Date.now() - traceStartMs,
-        q: messageWithFile,
-        ans: lowConfidenceText,
-      });
-
-      return res.json({
-        text: lowConfidenceText,
-        structuredContent: {
-          chatMeta: {
-            reason_code: "LOW_CONTEXT",
-            userGuidance: ["ระบุจังหวัดหรือหัวข้อที่ต้องการให้ชัดเจนขึ้น", "เช่น 'อากาศกรุงเทพวันนี้' หรือ 'ฝนตกภูเก็ตไหม'"],
-          },
-        },
-        messages: sessionHistory,
-        mcpUsed: false,
-        mcpResults: null,
-      });
+      // Low confidence: clear category hint and proceed to MCP tool selection instead of short-circuiting
+      logBoth('info', `[God-Tier Router] HTTP ⚠️  Low confidence (${godTierConfidence.toFixed(2)}) — clearing category, proceeding to MCP`);
+      semanticCategory = undefined;
     }
 
     // =====================================
@@ -2994,12 +2999,23 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
                 q: messageWithFile,
                 ans: direct.text,
               });
+              const directSc = direct.structuredContent || {};
+              const directChatMeta = directSc.chatMeta && typeof directSc.chatMeta === "object" ? directSc.chatMeta : {};
+              const directScWithMeta = {
+                ...directSc,
+                chatMeta: {
+                  ...directChatMeta,
+                  mode: "online",
+                  toolsUsed: toolsUsedInThisRequest.map((t: string) => ({ name: t.replace(/^[^:]+:/, "") })),
+                },
+              };
               return res.json({
                 text: direct.text,
-                structuredContent: direct.structuredContent,
+                structuredContent: directScWithMeta,
                 messages: sessionHistory,
                 mcpUsed: true,
                 mcpResults: mcpResults,
+                toolsUsed: toolsUsedInThisRequest,
               });
             }
           }

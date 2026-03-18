@@ -1,7 +1,35 @@
 import { WeatherResult } from "./types";
 
 const PROVINCE_NORMALIZE_MAP: Array<[RegExp, string]> = [
-  [/^(กทม|กรุงเทพ|กรุงเทพฯ|ก\.?ท\.?ม\.?)(\s*)$/i, "กรุงเทพมหานคร"],
+  [/^(กทม|กรุงเทพ|กรุงเทพฯ|ก\.?ท\.?ม\.?|กรุงเทพมหานคร|bangkok|bkk)(\s*)$/i, "กรุงเทพมหานคร"],
+  [/^(โคราช|นคร\s*ราชสีมา|korat|nakhon\s*ratchasima)(\s*)$/i, "นครราชสีมา"],
+  [/^(อุบล|อุบลราชธานี|ubon|ubon\s*ratchathani)(\s*)$/i, "อุบลราชธานี"],
+  [/^(ภูเก็จ|ภูเกตุ|ภูเก็ต|phuket)(\s*)$/i, "ภูเก็ต"],
+  [/^(อุดร|อุดรธานี|udon|udon\s*thani)(\s*)$/i, "อุดรธานี"],
+  [/^(เชียงใหม่|chiang\s*mai|chiangmai)(\s*)$/i, "เชียงใหม่"],
+  [/^(เชียงราย|chiang\s*rai|chiangrai)(\s*)$/i, "เชียงราย"],
+  [/^(ขอนแก่น|khon\s*kaen|khonkaen)(\s*)$/i, "ขอนแก่น"],
+  [/^(นครปฐม|nakhon\s*pathom)(\s*)$/i, "นครปฐม"],
+  [/^(นนทบุรี|nonthaburi)(\s*)$/i, "นนทบุรี"],
+  [/^(สมุทรปราการ|samut\s*prakan)(\s*)$/i, "สมุทรปราการ"],
+  [/^(สมุทรสงคราม|แม่กลอง|samut\s*songkhram)(\s*)$/i, "สมุทรสงคราม"],
+  [/^(สมุทรสาคร|samut\s*sakhon)(\s*)$/i, "สมุทรสาคร"],
+  [/^(นครสวรรค์|nakhon\s*sawan)(\s*)$/i, "นครสวรรค์"],
+  [/^(นครศรีธรรมราช|nakhon\s*si\s*thammarat)(\s*)$/i, "นครศรีธรรมราช"],
+  [/^(สงขลา|songkhla|hat\s*yai)(\s*)$/i, "สงขลา"],
+  [/^(สุราษฎร์ธานี|surat\s*thani|surat)(\s*)$/i, "สุราษฎร์ธานี"],
+  [/^(กระบี่|krabi)(\s*)$/i, "กระบี่"],
+  [/^(พังงา|phang\s*nga|phangnga)(\s*)$/i, "พังงา"],
+  [/^(ตรัง|trang)(\s*)$/i, "ตรัง"],
+  [/^(สตูล|satun)(\s*)$/i, "สตูล"],
+  [/^(พัทยา|ชลบุรี|chon\s*buri|chonburi|pattaya)(\s*)$/i, "ชลบุรี"],
+  [/^(ระยอง|rayong)(\s*)$/i, "ระยอง"],
+  [/^(ลำปาง|lampang)(\s*)$/i, "ลำปาง"],
+  [/^(ลำพูน|lamphun)(\s*)$/i, "ลำพูน"],
+  [/^(แพร่|phrae)(\s*)$/i, "แพร่"],
+  [/^(น่าน|nan)(\s*)$/i, "น่าน"],
+  [/^(พะเยา|phayao)(\s*)$/i, "พะเยา"],
+  [/^(แม่ฮ่องสอน|mae\s*hong\s*son)(\s*)$/i, "แม่ฮ่องสอน"],
 ];
 
 export function normalizeProvinceDisplayName(name: string): string {

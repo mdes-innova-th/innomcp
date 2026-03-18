@@ -616,7 +616,12 @@ export function MessageView({
 
   const chatMeta = (message as any)?.structuredContent?.chatMeta;
   const modeBadge = chatMeta?.mode === "online" ? "online" : "offline";
-  const metaTools = Array.isArray(chatMeta?.toolsUsed) ? chatMeta.toolsUsed : [];
+  // Read tools from chatMeta (structured) or fall back to message.toolsUsed (top-level array from backend)
+  const metaTools: Array<{ name: string }> = Array.isArray(chatMeta?.toolsUsed)
+    ? chatMeta.toolsUsed
+    : Array.isArray(message.toolsUsed) && message.toolsUsed.length > 0
+      ? message.toolsUsed.map((t: string) => ({ name: t }))
+      : [];
   const metaConfidence = Number(chatMeta?.confidence);
   const confidenceLabel = Number.isFinite(metaConfidence) ? metaConfidence.toFixed(2) : "-";
   const reasonCode = String(chatMeta?.reason_code || "");

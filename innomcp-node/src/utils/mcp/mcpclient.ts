@@ -2415,6 +2415,28 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     tool: MCPTool,
     userMessage: string
   ): Promise<any> {
+    // ---- Deterministic extractors (no LLM needed) ----
+    const _toolBareName = (tool?.name || "").replace(/^[^:]+:/, ""); // strip "clientName:" prefix
+    if (_toolBareName === "calculatorTool") {
+      // Extract math expression from message without LLM
+      const mathMatch = userMessage.match(/[\d\s+\-*/().^%]+(?:[\d+\-*/().^%\s]+)*/);
+      if (mathMatch) {
+        const expr = mathMatch[0].trim();
+        if (/\d/.test(expr) && /[+\-*/^%()]/.test(expr)) {
+          logger.info(`[generateToolArguments] ✅ Deterministic calc: "${expr}"`);
+          return { expression: expr };
+        }
+      }
+      // Fallback: strip Thai/non-math text and try
+      const stripped = userMessage.replace(/[^\d+\-*/().^%\s]/g, ' ').trim();
+      const stripped2 = stripped.replace(/\s{2,}/g, ' ').trim();
+      if (stripped2 && /\d/.test(stripped2) && /[+\-*/^%()]/.test(stripped2)) {
+        logger.info(`[generateToolArguments] ✅ Deterministic calc (stripped): "${stripped2}"`);
+        return { expression: stripped2 };
+      }
+    }
+    // ---- End deterministic extractors ----
+
     try {
       const schema = tool.inputSchema || {};
       const schemaStr = JSON.stringify(schema, null, 2);
