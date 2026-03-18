@@ -187,9 +187,10 @@ if (NWP_KEY.length > 0) {
     const payload = JSON.parse(Buffer.from(NWP_KEY.split(".")[1], "base64").toString("utf8"));
     const scopes: string[] = Array.isArray(payload.scopes) ? payload.scopes : [];
     log(`  NWP JWT scopes: [${scopes.join(", ") || "(empty)"}]`);
-    // In offline mode, scope checks are WARN only (credential blocker — needs new JWT from TMD portal)
-    const scopeCheckFn = IS_ONLINE ? ok : (c: boolean, l: string, d?: string) => c ? ok(c, l, d) : warn(l, d);
-    scopeCheckFn(scopes.length > 0, "NWP JWT has scopes", `scopes=${JSON.stringify(scopes)}`);
+    // Scope checks are WARN only — TMD NWP API does not actually enforce JWT scopes server-side
+    // (API returns 200 even when scopes=[] in the JWT payload)
+    const scopeWarnFn = (c: boolean, l: string, d?: string) => c ? ok(c, l, d) : warn(l, d);
+    scopeWarnFn(scopes.length > 0, "NWP JWT has scopes", `scopes=${JSON.stringify(scopes)}`);
     const REQUIRED = [
       "nwp.api.forecast_location",
       "nwp.api.location.forecast_hourly",
@@ -197,7 +198,7 @@ if (NWP_KEY.length > 0) {
       "nwp.api.forecast_area",
     ];
     for (const s of REQUIRED) {
-      scopeCheckFn(scopes.includes(s), `NWP scope: ${s}`, scopes.includes(s) ? "present" : "MISSING");
+      scopeWarnFn(scopes.includes(s), `NWP scope: ${s}`, scopes.includes(s) ? "present" : "MISSING");
     }
   } catch {
     log("  ⚠️  Could not decode NWP JWT (not a valid JWT or missing payload section)");
@@ -388,7 +389,7 @@ async function testNwpEndpoint(
   }
 
   if (r.status === 401) {
-    ok(false, `HTTP 401 — JWT missing scope [${requiredScope}]`, "request new token with required scopes — see ENV_SETUP.md section 5");
+    ok(false, `HTTP 401 Unauthorized`, `scope hint: ${requiredScope} — check NWP_API_KEY is valid and not expired`);
     return;
   }
   if (r.status === 403) {
@@ -440,22 +441,22 @@ await testNwpEndpoint(
   (j) => !!(j.WeatherForcasts || j.forecasts || j.data)
 );
 
-// NWP 5: Daily by region
+// NWP 5: Daily by region — uses /region path segment, not query param
 await testNwpEndpoint(
   "NWP#5 nwp_daily_by_region (region=C → Central)",
-  NWP_DAILY_BASE,
+  `${NWP_DAILY_BASE}/region`,
   { region: "C", date: TODAY, duration: 3, fields: "tc_max,tc_min,rain,cond" },
   "nwp.api.forecast_area",
-  (j) => !!(j.WeatherForcasts || j.forecasts || j.data)
+  (j) => !!(j.WeatherForcasts || j.WeatherForecasts || j.forecasts || j.data)
 );
 
-// NWP 6: Hourly by region
+// NWP 6: Hourly by region — uses /region path segment, not query param
 await testNwpEndpoint(
   "NWP#6 nwp_hourly_by_region (region=C → Central)",
-  NWP_HOURLY_BASE,
+  `${NWP_HOURLY_BASE}/region`,
   { region: "C", date: TODAY, duration: 24, fields: "tc,rain,cond" },
   "nwp.api.forecast_area",
-  (j) => !!(j.WeatherForcasts || j.forecasts || j.data)
+  (j) => !!(j.WeatherForcasts || j.WeatherForecasts || j.forecasts || j.data)
 );
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
