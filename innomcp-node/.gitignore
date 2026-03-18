@@ -136,4 +136,7 @@ yarn-error.log*
 # Phase 10.9: TMD+NWP full endpoint coverage verifier
 !/scripts/verify_phase109_tmd_nwp_endpoints.ts
 
+# E2E weather chat smoke test (10-query auto suite)
+!/scripts/verify_e2e_weather_chat.ts
+
 

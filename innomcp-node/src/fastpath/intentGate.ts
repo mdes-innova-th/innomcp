@@ -11,6 +11,7 @@ const WORK_KEYWORDS = [
   // Weather
   "ฝน", "อากาศ", "พยากรณ์", "อุณหภูมิ", "ความชื้น", "weather", "forecast", "temperature", "humidity",
   "tmd", "อุตุ", "climate", "พายุ", "storm",
+  "ร้อน", "หนาว", "เย็น", "แล้ง", "หมอก",
   // NWP Time Ranges (CRITICAL - force NWP tool selection)
   "วัน", "ชั่วโมง", "ชม.", "สัปดาห์", "ข้างหน้า", "ล่วงหน้า",
   "3 วัน", "5 วัน", "7 วัน", "10 วัน", "14 วัน",

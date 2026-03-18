@@ -124,6 +124,18 @@ export function primeWeatherFixturesW1(): void {
             DescriptionThai: ["มีฝนฟ้าคะนองกระจาย", "มีฝนหนักบางแห่ง"],
           },
         },
+        {
+          ProvinceNameThai: "นครราชสีมา",
+          SevenDaysForecast: {
+            ForecastDate: [today, tomorrow],
+            PercentRainCover: [25, 40],
+            MinimumTemperature: [24, 23],
+            MaximumTemperature: [37, 36],
+            WindDirection: [110, 120],
+            WindSpeed: [9, 11],
+            DescriptionThai: ["อากาศร้อน ฟ้าหลัวในตอนเช้า", "มีฝนบางแห่งในตอนบ่าย"],
+          },
+        },
       ],
     },
   };
@@ -213,6 +225,14 @@ export function primeWeatherFixturesW1(): void {
           Temp: 31,
           WindSpeed: 18,
           WindDirection: 210,
+        },
+        {
+          StationNameThai: "เมืองนครราชสีมา",
+          Province: "นครราชสีมา",
+          ObservationTime: lastBuildDate,
+          Temp: 36,
+          WindSpeed: 9,
+          WindDirection: 110,
         },
       ],
     },

@@ -278,7 +278,7 @@ if (evidenceFiles.length > 0) {
   ok(latestLog.includes("กรุงเทพมหานคร"), `Evidence: กรุงเทพมหานคร present`, evidenceFiles[0]);
   ok(latestLog.includes("เชียงใหม่"), `Evidence: เชียงใหม่ present`);
   ok(latestLog.includes("ภูเก็ต"), `Evidence: ภูเก็ต present`);
-  ok(latestLog.includes("สงขลา") || latestLog.includes("Top 7"), `Evidence: สงขลา or nationwide table present`);
+  ok(latestLog.includes("สงขลา") || /Top\s+\d+/.test(latestLog), `Evidence: สงขลา or nationwide table (Top N) present`);
   ok(latestLog.includes("status=200") || latestLog.includes("code=OK"), `Evidence: status=200 or code=OK present`);
   log(`  Latest evidence: ${evidenceFiles[0]}`);
 } else {
