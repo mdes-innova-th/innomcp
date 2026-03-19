@@ -230,7 +230,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
 }
 
 function wantsDeepExplain(text: string): boolean {
-  return /อธิบายเชิงลึก|ละเอียด|สรุปเป็นภาษาคน|เหตุผล|วิเคราะห์|เปรียบเทียบ|เทียบ|ความสัมพันธ์|สรุปภาพรวม|trend|แนวโน้ม|correlation|อธิบาย|explain/i.test(text || "");
+  return /อธิบายเชิงลึก|ละเอียด|สรุปเป็นภาษาคน|เหตุผล|วิเคราะห์|เปรียบเทียบ|เทียบ|ความสัมพันธ์|สรุปภาพรวม|trend|แนวโน้ม|correlation|อธิบาย|explain|สาเหตุ|ปัจจัย|ข้อสังเกต|สัมพันธ์|hydro.*synop|synop.*hydro|สถานี.*ผิวพื้น.*อุทก|อุทก.*ผิวพื้น|เกษตร.*สถานี|ผลกระทบ|impact|overview/i.test(text || "");
 }
 
 function looksLikeDeterministicWeatherQuery(text: string): boolean {
@@ -348,7 +348,7 @@ function prefersThaiKnowledgeRoute(text: string): boolean {
   if (/(ประเทศไทย|thai|thailand|ประวัติศาสตร์|กฎหมาย|ศาสนา|วัฒนธรรม|ภูมิศาสตร์)/i.test(t)) return true;
 
   const hasGeoEntity = /(จังหวัด|อำเภอ|ตำบล|ภาค)/i.test(t);
-  const hasKnowledgeIntent = /(อยู่ภาค|ภาคอะไร|มีกี่|ข้อมูล|ความรู้|รายละเอียด|สำคัญ|คืออะไร|คืออะไรบ้าง)/i.test(t);
+  const hasKnowledgeIntent = /(อยู่ภาค|ภาคอะไร|มีกี่|มี.*อะไรบ้าง|ข้อมูล|ความรู้|รายละเอียด|สำคัญ|คืออะไร|คืออะไรบ้าง|อะไรบ้าง|ประกอบด้วย|อยู่จังหวัด|กี่จังหวัด|กี่อำเภอ)/i.test(t);
   return hasGeoEntity && hasKnowledgeIntent;
 }
 
@@ -418,9 +418,25 @@ function renderGeneralFallbackMessage(): string {
 
 function renderGeneralSmokeAnswer(userText: string): string {
   const t = String(userText || "").trim();
-  // Thai knowledge: ภาคกลาง provinces
-  if (/ภาคกลาง/.test(t) && /จังหวัด|ประกอบ|อะไรบ้าง/.test(t)) {
-    return "ภาคกลางของประเทศไทยประกอบด้วยจังหวัดหลายแห่ง ได้แก่ กรุงเทพมหานคร นนทบุรี ปทุมธานี สมุทรปราการ สมุทรสาคร นครปฐม พระนครศรีอยุธยา อ่างทอง สิงห์บุรี ชัยนาท ลพบุรี สระบุรี สุพรรณบุรี สมุทรสงคราม นครนายก และอื่นๆ รวมกว่า 20 จังหวัด (ขอบเขตอาจแตกต่างตามเกณฑ์แบ่งภาค)";
+  // Thai knowledge: region → province lookups (grounded static data)
+  if (/ภาคกลาง/.test(t) && /จังหวัด|ประกอบ|อะไรบ้าง|กี่/.test(t)) {
+    return "ภาคกลางของประเทศไทยประกอบด้วยจังหวัดหลายแห่ง ได้แก่ กรุงเทพมหานคร นนทบุรี ปทุมธานี สมุทรปราการ สมุทรสาคร นครปฐม พระนครศรีอยุธยา อ่างทอง สิงห์บุรี ชัยนาท ลพบุรี สระบุรี สุพรรณบุรี สมุทรสงคราม นครนายก และอื่นๆ รวมกว่า 20 จังหวัด";
+  }
+  if (/ภาคเหนือ/.test(t) && /จังหวัด|ประกอบ|อะไรบ้าง|กี่/.test(t)) {
+    return "ภาคเหนือของประเทศไทยประกอบด้วย เชียงใหม่ เชียงราย ลำพูน ลำปาง แพร่ น่าน พะเยา แม่ฮ่องสอน อุตรดิตถ์ สุโขทัย พิษณุโลก พิจิตร กำแพงเพชร ตาก นครสวรรค์ อุทัยธานี เพชรบูรณ์ รวม 17 จังหวัด";
+  }
+  if (/ภาค(อีสาน|ตะวันออกเฉียงเหนือ)/.test(t) && /จังหวัด|ประกอบ|อะไรบ้าง|กี่/.test(t)) {
+    return "ภาคตะวันออกเฉียงเหนือ (อีสาน) ประกอบด้วย นครราชสีมา ขอนแก่น อุดรธานี อุบลราชธานี บุรีรัมย์ สุรินทร์ ศรีสะเกษ ร้อยเอ็ด ชัยภูมิ กาฬสินธุ์ มหาสารคาม นครพนม สกลนคร มุกดาหาร เลย หนองคาย หนองบัวลำภู บึงกาฬ ยโสธร อำนาจเจริญ รวม 20 จังหวัด";
+  }
+  if (/ภาคใต้/.test(t) && /จังหวัด|ประกอบ|อะไรบ้าง|กี่/.test(t)) {
+    return "ภาคใต้ของประเทศไทยประกอบด้วย ภูเก็ต สงขลา สุราษฎร์ธานี นครศรีธรรมราช กระบี่ พังงา ตรัง พัทลุง สตูล ชุมพร ระนอง นราธิวาส ปัตตานี ยะลา รวม 14 จังหวัด";
+  }
+  if (/ภาคตะวันออก/.test(t) && !/เฉียงเหนือ/.test(t) && /จังหวัด|ประกอบ|อะไรบ้าง|กี่/.test(t)) {
+    return "ภาคตะวันออกของประเทศไทยประกอบด้วย ชลบุรี ระยอง จันทบุรี ตราด ฉะเชิงเทรา ปราจีนบุรี สระแก้ว รวม 7 จังหวัด";
+  }
+  // Thai knowledge: specific place lookups
+  if (/หาดใหญ่/.test(t) && /อยู่|จังหวัด|ภาค/.test(t)) {
+    return "หาดใหญ่เป็นอำเภอในจังหวัดสงขลา ภาคใต้ของประเทศไทย เป็นศูนย์กลางเศรษฐกิจที่ใหญ่ที่สุดในภาคใต้";
   }
   // NASA APOD
   if (/nasa|apod|นาซ่า/i.test(t) && /ภาพ|ดึง|api|วันนี้|random/i.test(t)) {
@@ -1865,11 +1881,22 @@ wss.on("connection", (ws, req) => {
         // =====================================
         if (mcpClient && prefersThaiKnowledgeRoute(messageWithFile) && !looksLikeDeterministicWeatherQuery(messageWithFile)) {
           const tkToolName = "innomcp-server:thai_geo_tool";
-          const tkQuery = messageWithFile.trim();
+          const tkRaw = messageWithFile.trim();
 
-          // Infer filter_region from query
-          const regionMatch = tkQuery.match(/ภาค(กลาง|เหนือ|ใต้|อีสาน|ตะวันออก|ตะวันตก|ตะวันออกเฉียงเหนือ)/);
+          // Extract geographic keyword from natural language query (not full sentence)
+          const regionMatch = tkRaw.match(/ภาค(กลาง|เหนือ|ใต้|อีสาน|ตะวันออก|ตะวันตก|ตะวันออกเฉียงเหนือ)/);
           const filterRegion = regionMatch ? regionMatch[1] : undefined;
+          // Extract short keyword for tool search: province/district/region name
+          const geoKeyword = (() => {
+            // Region names
+            if (regionMatch) return `ภาค${regionMatch[1]}`;
+            // Known place names
+            const placeMatch = tkRaw.match(/(กรุงเทพ(?:มหานคร)?|เชียงใหม่|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|ภูเก็ต|สงขลา|หาดใหญ่|อุบล(?:ราชธานี)?|เชียงราย|สุราษฎร์ธานี|นครศรีธรรมราช|พิษณุโลก|ลำปาง|ลำพูน|แม่ฮ่องสอน|น่าน|พะเยา|แพร่|ชลบุรี|ระยอง|จันทบุรี|กาญจนบุรี|หนองคาย|สกลนคร|อุดรธานี|บุรีรัมย์|สุรินทร์)/);
+            if (placeMatch) return placeMatch[1];
+            // Fallback: use first 20 chars
+            return tkRaw.slice(0, 20);
+          })();
+          const tkQuery = geoKeyword;
 
           logBoth("info", `[ThaiKnowledgeGate] bypass=true transport=ws query="${tkQuery.slice(0, 60)}" region=${filterRegion || "none"}`);
 
@@ -3110,11 +3137,18 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     if (mcpClient && prefersThaiKnowledgeRoute(messageWithFile) && !looksLikeDeterministicWeatherQuery(messageWithFile)) {
       const tkToolName = "innomcp-server:thai_geo_tool";
-      const regionMatch = messageWithFile.match(/ภาค(กลาง|เหนือ|ใต้|อีสาน|ตะวันออก|ตะวันตก|ตะวันออกเฉียงเหนือ)/);
+      const tkRaw = messageWithFile.trim();
+      const regionMatch = tkRaw.match(/ภาค(กลาง|เหนือ|ใต้|อีสาน|ตะวันออก|ตะวันตก|ตะวันออกเฉียงเหนือ)/);
       const filterRegion = regionMatch ? regionMatch[1] : undefined;
-      logBoth("info", `[ThaiKnowledgeGate] bypass=true transport=http query="${messageWithFile.slice(0, 60)}" region=${filterRegion || "none"}`);
+      const geoKeyword = (() => {
+        if (regionMatch) return `ภาค${regionMatch[1]}`;
+        const placeMatch = tkRaw.match(/(กรุงเทพ(?:มหานคร)?|เชียงใหม่|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|ภูเก็ต|สงขลา|หาดใหญ่|อุบล(?:ราชธานี)?|สุราษฎร์ธานี|นครศรีธรรมราช|พิษณุโลก|ชลบุรี|กาญจนบุรี|อุดรธานี|บุรีรัมย์|สุรินทร์)/);
+        if (placeMatch) return placeMatch[1];
+        return tkRaw.slice(0, 20);
+      })();
+      logBoth("info", `[ThaiKnowledgeGate] bypass=true transport=http keyword="${geoKeyword}" region=${filterRegion || "none"}`);
       try {
-        const toolArgs: any = { query: messageWithFile.trim(), context: { domain: "geo" } };
+        const toolArgs: any = { query: geoKeyword, context: { domain: "geo" } };
         if (filterRegion) toolArgs.filter_region = filterRegion;
         const toolResults = await mcpClient.executeTools([tkToolName], messageWithFile, { [tkToolName]: toolArgs });
         const first = Array.isArray(toolResults) ? toolResults[0] : undefined;

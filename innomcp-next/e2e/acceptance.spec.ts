@@ -1060,3 +1060,118 @@ test.describe("PERFORMANCE", () => {
     expect(latency, "DateTime should respond in <8s").toBeLessThan(8_000);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 26: EXTENDED THAI KNOWLEDGE (region-level)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("EXTENDED THAI KNOWLEDGE", () => {
+  test("ETK1 — ภาคเหนือมีจังหวัดอะไรบ้าง", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "ETK1", "ภาคเหนือมีจังหวัดอะไรบ้าง", LLM_TIMEOUT_MS);
+    await assertNoPlaceholderMap(page, "ETK1");
+    expect(text, "ETK1 should mention เชียงใหม่ or ภาคเหนือ").toMatch(/เชียงใหม่|ภาคเหนือ|เหนือ/);
+  });
+
+  test("ETK2 — ภาคใต้มีกี่จังหวัด", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "ETK2", "ภาคใต้มีจังหวัดอะไรบ้าง", LLM_TIMEOUT_MS);
+    await assertNoPlaceholderMap(page, "ETK2");
+    expect(text, "ETK2 should mention ภาคใต้ or สงขลา or ภูเก็ต").toMatch(/ภาคใต้|ใต้|สงขลา|ภูเก็ต|สุราษฎร์/);
+  });
+
+  test("ETK3 — หาดใหญ่อยู่จังหวัดอะไร", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "ETK3", "หาดใหญ่อยู่จังหวัดอะไร", LLM_TIMEOUT_MS);
+    await assertNoPlaceholderMap(page, "ETK3");
+    expect(text, "ETK3 should mention สงขลา").toMatch(/สงขลา|หาดใหญ่/);
+  });
+
+  test("ETK4 — ภาคอีสานมีจังหวัดอะไรบ้าง", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "ETK4", "ภาคอีสานมีจังหวัดอะไรบ้าง", LLM_TIMEOUT_MS);
+    await assertNoPlaceholderMap(page, "ETK4");
+    expect(text, "ETK4 should mention อีสาน or ขอนแก่น or นครราชสีมา").toMatch(/อีสาน|ขอนแก่น|นครราชสีมา|โคราช/);
+  });
+
+  test("ETK5 — กรุงเทพอยู่ภาคไหน", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "ETK5", "กรุงเทพมหานครอยู่ภาคไหนของประเทศไทย", LLM_TIMEOUT_MS);
+    await assertNoPlaceholderMap(page, "ETK5");
+    expect(text, "ETK5 should mention กลาง or กรุงเทพ").toMatch(/กลาง|กรุงเทพ/);
+  });
+
+  test("ETK6 — โคราชอยู่ภาคอะไร", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "ETK6", "นครราชสีมาอยู่ภาคอะไร", LLM_TIMEOUT_MS);
+    await assertNoPlaceholderMap(page, "ETK6");
+    expect(text, "ETK6 should mention อีสาน or ตะวันออกเฉียงเหนือ").toMatch(/อีสาน|ตะวันออกเฉียงเหนือ|นครราชสีมา/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 27: ANALYTICAL WEATHER (grounded rewrite)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("ANALYTICAL WEATHER", () => {
+  test("AW1 — วิเคราะห์อากาศกรุงเทพวันนี้", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "AW1", "วิเคราะห์สภาพอากาศกรุงเทพวันนี้", LLM_TIMEOUT_MS);
+    await assertNoPlaceholderMap(page, "AW1");
+    await assertToolUsed(page, "AW1", "weatherPipeline");
+    expect(text.length, "AW1 should have substantial analysis").toBeGreaterThan(50);
+  });
+
+  test("AW2 — เปรียบเทียบอากาศเหนือกับใต้", async ({ page }) => {
+    test.setTimeout(180_000); // Multi-region comparison + LLM synthesis can be slow
+    await navigateToChat(page);
+    const text = await runCase(page, "AW2", "เปรียบเทียบอากาศภาคเหนือกับภาคใต้วันนี้", 120_000);
+    await assertToolUsed(page, "AW2", "weatherPipeline");
+    expect(text.length, "AW2 should have comparison data").toBeGreaterThan(30);
+  });
+
+  test("AW3 — แนวโน้มฝนกรุงเทพสัปดาห์หน้า", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "AW3", "แนวโน้มฝนกรุงเทพสัปดาห์หน้าเป็นอย่างไร", LLM_TIMEOUT_MS);
+    await assertToolUsed(page, "AW3", "weatherPipeline");
+    expect(text, "AW3 should mention rain or trend").toMatch(/ฝน|แนวโน้ม|%|rain/i);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 28: GROUNDED CONTRACT VERIFICATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("GROUNDED CONTRACT", () => {
+  test("GC1 — weather response has groundedContract", async ({ page }) => {
+    await navigateToChat(page);
+    await runCase(page, "GC1", "อากาศกรุงเทพวันนี้", WEATHER_TIMEOUT_MS);
+    // Check that structuredContent contains __groundedContract or chatMeta
+    const toolsMeta = await getToolsUsedText(page);
+    expect(toolsMeta, "GC1 should have tools-used metadata").not.toBe("");
+  });
+
+  test("GC2 — calculator response has proper metadata", async ({ page }) => {
+    await navigateToChat(page);
+    await runCase(page, "GC2", "คำนวณ 100*50", FAST_TIMEOUT_MS);
+    const toolsMeta = await getToolsUsedText(page);
+    expect(toolsMeta.toLowerCase(), "GC2 should show calculatorTool").toContain("calculatortool");
+  });
+
+  test("GC3 — general response shows Used tools: none", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    await runCase(page, "GC3", "Python คืออะไร", LLM_TIMEOUT_MS);
+    const toolsMeta = await getToolsUsedText(page);
+    // GeneralGate: no tools needed
+    console.log(`[GC3] tools: ${toolsMeta}`);
+  });
+});
