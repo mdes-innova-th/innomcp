@@ -23,63 +23,88 @@ const DOPA_SOURCE: ThaiKnowledgeSource = { name: "DOPA", url: "https://www.dopa.
 
 const now = new Date().toISOString();
 
+// Helper to create province entities concisely
+function prov(id: string, name: string, aliases: string[], region: string, lat: number, lon: number): ThaiGeoEntity {
+  return { id, domain: "geo", type: "province", name_th: name, aliases, description: `จังหวัด${name} อยู่ในภาค${region}`, attributes: { province: name, region, lat, lon }, relations: [], source: [DOPA_SOURCE], confidence: 0.95, version: "1.0.0", updated_at: now };
+}
+function regionEntity(id: string, name: string, aliases: string[], provinces: string[]): ThaiGeoEntity {
+  return { id, domain: "geo", type: "region" as any, name_th: name, aliases, description: `ภาค${name}ของประเทศไทย ประกอบด้วย ${provinces.length} จังหวัด ได้แก่ ${provinces.join(" ")}`, attributes: { province: name, region: name }, relations: [], source: [DOPA_SOURCE], confidence: 0.95, version: "1.0.0", updated_at: now };
+}
+
+const CENTRAL_PROVS = ["กรุงเทพมหานคร","นนทบุรี","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นครปฐม","พระนครศรีอยุธยา","อ่างทอง","สิงห์บุรี","ชัยนาท","ลพบุรี","สระบุรี","สุพรรณบุรี","สมุทรสงคราม","นครนายก","กาญจนบุรี","ราชบุรี","เพชรบุรี","ประจวบคีรีขันธ์"];
+const NORTH_PROVS = ["เชียงใหม่","เชียงราย","ลำพูน","ลำปาง","แพร่","น่าน","พะเยา","แม่ฮ่องสอน","อุตรดิตถ์","สุโขทัย","พิษณุโลก","พิจิตร","กำแพงเพชร","ตาก","นครสวรรค์","อุทัยธานี","เพชรบูรณ์"];
+const NORTHEAST_PROVS = ["นครราชสีมา","ขอนแก่น","อุดรธานี","อุบลราชธานี","บุรีรัมย์","สุรินทร์","ศรีสะเกษ","ร้อยเอ็ด","ชัยภูมิ","กาฬสินธุ์","มหาสารคาม","นครพนม","สกลนคร","มุกดาหาร","เลย","หนองคาย","หนองบัวลำภู","บึงกาฬ","ยโสธร","อำนาจเจริญ"];
+const EAST_PROVS = ["ชลบุรี","ระยอง","จันทบุรี","ตราด","ฉะเชิงเทรา","ปราจีนบุรี","สระแก้ว"];
+const SOUTH_PROVS = ["ภูเก็ต","สงขลา","สุราษฎร์ธานี","นครศรีธรรมราช","กระบี่","พังงา","ตรัง","พัทลุง","สตูล","ชุมพร","ระนอง","นราธิวาส","ปัตตานี","ยะลา"];
+
 export const THAI_GEO_SEED: ThaiGeoEntity[] = [
-  {
-    id: "PROV-10",
-    domain: "geo",
-    type: "province",
-    name_th: "กรุงเทพมหานคร",
-    aliases: ["กทม", "บางกอก", "กรุงเทพฯ"],
-    description: "จังหวัดกรุงเทพมหานคร อยู่ในภาคกลาง",
-    attributes: { province: "กรุงเทพมหานคร", region: "กลาง", lat: 13.7563, lon: 100.5018 },
-    relations: [],
-    source: [DOPA_SOURCE],
-    confidence: 0.95,
-    version: "1.0.0",
-    updated_at: now,
-  },
-  {
-    id: "PROV-50",
-    domain: "geo",
-    type: "province",
-    name_th: "เชียงใหม่",
-    aliases: ["เจียงใหม่"],
-    description: "จังหวัดเชียงใหม่ อยู่ในภาคเหนือ",
-    attributes: { province: "เชียงใหม่", region: "เหนือ", lat: 18.7932, lon: 98.9853 },
-    relations: [],
-    source: [DOPA_SOURCE],
-    confidence: 0.95,
-    version: "1.0.0",
-    updated_at: now,
-  },
-  {
-    id: "PROV-30",
-    domain: "geo",
-    type: "province",
-    name_th: "นครราชสีมา",
-    aliases: ["โคราช"],
-    description: "จังหวัดนครราชสีมา อยู่ในภาคตะวันออกเฉียงเหนือ (อีสาน)",
-    attributes: { province: "นครราชสีมา", region: "อีสาน", lat: 14.9799, lon: 102.0977 },
-    relations: [],
-    source: [DOPA_SOURCE],
-    confidence: 0.95,
-    version: "1.0.0",
-    updated_at: now,
-  },
-  {
-    id: "PROV-83",
-    domain: "geo",
-    type: "province",
-    name_th: "ภูเก็ต",
-    aliases: [],
-    description: "จังหวัดภูเก็ต อยู่ในภาคใต้",
-    attributes: { province: "ภูเก็ต", region: "ใต้", lat: 7.8804, lon: 98.3923 },
-    relations: [],
-    source: [DOPA_SOURCE],
-    confidence: 0.95,
-    version: "1.0.0",
-    updated_at: now,
-  },
+  // ─── Regions (6) ──────────────────────────────────────────
+  regionEntity("REG-C", "กลาง", ["ภาคกลาง","central"], CENTRAL_PROVS),
+  regionEntity("REG-N", "เหนือ", ["ภาคเหนือ","north"], NORTH_PROVS),
+  regionEntity("REG-NE", "ตะวันออกเฉียงเหนือ", ["ภาคอีสาน","อีสาน","ภาคตะวันออกเฉียงเหนือ","northeast","isan"], NORTHEAST_PROVS),
+  regionEntity("REG-E", "ตะวันออก", ["ภาคตะวันออก","east"], EAST_PROVS),
+  regionEntity("REG-S", "ใต้", ["ภาคใต้","south"], SOUTH_PROVS),
+  regionEntity("REG-W", "ตะวันตก", ["ภาคตะวันตก","west"], ["กาญจนบุรี","ราชบุรี","เพชรบุรี","ประจวบคีรีขันธ์","ตาก"]),
+
+  // ─── Central provinces ────────────────────────────────────
+  prov("PROV-10", "กรุงเทพมหานคร", ["กทม","บางกอก","กรุงเทพฯ"], "กลาง", 13.7563, 100.5018),
+  prov("PROV-12", "นนทบุรี", [], "กลาง", 13.8591, 100.5217),
+  prov("PROV-13", "ปทุมธานี", [], "กลาง", 14.0208, 100.5250),
+  prov("PROV-11", "สมุทรปราการ", [], "กลาง", 13.5991, 100.5998),
+  prov("PROV-74", "สมุทรสาคร", [], "กลาง", 13.5475, 100.2744),
+  prov("PROV-73", "นครปฐม", [], "กลาง", 13.8196, 100.0444),
+  prov("PROV-14", "พระนครศรีอยุธยา", ["อยุธยา"], "กลาง", 14.3692, 100.5877),
+  prov("PROV-15", "อ่างทอง", [], "กลาง", 14.5896, 100.4549),
+  prov("PROV-17", "สิงห์บุรี", [], "กลาง", 14.8914, 100.3967),
+  prov("PROV-18", "ชัยนาท", [], "กลาง", 15.1851, 100.1252),
+  prov("PROV-16", "ลพบุรี", [], "กลาง", 14.7995, 100.6534),
+  prov("PROV-19", "สระบุรี", [], "กลาง", 14.5289, 100.9108),
+  prov("PROV-72", "สุพรรณบุรี", [], "กลาง", 14.4744, 100.1177),
+  prov("PROV-75", "สมุทรสงคราม", ["แม่กลอง"], "กลาง", 13.4098, 100.0022),
+  prov("PROV-26", "นครนายก", [], "กลาง", 14.2069, 101.2131),
+
+  // ─── North provinces ──────────────────────────────────────
+  prov("PROV-50", "เชียงใหม่", ["เจียงใหม่"], "เหนือ", 18.7932, 98.9853),
+  prov("PROV-57", "เชียงราย", [], "เหนือ", 19.9105, 99.8406),
+  prov("PROV-51", "ลำพูน", [], "เหนือ", 18.5744, 98.9862),
+  prov("PROV-52", "ลำปาง", [], "เหนือ", 18.2855, 99.5128),
+  prov("PROV-65", "พิษณุโลก", [], "เหนือ", 16.8211, 100.2659),
+  prov("PROV-60", "นครสวรรค์", [], "เหนือ", 15.6931, 100.1225),
+
+  // ─── Northeast (Isan) provinces ───────────────────────────
+  prov("PROV-30", "นครราชสีมา", ["โคราช"], "อีสาน", 14.9799, 102.0977),
+  prov("PROV-40", "ขอนแก่น", [], "อีสาน", 16.4419, 102.8360),
+  prov("PROV-41", "อุดรธานี", [], "อีสาน", 17.4138, 102.7874),
+  prov("PROV-34", "อุบลราชธานี", ["อุบล"], "อีสาน", 15.2448, 104.8473),
+  prov("PROV-31", "บุรีรัมย์", [], "อีสาน", 14.9930, 103.1029),
+  prov("PROV-32", "สุรินทร์", [], "อีสาน", 14.8821, 103.4937),
+
+  // ─── East provinces ───────────────────────────────────────
+  prov("PROV-20", "ชลบุรี", ["พัทยา"], "ตะวันออก", 13.3611, 100.9847),
+  prov("PROV-21", "ระยอง", [], "ตะวันออก", 12.6814, 101.2816),
+  prov("PROV-22", "จันทบุรี", [], "ตะวันออก", 12.6100, 102.1048),
+
+  // ─── South provinces ──────────────────────────────────────
+  prov("PROV-83", "ภูเก็ต", ["ภูเก็จ","ภูเกตุ"], "ใต้", 7.8804, 98.3923),
+  prov("PROV-90", "สงขลา", ["หาดใหญ่"], "ใต้", 7.1896, 100.5945),
+  prov("PROV-84", "สุราษฎร์ธานี", ["เกาะสมุย"], "ใต้", 9.1382, 99.3217),
+  prov("PROV-80", "นครศรีธรรมราช", [], "ใต้", 8.4324, 99.9599),
+  prov("PROV-81", "กระบี่", [], "ใต้", 8.0863, 98.9063),
+
+  // ─── West provinces ───────────────────────────────────────
+  prov("PROV-71", "กาญจนบุรี", [], "ตะวันตก", 14.0043, 99.5484),
+  prov("PROV-70", "ราชบุรี", [], "ตะวันตก", 13.5283, 99.8134),
+
+  // ─── Key districts ────────────────────────────────────────
+  { id: "DIST-5001", domain: "geo", type: "district", name_th: "เมืองเชียงใหม่", aliases: [], description: "อำเภอเมืองเชียงใหม่ จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "เมืองเชียงใหม่", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
+  { id: "DIST-5002", domain: "geo", type: "district", name_th: "ดอยสะเก็ด", aliases: [], description: "อำเภอดอยสะเก็ด จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "ดอยสะเก็ด", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
+  { id: "DIST-5003", domain: "geo", type: "district", name_th: "สันทราย", aliases: [], description: "อำเภอสันทราย จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "สันทราย", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
+  { id: "DIST-5004", domain: "geo", type: "district", name_th: "สันกำแพง", aliases: [], description: "อำเภอสันกำแพง จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "สันกำแพง", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
+  { id: "DIST-5005", domain: "geo", type: "district", name_th: "หางดง", aliases: [], description: "อำเภอหางดง จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "หางดง", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
+  { id: "DIST-5006", domain: "geo", type: "district", name_th: "แม่ริม", aliases: [], description: "อำเภอแม่ริม จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "แม่ริม", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
+  { id: "DIST-5007", domain: "geo", type: "district", name_th: "ฝาง", aliases: [], description: "อำเภอฝาง จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "ฝาง", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
+  { id: "DIST-5008", domain: "geo", type: "district", name_th: "แม่แตง", aliases: [], description: "อำเภอแม่แตง จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "แม่แตง", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
+  { id: "DIST-9001", domain: "geo", type: "district", name_th: "หาดใหญ่", aliases: [], description: "อำเภอหาดใหญ่ จังหวัดสงขลา", attributes: { province: "สงขลา", district: "หาดใหญ่", region: "ใต้" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
 ];
 
 export interface GeoDbAdapter {
@@ -317,7 +342,14 @@ export const thaiGeoTool = {
     const filterRegion = args?.filter_region?.trim();
 
     try {
-      const entities = await getGeoDb().search({ queryText: searchTerm, filterRegion, limit: 5 });
+      let entities: ThaiGeoEntity[];
+      try {
+        entities = await getGeoDb().search({ queryText: searchTerm, filterRegion, limit: 10 });
+      } catch (dbErr: any) {
+        // DB failure: fallback to in-memory seed data
+        const inMemory = new InMemoryGeoDb(THAI_GEO_SEED);
+        entities = await inMemory.search({ queryText: searchTerm, filterRegion, limit: 10 });
+      }
       if (entities.length === 0) {
         return errorResult({
           success: false,
