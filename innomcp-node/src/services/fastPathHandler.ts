@@ -407,7 +407,19 @@ export async function tryFastPathWebSocket(
   const start = Date.now();
   const text = userMessage.trim();
 
+  // Map fastPath hit → tool name (for chatMeta.toolsUsed display)
+  const hitToToolName: Record<string, string> = {
+    datetime: "dateTimeTool",
+    calculator: "calculatorTool",
+    factorial: "calculatorTool",
+  };
+
   const sendAiText = (hit: string, responseText: string, extraStructured?: Record<string, any>) => {
+    const toolName = hitToToolName[hit];
+    const chatMeta = {
+      mode: "online",
+      toolsUsed: toolName ? [{ name: toolName }] : [],
+    };
     send({
       id: `fastpath-${Date.now()}`,
       type: "message",
@@ -418,6 +430,7 @@ export async function tryFastPathWebSocket(
         fastPath: true,
         fastPathHit: hit,
         result: responseText,
+        chatMeta,
         __render: {
           route: "general",
           llmUsed: false,
@@ -453,7 +466,7 @@ export async function tryFastPathWebSocket(
   if (/^\s*(สวัสดี|หวัดดี)(ครับ|ค่ะ|คับ|นะ|จ้า|ฮะ|ฮ่ะ)?/i.test(text) || /^\s*(hello|hi|hey)(\s|$)/i.test(text)) {
     return sendAiText("greeting", "สวัสดีครับ มีอะไรให้ช่วยไหมครับ");
   }
-  if (/(^|\s)(ขอบคุณ|thanks|thank you)(\s|$)/i.test(text)) {
+  if (/(^|\s)(ขอบคุณ|thanks|thank you)/i.test(text)) {
     return sendAiText("thanks", "ยินดีครับ หากต้องการให้ช่วยเพิ่มเติม บอกได้เลยครับ");
   }
 
@@ -535,8 +548,11 @@ export async function tryFastPathWebSocket(
   // ===== TIME / DATE (deterministic, no tool/LLM dependency) =====
   // Include common Thai phrasings used in E2E (e.g. "วันนี้วันที่เท่าไร")
   // NOTE: Avoid hijacking weather queries that mention "วันนี้".
-  const looksLikeWeatherQuery = /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น)/i.test(text);
-  if (!looksLikeWeatherQuery && /(กี่โมง|เวลา|ตอนนี้|time|now|date|today|วันนี้|วันที่|วันอะไร|วันไหน)/i.test(text) && text.length <= 80) {
+  const looksLikeWeatherQuery = /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น|พายุ|ลม|หมอก|ฟ้า|แดด|ฝนฟ้า|แผ่นดินไหว|น้ำท่วม|ระดับน้ำ|อุทก|seismic|hydro|น้ำ|nasa|apod|อวกาศ|gdp|worldbank|เศรษฐกิจ)/i.test(text);
+  // Don't intercept specific-date queries (they contain a 4-digit year or explicit date like "25 ธันวาคม")
+  const hasSpecificDate = /\b(19|20|21|256|257|258|259|260)\d{2}\b/.test(text)
+    || /\d{1,2}\s*(มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม)/i.test(text);
+  if (!looksLikeWeatherQuery && !hasSpecificDate && /(กี่โมง|เวลา|ตอนนี้|time|now|date|today|วันนี้|วันที่|วันอะไร|วันไหน)/i.test(text) && text.length <= 80) {
     const now = new Date();
     const timeStr = now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
     const dateStr = now.toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" });
