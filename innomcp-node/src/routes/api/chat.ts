@@ -645,7 +645,7 @@ function structuredKeysSummary(structuredContent: any): string {
   return typeof structuredContent;
 }
 
-function withRenderMeta(structuredContent: any, meta: { route: "weather" | "geo" | "evidence" | "general" | "web-record" | "worldbank" | "nasa" | "qr"; llmUsed: boolean; routeDecider: "deterministic"; version: "phase8" | "phase10.2" | "phase10.3" | "phase10.4" | "phase10.5" }, toolsUsed?: string[]): any {
+function withRenderMeta(structuredContent: any, meta: { route: string; llmUsed: boolean; routeDecider: "deterministic"; version: string }, toolsUsed?: string[]): any {
   const base = structuredContent && typeof structuredContent === "object" && !Array.isArray(structuredContent) ? structuredContent : {};
   const existingChatMeta = (base as any).chatMeta && typeof (base as any).chatMeta === "object" ? (base as any).chatMeta : {};
   const resolvedTools = Array.isArray(toolsUsed) ? toolsUsed : [];
@@ -655,7 +655,17 @@ function withRenderMeta(structuredContent: any, meta: { route: "weather" | "geo"
     toolsUsed: resolvedTools.map((t) => ({ name: t })),
     reason_code: existingChatMeta.reason_code || (meta.route.toUpperCase() + "_GATE"),
   };
-  return { ...(base as any), __render: meta, chatMeta };
+  // Grounded Answer Contract: debug metadata for provenance tracking
+  const groundedContract = {
+    selectedRoute: meta.route,
+    selectedTools: resolvedTools,
+    llmUsed: meta.llmUsed,
+    routeDecider: meta.routeDecider,
+    sourceType: resolvedTools.length > 0 ? (meta.llmUsed ? "tool+rewrite" : "tool-only") : (meta.llmUsed ? "llm-only" : "deterministic"),
+    version: meta.version,
+    timestamp: new Date().toISOString(),
+  };
+  return { ...(base as any), __render: meta, chatMeta, __groundedContract: groundedContract };
 }
 
 function buildWebRecordPayload(query: string) {
@@ -1850,13 +1860,72 @@ wss.on("connection", (ws, req) => {
         }
 
         // =====================================
+        // Phase 10.6: Thai Knowledge Gate — route geo/knowledge queries to real tools
+        // Catches queries that prefersThaiKnowledgeRoute() but need actual tool data
+        // =====================================
+        if (mcpClient && prefersThaiKnowledgeRoute(messageWithFile) && !looksLikeDeterministicWeatherQuery(messageWithFile)) {
+          const tkToolName = "innomcp-server:thai_geo_tool";
+          const tkQuery = messageWithFile.trim();
+
+          // Infer filter_region from query
+          const regionMatch = tkQuery.match(/ภาค(กลาง|เหนือ|ใต้|อีสาน|ตะวันออก|ตะวันตก|ตะวันออกเฉียงเหนือ)/);
+          const filterRegion = regionMatch ? regionMatch[1] : undefined;
+
+          logBoth("info", `[ThaiKnowledgeGate] bypass=true transport=ws query="${tkQuery.slice(0, 60)}" region=${filterRegion || "none"}`);
+
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+
+          try {
+            const toolArgs: any = { query: tkQuery, context: { domain: "geo" } };
+            if (filterRegion) toolArgs.filter_region = filterRegion;
+
+            const toolResults = await mcpClient.executeTools([tkToolName], messageWithFile, {
+              [tkToolName]: toolArgs,
+            });
+
+            const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+            const sc = first?.structuredContent ?? first?.result ?? {};
+
+            // Render geo result or fall through if tool returned no useful data
+            const rendered = renderThaiGeoAnswerShort(sc);
+            const isNotFound = /ไม่พบ|NOT_FOUND|error/i.test(rendered.text || "") || (rendered.text || "").length < 15;
+            if (isNotFound) {
+              logBoth("info", `[ThaiKnowledgeGate] tool returned no data, falling through to GeneralGate`);
+              // Undo session history addition
+              sessionHistory.pop();
+              sessionManager.completeResponse(currentSessionId);
+              throw new Error("NO_DATA_FALLTHROUGH");
+            }
+            const textOut = rendered.text;
+            const scOut = withRenderMeta(sc, { route: "geo" as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.5" }, [tkToolName]);
+
+            const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [tkToolName] };
+            sessionHistory.push(aiMessage);
+            sessionManager.addMessage(currentSessionId, "assistant", textOut, [tkToolName]);
+            sessionManager.completeResponse(currentSessionId);
+
+            sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [tkToolName] });
+            sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [tkToolName] });
+            sendDoneOnce();
+
+            chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "geo", tool: tkToolName, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut });
+            return;
+          } catch (tkErr: any) {
+            logBoth("error", `[ThaiKnowledgeGate] tool failed: ${tkErr.message}, falling through`);
+            // Fall through to API gate / GeneralGate
+          }
+        }
+
+        // =====================================
         // Phase 10.5: API Tool Gate — WorldBank, NASA, QR (direct MCP tool calls)
         // Queries with explicit tool/API names bypass GeneralGate to use real tools.
         // =====================================
-        if (mcpClient && /worldbank|world\s*bank|nasa|apod|qr\s*code|สร้าง\s*qr/i.test(messageWithFile)) {
+        if (mcpClient && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|qr\s*code|สร้าง\s*qr/i.test(messageWithFile)) {
           const apiToolMatch = (() => {
             const t = messageWithFile.toLowerCase();
-            if (/worldbank|world\s*bank/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
+            if (/worldbank|world\s*bank|เวิลด์แบงก์/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
             if (/nasa|apod|นาซ่า/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
             if (/qr\s*code|qr\s*โค้ด|สร้าง\s*qr/i.test(t)) return { tool: "innomcp-server:qrCodeTool", gate: "QR" };
             return null;
@@ -3037,12 +3106,38 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     }
 
     // =====================================
+    // Phase 10.6: Thai Knowledge Gate (HTTP path)
+    // =====================================
+    if (mcpClient && prefersThaiKnowledgeRoute(messageWithFile) && !looksLikeDeterministicWeatherQuery(messageWithFile)) {
+      const tkToolName = "innomcp-server:thai_geo_tool";
+      const regionMatch = messageWithFile.match(/ภาค(กลาง|เหนือ|ใต้|อีสาน|ตะวันออก|ตะวันตก|ตะวันออกเฉียงเหนือ)/);
+      const filterRegion = regionMatch ? regionMatch[1] : undefined;
+      logBoth("info", `[ThaiKnowledgeGate] bypass=true transport=http query="${messageWithFile.slice(0, 60)}" region=${filterRegion || "none"}`);
+      try {
+        const toolArgs: any = { query: messageWithFile.trim(), context: { domain: "geo" } };
+        if (filterRegion) toolArgs.filter_region = filterRegion;
+        const toolResults = await mcpClient.executeTools([tkToolName], messageWithFile, { [tkToolName]: toolArgs });
+        const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+        const sc = first?.structuredContent ?? first?.result ?? {};
+        const rendered = renderThaiGeoAnswerShort(sc);
+        const isNotFound = /ไม่พบ|NOT_FOUND|error/i.test(rendered.text || "") || (rendered.text || "").length < 15;
+        if (isNotFound) throw new Error("NO_DATA_FALLTHROUGH");
+        const textOut = rendered.text;
+        const scOut = withRenderMeta(sc, { route: "geo" as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.5" }, [tkToolName]);
+        sessionHistory.push({ sender: "ai", text: textOut } as any);
+        return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: true, mcpResults: toolResults });
+      } catch (tkErr: any) {
+        logBoth("error", `[ThaiKnowledgeGate] HTTP failed: ${tkErr.message}`);
+      }
+    }
+
+    // =====================================
     // Phase 10.5: API Tool Gate — WorldBank, NASA, QR (HTTP path)
     // =====================================
-    if (mcpClient && /worldbank|world\s*bank|nasa|apod|qr\s*code|สร้าง\s*qr/i.test(messageWithFile)) {
+    if (mcpClient && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|qr\s*code|สร้าง\s*qr/i.test(messageWithFile)) {
       const apiToolMatch = (() => {
         const t = messageWithFile.toLowerCase();
-        if (/worldbank|world\s*bank/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
+        if (/worldbank|world\s*bank|เวิลด์แบงก์/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
         if (/nasa|apod|นาซ่า/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
         if (/qr\s*code|qr\s*โค้ด|สร้าง\s*qr/i.test(t)) return { tool: "innomcp-server:qrCodeTool", gate: "QR" };
         return null;
