@@ -645,7 +645,7 @@ function structuredKeysSummary(structuredContent: any): string {
   return typeof structuredContent;
 }
 
-function withRenderMeta(structuredContent: any, meta: { route: "weather" | "geo" | "evidence" | "general" | "web-record"; llmUsed: boolean; routeDecider: "deterministic"; version: "phase8" | "phase10.2" | "phase10.3" | "phase10.4" }, toolsUsed?: string[]): any {
+function withRenderMeta(structuredContent: any, meta: { route: "weather" | "geo" | "evidence" | "general" | "web-record" | "worldbank" | "nasa" | "qr"; llmUsed: boolean; routeDecider: "deterministic"; version: "phase8" | "phase10.2" | "phase10.3" | "phase10.4" | "phase10.5" }, toolsUsed?: string[]): any {
   const base = structuredContent && typeof structuredContent === "object" && !Array.isArray(structuredContent) ? structuredContent : {};
   const existingChatMeta = (base as any).chatMeta && typeof (base as any).chatMeta === "object" ? (base as any).chatMeta : {};
   const resolvedTools = Array.isArray(toolsUsed) ? toolsUsed : [];
@@ -752,6 +752,46 @@ function renderStructuredDirect(
       return {
         text: "สร้างกราฟให้แล้วครับ (ดูภาพด้านล่าง)",
         structuredContent,
+      };
+    }
+  }
+
+  // WorldBank tool: render text data directly (no LLM needed — data is already formatted)
+  if (/worldbank/i.test(toolName)) {
+    // The tool returns pre-formatted text in content[0].text; structuredContent may be the parsed JSON
+    const sc = structuredContent && typeof structuredContent === "object" ? structuredContent : {};
+    const text = (sc as any).text || (typeof structuredContent === "string" ? structuredContent : "");
+    if (text && typeof text === "string" && text.length > 20) {
+      return { text, structuredContent: sc };
+    }
+    return null; // fall through to default handling
+  }
+
+  // NASA tool: render APOD data directly
+  if (/^nasa$/i.test(toolName)) {
+    const sc = structuredContent && typeof structuredContent === "object" ? structuredContent : {};
+    const title = (sc as any).title || "";
+    const explanation = (sc as any).explanation || "";
+    const url = (sc as any).url || (sc as any).hdurl || "";
+    if (title || explanation) {
+      const lines = [];
+      if (title) lines.push(`**${title}**`);
+      if (explanation) lines.push(explanation.slice(0, 300));
+      if (url) lines.push(`\n🔗 ${url}`);
+      return { text: lines.join("\n\n"), structuredContent: sc };
+    }
+    return null;
+  }
+
+  // QR Code tool: bypass LLM entirely — send base64 image via structuredContent for frontend rendering
+  if (/qr.*code|qrcode/i.test(toolName)) {
+    const sc = structuredContent && typeof structuredContent === "object" ? structuredContent : {};
+    const qrImage = (sc as any).qrCodeImage || (sc as any).image || "";
+    const inputText = (sc as any).text || (sc as any).input || "";
+    if (typeof qrImage === "string" && qrImage.length > 0) {
+      return {
+        text: `สร้าง QR Code สำหรับ "${inputText}" เรียบร้อยแล้วครับ (ดูภาพด้านล่าง)`,
+        structuredContent: { ...sc, __qrDirect: true },
       };
     }
   }
@@ -1278,7 +1318,10 @@ function chatTraceOut(params: {
     | "weatherDirect"
     | "mcpToolsFailed"
     | "ollama"
-    | "ollamaError";
+    | "ollamaError"
+    | "worldbank"
+    | "nasa"
+    | "qr";
   tool?: string;
   code: number;
   durMs: number;
@@ -1804,6 +1847,80 @@ wss.on("connection", (ws, req) => {
           sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [] });
           sendDoneOnce();
           return;
+        }
+
+        // =====================================
+        // Phase 10.5: API Tool Gate — WorldBank, NASA, QR (direct MCP tool calls)
+        // Queries with explicit tool/API names bypass GeneralGate to use real tools.
+        // =====================================
+        if (mcpClient && /worldbank|world\s*bank|nasa|apod|qr\s*code|สร้าง\s*qr/i.test(messageWithFile)) {
+          const apiToolMatch = (() => {
+            const t = messageWithFile.toLowerCase();
+            if (/worldbank|world\s*bank/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
+            if (/nasa|apod|นาซ่า/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
+            if (/qr\s*code|qr\s*โค้ด|สร้าง\s*qr/i.test(t)) return { tool: "innomcp-server:qrCodeTool", gate: "QR" };
+            return null;
+          })();
+
+          if (apiToolMatch) {
+            logBoth("info", `[APIToolGate] bypass=true transport=ws tool=${apiToolMatch.tool} gate=${apiToolMatch.gate}`);
+
+            sessionHistory.push({ sender: "user", text: messageWithFile });
+            sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+            sessionManager.startResponse(currentSessionId);
+
+            // Infer tool arguments from query
+            const toolArgs: any = (() => {
+              if (apiToolMatch.gate === "WorldBank") {
+                const hasGrowth = /growth|เติบโต|อัตรา/i.test(messageWithFile);
+                return { country: "TH", indicator: hasGrowth ? "GDP_GROWTH" : "GDP" };
+              }
+              if (apiToolMatch.gate === "NASA") {
+                const hasRandom = /random|สุ่ม/i.test(messageWithFile);
+                return hasRandom ? { endpoint: "apod", count: 1 } : { endpoint: "apod" };
+              }
+              if (apiToolMatch.gate === "QR") {
+                const urlMatch = messageWithFile.match(/https?:\/\/\S+/i);
+                return { text: urlMatch ? urlMatch[0] : "https://example.com", size: 300 };
+              }
+              return {};
+            })();
+
+            try {
+              sendSafe(ws, { type: "mcp-status", text: `กำลังดึงข้อมูลจาก ${apiToolMatch.gate}...`, tools: [apiToolMatch.tool] });
+
+              const toolResults = await mcpClient.executeTools([apiToolMatch.tool], messageWithFile, {
+                [apiToolMatch.tool]: toolArgs,
+              });
+
+              const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+              const sc = first?.structuredContent ?? first?.result ?? {};
+
+              // Try direct rendering first (QR/NASA image bypass)
+              const direct = renderStructuredDirect(apiToolMatch.tool.split(":").pop() || "", sc, messageWithFile);
+              const textOut = direct ? direct.text : (typeof sc === "string" ? sc : JSON.stringify(sc).slice(0, 500));
+              const scOut = withRenderMeta(
+                direct ? direct.structuredContent : sc,
+                { route: apiToolMatch.gate.toLowerCase() as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.5" },
+                [apiToolMatch.tool]
+              );
+
+              const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [apiToolMatch.tool] };
+              sessionHistory.push(aiMessage);
+              sessionManager.addMessage(currentSessionId, "assistant", textOut, [apiToolMatch.tool]);
+              sessionManager.completeResponse(currentSessionId);
+
+              sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [apiToolMatch.tool] });
+              sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [apiToolMatch.tool] });
+              sendDoneOnce();
+
+              chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: apiToolMatch.gate.toLowerCase() as any, tool: apiToolMatch.tool, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut });
+              return;
+            } catch (apiErr: any) {
+              logBoth("error", `[APIToolGate] ${apiToolMatch.gate} tool failed: ${apiErr.message}`);
+              // Fall through to GeneralGate on failure
+            }
+          }
         }
 
         // =====================================
@@ -2917,6 +3034,59 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       // Low confidence: clear category hint and proceed to MCP tool selection instead of short-circuiting
       logBoth('info', `[God-Tier Router] HTTP ⚠️  Low confidence (${godTierConfidence.toFixed(2)}) — clearing category, proceeding to MCP`);
       semanticCategory = undefined;
+    }
+
+    // =====================================
+    // Phase 10.5: API Tool Gate — WorldBank, NASA, QR (HTTP path)
+    // =====================================
+    if (mcpClient && /worldbank|world\s*bank|nasa|apod|qr\s*code|สร้าง\s*qr/i.test(messageWithFile)) {
+      const apiToolMatch = (() => {
+        const t = messageWithFile.toLowerCase();
+        if (/worldbank|world\s*bank/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
+        if (/nasa|apod|นาซ่า/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
+        if (/qr\s*code|qr\s*โค้ด|สร้าง\s*qr/i.test(t)) return { tool: "innomcp-server:qrCodeTool", gate: "QR" };
+        return null;
+      })();
+
+      if (apiToolMatch) {
+        logBoth("info", `[APIToolGate] bypass=true transport=http tool=${apiToolMatch.tool} gate=${apiToolMatch.gate}`);
+        try {
+          const toolArgs: any = (() => {
+            if (apiToolMatch.gate === "WorldBank") {
+              const hasGrowth = /growth|เติบโต|อัตรา/i.test(messageWithFile);
+              return { country: "TH", indicator: hasGrowth ? "GDP_GROWTH" : "GDP" };
+            }
+            if (apiToolMatch.gate === "NASA") {
+              const hasRandom = /random|สุ่ม/i.test(messageWithFile);
+              return hasRandom ? { endpoint: "apod", count: 1 } : { endpoint: "apod" };
+            }
+            if (apiToolMatch.gate === "QR") {
+              const urlMatch = messageWithFile.match(/https?:\/\/\S+/i);
+              return { text: urlMatch ? urlMatch[0] : "https://example.com", size: 300 };
+            }
+            return {};
+          })();
+
+          const toolResults = await mcpClient.executeTools([apiToolMatch.tool], messageWithFile, {
+            [apiToolMatch.tool]: toolArgs,
+          });
+          const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+          const sc = first?.structuredContent ?? first?.result ?? {};
+          const direct = renderStructuredDirect(apiToolMatch.tool.split(":").pop() || "", sc, messageWithFile);
+          const textOut = direct ? direct.text : (typeof sc === "string" ? sc : JSON.stringify(sc).slice(0, 500));
+          const scOut = withRenderMeta(
+            direct ? direct.structuredContent : sc,
+            { route: apiToolMatch.gate.toLowerCase() as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.5" },
+            [apiToolMatch.tool]
+          );
+
+          sessionHistory.push({ sender: "ai", text: textOut } as any);
+          return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: true, mcpResults: toolResults });
+        } catch (apiErr: any) {
+          logBoth("error", `[APIToolGate] HTTP ${apiToolMatch.gate} failed: ${apiErr.message}`);
+          // Fall through to GeneralGate
+        }
+      }
     }
 
     // =====================================

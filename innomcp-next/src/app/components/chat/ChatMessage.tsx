@@ -36,13 +36,18 @@ export default function ChatMessage({
   const hasProvinceMissingError = Array.isArray(structuredContent?.weatherPipeline)
     ? structuredContent.weatherPipeline.some((item: any) => String(item?.error || "") === "PROVINCE_MISSING")
     : false;
-  // Filter tiles: exclude fallback/no-area tiles and bare default.svg URLs without area context
+  // Filter tiles: exclude fallback/no-area tiles and any default.svg placeholder
   const mapTiles = rawMapTiles.filter((tile: any) => {
     const area = String(tile?.area || "").trim();
     const url = String(tile?.url || "").trim();
     if (!area || area === "ไม่ระบุพื้นที่" || area === "ประเทศไทย") return false;
-    // Exclude bare /weather-tiles/default.svg with no area query parameter
-    if (url === "/weather-tiles/default.svg") return false;
+    // Exclude any URL whose path contains default.svg (with or without query params)
+    try {
+      const pathname = new URL(url, "http://localhost").pathname;
+      if (pathname.includes("default.svg")) return false;
+    } catch {
+      if (url.includes("default.svg")) return false;
+    }
     return true;
   });
 
@@ -166,6 +171,19 @@ export default function ChatMessage({
                 </svg>
                 เปิดภาพขนาดเต็ม
               </a>
+            </div>
+          </div>
+        )}
+
+        {/* QR Code Image: render directly from structuredContent to avoid LLM streaming base64 */}
+        {structuredContent?.__qrDirect && structuredContent?.qrCodeImage && (
+          <div className="mb-4" data-testid="qr-code-image">
+            <div className="flex justify-center">
+              <img
+                src={structuredContent.qrCodeImage}
+                alt={`QR Code: ${structuredContent.text || ''}`}
+                className="max-w-[300px] h-auto rounded-lg shadow-md"
+              />
             </div>
           </div>
         )}
@@ -954,11 +972,11 @@ export function MessageView({
           )}
           
           {message.sender === "ai" && (
-            <div className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+            <div data-testid="tool-meta-row" className="mb-2 flex flex-wrap items-center gap-2 text-xs">
               <span className="inline-flex items-center rounded px-2 py-0.5 font-semibold bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                 MODE {modeBadge}
               </span>
-              <span className="text-gray-500 dark:text-gray-400">Used tools: {metaTools.length > 0 ? metaTools.map((t: any) => String(t?.name || "")).filter(Boolean).join(", ") : "none"}</span>
+              <span data-testid="tools-used-meta" className="text-gray-500 dark:text-gray-400">Used tools: {metaTools.length > 0 ? metaTools.map((t: any) => String(t?.name || "")).filter(Boolean).join(", ") : "none"}</span>
               <span className="text-gray-500 dark:text-gray-400">Confidence: {confidenceLabel}</span>
               {reasonCode ? <span className="text-gray-400">{reasonCode}</span> : null}
             </div>
