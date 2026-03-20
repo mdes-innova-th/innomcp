@@ -1743,17 +1743,20 @@ wss.on("connection", (ws, req) => {
             // Deep/analytical queries: synthesize via Ollama using weather facts as context
             const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
             const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: true, routeDecider: "deterministic", version: "phase8" }, ["weatherPipeline"]);
-            const weatherFacts = direct.text;
-            logBoth("info", `[WeatherGate] deep=true → synthesizing via Ollama (factLen=${weatherFacts.length})`);
+            const rawFacts = direct.text;
+            // Compress facts: keep only first 800 chars to reduce LLM context and speed up synthesis
+            const weatherFacts = rawFacts.length > 800 ? rawFacts.slice(0, 800) + "\n...(ข้อมูลบางส่วนถูกย่อ)" : rawFacts;
+            const factCount = (weatherFacts.match(/°C|%|mm|กรุงเทพ|เชียงใหม่|ภูเก็ต|สงขลา|ขอนแก่น/g) || []).length;
+            logBoth("info", `[WeatherGate] deep=true → synthesizing via Ollama (factLen=${weatherFacts.length}, rawLen=${rawFacts.length}, factCount=${factCount})`);
             sendSafe(ws, { type: "mcp-status", text: "กำลังวิเคราะห์ข้อมูลอากาศ...", tools: ["weatherPipeline"] });
             try {
               const synthesisMessages = [
-                { role: "system", content: buildSystemPrompt({ includeTools: false, includeCapabilities: false, includeGuidelines: true }) },
-                { role: "user", content: `ข้อมูลสภาพอากาศจากระบบตรวจวัด:\n${weatherFacts}\n\nคำถามผู้ใช้: ${messageWithFile}\n\nกรุณาวิเคราะห์และตอบเป็นภาษาไทย โดยอ้างอิงข้อมูลข้างต้น` }
+                { role: "system", content: "คุณเป็นผู้เชี่ยวชาญพยากรณ์อากาศไทย ตอบภาษาไทยกระชับ 3-8 ประโยค อ้างอิงข้อมูลที่ให้เท่านั้น ห้ามเดา" },
+                { role: "user", content: `ข้อมูลอากาศ:\n${weatherFacts}\n\nคำถาม: ${messageWithFile}\n\nสรุปวิเคราะห์สั้นๆ:` }
               ];
               const synthesisStream = await ollama.chat({
                 model: ollamaModel, messages: synthesisMessages as any, stream: true,
-                options: { temperature: 0.5, num_ctx: 2048, num_predict: 1024 }
+                options: { temperature: 0.3, num_ctx: 1536, num_predict: 512 }
               });
               let aiResponse = "";
               for await (const chunk of synthesisStream) {
@@ -1761,13 +1764,21 @@ wss.on("connection", (ws, req) => {
                 aiResponse += chunk.message.content;
                 sendSafe(ws, { type: "chunk", text: chunk.message.content, structuredContent: scOut });
               }
+              const rewriteLatencyMs = Date.now() - traceStartMs;
+              // Enrich grounded contract with analytical metadata
+              if (scOut.__groundedContract) {
+                scOut.__groundedContract.factCount = factCount;
+                scOut.__groundedContract.rewriteModel = ollamaModel;
+                scOut.__groundedContract.rewriteLatencyMs = rewriteLatencyMs;
+                scOut.__groundedContract.sourceType = "tool+rewrite";
+              }
               const aiMessage: any = { sender: "ai", text: aiResponse, structuredContent: scOut, toolsUsed: ["weatherPipeline"] };
               sessionHistory.push(aiMessage);
               sessionManager.addMessage(currentSessionId, "assistant", aiResponse, ["weatherPipeline"]);
               sessionManager.completeResponse(currentSessionId);
               sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["weatherPipeline"] });
               sendDoneOnce();
-              chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "weatherGate", tool: "weatherPipeline", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: aiResponse });
+              chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "weatherGate", tool: "weatherPipeline", code: 200, durMs: rewriteLatencyMs, q: messageWithFile, ans: aiResponse });
             } catch (synthErr: any) {
               logBoth("error", `[WeatherGate] deep synthesis failed: ${synthErr.message}`);
               const aiMessage: any = { sender: "ai", text: weatherFacts, structuredContent: scOut, toolsUsed: ["weatherPipeline"] };
