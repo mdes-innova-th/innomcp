@@ -412,6 +412,59 @@ function looksLikeGeneralNoToolsQuery(text: string): boolean {
   return t.length <= 80;
 }
 
+// =====================================
+// Thai Geo Deterministic Resolver — shared between WS and HTTP paths
+// =====================================
+function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: string; canonicalQuery: string } | null {
+  const t = rawQuery.trim();
+
+  // Classify geo intent
+  const geoIntent = (() => {
+    if (/ภาค.*(จังหวัด|ประกอบ|อะไรบ้าง)/.test(t)) return "region_to_provinces";
+    if (/ภาค.*กี่จังหวัด/.test(t)) return "region_count";
+    if (/(อยู่จังหวัด|จังหวัดอะไร|จังหวัดไหน)/.test(t)) return "city_to_province";
+    if (/(อยู่ภาค|ภาคอะไร|ภาคไหน)/.test(t)) return "province_to_region";
+    if (/มี.*อำเภอ|อำเภอ.*อะไรบ้าง|กี่อำเภอ/.test(t)) return "province_to_districts";
+    return "unknown";
+  })();
+
+  const REGION_DATA: Record<string, { name: string; provinces: string[] }> = {
+    "กลาง": { name: "ภาคกลาง", provinces: ["กรุงเทพมหานคร","นนทบุรี","ปทุมธานี","สมุทรปราการ","สมุทรสาคร","นครปฐม","พระนครศรีอยุธยา","อ่างทอง","สิงห์บุรี","ชัยนาท","ลพบุรี","สระบุรี","สุพรรณบุรี","สมุทรสงคราม","นครนายก","กาญจนบุรี","ราชบุรี","เพชรบุรี","ประจวบคีรีขันธ์"] },
+    "เหนือ": { name: "ภาคเหนือ", provinces: ["เชียงใหม่","เชียงราย","ลำพูน","ลำปาง","แพร่","น่าน","พะเยา","แม่ฮ่องสอน","อุตรดิตถ์","สุโขทัย","พิษณุโลก","พิจิตร","กำแพงเพชร","ตาก","นครสวรรค์","อุทัยธานี","เพชรบูรณ์"] },
+    "อีสาน": { name: "ภาคตะวันออกเฉียงเหนือ (อีสาน)", provinces: ["นครราชสีมา","ขอนแก่น","อุดรธานี","อุบลราชธานี","บุรีรัมย์","สุรินทร์","ศรีสะเกษ","ร้อยเอ็ด","ชัยภูมิ","กาฬสินธุ์","มหาสารคาม","นครพนม","สกลนคร","มุกดาหาร","เลย","หนองคาย","หนองบัวลำภู","บึงกาฬ","ยโสธร","อำนาจเจริญ"] },
+    "ตะวันออกเฉียงเหนือ": { name: "ภาคตะวันออกเฉียงเหนือ (อีสาน)", provinces: ["นครราชสีมา","ขอนแก่น","อุดรธานี","อุบลราชธานี","บุรีรัมย์","สุรินทร์","ศรีสะเกษ","ร้อยเอ็ด","ชัยภูมิ","กาฬสินธุ์","มหาสารคาม","นครพนม","สกลนคร","มุกดาหาร","เลย","หนองคาย","หนองบัวลำภู","บึงกาฬ","ยโสธร","อำนาจเจริญ"] },
+    "ใต้": { name: "ภาคใต้", provinces: ["ภูเก็ต","สงขลา","สุราษฎร์ธานี","นครศรีธรรมราช","กระบี่","พังงา","ตรัง","พัทลุง","สตูล","ชุมพร","ระนอง","นราธิวาส","ปัตตานี","ยะลา"] },
+    "ตะวันออก": { name: "ภาคตะวันออก", provinces: ["ชลบุรี","ระยอง","จันทบุรี","ตราด","ฉะเชิงเทรา","ปราจีนบุรี","สระแก้ว"] },
+    "ตะวันตก": { name: "ภาคตะวันตก", provinces: ["กาญจนบุรี","ราชบุรี","เพชรบุรี","ประจวบคีรีขันธ์","ตาก"] },
+  };
+  const PROVINCE_REGION: Record<string, string> = {};
+  for (const [region, data] of Object.entries(REGION_DATA)) {
+    for (const prov of data.provinces) PROVINCE_REGION[prov] = data.name;
+  }
+  PROVINCE_REGION["กรุงเทพ"] = "ภาคกลาง"; PROVINCE_REGION["กทม"] = "ภาคกลาง"; PROVINCE_REGION["กรุงเทพมหานคร"] = "ภาคกลาง";
+  PROVINCE_REGION["โคราช"] = "ภาคตะวันออกเฉียงเหนือ (อีสาน)"; PROVINCE_REGION["อุบล"] = "ภาคตะวันออกเฉียงเหนือ (อีสาน)";
+  const CITY_PROVINCE: Record<string, string> = { "หาดใหญ่": "สงขลา", "พัทยา": "ชลบุรี", "เกาะสมุย": "สุราษฎร์ธานี", "แม่กลอง": "สมุทรสงคราม", "บางกอก": "กรุงเทพมหานคร" };
+
+  const regionMatch = t.match(/ภาค(กลาง|เหนือ|ใต้|อีสาน|ตะวันออก|ตะวันตก|ตะวันออกเฉียงเหนือ)/);
+  const placeMatch = t.match(/(กรุงเทพ(?:มหานคร)?|เชียงใหม่|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|ภูเก็ต|สงขลา|หาดใหญ่|อุบล(?:ราชธานี)?|สุราษฎร์ธานี|นครศรีธรรมราช|พิษณุโลก|ชลบุรี|กาญจนบุรี|อุดรธานี|บุรีรัมย์|สุรินทร์|พัทยา|แม่กลอง|เกาะสมุย|กทม|ลำพูน|ลำปาง|น่าน|พะเยา|แพร่|แม่ฮ่องสอน)/);
+
+  let text: string | null = null;
+  let canonicalQuery = "";
+
+  if (geoIntent === "region_to_provinces" && regionMatch) {
+    const r = REGION_DATA[regionMatch[1]]; if (r) { canonicalQuery = regionMatch[1]; text = `${r.name}ของประเทศไทยประกอบด้วย ${r.provinces.length} จังหวัด ได้แก่ ${r.provinces.join(" ")}`; }
+  } else if (geoIntent === "region_count" && regionMatch) {
+    const r = REGION_DATA[regionMatch[1]]; if (r) { canonicalQuery = regionMatch[1]; text = `${r.name}มี ${r.provinces.length} จังหวัด`; }
+  } else if (geoIntent === "city_to_province") {
+    const place = placeMatch?.[1]; if (place) { canonicalQuery = place; const prov = CITY_PROVINCE[place]; if (prov) text = `${place}เป็นอำเภอ/เมืองในจังหวัด${prov} ${PROVINCE_REGION[prov] || ""}`; }
+  } else if (geoIntent === "province_to_region") {
+    const place = placeMatch?.[1]; if (place) { canonicalQuery = place; const reg = PROVINCE_REGION[place]; if (reg) text = `${place}อยู่ใน${reg}ของประเทศไทย`; }
+  }
+
+  if (text) return { text, geoIntent, canonicalQuery };
+  return null;
+}
+
 function renderGeneralFallbackMessage(): string {
   return "ขออภัย ตอนนี้ตอบได้ไม่ทันเวลา ลองระบุคำถามให้แคบลงอีกนิด (เช่น เป้าหมาย/บริบท/ตัวอย่าง) แล้วผมจะสรุปให้สั้นๆ ได้ครับ";
 }
@@ -1887,73 +1940,41 @@ wss.on("connection", (ws, req) => {
         }
 
         // =====================================
-        // Phase 10.6: Thai Knowledge Gate — route geo/knowledge queries to real tools
-        // Catches queries that prefersThaiKnowledgeRoute() but need actual tool data
+        // Phase 10.7: Thai Knowledge Gate — DETERMINISTIC LOCAL resolver
+        // No MCP server dependency — resolves Thai geo queries from embedded data
         // =====================================
-        if (mcpClient && prefersThaiKnowledgeRoute(messageWithFile) && !looksLikeDeterministicWeatherQuery(messageWithFile)) {
-          const tkToolName = "innomcp-server:thai_geo_tool";
-          const tkRaw = messageWithFile.trim();
+        if (prefersThaiKnowledgeRoute(messageWithFile) && !looksLikeDeterministicWeatherQuery(messageWithFile)) {
+          const tkResolved = resolveThaiGeoLocal(messageWithFile);
 
-          // Extract geographic keyword from natural language query (not full sentence)
-          const regionMatch = tkRaw.match(/ภาค(กลาง|เหนือ|ใต้|อีสาน|ตะวันออก|ตะวันตก|ตะวันออกเฉียงเหนือ)/);
-          const filterRegion = regionMatch ? regionMatch[1] : undefined;
-          // Extract short keyword for tool search: province/district/region name
-          const geoKeyword = (() => {
-            // Region names
-            if (regionMatch) return `ภาค${regionMatch[1]}`;
-            // Known place names
-            const placeMatch = tkRaw.match(/(กรุงเทพ(?:มหานคร)?|เชียงใหม่|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|ภูเก็ต|สงขลา|หาดใหญ่|อุบล(?:ราชธานี)?|เชียงราย|สุราษฎร์ธานี|นครศรีธรรมราช|พิษณุโลก|ลำปาง|ลำพูน|แม่ฮ่องสอน|น่าน|พะเยา|แพร่|ชลบุรี|ระยอง|จันทบุรี|กาญจนบุรี|หนองคาย|สกลนคร|อุดรธานี|บุรีรัมย์|สุรินทร์)/);
-            if (placeMatch) return placeMatch[1];
-            // Fallback: use first 20 chars
-            return tkRaw.slice(0, 20);
-          })();
-          const tkQuery = geoKeyword;
+          if (tkResolved) {
+            const { text: textOut, geoIntent, canonicalQuery } = tkResolved;
+            const toolName = "local:thaiGeoResolver";
+            logBoth("info", `[ThaiKnowledgeGate] RESOLVED transport=ws intent=${geoIntent} canonical="${canonicalQuery}" len=${textOut.length}`);
 
-          logBoth("info", `[ThaiKnowledgeGate] bypass=true transport=ws query="${tkQuery.slice(0, 60)}" region=${filterRegion || "none"}`);
+            sessionHistory.push({ sender: "user", text: messageWithFile });
+            sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+            sessionManager.startResponse(currentSessionId);
 
-          sessionHistory.push({ sender: "user", text: messageWithFile });
-          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
-          sessionManager.startResponse(currentSessionId);
-
-          try {
-            const toolArgs: any = { query: tkQuery, context: { domain: "geo" } };
-            if (filterRegion) toolArgs.filter_region = filterRegion;
-
-            const toolResults = await mcpClient.executeTools([tkToolName], messageWithFile, {
-              [tkToolName]: toolArgs,
-            });
-
-            const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
-            const sc = first?.structuredContent ?? first?.result ?? {};
-
-            // Render geo result or fall through if tool returned no useful data
-            const rendered = renderThaiGeoAnswerShort(sc);
-            const isNotFound = /ไม่พบ|NOT_FOUND|error/i.test(rendered.text || "") || (rendered.text || "").length < 15;
-            if (isNotFound) {
-              logBoth("info", `[ThaiKnowledgeGate] tool returned no data, falling through to GeneralGate`);
-              // Undo session history addition
-              sessionHistory.pop();
-              sessionManager.completeResponse(currentSessionId);
-              throw new Error("NO_DATA_FALLTHROUGH");
+            const sc = { geoIntent, canonicalQuery, resolvedLocally: true };
+            const scOut = withRenderMeta(sc, { route: "geo" as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.7" }, [toolName]);
+            if (scOut.__groundedContract) {
+              scOut.__groundedContract.canonicalQuery = canonicalQuery;
+              scOut.__groundedContract.geoIntent = geoIntent;
             }
-            const textOut = rendered.text;
-            const scOut = withRenderMeta(sc, { route: "geo" as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.5" }, [tkToolName]);
 
-            const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [tkToolName] };
+            const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [toolName] };
             sessionHistory.push(aiMessage);
-            sessionManager.addMessage(currentSessionId, "assistant", textOut, [tkToolName]);
+            sessionManager.addMessage(currentSessionId, "assistant", textOut, [toolName]);
             sessionManager.completeResponse(currentSessionId);
 
-            sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [tkToolName] });
-            sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [tkToolName] });
+            sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [toolName] });
+            sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [toolName] });
             sendDoneOnce();
 
-            chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "geo", tool: tkToolName, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut });
+            chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "geo", tool: toolName, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut });
             return;
-          } catch (tkErr: any) {
-            logBoth("error", `[ThaiKnowledgeGate] tool failed: ${tkErr.message}, falling through`);
-            // Fall through to API gate / GeneralGate
           }
+          // If resolveThaiGeoLocal returned null, fall through to next gate
         }
 
         // =====================================
@@ -3144,35 +3165,24 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     }
 
     // =====================================
-    // Phase 10.6: Thai Knowledge Gate (HTTP path)
+    // Phase 10.7: Thai Knowledge Gate — DETERMINISTIC LOCAL resolver (HTTP path)
+    // Same as WS path — resolves from embedded data, no MCP dependency
     // =====================================
-    if (mcpClient && prefersThaiKnowledgeRoute(messageWithFile) && !looksLikeDeterministicWeatherQuery(messageWithFile)) {
-      const tkToolName = "innomcp-server:thai_geo_tool";
-      const tkRaw = messageWithFile.trim();
-      const regionMatch = tkRaw.match(/ภาค(กลาง|เหนือ|ใต้|อีสาน|ตะวันออก|ตะวันตก|ตะวันออกเฉียงเหนือ)/);
-      const filterRegion = regionMatch ? regionMatch[1] : undefined;
-      const geoKeyword = (() => {
-        if (regionMatch) return `ภาค${regionMatch[1]}`;
-        const placeMatch = tkRaw.match(/(กรุงเทพ(?:มหานคร)?|เชียงใหม่|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|ภูเก็ต|สงขลา|หาดใหญ่|อุบล(?:ราชธานี)?|สุราษฎร์ธานี|นครศรีธรรมราช|พิษณุโลก|ชลบุรี|กาญจนบุรี|อุดรธานี|บุรีรัมย์|สุรินทร์)/);
-        if (placeMatch) return placeMatch[1];
-        return tkRaw.slice(0, 20);
-      })();
-      logBoth("info", `[ThaiKnowledgeGate] bypass=true transport=http keyword="${geoKeyword}" region=${filterRegion || "none"}`);
-      try {
-        const toolArgs: any = { query: geoKeyword, context: { domain: "geo" } };
-        if (filterRegion) toolArgs.filter_region = filterRegion;
-        const toolResults = await mcpClient.executeTools([tkToolName], messageWithFile, { [tkToolName]: toolArgs });
-        const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
-        const sc = first?.structuredContent ?? first?.result ?? {};
-        const rendered = renderThaiGeoAnswerShort(sc);
-        const isNotFound = /ไม่พบ|NOT_FOUND|error/i.test(rendered.text || "") || (rendered.text || "").length < 15;
-        if (isNotFound) throw new Error("NO_DATA_FALLTHROUGH");
-        const textOut = rendered.text;
-        const scOut = withRenderMeta(sc, { route: "geo" as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.5" }, [tkToolName]);
-        sessionHistory.push({ sender: "ai", text: textOut } as any);
-        return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: true, mcpResults: toolResults });
-      } catch (tkErr: any) {
-        logBoth("error", `[ThaiKnowledgeGate] HTTP failed: ${tkErr.message}`);
+    if (prefersThaiKnowledgeRoute(messageWithFile) && !looksLikeDeterministicWeatherQuery(messageWithFile)) {
+      const tkResolved = resolveThaiGeoLocal(messageWithFile);
+      if (tkResolved) {
+        logBoth("info", `[ThaiKnowledgeGate] RESOLVED transport=http intent=${tkResolved.geoIntent} canonical="${tkResolved.canonicalQuery}"`);
+        const scOut = withRenderMeta(
+          { geoIntent: tkResolved.geoIntent, canonicalQuery: tkResolved.canonicalQuery, resolvedLocally: true },
+          { route: "geo" as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.7" },
+          ["local:thaiGeoResolver"]
+        );
+        if (scOut.__groundedContract) {
+          scOut.__groundedContract.canonicalQuery = tkResolved.canonicalQuery;
+          scOut.__groundedContract.geoIntent = tkResolved.geoIntent;
+        }
+        sessionHistory.push({ sender: "ai", text: tkResolved.text } as any);
+        return res.json({ text: tkResolved.text, structuredContent: scOut, messages: sessionHistory, mcpUsed: false });
       }
     }
 
