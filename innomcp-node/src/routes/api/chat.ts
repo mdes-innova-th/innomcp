@@ -10,6 +10,7 @@ import logger from "../../utils/logger";
 import { getCurrentAIMode } from "./aiMode";
 import { fastPathChatMiddleware } from "../../middleware/fastpathChatMiddleware";
 import { sessionManager } from "../../utils/sessionManager";
+import { trySessionContext } from "../../utils/geoProviderStack";
 import { validateThaiLanguage, createThaiOnlyFallbackPrompt, createThaiErrorResponse, sanitizeThaiSegments } from "../../utils/languageValidator";
 import { buildSystemPrompt, buildIdentityPrompt } from "../../config/systemPrompt";
 import { extractCorrelationIdFromUpgrade } from "../../middleware/correlationId";
@@ -2048,11 +2049,29 @@ wss.on("connection", (ws, req) => {
         }
 
         // =====================================
-        // Phase 10.7: Thai Knowledge Gate — DETERMINISTIC LOCAL resolver
-        // No MCP server dependency — resolves Thai geo queries from embedded data
+        // Phase 10.7: Thai Knowledge Gate — LAYERED PROVIDER STACK
+        // Provider order: 1)session context → 2)local resolver → 3)locationResolver → 4)fallback
         // =====================================
         if (prefersThaiKnowledgeRoute(messageWithFile) && !looksLikeDeterministicWeatherQuery(messageWithFile)) {
-          const tkResolved = resolveThaiGeoLocal(messageWithFile);
+          // Provider 1: Session context carry-forward
+          const ctxResult = trySessionContext(currentSessionId, messageWithFile);
+          let tkResolved = resolveThaiGeoLocal(messageWithFile);
+
+          // If context carry-forward found a province, re-resolve using that province
+          if (ctxResult && !tkResolved && ctxResult.data.resolvedEntity) {
+            const carriedProvince = ctxResult.data.resolvedEntity;
+            // Try re-resolving with carried context
+            if (/อำเภอ|เขต/.test(messageWithFile)) {
+              tkResolved = resolveThaiGeoLocal(`${carriedProvince}มีอำเภออะไรบ้าง`);
+            } else if (/อยู่ภาค|ภาคไหน|ภาคอะไร/.test(messageWithFile)) {
+              tkResolved = resolveThaiGeoLocal(`${carriedProvince}อยู่ภาคไหน`);
+            }
+            if (tkResolved) {
+              logBoth("info", `[ThaiKnowledgeGate] CARRY-FORWARD: prior=${carriedProvince} → re-resolved intent=${tkResolved.geoIntent}`);
+            }
+          }
+
+          // Provider 2: Deterministic local resolver (existing)
 
           if (tkResolved) {
             const { text: textOut, geoIntent, canonicalQuery } = tkResolved;
@@ -2068,6 +2087,9 @@ wss.on("connection", (ws, req) => {
             if (scOut.__groundedContract) {
               scOut.__groundedContract.canonicalQuery = canonicalQuery;
               scOut.__groundedContract.geoIntent = geoIntent;
+              scOut.__groundedContract.providerUsed = ctxResult ? "session_context+local_resolver" : "local_resolver";
+              scOut.__groundedContract.entityCarryForwardUsed = !!ctxResult;
+              if (ctxResult) scOut.__groundedContract.priorEntity = ctxResult.data.resolvedEntity;
             }
 
             // Save resolved entity for context carry-forward
