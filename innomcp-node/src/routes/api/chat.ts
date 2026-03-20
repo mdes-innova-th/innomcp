@@ -459,6 +459,22 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
     const place = placeMatch?.[1]; if (place) { canonicalQuery = place; const prov = CITY_PROVINCE[place]; if (prov) text = `${place}เป็นอำเภอ/เมืองในจังหวัด${prov} ${PROVINCE_REGION[prov] || ""}`; }
   } else if (geoIntent === "province_to_region") {
     const place = placeMatch?.[1]; if (place) { canonicalQuery = place; const reg = PROVINCE_REGION[place]; if (reg) text = `${place}อยู่ใน${reg}ของประเทศไทย`; }
+  } else if (geoIntent === "province_to_districts") {
+    const PROVINCE_DISTRICTS: Record<string, string[]> = {
+      "เชียงใหม่": ["เมืองเชียงใหม่","ดอยสะเก็ด","สันทราย","สันกำแพง","หางดง","แม่ริม","ฝาง","แม่แตง","เชียงดาว","สารภี","แม่อาย","จอมทอง","สะเมิง","ดอยหล่อ","แม่วาง","พร้าว","ไชยปราการ","แม่แจ่ม","อมก๋อย","หมู่ 1 ดอยเต่า","กัลยาณิวัฒนา","สันป่าตอง","แม่ออน","เวียงแหง","ดอยเต่า"],
+      "กรุงเทพมหานคร": ["พระนคร","ดุสิต","หนองจอก","บางรัก","บางเขน","บางกะปิ","ปทุมวัน","ป้อมปราบศัตรูพ่าย","พระโขนง","มีนบุรี","ลาดกระบัง","ยานนาวา","สัมพันธวงศ์","พญาไท","ธนบุรี","บางกอกใหญ่","ห้วยขวาง","คลองสาน","ตลิ่งชัน","บางคอแหลม","ประเวศ","คลองเตย","สวนหลวง","จอมทอง","ดอนเมือง","ราชเทวี","ลาดพร้าว","วัฒนา","บางแค","หลักสี่","สายไหม","คันนายาว","สะพานสูง","วังทองหลาง","คลองสามวา","บางนา","ทวีวัฒนา","ทุ่งครุ","บางบอน","บางขุนเทียน","ภาษีเจริญ","หนองแขม","ราษฎร์บูรณะ","บางพลัด","ดินแดง","บึงกุ่ม","สาทร","บางซื่อ","จตุจักร","บางคอแหลม"],
+      "สงขลา": ["เมืองสงขลา","หาดใหญ่","สะเดา","นาทวี","จะนะ","เทพา","สิงหนคร","รัตภูมิ","ระโนด","กระแสสินธุ์","ควนเนียง","สทิงพระ","นาหม่อม","คลองหอยโข่ง","บางกล่ำ","สะบ้าย้อย"],
+      "นครราชสีมา": ["เมืองนครราชสีมา","ปักธงชัย","พิมาย","สีคิ้ว","ปากช่อง","บัวใหญ่","โนนสูง","ครบุรี","โชคชัย","ด่านขุนทด","โนนไทย","สูงเนิน","ขามสะแกแสง","คง","เสิงสาง","บ้านเหลื่อม","จักราช","ห้วยแถลง","ชุมพวง","ประทาย","วังน้ำเขียว","แก้งสนามนาง","โนนแดง","เมืองยาง","พระทองคำ","ลำทะเมนชัย","บัวลาย","สีดา","เทพารักษ์","เฉลิมพระเกียรติ","พิมาย","บ้านเหลื่อม"],
+    };
+    const place = placeMatch?.[1];
+    if (place) {
+      canonicalQuery = place;
+      const districts = PROVINCE_DISTRICTS[place] || PROVINCE_DISTRICTS[place === "กรุงเทพ" ? "กรุงเทพมหานคร" : place === "โคราช" ? "นครราชสีมา" : ""];
+      if (districts && districts.length > 0) {
+        const uniqueDistricts = [...new Set(districts)];
+        text = `จังหวัด${place === "กรุงเทพ" ? "กรุงเทพมหานคร" : place}มี ${uniqueDistricts.length} อำเภอ/เขต ได้แก่ ${uniqueDistricts.join(" ")}`;
+      }
+    }
   }
 
   if (text) return { text, geoIntent, canonicalQuery };
@@ -563,9 +579,45 @@ async function answerGeneralWithFastModel(userText: string, budgetMs: number): P
       timeoutPromise,
     ]);
 
-    const text = String((resp as any)?.message?.content || "").trim();
+    let text = String((resp as any)?.message?.content || "").trim();
     if (!text) {
       return { text: renderGeneralFallbackMessage(), fallback: true, reason: "EMPTY_RESPONSE", durMs: Date.now() - start, model };
+    }
+    // Output validator: detect garbage / malformed responses from fast model
+    const isGarbage = (t: string): boolean => {
+      if (t.length < 5) return true;
+      // Mostly non-Thai/non-English gibberish
+      const thaiOrEnglishRatio = (t.match(/[\u0E00-\u0E7Fa-zA-Z0-9\s.,!?:;()\-]/g) || []).length / t.length;
+      if (thaiOrEnglishRatio < 0.5) return true;
+      // Contains Chinese/Japanese characters (model confusion)
+      if (/[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]{3,}/.test(t)) return true;
+      // Starts with just a number or single word nonsense
+      if (/^\d+\s*$/.test(t)) return true;
+      // Contains "ห้ามตอบ" (model refusing in training data)
+      if (/ห้ามตอบ/.test(t)) return true;
+      return false;
+    };
+    if (isGarbage(text)) {
+      logBoth("warn", `[GeneralGate] garbage detected from ${model}: "${text.slice(0, 80)}"`);
+      // Retry with safer prompt
+      try {
+        const retry = await ollama.chat({
+          model: ollamaFastModel,
+          messages: [
+            { role: "system", content: "ตอบภาษาไทยสั้นๆ 1-3 ประโยค" },
+            { role: "user", content: String(userText || "").trim() },
+          ],
+          stream: false,
+        });
+        const retryText = String(retry?.message?.content || "").trim();
+        if (retryText && !isGarbage(retryText)) {
+          return { text: retryText, fallback: false, reason: "RETRY_OK", durMs: Date.now() - start, model };
+        }
+      } catch { /* ignore retry failure */ }
+      // Final fallback: use smoke answer or generic safe response
+      const smoke = renderGeneralSmokeAnswer(userText);
+      const isDefaultSmoke = smoke.startsWith("ได้ครับ คำถามนี้เป็นคำถามทั่วไป");
+      return { text: isDefaultSmoke ? renderGeneralFallbackMessage() : smoke, fallback: true, reason: "GARBAGE_FILTERED", durMs: Date.now() - start, model };
     }
     return { text, fallback: false, reason: "OK", durMs: Date.now() - start, model };
   } catch (e: any) {
@@ -1795,8 +1847,32 @@ wss.on("connection", (ws, req) => {
           if (deep) {
             // Deep/analytical queries: synthesize via Ollama using weather facts as context
             const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
-            const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: true, routeDecider: "deterministic", version: "phase8" }, ["weatherPipeline"]);
             const rawFacts = direct.text;
+
+            // Short-circuit: if facts are short enough, use deterministic summary (skip Ollama rewrite)
+            const analyticalMode = /เปรียบเทียบ|เทียบ/.test(messageWithFile) ? "compare" : /แนวโน้ม|trend/.test(messageWithFile) ? "trend" : /สรุป|overview|ภาพรวม/.test(messageWithFile) ? "overview" : "analysis";
+            const canShortCircuit = rawFacts.length > 50 && rawFacts.length < 400 && analyticalMode !== "compare";
+            if (canShortCircuit) {
+              const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase10.7" }, ["weatherPipeline"]);
+              if (scOut.__groundedContract) {
+                scOut.__groundedContract.sourceType = "tool-only";
+                scOut.__groundedContract.analyticalMode = analyticalMode;
+                scOut.__groundedContract.shortCircuit = true;
+              }
+              const textOut = `📊 ${analyticalMode === "trend" ? "แนวโน้ม" : "วิเคราะห์"}สภาพอากาศ:\n\n${rawFacts}`;
+              logBoth("info", `[WeatherGate] deep=true SHORT-CIRCUIT (factLen=${rawFacts.length} mode=${analyticalMode})`);
+              const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["weatherPipeline"] };
+              sessionHistory.push(aiMessage);
+              sessionManager.addMessage(currentSessionId, "assistant", textOut, ["weatherPipeline"]);
+              sessionManager.completeResponse(currentSessionId);
+              sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["weatherPipeline"] });
+              sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["weatherPipeline"] });
+              sendDoneOnce();
+              chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "weatherGate", tool: "weatherPipeline", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut });
+              return;
+            }
+
+            const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: true, routeDecider: "deterministic", version: "phase8" }, ["weatherPipeline"]);
             // Compress facts: keep only first 800 chars to reduce LLM context and speed up synthesis
             const weatherFacts = rawFacts.length > 800 ? rawFacts.slice(0, 800) + "\n...(ข้อมูลบางส่วนถูกย่อ)" : rawFacts;
             const factCount = (weatherFacts.match(/°C|%|mm|กรุงเทพ|เชียงใหม่|ภูเก็ต|สงขลา|ขอนแก่น/g) || []).length;
