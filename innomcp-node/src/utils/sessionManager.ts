@@ -25,6 +25,9 @@ interface ChatSession {
     responseStartTime?: Date;
     currentResponseDuration?: number;
     userEmotion?: string; // เก็บอารมณ์ user ล่าสุด
+    // Entity carry-forward: remember last resolved geo entities for context continuation
+    lastResolvedEntities?: { name: string; type: string; province?: string; region?: string; timestamp: string }[];
+    lastResolvedProvince?: string;
   };
 }
 
@@ -58,6 +61,32 @@ class SessionManager {
     }
 
     return session;
+  }
+
+  /**
+   * Save last resolved geo entities for context carry-forward
+   */
+  setLastResolvedEntities(sessionId: string, entities: { name: string; type: string; province?: string; region?: string }[]): void {
+    const session = this.sessions.get(sessionId);
+    if (session) {
+      session.metadata.lastResolvedEntities = entities.map(e => ({ ...e, timestamp: new Date().toISOString() }));
+      const province = entities.find(e => e.type === 'province')?.name || entities[0]?.province;
+      if (province) session.metadata.lastResolvedProvince = province;
+    }
+  }
+
+  /**
+   * Get last resolved province for context carry-forward
+   */
+  getLastResolvedProvince(sessionId: string): string | undefined {
+    return this.sessions.get(sessionId)?.metadata?.lastResolvedProvince;
+  }
+
+  /**
+   * Get last resolved entities for context carry-forward
+   */
+  getLastResolvedEntities(sessionId: string): { name: string; type: string; province?: string; region?: string; timestamp: string }[] {
+    return this.sessions.get(sessionId)?.metadata?.lastResolvedEntities || [];
   }
 
   /**
