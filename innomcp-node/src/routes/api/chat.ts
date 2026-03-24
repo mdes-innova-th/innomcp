@@ -444,6 +444,8 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
   }
   PROVINCE_REGION["กรุงเทพ"] = "ภาคกลาง"; PROVINCE_REGION["กทม"] = "ภาคกลาง"; PROVINCE_REGION["กรุงเทพมหานคร"] = "ภาคกลาง";
   PROVINCE_REGION["โคราช"] = "ภาคตะวันออกเฉียงเหนือ (อีสาน)"; PROVINCE_REGION["อุบล"] = "ภาคตะวันออกเฉียงเหนือ (อีสาน)";
+  PROVINCE_REGION["อยุธยา"] = "ภาคกลาง"; PROVINCE_REGION["อุดร"] = "ภาคตะวันออกเฉียงเหนือ (อีสาน)";
+  PROVINCE_REGION["พระนครศรีอยุธยา"] = "ภาคกลาง";
   // CITY_PROVINCE: merged from locationResolver.ts PROVINCE_MAP (50+ aliases)
   const CITY_PROVINCE: Record<string, string> = {
     // Major cities/districts

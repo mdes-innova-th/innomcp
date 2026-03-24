@@ -1175,3 +1175,105 @@ test.describe("GROUNDED CONTRACT", () => {
     console.log(`[GC3] tools: ${toolsMeta}`);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 29: INTELLIGENCE — DISTRICT KNOWLEDGE
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("INTELLIGENCE DISTRICT", () => {
+  test("ID1 — กรุงเทพมีเขตอะไรบ้าง", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "ID1", "กรุงเทพมหานครมีเขตอะไรบ้าง", LLM_TIMEOUT_MS);
+    expect(text, "ID1 should mention districts").toMatch(/พระนคร|บางรัก|ปทุมวัน|สาทร|จตุจักร/);
+  });
+
+  test("ID2 — ขอนแก่นมีอำเภออะไรบ้าง", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "ID2", "ขอนแก่นมีอำเภออะไรบ้าง", LLM_TIMEOUT_MS);
+    expect(text, "ID2 should mention districts").toMatch(/เมืองขอนแก่น|ชุมแพ|น้ำพอง|บ้านไผ่|พล/);
+  });
+
+  test("ID3 — ชลบุรีมีอำเภออะไรบ้าง", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "ID3", "ชลบุรีมีอำเภออะไรบ้าง", LLM_TIMEOUT_MS);
+    expect(text, "ID3 should mention districts").toMatch(/เมืองชลบุรี|บางละมุง|ศรีราชา|สัตหีบ/);
+  });
+
+  test("ID4 — ภูเก็ตมีอำเภออะไรบ้าง", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "ID4", "ภูเก็ตมีอำเภออะไรบ้าง", LLM_TIMEOUT_MS);
+    expect(text, "ID4 should mention districts").toMatch(/เมืองภูเก็ต|กะทู้|ถลาง/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 30: INTELLIGENCE — ALIAS / TYPO ROUTING
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("INTELLIGENCE ALIAS", () => {
+  test("IA1 — ปากช่องอยู่จังหวัดอะไร", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "IA1", "ปากช่องอยู่จังหวัดอะไร", LLM_TIMEOUT_MS);
+    expect(text, "IA1 should mention นครราชสีมา").toMatch(/นครราชสีมา|โคราช/);
+  });
+
+  test("IA2 — หัวหินอยู่จังหวัดอะไร", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "IA2", "หัวหินอยู่จังหวัดอะไร", LLM_TIMEOUT_MS);
+    expect(text, "IA2 should mention ประจวบ").toMatch(/ประจวบคีรีขันธ์|ประจวบ/);
+  });
+
+  test("IA3 — อยุธยาอยู่ภาคไหน", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "IA3", "อยุธยาอยู่ภาคไหน", LLM_TIMEOUT_MS);
+    expect(text, "IA3 should mention กลาง").toMatch(/กลาง|พระนครศรีอยุธยา/);
+  });
+
+  test("IA4 — แม่สายอยู่จังหวัดอะไร", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "IA4", "แม่สายอยู่จังหวัดอะไร", LLM_TIMEOUT_MS);
+    expect(text, "IA4 should mention เชียงราย").toMatch(/เชียงราย/);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 31: INTELLIGENCE — TOOL COVERAGE PROOF
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe("INTELLIGENCE TOOLS", () => {
+  test("IT1 — calculator toolsUsed proof", async ({ page }) => {
+    await navigateToChat(page);
+    await runCase(page, "IT1", "คำนวณ 256*256", FAST_TIMEOUT_MS);
+    await assertToolUsed(page, "IT1", "calculatorTool");
+    const text = await getLastAIText(page);
+    expect(text, "IT1 should show 65536").toMatch(/65536/);
+  });
+
+  test("IT2 — datetime toolsUsed proof", async ({ page }) => {
+    await navigateToChat(page);
+    await runCase(page, "IT2", "วันนี้วันที่เท่าไร", FAST_TIMEOUT_MS);
+    await assertToolUsed(page, "IT2", "dateTimeTool");
+  });
+
+  test("IT3 — NASA นาซ่าถ่ายภาพ", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "IT3", "นาซ่าถ่ายภาพอะไรวันนี้", LLM_TIMEOUT_MS);
+    expect(text.length, "IT3 should have APOD data").toBeGreaterThan(20);
+  });
+
+  test("IT4 — worldbank GDP ไทย", async ({ page }) => {
+    test.setTimeout(120_000);
+    await navigateToChat(page);
+    const text = await runCase(page, "IT4", "worldbank GDP ไทยล่าสุด", LLM_TIMEOUT_MS);
+    expect(text, "IT4 should have GDP data").toMatch(/\d+|GDP|billion/i);
+  });
+});
