@@ -485,10 +485,21 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
     const place = placeMatch?.[1]; if (place) { canonicalQuery = place; const reg = PROVINCE_REGION[place]; if (reg) text = `${place}อยู่ใน${reg}ของประเทศไทย`; }
   } else if (geoIntent === "province_to_districts") {
     const PROVINCE_DISTRICTS: Record<string, string[]> = {
-      "เชียงใหม่": ["เมืองเชียงใหม่","ดอยสะเก็ด","สันทราย","สันกำแพง","หางดง","แม่ริม","ฝาง","แม่แตง","เชียงดาว","สารภี","แม่อาย","จอมทอง","สะเมิง","ดอยหล่อ","แม่วาง","พร้าว","ไชยปราการ","แม่แจ่ม","อมก๋อย","หมู่ 1 ดอยเต่า","กัลยาณิวัฒนา","สันป่าตอง","แม่ออน","เวียงแหง","ดอยเต่า"],
+      // ─── 4 original provinces ───
+      "เชียงใหม่": ["เมืองเชียงใหม่","ดอยสะเก็ด","สันทราย","สันกำแพง","หางดง","แม่ริม","ฝาง","แม่แตง","เชียงดาว","สารภี","แม่อาย","จอมทอง","สะเมิง","ดอยหล่อ","แม่วาง","พร้าว","ไชยปราการ","แม่แจ่ม","อมก๋อย","ดอยเต่า","กัลยาณิวัฒนา","สันป่าตอง","แม่ออน","เวียงแหง"],
       "กรุงเทพมหานคร": ["พระนคร","ดุสิต","หนองจอก","บางรัก","บางเขน","บางกะปิ","ปทุมวัน","ป้อมปราบศัตรูพ่าย","พระโขนง","มีนบุรี","ลาดกระบัง","ยานนาวา","สัมพันธวงศ์","พญาไท","ธนบุรี","บางกอกใหญ่","ห้วยขวาง","คลองสาน","ตลิ่งชัน","บางคอแหลม","ประเวศ","คลองเตย","สวนหลวง","จอมทอง","ดอนเมือง","ราชเทวี","ลาดพร้าว","วัฒนา","บางแค","หลักสี่","สายไหม","คันนายาว","สะพานสูง","วังทองหลาง","คลองสามวา","บางนา","ทวีวัฒนา","ทุ่งครุ","บางบอน","บางขุนเทียน","ภาษีเจริญ","หนองแขม","ราษฎร์บูรณะ","บางพลัด","ดินแดง","บึงกุ่ม","สาทร","บางซื่อ","จตุจักร","บางคอแหลม"],
       "สงขลา": ["เมืองสงขลา","หาดใหญ่","สะเดา","นาทวี","จะนะ","เทพา","สิงหนคร","รัตภูมิ","ระโนด","กระแสสินธุ์","ควนเนียง","สทิงพระ","นาหม่อม","คลองหอยโข่ง","บางกล่ำ","สะบ้าย้อย"],
-      "นครราชสีมา": ["เมืองนครราชสีมา","ปักธงชัย","พิมาย","สีคิ้ว","ปากช่อง","บัวใหญ่","โนนสูง","ครบุรี","โชคชัย","ด่านขุนทด","โนนไทย","สูงเนิน","ขามสะแกแสง","คง","เสิงสาง","บ้านเหลื่อม","จักราช","ห้วยแถลง","ชุมพวง","ประทาย","วังน้ำเขียว","แก้งสนามนาง","โนนแดง","เมืองยาง","พระทองคำ","ลำทะเมนชัย","บัวลาย","สีดา","เทพารักษ์","เฉลิมพระเกียรติ","พิมาย","บ้านเหลื่อม"],
+      "นครราชสีมา": ["เมืองนครราชสีมา","ปักธงชัย","พิมาย","สีคิ้ว","ปากช่อง","บัวใหญ่","โนนสูง","ครบุรี","โชคชัย","ด่านขุนทด","โนนไทย","สูงเนิน","ขามสะแกแสง","คง","เสิงสาง","จักราช","ห้วยแถลง","ชุมพวง","ประทาย","วังน้ำเขียว","แก้งสนามนาง","โนนแดง","เมืองยาง","พระทองคำ","ลำทะเมนชัย","บัวลาย","สีดา","เทพารักษ์","เฉลิมพระเกียรติ","บ้านเหลื่อม"],
+      // ─── Extended: 10 more key provinces (additive) ───
+      "ขอนแก่น": ["เมืองขอนแก่น","บ้านฝาง","พระยืน","หนองเรือ","ชุมแพ","สีชมพู","น้ำพอง","อุบลรัตน์","กระนวน","บ้านไผ่","เปือยน้อย","พล","แวงใหญ่","แวงน้อย","หนองสองห้อง","ภูเวียง","มัญจาคีรี","ชนบท","เขาสวนกวาง","ภูผาม่าน","ซำสูง","โคกโพธิ์ไชย","หนองนาคำ","บ้านแฮด","โนนศิลา","เวียงเก่า"],
+      "ชลบุรี": ["เมืองชลบุรี","บ้านบึง","หนองใหญ่","บางละมุง","พานทอง","พนัสนิคม","ศรีราชา","เกาะสีชัง","สัตหีบ","บ่อทอง","เกาะจันทร์"],
+      "เชียงราย": ["เมืองเชียงราย","เวียงชัย","เชียงของ","เทิง","พาน","ป่าแดด","แม่จัน","เชียงแสน","แม่สาย","แม่สรวย","เวียงป่าเป้า","พญาเม็งราย","เวียงแก่น","ขุนตาล","แม่ฟ้าหลวง","แม่ลาว","เวียงเชียงรุ้ง","ดอยหลวง"],
+      "ภูเก็ต": ["เมืองภูเก็ต","กะทู้","ถลาง"],
+      "สุราษฎร์ธานี": ["เมืองสุราษฎร์ธานี","กาญจนดิษฐ์","ดอนสัก","เกาะสมุย","เกาะพะงัน","ไชยา","ท่าชนะ","คีรีรัฐนิคม","บ้านตาขุน","พนม","ท่าฉาง","บ้านนาสาร","บ้านนาเดิม","เคียนซา","เวียงสระ","พระแสง","พุนพิน","ชัยบุรี","วิภาวดี"],
+      "นครศรีธรรมราช": ["เมืองนครศรีธรรมราช","พรหมคีรี","ลานสกา","ฉวาง","พิปูน","เชียรใหญ่","ชะอวด","ท่าศาลา","ทุ่งสง","นาบอน","ทุ่งใหญ่","ปากพนัง","ร่อนพิบูลย์","สิชล","ขนอม","หัวไทร","บางขัน","ถ้ำพรรณรา","จุฬาภรณ์","พระพรหม","นบพิตำ","ช้างกลาง","เฉลิมพระเกียรติ"],
+      "อุบลราชธานี": ["เมืองอุบลราชธานี","ศรีเมืองใหม่","โขงเจียม","เขื่องใน","เขมราฐ","เดชอุดม","นาจะหลวย","น้ำยืน","บุณฑริก","ตระการพืชผล","กุดข้าวปุ้น","ม่วงสามสิบ","วารินชำราบ","พิบูลมังสาหาร","ตาลสุม","โพธิ์ไทร","สำโรง","ดอนมดแดง","สิรินธร","ทุ่งศรีอุดม","นาเยีย","นาตาล","เหล่าเสือโก้ก","สว่างวีระวงศ์","น้ำขุ่น"],
+      "พิษณุโลก": ["เมืองพิษณุโลก","นครไทย","ชาติตระการ","บางระกำ","บางกระทุ่ม","พรหมพิราม","วัดโบสถ์","วังทอง","เนินมะปราง"],
+      "อุดรธานี": ["เมืองอุดรธานี","กุดจับ","หนองวัวซอ","กุมภวาปี","โนนสะอาด","หนองหาน","ทุ่งฝน","ไชยวาน","ศรีธาตุ","วังสามหมอ","บ้านดุง","บ้านผือ","น้ำโสม","เพ็ญ","สร้างคอม","หนองแสง","นายูง","พิบูลย์รักษ์","กู่แก้ว","ประจักษ์ศิลปาคม"],
     };
     const place = placeMatch?.[1];
     if (place) {
@@ -1879,11 +1890,13 @@ wss.on("connection", (ws, req) => {
 
           if (deep) {
             // Deep/analytical queries: synthesize via Ollama using weather facts as context
+            const factGatherStart = Date.now();
             const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
             const rawFacts = direct.text;
+            const factGatherMs = Date.now() - factGatherStart;
 
-            // Short-circuit: if facts are short enough, use deterministic summary (skip Ollama rewrite)
-            const analyticalMode = /เปรียบเทียบ|เทียบ/.test(messageWithFile) ? "compare" : /แนวโน้ม|trend/.test(messageWithFile) ? "trend" : /สรุป|overview|ภาพรวม/.test(messageWithFile) ? "overview" : "analysis";
+            // Classify analytical mode + short-circuit decision
+            const analyticalMode = /เปรียบเทียบ|เทียบ/.test(messageWithFile) ? "compare" : /แนวโน้ม|trend/.test(messageWithFile) ? "trend" : /สรุป|overview|ภาพรวม/.test(messageWithFile) ? "overview" : /ความสัมพันธ์|correlation|สัมพันธ์/.test(messageWithFile) ? "correlation" : "analysis";
             const canShortCircuit = rawFacts.length > 50 && rawFacts.length < 400 && analyticalMode !== "compare";
             if (canShortCircuit) {
               const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase10.7" }, ["weatherPipeline"]);
@@ -1891,6 +1904,9 @@ wss.on("connection", (ws, req) => {
                 scOut.__groundedContract.sourceType = "tool-only";
                 scOut.__groundedContract.analyticalMode = analyticalMode;
                 scOut.__groundedContract.shortCircuit = true;
+                scOut.__groundedContract.factGatherMs = factGatherMs;
+                scOut.__groundedContract.factCount = (rawFacts.match(/\d+/g) || []).length;
+                scOut.__groundedContract.totalLatencyMs = Date.now() - traceStartMs;
               }
               const textOut = `📊 ${analyticalMode === "trend" ? "แนวโน้ม" : "วิเคราะห์"}สภาพอากาศ:\n\n${rawFacts}`;
               logBoth("info", `[WeatherGate] deep=true SHORT-CIRCUIT (factLen=${rawFacts.length} mode=${analyticalMode})`);
@@ -1907,9 +1923,11 @@ wss.on("connection", (ws, req) => {
 
             const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: true, routeDecider: "deterministic", version: "phase8" }, ["weatherPipeline"]);
             // Compress facts: keep only first 800 chars to reduce LLM context and speed up synthesis
+            const factCompressStart = Date.now();
             const weatherFacts = rawFacts.length > 800 ? rawFacts.slice(0, 800) + "\n...(ข้อมูลบางส่วนถูกย่อ)" : rawFacts;
+            const factCompressMs = Date.now() - factCompressStart;
             const factCount = (weatherFacts.match(/°C|%|mm|กรุงเทพ|เชียงใหม่|ภูเก็ต|สงขลา|ขอนแก่น/g) || []).length;
-            logBoth("info", `[WeatherGate] deep=true → synthesizing via Ollama (factLen=${weatherFacts.length}, rawLen=${rawFacts.length}, factCount=${factCount})`);
+            logBoth("info", `[WeatherGate] deep=true → synthesizing via Ollama (factLen=${weatherFacts.length}, rawLen=${rawFacts.length}, factCount=${factCount}, gatherMs=${factGatherMs}, compressMs=${factCompressMs})`);
             sendSafe(ws, { type: "mcp-status", text: "กำลังวิเคราะห์ข้อมูลอากาศ...", tools: ["weatherPipeline"] });
             try {
               const synthesisMessages = [
@@ -1930,8 +1948,12 @@ wss.on("connection", (ws, req) => {
               // Enrich grounded contract with analytical metadata
               if (scOut.__groundedContract) {
                 scOut.__groundedContract.factCount = factCount;
+                scOut.__groundedContract.factGatherMs = factGatherMs;
+                scOut.__groundedContract.factCompressMs = factCompressMs;
                 scOut.__groundedContract.rewriteModel = ollamaModel;
                 scOut.__groundedContract.rewriteLatencyMs = rewriteLatencyMs;
+                scOut.__groundedContract.totalLatencyMs = rewriteLatencyMs;
+                scOut.__groundedContract.analyticalMode = analyticalMode;
                 scOut.__groundedContract.sourceType = "tool+rewrite";
               }
               const aiMessage: any = { sender: "ai", text: aiResponse, structuredContent: scOut, toolsUsed: ["weatherPipeline"] };
