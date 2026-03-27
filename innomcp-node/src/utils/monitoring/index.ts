@@ -8,6 +8,8 @@
 
 import axios from 'axios';
 import { logBoth } from '../mcpLogger';
+import { getRedisClient } from '../redis';
+import { connectWithRetry } from '../db';
 
 /**
  * Service health status
@@ -144,8 +146,58 @@ async function checkService(config: HealthCheckConfig): Promise<HealthCheckResul
       };
     }
     
-    // For non-HTTP services (Redis, DB), return unknown
-    // Would need specific client libraries to check these
+    // Redis health check
+    if (config.name === 'Redis') {
+      try {
+        const redis = await getRedisClient();
+        const pong = await redis.ping();
+        const responseTime = Date.now() - startCheck;
+        return {
+          service: config.name,
+          status: pong === 'PONG' ? HealthStatus.HEALTHY : HealthStatus.DEGRADED,
+          responseTime,
+          lastCheck: new Date().toISOString(),
+          message: pong === 'PONG' ? 'OK' : `Unexpected ping response: ${pong}`,
+        };
+      } catch (redisErr: any) {
+        return {
+          service: config.name,
+          status: HealthStatus.UNHEALTHY,
+          responseTime: Date.now() - startCheck,
+          lastCheck: new Date().toISOString(),
+          message: redisErr.message || 'Redis ping failed',
+        };
+      }
+    }
+
+    // Database health check
+    if (config.name === 'Database') {
+      let conn: any;
+      try {
+        conn = await connectWithRetry(1);
+        await conn.query('SELECT 1');
+        const responseTime = Date.now() - startCheck;
+        return {
+          service: config.name,
+          status: HealthStatus.HEALTHY,
+          responseTime,
+          lastCheck: new Date().toISOString(),
+          message: 'OK',
+        };
+      } catch (dbErr: any) {
+        return {
+          service: config.name,
+          status: HealthStatus.UNHEALTHY,
+          responseTime: Date.now() - startCheck,
+          lastCheck: new Date().toISOString(),
+          message: dbErr.message || 'DB query failed',
+        };
+      } finally {
+        if (conn) { try { await conn.end(); } catch (_) {} }
+      }
+    }
+
+    // Unknown service type
     return {
       service: config.name,
       status: HealthStatus.UNKNOWN,

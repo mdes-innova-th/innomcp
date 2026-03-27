@@ -601,10 +601,13 @@ async function answerGeneralWithFastModel(userText: string, budgetMs: number): P
   }
 
   // Pre-check: use deterministic smoke answers for patterns where LLM quality is unreliable
-  const smokeAnswer = renderGeneralSmokeAnswer(userText);
-  const isDefaultSmoke = smokeAnswer.startsWith("ได้ครับ คำถามนี้เป็นคำถามทั่วไป");
-  if (!isDefaultSmoke) {
-    return { text: smokeAnswer, fallback: false, reason: "SMOKE_DETERMINISTIC", durMs: Date.now() - start, model };
+  // Only apply when SMOKE_MODE=1 — with live LLM mode this gate must be skipped
+  if (process.env.SMOKE_MODE === "1") {
+    const smokeAnswer = renderGeneralSmokeAnswer(userText);
+    const isDefaultSmoke = smokeAnswer.startsWith("ได้ครับ คำถามนี้เป็นคำถามทั่วไป");
+    if (!isDefaultSmoke) {
+      return { text: smokeAnswer, fallback: false, reason: "SMOKE_DETERMINISTIC", durMs: Date.now() - start, model };
+    }
   }
 
   const timeoutPromise = new Promise<{ message: { content: string } }>((_resolve, reject) => {
