@@ -33,13 +33,14 @@ export class NwpEngine {
 
         const client = this.getClient();
         if (!client) return { province, type: "error", error: "CLIENT_NOT_FOUND" };
+        if (process.env.TEST_DEGRADE_NWP === "1") return { province, type: "error", error: "NWP_UNAVAILABLE" };
 
         const nwpTimeoutMs = getTimeoutFromEnv("WX_NWP_TIMEOUT_MS", NWP_TIMEOUT_MS);
 
-        // Try NWP daily by place (accepts province arg)
+        // Try NWP daily by place (canonical arg key is "place")
         try {
             const toolName = "nwp_daily_by_place";
-            const args = { province: province };
+            const args = { place: province };
             const cacheKey = ToolCache.generateKey(toolName, args);
             
             let payload = ToolCache.get(cacheKey);
@@ -71,10 +72,10 @@ export class NwpEngine {
             }
         }
 
-        // Fallback: NWP hourly by place
+        // Fallback: NWP hourly by place (canonical arg key is "place")
         try {
             const toolName = "nwp_hourly_by_place";
-            const args = { province: province };
+            const args = { place: province };
             const cacheKey = ToolCache.generateKey(toolName, args);
 
             let payload = ToolCache.get(cacheKey);

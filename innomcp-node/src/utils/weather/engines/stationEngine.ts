@@ -62,6 +62,7 @@ export class StationEngine {
     async getStationData(province: string, signal?: AbortSignal): Promise<WeatherResult> {
         const client = this.getClient();
         if (!client) return { province, type: "error", error: "CLIENT_NOT_FOUND" };
+        if (process.env.TEST_DEGRADE_TMD === "1") return { province, type: "error", error: "API_ERROR" };
 
         // Track whether TMD returned data at all (vs empty Stations)
         let apiReturnedEmpty = false;

@@ -38,6 +38,7 @@ export class ForecastEngine {
     async getForecast(province: string, signal?: AbortSignal): Promise<WeatherResult> {
         const client = this.getClient();
         if (!client) return { province, type: "error", error: "CLIENT_NOT_FOUND" };
+        if (process.env.TEST_DEGRADE_TMD === "1") return { province, type: "error", error: "API_ERROR" };
 
         const forecastTimeoutMs = getTimeoutFromEnv("WX_FORECAST_TIMEOUT_MS", FORECAST_TIMEOUT_MS);
 
@@ -92,6 +93,7 @@ export class ForecastEngine {
     async getAllForecasts(signal?: AbortSignal): Promise<any[]> {
         const client = this.getClient();
         if (!client) return [];
+        if (process.env.TEST_DEGRADE_TMD === "1") throw new Error("API_ERROR");
 
         const forecastTimeoutMs = getTimeoutFromEnv("WX_FORECAST_TIMEOUT_MS", FORECAST_TIMEOUT_MS);
 

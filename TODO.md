@@ -1,4 +1,84 @@
-﻿********* PHASE10.13 NWP/TMD Polish + DB Guidance + ModeStatusBar (2026-03-18) *********
+﻿********* PHASE10.14 Thai Knowledge Routing Bug Fix (2026-03-26) *********
+A. RECONCILE TRUE LATEST STATE
+   1. อ่าน timeline ล่าสุดจาก file/context อีกครั้งแบบ bottom-up
+   2. แสดง git state จริง: git rev-parse HEAD, git log --oneline -n 15, git status --short
+   3. สรุปว่า current HEAD ต่างจาก previous release-grade state ตรงไหน
+   4. ระบุให้ชัดว่า Phase10.14 touch ไฟล์ไหน
+   5. ระบุว่าอะไรเป็น current source of truth สำหรับ ThaiKnowledge บน HEAD ล่าสุด
+   Deliverable: HEAD commit, diff summary, current architecture summary
+
+B. USE INNOVA-BOT PROPERLY
+   ต้องเรียก innova-bot รอบนี้จริง และแสดงว่า:
+   - what_should_i_do_next output คืออะไร
+   - update_project_state / transmit_telepathy อะไรถูกใช้
+   - จากนั้นคุณลงมือ execute ต่อเอง
+   - ห้ามหยุดที่ PLAN_READY หรือ waiting
+
+C. FULL REGRESSION ON LATEST HEAD (MANDATORY)
+   รันบน HEAD ล่าสุดจริงทั้งหมด:
+   1. verify_phase105_thai_knowledge_routing.ts
+   2. npm run test:thaiKnowledgeTool
+   3. npm run test:thaiGeoTool
+   4. full Playwright acceptance suite
+   5. repeat full Playwright suite อย่างน้อย 3 รอบ ถ้า green
+   6. ถ้ามี phase107 / phase109 / critical scripts ที่ยัง relevant ให้ rerun ด้วย
+   รายงานแบบ explicit: PASS / FAIL, duration, flake or not, exact failing case if any
+
+D. FIX THAIGEOTOOL SPEC FAILURE OR CLASSIFY IT HONESTLY
+   ทำอย่างใดอย่างหนึ่ง:
+   1. fix ให้ green
+   หรือ
+   2. prove ด้วยหลักฐานว่าคือ environment-only failure and not production logic regression
+   แต่ห้ามปล่อยผ่านแบบ "likely fragile" ต้องมี root cause + action + final status
+
+E. PROVE PHASE10.14 NO-REGRESSION
+   ทำ comparison ก่อน/หลัง Phase10.14 ในประเด็น:
+   - ThaiKnowledge routing
+   - GeoGate behavior
+   - local resolver fallback
+   - mcpUsed / mcpResults behavior
+   - low-confidence fallback
+   - browser acceptance
+   - grounded contract / toolsUsed
+   ต้องตอบชัดว่า: อะไรดีขึ้น, อะไรเปลี่ยน behavior, อะไรเสี่ยง regression, ผล full suite ล่าสุดรองรับการเปลี่ยนแปลงนี้หรือไม่
+
+F. BROWSER E2E PROOF ON CURRENT HEAD
+   หลัง full suite ต้องยก critical browser proof ให้ชัดอย่างน้อย:
+   1. CASE_GEO / thai knowledge query
+   2. low-confidence fallback
+   3. query "แล้วมีอำเภออะไรเด่นบ้าง"
+   4. one weather query
+   5. one analytical query
+   6. one tool query (calculator or datetime)
+   สำหรับแต่ละเคส ส่ง: route selected, tools used, screenshot or trace path, final text snippet, whether grounded
+
+G. COMMIT / PUSH ONLY AFTER GREEN
+   ถ้าทุกอย่าง green แล้วค่อย:
+   - git add เฉพาะไฟล์ที่เกี่ยวข้อง
+   - commit message ชัด
+   - git push
+   - ส่ง commit hash
+   ถ้ายังไม่ green: ห้าม commit ปิดงาน ให้แก้ต่อจน green หรือระบุ blocker จริง
+
+H. FINAL RESPONSE FORMAT
+   ตอบกลับรอบหน้าต้องมี:
+   1. innova-bot actions taken
+   2. current HEAD / git status
+   3. latest architecture decision
+   4. regression comparison vs previous release-grade
+   5. results of verify_phase105
+   6. results of test:thaiKnowledgeTool
+   7. results of test:thaiGeoTool
+   8. results of full Playwright suite
+   9. 3-run stability table
+   10. browser proof summary
+   11. files changed
+   12. commit hash
+   13. push result
+   14. final verdict: NOT READY / READY FOR INTERNAL USE / READY FOR LIMITED PRODUCTION
+********* END PHASE10.14 *********
+
+********* PHASE10.13 NWP/TMD Polish + DB Guidance + ModeStatusBar (2026-03-18) *********
 01) Scope: เพิ่ม nwpApiConfig province→lat/lon, domain/starttime params, coord fallback, db error msg, ModeStatusBar icons
 02) nwpApiConfig.ts — สร้างใหม่ใน innomcp-server-node/src/mcp/config/ (77 จังหวัด + alternate spellings)
 03) nwpDailyTool.ts — เพิ่ม domain/starttime params; ByPlace fallback ไปใช้ coords เมื่อ place API fail
@@ -2974,3 +3054,13 @@ CORRECTION: phase102 deterministic evidence path = `innomcp-node/evidence/phase1
 11) P-20260308-151 RESOLVED (REPORT_PROBLEM.md updated, closure verified via git status).
 12) Requesting QE review and SA sign-off on Phase 10.5 + PR-1/PR-2 changes.
 *** END CODE_READY ***
+
+********* PHASE10.14 Thai Knowledge Routing Bug Fix *********
+01) Scope: Fix routing issue in Thai Knowledge where C1T3 'แล้วมีอำเภออะไรเด่นบ้าง' routes to geo but fails with 'ไม่พบข้อมูล'
+02) Root cause: prefersThaiKnowledgeRoute returns false for 'อะไรเด่นบ้าง' because pattern expects 'อะไรบ้าง' contiguous
+03) Fix: Add local Thai geo resolver at the beginning of the geo MCP gate to try resolve locally before MCP call
+04) Test fix: Run the test script in Untitled-1 to verify C1T3 now routes correctly
+05) Verifier: Run verify_phase105_thai_knowledge_routing.ts to ensure still PASS
+06) Evidence: Update evidence log if needed
+07) Commit + push
+********* END PHASE10.14 *********

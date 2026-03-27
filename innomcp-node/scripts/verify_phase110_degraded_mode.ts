@@ -26,7 +26,7 @@ import http from "http";
 import fs from "fs";
 import path from "path";
 
-const CHAT_PORT = Number(process.env.CHAT_PORT || process.env.PORT || 3000);
+const CHAT_PORT = Number(process.env.CHAT_PORT || process.env.PORT || 3011);
 const EVIDENCE_DIR = path.resolve(__dirname, "../evidence");
 if (!fs.existsSync(EVIDENCE_DIR)) fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
 
@@ -46,7 +46,7 @@ function chatPost(message: string, headers: Record<string, string> = {}): Promis
   return new Promise((resolve, reject) => {
     const req = http.request(
       {
-        host: "127.0.0.1",
+        host: "localhost",
         port: CHAT_PORT,
         path: "/api/chat",
         method: "POST",

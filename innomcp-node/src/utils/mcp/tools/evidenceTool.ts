@@ -181,6 +181,9 @@ export async function handleEvidenceTool(args: any): Promise<any> {
   };
 
   try {
+    if (process.env.TEST_DEGRADE_DB === "1") throw Object.assign(new Error("DB_DEGRADED"), { code: "MISSING_DETECT_DB_CREDS" });
+    if (process.env.TEST_DEGRADE_WEBDDSB === "1") throw Object.assign(new Error("WEBDDSB_DEGRADED"), { code: "WEBDDSB_UNAVAILABLE" });
+
     if (!intent) {
       return { ok: false, code: "MISSING_INTENT", meta: metaFor("placeholder"), message: "intent is required" };
     }

@@ -341,12 +341,14 @@ export const thaiGeoTool = {
     const confidenceRequired = args?.context?.confidence_required ?? DEFAULT_CONFIDENCE_REQUIRED;
     const filterRegion = args?.filter_region?.trim();
 
+    let fallbackToMemory = false;
     try {
       let entities: ThaiGeoEntity[];
       try {
         entities = await getGeoDb().search({ queryText: searchTerm, filterRegion, limit: 10 });
       } catch (dbErr: any) {
         // DB failure: fallback to in-memory seed data
+        fallbackToMemory = true;
         const inMemory = new InMemoryGeoDb(THAI_GEO_SEED);
         entities = await inMemory.search({ queryText: searchTerm, filterRegion, limit: 10 });
       }
@@ -375,7 +377,13 @@ export const thaiGeoTool = {
         data: sorted.map(makeResult),
         confidence,
         source: buildSourceList(sorted),
-        note: filterRegion ? `พบข้อมูลที่ตรงคำค้นและอยู่ในภูมิภาค ${filterRegion}` : "พบข้อมูลภูมิศาสตร์ที่ตรงคำค้น",
+        note: fallbackToMemory
+          ? filterRegion
+            ? `fallback to in-memory seed (ค้นพบและอยู่ในภูมิภาค ${filterRegion})`
+            : "fallback to in-memory seed"
+          : filterRegion
+          ? `พบข้อมูลที่ตรงคำค้นและอยู่ในภูมิภาค ${filterRegion}`
+          : "พบข้อมูลภูมิศาสตร์ที่ตรงคำค้น",
       };
 
       return successResult(output);

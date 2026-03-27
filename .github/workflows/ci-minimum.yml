@@ -1,0 +1,117 @@
+name: CI Minimum Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-backend:
+    name: build-backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: innomcp-node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: innomcp-node/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build backend
+        run: npm run build
+
+  build-mcp:
+    name: build-mcp
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: innomcp-server-node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: innomcp-server-node/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build MCP server
+        run: npm run build
+
+  build-frontend:
+    name: build-frontend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: innomcp-next
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: innomcp-next/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Build frontend
+        run: npm run build
+
+  test-thai-geo-tool:
+    name: test-thai-geo-tool
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: innomcp-server-node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: innomcp-server-node/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run thai geo tool tests
+        run: npm run test:thaiGeoTool
+
+  test-thai-knowledge-tool:
+    name: test-thai-knowledge-tool
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: innomcp-server-node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: innomcp-server-node/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run thai knowledge tool tests
+        run: npm run test:thaiKnowledgeTool
+
+  test-backend-integration:
+    name: test-backend-integration
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: innomcp-node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: innomcp-node/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run backend integration tests
+        run: npm run test:integration

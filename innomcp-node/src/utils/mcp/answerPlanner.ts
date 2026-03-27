@@ -14,7 +14,7 @@ export interface Plan {
 }
 
 function hasWeatherIntent(text: string): boolean {
-  return /(อากาศ|ฝน|พยากรณ์|weather|อุณหภูมิ)/i.test(text);
+  return /(อากาศ|ฝน|พยากรณ์|weather|อุณหภูมิ|NWP|nwp|อุตุ|แผ่นดินไหว|seismic|ริกเตอร์|earthquake|เตือนภัย|ประกาศเตือน|สถานีอุตุ)/i.test(text);
 }
 
 function hasEvidenceIntent(text: string): boolean {

@@ -494,6 +494,9 @@ class IntelligentMCPClient extends EventEmitter {
     const { ollama, model, aiType } = this.selectAI(taskType);
     
     logger.info(`Starting chatWithOllama`, { aiType: aiType.toUpperCase(), taskType, model });
+    if (aiType === "remote" && process.env.TEST_DEGRADE_OLLAMA_REMOTE === "1") {
+      throw new Error("TIMEOUT OLLAMA_REMOTE DEGRADED");
+    }
 
     const fastBudgetMs = (() => {
       const raw = Number(process.env.FAST_LLM_BUDGET_MS || process.env.GENERAL_LLM_BUDGET_MS || '5000');
@@ -2171,19 +2174,25 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     const results: any[] = [];
     const mergedArgsMap: Record<string, any> = { ...(preGeneratedArgsMap || {}) };
       let weatherHandled = false; // Only run pipeline once per executeTools call
+    let seismicHandled = false;
 
-      const isWeatherToolName = (name: string) =>
-        name.includes("weather") || name.includes("tmd") || name.includes("nwp");
+    const isSeismicToolName = (name: string) => /seismic/i.test(name);
 
-      // Pre-scan: if any weather intent toolname exists, run the pipeline exactly once
-      const hasAnyWeatherTool = toolNames.some((n) => isWeatherToolName(n));
-      if (hasAnyWeatherTool && !weatherHandled) {
-        weatherHandled = true;
-        try {
-          // Deterministic (no LLM planning) weather execution
-          const toolResult = await this.runDeterministicWeatherPipeline(userMessage);
-          results.push(toolResult);
-        } catch (err: any) {
+    const isWeatherToolName = (name: string) =>
+      (name.includes("weather") || name.includes("nwp") || name.includes("tmd")) &&
+      !isSeismicToolName(name);
+
+    // Pre-scan: if any weather intent toolname exists, run the pipeline exactly once
+    const hasAnyWeatherTool = toolNames.some((n) => isWeatherToolName(n));
+    const hasAnySeismicTool = toolNames.some((n) => isSeismicToolName(n));
+
+    if (hasAnyWeatherTool && !weatherHandled) {
+      weatherHandled = true;
+      try {
+        // Deterministic (no LLM planning) weather execution
+        const toolResult = await this.runDeterministicWeatherPipeline(userMessage);
+        results.push(toolResult);
+      } catch (err: any) {
           console.error(`[WeatherPipeline] Critical Failure: ${err.message}`);
           const structured = { weatherPipeline: { ok: false, code: "UPSTREAM_ERROR", message: err.message || "WEATHER_PIPELINE_ERROR" } };
           results.push({
@@ -2194,8 +2203,29 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
             structuredContent: structured,
             content: [{ type: "text", text: JSON.stringify(structured) }],
           });
+      }
+    }
+
+    if (hasAnySeismicTool && !seismicHandled) {
+      seismicHandled = true;
+      const seismicTools = toolNames.filter((n) => isSeismicToolName(n));
+      for (const seismicToolName of seismicTools) {
+        try {
+          const seismicResult = await this.executeSingleTool(seismicToolName, userMessage, undefined, mergedArgsMap);
+          results.push(seismicResult);
+        } catch (err: any) {
+          console.error(`[SeismicTool] Critical failure on ${seismicToolName}: ${err?.message || err}`);
+          results.push({
+            toolName: seismicToolName,
+            success: false,
+            isError: true,
+            error: String(err?.message || err),
+            structuredContent: { ok: false, error: String(err?.message || err) },
+            content: [{ type: "text", text: String(err?.message || err) }],
+          });
         }
       }
+    }
 
     // Officer evidence: infer deterministic args for EvidenceTool (no LLM required)
     // This keeps tool execution reliable even when argument generation is unavailable.
@@ -2220,11 +2250,16 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     }
 
     for (const toolName of toolNames) {
-        // 🌤️ Weather Architecture (Phase 6.5)
-        // Weather tools are handled only by the pipeline once; skip all of them here.
-        if (isWeatherToolName(toolName) && weatherHandled) {
-          continue;
-        }
+      // 🌤️ Weather Architecture (Phase 6.5)
+      // Weather tools are handled only by the pipeline once; skip all of them here.
+      if (isWeatherToolName(toolName) && weatherHandled) {
+        continue;
+      }
+
+      // 🌍 Seismic tools are handled by seismic block above; skip to avoid duplicate calls.
+      if (isSeismicToolName(toolName) && seismicHandled) {
+        continue;
+      }
 
       // Normal execution for other tools
       const singleResult = await this.executeSingleTool(
@@ -3489,6 +3524,12 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
     return greetingPatterns.some((p) => p.test(query.trim()));
   }
 
+  private isSeismicQuery(query: string): boolean {
+    return /(แผ่นดินไหว|earthquake|seismic|ริกเตอร์|richter)/i.test(
+      String(query || "")
+    );
+  }
+
   private async scoreToolRelevance(
     toolName: string,
     userMessage: string
@@ -3696,6 +3737,22 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
 
     // Earthquake
     const isEarthquakeQuery = /(แผ่นดินไหว|earthquake|seismic|ริกเตอร์|richter)/i.test(q);
+
+    // If user asks about earthquake/seismic explicitly, prefer TMD seismic tool before generic weather processing.
+    if (isEarthquakeQuery) {
+      const earthquakeTools = this.getAvailableTools()
+        .filter((t) =>
+          t.name.includes('tmd_seismic') ||
+          (t.category && t.category === 'earthquake') ||
+          t.name.includes('seismic')
+        )
+        .map((t) => t.name);
+
+      if (earthquakeTools.length > 0) {
+        console.log(`[MCP Client] 🌍 Earthquake route activated: ${earthquakeTools.join(', ')}`);
+        return earthquakeTools;
+      }
+    }
 
     // ✅ RULE A: 7-day weather MUST use TMD 7 days tool (prevents 3-hours tool misuse)
     if (is7DayQuery && isWeatherQuery) {

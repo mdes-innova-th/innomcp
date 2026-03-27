@@ -1,0 +1,396 @@
+{
+  "stamp": "202603251636506",
+  "summary": {
+    "totalConv": 8,
+    "passConv": 0,
+    "failConv": 8
+  },
+  "conversations": [
+    {
+      "convId": 1,
+      "name": "หาดใหญ่ → จังหวัด → ภาค → อำเภอ",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "หาดใหญ่อยู่จังหวัดอะไร",
+          "status": 200,
+          "text": "หาดใหญ่เป็นอำเภอ/เมืองในจังหวัดสงขลา ภาคใต้",
+          "toolsUsed": [],
+          "route": "geo",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "entity lookup: amphoe → province"
+        },
+        {
+          "turn": 2,
+          "question": "จังหวัดนี้อยู่ภาคไหน",
+          "status": 200,
+          "text": "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ",
+          "toolsUsed": [],
+          "route": "general",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry forward: จังหวัดนี้ = สงขลา"
+        },
+        {
+          "turn": 3,
+          "question": "แล้วมีอำเภออะไรเด่นบ้าง",
+          "status": 200,
+          "text": "ไม่พบข้อมูล: ไม่พบข้อมูลภูมิศาสตร์ที่ตรงกับคำค้นหา\nตัวอย่าง:\n1) จังหวัดเชียงใหม่\n2) เขตบางรัก กรุงเทพมหานคร 10500",
+          "toolsUsed": [],
+          "route": "geo",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry forward: หัวข้อยังอยู่ที่สงขลา"
+        }
+      ],
+      "pass": false,
+      "failReasons": [
+        "Turn 2: expected keywords [\"ใต้\",\"สงขลา\"] not found in answer",
+        "Turn 3: expected keywords [\"สงขลา\",\"อำเภอ\"] not found in answer"
+      ]
+    },
+    {
+      "convId": 2,
+      "name": "โคราช → ภาค → อากาศพรุ่งนี้ → สรุป",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "โคราชอยู่ภาคอะไร",
+          "status": 200,
+          "text": "โคราชอยู่ในภาคตะวันออกเฉียงเหนือ (อีสาน)ของประเทศไทย",
+          "toolsUsed": [],
+          "route": "geo",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "entity lookup: โคราช = นครราชสีมา, ภาคตะวันออกเฉียงเหนือ"
+        },
+        {
+          "turn": 2,
+          "question": "แล้วจังหวัดนี้พรุ่งนี้ฝนตกไหม",
+          "status": 200,
+          "text": "ช่วงเวลา: พรุ่งนี้ (26/03/2026)\n\nพื้นที่: สระแก้ว\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง (ERR:WX_UPSTREAM)",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: จังหวัดนี้ = นครราชสีมา → weather lookup"
+        },
+        {
+          "turn": 3,
+          "question": "สรุปสั้น ๆ",
+          "status": 200,
+          "text": "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ",
+          "toolsUsed": [],
+          "route": "general",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: context from turns 1+2"
+        }
+      ],
+      "pass": false,
+      "failReasons": [
+        "Turn 2: expected keywords [\"นครราชสีมา\",\"โคราช\"] not found in answer",
+        "Turn 3: expected keywords [\"นครราชสีมา\",\"โคราช\",\"ฝน\"] not found in answer"
+      ]
+    },
+    {
+      "convId": 3,
+      "name": "เชียงใหม่วันนี้ → พรุ่งนี้ → เทียบกรุงเทพ",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "อากาศเชียงใหม่วันนี้",
+          "status": 200,
+          "text": "ช่วงเวลา: วันนี้ (25/03/2026)\n\nพื้นที่: เชียงใหม่\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง (ERR:WX_UPSTREAM)\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "weather query: เชียงใหม่"
+        },
+        {
+          "turn": 2,
+          "question": "แล้วพรุ่งนี้ล่ะ",
+          "status": 200,
+          "text": "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ",
+          "toolsUsed": [],
+          "route": "general",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: entity=เชียงใหม่, time=tomorrow"
+        },
+        {
+          "turn": 3,
+          "question": "เทียบกับกรุงเทพให้หน่อย",
+          "status": 200,
+          "text": "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ",
+          "toolsUsed": [],
+          "route": "general",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: multi-entity comparison"
+        }
+      ],
+      "pass": false,
+      "failReasons": [
+        "Turn 2: expected keywords [\"เชียงใหม่\"] not found in answer",
+        "Turn 3: expected keywords [\"เชียงใหม่\",\"กรุงเทพ\"] not found in answer"
+      ]
+    },
+    {
+      "convId": 4,
+      "name": "กรุงเทพ → สัปดาห์หน้า → เทียบชลบุรี → ตาราง",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "แนวโน้มฝนกรุงเทพสัปดาห์หน้า",
+          "status": 200,
+          "text": "ช่วงเวลา: วันนี้ (25/03/2026)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง (ERR:WX_UPSTREAM)\nอำเภอที่ควรติดตาม: จตุจักร, ลาดกระบัง, ดอนเมือง",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "weather: BKK 7-day"
+        },
+        {
+          "turn": 2,
+          "question": "ถ้าเทียบกับชลบุรีล่ะ",
+          "status": 200,
+          "text": "ขออภัย ระบบยังไม่พร้อมให้บริการในขณะนี้ กรุณาลองใหม่อีกครั้งภายหลังครับ",
+          "toolsUsed": [],
+          "route": "",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: add second entity"
+        },
+        {
+          "turn": 3,
+          "question": "สรุปเป็นตาราง",
+          "status": 200,
+          "text": "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)",
+          "toolsUsed": [],
+          "route": "evidence",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: format as table using prior context"
+        }
+      ],
+      "pass": false,
+      "failReasons": [
+        "Turn 2: expected keywords [\"กรุงเทพ\",\"ชลบุรี\"] not found in answer",
+        "Turn 3: expected keywords [\"กรุงเทพ\",\"ชลบุรี\"] not found in answer"
+      ]
+    },
+    {
+      "convId": 5,
+      "name": "แม่กลอง → ฝนสัปดาห์หน้า → น้ำเสี่ยง → เหตุผล",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "แม่กลองสัปดาห์หน้าฝนเป็นยังไง",
+          "status": 200,
+          "text": "ช่วงเวลา: วันนี้ (25/03/2026)\n\nพื้นที่: สมุทรสงคราม\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง (ERR:WX_UPSTREAM)",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "weather: แม่กลอง = สมุทรสงคราม"
+        },
+        {
+          "turn": 2,
+          "question": "แล้วน้ำเสี่ยงสูงไหม",
+          "status": 200,
+          "text": "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ",
+          "toolsUsed": [],
+          "route": "general",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: flood risk for แม่กลอง"
+        },
+        {
+          "turn": 3,
+          "question": "ขอเหตุผลแบบสั้น",
+          "status": 200,
+          "text": "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ",
+          "toolsUsed": [],
+          "route": "general",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: summarize risk reason"
+        }
+      ],
+      "pass": false,
+      "failReasons": [
+        "Turn 2: expected keywords [\"แม่กลอง\",\"สมุทรสงคราม\"] not found in answer",
+        "Turn 3: expected keywords [\"แม่กลอง\",\"น้ำ\"] not found in answer"
+      ]
+    },
+    {
+      "convId": 6,
+      "name": "อยุธยา → ภาค → จังหวัดอื่น → ท่องเที่ยว",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "อยุธยาอยู่ภาคไหน",
+          "status": 200,
+          "text": "อยุธยาอยู่ในภาคกลางของประเทศไทย",
+          "toolsUsed": [],
+          "route": "geo",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "entity: อยุธยา → ภาคกลาง"
+        },
+        {
+          "turn": 2,
+          "question": "แล้วภาคนี้มีจังหวัดอะไรอีก",
+          "status": 200,
+          "text": "ไม่พบข้อมูล: ไม่พบข้อมูลภูมิศาสตร์ที่ตรงกับคำค้นหา\nตัวอย่าง:\n1) จังหวัดเชียงใหม่\n2) เขตบางรัก กรุงเทพมหานคร 10500",
+          "toolsUsed": [],
+          "route": "geo",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: ภาคนี้ = ภาคกลาง"
+        },
+        {
+          "turn": 3,
+          "question": "จังหวัดไหนเด่นด้านท่องเที่ยว",
+          "status": 200,
+          "text": "ไม่พบข้อมูล: ไม่พบข้อมูลภูมิศาสตร์ที่ตรงกับคำค้นหา\nตัวอย่าง:\n1) จังหวัดเชียงใหม่\n2) เขตบางรัก กรุงเทพมหานคร 10500",
+          "toolsUsed": [],
+          "route": "geo",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: topic = provinces in ภาคกลาง"
+        }
+      ],
+      "pass": false,
+      "failReasons": [
+        "Turn 3: expected keywords [\"ท่องเที่ยว\"] not found in answer"
+      ]
+    },
+    {
+      "convId": 7,
+      "name": "คำนวณ 48*7 → บวก 12 → แปลงเป็นข้อความ",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "คำนวณ 48*7",
+          "status": 200,
+          "text": "ขออภัย ระบบยังไม่พร้อมให้บริการในขณะนี้ กรุณาลองใหม่อีกครั้งภายหลังครับ",
+          "toolsUsed": [],
+          "route": "",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": false,
+          "note": "calculator: 48×7=336"
+        },
+        {
+          "turn": 2,
+          "question": "แล้วบวกเพิ่ม 12",
+          "status": 200,
+          "text": "ขออภัย ระบบยังไม่พร้อมให้บริการในขณะนี้ กรุณาลองใหม่อีกครั้งภายหลังครับ",
+          "toolsUsed": [],
+          "route": "",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: 336+12=348"
+        },
+        {
+          "turn": 3,
+          "question": "แปลงเป็นข้อความสั้น",
+          "status": 200,
+          "text": "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ",
+          "toolsUsed": [],
+          "route": "general",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: number to text"
+        }
+      ],
+      "pass": false,
+      "failReasons": [
+        "Turn 1: expected keywords [\"336\"] not found in answer",
+        "Turn 2: expected keywords [\"348\"] not found in answer",
+        "Turn 3: expected keywords [\"348\",\"สามร้อยสี่สิบแปด\",\"three hundred\"] not found in answer"
+      ]
+    },
+    {
+      "convId": 8,
+      "name": "Machine learning → พยากรณ์อากาศ → เทียบ rule-based",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Machine learning คืออะไร",
+          "status": 200,
+          "text": "Machine Learning (ML) คือสาขาของ AI ที่ให้คอมพิวเตอร์เรียนรู้จากข้อมูลโดยไม่ต้องเขียนกฎตายตัว เช่น จำแนกภาพ พยากรณ์ราคา แนะนำสินค้า โดยใช้โมเดล Decision Tree, Neural Network, Random Forest ตามลักษณะข้อมูลครับ",
+          "toolsUsed": [],
+          "route": "general",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "general knowledge"
+        },
+        {
+          "turn": 2,
+          "question": "ถ้าเอามาใช้กับพยากรณ์อากาศล่ะ",
+          "status": 200,
+          "text": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10: ระนอง (70%), พังงา (68%), ภูเก็ต (67%), กระบี่ (66%), สุราษฎร์ธานี (64%) (ถ้าต้องการตาราง บอกได้ครับ)",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: apply ML to weather"
+        },
+        {
+          "turn": 3,
+          "question": "สรุปต่างจาก rule-based ยังไง",
+          "status": 200,
+          "text": "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ",
+          "toolsUsed": [],
+          "route": "general",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: comparison"
+        }
+      ],
+      "pass": false,
+      "failReasons": [
+        "Turn 2: expected keywords [\"machine learning\",\"พยากรณ์\",\"ML\"] not found in answer",
+        "Turn 3: expected keywords [\"machine learning\",\"rule\",\"ML\"] not found in answer"
+      ]
+    }
+  ]
+}

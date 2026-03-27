@@ -20,7 +20,7 @@ import fs from "fs";
 import path from "path";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
-const CHAT_PORT = Number(process.env.CHAT_PORT || process.env.PORT || 3000);
+const CHAT_PORT = Number(process.env.CHAT_PORT || process.env.PORT || 3011);
 const INNOMCP_MODE = process.env.INNOMCP_MODE || "online";
 const OFFLINE = INNOMCP_MODE === "offline";
 const EVIDENCE_DIR = path.resolve(__dirname, "../evidence");
@@ -48,7 +48,7 @@ function chatPost(message: string, sessionId?: string): Promise<ChatResp> {
   return new Promise((resolve, reject) => {
     const req = http.request(
       {
-        host: "127.0.0.1",
+        host: "localhost",
         port: CHAT_PORT,
         path: "/api/chat",
         method: "POST",

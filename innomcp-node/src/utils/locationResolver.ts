@@ -168,6 +168,21 @@ const PROVINCE_MAP: Record<string, string> = {
   "อยุธยา": "พระนครศรีอยุธยา",
 };
 
+// 🇹🇭 Region → representative provinces (for region-level weather queries)
+// Order: longer / more-specific keys first so substring checks work correctly
+const REGION_PROVINCES: [string, string[]][] = [
+  ["ภาคตะวันออกเฉียงเหนือ", ["ขอนแก่น", "นครราชสีมา", "อุดรธานี", "อุบลราชธานี"]],
+  ["ภาคใต้ฝั่งอ่าวไทย",    ["สุราษฎร์ธานี", "นครศรีธรรมราช", "สงขลา"]],
+  ["ภาคใต้ฝั่งอันดามัน",   ["ภูเก็ต", "กระบี่", "พังงา"]],
+  ["ภาคตะวันออก",          ["ชลบุรี", "ระยอง", "จันทบุรี"]],
+  ["ภาคตะวันตก",           ["กาญจนบุรี", "ราชบุรี", "เพชรบุรี"]],
+  ["ภาคกลาง",              ["กรุงเทพมหานคร", "นครสวรรค์", "สุพรรณบุรี", "นนทบุรี"]],
+  ["ภาคเหนือ",             ["เชียงใหม่", "เชียงราย", "พิษณุโลก", "ลำปาง"]],
+  ["ภาคอีสาน",             ["ขอนแก่น", "นครราชสีมา", "อุดรธานี", "อุบลราชธานี"]],
+  ["ภาคใต้",               ["สุราษฎร์ธานี", "ภูเก็ต", "นครศรีธรรมราช", "สงขลา"]],
+  ["อีสาน",                ["ขอนแก่น", "นครราชสีมา", "อุดรธานี"]],
+];
+
 // 🇹🇭 All 77 Provinces (Normalized)
 const ALL_PROVINCES = new Set([
   "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น",
@@ -226,6 +241,19 @@ export function resolveProvinces(text: string): string[] {
     if (ALL_PROVINCES.has(trimmed)) return trimmed;
     return null;
   };
+
+  // ─── Phase 0: Region Name Expansion ───
+  // Check longer/more-specific keys first (array order is specific→general)
+  for (const [regionName, provinceList] of REGION_PROVINCES) {
+    if (original.includes(regionName)) {
+      for (const p of provinceList) foundProvinces.add(p);
+    }
+  }
+  if (foundProvinces.size > 0) {
+    const resolved = finalizeResolved(foundProvinces);
+    console.log(`[LocationResolver] resolvedProvinces=[${resolved.join(",")}] method=region`);
+    return resolved;
+  }
 
   // ─── Phase 1: Substring Scan (handles unsegmented Thai) ───
   // Scan for province names + aliases embedded in the text (longest first)

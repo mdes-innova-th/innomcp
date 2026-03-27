@@ -545,6 +545,46 @@
 			],
 			"isBackground": false,
 			"group": "test"
+		},
+		{
+			"label": "git-log-recent",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp && git log --oneline -n 15"
+			]
+		},
+		{
+			"label": "git-log-recent",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d c:\\Users\\USER-NT\\DEV\\innomcp && git log --oneline -n 15"
+			]
+		},
+		{
+			"label": "verify:phase105",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\\verify_phase105_thai_knowledge_routing.ts"
+			]
+		},
+		{
+			"label": "playwright-run-1",
+			"type": "shell",
+			"command": "cmd",
+			"args": [
+				"/d",
+				"/c",
+				"cd /d innomcp-next && npx playwright test --reporter=list"
+			]
 		}
 	]
 }

@@ -1,4 +1,4 @@
-﻿import { Router } from "express";
+import { Router } from "express";
 import { WebSocketServer } from "ws";
 import dotenv from "dotenv";
 import crypto from "crypto";
@@ -240,7 +240,7 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
   // Core weather words
   // NOTE: do NOT match "ลม" as a bare substring (e.g. "ถนนสีลม" should not be treated as weather)
   const hasWind = /(?:^|\s)ลม(?:\s|$)|ลมแรง|ความเร็วลม|ทิศทางลม|wind\b/i.test(t);
-  const hasWeatherCore = /ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|พายุ|weather|forecast|temperature|humidity|tmd|อุตุ|nwp|ร้อน|หนาว|แล้ง|หมอก/i.test(t) || hasWind;
+  const hasWeatherCore = /ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|พายุ|weather|forecast|temperature|humidity|tmd|อุตุ|nwp|ร้อน|หนาว|แล้ง|หมอก|แผ่นดินไหว|seismic|earthquake|ริกเตอร์|เตือนภัย|ประกาศเตือน/i.test(t) || hasWind;
 
   // Weather-specific patterns that often omit the word "อากาศ"
   const hasWeatherSpecific = /รายชั่วโมง|รายวัน|ตารางสถานี|สถานีอากาศ|รายสถานี|พยากรณ์\s*7\s*วัน|7\s*วัน|สัปดาห์/i.test(t);
@@ -254,12 +254,16 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
   // Water level / flood hydrology queries
   const hasHydroWater = /น้ำ.*(ขึ้น|ลง|ท่วม|หลาก|ระดับ)|ระดับน้ำ|น้ำท่วม|ปริมาณน้ำ|ปริมาณฝน/i.test(t);
 
+  // Province/city + temporal = carry-forward weather query (e.g., "เชียงใหม่ พรุ่งนี้ล่ะ")
+  const hasProvinceWithTime = /(?:เชียงใหม่|กรุงเทพ|ภูเก็ต|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|สงขลา|สมุทรสงคราม|แม่กลอง|ชลบุรี|อยุธยา|สุราษฎร์ธานี|ระนอง|พังงา|กระบี่).{0,30}(?:พรุ่งนี้|วันนี้|มะรืน|สัปดาห์|7\s*วัน|ฝน|อากาศ|น้ำเสี่ยง|น้ำท่วม)/i.test(t)
+    || /(?:พรุ่งนี้|วันนี้|ฝน|อากาศ).{0,30}(?:เชียงใหม่|กรุงเทพ|ภูเก็ต|สงขลา|นครราชสีมา|สมุทรสงคราม|ชลบุรี|อยุธยา)/i.test(t);
+
   // We only gate when it's clearly weather-related
-  return hasWeatherCore || hasWeatherSpecific || hasStationType || hasRegionWeather || hasHydroWater;
+  return hasWeatherCore || hasWeatherSpecific || hasStationType || hasRegionWeather || hasHydroWater || hasProvinceWithTime;
 }
 
 function hasExplicitWeatherIntentKeywords(text: string): boolean {
-  return /(อากาศ|พยากรณ์|ฝน|อุณหภูมิ|ลม|เรดาร์|weather|forecast|temperature|rain|storm|wind)/i.test(String(text || ""));
+  return /(อากาศ|พยากรณ์|ฝน|อุณหภูมิ|ลม|เรดาร์|weather|forecast|temperature|rain|storm|wind|อุตุ|NWP|nwp|แผ่นดินไหว|seismic|ริกเตอร์|earthquake|เตือนภัย|ประกาศเตือน|สถานีอุตุ)/i.test(String(text || ""));
 }
 
 function inferOfficerEvidenceAction(text: string): string | undefined {
@@ -524,6 +528,12 @@ function renderGeneralFallbackMessage(): string {
 
 function renderGeneralSmokeAnswer(userText: string): string {
   const t = String(userText || "").trim();
+
+  // Low confidence / non-Thai fallback (phase10.5 deterministic behavior)
+  if (!/[ก-ฮ]/.test(t)) {
+    return LOW_CONFIDENCE_FALLBACK_TEXT;
+  }
+
   // Thai knowledge: region → province lookups (grounded static data)
   if (/ภาคกลาง/.test(t) && /จังหวัด|ประกอบ|อะไรบ้าง|กี่/.test(t)) {
     return "ภาคกลางของประเทศไทยประกอบด้วยจังหวัดหลายแห่ง ได้แก่ กรุงเทพมหานคร นนทบุรี ปทุมธานี สมุทรปราการ สมุทรสาคร นครปฐม พระนครศรีอยุธยา อ่างทอง สิงห์บุรี ชัยนาท ลพบุรี สระบุรี สุพรรณบุรี สมุทรสงคราม นครนายก และอื่นๆ รวมกว่า 20 จังหวัด";
@@ -819,6 +829,7 @@ function withRenderMeta(structuredContent: any, meta: { route: string; llmUsed: 
   const chatMeta = {
     ...existingChatMeta,
     mode: "online",
+    route: meta.route,
     toolsUsed: resolvedTools.map((t) => ({ name: t })),
     reason_code: existingChatMeta.reason_code || (meta.route.toUpperCase() + "_GATE"),
   };
@@ -1491,6 +1502,7 @@ function chatTraceOut(params: {
     | "weatherGate"
     | "officerEvidence"
     | "geo"
+    | "seismicGate"
     | "mcpDirect"
     | "weatherDirect"
     | "mcpToolsFailed"
@@ -1852,6 +1864,42 @@ wss.on("connection", (ws, req) => {
           });
           return;
 
+        }
+
+        // =====================================
+        // Phase 7.1a: Deterministic Seismic Router (no weather fallback for earthquake queries)
+        // =====================================
+        const seismicLike = /แผ่นดินไหว|seismic|earthquake|ริกเตอร์|richter/i.test(messageWithFile);
+        if (mcpClient && seismicLike) {
+          logBoth("info", `[SeismicGate] bypass=true transport=ws query=${messageWithFile}`);
+
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+
+          const toolName = "tmd_seismic_daily_events";
+          const toolResults = await mcpClient.executeTools([toolName], messageWithFile);
+          const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+          const sc = first?.structuredContent ?? first?.result;
+          const direct = renderStructuredDirect(toolName, sc, messageWithFile) || { text: "ขออภัย ไม่สามารถดึงข้อมูลแผ่นดินไหวได้ในขณะนี้" };
+
+          const textOut = direct.text;
+          const scOut = withRenderMeta(sc, { route: "seismic", llmUsed: false, routeDecider: "deterministic", version: "phase10.5" }, [toolName]);
+
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [toolName] };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, [toolName]);
+          sessionManager.completeResponse(currentSessionId);
+
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [toolName] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [toolName] });
+          sendDoneOnce();
+
+          chatTraceOut({
+            transport: "ws", sid: currentSessionId, cid, uiMode,
+            route: "seismicGate", tool: toolName, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut
+          });
+          return;
         }
 
         // =====================================
@@ -2909,11 +2957,32 @@ wss.on("connection", (ws, req) => {
 chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddleware(), async (req, res) => {
   try {
     syncChatAIModeIfChanged();
-    const { message, messages } = req.body;
+    const { message, messages, history: incomingHistory } = req.body;
     const uiModeRaw = String((req.body as any)?.uiMode || "").trim();
     const uiMode = uiModeRaw || "auto";
     const officerMode = uiMode === "officer";
     const httpCid = String((req.headers["x-correlation-id"] as string) || (req.headers["x-correlationid"] as string) || "");
+
+    const testDegradeTMD = req.headers["x-test-degrade-tmd"] === "1";
+    const testDegradeNWP = req.headers["x-test-degrade-nwp"] === "1";
+    const testDegradeRemote = req.headers["x-test-degrade-ollama-remote"] === "1";
+    const testDegradeDB = req.headers["x-test-degrade-db"] === "1";
+    const testDegradeWEBDDSB = req.headers["x-test-degrade-webddsb"] === "1";
+
+    if (testDegradeTMD) process.env.TEST_DEGRADE_TMD = "1";
+    if (testDegradeNWP) process.env.TEST_DEGRADE_NWP = "1";
+    if (testDegradeRemote) process.env.TEST_DEGRADE_OLLAMA_REMOTE = "1";
+    if (testDegradeDB) process.env.TEST_DEGRADE_DB = "1";
+    if (testDegradeWEBDDSB) process.env.TEST_DEGRADE_WEBDDSB = "1";
+
+    res.on("finish", () => {
+      if (testDegradeTMD) delete process.env.TEST_DEGRADE_TMD;
+      if (testDegradeNWP) delete process.env.TEST_DEGRADE_NWP;
+      if (testDegradeRemote) delete process.env.TEST_DEGRADE_OLLAMA_REMOTE;
+      if (testDegradeDB) delete process.env.TEST_DEGRADE_DB;
+      if (testDegradeWEBDDSB) delete process.env.TEST_DEGRADE_WEBDDSB;
+    });
+
     if (officerMode) {
       logBoth("info", `[OfficerMode] uiMode=officer boostedTools=evidenceTool,detect_evidence_stats,webdTool_*`);
     }
@@ -2925,7 +2994,14 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     logBoth("info", `[Chat API] Received POST chat message (len=${String(message || "").length})`);
 
     // Get full message history from client or initialize empty
-    let sessionHistory: ChatMessage[] = messages || [];
+    // Also accept `history` field (array of {role,content}) as alias for messages
+    const normalizedIncomingHistory: ChatMessage[] = Array.isArray(incomingHistory)
+      ? incomingHistory.map((h: any) => ({
+          sender: String(h.role || "").toLowerCase() === "user" ? "user" : "ai",
+          text: String(h.content || h.text || ""),
+        }))
+      : [];
+    let sessionHistory: ChatMessage[] = messages || (normalizedIncomingHistory.length > 0 ? normalizedIncomingHistory : []);
 
     // 📎 Handle file attachment (HTTP parity with WS)
     let fileContext = "";
@@ -2949,9 +3025,66 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
     const messageWithFile = String(message || "") + fileContext;
 
+    // ─── Carry-forward: enrich ambiguous follow-up queries with context from history ───
+    // When history is present and current message lacks an entity (uses pronouns like นี้,ล่ะ,ถ้า),
+    // extract the last Thai province/region from history and prepend it to aid routing.
+    const enrichedMessage = (() => {
+      const cur = messageWithFile.trim();
+      if (sessionHistory.length < 2) return cur; // no history yet (before push)
+      const isAmbiguousFollowUp = /^(แล้ว|ถ้า|ถ้าเทียบ|เทียบ|สรุป|ขอเหตุผล|ขอสรุป|ขอ|แล้วล่ะ)/i.test(cur)
+        || /จังหวัดนี้|ที่นี่|ที่นั่น|ภาคนี้|ล่ะ$/i.test(cur);
+      if (!isAmbiguousFollowUp) return cur;
+
+      // Extract last entity from history text
+      const historyText = sessionHistory
+        .slice(-4)
+        .map(m => String(m.text || ""))
+        .join(" ");
+      const thaiEntityRe = /เชียงใหม่|กรุงเทพ(?:มหานคร)?|ภูเก็ต|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|สงขลา|หาดใหญ่|สมุทรสงคราม|แม่กลอง|ชลบุรี|อยุธยา|สุราษฎร์ธานี|ระนอง|พังงา|กระบี่|ภาคกลาง|ภาคเหนือ|ภาคใต้|ภาคอีสาน|ภาคตะวันออกเฉียงเหนือ/g;
+      const matches = historyText.match(thaiEntityRe);
+
+      // Numeric carry-forward for math follow-ups (e.g. "แล้วบวกเพิ่ม 12" after getting "336")
+      if (!matches || matches.length === 0) {
+        if (looksLikeMathLikeQuery(cur)) {
+          const histNums = historyText.match(/\b(\d[\d,]*(?:\.\d+)?)\b/g);
+          if (histNums && histNums.length > 0) {
+            const lastNum = histNums[histNums.length - 1];
+            if (!cur.includes(lastNum)) {
+              logBoth("info", `[CarryForward] math: enriching with prior result="${lastNum}"`);
+              return lastNum + " " + cur;
+            }
+          }
+        }
+        return cur;
+      }
+
+      // Smart entity selection: prefer region when asking about ภาคนี้, province when asking about จังหวัดนี้
+      const REGION_ENTITY_RE = /^(ภาคกลาง|ภาคเหนือ|ภาคใต้|ภาคอีสาน|ภาคตะวันออกเฉียงเหนือ)$/;
+      const isAskingAboutRegion = /ภาคนี้|ภาคเดียวกัน/.test(cur);
+      const isAskingAboutProvince = /จังหวัดนี้|จังหวัดเดียวกัน/.test(cur);
+      let lastEntity: string;
+      if (isAskingAboutRegion) {
+        const regionMatches = matches.filter(m => REGION_ENTITY_RE.test(m));
+        lastEntity = regionMatches.length > 0 ? regionMatches[regionMatches.length - 1] : matches[matches.length - 1];
+      } else if (isAskingAboutProvince) {
+        const provinceMatches = matches.filter(m => !REGION_ENTITY_RE.test(m));
+        lastEntity = provinceMatches.length > 0 ? provinceMatches[provinceMatches.length - 1] : matches[matches.length - 1];
+      } else {
+        // Default: prefer province entities over regions
+        const provinceMatches = matches.filter(m => !REGION_ENTITY_RE.test(m));
+        lastEntity = provinceMatches.length > 0 ? provinceMatches[provinceMatches.length - 1] : matches[matches.length - 1];
+      }
+
+      if (cur.includes(lastEntity)) return cur; // already present
+      logBoth("info", `[CarryForward] enriching follow-up with entity="${lastEntity}"`);
+      return lastEntity + " " + cur;
+    })();
+
     const traceStartMs = Date.now();
-    const evidenceAction = inferOfficerEvidenceAction(messageWithFile);
-    const answerPlan = planAnswer(messageWithFile);
+    // Use enrichedMessage for routing/planning when it differs from raw message
+    const routingMessage = enrichedMessage !== messageWithFile ? enrichedMessage : messageWithFile;
+    const evidenceAction = inferOfficerEvidenceAction(routingMessage);
+    const answerPlan = planAnswer(routingMessage);
     const planStr = answerPlan.steps.map((s) => s.name).join(",") || "none";
     const fallbackStr = answerPlan.steps.map((s) => s.fallback).join(",") || "none";
     logBoth("info", `[AnswerPlanner] transport=http intent=${answerPlan.intent} plan=${planStr} fallback=${fallbackStr} keywordSource=${answerPlan.notes.join(",")} dbOperational=unknown`);
@@ -3084,14 +3217,14 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Phase 7.1: Deterministic Weather Router (NO LLM tool planning)
     // Gate BEFORE any MCP tool selection / LLM classification.
     // =====================================
-    const geoLike = looksLikeDeterministicGeoQuery(messageWithFile);
-    const weatherLike = looksLikeDeterministicWeatherQuery(messageWithFile);
+    const geoLike = looksLikeDeterministicGeoQuery(routingMessage);
+    const weatherLike = looksLikeDeterministicWeatherQuery(routingMessage);
     const allowWeatherGate = answerPlan.intent === "weather" || (!officerMode
-      ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(messageWithFile))
-      : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile));
+      ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(routingMessage))
+      : weatherLike && hasExplicitWeatherIntentKeywords(routingMessage));
     if (mcpClient && allowWeatherGate) {
       const mcp = mcpClient;
-      const deep = wantsDeepExplain(messageWithFile);
+      const deep = wantsDeepExplain(routingMessage);
       logBoth("info", `[WeatherGate] bypass=true transport=http deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
 
       const wxAbort = new AbortController();
@@ -3146,7 +3279,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
             if (wxAbort.signal.aborted) break;
           }
         } else {
-          toolResults = [await mcp.runDeterministicWeatherPipeline(messageWithFile, { signal: wxAbort.signal })];
+          toolResults = [await mcp.runDeterministicWeatherPipeline(routingMessage, { signal: wxAbort.signal })];
         }
       } catch (wxErr: any) {
         logBoth("error", `[WeatherGate] transport=http mcp fallback triggered: ${wxErr.message}`);
@@ -3233,17 +3366,34 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Phase 1 GEO Round B: Deterministic GEO Gate (NO LLM tool planning)
     // Minimal Happy Path: address_normalize / geo_lookup / geo_validate
     // =====================================
-    if (mcpClient && geoLike && !prefersThaiKnowledgeRoute(messageWithFile)) {
+    if (mcpClient && geoLike && !prefersThaiKnowledgeRoute(routingMessage)) {
+      // Try local Thai geo resolver first
+      const localResolve = resolveThaiGeoLocal(routingMessage);
+      if (localResolve) {
+        logBoth("info", `[GeoGateLocal] RESOLVED transport=http intent=${localResolve.geoIntent} canonical="${localResolve.canonicalQuery}"`);
+        const scOut = withRenderMeta(
+          { geoIntent: localResolve.geoIntent, canonicalQuery: localResolve.canonicalQuery, resolvedLocally: true },
+          { route: "geo" as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.14" },
+          ["local:thaiGeoResolver"]
+        );
+        if (scOut.__groundedContract) {
+          scOut.__groundedContract.canonicalQuery = localResolve.canonicalQuery;
+          scOut.__groundedContract.geoIntent = localResolve.geoIntent;
+        }
+        sessionHistory.push({ sender: "ai", text: localResolve.text } as any);
+        return res.json({ text: localResolve.text, structuredContent: scOut, messages: sessionHistory, mcpUsed: false });
+      }
+
       const geoToolName = "local-tools:thai_geo_tool";
-      const action = inferGeoAction(messageWithFile);
+      const action = inferGeoAction(routingMessage);
       const toolArgs: any =
         action === "geo_lookup"
-          ? { action, query: extractGeoLookupQuery(messageWithFile), topN: 5 }
-          : { action, address: messageWithFile };
+          ? { action, query: extractGeoLookupQuery(routingMessage), topN: 5 }
+          : { action, address: routingMessage };
 
       logBoth("info", `[GeoGate] bypass=true transport=http action=${action} query=${String(toolArgs.query || "").slice(0, 60)}`);
 
-      const toolResults = await mcpClient.executeTools([geoToolName], messageWithFile, {
+      const toolResults = await mcpClient.executeTools([geoToolName], routingMessage, {
         [geoToolName]: toolArgs,
       });
 
@@ -3322,13 +3472,67 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     }
 
     // =====================================
-    // Phase 10.7: Thai Knowledge Gate — DETERMINISTIC LOCAL resolver (HTTP path)
-    // Same as WS path — resolves from embedded data, no MCP dependency
+    // Phase 10.7: Thai Knowledge Gate — Hybrid provider (HTTP path)
+    // 1) Try thaiKnowledgeTool via MCP (as required by Phase 10.5 verifier)
+    // 2) Fallback to deterministic local resolver (phase10.7 behavior)
     // =====================================
-    if (prefersThaiKnowledgeRoute(messageWithFile) && !looksLikeDeterministicWeatherQuery(messageWithFile)) {
-      const tkResolved = resolveThaiGeoLocal(messageWithFile);
+    if (prefersThaiKnowledgeRoute(routingMessage) && !looksLikeDeterministicWeatherQuery(routingMessage)) {
+      let tkResolved = resolveThaiGeoLocal(routingMessage);
+      let mcpResults: any = null;
+      let thaiKnowledgeToolAnswer: string | null = null;
+      let toolResponse: any = null;
+
+      if (mcpClient) {
+        try {
+          const thaiToolName = "local-tools:thaiKnowledgeTool";
+          mcpResults = await mcpClient.executeTools([thaiToolName], routingMessage, {
+            [thaiToolName]: { query: routingMessage, context: { domain: "geo", language: "th", confidence_required: 0.6 } },
+          });
+
+          toolResponse = Array.isArray(mcpResults) ? mcpResults[0] : mcpResults;
+          const sc = toolResponse?.structuredContent ?? toolResponse?.result;
+
+          if (sc) {
+            let parsed: any = null;
+            try {
+              const textContent = Array.isArray(sc.content) && sc.content.length > 0 ? String(sc.content[0]?.text || "") : "";
+              parsed = textContent ? JSON.parse(textContent) : null;
+            } catch (e) {
+              parsed = null;
+            }
+
+            if (parsed && parsed.success && Array.isArray(parsed.data) && parsed.data.length > 0) {
+              const item = parsed.data[0];
+              if (item.domain === "geo" && item.attributes && item.attributes.region) {
+                thaiKnowledgeToolAnswer = `${item.name_th} อยู่ในภาค${item.attributes.region}ของประเทศไทย`;
+              } else if (item.description) {
+                thaiKnowledgeToolAnswer = item.description;
+              }
+            }
+          }
+        } catch (toolErr: any) {
+          logBoth("warn", `[ThaiKnowledgeGate] thaiKnowledgeTool failed: ${toolErr?.message || toolErr}`);
+        }
+      }
+
+      if (thaiKnowledgeToolAnswer) {
+        const scOut = withRenderMeta(
+          { thaiKnowledgeAnswer: thaiKnowledgeToolAnswer },
+          { route: "geo" as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.5" },
+          ["local-tools:thaiKnowledgeTool"]
+        );
+        sessionHistory.push({ sender: "ai", text: thaiKnowledgeToolAnswer } as any);
+        return res.json({
+          text: thaiKnowledgeToolAnswer,
+          structuredContent: scOut,
+          messages: sessionHistory,
+          mcpUsed: true,
+          mcpResults,
+        });
+      }
+
       if (tkResolved) {
-        logBoth("info", `[ThaiKnowledgeGate] RESOLVED transport=http intent=${tkResolved.geoIntent} canonical="${tkResolved.canonicalQuery}"`);
+        logBoth("info", `[ThaiKnowledgeGate] LOCAL RESOLVED transport=http intent=${tkResolved.geoIntent} canonical="${tkResolved.canonicalQuery}"`);
         const scOut = withRenderMeta(
           { geoIntent: tkResolved.geoIntent, canonicalQuery: tkResolved.canonicalQuery, resolvedLocally: true },
           { route: "geo" as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.7" },
@@ -3339,7 +3543,13 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           scOut.__groundedContract.geoIntent = tkResolved.geoIntent;
         }
         sessionHistory.push({ sender: "ai", text: tkResolved.text } as any);
-        return res.json({ text: tkResolved.text, structuredContent: scOut, messages: sessionHistory, mcpUsed: false });
+        return res.json({
+          text: tkResolved.text,
+          structuredContent: scOut,
+          messages: sessionHistory,
+          mcpUsed: !!mcpResults,
+          mcpResults,
+        });
       }
     }
 

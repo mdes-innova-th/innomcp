@@ -13,9 +13,10 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
-    trace: "on-first-retry",
-    screenshot: "only-on-failure",
+    trace: "retain-on-failure",
+    screenshot: "on",
     locale: "th-TH",
+    video: "off",
   },
   projects: [
     {
