@@ -248,7 +248,11 @@ export class GodTierRouter {
   constructor() {
     // Dual Ollama clients (local + remote)
     this.ollama = new Ollama({ host: CONFIG.OLLAMA_HOST });
-    this.ollamaRemote = new Ollama({ host: CONFIG.OLLAMA_REMOTE });
+    const remoteToken = process.env.REMOTE_OLLAMA_TOKEN;
+    this.ollamaRemote = new Ollama({
+      host: CONFIG.OLLAMA_REMOTE,
+      ...(remoteToken ? { headers: { Authorization: `Bearer ${remoteToken}` } } : {}),
+    });
     
     // LRU Cache สำหรับ routing results
     this.cache = new LRUCache({

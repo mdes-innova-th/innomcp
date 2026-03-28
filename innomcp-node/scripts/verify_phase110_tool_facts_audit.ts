@@ -65,7 +65,7 @@ function chatPost(message: string): Promise<AuditResp> {
           "X-Smoke-Run": "1",
           "X-Audit-Mode": "1", // hint server to include extra audit fields
         },
-        timeout: 30000,
+        timeout: 60000,
       },
       (res) => {
         const chunks: Buffer[] = [];

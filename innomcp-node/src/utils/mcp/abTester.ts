@@ -105,7 +105,11 @@ export class ABTester {
   
   constructor() {
     this.ollamaLocal = new Ollama({ host: CONFIG.OLLAMA_LOCAL });
-    this.ollamaRemote = new Ollama({ host: CONFIG.OLLAMA_REMOTE });
+    const remoteToken = process.env.REMOTE_OLLAMA_TOKEN;
+    this.ollamaRemote = new Ollama({
+      host: CONFIG.OLLAMA_REMOTE,
+      ...(remoteToken ? { headers: { Authorization: `Bearer ${remoteToken}` } } : {}),
+    });
     logBoth('info', '[ABTester] 🧪 A/B Testing System initialized');
   }
   

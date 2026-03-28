@@ -86,10 +86,14 @@ if (AI_MODE === 'remote' || AI_MODE === 'hybrid') {
       remoteOllamaHostUrl = remoteRawHost.replace(/\/$/, "");
     }
     
-    remoteOllama = new Ollama({ host: remoteOllamaHostUrl });
+    const remoteToken = process.env.REMOTE_OLLAMA_TOKEN;
+    remoteOllama = new Ollama({
+      host: remoteOllamaHostUrl,
+      ...(remoteToken ? { headers: { Authorization: `Bearer ${remoteToken}` } } : {}),
+    });
     remoteModel = process.env.REMOTE_OLLAMA_MODEL || localModel;  // gemma3:4b
-    remoteFastModel = process.env.FAST_OLLAMA_MODEL || fastModel;  // qwen2.5:0.5b
-    logBoth("info", `🎯 Remote AI: ${remoteOllamaHostUrl}`);
+    remoteFastModel = process.env.REMOTE_FAST_OLLAMA_MODEL || process.env.REMOTE_OLLAMA_MODEL || fastModel;
+    logBoth("info", `🎯 Remote AI: ${remoteOllamaHostUrl}${remoteToken ? ' (auth ✓)' : ''}`);
     logBoth("info", `  📦 Primary: ${remoteModel} | ⚡ Fast: ${remoteFastModel}`);
   } else {
     logBoth("warn", `⚠️  ${AI_MODE} mode selected but REMOTE_OLLAMA_BASE_URL not configured`);
@@ -322,9 +326,10 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
 // =====================================
 
 function getGeneralBudgetMs(): number {
+  const maxBudget = (AI_MODE === 'remote' || AI_MODE === 'hybrid') ? 60000 : 30000;
   const raw = Number(process.env.GENERAL_LLM_BUDGET_MS || "5000");
   if (!Number.isFinite(raw)) return 5000;
-  return Math.min(Math.max(Math.floor(raw), 250), 30000);
+  return Math.min(Math.max(Math.floor(raw), 250), maxBudget);
 }
 
 function looksLikeEvidenceKeywordQuery(text: string): boolean {
@@ -1175,10 +1180,14 @@ export function updateChatAIMode() {
         remoteOllamaHostUrl = remoteRawHost.replace(/\/$/, "");
       }
       
-      remoteOllama = new Ollama({ host: remoteOllamaHostUrl });
+      const remoteToken = process.env.REMOTE_OLLAMA_TOKEN;
+      remoteOllama = new Ollama({
+        host: remoteOllamaHostUrl,
+        ...(remoteToken ? { headers: { Authorization: `Bearer ${remoteToken}` } } : {}),
+      });
       remoteModel = process.env.REMOTE_OLLAMA_MODEL || localModel;
-      remoteFastModel = process.env.FAST_OLLAMA_MODEL || fastModel;
-      logBoth('info', `[Chat AI] 🌐 Initializing Remote Ollama: ${remoteOllamaHostUrl}`);
+      remoteFastModel = process.env.REMOTE_FAST_OLLAMA_MODEL || process.env.REMOTE_OLLAMA_MODEL || fastModel;
+      logBoth('info', `[Chat AI] 🌐 Initializing Remote Ollama: ${remoteOllamaHostUrl}${remoteToken ? ' (auth ✓)' : ''}`);
       logBoth('info', `[Chat AI] 📦 Primary Model: ${remoteModel}`);
       logBoth('info', `[Chat AI] ⚡ Fast Model: ${remoteFastModel}`);
       logBoth("info", `🎯 Remote AI initialized: ${remoteOllamaHostUrl} (${remoteModel})`);
@@ -1513,7 +1522,8 @@ function chatTraceOut(params: {
     | "ollamaError"
     | "worldbank"
     | "nasa"
-    | "qr";
+    | "qr"
+    | "calculator";
   tool?: string;
   code: number;
   durMs: number;
@@ -3606,6 +3616,62 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           logBoth("error", `[APIToolGate] HTTP ${apiToolMatch.gate} failed: ${apiErr.message}`);
           // Fall through to GeneralGate
         }
+      }
+    }
+
+    // =====================================
+    // Phase 11.1: CalculatorGate — Deterministic math eval (NO LLM)
+    // Handles "คำนวณ 365 × 24", "2+2", "123 * 456" etc.
+    // =====================================
+    if (looksLikeMathLikeQuery(messageWithFile)) {
+      try {
+        // Strip Thai math keywords, normalize Unicode operators
+        const expr = messageWithFile
+          .replace(/(คำนวณ|calculate|compute|คิดเลข|เท่าไร|เท่าไหร่|ผลลัพธ์|ผลคือ|result|equals)/gi, "")
+          .replace(/×/g, "*")
+          .replace(/÷/g, "/")
+          .replace(/[^\d+\-*/().^%\s,eE]/g, "")
+          .trim();
+
+        if (expr && /\d/.test(expr)) {
+          const { evaluate } = require("mathjs");
+          const result = evaluate(expr);
+
+          if (typeof result === "number" || (result && typeof result.toString === "function")) {
+            const textOut = `ผลลัพธ์: ${messageWithFile.replace(/(คำนวณ|calculate)/gi, "").trim()} = ${result}`;
+            const scOut = withRenderMeta(
+              { calculatorGate: { expression: expr, result: String(result) } },
+              { route: "calculator" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.1" },
+              ["calculatorTool"]
+            );
+            sessionHistory.push({ sender: "ai", text: textOut } as any);
+
+            chatTraceOut({
+              transport: "http",
+              sid: httpSessionId,
+              cid: httpCid,
+              uiMode,
+              route: "calculator",
+              tool: "calculatorTool",
+              code: 200,
+              durMs: Date.now() - traceStartMs,
+              q: messageWithFile,
+              ans: textOut,
+            });
+
+            return res.json({
+              text: textOut,
+              structuredContent: scOut,
+              messages: sessionHistory,
+              mcpUsed: false,
+              mcpResults: null,
+              toolsUsed: ["calculatorTool"],
+            });
+          }
+        }
+      } catch (calcErr: any) {
+        logBoth("warn", `[CalculatorGate] eval failed: ${calcErr?.message || calcErr}`);
+        // Fall through to MCP
       }
     }
 
