@@ -839,7 +839,7 @@ function withRenderMeta(structuredContent: any, meta: { route: string; llmUsed: 
     mode: "online",
     route: meta.route,
     toolsUsed: resolvedTools.map((t) => ({ name: t })),
-    reason_code: existingChatMeta.reason_code || (meta.route.toUpperCase() + "_GATE"),
+    reason_code: existingChatMeta.reason_code || (resolvedTools.length > 0 ? "TOOL_OK" : (meta.route.toUpperCase() + "_GATE")),
   };
   // Grounded Answer Contract: debug metadata for provenance tracking
   const groundedContract = {
@@ -3699,7 +3699,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           ? { text: renderGeneralSmokeAnswer(messageWithFile), fallback: false, reason: "SMOKE_DETERMINISTIC", durMs: 0, model: String(ollamaFastModel || "") }
           : await answerGeneralWithFastModel(messageWithFile, budgetMs);
 
-      const sc = {
+      const sc: any = {
         generalGate: {
           route: "general",
           usedTools: false,
@@ -3711,6 +3711,18 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           totalDurMs: Date.now() - generalStart,
         },
       };
+
+      // Phase 10.7: Low-confidence queries get explicit chatMeta for frontend guidance
+      if (result.text === LOW_CONFIDENCE_FALLBACK_TEXT) {
+        sc.chatMeta = {
+          reason_code: "LOW_CONTEXT",
+          userGuidance: [
+            "ระบุจังหวัดหรือพื้นที่",
+            "ระบุหัวข้อที่ต้องการ เช่น สภาพอากาศ หลักฐาน ข้อมูลภูมิศาสตร์",
+            "ใช้ภาษาไทยเพื่อผลลัพธ์ที่แม่นยำขึ้น",
+          ],
+        };
+      }
 
       const scOut = withRenderMeta(sc, { route: "general", llmUsed: !isSmokeRun, routeDecider: "deterministic", version: "phase8" });
 
