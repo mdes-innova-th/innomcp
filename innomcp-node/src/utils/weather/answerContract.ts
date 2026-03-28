@@ -74,7 +74,15 @@ function parseDayOffset(text: string): number {
   return 0;
 }
 
+function isWeekMode(userText: string): boolean {
+  const t = String(userText || "");
+  return /7\s*วัน|๗\s*วัน|สัปดาห์|อาทิตย์นี้|อาทิตย์หน้า|weekly|week/i.test(t);
+}
+
 function timeWindowLabel(userText: string): { label: string; date: string; offset: number } {
+  if (isWeekMode(userText)) {
+    return { label: "พยากรณ์ 7 วัน", date: bkkDateStr(0), offset: 0 };
+  }
   const offset = parseDayOffset(userText);
   const label = offset === 0 ? "วันนี้" : offset === 1 ? "พรุ่งนี้" : offset === 2 ? "มะรืน" : `อีก ${offset} วัน`;
   return { label, date: bkkDateStr(offset), offset };
@@ -258,6 +266,113 @@ function renderErrorOnlyProvince(province: string, items: WeatherResult[]): stri
   return lines.join("\n");
 }
 
+// ─── Weekly (7-day) Rendering ───
+
+function formatDateThai(dateStr: string): string {
+  // Input: "DD/MM/YYYY" → "วัน DD/MM"
+  const parts = dateStr.split("/");
+  if (parts.length < 3) return dateStr;
+  const [dd, mm] = parts;
+  const dayNames = ["อาทิตย์", "จันทร์", "อังคาร", "พุธ", "พฤหัส", "ศุกร์", "เสาร์"];
+  const y = parseInt(parts[2], 10);
+  const m = parseInt(mm, 10) - 1;
+  const d = parseInt(dd, 10);
+  const dateObj = new Date(y, m, d);
+  const dayName = dayNames[dateObj.getDay()] || "";
+  return `${dayName} ${dd}/${mm}`;
+}
+
+function renderWeeklyProvince(userText: string, province: string, items: WeatherResult[]): string {
+  const shaped = shapeWeatherResults(items, 10);
+
+  if (!shaped.some((r) => r && r.type !== "error")) {
+    return renderErrorOnlyProvince(province, shaped);
+  }
+
+  const forecast = shaped.find((r) => r.type === "forecast7d" && r.data && typeof r.data === "object");
+  const forecastBlock = forecast?.data?.forecast;
+  const forecastTime = firstNonEmptyString(forecast?.data?.lastBuildDate, forecastBlock?.LastBuildDate);
+
+  if (!forecastBlock || !Array.isArray(forecastBlock.ForecastDate) || forecastBlock.ForecastDate.length === 0) {
+    // No multi-day data available, fall back to single-day render
+    return renderOneProvince(userText, province, items);
+  }
+
+  const dates: string[] = forecastBlock.ForecastDate;
+  const rainPcts: string[] = forecastBlock.PercentRainCover || [];
+  const maxTemps: string[] = forecastBlock.MaximumTemperature || [];
+  const minTemps: string[] = forecastBlock.MinimumTemperature || [];
+  const descs: string[] = forecastBlock.DescriptionThai || [];
+  const windSpeeds: string[] = forecastBlock.WindSpeed || [];
+  const windDirs: string[] = forecastBlock.WindDirection || [];
+
+  // Sort indices by date ascending (TMD returns future-first)
+  const indices = Array.from({ length: dates.length }, (_, i) => i);
+  indices.sort((a, b) => {
+    const toIso = (d: string) => {
+      const p = d.split("/");
+      return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : d;
+    };
+    return toIso(dates[a]).localeCompare(toIso(dates[b]));
+  });
+
+  const lines: string[] = [];
+  lines.push(`พื้นที่: ${areaLabelForProvince(userText, province)}`);
+  if (forecastTime) lines.push(`เวลาอัปเดตข้อมูล: ${forecastTime}`);
+  lines.push("");
+
+  // Detect which query focus: rain question?
+  const isRainQuestion = /ฝน|rain/i.test(userText || "");
+
+  let rainyDays = 0;
+  let clearDays = 0;
+
+  for (const i of indices) {
+    const dateLabel = formatDateThai(dates[i]);
+    const rain = toNumberOrNull(rainPcts[i]);
+    const tempRange = fmtTempRange(minTemps[i], maxTemps[i]);
+    const desc = descs[i] || "";
+    const windSpd = toNumberOrNull(windSpeeds[i]);
+    const windDir = windDirLabel(windDirs[i] || "");
+    const windText = fmtWind(windSpd, windDir);
+
+    const rainIcon = rain !== null ? (rain >= 60 ? "🌧️" : rain >= 30 ? "🌦️" : rain > 0 ? "⛅" : "☀️") : "❓";
+    const rainText = rain !== null ? `${rain}%` : "—";
+
+    if (rain !== null && rain >= 30) rainyDays++;
+    if (rain !== null && rain < 10) clearDays++;
+
+    lines.push(`${rainIcon} ${dateLabel}: ฝน ${rainText} | ${tempRange} | ${desc}${windText ? ` | ลม ${windText}` : ""}`);
+  }
+
+  lines.push("");
+
+  // Summary answering the user's question
+  if (isRainQuestion) {
+    const rainyDaysList = indices
+      .filter((i) => {
+        const r = toNumberOrNull(rainPcts[i]);
+        return r !== null && r >= 30;
+      })
+      .map((i) => formatDateThai(dates[i]));
+
+    if (rainyDaysList.length > 0) {
+      lines.push(`📋 สรุป: วันที่มีโอกาสฝนตก (≥30%): ${rainyDaysList.join(", ")}`);
+    } else {
+      lines.push(`📋 สรุป: สัปดาห์นี้โอกาสฝนตกน้อยทุกวัน`);
+    }
+  } else {
+    lines.push(`📋 สรุป: วันที่ฝนตกได้ ${rainyDays} วัน, แดดดี ${clearDays} วัน จาก ${indices.length} วัน`);
+  }
+
+  const districtHints = districtHintsForProvince(province);
+  if (districtHints.length > 0) {
+    lines.push(`อำเภอที่ควรติดตาม: ${districtHints.join(", ")}`);
+  }
+
+  return lines.join("\n");
+}
+
 function renderOneProvince(userText: string, province: string, items: WeatherResult[]): string {
   const shaped = shapeWeatherResults(items, 10);
 
@@ -410,6 +525,11 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
 
   const tw = timeWindowLabel(userText);
   const header = `ช่วงเวลา: ${tw.label} (${tw.date})`;
-  const blocks = provinces.map((p) => renderOneProvince(userText, p, grouped.get(p) || []));
+  const weekMode = isWeekMode(userText);
+  const blocks = provinces.map((p) =>
+    weekMode
+      ? renderWeeklyProvince(userText, p, grouped.get(p) || [])
+      : renderOneProvince(userText, p, grouped.get(p) || [])
+  );
   return { text: [header, ...blocks].join("\n\n"), structuredContent };
 }
