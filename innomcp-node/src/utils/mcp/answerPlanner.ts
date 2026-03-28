@@ -18,7 +18,7 @@ function hasWeatherIntent(text: string): boolean {
 }
 
 function hasEvidenceIntent(text: string): boolean {
-  return /(หลักฐาน|พยาน|คดี|custody|chain\s+of\s+custody|forensic|evidence|สถิติ|กราฟ|ตาราง|\bISP\b|traffic|detect)/i.test(text);
+  return /(หลักฐาน|พยาน|คดี|custody|chain\s+of\s+custody|forensic|evidence|สถิติ|กราฟ|\bISP\b|traffic|detect)/i.test(text);
 }
 
 function hasWebRecordIntent(text: string): boolean {

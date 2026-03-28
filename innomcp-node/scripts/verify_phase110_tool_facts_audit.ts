@@ -30,6 +30,7 @@ import path from "path";
 
 const CHAT_PORT = Number(process.env.CHAT_PORT || process.env.PORT || 3011);
 const INNOMCP_MODE = process.env.INNOMCP_MODE || "online";
+const AUTH_TOKEN = process.env.TEST_AUTH_TOKEN || "";
 const EVIDENCE_DIR = path.resolve(__dirname, "../evidence");
 if (!fs.existsSync(EVIDENCE_DIR)) fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
 
@@ -53,9 +54,10 @@ interface AuditResp {
 function chatPost(message: string): Promise<AuditResp> {
   const payload = Buffer.from(JSON.stringify({ message }));
   return new Promise((resolve, reject) => {
+    let settled = false;
     const req = http.request(
       {
-        host: "localhost",
+        host: "127.0.0.1",
         port: CHAT_PORT,
         path: "/api/chat",
         method: "POST",
@@ -63,7 +65,8 @@ function chatPost(message: string): Promise<AuditResp> {
           "Content-Type": "application/json",
           "Content-Length": String(payload.length),
           "X-Smoke-Run": "1",
-          "X-Audit-Mode": "1", // hint server to include extra audit fields
+          "X-Audit-Mode": "1",
+          ...(AUTH_TOKEN ? { "Authorization": `Bearer ${AUTH_TOKEN}` } : {}),
         },
         timeout: 60000,
       },
@@ -89,6 +92,7 @@ function chatPost(message: string): Promise<AuditResp> {
             grounded_by: chatMeta.grounded_by,
           };
 
+          settled = true;
           resolve({
             status: res.statusCode || 0,
             text: String(json?.text || json?.answer || json?.message || ""),
@@ -103,8 +107,16 @@ function chatPost(message: string): Promise<AuditResp> {
         });
       }
     );
-    req.on("error", reject);
-    req.on("timeout", () => reject(new Error("TIMEOUT")));
+    req.on("error", (err) => {
+      if (settled) return;
+      settled = true;
+      reject(err instanceof Error ? err : new Error(String(err || "HTTP_REQUEST_ERROR")));
+    });
+    req.on("timeout", () => {
+      if (settled) return;
+      settled = true;
+      req.destroy(new Error("TIMEOUT"));
+    });
     req.write(payload);
     req.end();
   });
@@ -259,8 +271,8 @@ async function main() {
     try {
       resp = await chatPost(domain.sampleQuery);
     } catch (err: any) {
-      errorMsg = err.message;
-      log(`  ERROR: ${err.message}`);
+      errorMsg = err?.message || String(err || "UNKNOWN_ERROR");
+      log(`  ERROR: ${errorMsg}`);
       records.push({
         domain: domain.id,
         name: domain.name,

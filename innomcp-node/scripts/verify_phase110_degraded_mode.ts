@@ -27,6 +27,7 @@ import fs from "fs";
 import path from "path";
 
 const CHAT_PORT = Number(process.env.CHAT_PORT || process.env.PORT || 3011);
+const AUTH_TOKEN = process.env.TEST_AUTH_TOKEN || "";
 const EVIDENCE_DIR = path.resolve(__dirname, "../evidence");
 if (!fs.existsSync(EVIDENCE_DIR)) fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
 
@@ -54,6 +55,7 @@ function chatPost(message: string, headers: Record<string, string> = {}): Promis
           "Content-Type": "application/json",
           "Content-Length": String(payload.length),
           "X-Smoke-Run": "1",
+          ...(AUTH_TOKEN ? { "Authorization": `Bearer ${AUTH_TOKEN}` } : {}),
           ...headers,
         },
         timeout: 30000,

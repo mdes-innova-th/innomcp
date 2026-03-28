@@ -565,7 +565,7 @@ test.describe("SEISMIC", () => {
     await navigateToChat(page);
     const text = await runCase(page, "SQ1", "รายงาน tmd seismic แผ่นดินไหวล่าสุด", WEATHER_TIMEOUT_MS);
 
-    await assertToolUsed(page, "SQ1", "weatherpipeline");
+    await assertToolUsed(page, "SQ1", "tmd_seismic_daily_events");
     await assertNoPlaceholderMap(page, "SQ1");
     // Should mention magnitude or richter or ริกเตอร์
     expect(text.length, "SQ1 should have seismic data").toBeGreaterThan(10);
@@ -575,7 +575,7 @@ test.describe("SEISMIC", () => {
     await navigateToChat(page);
     const text = await runCase(page, "SQ2", "รายงาน tmd seismic แผ่นดินไหว 30 วันล่าสุด", WEATHER_TIMEOUT_MS);
 
-    await assertToolUsed(page, "SQ2", "weatherpipeline");
+    await assertToolUsed(page, "SQ2", "tmd_seismic_daily_events");
     await assertNoPlaceholderMap(page, "SQ2");
     expect(text.length, "SQ2 should have event list").toBeGreaterThan(10);
   });

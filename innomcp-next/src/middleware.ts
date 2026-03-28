@@ -71,7 +71,7 @@ export async function middleware(request: NextRequest) {
     `style-src-elem ${styleSrcElem.join(" ")}`,
     "img-src 'self' data: https://innomcp.dataxo.info http://localhost:3001 http://127.0.0.1:3001 blob:",
     "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com",
-    "connect-src 'self' https://innomcp.dataxo.info wss://innomcp.dataxo.info http://localhost:3000 ws://localhost:3000 http://127.0.0.1:3000 ws://127.0.0.1:3000 http://localhost:3011 ws://localhost:3011 http://127.0.0.1:3011 ws://127.0.0.1:3011 http://innomcp-node:3010 ws://innomcp-node:3010 blob:",
+    "connect-src 'self' https://innomcp.dataxo.info wss://innomcp.dataxo.info http://localhost:3000 ws://localhost:3000 http://127.0.0.1:3000 ws://127.0.0.1:3000 http://localhost:3011 ws://localhost:3011 http://127.0.0.1:3011 ws://127.0.0.1:3011 http://localhost:3111 ws://localhost:3111 http://127.0.0.1:3111 ws://127.0.0.1:3111 http://innomcp-node:3010 ws://innomcp-node:3010 blob:",
     "object-src blob:",
     "media-src 'self' blob:",
     "child-src 'none'",

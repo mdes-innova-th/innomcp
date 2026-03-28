@@ -8,18 +8,42 @@ export async function GET() {
     "http://localhost:3011"
   ).replace(/\/$/, "");
   try {
-    const res = await fetch(`${backendUrl}/api/health/keys`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(4000),
+    const [healthRes, aiModeRes] = await Promise.all([
+      fetch(`${backendUrl}/api/health`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(4000),
+      }),
+      fetch(`${backendUrl}/api/ai-mode`, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(4000),
+      }).catch(() => null),
+    ]);
+
+    const healthData = await healthRes.json().catch(() => ({ status: "error" }));
+    const aiModeData = aiModeRes && aiModeRes.ok ? await aiModeRes.json() : null;
+    const normalizedStatus = String(healthData?.status || "error").toLowerCase();
+    const mode = normalizedStatus === "healthy" ? "online" : "offline";
+    const modeReady = normalizedStatus === "healthy" || normalizedStatus === "degraded";
+    const mcpStatus = Array.isArray(healthData?.services)
+      ? healthData.services.some((service: { name?: string; status?: string }) => {
+          const serviceName = String(service?.name || "").toLowerCase();
+          return serviceName.includes("mcp") && String(service?.status || "").toLowerCase() === "healthy";
+        })
+        ? "connected"
+        : "unknown"
+      : "unknown";
+
+    return NextResponse.json({
+      status: normalizedStatus,
+      service: "innomcp-next",
+      mode,
+      mode_ready: modeReady,
+      ai_mode: aiModeData?.mode,
+      mcp_status: mcpStatus,
+      services: healthData?.services,
+      timestamp: healthData?.timestamp,
+      uptime: healthData?.uptime,
     });
-    if (!res.ok) {
-      return NextResponse.json(
-        { status: "error", service: "innomcp-next", reason: `backend returned ${res.status}` },
-        { status: 502 }
-      );
-    }
-    const data = await res.json();
-    return NextResponse.json({ status: "ok", service: "innomcp-next", ...data });
   } catch {
     return NextResponse.json(
       { status: "degraded", service: "innomcp-next", mode: "offline", mode_ready: false, notes: ["backend unreachable"] },

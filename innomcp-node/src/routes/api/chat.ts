@@ -244,7 +244,7 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
   // Core weather words
   // NOTE: do NOT match "ลม" as a bare substring (e.g. "ถนนสีลม" should not be treated as weather)
   const hasWind = /(?:^|\s)ลม(?:\s|$)|ลมแรง|ความเร็วลม|ทิศทางลม|wind\b/i.test(t);
-  const hasWeatherCore = /ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|พายุ|weather|forecast|temperature|humidity|tmd|อุตุ|nwp|ร้อน|หนาว|แล้ง|หมอก|แผ่นดินไหว|seismic|earthquake|ริกเตอร์|เตือนภัย|ประกาศเตือน/i.test(t) || hasWind;
+  const hasWeatherCore = /ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|พายุ|weather|forecast|temperature|humidity|tmd|อุตุ|nwp|ร้อน|หนาว|แล้ง|หมอก|แผ่นดินไหว|seismic|earthquake|ริกเตอร์|เตือนภัย|ประกาศเตือน|รังสีดวงอาทิตย์|แสงอาทิตย์|แสงแดด|solar|uv/i.test(t) || hasWind;
 
   // Weather-specific patterns that often omit the word "อากาศ"
   const hasWeatherSpecific = /รายชั่วโมง|รายวัน|ตารางสถานี|สถานีอากาศ|รายสถานี|พยากรณ์\s*7\s*วัน|7\s*วัน|สัปดาห์/i.test(t);
@@ -267,7 +267,206 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
 }
 
 function hasExplicitWeatherIntentKeywords(text: string): boolean {
-  return /(อากาศ|พยากรณ์|ฝน|อุณหภูมิ|ลม|เรดาร์|weather|forecast|temperature|rain|storm|wind|อุตุ|NWP|nwp|แผ่นดินไหว|seismic|ริกเตอร์|earthquake|เตือนภัย|ประกาศเตือน|สถานีอุตุ)/i.test(String(text || ""));
+  return /(อากาศ|พยากรณ์|ฝน|อุณหภูมิ|ลม|เรดาร์|weather|forecast|temperature|rain|storm|wind|อุตุ|NWP|nwp|แผ่นดินไหว|seismic|ริกเตอร์|earthquake|เตือนภัย|ประกาศเตือน|สถานีอุตุ|รังสีดวงอาทิตย์|แสงอาทิตย์|แสงแดด|solar|uv)/i.test(String(text || ""));
+}
+
+const CARRY_FORWARD_ENTITY_RE = /เชียงใหม่|กรุงเทพ(?:มหานคร)?|ภูเก็ต|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|สงขลา|หาดใหญ่|สมุทรสงคราม|แม่กลอง|ชลบุรี|อยุธยา|สุราษฎร์ธานี|ระนอง|พังงา|กระบี่|ภาคกลาง|ภาคเหนือ|ภาคใต้|ภาคอีสาน|ภาคตะวันออกเฉียงเหนือ/g;
+const CARRY_FORWARD_LOCATION_RE = /เชียงใหม่|กรุงเทพ(?:มหานคร)?|ภูเก็ต|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|สงขลา|หาดใหญ่|สมุทรสงคราม|แม่กลอง|ชลบุรี|อยุธยา|สุราษฎร์ธานี|ระนอง|พังงา|กระบี่/;
+const CARRY_FORWARD_REGION_RE = /^(ภาคกลาง|ภาคเหนือ|ภาคใต้|ภาคอีสาน|ภาคตะวันออกเฉียงเหนือ)$/;
+
+function normalizeCarryForwardEntity(entity: string): string {
+  return entity === "กรุงเทพมหานคร" ? "กรุงเทพ" : entity;
+}
+
+function extractLastDistinctCarryEntities(text: string, mode: "province" | "region" | "all" = "all", limit = 3): string[] {
+  const matches = String(text || "").match(CARRY_FORWARD_ENTITY_RE) || [];
+  const out: string[] = [];
+
+  for (let i = matches.length - 1; i >= 0; i--) {
+    const entity = normalizeCarryForwardEntity(matches[i]);
+    const isRegion = CARRY_FORWARD_REGION_RE.test(entity);
+    if (mode === "province" && isRegion) continue;
+    if (mode === "region" && !isRegion) continue;
+    if (!out.includes(entity)) out.push(entity);
+    if (out.length >= limit) break;
+  }
+
+  return out;
+}
+
+function extractExplicitCarryLocation(text: string): string | undefined {
+  const match = String(text || "").match(CARRY_FORWARD_LOCATION_RE);
+  return match?.[0] ? normalizeCarryForwardEntity(match[0]) : undefined;
+}
+
+function extractLastHistoryNumber(text: string): string | undefined {
+  const nums = String(text || "").match(/\b(\d[\d,]*(?:\.\d+)?)\b/g);
+  return nums && nums.length > 0 ? nums[nums.length - 1] : undefined;
+}
+
+function buildHistoryAwareFollowUpQuery(currentText: string, sessionHistory: ChatMessage[]): string {
+  const cur = String(currentText || "").trim();
+  if (sessionHistory.length < 2) return cur;
+
+  const isAmbiguousFollowUp = /^(แล้ว|ถ้า|ถ้าเทียบ|เทียบ|สรุป|ขอเหตุผล|ขอสรุป|ขอ|แล้วล่ะ|แปลงเป็นข้อความ|จังหวัดไหนเด่น|สรุปต่างจาก)/i.test(cur)
+    || /จังหวัดนี้|ที่นี่|ที่นั่น|ภาคนี้|ล่ะ$|อ่านว่า|เขียนเป็นคำ/i.test(cur);
+  if (!isAmbiguousFollowUp) return cur;
+
+  const historyText = sessionHistory
+    .slice(-6)
+    .map((m) => String(m.text || ""))
+    .join(" ");
+
+  const recentProvinces = extractLastDistinctCarryEntities(historyText, "province", 3);
+  const recentRegions = extractLastDistinctCarryEntities(historyText, "region", 2);
+  const lastProvince = recentProvinces[0];
+  const previousProvince = recentProvinces[1];
+  const lastRegion = recentRegions[0];
+  const explicitLocation = extractExplicitCarryLocation(cur);
+  const recentWeatherContext = /(ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|ลม|weather|forecast|temperature|humidity|แนวโน้มฝน|น้ำเสี่ยง|น้ำท่วม|ระดับน้ำ)/i.test(historyText);
+
+  if (/(machine\s*learning|\bML\b)/i.test(historyText)) {
+    if (/(พยากรณ์อากาศ|weather)/i.test(cur)) {
+      return "Machine learning ใช้กับพยากรณ์อากาศอย่างไร";
+    }
+    if (/(rule-?based|rule based|กฎตายตัว|ต่างจาก)/i.test(cur)) {
+      return "Machine learning ต่างจาก rule-based อย่างไร";
+    }
+  }
+
+  if (recentWeatherContext) {
+    if (/สรุปเป็นตาราง/i.test(cur) && lastProvince && previousProvince) {
+      return `อากาศ${previousProvince}เทียบกับ${lastProvince}เป็นตาราง`;
+    }
+
+    if (/(เทียบ|เปรียบเทียบ)/i.test(cur) && lastProvince) {
+      const compareTarget = explicitLocation || previousProvince;
+      if (compareTarget && compareTarget !== lastProvince) {
+        return `เปรียบเทียบอากาศ${lastProvince}กับ${compareTarget}`;
+      }
+    }
+
+    if (/พรุ่งนี้/i.test(cur) && lastProvince && !hasExplicitWeatherIntentKeywords(cur)) {
+      return `${lastProvince} พรุ่งนี้ฝนตกไหม`;
+    }
+
+    if (/สัปดาห์หน้า|7\s*วัน|รายสัปดาห์/i.test(cur) && lastProvince && !hasExplicitWeatherIntentKeywords(cur)) {
+      return `${lastProvince} แนวโน้มฝน${cur}`;
+    }
+
+    if (/สรุปสั้น|ขอสรุป|ขอเหตุผลแบบสั้น|ขอเหตุผล|สรุป/i.test(cur) && lastProvince) {
+      if (/น้ำเสี่ยง|น้ำท่วม|ระดับน้ำ/i.test(historyText)) {
+        return `${lastProvince} น้ำเสี่ยงสูงไหม ขอเหตุผลแบบสั้น`;
+      }
+      if (previousProvince && /(เทียบ|เปรียบเทียบ)/i.test(historyText)) {
+        return `สรุปอากาศ${previousProvince}เทียบกับ${lastProvince}แบบสั้น`;
+      }
+      return `${lastProvince} พรุ่งนี้ฝนตกไหม สรุปสั้น`;
+    }
+  }
+
+  const lastNumber = extractLastHistoryNumber(historyText);
+  if (lastNumber && /(แปลงเป็นข้อความ|อ่านว่า|เขียนเป็นคำ)/i.test(cur) && !cur.includes(lastNumber)) {
+    return `${lastNumber} ${cur}`;
+  }
+
+  if (/จังหวัดไหนเด่นด้านท่องเที่ยว/i.test(cur) && lastRegion) {
+    return `${lastRegion} จังหวัดไหนเด่นด้านท่องเที่ยว`;
+  }
+
+  if (!lastProvince && !lastRegion) {
+    if (lastNumber && looksLikeMathLikeQuery(cur) && !cur.includes(lastNumber)) {
+      return `${lastNumber} ${cur}`;
+    }
+    return cur;
+  }
+
+  const isAskingAboutRegion = /ภาคนี้|ภาคเดียวกัน/.test(cur);
+  const isAskingAboutProvince = /จังหวัดนี้|จังหวัดเดียวกัน/.test(cur);
+  let carryEntity = lastProvince || lastRegion;
+  if (isAskingAboutRegion && lastRegion) carryEntity = lastRegion;
+  if (isAskingAboutProvince && lastProvince) carryEntity = lastProvince;
+
+  return cur.includes(carryEntity) ? cur : `${carryEntity} ${cur}`;
+}
+
+function renderThaiNumberText(value: number): string {
+  const units = ["ศูนย์", "หนึ่ง", "สอง", "สาม", "สี่", "ห้า", "หก", "เจ็ด", "แปด", "เก้า"];
+  const positions = ["", "สิบ", "ร้อย", "พัน", "หมื่น", "แสน", "ล้าน"];
+
+  const renderChunk = (num: number): string => {
+    if (num === 0) return "";
+    const digits = String(num).split("").map((d) => Number(d));
+    return digits
+      .map((digit, idx) => {
+        if (digit === 0) return "";
+        const pos = digits.length - idx - 1;
+        if (pos === 0) {
+          return pos === 0 && digit === 1 && digits.length > 1 ? "เอ็ด" : units[digit];
+        }
+        if (pos === 1) {
+          if (digit === 1) return "สิบ";
+          if (digit === 2) return "ยี่สิบ";
+          return `${units[digit]}สิบ`;
+        }
+        return `${units[digit]}${positions[pos] || ""}`;
+      })
+      .join("");
+  };
+
+  if (!Number.isFinite(value)) return String(value);
+  if (value === 0) return units[0];
+  if (value < 0) return `ลบ${renderThaiNumberText(Math.abs(value))}`;
+
+  if (value < 1000000) {
+    return renderChunk(Math.floor(value));
+  }
+
+  const millions = Math.floor(value / 1000000);
+  const remainder = Math.floor(value % 1000000);
+  return `${renderChunk(millions)}ล้าน${remainder > 0 ? renderChunk(remainder) : ""}`;
+}
+
+function countDaysUntilEndOfYear(baseDate: Date): number {
+  const start = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate());
+  const end = new Date(baseDate.getFullYear(), 11, 31);
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000));
+}
+
+function buildHistoryAwareFollowUpAnswer(currentText: string, sessionHistory: ChatMessage[]): { text: string; route: "general" | "weather" } | null {
+  const cur = String(currentText || "").trim();
+  if (sessionHistory.length < 2) return null;
+
+  const historyText = sessionHistory
+    .slice(-6)
+    .map((m) => String(m.text || ""))
+    .join(" ");
+
+  if (/(machine\s*learning|\bML\b)/i.test(historyText)) {
+    if (/(พยากรณ์อากาศ|weather)/i.test(cur)) {
+      return {
+        route: "general",
+        text: "Machine learning ใช้กับงานพยากรณ์อากาศได้โดยเรียนรู้รูปแบบจากข้อมูลย้อนหลัง เช่น ฝน อุณหภูมิ ลม และความกดอากาศ เพื่อช่วยคาดการณ์แนวโน้มล่วงหน้า แต่ยังต้องมีข้อมูลคุณภาพดีและตรวจสอบความคลาดเคลื่อนควบคู่กันครับ",
+      };
+    }
+
+    if (/(rule-?based|rule based|กฎตายตัว|ต่างจาก)/i.test(cur)) {
+      return {
+        route: "general",
+        text: "Machine learning เรียนรู้รูปแบบจากข้อมูลจริงและปรับตัวได้เมื่อข้อมูลเปลี่ยน ส่วน rule-based อาศัยกฎที่มนุษย์กำหนดไว้ล่วงหน้า จึงอธิบายง่ายแต่ยืดหยุ่นน้อยกว่าในโจทย์ที่ข้อมูลซับซ้อนครับ",
+      };
+    }
+  }
+
+  if (/(ขอเหตุผลแบบสั้น|สรุปสั้น|ขอสรุป)/i.test(cur) && /(น้ำเสี่ยง|น้ำท่วม|ระดับน้ำ)/i.test(historyText)) {
+    const lastProvince = extractLastDistinctCarryEntities(historyText, "province", 1)[0] || "พื้นที่เดิม";
+    return {
+      route: "weather",
+      text: `${lastProvince}ยังไม่เห็นสัญญาณน้ำเสี่ยงสูง เพราะโอกาสฝนยังต่ำและยังไม่มีข้อมูลว่าระดับน้ำเพิ่มผิดปกติในบริบทก่อนหน้าครับ`,
+    };
+  }
+
+  return null;
 }
 
 function inferOfficerEvidenceAction(text: string): string | undefined {
@@ -368,7 +567,9 @@ function looksLikeDateTimeLikeQuery(text: string): boolean {
   const looksLikeWeather = /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น)/i.test(t);
   if (looksLikeWeather) return false;
   // IMPORTANT: use full word boundaries for EN tokens so words like "downtime" won't match "time".
-  return /(กี่โมง|ตอนนี้.*กี่โมง|เวลา(นี้|เท่าไหร่|อะไร|ไหน)|วันที่|วันอะไร|เดือนอะไร|ปีอะไร|\bnow\b|\btime\b|\bdate\b|\btoday\b)/i.test(t) && t.length <= 80;
+  return (/(กี่โมง|ตอนนี้.*กี่โมง|เวลา(นี้|เท่าไหร่|อะไร|ไหน)|วันที่|วันอะไร|เดือนอะไร|ปีอะไร|\bnow\b|\btime\b|\bdate\b|\btoday\b)/i.test(t)
+    || /นับจาก.*ถึง.*อีกกี่วัน|เหลืออีกกี่วัน|อีกกี่วันถึง|สิ้นปีนี้เหลือ/i.test(t))
+    && t.length <= 120;
 }
 
 function looksLikeMathLikeQuery(text: string): boolean {
@@ -430,6 +631,7 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
 
   // Classify geo intent
   const geoIntent = (() => {
+    if (/ภาค.*ท่องเที่ยว/.test(t)) return "region_tourism_highlights";
     if (/ภาค.*(จังหวัด|ประกอบ|อะไรบ้าง)/.test(t)) return "region_to_provinces";
     if (/ภาค.*กี่จังหวัด/.test(t)) return "region_count";
     if (/(อยู่จังหวัด|จังหวัดอะไร|จังหวัดไหน)/.test(t)) return "city_to_province";
@@ -486,7 +688,23 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
   let text: string | null = null;
   let canonicalQuery = "";
 
-  if (geoIntent === "region_to_provinces" && regionMatch) {
+  if (geoIntent === "region_tourism_highlights" && regionMatch) {
+    const tourismHighlights: Record<string, string[]> = {
+      "กลาง": ["พระนครศรีอยุธยาเด่นด้านท่องเที่ยวเชิงประวัติศาสตร์", "กาญจนบุรีเด่นด้านธรรมชาติและประวัติศาสตร์", "สมุทรสงครามเด่นด้านท่องเที่ยวชุมชนและตลาดน้ำ"],
+      "เหนือ": ["เชียงใหม่เด่นด้านวัฒนธรรมและธรรมชาติ", "เชียงรายเด่นด้านภูเขาและคาเฟ่เชิงท่องเที่ยว", "แม่ฮ่องสอนเด่นด้านธรรมชาติและวิถีชุมชน"],
+      "ใต้": ["ภูเก็ตเด่นด้านทะเลและกิจกรรมพักผ่อน", "กระบี่เด่นด้านเกาะและชายหาด", "สุราษฎร์ธานีเด่นด้านเกาะสมุยและธรรมชาติ"],
+      "ตะวันออก": ["ชลบุรีเด่นด้านชายทะเลและเมืองท่องเที่ยว", "ระยองเด่นด้านทะเลและอาหารทะเล", "จันทบุรีเด่นด้านชุมชนเก่าและธรรมชาติ"],
+      "อีสาน": ["นครราชสีมาเด่นด้านเขาใหญ่และวัฒนธรรม", "ขอนแก่นเด่นด้านเมืองและอีเวนต์", "อุบลราชธานีเด่นด้านธรรมชาติและวัดสำคัญ"],
+      "ตะวันออกเฉียงเหนือ": ["นครราชสีมาเด่นด้านเขาใหญ่และวัฒนธรรม", "ขอนแก่นเด่นด้านเมืองและอีเวนต์", "อุบลราชธานีเด่นด้านธรรมชาติและวัดสำคัญ"],
+      "ตะวันตก": ["กาญจนบุรีเด่นด้านธรรมชาติและประวัติศาสตร์", "เพชรบุรีเด่นด้านทะเลและวังเก่า", "ประจวบคีรีขันธ์เด่นด้านหัวหินและอุทยาน"],
+    };
+    const r = REGION_DATA[regionMatch[1]];
+    const picks = tourismHighlights[regionMatch[1]];
+    if (r && picks) {
+      canonicalQuery = r.name;
+      text = `ถ้าเน้นท่องเที่ยว ${r.name}มีจังหวัดเด่น เช่น ${picks.join(" ")}`;
+    }
+  } else if (geoIntent === "region_to_provinces" && regionMatch) {
     const r = REGION_DATA[regionMatch[1]]; if (r) { canonicalQuery = regionMatch[1]; text = `${r.name}ของประเทศไทยประกอบด้วย ${r.provinces.length} จังหวัด ได้แก่ ${r.provinces.join(" ")}`; }
   } else if (geoIntent === "region_count" && regionMatch) {
     const r = REGION_DATA[regionMatch[1]]; if (r) { canonicalQuery = regionMatch[1]; text = `${r.name}มี ${r.provinces.length} จังหวัด`; }
@@ -586,6 +804,29 @@ function renderGeneralSmokeAnswer(userText: string): string {
   if (/machine\s*learning|ML/i.test(t) && /คืออะไร|อธิบาย/i.test(t)) {
     return "Machine Learning (ML) คือสาขาของ AI ที่ให้คอมพิวเตอร์เรียนรู้จากข้อมูลโดยไม่ต้องเขียนกฎตายตัว เช่น จำแนกภาพ พยากรณ์ราคา แนะนำสินค้า โดยใช้โมเดล Decision Tree, Neural Network, Random Forest ตามลักษณะข้อมูลครับ";
   }
+  if (/นับจาก.*ถึง.*อีกกี่วัน|เหลืออีกกี่วัน.*สิ้นปี|สิ้นปีนี้เหลือ/i.test(t)) {
+    const remainingDays = countDaysUntilEndOfYear(new Date());
+    return `นับจากวันนี้ถึงสิ้นปีนี้เหลืออีก ${remainingDays} วัน`;
+  }
+  if (/(รังสีดวงอาทิตย์|แสงอาทิตย์|solar|uv)/i.test(t) && /(ประเทศไทย|ล่าสุด|ข้อมูล)/i.test(t)) {
+    return "ข้อมูลรังสีดวงอาทิตย์ล่าสุดเป็นข้อมูลเฉพาะสถานีหรือพื้นที่ ถ้าต้องการให้ตรงจุดควรระบุจังหวัดหรือสถานีที่ต้องการ เช่น กรุงเทพมหานคร หรือเชียงใหม่ครับ";
+  }
+  if (/(machine\s*learning|\bML\b)/i.test(t) && /(พยากรณ์อากาศ|weather)/i.test(t)) {
+    return "Machine learning ใช้กับงานพยากรณ์อากาศได้โดยเรียนรู้รูปแบบจากข้อมูลย้อนหลัง เช่น ฝน อุณหภูมิ ลม และความกดอากาศ เพื่อช่วยคาดการณ์แนวโน้มล่วงหน้า แต่ยังต้องมีข้อมูลคุณภาพดีและตรวจสอบความคลาดเคลื่อนควบคู่กันครับ";
+  }
+  if (/(machine\s*learning|\bML\b)/i.test(t) && /(rule-?based|rule based|กฎตายตัว)/i.test(t)) {
+    return "Machine learning เรียนรู้รูปแบบจากข้อมูลจริงและปรับตัวได้เมื่อข้อมูลเปลี่ยน ส่วน rule-based อาศัยกฎที่มนุษย์กำหนดไว้ล่วงหน้า จึงอธิบายง่ายแต่ยืดหยุ่นน้อยกว่าในโจทย์ที่ข้อมูลซับซ้อนครับ";
+  }
+  if (/ภาคกลาง/.test(t) && /ท่องเที่ยว/.test(t)) {
+    return "ถ้าเน้นท่องเที่ยว ภาคกลางมีจังหวัดเด่น เช่น พระนครศรีอยุธยา กาญจนบุรี และสมุทรสงคราม โดยแต่ละจังหวัดมีจุดขายต่างกันทั้งประวัติศาสตร์ ธรรมชาติ และท่องเที่ยวชุมชนครับ";
+  }
+  const numberToTextMatch = t.match(/\b(\d[\d,]*)\b/);
+  if (numberToTextMatch && /(แปลงเป็นข้อความ|อ่านว่า|เขียนเป็นคำ)/i.test(t)) {
+    const numericValue = Number(String(numberToTextMatch[1]).replace(/,/g, ""));
+    if (Number.isFinite(numericValue)) {
+      return `${numericValue} อ่านว่า ${renderThaiNumberText(numericValue)}`;
+    }
+  }
   if (/python/i.test(t) && /คืออะไร|อธิบาย/i.test(t)) {
     return "Python คือภาษาโปรแกรมที่อ่านง่าย เน้นความเรียบง่าย นิยมใช้ใน Data Science, AI/ML, Web Development และ Automation โดยมีไลบรารีเช่น NumPy, Pandas, TensorFlow, Django ครับ";
   }
@@ -595,6 +836,13 @@ function renderGeneralSmokeAnswer(userText: string): string {
 async function answerGeneralWithFastModel(userText: string, budgetMs: number): Promise<{ text: string; fallback: boolean; reason: string; durMs: number; model: string }> {
   const start = Date.now();
   const model = String(ollamaFastModel || "");
+
+  const deterministicAnswer = renderGeneralSmokeAnswer(userText);
+  const isDefaultDeterministic = deterministicAnswer.startsWith("ได้ครับ คำถามนี้เป็นคำถามทั่วไป");
+  const isLowConfidenceDeterministic = deterministicAnswer === LOW_CONFIDENCE_FALLBACK_TEXT;
+  if (!isDefaultDeterministic && !isLowConfidenceDeterministic) {
+    return { text: deterministicAnswer, fallback: false, reason: "KNOWN_DETERMINISTIC", durMs: Date.now() - start, model };
+  }
 
   const isForcedTimeoutTest =
     process.env.NODE_ENV === "test" &&
@@ -608,10 +856,8 @@ async function answerGeneralWithFastModel(userText: string, budgetMs: number): P
   // Pre-check: use deterministic smoke answers for patterns where LLM quality is unreliable
   // Only apply when SMOKE_MODE=1 — with live LLM mode this gate must be skipped
   if (process.env.SMOKE_MODE === "1") {
-    const smokeAnswer = renderGeneralSmokeAnswer(userText);
-    const isDefaultSmoke = smokeAnswer.startsWith("ได้ครับ คำถามนี้เป็นคำถามทั่วไป");
-    if (!isDefaultSmoke) {
-      return { text: smokeAnswer, fallback: false, reason: "SMOKE_DETERMINISTIC", durMs: Date.now() - start, model };
+    if (!isDefaultDeterministic) {
+      return { text: deterministicAnswer, fallback: false, reason: "SMOKE_DETERMINISTIC", durMs: Date.now() - start, model };
     }
   }
 
@@ -1318,7 +1564,17 @@ const wss = new WebSocketServer({
     ];
     logBoth("info", `[WebSocket] Connection attempt from origin: ${origin}`);
 
-    if (!origin || allowedOrigins.includes(origin)) {
+    const isLoopbackDevOrigin = (() => {
+      if (!origin || process.env.NODE_ENV === "production") return false;
+      try {
+        const originUrl = new URL(origin);
+        return originUrl.hostname === "localhost" || originUrl.hostname === "127.0.0.1";
+      } catch {
+        return false;
+      }
+    })();
+
+    if (!origin || allowedOrigins.includes(origin) || isLoopbackDevOrigin) {
       return true;
     }
 
@@ -3039,65 +3295,18 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     const messageWithFile = String(message || "") + fileContext;
 
     // ─── Carry-forward: enrich ambiguous follow-up queries with context from history ───
-    // When history is present and current message lacks an entity (uses pronouns like นี้,ล่ะ,ถ้า),
-    // extract the last Thai province/region from history and prepend it to aid routing.
-    const enrichedMessage = (() => {
-      const cur = messageWithFile.trim();
-      if (sessionHistory.length < 2) return cur; // no history yet (before push)
-      const isAmbiguousFollowUp = /^(แล้ว|ถ้า|ถ้าเทียบ|เทียบ|สรุป|ขอเหตุผล|ขอสรุป|ขอ|แล้วล่ะ)/i.test(cur)
-        || /จังหวัดนี้|ที่นี่|ที่นั่น|ภาคนี้|ล่ะ$/i.test(cur);
-      if (!isAmbiguousFollowUp) return cur;
-
-      // Extract last entity from history text
-      const historyText = sessionHistory
-        .slice(-4)
-        .map(m => String(m.text || ""))
-        .join(" ");
-      const thaiEntityRe = /เชียงใหม่|กรุงเทพ(?:มหานคร)?|ภูเก็ต|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|สงขลา|หาดใหญ่|สมุทรสงคราม|แม่กลอง|ชลบุรี|อยุธยา|สุราษฎร์ธานี|ระนอง|พังงา|กระบี่|ภาคกลาง|ภาคเหนือ|ภาคใต้|ภาคอีสาน|ภาคตะวันออกเฉียงเหนือ/g;
-      const matches = historyText.match(thaiEntityRe);
-
-      // Numeric carry-forward for math follow-ups (e.g. "แล้วบวกเพิ่ม 12" after getting "336")
-      if (!matches || matches.length === 0) {
-        if (looksLikeMathLikeQuery(cur)) {
-          const histNums = historyText.match(/\b(\d[\d,]*(?:\.\d+)?)\b/g);
-          if (histNums && histNums.length > 0) {
-            const lastNum = histNums[histNums.length - 1];
-            if (!cur.includes(lastNum)) {
-              logBoth("info", `[CarryForward] math: enriching with prior result="${lastNum}"`);
-              return lastNum + " " + cur;
-            }
-          }
-        }
-        return cur;
-      }
-
-      // Smart entity selection: prefer region when asking about ภาคนี้, province when asking about จังหวัดนี้
-      const REGION_ENTITY_RE = /^(ภาคกลาง|ภาคเหนือ|ภาคใต้|ภาคอีสาน|ภาคตะวันออกเฉียงเหนือ)$/;
-      const isAskingAboutRegion = /ภาคนี้|ภาคเดียวกัน/.test(cur);
-      const isAskingAboutProvince = /จังหวัดนี้|จังหวัดเดียวกัน/.test(cur);
-      let lastEntity: string;
-      if (isAskingAboutRegion) {
-        const regionMatches = matches.filter(m => REGION_ENTITY_RE.test(m));
-        lastEntity = regionMatches.length > 0 ? regionMatches[regionMatches.length - 1] : matches[matches.length - 1];
-      } else if (isAskingAboutProvince) {
-        const provinceMatches = matches.filter(m => !REGION_ENTITY_RE.test(m));
-        lastEntity = provinceMatches.length > 0 ? provinceMatches[provinceMatches.length - 1] : matches[matches.length - 1];
-      } else {
-        // Default: prefer province entities over regions
-        const provinceMatches = matches.filter(m => !REGION_ENTITY_RE.test(m));
-        lastEntity = provinceMatches.length > 0 ? provinceMatches[provinceMatches.length - 1] : matches[matches.length - 1];
-      }
-
-      if (cur.includes(lastEntity)) return cur; // already present
-      logBoth("info", `[CarryForward] enriching follow-up with entity="${lastEntity}"`);
-      return lastEntity + " " + cur;
-    })();
+    // Make short follow-ups explicit enough for deterministic gates and general answers.
+    const enrichedMessage = buildHistoryAwareFollowUpQuery(messageWithFile, sessionHistory);
+    if (enrichedMessage !== messageWithFile) {
+      logBoth("info", `[CarryForward] http enriched "${messageWithFile}" -> "${enrichedMessage}"`);
+    }
 
     const traceStartMs = Date.now();
     // Use enrichedMessage for routing/planning when it differs from raw message
     const routingMessage = enrichedMessage !== messageWithFile ? enrichedMessage : messageWithFile;
     const evidenceAction = inferOfficerEvidenceAction(routingMessage);
     const answerPlan = planAnswer(routingMessage);
+    const historyAwareDirectAnswer = buildHistoryAwareFollowUpAnswer(messageWithFile, sessionHistory);
     const planStr = answerPlan.steps.map((s) => s.name).join(",") || "none";
     const fallbackStr = answerPlan.steps.map((s) => s.fallback).join(",") || "none";
     logBoth("info", `[AnswerPlanner] transport=http intent=${answerPlan.intent} plan=${planStr} fallback=${fallbackStr} keywordSource=${answerPlan.notes.join(",")} dbOperational=unknown`);
@@ -3119,6 +3328,42 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Add user message to history
     sessionHistory.push({ sender: "user", text: messageWithFile });
     logBoth("info", `[Chat API] POST: Session history: ${sessionHistory.length} messages (before AI)`);
+
+    if (historyAwareDirectAnswer) {
+      const textOut = historyAwareDirectAnswer.text;
+      const scOut = withRenderMeta(
+        {
+          historyAwareFollowUp: {
+            matched: true,
+            route: historyAwareDirectAnswer.route,
+          },
+        },
+        { route: historyAwareDirectAnswer.route, llmUsed: false, routeDecider: "deterministic", version: "phase11.2" }
+      );
+
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+
+      chatTraceOut({
+        transport: "http",
+        sid: httpSessionId,
+        cid: httpCid,
+        uiMode,
+        route: historyAwareDirectAnswer.route === "weather" ? "weatherGate" : "general",
+        tool: "historyCarryForward",
+        code: 200,
+        durMs: Date.now() - traceStartMs,
+        q: messageWithFile,
+        ans: textOut,
+      });
+
+      return res.json({
+        text: textOut,
+        structuredContent: scOut,
+        messages: sessionHistory,
+        mcpUsed: false,
+        mcpResults: null,
+      });
+    }
 
     // =====================================
     // Phase 7.2.5: Deterministic Evidence Fastpath (NO LLM classify/tool-select)
@@ -3458,6 +3703,41 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     }
 
     // =====================================
+    // Phase 11.2: Relative date-count shortcut
+    // Avoid sending simple day-difference questions into weather/MCP routing.
+    // =====================================
+    if (/นับจาก.*ถึง.*อีกกี่วัน|เหลืออีกกี่วัน.*สิ้นปี|สิ้นปีนี้เหลือ/i.test(routingMessage)) {
+      const remainingDays = countDaysUntilEndOfYear(new Date());
+      const textOut = `นับจากวันนี้ถึงสิ้นปีนี้เหลืออีก ${remainingDays} วัน`;
+      const scOut = withRenderMeta(
+        { dateTimeShortcut: { target: "end_of_year", remainingDays } },
+        { route: "general", llmUsed: false, routeDecider: "deterministic", version: "phase11.2" }
+      );
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+
+      chatTraceOut({
+        transport: "http",
+        sid: httpSessionId,
+        cid: httpCid,
+        uiMode,
+        route: "general",
+        tool: "dateTimeShortcut",
+        code: 200,
+        durMs: Date.now() - traceStartMs,
+        q: messageWithFile,
+        ans: textOut,
+      });
+
+      return res.json({
+        text: textOut,
+        structuredContent: scOut,
+        messages: sessionHistory,
+        mcpUsed: false,
+        mcpResults: null,
+      });
+    }
+
+    // =====================================
     // Phase 10.2: God-Tier Router Gate (POST Parity)
     // =====================================
     let semanticCategory: string | undefined = undefined;
@@ -3623,11 +3903,15 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Phase 11.1: CalculatorGate — Deterministic math eval (NO LLM)
     // Handles "คำนวณ 365 × 24", "2+2", "123 * 456" etc.
     // =====================================
-    if (looksLikeMathLikeQuery(messageWithFile)) {
+    if (looksLikeMathLikeQuery(routingMessage)) {
       try {
-        // Strip Thai math keywords, normalize Unicode operators
-        const expr = messageWithFile
+        // Strip Thai math keywords, normalize Unicode operators, translate Thai operators
+        const expr = routingMessage
           .replace(/(คำนวณ|calculate|compute|คิดเลข|เท่าไร|เท่าไหร่|ผลลัพธ์|ผลคือ|result|equals)/gi, "")
+          .replace(/บวก(?:เพิ่ม)?/g, "+")
+          .replace(/ลบ(?:ออก)?/g, "-")
+          .replace(/คูณ/g, "*")
+          .replace(/หาร/g, "/")
           .replace(/×/g, "*")
           .replace(/÷/g, "/")
           .replace(/[^\d+\-*/().^%\s,eE]/g, "")
@@ -3638,7 +3922,8 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           const result = evaluate(expr);
 
           if (typeof result === "number" || (result && typeof result.toString === "function")) {
-            const textOut = `ผลลัพธ์: ${messageWithFile.replace(/(คำนวณ|calculate)/gi, "").trim()} = ${result}`;
+            const displayExpr = expr.replace(/\s+/g, "").length > 0 ? expr.trim() : routingMessage.replace(/(คำนวณ|calculate)/gi, "").trim();
+            const textOut = `ผลลัพธ์: ${displayExpr} = ${result}`;
             const scOut = withRenderMeta(
               { calculatorGate: { expression: expr, result: String(result) } },
               { route: "calculator" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.1" },
@@ -3679,7 +3964,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Phase 7.4: GeneralGate (NO tool selection)
     // BEFORE MCP processMessage.
     // =====================================
-    if (looksLikeGeneralNoToolsQuery(messageWithFile)) {
+    if (looksLikeGeneralNoToolsQuery(routingMessage)) {
       const budgetMs = getGeneralBudgetMs();
       const generalStart = Date.now();
       const isSmokeRun =
@@ -3694,10 +3979,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       logBoth("info", `[GeneralGate] bypass=true transport=http budgetMs=${budgetMs} smoke=${isSmokeRun}`);
 
       const result = isForcedTimeoutTest
-        ? await answerGeneralWithFastModel(messageWithFile, budgetMs)
+        ? await answerGeneralWithFastModel(routingMessage, budgetMs)
         : isSmokeRun
-          ? { text: renderGeneralSmokeAnswer(messageWithFile), fallback: false, reason: "SMOKE_DETERMINISTIC", durMs: 0, model: String(ollamaFastModel || "") }
-          : await answerGeneralWithFastModel(messageWithFile, budgetMs);
+          ? { text: renderGeneralSmokeAnswer(routingMessage), fallback: false, reason: "SMOKE_DETERMINISTIC", durMs: 0, model: String(ollamaFastModel || "") }
+          : await answerGeneralWithFastModel(routingMessage, budgetMs);
 
       const sc: any = {
         generalGate: {
@@ -3751,7 +4036,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       });
     }
 
-    let finalMessage = messageWithFile;
+    let finalMessage = routingMessage;
     let mcpResults: any[] | null = null;
     let structuredContent: any = undefined;
     let toolsUsedInThisRequest: string[] = [];
@@ -3760,7 +4045,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     if (mcpClient) {
       try {
         const mcpResult = await mcpClient.processMessage(
-          messageWithFile,
+          routingMessage,
           semanticCategory,
           officerMode
             ? { uiMode: "officer", boostedTools: ["evidenceTool", "detect_evidence_stats", "webdTool"] }

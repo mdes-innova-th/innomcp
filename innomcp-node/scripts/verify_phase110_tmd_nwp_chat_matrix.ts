@@ -23,6 +23,7 @@ import path from "path";
 const CHAT_PORT = Number(process.env.CHAT_PORT || process.env.PORT || 3011);
 const INNOMCP_MODE = process.env.INNOMCP_MODE || "online";
 const OFFLINE = INNOMCP_MODE === "offline";
+const AUTH_TOKEN = process.env.TEST_AUTH_TOKEN || ""; // Admin JWT for bypassing guest rate limits
 const EVIDENCE_DIR = path.resolve(__dirname, "../evidence");
 if (!fs.existsSync(EVIDENCE_DIR)) fs.mkdirSync(EVIDENCE_DIR, { recursive: true });
 
@@ -56,6 +57,7 @@ function chatPost(message: string, sessionId?: string): Promise<ChatResp> {
           "Content-Type": "application/json",
           "Content-Length": String(payload.length),
           "X-Smoke-Run": "1",
+          ...(AUTH_TOKEN ? { "Authorization": `Bearer ${AUTH_TOKEN}` } : {}),
         },
         timeout: 30000,
       },
