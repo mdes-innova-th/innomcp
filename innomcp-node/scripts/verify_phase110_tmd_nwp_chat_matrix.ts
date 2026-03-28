@@ -115,7 +115,7 @@ const MATRIX: CapabilityGroup[] = [
     endpointGroup: "tmd_weather_today_07am_all_stations",
     tier: "api",
     expectedRoute: "weather",
-    expectedTools: ["tmd_weather_today_07am_all_stations"],
+    expectedTools: ["weatherPipeline"],
     chatReachable: true,
     cases: [
       { q: "อากาศตอนเช้าวันนี้เป็นอย่างไร", difficulty: "easy" },
@@ -130,7 +130,7 @@ const MATRIX: CapabilityGroup[] = [
     endpointGroup: "tmd_weather_3hours_all_stations",
     tier: "api",
     expectedRoute: "weather",
-    expectedTools: ["tmd_weather_3hours_all_stations"],
+    expectedTools: ["weatherPipeline"],
     chatReachable: true,
     cases: [
       { q: "อากาศช่วง 3 ชั่วโมงที่ผ่านมาเป็นอย่างไร", difficulty: "easy" },
@@ -145,7 +145,7 @@ const MATRIX: CapabilityGroup[] = [
     endpointGroup: "tmd_weather_forecast_7days_by_province",
     tier: "api",
     expectedRoute: "weather",
-    expectedTools: ["tmd_weather_forecast_7days_by_province"],
+    expectedTools: ["weatherPipeline"],
     chatReachable: true,
     cases: [
       { q: "พยากรณ์อากาศเชียงใหม่ 7 วัน", difficulty: "easy" },
@@ -160,7 +160,7 @@ const MATRIX: CapabilityGroup[] = [
     endpointGroup: "tmd_weather_forecast_7days_by_region",
     tier: "api",
     expectedRoute: "weather",
-    expectedTools: ["tmd_weather_forecast_7days_by_region"],
+    expectedTools: ["weatherPipeline"],
     chatReachable: true,
     cases: [
       { q: "อากาศภาคใต้สัปดาห์นี้", difficulty: "easy" },
@@ -174,7 +174,7 @@ const MATRIX: CapabilityGroup[] = [
     name: "TMD Weather Warning/News",
     endpointGroup: "tmd_weather_warning_news",
     tier: "api",
-    expectedRoute: "weather",
+    expectedRoute: "tmd_warning",
     expectedTools: ["tmd_weather_warning_news"],
     chatReachable: true,
     cases: [
@@ -190,7 +190,7 @@ const MATRIX: CapabilityGroup[] = [
     name: "TMD Seismic Daily Events",
     endpointGroup: "tmd_seismic_daily_events",
     tier: "demo",
-    expectedRoute: "weather",
+    expectedRoute: "seismic",
     expectedTools: ["tmd_seismic_daily_events"],
     chatReachable: true,
     cases: [
@@ -205,7 +205,7 @@ const MATRIX: CapabilityGroup[] = [
     name: "TMD Climate Normal 1981-2010",
     endpointGroup: "tmd_thailand_climate_normal_1981_2010",
     tier: "demo",
-    expectedRoute: "weather",
+    expectedRoute: "tmd_climate",
     expectedTools: ["tmd_thailand_climate_normal_1981_2010"],
     chatReachable: true,
     cases: [
@@ -220,7 +220,7 @@ const MATRIX: CapabilityGroup[] = [
     name: "TMD Monthly Rainfall Thailand",
     endpointGroup: "tmd_thailand_monthly_rainfall",
     tier: "demo",
-    expectedRoute: "weather",
+    expectedRoute: "tmd_rainfall",
     expectedTools: ["tmd_thailand_monthly_rainfall"],
     chatReachable: true,
     cases: [
@@ -235,7 +235,7 @@ const MATRIX: CapabilityGroup[] = [
     name: "TMD Rain Regions",
     endpointGroup: "tmd_rain_regions",
     tier: "demo",
-    expectedRoute: "weather",
+    expectedRoute: "tmd_rain_regions",
     expectedTools: ["tmd_rain_regions"],
     chatReachable: true,
     cases: [
@@ -250,7 +250,7 @@ const MATRIX: CapabilityGroup[] = [
     name: "TMD Station List",
     endpointGroup: "tmd_station_list",
     tier: "demo",
-    expectedRoute: "weather",
+    expectedRoute: "tmd_stations",
     expectedTools: ["tmd_station_list"],
     chatReachable: true,
     cases: [
@@ -267,7 +267,7 @@ const MATRIX: CapabilityGroup[] = [
     endpointGroup: "nwp_daily / /forecast/location/daily",
     tier: "nwp",
     expectedRoute: "weather",
-    expectedTools: ["nwp_daily", "nwpDailyTool"],
+    expectedTools: ["weatherPipeline", "nwp_daily", "nwpDailyTool"],
     chatReachable: true,
     cases: [
       { q: "พยากรณ์อากาศรายวันกรุงเทพวันนี้", difficulty: "easy" },
@@ -282,7 +282,7 @@ const MATRIX: CapabilityGroup[] = [
     endpointGroup: "nwp_hourly / /forecast/location/hourly",
     tier: "nwp",
     expectedRoute: "weather",
-    expectedTools: ["nwp_hourly", "nwpHourlyTool"],
+    expectedTools: ["weatherPipeline", "nwp_hourly", "nwpHourlyTool"],
     chatReachable: true,
     cases: [
       { q: "พยากรณ์อากาศรายชั่วโมงกรุงเทพวันนี้", difficulty: "easy" },
@@ -297,7 +297,7 @@ const MATRIX: CapabilityGroup[] = [
     endpointGroup: "nwp_area / /forecast/area/region",
     tier: "nwp",
     expectedRoute: "weather",
-    expectedTools: ["nwp_area", "nwp_daily"],
+    expectedTools: ["weatherPipeline", "nwp_area", "nwp_daily"],
     chatReachable: true,
     cases: [
       { q: "อากาศภาคใต้พรุ่งนี้", difficulty: "easy" },

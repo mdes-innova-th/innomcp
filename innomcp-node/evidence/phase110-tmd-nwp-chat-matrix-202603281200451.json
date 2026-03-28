@@ -1,0 +1,1493 @@
+{
+  "stamp": "202603281200451",
+  "summary": {
+    "total": 68,
+    "passed": 68,
+    "failed": 0,
+    "notReachable": 0
+  },
+  "results": [
+    {
+      "group": "tmd_current_conditions",
+      "name": "TMD Current Weather (today 7am all stations)",
+      "endpointGroup": "tmd_weather_today_07am_all_stations",
+      "tier": "api",
+      "difficulty": "easy",
+      "question": "อากาศตอนเช้าวันนี้เป็นอย่างไร",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "จังหวัดที่ฝนตกมากสุดในไทย (วันนี้) Top 10: ระนอง (70%), พังงา (68%), ภูเก็ต (67%), กระบี่ (66%), สุราษฎร์ธานี (64%) (ถ้า",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_current_conditions",
+      "name": "TMD Current Weather (today 7am all stations)",
+      "endpointGroup": "tmd_weather_today_07am_all_stations",
+      "tier": "api",
+      "difficulty": "medium",
+      "question": "สถานีอุตุนิยมวิทยาทั่วประเทศรายงานอุณหภูมิเช้านี้ว่าอย่างไร",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10\n\n| จังหวัด | %ฝน | สูงสุด | ต่ำสุด | ลม | ทิศลม | คำอธิบาย |\n| --- | --- | -",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_current_conditions",
+      "name": "TMD Current Weather (today 7am all stations)",
+      "endpointGroup": "tmd_weather_today_07am_all_stations",
+      "tier": "api",
+      "difficulty": "hard",
+      "question": "ข้อมูลตรวจอากาศเวลา 07.00 น. วันนี้ทุกสถานีเป็นอย่างไร",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "จังหวัดที่ฝนตกมากสุดในไทย (วันนี้) Top 10\n\n| จังหวัด | %ฝน | สูงสุด | ต่ำสุด | ลม | ทิศลม | คำอธิบาย |\n| --- | --- | ---",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_current_conditions",
+      "name": "TMD Current Weather (today 7am all stations)",
+      "endpointGroup": "tmd_weather_today_07am_all_stations",
+      "tier": "api",
+      "difficulty": "very_hard",
+      "question": "เปรียบเทียบอุณหภูมิสถานีอุตุนิยมวิทยาหลักทั่วประเทศเวลา 07.00 น. วันนี้",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "จังหวัดที่ฝนตกมากสุดในไทย (วันนี้) Top 10\n\n| จังหวัด | %ฝน | สูงสุด | ต่ำสุด | ลม | ทิศลม | คำอธิบาย |\n| --- | --- | ---",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_3hour_obs",
+      "name": "TMD 3-Hourly Observations (all stations)",
+      "endpointGroup": "tmd_weather_3hours_all_stations",
+      "tier": "api",
+      "difficulty": "easy",
+      "question": "อากาศช่วง 3 ชั่วโมงที่ผ่านมาเป็นอย่างไร",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_3hour_obs",
+      "name": "TMD 3-Hourly Observations (all stations)",
+      "endpointGroup": "tmd_weather_3hours_all_stations",
+      "tier": "api",
+      "difficulty": "medium",
+      "question": "ข้อมูลตรวจอากาศ 3 ชั่วโมงล่าสุดจากทุกสถานีมีอะไรบ้าง",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10\n\n| จังหวัด | %ฝน | สูงสุด | ต่ำสุด | ลม | ทิศลม | คำอธิบาย |\n| --- | --- | -",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_3hour_obs",
+      "name": "TMD 3-Hourly Observations (all stations)",
+      "endpointGroup": "tmd_weather_3hours_all_stations",
+      "tier": "api",
+      "difficulty": "hard",
+      "question": "แนวโน้มสภาพอากาศจากการตรวจ 3 ชั่วโมงย้อนหลัง 2 รอบ",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10: ระนอง (70%), พังงา (68%), ภูเก็ต (67%), กระบี่ (66%), สุราษฎร์ธานี (64%) (ถ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_3hour_obs",
+      "name": "TMD 3-Hourly Observations (all stations)",
+      "endpointGroup": "tmd_weather_3hours_all_stations",
+      "tier": "api",
+      "difficulty": "very_hard",
+      "question": "ช่วงเวลาใดในรอบ 3 ชั่วโมงที่ฝนตกหนักที่สุดในภาคกลาง",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: วันนี้ (28/03/2026)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ย",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_forecast_7d_province",
+      "name": "TMD 7-Day Province Forecast",
+      "endpointGroup": "tmd_weather_forecast_7days_by_province",
+      "tier": "api",
+      "difficulty": "easy",
+      "question": "พยากรณ์อากาศเชียงใหม่ 7 วัน",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: พยากรณ์ 7 วัน (28/03/2026)\n\nพื้นที่: เชียงใหม่\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_forecast_7d_province",
+      "name": "TMD 7-Day Province Forecast",
+      "endpointGroup": "tmd_weather_forecast_7days_by_province",
+      "tier": "api",
+      "difficulty": "medium",
+      "question": "อากาศกรุงเทพฯ สัปดาห์หน้าจะเป็นอย่างไร",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: พยากรณ์ 7 วัน (28/03/2026)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณห",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_forecast_7d_province",
+      "name": "TMD 7-Day Province Forecast",
+      "endpointGroup": "tmd_weather_forecast_7days_by_province",
+      "tier": "api",
+      "difficulty": "hard",
+      "question": "พยากรณ์ 7 วันของภูเก็ต เหมาะกับการท่องเที่ยวไหม",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: พยากรณ์ 7 วัน (28/03/2026)\n\nพื้นที่: ภูเก็ต\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ย",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_forecast_7d_province",
+      "name": "TMD 7-Day Province Forecast",
+      "endpointGroup": "tmd_weather_forecast_7days_by_province",
+      "tier": "api",
+      "difficulty": "very_hard",
+      "question": "เปรียบเทียบพยากรณ์ 7 วันระหว่างเชียงใหม่และสุราษฎร์ธานี และสรุปวันไหนดีที่สุดสำหรับเที่ยวกลางแจ้ง",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: พยากรณ์ 7 วัน (28/03/2026)\n\nพื้นที่: สุราษฎร์ธานี\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_forecast_7d_region",
+      "name": "TMD 7-Day Region Forecast",
+      "endpointGroup": "tmd_weather_forecast_7days_by_region",
+      "tier": "api",
+      "difficulty": "easy",
+      "question": "อากาศภาคใต้สัปดาห์นี้",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: พยากรณ์ 7 วัน (28/03/2026)\n\nพื้นที่: สุราษฎร์ธานี\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_forecast_7d_region",
+      "name": "TMD 7-Day Region Forecast",
+      "endpointGroup": "tmd_weather_forecast_7days_by_region",
+      "tier": "api",
+      "difficulty": "medium",
+      "question": "พยากรณ์อากาศภาคเหนือ 7 วันข้างหน้า",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: พยากรณ์ 7 วัน (28/03/2026)\n\nพื้นที่: เชียงใหม่\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_forecast_7d_region",
+      "name": "TMD 7-Day Region Forecast",
+      "endpointGroup": "tmd_weather_forecast_7days_by_region",
+      "tier": "api",
+      "difficulty": "hard",
+      "question": "พยากรณ์ 7 วันภาคตะวันออกเฉียงเหนือ มีโอกาสฝนกี่วัน",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: พยากรณ์ 7 วัน (28/03/2026)\n\nพื้นที่: ขอนแก่น\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_forecast_7d_region",
+      "name": "TMD 7-Day Region Forecast",
+      "endpointGroup": "tmd_weather_forecast_7days_by_region",
+      "tier": "api",
+      "difficulty": "very_hard",
+      "question": "สรุปพยากรณ์ 7 วันทุกภาครวมทั้งประเทศ โดยเน้นวันที่มีฝนมากที่สุด",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10: ระนอง (70%), พังงา (68%), ภูเก็ต (67%), กระบี่ (66%), สุราษฎร์ธานี (64%) (ถ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_warning_news",
+      "name": "TMD Weather Warning/News",
+      "endpointGroup": "tmd_weather_warning_news",
+      "tier": "api",
+      "difficulty": "easy",
+      "question": "มีคำเตือนอากาศร้ายแรงวันนี้ไหม",
+      "expectedRoute": "tmd_warning",
+      "expectedTools": [
+        "tmd_weather_warning_news"
+      ],
+      "actualRoute": "tmd_warning",
+      "actualTools": [
+        "tmd_weather_warning_news"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_weather_warning_news:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": true,\n    \"result\": [\n      {",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_warning_news",
+      "name": "TMD Weather Warning/News",
+      "endpointGroup": "tmd_weather_warning_news",
+      "tier": "api",
+      "difficulty": "medium",
+      "question": "ประกาศเตือนภัยอากาศล่าสุดจากกรมอุตุฯ มีอะไรบ้าง",
+      "expectedRoute": "tmd_warning",
+      "expectedTools": [
+        "tmd_weather_warning_news"
+      ],
+      "actualRoute": "tmd_warning",
+      "actualTools": [
+        "tmd_weather_warning_news"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_weather_warning_news:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": true,\n    \"result\": [\n      {",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_warning_news",
+      "name": "TMD Weather Warning/News",
+      "endpointGroup": "tmd_weather_warning_news",
+      "tier": "api",
+      "difficulty": "hard",
+      "question": "ข่าวอุตุนิยมวิทยาและการเตือนภัยสำหรับภาคใต้ล่าสุด",
+      "expectedRoute": "tmd_warning",
+      "expectedTools": [
+        "tmd_weather_warning_news"
+      ],
+      "actualRoute": "tmd_warning",
+      "actualTools": [
+        "tmd_weather_warning_news"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_weather_warning_news:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code\": \"UPSTREAM_",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_warning_news",
+      "name": "TMD Weather Warning/News",
+      "endpointGroup": "tmd_weather_warning_news",
+      "tier": "api",
+      "difficulty": "very_hard",
+      "question": "ประกาศเตือนภัยทุกฉบับในช่วง 24 ชั่วโมงที่ผ่านมา จัดกลุ่มตามความรุนแรง",
+      "expectedRoute": "tmd_warning",
+      "expectedTools": [
+        "tmd_weather_warning_news"
+      ],
+      "actualRoute": "tmd_warning",
+      "actualTools": [
+        "tmd_weather_warning_news"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_weather_warning_news:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code\": \"UPSTREAM_",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_seismic",
+      "name": "TMD Seismic Daily Events",
+      "endpointGroup": "tmd_seismic_daily_events",
+      "tier": "demo",
+      "difficulty": "easy",
+      "question": "วันนี้มีแผ่นดินไหวที่ไหนบ้าง",
+      "expectedRoute": "seismic",
+      "expectedTools": [
+        "tmd_seismic_daily_events"
+      ],
+      "actualRoute": "seismic",
+      "actualTools": [
+        "tmd_seismic_daily_events"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_seismic_daily_events:\n\n```json\nundefined\n```",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_seismic",
+      "name": "TMD Seismic Daily Events",
+      "endpointGroup": "tmd_seismic_daily_events",
+      "tier": "demo",
+      "difficulty": "medium",
+      "question": "แผ่นดินไหวในไทยและรอบๆ วันนี้มีกี่ครั้ง",
+      "expectedRoute": "seismic",
+      "expectedTools": [
+        "tmd_seismic_daily_events"
+      ],
+      "actualRoute": "seismic",
+      "actualTools": [
+        "tmd_seismic_daily_events"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_seismic_daily_events:\n\n```json\nundefined\n```",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_seismic",
+      "name": "TMD Seismic Daily Events",
+      "endpointGroup": "tmd_seismic_daily_events",
+      "tier": "demo",
+      "difficulty": "hard",
+      "question": "แผ่นดินไหวขนาดเกิน 4 ริกเตอร์ในภูมิภาคเอเชียตะวันออกเฉียงใต้วันนี้",
+      "expectedRoute": "seismic",
+      "expectedTools": [
+        "tmd_seismic_daily_events"
+      ],
+      "actualRoute": "seismic",
+      "actualTools": [
+        "tmd_seismic_daily_events"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_seismic_daily_events:\n\n```json\nundefined\n```",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_seismic",
+      "name": "TMD Seismic Daily Events",
+      "endpointGroup": "tmd_seismic_daily_events",
+      "tier": "demo",
+      "difficulty": "very_hard",
+      "question": "วิเคราะห์รูปแบบแผ่นดินไหวรายวันของไทยในช่วงที่ผ่านมา และชี้จุดที่มีความเสี่ยงสูง",
+      "expectedRoute": "seismic",
+      "expectedTools": [
+        "tmd_seismic_daily_events"
+      ],
+      "actualRoute": "seismic",
+      "actualTools": [
+        "tmd_seismic_daily_events"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_seismic_daily_events:\n\n```json\nundefined\n```",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_climate_normal",
+      "name": "TMD Climate Normal 1981-2010",
+      "endpointGroup": "tmd_thailand_climate_normal_1981_2010",
+      "tier": "demo",
+      "difficulty": "easy",
+      "question": "อุณหภูมิเฉลี่ยของไทยตามค่าปกติ",
+      "expectedRoute": "tmd_climate",
+      "expectedTools": [
+        "tmd_thailand_climate_normal_1981_2010"
+      ],
+      "actualRoute": "tmd_climate",
+      "actualTools": [
+        "tmd_thailand_climate_normal_1981_2010"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_thailand_climate_normal_1981_2010:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": true,\n    \"resul",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_climate_normal",
+      "name": "TMD Climate Normal 1981-2010",
+      "endpointGroup": "tmd_thailand_climate_normal_1981_2010",
+      "tier": "demo",
+      "difficulty": "medium",
+      "question": "ค่าปกติอุณหภูมิเฉลี่ยช่วงปี 1981-2010 ของกรุงเทพฯ",
+      "expectedRoute": "tmd_climate",
+      "expectedTools": [
+        "tmd_thailand_climate_normal_1981_2010"
+      ],
+      "actualRoute": "tmd_climate",
+      "actualTools": [
+        "tmd_thailand_climate_normal_1981_2010"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_thailand_climate_normal_1981_2010:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_climate_normal",
+      "name": "TMD Climate Normal 1981-2010",
+      "endpointGroup": "tmd_thailand_climate_normal_1981_2010",
+      "tier": "demo",
+      "difficulty": "hard",
+      "question": "เปรียบเทียบค่าปกติอุณหภูมิของภาคเหนือกับภาคใต้ปี 1981-2010",
+      "expectedRoute": "tmd_climate",
+      "expectedTools": [
+        "tmd_thailand_climate_normal_1981_2010"
+      ],
+      "actualRoute": "tmd_climate",
+      "actualTools": [
+        "tmd_thailand_climate_normal_1981_2010"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_thailand_climate_normal_1981_2010:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_climate_normal",
+      "name": "TMD Climate Normal 1981-2010",
+      "endpointGroup": "tmd_thailand_climate_normal_1981_2010",
+      "tier": "demo",
+      "difficulty": "very_hard",
+      "question": "สร้างตารางค่าปกติอุณหภูมิและปริมาณฝนรายเดือนสำหรับ 5 ภาคของไทย",
+      "expectedRoute": "tmd_climate",
+      "expectedTools": [
+        "tmd_thailand_climate_normal_1981_2010"
+      ],
+      "actualRoute": "tmd_climate",
+      "actualTools": [
+        "tmd_thailand_climate_normal_1981_2010"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_thailand_climate_normal_1981_2010:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_monthly_rainfall",
+      "name": "TMD Monthly Rainfall Thailand",
+      "endpointGroup": "tmd_thailand_monthly_rainfall",
+      "tier": "demo",
+      "difficulty": "easy",
+      "question": "ปริมาณฝนเฉลี่ยรายเดือนของไทย",
+      "expectedRoute": "tmd_rainfall",
+      "expectedTools": [
+        "tmd_thailand_monthly_rainfall"
+      ],
+      "actualRoute": "tmd_rainfall",
+      "actualTools": [
+        "tmd_thailand_monthly_rainfall"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_thailand_monthly_rainfall:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": true,\n    \"result\": [\n  ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_monthly_rainfall",
+      "name": "TMD Monthly Rainfall Thailand",
+      "endpointGroup": "tmd_thailand_monthly_rainfall",
+      "tier": "demo",
+      "difficulty": "medium",
+      "question": "เดือนไหนมีฝนมากที่สุดในประเทศไทย",
+      "expectedRoute": "tmd_rainfall",
+      "expectedTools": [
+        "tmd_thailand_monthly_rainfall"
+      ],
+      "actualRoute": "tmd_rainfall",
+      "actualTools": [
+        "tmd_thailand_monthly_rainfall"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_thailand_monthly_rainfall:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": true,\n    \"result\": [\n  ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_monthly_rainfall",
+      "name": "TMD Monthly Rainfall Thailand",
+      "endpointGroup": "tmd_thailand_monthly_rainfall",
+      "tier": "demo",
+      "difficulty": "hard",
+      "question": "ปริมาณฝนรายเดือนของภาคใต้ฝั่งตะวันตกเปรียบเทียบกับฝั่งตะวันออก",
+      "expectedRoute": "tmd_rainfall",
+      "expectedTools": [
+        "tmd_thailand_monthly_rainfall"
+      ],
+      "actualRoute": "tmd_rainfall",
+      "actualTools": [
+        "tmd_thailand_monthly_rainfall"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_thailand_monthly_rainfall:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code\": \"UPST",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_monthly_rainfall",
+      "name": "TMD Monthly Rainfall Thailand",
+      "endpointGroup": "tmd_thailand_monthly_rainfall",
+      "tier": "demo",
+      "difficulty": "very_hard",
+      "question": "วิเคราะห์ความแปรปรวนของปริมาณฝนรายเดือนตลอดปีในแต่ละภาค พร้อมเดือนสูงสุดต่ำสุด",
+      "expectedRoute": "tmd_rainfall",
+      "expectedTools": [
+        "tmd_thailand_monthly_rainfall"
+      ],
+      "actualRoute": "tmd_rainfall",
+      "actualTools": [
+        "tmd_thailand_monthly_rainfall"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_thailand_monthly_rainfall:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code\": \"PROV",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_rain_regions",
+      "name": "TMD Rain Regions",
+      "endpointGroup": "tmd_rain_regions",
+      "tier": "demo",
+      "difficulty": "easy",
+      "question": "ภูมิภาคใดของไทยฝนตกมากที่สุดตอนนี้",
+      "expectedRoute": "tmd_rain_regions",
+      "expectedTools": [
+        "tmd_rain_regions"
+      ],
+      "actualRoute": "tmd_rain_regions",
+      "actualTools": [
+        "tmd_rain_regions"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_rain_regions:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code\": \"PROVINCE_MISSING\"",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_rain_regions",
+      "name": "TMD Rain Regions",
+      "endpointGroup": "tmd_rain_regions",
+      "tier": "demo",
+      "difficulty": "medium",
+      "question": "ข้อมูลฝนตกตามภูมิภาคล่าสุดจากกรมอุตุฯ",
+      "expectedRoute": "tmd_rain_regions",
+      "expectedTools": [
+        "tmd_rain_regions"
+      ],
+      "actualRoute": "tmd_rain_regions",
+      "actualTools": [
+        "tmd_rain_regions"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_rain_regions:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code\": \"PROVINCE_MISSING\"",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_rain_regions",
+      "name": "TMD Rain Regions",
+      "endpointGroup": "tmd_rain_regions",
+      "tier": "demo",
+      "difficulty": "hard",
+      "question": "เปรียบเทียบปริมาณฝนปัจจุบันแต่ละภาคและวิเคราะห์ความเสี่ยงน้ำท่วม",
+      "expectedRoute": "tmd_rain_regions",
+      "expectedTools": [
+        "tmd_rain_regions"
+      ],
+      "actualRoute": "tmd_rain_regions",
+      "actualTools": [
+        "tmd_rain_regions"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_rain_regions:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code\": \"PROVINCE_MISSING\"",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_rain_regions",
+      "name": "TMD Rain Regions",
+      "endpointGroup": "tmd_rain_regions",
+      "tier": "demo",
+      "difficulty": "very_hard",
+      "question": "แผนที่ความเข้มของฝนรายภาคพร้อมระบุว่าภาคใดต้องระวังน้ำท่วมฉับพลัน",
+      "expectedRoute": "tmd_rain_regions",
+      "expectedTools": [
+        "tmd_rain_regions"
+      ],
+      "actualRoute": "tmd_rain_regions",
+      "actualTools": [
+        "tmd_rain_regions"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_rain_regions:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code\": \"PROVINCE_MISSING\"",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_station_list",
+      "name": "TMD Station List",
+      "endpointGroup": "tmd_station_list",
+      "tier": "demo",
+      "difficulty": "easy",
+      "question": "สถานีอุตุนิยมวิทยาในไทยมีกี่แห่ง",
+      "expectedRoute": "tmd_stations",
+      "expectedTools": [
+        "tmd_station_list"
+      ],
+      "actualRoute": "tmd_stations",
+      "actualTools": [
+        "tmd_station_list"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_station_list:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": true,\n    \"result\": [\n      {\n       ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_station_list",
+      "name": "TMD Station List",
+      "endpointGroup": "tmd_station_list",
+      "tier": "demo",
+      "difficulty": "medium",
+      "question": "รายชื่อสถานีอุตุฯ ในภาคเหนือ",
+      "expectedRoute": "tmd_stations",
+      "expectedTools": [
+        "tmd_station_list"
+      ],
+      "actualRoute": "tmd_stations",
+      "actualTools": [
+        "tmd_station_list"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_station_list:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code\": \"UPSTREAM_ERROR\",\n",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_station_list",
+      "name": "TMD Station List",
+      "endpointGroup": "tmd_station_list",
+      "tier": "demo",
+      "difficulty": "hard",
+      "question": "สถานีอุตุฯ ในจังหวัดเชียงใหม่มีสถานีอะไรบ้างและตั้งอยู่ที่ใด",
+      "expectedRoute": "tmd_stations",
+      "expectedTools": [
+        "tmd_station_list"
+      ],
+      "actualRoute": "tmd_stations",
+      "actualTools": [
+        "tmd_station_list"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_station_list:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code\": \"UPSTREAM_ERROR\",\n",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_station_list",
+      "name": "TMD Station List",
+      "endpointGroup": "tmd_station_list",
+      "tier": "demo",
+      "difficulty": "very_hard",
+      "question": "จำแนกสถานีอุตุฯ ทุกแห่งตามภาคและจังหวัด พร้อมพิกัด",
+      "expectedRoute": "tmd_stations",
+      "expectedTools": [
+        "tmd_station_list"
+      ],
+      "actualRoute": "tmd_stations",
+      "actualTools": [
+        "tmd_station_list"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ tmd_station_list:\n\n```json\n{\n  \"weatherPipeline\": {\n    \"ok\": false,\n    \"code\": \"PROVINCE_MISSING\"",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "nwp_daily_location",
+      "name": "NWP Daily Forecast by Location",
+      "endpointGroup": "nwp_daily / /forecast/location/daily",
+      "tier": "nwp",
+      "difficulty": "easy",
+      "question": "พยากรณ์อากาศรายวันกรุงเทพวันนี้",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline",
+        "nwp_daily",
+        "nwpDailyTool"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: วันนี้ (28/03/2026)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ย",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "nwp_daily_location",
+      "name": "NWP Daily Forecast by Location",
+      "endpointGroup": "nwp_daily / /forecast/location/daily",
+      "tier": "nwp",
+      "difficulty": "medium",
+      "question": "พยากรณ์อากาศรายวันเชียงใหม่ 3 วันข้างหน้า",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline",
+        "nwp_daily",
+        "nwpDailyTool"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: วันนี้ (28/03/2026)\n\nพื้นที่: เชียงใหม่\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "nwp_daily_location",
+      "name": "NWP Daily Forecast by Location",
+      "endpointGroup": "nwp_daily / /forecast/location/daily",
+      "tier": "nwp",
+      "difficulty": "hard",
+      "question": "NWP รายวันของขอนแก่น สัปดาห์หน้ามีฝนกี่วัน",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline",
+        "nwp_daily",
+        "nwpDailyTool"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: พยากรณ์ 7 วัน (28/03/2026)\n\nพื้นที่: ขอนแก่น\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "nwp_daily_location",
+      "name": "NWP Daily Forecast by Location",
+      "endpointGroup": "nwp_daily / /forecast/location/daily",
+      "tier": "nwp",
+      "difficulty": "very_hard",
+      "question": "เปรียบเทียบ NWP รายวันของ 3 จังหวัด ฝั่งอ่าวไทย ฝั่งอันดามัน และภาคเหนือ สรุปเป็นตาราง",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline",
+        "nwp_daily",
+        "nwpDailyTool"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ตารางสรุปสภาพอากาศ:\n\n| สถานะ           |\n| --------------- |\n| NWP_UNAVAILABLE |",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "nwp_hourly_location",
+      "name": "NWP Hourly Forecast by Location",
+      "endpointGroup": "nwp_hourly / /forecast/location/hourly",
+      "tier": "nwp",
+      "difficulty": "easy",
+      "question": "พยากรณ์อากาศรายชั่วโมงกรุงเทพวันนี้",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline",
+        "nwp_hourly",
+        "nwpHourlyTool"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: วันนี้ (28/03/2026)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ย",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "nwp_hourly_location",
+      "name": "NWP Hourly Forecast by Location",
+      "endpointGroup": "nwp_hourly / /forecast/location/hourly",
+      "tier": "nwp",
+      "difficulty": "medium",
+      "question": "ฝนจะตกกี่โมงที่ภูเก็ตพรุ่งนี้",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline",
+        "nwp_hourly",
+        "nwpHourlyTool"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: พรุ่งนี้ (29/03/2026)\n\nพื้นที่: ภูเก็ต\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "nwp_hourly_location",
+      "name": "NWP Hourly Forecast by Location",
+      "endpointGroup": "nwp_hourly / /forecast/location/hourly",
+      "tier": "nwp",
+      "difficulty": "hard",
+      "question": "พยากรณ์รายชั่วโมงของขอนแก่น 24 ชั่วโมงข้างหน้า มีช่วงไหนควรระวังฝน",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline",
+        "nwp_hourly",
+        "nwpHourlyTool"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: วันนี้ (28/03/2026)\n\nพื้นที่: ขอนแก่น\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่ม",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "nwp_hourly_location",
+      "name": "NWP Hourly Forecast by Location",
+      "endpointGroup": "nwp_hourly / /forecast/location/hourly",
+      "tier": "nwp",
+      "difficulty": "very_hard",
+      "question": "ชั่วโมงไหนในพรุ่งนี้ที่กรุงเทพฯ จะมีความชื้นสูงสุดและอุณหภูมิต่ำสุด",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline",
+        "nwp_hourly",
+        "nwpHourlyTool"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: พรุ่งนี้ (29/03/2026)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ:",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "nwp_area_region",
+      "name": "NWP Area Region Forecast",
+      "endpointGroup": "nwp_area / /forecast/area/region",
+      "tier": "nwp",
+      "difficulty": "easy",
+      "question": "อากาศภาคใต้พรุ่งนี้",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline",
+        "nwp_area",
+        "nwp_daily"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: พรุ่งนี้ (29/03/2026)\n\nพื้นที่: สุราษฎร์ธานี\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "nwp_area_region",
+      "name": "NWP Area Region Forecast",
+      "endpointGroup": "nwp_area / /forecast/area/region",
+      "tier": "nwp",
+      "difficulty": "medium",
+      "question": "พยากรณ์อากาศรายพื้นที่ภาคตะวันออกเฉียงเหนือสัปดาห์นี้",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline",
+        "nwp_area",
+        "nwp_daily"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: พยากรณ์ 7 วัน (28/03/2026)\n\nพื้นที่: ขอนแก่น\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "nwp_area_region",
+      "name": "NWP Area Region Forecast",
+      "endpointGroup": "nwp_area / /forecast/area/region",
+      "tier": "nwp",
+      "difficulty": "hard",
+      "question": "แนวโน้มพยากรณ์อากาศรายพื้นที่ภาคเหนือ 7 วันข้างหน้า",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline",
+        "nwp_area",
+        "nwp_daily"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: พยากรณ์ 7 วัน (28/03/2026)\n\nพื้นที่: เชียงใหม่\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "nwp_area_region",
+      "name": "NWP Area Region Forecast",
+      "endpointGroup": "nwp_area / /forecast/area/region",
+      "tier": "nwp",
+      "difficulty": "very_hard",
+      "question": "เปรียบเทียบพยากรณ์รายพื้นที่ระหว่างทุกภาคของไทย และระบุว่าภาคใดมีโอกาสเกิดน้ำท่วมสูงสุด",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "weatherPipeline",
+        "nwp_area",
+        "nwp_daily"
+      ],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "weather_analytical_time",
+      "name": "Weather Analytical — Time/Date reasoning",
+      "endpointGroup": "analytical / short-circuit",
+      "tier": "api",
+      "difficulty": "easy",
+      "question": "ตอนนี้กี่โมงแล้ว",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "",
+      "actualTools": [
+        "innomcp-server:dateTimeTool"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ innomcp-server:dateTimeTool:\n\n```json\n{\n  \"datetime\": \"28 มีนาคม 2569 เวลา 19:00:56\",\n  \"format\": \"",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "weather_analytical_time",
+      "name": "Weather Analytical — Time/Date reasoning",
+      "endpointGroup": "analytical / short-circuit",
+      "tier": "api",
+      "difficulty": "medium",
+      "question": "วันนี้วันที่เท่าไร",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "",
+      "actualTools": [
+        "innomcp-server:dateTimeTool"
+      ],
+      "status": 200,
+      "answerSnippet": "ผลลัพธ์จากเครื่องมือ innomcp-server:dateTimeTool:\n\n```json\n{\n  \"datetime\": \"28 มีนาคม 2569 เวลา 19:00:56\",\n  \"format\": \"",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "weather_analytical_time",
+      "name": "Weather Analytical — Time/Date reasoning",
+      "endpointGroup": "analytical / short-circuit",
+      "tier": "api",
+      "difficulty": "hard",
+      "question": "สัปดาห์หน้าเริ่มวันจันทร์หรือวันอาทิตย์",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "weather_analytical_time",
+      "name": "Weather Analytical — Time/Date reasoning",
+      "endpointGroup": "analytical / short-circuit",
+      "tier": "api",
+      "difficulty": "very_hard",
+      "question": "นับจากวันนี้ถึงสิ้นปีนี้เหลืออีกกี่วัน",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "general",
+      "actualTools": [],
+      "status": 200,
+      "answerSnippet": "นับจากวันนี้ถึงสิ้นปีนี้เหลืออีก 278 วัน",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "weather_risk_flood",
+      "name": "Weather Risk: Flood/Hydro reasoning",
+      "endpointGroup": "weather_analytical / risk_assessment",
+      "tier": "api",
+      "difficulty": "easy",
+      "question": "วันนี้มีความเสี่ยงน้ำท่วมไหม",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "weather_risk_flood",
+      "name": "Weather Risk: Flood/Hydro reasoning",
+      "endpointGroup": "weather_analytical / risk_assessment",
+      "tier": "api",
+      "difficulty": "medium",
+      "question": "ภาคใดมีความเสี่ยงน้ำท่วมมากที่สุดในสัปดาห์นี้",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "geo",
+      "actualTools": [],
+      "status": 200,
+      "answerSnippet": "ไม่พบข้อมูล: ไม่พบข้อมูลภูมิศาสตร์ที่ตรงกับคำค้นหา\nตัวอย่าง:\n1) จังหวัดเชียงใหม่\n2) เขตบางรัก กรุงเทพมหานคร 10500",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "weather_risk_flood",
+      "name": "Weather Risk: Flood/Hydro reasoning",
+      "endpointGroup": "weather_analytical / risk_assessment",
+      "tier": "api",
+      "difficulty": "hard",
+      "question": "ประเมินความเสี่ยงน้ำท่วมฉับพลันของภาคเหนือช่วง 3-5 วันข้างหน้า",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "geo",
+      "actualTools": [],
+      "status": 200,
+      "answerSnippet": "ไม่พบข้อมูล: ไม่พบข้อมูลภูมิศาสตร์ที่ตรงกับคำค้นหา\nตัวอย่าง:\n1) จังหวัดเชียงใหม่\n2) เขตบางรัก กรุงเทพมหานคร 10500",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "weather_risk_flood",
+      "name": "Weather Risk: Flood/Hydro reasoning",
+      "endpointGroup": "weather_analytical / risk_assessment",
+      "tier": "api",
+      "difficulty": "very_hard",
+      "question": "วิเคราะห์ปัจจัยเสี่ยงน้ำท่วมทั้งระดับน้ำ ปริมาณฝน และพื้นที่รับน้ำสำหรับภาคกลาง",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: วันนี้ (28/03/2026)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ย",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "weather_general_question",
+      "name": "General Weather Questions (GuardedPath)",
+      "endpointGroup": "general_knowledge / guarded_path",
+      "tier": "api",
+      "difficulty": "easy",
+      "question": "ฝนตกฤดูร้อนดีหรือไม่",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10: ระนอง (70%), พังงา (68%), ภูเก็ต (67%), กระบี่ (66%), สุราษฎร์ธานี (64%) (ถ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "weather_general_question",
+      "name": "General Weather Questions (GuardedPath)",
+      "endpointGroup": "general_knowledge / guarded_path",
+      "tier": "api",
+      "difficulty": "medium",
+      "question": "ฤดูฝนของไทยกินเวลากี่เดือน",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10: ระนอง (70%), พังงา (68%), ภูเก็ต (67%), กระบี่ (66%), สุราษฎร์ธานี (64%) (ถ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "weather_general_question",
+      "name": "General Weather Questions (GuardedPath)",
+      "endpointGroup": "general_knowledge / guarded_path",
+      "tier": "api",
+      "difficulty": "hard",
+      "question": "เปรียบเทียบลักษณะภูมิอากาศไทยกับประเทศเพื่อนบ้าน",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10: ระนอง (70%), พังงา (68%), ภูเก็ต (67%), กระบี่ (66%), สุราษฎร์ธานี (64%) (ถ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "weather_general_question",
+      "name": "General Weather Questions (GuardedPath)",
+      "endpointGroup": "general_knowledge / guarded_path",
+      "tier": "api",
+      "difficulty": "very_hard",
+      "question": "อธิบายกลไก ITCZ และผลกระทบต่อฤดูฝนไทยแบบละเอียด",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10: ระนอง (70%), พังงา (68%), ภูเก็ต (67%), กระบี่ (66%), สุราษฎร์ธานี (64%) (ถ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_additional_tools",
+      "name": "Other TMD Tools (pressure/solar/misc)",
+      "endpointGroup": "tmd_various_api_tier",
+      "tier": "api",
+      "difficulty": "easy",
+      "question": "ความกดอากาศในกรุงเทพวันนี้เท่าไร",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "ช่วงเวลา: วันนี้ (28/03/2026)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ย",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_additional_tools",
+      "name": "Other TMD Tools (pressure/solar/misc)",
+      "endpointGroup": "tmd_various_api_tier",
+      "tier": "api",
+      "difficulty": "medium",
+      "question": "ข้อมูลรังสีดวงอาทิตย์ในประเทศไทยล่าสุด",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10: ระนอง (70%), พังงา (68%), ภูเก็ต (67%), กระบี่ (66%), สุราษฎร์ธานี (64%) (ถ",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_additional_tools",
+      "name": "Other TMD Tools (pressure/solar/misc)",
+      "endpointGroup": "tmd_various_api_tier",
+      "tier": "api",
+      "difficulty": "hard",
+      "question": "ระดับน้ำทะเลบริเวณชายฝั่งอ่าวไทยวันนี้",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    },
+    {
+      "group": "tmd_additional_tools",
+      "name": "Other TMD Tools (pressure/solar/misc)",
+      "endpointGroup": "tmd_various_api_tier",
+      "tier": "api",
+      "difficulty": "very_hard",
+      "question": "สรุปข้อมูลอุตุนิยมวิทยาทางทะเลครบถ้วนสำหรับนักเดินเรือ",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "actualRoute": "weather",
+      "actualTools": [
+        "weatherPipeline"
+      ],
+      "status": 200,
+      "answerSnippet": "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)",
+      "pass": true,
+      "failReason": "",
+      "notReachable": false,
+      "notReachableReason": ""
+    }
+  ]
+}

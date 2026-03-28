@@ -1779,7 +1779,12 @@ function chatTraceOut(params: {
     | "worldbank"
     | "nasa"
     | "qr"
-    | "calculator";
+    | "calculator"
+    | "tmd_warning"
+    | "tmd_climate"
+    | "tmd_stations"
+    | "tmd_rainfall"
+    | "tmd_rain_regions";
   tool?: string;
   code: number;
   durMs: number;
@@ -3469,6 +3474,49 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         mcpUsed: true,
         mcpResults: toolResults,
       });
+    }
+
+    // =====================================
+    // Phase 11.2a: Deterministic Seismic Router (HTTP parity with WS)
+    // =====================================
+    const seismicLikeHttp = /แผ่นดินไหว|seismic|earthquake|ริกเตอร์|richter/i.test(routingMessage);
+    if (mcpClient && seismicLikeHttp) {
+      logBoth("info", `[SeismicGate] bypass=true transport=http query=${routingMessage.slice(0, 80)}`);
+      const toolName = "tmd_seismic_daily_events";
+      const toolResults = await mcpClient.executeTools([toolName], routingMessage);
+      const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+      const sc = first?.structuredContent ?? first?.result;
+      const direct = renderStructuredDirect(toolName, sc, routingMessage) || { text: "ขออภัย ไม่สามารถดึงข้อมูลแผ่นดินไหวได้ในขณะนี้" };
+      const textOut = direct.text;
+      const scOut = withRenderMeta(sc, { route: "seismic", llmUsed: false, routeDecider: "deterministic", version: "phase11.2" }, [toolName]);
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+      chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "seismicGate", tool: toolName, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+      return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: true, mcpResults: toolResults, toolsUsed: [toolName], route: "seismic" });
+    }
+
+    // =====================================
+    // Phase 11.2b: Deterministic TMD Subtopic Router (warning, climate, station, rain regions)
+    // Routes specific TMD queries to their dedicated MCP tools instead of generic weatherPipeline
+    // =====================================
+    const tmdSubtopicRoutes: Array<{ pattern: RegExp; tool: string; route: string; fallbackText: string }> = [
+      { pattern: /เตือนภัย|ประกาศเตือน|warning.*weather|weather.*warning|คำเตือน.*อากาศ|อากาศ.*เตือน/i, tool: "tmd_weather_warning_news", route: "tmd_warning", fallbackText: "ขออภัย ไม่สามารถดึงข้อมูลการเตือนภัยได้ในขณะนี้" },
+      { pattern: /ค่าปกติ|climate.*normal|สภาพ.*ปกติ|เฉลี่ย.*30.*ปี|1981.*2010/i, tool: "tmd_thailand_climate_normal_1981_2010", route: "tmd_climate", fallbackText: "ขออภัย ไม่สามารถดึงข้อมูลค่าปกติภูมิอากาศได้ในขณะนี้" },
+      { pattern: /รายชื่อ.*สถานี|สถานี.*มีกี่|มีสถานี.*อะไร|จำแนก.*สถานี|station.*list/i, tool: "tmd_station_list", route: "tmd_stations", fallbackText: "ขออภัย ไม่สามารถดึงข้อมูลสถานีอุตุนิยมวิทยาได้ในขณะนี้" },
+      { pattern: /ฝน.*ราย.*เดือน|ปริมาณ.*ฝน.*เฉลี่ย|monthly.*rain|เดือน.*ฝน.*มาก/i, tool: "tmd_thailand_monthly_rainfall", route: "tmd_rainfall", fallbackText: "ขออภัย ไม่สามารถดึงข้อมูลปริมาณฝนรายเดือนได้ในขณะนี้" },
+      { pattern: /ฝน.*ภูมิภาค|ภูมิภาค.*ฝน|rain.*region|ฝน.*ภาค.*ไหน.*มาก|ฝน.*แต่ละ.*ภาค|ฝนราย.*ภาค/i, tool: "tmd_rain_regions", route: "tmd_rain_regions", fallbackText: "ขออภัย ไม่สามารถดึงข้อมูลฝนตามภูมิภาคได้ในขณะนี้" },
+    ];
+    const matchedSubtopic = mcpClient ? tmdSubtopicRoutes.find(r => r.pattern.test(routingMessage)) : undefined;
+    if (mcpClient && matchedSubtopic) {
+      logBoth("info", `[TMDSubtopicGate] bypass=true transport=http tool=${matchedSubtopic.tool} query=${routingMessage.slice(0, 80)}`);
+      const toolResults = await mcpClient.executeTools([matchedSubtopic.tool], routingMessage);
+      const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+      const sc = first?.structuredContent ?? first?.result;
+      const direct = renderStructuredDirect(matchedSubtopic.tool, sc, routingMessage) || { text: matchedSubtopic.fallbackText };
+      const textOut = direct.text;
+      const scOut = withRenderMeta(sc, { route: matchedSubtopic.route, llmUsed: false, routeDecider: "deterministic", version: "phase11.2" }, [matchedSubtopic.tool]);
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+      chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: matchedSubtopic.route as any, tool: matchedSubtopic.tool, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+      return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: true, mcpResults: toolResults, toolsUsed: [matchedSubtopic.tool], route: matchedSubtopic.route });
     }
 
     // =====================================

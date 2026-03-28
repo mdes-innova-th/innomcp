@@ -1,0 +1,388 @@
+{
+  "stamp": "202603281200077",
+  "summary": {
+    "totalConv": 8,
+    "passConv": 7,
+    "failConv": 1
+  },
+  "conversations": [
+    {
+      "convId": 1,
+      "name": "หาดใหญ่ → จังหวัด → ภาค → อำเภอ",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "หาดใหญ่อยู่จังหวัดอะไร",
+          "status": 200,
+          "text": "หาดใหญ่เป็นอำเภอ/เมืองในจังหวัดสงขลา ภาคใต้",
+          "toolsUsed": [],
+          "route": "geo",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "entity lookup: amphoe → province"
+        },
+        {
+          "turn": 2,
+          "question": "จังหวัดนี้อยู่ภาคไหน",
+          "status": 200,
+          "text": "สงขลาอยู่ในภาคใต้ของประเทศไทย",
+          "toolsUsed": [],
+          "route": "geo",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry forward: จังหวัดนี้ = สงขลา"
+        },
+        {
+          "turn": 3,
+          "question": "แล้วมีอำเภออะไรเด่นบ้าง",
+          "status": 200,
+          "text": "จังหวัดสงขลามี 16 อำเภอ/เขต ได้แก่ เมืองสงขลา หาดใหญ่ สะเดา นาทวี จะนะ เทพา สิงหนคร รัตภูมิ ระโนด กระแสสินธุ์ ควนเนียง สทิงพระ นาหม่อม คลองหอยโข่ง บางกล่ำ สะบ้าย้อย",
+          "toolsUsed": [],
+          "route": "geo",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry forward: หัวข้อยังอยู่ที่สงขลา"
+        }
+      ],
+      "pass": true,
+      "failReasons": []
+    },
+    {
+      "convId": 2,
+      "name": "โคราช → ภาค → อากาศพรุ่งนี้ → สรุป",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "โคราชอยู่ภาคอะไร",
+          "status": 200,
+          "text": "โคราชอยู่ในภาคตะวันออกเฉียงเหนือ (อีสาน)ของประเทศไทย",
+          "toolsUsed": [],
+          "route": "geo",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "entity lookup: โคราช = นครราชสีมา, ภาคตะวันออกเฉียงเหนือ"
+        },
+        {
+          "turn": 2,
+          "question": "แล้วจังหวัดนี้พรุ่งนี้ฝนตกไหม",
+          "status": 200,
+          "text": "ช่วงเวลา: พรุ่งนี้ (29/03/2026)\n\nพื้นที่: นครราชสีมา\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)\nอำเภอที่ควรติดตาม: เมืองนครราชสีมา, ปากช่อง, สูงเนิน",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: จังหวัดนี้ = นครราชสีมา → weather lookup"
+        },
+        {
+          "turn": 3,
+          "question": "สรุปสั้น ๆ",
+          "status": 200,
+          "text": "ช่วงเวลา: วันนี้ (28/03/2026)\n\nพื้นที่: นครราชสีมา\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)\nอำเภอที่ควรติดตาม: เมืองนครราชสีมา, ปากช่อง, สูงเนิน",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: context from turns 1+2"
+        }
+      ],
+      "pass": true,
+      "failReasons": []
+    },
+    {
+      "convId": 3,
+      "name": "เชียงใหม่วันนี้ → พรุ่งนี้ → เทียบกรุงเทพ",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "อากาศเชียงใหม่วันนี้",
+          "status": 200,
+          "text": "ช่วงเวลา: วันนี้ (28/03/2026)\n\nพื้นที่: เชียงใหม่\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "weather query: เชียงใหม่"
+        },
+        {
+          "turn": 2,
+          "question": "แล้วพรุ่งนี้ล่ะ",
+          "status": 200,
+          "text": "ช่วงเวลา: พรุ่งนี้ (29/03/2026)\n\nพื้นที่: เชียงใหม่\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: entity=เชียงใหม่, time=tomorrow"
+        },
+        {
+          "turn": 3,
+          "question": "เทียบกับกรุงเทพให้หน่อย",
+          "status": 200,
+          "text": "ช่วงเวลา: วันนี้ (28/03/2026)\n\nพื้นที่: เชียงใหม่\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)\nอำเภอที่ควรติดตาม: จตุจักร, ลาดกระบัง, ดอนเมือง",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: multi-entity comparison"
+        }
+      ],
+      "pass": true,
+      "failReasons": []
+    },
+    {
+      "convId": 4,
+      "name": "กรุงเทพ → สัปดาห์หน้า → เทียบชลบุรี → ตาราง",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "แนวโน้มฝนกรุงเทพสัปดาห์หน้า",
+          "status": 200,
+          "text": "ช่วงเวลา: พยากรณ์ 7 วัน (28/03/2026)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)\nอำเภอที่ควรติดตาม: จตุจักร, ลาดกระบัง, ดอนเมือง",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "weather: BKK 7-day"
+        },
+        {
+          "turn": 2,
+          "question": "ถ้าเทียบกับชลบุรีล่ะ",
+          "status": 200,
+          "text": "ช่วงเวลา: วันนี้ (28/03/2026)\n\nพื้นที่: ชลบุรี\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)\nอำเภอที่ควรติดตาม: จตุจักร, ลาดกระบัง, ดอนเมือง",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: add second entity"
+        },
+        {
+          "turn": 3,
+          "question": "สรุปเป็นตาราง",
+          "status": 200,
+          "text": "ตารางสรุปสภาพอากาศ:\n\n| สถานะ           |\n| --------------- |\n| NWP_UNAVAILABLE |",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": false,
+          "note": "carry: format as table using prior context"
+        }
+      ],
+      "pass": false,
+      "failReasons": [
+        "Turn 3: expected keywords [\"กรุงเทพ\",\"ชลบุรี\"] not found in answer"
+      ]
+    },
+    {
+      "convId": 5,
+      "name": "แม่กลอง → ฝนสัปดาห์หน้า → น้ำเสี่ยง → เหตุผล",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "แม่กลองสัปดาห์หน้าฝนเป็นยังไง",
+          "status": 200,
+          "text": "ช่วงเวลา: พยากรณ์ 7 วัน (28/03/2026)\n\nพื้นที่: สมุทรสงคราม\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "weather: แม่กลอง = สมุทรสงคราม"
+        },
+        {
+          "turn": 2,
+          "question": "แล้วน้ำเสี่ยงสูงไหม",
+          "status": 200,
+          "text": "ช่วงเวลา: วันนี้ (28/03/2026)\n\nพื้นที่: สมุทรสงคราม\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)",
+          "toolsUsed": [
+            "weatherPipeline"
+          ],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: flood risk for แม่กลอง"
+        },
+        {
+          "turn": 3,
+          "question": "ขอเหตุผลแบบสั้น",
+          "status": 200,
+          "text": "สมุทรสงครามยังไม่เห็นสัญญาณน้ำเสี่ยงสูง เพราะโอกาสฝนยังต่ำและยังไม่มีข้อมูลว่าระดับน้ำเพิ่มผิดปกติในบริบทก่อนหน้าครับ",
+          "toolsUsed": [],
+          "route": "weather",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: summarize risk reason"
+        }
+      ],
+      "pass": true,
+      "failReasons": []
+    },
+    {
+      "convId": 6,
+      "name": "อยุธยา → ภาค → จังหวัดอื่น → ท่องเที่ยว",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "อยุธยาอยู่ภาคไหน",
+          "status": 200,
+          "text": "อยุธยาอยู่ในภาคกลางของประเทศไทย",
+          "toolsUsed": [],
+          "route": "geo",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "entity: อยุธยา → ภาคกลาง"
+        },
+        {
+          "turn": 2,
+          "question": "แล้วภาคนี้มีจังหวัดอะไรอีก",
+          "status": 200,
+          "text": "ภาคกลางของประเทศไทยประกอบด้วย 19 จังหวัด ได้แก่ กรุงเทพมหานคร นนทบุรี ปทุมธานี สมุทรปราการ สมุทรสาคร นครปฐม พระนครศรีอยุธยา อ่างทอง สิงห์บุรี ชัยนาท ลพบุรี สระบุรี สุพรรณบุรี สมุทรสงคราม นครนายก กาญจนบุรี ราชบุรี เพชรบุรี ประจวบคีรีขันธ์",
+          "toolsUsed": [],
+          "route": "geo",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: ภาคนี้ = ภาคกลาง"
+        },
+        {
+          "turn": 3,
+          "question": "จังหวัดไหนเด่นด้านท่องเที่ยว",
+          "status": 200,
+          "text": "ถ้าเน้นท่องเที่ยว ภาคกลางมีจังหวัดเด่น เช่น พระนครศรีอยุธยาเด่นด้านท่องเที่ยวเชิงประวัติศาสตร์ กาญจนบุรีเด่นด้านธรรมชาติและประวัติศาสตร์ สมุทรสงครามเด่นด้านท่องเที่ยวชุมชนและตลาดน้ำ",
+          "toolsUsed": [],
+          "route": "geo",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: topic = provinces in ภาคกลาง"
+        }
+      ],
+      "pass": true,
+      "failReasons": []
+    },
+    {
+      "convId": 7,
+      "name": "คำนวณ 48*7 → บวก 12 → แปลงเป็นข้อความ",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "คำนวณ 48*7",
+          "status": 200,
+          "text": "ผลลัพธ์: 48*7 = 336",
+          "toolsUsed": [
+            "calculatorTool"
+          ],
+          "route": "calculator",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "calculator: 48×7=336"
+        },
+        {
+          "turn": 2,
+          "question": "แล้วบวกเพิ่ม 12",
+          "status": 200,
+          "text": "ผลลัพธ์: 336 + 12 = 348",
+          "toolsUsed": [
+            "calculatorTool"
+          ],
+          "route": "calculator",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: 336+12=348"
+        },
+        {
+          "turn": 3,
+          "question": "แปลงเป็นข้อความสั้น",
+          "status": 200,
+          "text": "348 อ่านว่า สามร้อยสี่สิบแปด",
+          "toolsUsed": [],
+          "route": "general",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: number to text"
+        }
+      ],
+      "pass": true,
+      "failReasons": []
+    },
+    {
+      "convId": 8,
+      "name": "Machine learning → พยากรณ์อากาศ → เทียบ rule-based",
+      "turns": [
+        {
+          "turn": 1,
+          "question": "Machine learning คืออะไร",
+          "status": 200,
+          "text": "Machine Learning (ML) คือสาขาของ AI ที่ให้คอมพิวเตอร์เรียนรู้จากข้อมูลโดยไม่ต้องเขียนกฎตายตัว เช่น จำแนกภาพ พยากรณ์ราคา แนะนำสินค้า โดยใช้โมเดล Decision Tree, Neural Network, Random Forest ตามลักษณะข้อมูลครับ",
+          "toolsUsed": [],
+          "route": "general",
+          "sessionId": "",
+          "hasHistoryInfluence": false,
+          "carryForwardOk": true,
+          "note": "general knowledge"
+        },
+        {
+          "turn": 2,
+          "question": "ถ้าเอามาใช้กับพยากรณ์อากาศล่ะ",
+          "status": 200,
+          "text": "Machine learning ใช้กับงานพยากรณ์อากาศได้โดยเรียนรู้รูปแบบจากข้อมูลย้อนหลัง เช่น ฝน อุณหภูมิ ลม และความกดอากาศ เพื่อช่วยคาดการณ์แนวโน้มล่วงหน้า แต่ยังต้องมีข้อมูลคุณภาพดีและตรวจสอบความคลาดเคลื่อนควบคู่กันครับ",
+          "toolsUsed": [],
+          "route": "general",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: apply ML to weather"
+        },
+        {
+          "turn": 3,
+          "question": "สรุปต่างจาก rule-based ยังไง",
+          "status": 200,
+          "text": "Machine learning เรียนรู้รูปแบบจากข้อมูลจริงและปรับตัวได้เมื่อข้อมูลเปลี่ยน ส่วน rule-based อาศัยกฎที่มนุษย์กำหนดไว้ล่วงหน้า จึงอธิบายง่ายแต่ยืดหยุ่นน้อยกว่าในโจทย์ที่ข้อมูลซับซ้อนครับ",
+          "toolsUsed": [],
+          "route": "general",
+          "sessionId": "",
+          "hasHistoryInfluence": true,
+          "carryForwardOk": true,
+          "note": "carry: comparison"
+        }
+      ],
+      "pass": true,
+      "failReasons": []
+    }
+  ]
+}
