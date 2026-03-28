@@ -199,10 +199,12 @@ export async function handleFastPathMessage(
     if (!rateLimit.allowed) {
       logger.warn(`[FastPath] Rate limit exceeded for ${rateLimitKey} (${rateLimit.total} requests)`);
       
+      const rateLimitText = `🛑 กรุณาช้าลงหน่อยครับ (เหลือเวลา ${rateLimit.ttl} วินาที)\n\nคุณได้ส่งคำขอมากเกินไป กรุณารอสักครู่แล้วลองใหม่อีกครั้ง`;
       const rateLimitPayload = {
+        text: rateLimitText,
         content: [{
           type: "text",
-          text: `🛑 กรุณาช้าลงหน่อยครับ (เหลือเวลา ${rateLimit.ttl} วินาที)\n\nคุณได้ส่งคำขอมากเกินไป กรุณารอสักครู่แล้วลองใหม่อีกครั้ง`
+          text: rateLimitText
         }],
         structuredContent: {
           fastPath: true,
@@ -249,6 +251,7 @@ export async function handleFastPathMessage(
               const responseText = `${result}`;
               
               await respond({
+                  text: responseText,
                   content: [{ type: "text", text: responseText }],
                   structuredContent: { fastPath: true, fastPathHit: "math", result: responseText }
               });
@@ -297,6 +300,7 @@ export async function handleFastPathMessage(
            const responseText = `${key} คือ ${value}`;
            
            await respond({
+               text: responseText,
                content: [{ type: "text", text: responseText }],
                structuredContent: { fastPath: true, fastPathHit: "history", result: responseText }
            });
@@ -323,6 +327,7 @@ export async function handleFastPathMessage(
 
   // If for any reason we exceeded maxWorkMs significantly, still respond (fast path is the point)
   const payload = {
+    text: fp.content?.[0]?.text || "",
     content: fp.content,
     structuredContent: {
       ...(fp.structuredContent || {}),
