@@ -632,7 +632,7 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
   // Classify geo intent
   const geoIntent = (() => {
     if (/ภาค.*ท่องเที่ยว/.test(t)) return "region_tourism_highlights";
-    if (/ภาค.*(จังหวัด|ประกอบ|อะไรบ้าง)/.test(t)) return "region_to_provinces";
+    if (/ภาค.*(จังหวัด|ประกอบ|อะไรบ้าง)|จังหวัด.*ภาค(กลาง|เหนือ|ใต้|อีสาน|ตะวันออก|ตะวันตก|ตะวันออกเฉียงเหนือ)/.test(t)) return "region_to_provinces";
     if (/ภาค.*กี่จังหวัด/.test(t)) return "region_count";
     if (/(อยู่จังหวัด|จังหวัดอะไร|จังหวัดไหน)/.test(t)) return "city_to_province";
     if (/(อยู่ภาค|ภาคอะไร|ภาคไหน)/.test(t)) return "province_to_region";
@@ -673,6 +673,7 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
     "แม่กลอง": "สมุทรสงคราม", "อัมพวา": "สมุทรสงคราม", "มหาชัย": "สมุทรสาคร", "กระทุ่มแบน": "สมุทรสาคร",
     "บางกอก": "กรุงเทพมหานคร", "ธนบุรี": "กรุงเทพมหานคร",
     // Colloquial / aliases
+    "โคราช": "นครราชสีมา", "อุดร": "อุดรธานี", "อุบล": "อุบลราชธานี",
     "แปดริ้ว": "ฉะเชิงเทรา", "เมืองกาญ": "กาญจนบุรี", "เมืองคอน": "นครศรีธรรมราช",
     "สป": "สมุทรปราการ", "ยุดยา": "พระนครศรีอยุธยา", "อยุธยา": "พระนครศรีอยุธยา",
     // BKK districts (from locationResolver BKK_DISTRICTS)
