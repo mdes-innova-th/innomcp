@@ -143,12 +143,15 @@ const PROVINCE_MAP: Record<string, string> = {
   "โคราช": "นครราชสีมา",
   "กทม": "กรุงเทพมหานคร",
   "กรุงเทพ": "กรุงเทพมหานคร",
+  "กรงุเทพ": "กรุงเทพมหานคร",  // common Thai typo (transposition)
+  "กรุงเทพฯ": "กรุงเทพมหานคร",
   "บางกอก": "กรุงเทพมหานคร",
   "bangkok": "กรุงเทพมหานคร",
   "bkk": "กรุงเทพมหานคร",
   "korat": "นครราชสีมา",
   "chiangmai": "เชียงใหม่",
   "chiang mai": "เชียงใหม่",
+  "เชียงใม่": "เชียงใหม่",  // common Thai typo
   "chiangrai": "เชียงราย",
   "chiang rai": "เชียงราย",
   "phuket": "ภูเก็ต",
@@ -166,6 +169,8 @@ const PROVINCE_MAP: Record<string, string> = {
   "สป": "สมุทรปราการ",
   "ยุดยา": "พระนครศรีอยุธยา",
   "อยุธยา": "พระนครศรีอยุธยา",
+  "นครสี": "นครศรีธรรมราช",  // common shortened form
+  "หนองคาย": "หนองคาย",  // ensure exact match
 };
 
 // 🇹🇭 Region → representative provinces (for region-level weather queries)

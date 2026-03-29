@@ -14,6 +14,9 @@ export const evidenceTool = {
         "active_machines_offline_count",
         "machines_evidence_active_today",
         "evidence_records_today",
+        "evidence_records_yesterday_total",
+        "evidence_records_yesterday_by_isp_top",
+        "evidence_records_last_7_days_trend",
         "detected_urls_today",
         "officer_summary",
         "list_tables",
@@ -231,6 +234,136 @@ export const evidenceTool = {
         return {
           content: [{ type: "text" as const, text: `วันนี้ตรวจพบ URL แล้ว: ${n} รายการ` }],
           structuredContent: { ok: true, intent: action, count: n, dateColumn: createdCol, today, meta: metaFor("detectdb") },
+        };
+      }
+
+      // Phase 7.3: เมื่อวาน evidence ได้เท่าไหร่
+      if (action === "evidence_records_yesterday_total") {
+        const cols = await getColumns("record");
+        const createdCol = pickCreatedDateColumn(cols);
+        if (!createdCol) {
+          return {
+            content: [{ type: "text" as const, text: "ไม่พบคอลัมน์วันที่สร้างในตาราง record" }],
+            structuredContent: { ok: false, intent: action, code: "MISSING_DATE_COLUMN", table: "record", meta: metaFor("placeholder") },
+          };
+        }
+        const yesterday = (() => {
+          const now = new Date();
+          const bkkMs = now.getTime() + 7 * 60 * 60 * 1000;
+          const bkk = new Date(bkkMs);
+          bkk.setUTCDate(bkk.getUTCDate() - 1);
+          return `${bkk.getUTCFullYear()}-${String(bkk.getUTCMonth() + 1).padStart(2, "0")}-${String(bkk.getUTCDate()).padStart(2, "0")}`;
+        })();
+        const n = await countQuery(
+          `SELECT COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) = ?`,
+          [yesterday],
+          "evidence_records_yesterday_total"
+        );
+        return {
+          content: [{ type: "text" as const, text: `เมื่อวานนี้จัดเก็บหลักฐานวิดีโอได้: ${n} รายการ` }],
+          structuredContent: { ok: true, intent: action, count: n, date: yesterday, dateColumn: createdCol, meta: metaFor("detectdb") },
+        };
+      }
+
+      // Phase 7.3: เมื่อวาน evidence แยกตาม ISP + ใครมากสุด
+      if (action === "evidence_records_yesterday_by_isp_top") {
+        const recordCols = await getColumns("record");
+        const nipCols = await getColumns("nip");
+        const createdCol = pickCreatedDateColumn(recordCols);
+        const recordNipCol = pickFirstColumn(recordCols, ["nip_no", "nipNo", "nip_id", "nipId", "nip", "id_nip"]);
+        const nipNoCol = pickFirstColumn(nipCols, ["no", "nip_no", "nipNo", "nip_id", "id"]);
+        const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]);
+
+        const yesterday = (() => {
+          const now = new Date();
+          const bkkMs = now.getTime() + 7 * 60 * 60 * 1000;
+          const bkk = new Date(bkkMs);
+          bkk.setUTCDate(bkk.getUTCDate() - 1);
+          return `${bkk.getUTCFullYear()}-${String(bkk.getUTCMonth() + 1).padStart(2, "0")}-${String(bkk.getUTCDate()).padStart(2, "0")}`;
+        })();
+
+        if (!createdCol) {
+          return {
+            content: [{ type: "text" as const, text: "ไม่พบคอลัมน์วันที่สร้างในตาราง record" }],
+            structuredContent: { ok: false, intent: action, code: "MISSING_DATE_COLUMN", dbTable: "record", meta: metaFor("placeholder"), table: { rows: [] } },
+          };
+        }
+
+        const total = await countQuery(`SELECT COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) = ?`, [yesterday], "yesterday_total");
+
+        if (!recordNipCol || !nipNoCol || !ispCol) {
+          return {
+            content: [{ type: "text" as const, text: `เมื่อวานนี้รวม ${total} รายการ (ไม่สามารถแยกตาม ISP ได้)` }],
+            structuredContent: { ok: true, intent: action, date: yesterday, total, meta: metaFor("detectdb"), table: { rows: [] } },
+          };
+        }
+
+        const rows = await queryDetect<any>(
+          `SELECT n.\`${ispCol}\` as isp, COUNT(*) as c FROM record r JOIN nip n ON r.\`${recordNipCol}\` = n.\`${nipNoCol}\` WHERE DATE(r.\`${createdCol}\`) = ? GROUP BY n.\`${ispCol}\` ORDER BY c DESC LIMIT 3`,
+          [yesterday]
+        );
+
+        const byIsp = Array.isArray(rows) ? rows.map((r: any) => ({ isp: String(r.isp ?? "(ไม่ระบุ)").trim() || "(ไม่ระบุ)", count: Number(r.c || 0) || 0 })) : [];
+        const top = byIsp.length > 0 ? byIsp[0] : null;
+        const sumTop = byIsp.reduce((acc: number, r: any) => acc + (Number(r.count) || 0), 0);
+        const others = Math.max(0, total - sumTop);
+        const tableRows: Array<{ isp: string; count: number }> = (() => {
+          const out = byIsp.slice(0, 3);
+          while (out.length < 3) out.push({ isp: "(ยังไม่มีข้อมูล)", count: 0 });
+          out.push({ isp: "อื่นๆ", count: others });
+          return out;
+        })();
+
+        return {
+          content: [{ type: "text" as const, text: top ? `เมื่อวานนี้รวม ${total} รายการ | ISP มากสุด: ${top.isp} (${top.count})` : `เมื่อวานนี้รวม ${total} รายการ` }],
+          structuredContent: { ok: true, intent: action, date: yesterday, total, byIsp: tableRows, topIsp: top, meta: metaFor("detectdb"), table: { rows: tableRows } },
+        };
+      }
+
+      // Phase 7.3: trend 7 วันของหลักฐาน
+      if (action === "evidence_records_last_7_days_trend") {
+        const cols = await getColumns("record");
+        const createdCol = pickCreatedDateColumn(cols);
+        if (!createdCol) {
+          return {
+            content: [{ type: "text" as const, text: "ไม่พบคอลัมน์วันที่สร้างในตาราง record" }],
+            structuredContent: { ok: false, intent: action, code: "MISSING_DATE_COLUMN", table: "record", meta: metaFor("placeholder") },
+          };
+        }
+
+        const getBkkDate = (offsetDays: number): string => {
+          const now = new Date();
+          const bkkMs = now.getTime() + 7 * 60 * 60 * 1000;
+          const bkk = new Date(bkkMs);
+          bkk.setUTCDate(bkk.getUTCDate() + offsetDays);
+          return `${bkk.getUTCFullYear()}-${String(bkk.getUTCMonth() + 1).padStart(2, "0")}-${String(bkk.getUTCDate()).padStart(2, "0")}`;
+        };
+
+        const end = getBkkDate(0);
+        const start = getBkkDate(-6);
+        const rows = await queryDetect<any>(
+          `SELECT DATE_FORMAT(\`${createdCol}\`, '%Y-%m-%d') as d, COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) BETWEEN ? AND ? GROUP BY d ORDER BY d ASC`,
+          [start, end]
+        );
+
+        const byDate = new Map<string, number>();
+        if (Array.isArray(rows)) {
+          for (const r of rows) {
+            const d = String(r?.d ?? "").slice(0, 10);
+            if (/^\d{4}-\d{2}-\d{2}$/.test(d)) byDate.set(d, Number(r?.c || 0));
+          }
+        }
+
+        const points = Array.from({ length: 7 }).map((_, idx) => {
+          const d = getBkkDate(-6 + idx);
+          return { date: d, count: byDate.get(d) ?? 0 };
+        });
+        const total = points.reduce((s, p) => s + p.count, 0);
+
+        const lines = points.map((p) => `${p.date}: ${p.count}`);
+        return {
+          content: [{ type: "text" as const, text: `แนวโน้มหลักฐาน 7 วันล่าสุด:\n${lines.join("\n")}\nรวม 7 วัน: ${total} รายการ` }],
+          structuredContent: { ok: true, intent: action, range: { start, end }, series: { label: "หลักฐานต่อวัน", points }, total, meta: metaFor("detectdb") },
         };
       }
 

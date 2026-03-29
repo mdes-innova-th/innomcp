@@ -293,7 +293,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
 
       const createdCol = pickFirstColumn(recordCols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
       const recordNipCol = pickFirstColumn(recordCols, ["nip_no", "nipNo", "nip_id", "nipId", "nip", "id_nip"]);
-      const nipNoCol = pickFirstColumn(nipCols, ["nip_no", "nipNo", "nip_id", "id"]);
+      const nipNoCol = pickFirstColumn(nipCols, ["no", "nip_no", "nipNo", "nip_id", "id"]);
       const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]);
 
       if (!createdCol) {
@@ -390,7 +390,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       const end = getBangkokDate(0);
       const start = getBangkokDate(-6);
       const rows = await queryEvidence<any>(
-        `SELECT DATE_FORMAT(\`${createdCol}\`, '%Y-%m-%d') as d, COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) BETWEEN ? AND ? GROUP BY DATE(\`${createdCol}\`) ORDER BY d ASC`,
+        `SELECT DATE_FORMAT(\`${createdCol}\`, '%Y-%m-%d') as d, COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) BETWEEN ? AND ? GROUP BY d ORDER BY d ASC`,
         [start, end]
       );
 
@@ -425,7 +425,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
     if (intent === "pending_evidence") {
       const nipCols = await getColumns("nip");
       const nipCreatedCol = pickFirstColumn(nipCols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
-      const nipNoCol = pickFirstColumn(nipCols, ["nip_no", "nipNo", "nip_id", "id"]);
+      const nipNoCol = pickFirstColumn(nipCols, ["no", "nip_no", "nipNo", "nip_id", "id"]);
       if (!nipCreatedCol || !nipNoCol) {
         return { ok: false, intent, code: "MISSING_REQUIRED_COLUMNS", meta: metaFor("placeholder"), table: "nip", columns: nipCols };
       }
