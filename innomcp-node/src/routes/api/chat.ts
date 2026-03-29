@@ -1994,6 +1994,14 @@ wss.on("connection", (ws, req) => {
         // Add file context to the message if present
         const messageWithFile = currentText + fileContext;
 
+        // ─── Carry-forward: enrich ambiguous follow-up queries with context from history ───
+        // Mirror the HTTP path enrichment so WS multi-turn context works identically.
+        const enrichedMessage = buildHistoryAwareFollowUpQuery(messageWithFile, sessionHistory);
+        if (enrichedMessage !== messageWithFile) {
+          logBoth("info", `[CarryForward] ws enriched "${messageWithFile}" -> "${enrichedMessage}"`);
+        }
+        const routingMessage = enrichedMessage !== messageWithFile ? enrichedMessage : messageWithFile;
+
         // Phase 7.2.5: uiMode propagation hardening for WS sessions.
         // Persist the last non-empty uiMode on the WS connection so subsequent messages
         // do not fall back to uiMode="none" inside MCP processMessage.
@@ -2007,8 +2015,9 @@ wss.on("connection", (ws, req) => {
         }
 
         const traceStartMs = Date.now();
-        const evidenceAction = inferOfficerEvidenceAction(messageWithFile);
-        const answerPlan = planAnswer(messageWithFile);
+        const historyAwareDirectAnswer = buildHistoryAwareFollowUpAnswer(messageWithFile, sessionHistory);
+        const evidenceAction = inferOfficerEvidenceAction(routingMessage);
+        const answerPlan = planAnswer(routingMessage);
         const planStr = answerPlan.steps.map((s) => s.name).join(",") || "none";
         const fallbackStr = answerPlan.steps.map((s) => s.fallback).join(",") || "none";
         logBoth("info", `[AnswerPlanner] transport=ws intent=${answerPlan.intent} plan=${planStr} fallback=${fallbackStr} keywordSource=${answerPlan.notes.join(",")} dbOperational=unknown`);
@@ -2141,10 +2150,36 @@ wss.on("connection", (ws, req) => {
 
         }
 
+        // ─── History-aware direct answer (carry-forward follow-up that needs no tool) ───
+        if (historyAwareDirectAnswer) {
+          const textOut = historyAwareDirectAnswer.text;
+          const scOut = withRenderMeta(
+            { historyAwareFollowUp: { matched: true, route: historyAwareDirectAnswer.route } },
+            { route: historyAwareDirectAnswer.route, llmUsed: false, routeDecider: "deterministic", version: "phase11.2" }
+          );
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [] };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, []);
+          sessionManager.completeResponse(currentSessionId);
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [] });
+          sendDoneOnce();
+          chatTraceOut({
+            transport: "ws", sid: currentSessionId, cid, uiMode,
+            route: historyAwareDirectAnswer.route === "weather" ? "weatherGate" : "general",
+            tool: "historyCarryForward", code: 200, durMs: Date.now() - traceStartMs,
+            q: messageWithFile, ans: textOut,
+          });
+          return;
+        }
+
         // =====================================
         // Phase 7.1a: Deterministic Seismic Router (no weather fallback for earthquake queries)
         // =====================================
-        const seismicLike = /แผ่นดินไหว|seismic|earthquake|ริกเตอร์|richter/i.test(messageWithFile);
+        const seismicLike = /แผ่นดินไหว|seismic|earthquake|ริกเตอร์|richter/i.test(routingMessage);
         if (mcpClient && seismicLike) {
           logBoth("info", `[SeismicGate] bypass=true transport=ws query=${messageWithFile}`);
 
@@ -2181,13 +2216,13 @@ wss.on("connection", (ws, req) => {
         // Phase 7.1: Deterministic Weather Router (NO LLM tool planning)
         // Gate BEFORE any God-Tier Router / semantic / LLM-based tool selection.
         // =====================================
-        const geoLike = looksLikeDeterministicGeoQuery(messageWithFile);
-        const weatherLike = looksLikeDeterministicWeatherQuery(messageWithFile);
+        const geoLike = looksLikeDeterministicGeoQuery(routingMessage);
+        const weatherLike = looksLikeDeterministicWeatherQuery(routingMessage);
         const allowWeatherGate = answerPlan.intent === "weather" || (!officerMode
-          ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(messageWithFile))
-          : weatherLike && hasExplicitWeatherIntentKeywords(messageWithFile));
+          ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(routingMessage))
+          : weatherLike && hasExplicitWeatherIntentKeywords(routingMessage));
         if (mcpClient && allowWeatherGate) {
-          const deep = wantsDeepExplain(messageWithFile);
+          const deep = wantsDeepExplain(routingMessage);
           logBoth("info", `[WeatherGate] bypass=true transport=ws deepExplain=${deep} hasFileContext=${fileContext.length > 0}`);
 
           const wxAbort = new AbortController();
@@ -2203,7 +2238,7 @@ wss.on("connection", (ws, req) => {
 
           let toolResult: any;
           try {
-            toolResult = await mcpClient.runDeterministicWeatherPipeline(messageWithFile, { signal: wxAbort.signal });
+            toolResult = await mcpClient.runDeterministicWeatherPipeline(routingMessage, { signal: wxAbort.signal });
           } catch (wxErr: any) {
             logBoth("error", `[WeatherGate] mcp fallback triggered: ${wxErr.message}`);
             toolResult = { structuredContent: { weatherPipeline: { ok: false, code: "UPSTREAM_ERROR", message: "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง หรือเชื่อมต่อฐานข้อมูลไม่ได้ในขณะนี้ (ERR:WX_UPSTREAM_ERROR)" } } };
@@ -2216,12 +2251,12 @@ wss.on("connection", (ws, req) => {
           if (deep) {
             // Deep/analytical queries: synthesize via Ollama using weather facts as context
             const factGatherStart = Date.now();
-            const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
+            const direct = renderStructuredDirect("weatherPipeline", sc, routingMessage) || renderWeatherDirectAnswer(routingMessage, payload);
             const rawFacts = direct.text;
             const factGatherMs = Date.now() - factGatherStart;
 
             // Classify analytical mode + short-circuit decision
-            const analyticalMode = /เปรียบเทียบ|เทียบ/.test(messageWithFile) ? "compare" : /แนวโน้ม|trend/.test(messageWithFile) ? "trend" : /สรุป|overview|ภาพรวม/.test(messageWithFile) ? "overview" : /ความสัมพันธ์|correlation|สัมพันธ์/.test(messageWithFile) ? "correlation" : "analysis";
+            const analyticalMode = /เปรียบเทียบ|เทียบ/.test(routingMessage) ? "compare" : /แนวโน้ม|trend/.test(routingMessage) ? "trend" : /สรุป|overview|ภาพรวม/.test(routingMessage) ? "overview" : /ความสัมพันธ์|correlation|สัมพันธ์/.test(routingMessage) ? "correlation" : "analysis";
             const canShortCircuit = rawFacts.length > 50 && rawFacts.length < 400 && analyticalMode !== "compare";
             if (canShortCircuit) {
               const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase10.7" }, ["weatherPipeline"]);
@@ -2257,7 +2292,7 @@ wss.on("connection", (ws, req) => {
             try {
               const synthesisMessages = [
                 { role: "system", content: "คุณเป็นผู้เชี่ยวชาญพยากรณ์อากาศไทย ตอบภาษาไทยกระชับ 3-8 ประโยค อ้างอิงข้อมูลที่ให้เท่านั้น ห้ามเดา" },
-                { role: "user", content: `ข้อมูลอากาศ:\n${weatherFacts}\n\nคำถาม: ${messageWithFile}\n\nสรุปวิเคราะห์สั้นๆ:` }
+                { role: "user", content: `ข้อมูลอากาศ:\n${weatherFacts}\n\nคำถาม: ${routingMessage}\n\nสรุปวิเคราะห์สั้นๆ:` }
               ];
               const synthesisStream = await ollama.chat({
                 model: ollamaModel, messages: synthesisMessages as any, stream: true,
@@ -2299,7 +2334,7 @@ wss.on("connection", (ws, req) => {
               sendDoneOnce();
             }
           } else {
-            const direct = renderStructuredDirect("weatherPipeline", sc, messageWithFile) || renderWeatherDirectAnswer(messageWithFile, payload);
+            const direct = renderStructuredDirect("weatherPipeline", sc, routingMessage) || renderWeatherDirectAnswer(routingMessage, payload);
             const textOut = direct.text;
             const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase8" }, ["weatherPipeline"]);
 
@@ -2326,13 +2361,13 @@ wss.on("connection", (ws, req) => {
         // Phase 1 GEO Round B: Deterministic GEO Gate (NO LLM tool planning)
         // Minimal Happy Path: address_normalize / geo_lookup / geo_validate
         // =====================================
-        if (mcpClient && geoLike && !prefersThaiKnowledgeRoute(messageWithFile)) {
+        if (mcpClient && geoLike && !prefersThaiKnowledgeRoute(routingMessage)) {
           const geoToolName = "local-tools:thai_geo_tool";
-          const action = inferGeoAction(messageWithFile);
+          const action = inferGeoAction(routingMessage);
           const toolArgs: any =
             action === "geo_lookup"
-              ? { action, query: extractGeoLookupQuery(messageWithFile), topN: 5 }
-              : { action, address: messageWithFile };
+              ? { action, query: extractGeoLookupQuery(routingMessage), topN: 5 }
+              : { action, address: routingMessage };
 
           logBoth("info", `[GeoGate] bypass=true transport=ws action=${action} query=${String(toolArgs.query || "").slice(0, 60)}`);
 
@@ -2341,7 +2376,7 @@ wss.on("connection", (ws, req) => {
           sessionManager.addMessage(currentSessionId, "user", messageWithFile);
           sessionManager.startResponse(currentSessionId);
 
-          const toolResults = await mcpClient.executeTools([geoToolName], messageWithFile, {
+          const toolResults = await mcpClient.executeTools([geoToolName], routingMessage, {
             [geoToolName]: toolArgs,
           });
 
@@ -2399,10 +2434,10 @@ wss.on("connection", (ws, req) => {
         // Phase 10.7: Thai Knowledge Gate — LAYERED PROVIDER STACK
         // Provider order: 1)session context → 2)local resolver → 3)locationResolver → 4)fallback
         // =====================================
-        if (prefersThaiKnowledgeRoute(messageWithFile) && !looksLikeDeterministicWeatherQuery(messageWithFile)) {
+        if (prefersThaiKnowledgeRoute(routingMessage) && !looksLikeDeterministicWeatherQuery(routingMessage)) {
           // Provider 1: Session context carry-forward
-          const ctxResult = trySessionContext(currentSessionId, messageWithFile);
-          let tkResolved = resolveThaiGeoLocal(messageWithFile);
+          const ctxResult = trySessionContext(currentSessionId, routingMessage);
+          let tkResolved = resolveThaiGeoLocal(routingMessage);
 
           // If context carry-forward found a province, re-resolve using that province
           if (ctxResult && !tkResolved && ctxResult.data.resolvedEntity) {
@@ -2461,9 +2496,9 @@ wss.on("connection", (ws, req) => {
         // Phase 10.5: API Tool Gate — WorldBank, NASA, QR (direct MCP tool calls)
         // Queries with explicit tool/API names bypass GeneralGate to use real tools.
         // =====================================
-        if (mcpClient && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|qr\s*code|สร้าง\s*qr/i.test(messageWithFile)) {
+        if (mcpClient && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|qr\s*code|สร้าง\s*qr/i.test(routingMessage)) {
           const apiToolMatch = (() => {
-            const t = messageWithFile.toLowerCase();
+            const t = routingMessage.toLowerCase();
             if (/worldbank|world\s*bank|เวิลด์แบงก์/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
             if (/nasa|apod|นาซ่า/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
             if (/qr\s*code|qr\s*โค้ด|สร้าง\s*qr/i.test(t)) return { tool: "innomcp-server:qrCodeTool", gate: "QR" };
@@ -2535,7 +2570,7 @@ wss.on("connection", (ws, req) => {
         // Phase 7.4: GeneralGate (NO tool selection)
         // BEFORE God-Tier Router / MCP processMessage.
         // =====================================
-        if (looksLikeGeneralNoToolsQuery(messageWithFile)) {
+        if (looksLikeGeneralNoToolsQuery(routingMessage)) {
           const budgetMs = getGeneralBudgetMs();
           const generalStart = Date.now();
           logBoth("info", `[GeneralGate] bypass=true transport=ws budgetMs=${budgetMs}`);
@@ -2607,7 +2642,7 @@ wss.on("connection", (ws, req) => {
             timestamp: new Date()
           }));
 
-          const routingResult = await godTierRouter.route(messageWithFile, conversationHistory);
+          const routingResult = await godTierRouter.route(routingMessage, conversationHistory);
           semanticCategory = routingResult.category;
           godTierConfidence = Number((routingResult as any)?.confidence ?? 0);
           godTierFallbackUsed = Boolean((routingResult as any)?.usedFallback || (routingResult as any)?.fallbackUsed);
