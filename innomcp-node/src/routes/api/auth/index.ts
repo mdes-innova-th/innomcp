@@ -154,7 +154,7 @@ router.post('/login', async (req: Request, res: Response) => {
     // Find user by email
     const users = await withDbConnection(async (conn) => {
       const [rows] = await conn.query(
-        'SELECT user_id, user_email, user_pwd, user_disp_name, user_role_id FROM `user` WHERE user_email = ?',
+        'SELECT user_id, user_email, password, user_dispname, userrole_id FROM `user` WHERE user_email = ?',
         [email]
       );
       return rows;
@@ -163,15 +163,17 @@ router.post('/login', async (req: Request, res: Response) => {
     if (!Array.isArray(users) || users.length === 0) {
       console.log(`❌ LOGIN FAILED: User not found (${email})`);
       
-      // Log failed attempt
-      await withDbConnection(async (conn) => {
-        await conn.query(
-          `INSERT INTO user_activity_log 
-           (action_type, action_detail, ip_address, user_agent, status, created_at) 
-           VALUES ('login_failed', ?, ?, ?, 'failure', NOW())`,
-          [`Failed login attempt for email: ${email}`, req.ip, req.headers['user-agent'] || 'unknown']
-        );
-      });
+      // Log failed attempt (table may not exist)
+      try {
+        await withDbConnection(async (conn) => {
+          await conn.query(
+            `INSERT INTO user_activity_log 
+             (action_type, action_detail, ip_address, user_agent, status, created_at) 
+             VALUES ('login_failed', ?, ?, ?, 'failure', NOW())`,
+            [`Failed login attempt for email: ${email}`, req.ip, req.headers['user-agent'] || 'unknown']
+          );
+        });
+      } catch (_e) { /* table may not exist */ }
 
       return res.status(401).json({
         success: false,
@@ -181,25 +183,27 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const user = users[0] as any;
     
-    console.log(`✅ User found: ${user.user_email} (ID: ${user.user_id}, Role: ${user.user_role_id})`);
+    console.log(`✅ User found: ${user.user_email} (ID: ${user.user_id}, Role: ${user.userrole_id})`);
     console.log(`🔑 Comparing password...`);
 
     // Compare password
-    const isPasswordValid = await comparePassword(password, user.user_pwd);
+    const isPasswordValid = await comparePassword(password, user.password);
     
     console.log(`🔑 Password valid: ${isPasswordValid}`);
 
     if (!isPasswordValid) {
       console.log(`❌ LOGIN FAILED: Invalid password for ${user.user_email}`);
-      // Log failed attempt
-      await withDbConnection(async (conn) => {
-        await conn.query(
-          `INSERT INTO user_activity_log 
-           (user_id, action_type, action_detail, ip_address, user_agent, status, created_at) 
-           VALUES (?, 'login_failed', 'Invalid password', ?, ?, 'failure', NOW())`,
-          [user.user_id, req.ip, req.headers['user-agent'] || 'unknown']
-        );
-      });
+      // Log failed attempt (table may not exist)
+      try {
+        await withDbConnection(async (conn) => {
+          await conn.query(
+            `INSERT INTO user_activity_log 
+             (user_id, action_type, action_detail, ip_address, user_agent, status, created_at) 
+             VALUES (?, 'login_failed', 'Invalid password', ?, ?, 'failure', NOW())`,
+            [user.user_id, req.ip, req.headers['user-agent'] || 'unknown']
+          );
+        });
+      } catch (_e) { /* table may not exist */ }
 
       return res.status(401).json({
         success: false,
@@ -208,15 +212,15 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     console.log(`✅ LOGIN SUCCESS: ${user.user_email}`);
-    console.log(`👤 User: ${user.user_disp_name} (Role ID: ${user.user_role_id})`);
-    console.log(`🎯 Capability Level: ${user.user_role_id !== null ? '100%' : '50% (Guest)'}`);
+    console.log(`👤 User: ${user.user_dispname} (Role ID: ${user.userrole_id})`);
+    console.log(`🎯 Capability Level: ${user.userrole_id !== null ? '100%' : '50% (Guest)'}`);
     
     // Generate tokens
     const tokenPayload = {
       userId: user.user_id,
       userEmail: user.user_email,
-      userRoleId: user.user_role_id,
-      userDispName: user.user_disp_name
+      userRoleId: user.userrole_id,
+      userDispName: user.user_dispname
     };
 
     const accessToken = generateAccessToken(tokenPayload);
@@ -230,34 +234,36 @@ router.post('/login', async (req: Request, res: Response) => {
     
     console.log(`🍪 Cookies set successfully`);
 
-    // Create session and log login
-    await withDbConnection(async (conn) => {
-      // Generate unique session ID using crypto
-      const sessionId = crypto.randomUUID() + '_' + Date.now();
-      
-      await conn.query(
-        `INSERT INTO user_sessions 
-         (user_id, session_id, device_info, expires_at, created_at, last_activity) 
-         VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY), NOW(), NOW())`,
-        [
-          user.user_id,
-          sessionId,
-          JSON.stringify({ 
-            type: 'web', 
-            platform: req.headers['user-agent'] || 'unknown',
-            ip: req.ip
-          })
-        ]
-      );
+    // Create session and log login (tables may not exist)
+    try {
+      await withDbConnection(async (conn) => {
+        // Generate unique session ID using crypto
+        const sessionId = crypto.randomUUID() + '_' + Date.now();
+        
+        await conn.query(
+          `INSERT INTO user_sessions 
+           (user_id, session_id, device_info, expires_at, created_at, last_activity) 
+           VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 7 DAY), NOW(), NOW())`,
+          [
+            user.user_id,
+            sessionId,
+            JSON.stringify({ 
+              type: 'web', 
+              platform: req.headers['user-agent'] || 'unknown',
+              ip: req.ip
+            })
+          ]
+        );
 
-      // Log successful login
-      await conn.query(
-        `INSERT INTO user_activity_log 
-         (user_id, action_type, action_detail, ip_address, user_agent, status, created_at) 
-         VALUES (?, 'login', 'User logged in successfully', ?, ?, 'success', NOW())`,
-        [user.user_id, req.ip, req.headers['user-agent'] || 'unknown']
-      );
-    });
+        // Log successful login
+        await conn.query(
+          `INSERT INTO user_activity_log 
+           (user_id, action_type, action_detail, ip_address, user_agent, status, created_at) 
+           VALUES (?, 'login', 'User logged in successfully', ?, ?, 'success', NOW())`,
+          [user.user_id, req.ip, req.headers['user-agent'] || 'unknown']
+        );
+      });
+    } catch (_e) { console.log('[Auth] Session/activity_log write skipped (tables may not exist)'); }
 
     res.json({
       success: true,
@@ -265,8 +271,8 @@ router.post('/login', async (req: Request, res: Response) => {
       data: {
         userId: user.user_id,
         email: user.user_email,
-        displayName: user.user_disp_name,
-        roleId: user.user_role_id
+        displayName: user.user_dispname,
+        roleId: user.userrole_id
       }
     });
 
