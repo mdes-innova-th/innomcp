@@ -324,6 +324,14 @@ function buildHistoryAwareFollowUpQuery(currentText: string, sessionHistory: Cha
   const lastRegion = recentRegions[0];
   const explicitLocation = extractExplicitCarryLocation(cur);
   const recentWeatherContext = /(ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|ลม|weather|forecast|temperature|humidity|แนวโน้มฝน|น้ำเสี่ยง|น้ำท่วม|ระดับน้ำ)/i.test(historyText);
+  const recentEvidenceMachineContext = /(เครื่องออนไลน์|เครื่องออฟไลน์|ออนไลน์.*เครื่อง|เครื่อง.*ออนไลน์|machine.*online|online.*machine)/i.test(historyText);
+
+  // Evidence machine carry-forward
+  if (recentEvidenceMachineContext) {
+    if (/(offline|ออฟไลน์)/i.test(cur)) return "เครื่องออฟไลน์กี่เครื่อง";
+    if (/(online|ออนไลน์)/i.test(cur)) return "เครื่องออนไลน์กี่เครื่อง";
+    if (/สรุป/i.test(cur)) return "สรุปเครื่องออนไลน์และออฟไลน์";
+  }
 
   if (/(machine\s*learning|\bML\b)/i.test(historyText)) {
     if (/(พยากรณ์อากาศ|weather)/i.test(cur)) {

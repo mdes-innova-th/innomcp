@@ -152,9 +152,16 @@ export function renderWeatherMarkdownTable(input: RenderInput, maxRows = 15): st
   const nwp = results.find((r) => r.type === "nwp" && r.data);
   if (nwp) return renderNwpTable(nwp, maxRows);
 
-  const err = results.find((r) => r.type === "error");
-  if (err?.error) {
-    return buildMarkdownTable(["สถานะ"], [[mdEscape(err.error)]]);
+  const errResults = results.filter((r) => r.type === "error");
+  if (errResults.length > 0) {
+    const hasProvinces = errResults.some((r) => r.province);
+    if (hasProvinces) {
+      return buildMarkdownTable(
+        ["จังหวัด", "สถานะ"],
+        errResults.map((r) => [mdEscape(normalizeProvinceDisplayName(r.province) || "—"), mdEscape(r.error || "ERROR")])
+      );
+    }
+    return buildMarkdownTable(["สถานะ"], [[mdEscape(errResults[0].error || "ERROR")]]);
   }
 
   return buildMarkdownTable(["สถานะ"], [["NO_DATA"]]);
