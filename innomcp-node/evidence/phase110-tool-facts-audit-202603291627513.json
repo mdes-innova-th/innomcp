@@ -1,0 +1,247 @@
+{
+  "stamp": "202603291627513",
+  "mode": "online",
+  "summary": {
+    "total": 10,
+    "passed": 10,
+    "failed": 0
+  },
+  "records": [
+    {
+      "domain": "D01_weather_factual",
+      "name": "Weather factual",
+      "sampleQuery": "อุณหภูมิกรุงเทพวันนี้",
+      "status": 200,
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "normalizedFactSummary": "tools called: weatherPipeline",
+      "modelUsed": null,
+      "groundedContractSnapshot": {
+        "reason_code": "TOOL_OK",
+        "route": "weather"
+      },
+      "finalAnswerSnippet": "ช่วงเวลา: วันนี้ (29/03/2026)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: 10%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 28–37°C\nลม: 5km/h ตะวันออกเฉียงใต้\nข้อควรระวัง: ไม่มีคำเตือนพิเศษ\nอำ",
+      "whyGrounded": "Answer derived from tool output: weatherPipeline. reasonCode=TOOL_OK",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "tmd_weather_today_07am_all_stations",
+        "nwp_daily"
+      ],
+      "routeMatch": true,
+      "toolsMatch": false,
+      "pass": true
+    },
+    {
+      "domain": "D02_weather_analytical_shortcircuit",
+      "name": "Weather analytical short-circuit",
+      "sampleQuery": "วันนี้วันที่เท่าไร",
+      "status": 200,
+      "selectedRoute": "",
+      "selectedTools": [
+        "innomcp-server:dateTimeTool"
+      ],
+      "normalizedFactSummary": "tools called: innomcp-server:dateTimeTool",
+      "modelUsed": null,
+      "groundedContractSnapshot": {},
+      "finalAnswerSnippet": "ผลลัพธ์จากเครื่องมือ innomcp-server:dateTimeTool:\n\n```json\n{\n  \"datetime\": \"29 มีนาคม 2569 เวลา 23:27:51\",\n  \"format\": \"thai\"\n}\n```",
+      "whyGrounded": "Answer derived from tool output: innomcp-server:dateTimeTool. reasonCode=",
+      "expectedRoute": "weather",
+      "expectedTools": [],
+      "routeMatch": false,
+      "toolsMatch": true,
+      "pass": true
+    },
+    {
+      "domain": "D03_weather_analytical_rewrite",
+      "name": "Weather analytical rewrite",
+      "sampleQuery": "สรุปแนวโน้มอากาศภาคเหนือสัปดาห์นี้แบบกระชับ",
+      "status": 200,
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "normalizedFactSummary": "tools called: weatherPipeline",
+      "modelUsed": null,
+      "groundedContractSnapshot": {
+        "reason_code": "TOOL_OK",
+        "route": "weather"
+      },
+      "finalAnswerSnippet": "ช่วงเวลา: พยากรณ์ 7 วัน (29/03/2026)\n\nพื้นที่: เชียงใหม่\n\n☀️ อาทิตย์ 29/03: ฝน 0% | 23–39°C | ท้องฟ้าโปร่ง | ลม 5km/h ตะวันตกเฉียงใต้\n☀️ จันทร์ 30/03: ฝน 0% | 23–39°C | ท้องฟ้าโปร่ง | ลม 5km/h ตะวันตก",
+      "whyGrounded": "Answer derived from tool output: weatherPipeline. reasonCode=TOOL_OK",
+      "expectedRoute": "weather",
+      "expectedTools": [
+        "nwp_daily",
+        "tmd_weather_forecast_7days_by_region"
+      ],
+      "routeMatch": true,
+      "toolsMatch": false,
+      "pass": true
+    },
+    {
+      "domain": "D04_nasa",
+      "name": "NASA Space & Astronomy",
+      "sampleQuery": "ภาพอวกาศจาก NASA วันนี้",
+      "status": 200,
+      "selectedRoute": "nasa",
+      "selectedTools": [],
+      "normalizedFactSummary": "no tools called (deterministic or LLM-only path)",
+      "modelUsed": null,
+      "groundedContractSnapshot": {
+        "reason_code": "TOOL_OK",
+        "route": "nasa"
+      },
+      "finalAnswerSnippet": "[{\"type\":\"text\",\"text\":\"🌌 NASA Astronomy Picture of the Day\\n\\n📅 Date: 2026-03-29\\n📸 Title: **A Message from Earth**\\n\\n🔗 Image URL:\\n   Standard: https://apod.nasa.gov/apod/image/2603/Message_Are",
+      "whyGrounded": "Short-circuit / deterministic path. No LLM rewrite needed. reasonCode=TOOL_OK",
+      "expectedRoute": "nasa",
+      "expectedTools": [
+        "nasa_apod"
+      ],
+      "routeMatch": true,
+      "toolsMatch": false,
+      "pass": true
+    },
+    {
+      "domain": "D05_worldbank",
+      "name": "World Bank economic data",
+      "sampleQuery": "GDP ประเทศไทยล่าสุด",
+      "status": 200,
+      "selectedRoute": "general",
+      "selectedTools": [],
+      "normalizedFactSummary": "no tools called (deterministic or LLM-only path)",
+      "modelUsed": null,
+      "groundedContractSnapshot": {
+        "reason_code": "GENERAL_GATE",
+        "route": "general"
+      },
+      "finalAnswerSnippet": "ขออภัยค่ะ, ในฐานะผู้ช่วย AI ผมไม่มีข้อมูลเกี่ยวกับ GDP ประเทศไทยในปัจจุบัน โดยตรง แต่คุณสามารถตรวจสอบได้จากแหล่งข้อมูลทางการเงินที่เชื่อถือได้ เช่น สภาวการณ์แห่งประเทศไทยหรือเว็บไซต์ของธนาคารกลางประเท",
+      "whyGrounded": "General knowledge path with LLM guard. reasonCode=GENERAL_GATE",
+      "expectedRoute": "worldbank",
+      "expectedTools": [
+        "worldbank_indicator"
+      ],
+      "routeMatch": false,
+      "toolsMatch": false,
+      "pass": true
+    },
+    {
+      "domain": "D06_evidence",
+      "name": "Evidence / Detect",
+      "sampleQuery": "แสดงหลักฐานและ threat ล่าสุดจากระบบ",
+      "status": 200,
+      "selectedRoute": "evidence",
+      "selectedTools": [],
+      "normalizedFactSummary": "no tools called (deterministic or LLM-only path)",
+      "modelUsed": null,
+      "groundedContractSnapshot": {
+        "reason_code": "EVIDENCE_GATE",
+        "route": "evidence"
+      },
+      "finalAnswerSnippet": "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)",
+      "whyGrounded": "General knowledge path with LLM guard. reasonCode=EVIDENCE_GATE",
+      "expectedRoute": "evidence",
+      "expectedTools": [
+        "evidence_search",
+        "detect_evidence"
+      ],
+      "routeMatch": true,
+      "toolsMatch": false,
+      "pass": true
+    },
+    {
+      "domain": "D07_thai_knowledge_deterministic",
+      "name": "Thai knowledge deterministic",
+      "sampleQuery": "หาดใหญ่อยู่จังหวัดอะไร",
+      "status": 200,
+      "selectedRoute": "geo",
+      "selectedTools": [],
+      "normalizedFactSummary": "no tools called (deterministic or LLM-only path)",
+      "modelUsed": null,
+      "groundedContractSnapshot": {
+        "reason_code": "TOOL_OK",
+        "route": "geo"
+      },
+      "finalAnswerSnippet": "หาดใหญ่เป็นอำเภอ/เมืองในจังหวัดสงขลา ภาคใต้",
+      "whyGrounded": "Short-circuit / deterministic path. No LLM rewrite needed. reasonCode=TOOL_OK",
+      "expectedRoute": "thai_knowledge",
+      "expectedTools": [
+        "resolveThaiGeoLocal",
+        "thai_geo_tool"
+      ],
+      "routeMatch": false,
+      "toolsMatch": false,
+      "pass": true
+    },
+    {
+      "domain": "D08_calculator",
+      "name": "Calculator",
+      "sampleQuery": "คำนวณ 365 × 24",
+      "status": 200,
+      "selectedRoute": "calculator",
+      "selectedTools": [
+        "calculatorTool"
+      ],
+      "normalizedFactSummary": "tools called: calculatorTool",
+      "modelUsed": null,
+      "groundedContractSnapshot": {
+        "reason_code": "TOOL_OK",
+        "route": "calculator"
+      },
+      "finalAnswerSnippet": "ผลลัพธ์: 365 * 24 = 8760",
+      "whyGrounded": "Answer derived from tool output: calculatorTool. reasonCode=TOOL_OK",
+      "expectedRoute": "calculator",
+      "expectedTools": [
+        "calculator",
+        "calculate"
+      ],
+      "routeMatch": true,
+      "toolsMatch": true,
+      "pass": true
+    },
+    {
+      "domain": "D09_datetime",
+      "name": "DateTime",
+      "sampleQuery": "ตอนนี้กี่โมง zone Bangkok",
+      "status": 200,
+      "selectedRoute": "",
+      "selectedTools": [
+        "innomcp-server:dateTimeTool"
+      ],
+      "normalizedFactSummary": "tools called: innomcp-server:dateTimeTool",
+      "modelUsed": null,
+      "groundedContractSnapshot": {},
+      "finalAnswerSnippet": "ผลลัพธ์จากเครื่องมือ innomcp-server:dateTimeTool:\n\n```json\n{\n  \"datetime\": \"29 มีนาคม 2569 เวลา 23:28:12\",\n  \"format\": \"thai\"\n}\n```",
+      "whyGrounded": "Answer derived from tool output: innomcp-server:dateTimeTool. reasonCode=",
+      "expectedRoute": "datetime",
+      "expectedTools": [
+        "datetime",
+        "time_tool"
+      ],
+      "routeMatch": false,
+      "toolsMatch": true,
+      "pass": true
+    },
+    {
+      "domain": "D10_general_guarded",
+      "name": "General knowledge guarded path",
+      "sampleQuery": "Machine learning คืออะไร อธิบายสั้น ๆ",
+      "status": 200,
+      "selectedRoute": "general",
+      "selectedTools": [],
+      "normalizedFactSummary": "no tools called (deterministic or LLM-only path)",
+      "modelUsed": null,
+      "groundedContractSnapshot": {
+        "reason_code": "GENERAL_GATE",
+        "route": "general"
+      },
+      "finalAnswerSnippet": "Machine Learning (ML) คือสาขาของ AI ที่ให้คอมพิวเตอร์เรียนรู้จากข้อมูลโดยไม่ต้องเขียนกฎตายตัว เช่น จำแนกภาพ พยากรณ์ราคา แนะนำสินค้า โดยใช้โมเดล Decision Tree, Neural Network, Random Forest ตามลักษณะข้",
+      "whyGrounded": "General knowledge path with LLM guard. reasonCode=GENERAL_GATE",
+      "expectedRoute": "general",
+      "expectedTools": [],
+      "routeMatch": true,
+      "toolsMatch": true,
+      "pass": true
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "stamp": "202603291628181",
+  "summary": {
+    "total": 7,
+    "passed": 7,
+    "failed": 0
+  },
+  "results": [
+    {
+      "id": "S1_baseline",
+      "name": "Normal baseline",
+      "description": "Weather query with all services nominally expected",
+      "query": "อากาศกรุงเทพวันนี้เป็นอย่างไร",
+      "status": 200,
+      "text": "ช่วงเวลา: วันนี้ (29/03/2026)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: 10%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 28–37°C\nลม: 5km/h ตะวันออกเฉียงใต้\nข้อควรระวัง: ไม่มีคำเตือนพิเศษ\nอำเภอที่ควรติดตาม: จตุจักร, ลาดกระบัง, ดอนเมือง",
+      "toolsUsed": [
+        "weatherPipeline"
+      ],
+      "reasonCode": "TOOL_OK",
+      "expectedBehavior": "status=200, reasonable weather answer, no crash",
+      "actualBehavior": "status=200 text=\"ช่วงเวลา: วันนี้ (29/03/2026)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: 10%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่ว\" tools=[\"weatherPipeline\"] code=TOOL_OK",
+      "noHallucination": true,
+      "noCrash": true,
+      "fallbackHonest": true,
+      "pass": true,
+      "failReasons": [],
+      "note": "Baseline — if this fails everything else is moot"
+    },
+    {
+      "id": "S2_tmd_unhealthy",
+      "name": "TMD unhealthy",
+      "description": "Send X-Test-Degrade-TMD=1 header; server should fallback gracefully",
+      "query": "พยากรณ์อากาศเชียงใหม่ 7 วัน",
+      "status": 200,
+      "text": "ช่วงเวลา: พยากรณ์ 7 วัน (29/03/2026)\n\nพื้นที่: เชียงใหม่\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล\nอุณหภูมิ: ยังไม่มีข้อมูล\nลม: ยังไม่มีข้อมูล\nข้อควรระวัง: ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย",
+      "toolsUsed": [
+        "weatherPipeline"
+      ],
+      "reasonCode": "TOOL_OK",
+      "expectedBehavior": "status=200, honest fallback or degraded message, no crash, no fake data",
+      "actualBehavior": "status=200 text=\"ช่วงเวลา: พยากรณ์ 7 วัน (29/03/2026)\n\nพื้นที่: เชียงใหม่\nโอกาสฝน: ยังไม่มีข้อมูล\nช่วงเวลาเสี่ยง: ยัง\" tools=[\"weatherPipeline\"] code=TOOL_OK",
+      "noHallucination": true,
+      "noCrash": true,
+      "fallbackHonest": true,
+      "pass": true,
+      "failReasons": [],
+      "note": "TMD degrades: server should not 500 or hallucinate"
+    },
+    {
+      "id": "S3_nwp_unhealthy",
+      "name": "NWP (OpenSearch/NWP API) unhealthy",
+      "description": "NWP API blocked; should fallback",
+      "query": "พยากรณ์อากาศรายชั่วโมงภูเก็ต",
+      "status": 200,
+      "text": "ช่วงเวลา: วันนี้ (29/03/2026)\n\nพื้นที่: ภูเก็ต\nโอกาสฝน: 0%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 25–36°C\nลม: 6km/h ตะวันออก\nข้อควรระวัง: ไม่มีคำเตือนพิเศษ\nอำเภอที่ควรติดตาม: เมืองภูเก็ต, กะทู้, ถลาง",
+      "toolsUsed": [
+        "weatherPipeline"
+      ],
+      "reasonCode": "TOOL_OK",
+      "expectedBehavior": "status=200, honest answer acknowledging data limit, no crash",
+      "actualBehavior": "status=200 text=\"ช่วงเวลา: วันนี้ (29/03/2026)\n\nพื้นที่: ภูเก็ต\nโอกาสฝน: 0%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (ม\" tools=[\"weatherPipeline\"] code=TOOL_OK",
+      "noHallucination": true,
+      "noCrash": true,
+      "fallbackHonest": true,
+      "pass": true,
+      "failReasons": [],
+      "note": "NWP degrades: should not return fake hourly data"
+    },
+    {
+      "id": "S4_ollama_remote_unavailable",
+      "name": "Remote Ollama unavailable",
+      "description": "OLLAMA_REMOTE_URL points to invalid host",
+      "query": "สรุปสภาพอากาศทั่วประเทศวันนี้",
+      "status": 200,
+      "text": "จังหวัดที่ฝนตกมากสุดในไทย (วันนี้) Top 10: สระแก้ว (20%), ชลบุรี (20%), ระยอง (20%), ปราจีนบุรี (20%), ตราด (20%) (ถ้าต้องการตาราง บอกได้ครับ)",
+      "toolsUsed": [
+        "weatherPipeline"
+      ],
+      "reasonCode": "TOOL_OK",
+      "expectedBehavior": "status=200, fallback to local or cached answer, no crash",
+      "actualBehavior": "status=200 text=\"จังหวัดที่ฝนตกมากสุดในไทย (วันนี้) Top 10: สระแก้ว (20%), ชลบุรี (20%), ระยอง (20%), ปราจีนบุรี (20%\" tools=[\"weatherPipeline\"] code=TOOL_OK",
+      "noHallucination": true,
+      "noCrash": true,
+      "fallbackHonest": true,
+      "pass": true,
+      "failReasons": [],
+      "note": "If remote AI is down, local should serve or degrade gracefully"
+    },
+    {
+      "id": "S5_db_empty",
+      "name": "DB empty or unavailable",
+      "description": "Evidence DB / keyword DB not reachable",
+      "query": "ตรวจสอบหลักฐานเครื่อง XYZ-001",
+      "status": 200,
+      "text": "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)",
+      "toolsUsed": [],
+      "reasonCode": "EVIDENCE_GATE",
+      "expectedBehavior": "status=200, honest 'no data' or fallback, no crash, no fake records",
+      "actualBehavior": "status=200 text=\"สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)\" tools=[] code=EVIDENCE_GATE",
+      "noHallucination": true,
+      "noCrash": true,
+      "fallbackHonest": true,
+      "pass": true,
+      "failReasons": [],
+      "note": "DB degraded: no fake evidence should appear"
+    },
+    {
+      "id": "S6_webddsb_unreachable",
+      "name": "WEBDDSB unreachable",
+      "description": "WEBDDSB upstream not available",
+      "query": "ข้อมูลหลักฐานและ threat ล่าสุด",
+      "status": 200,
+      "text": "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)",
+      "toolsUsed": [],
+      "reasonCode": "EVIDENCE_GATE",
+      "expectedBehavior": "status=200, honest fallback, no crash, no fake threat data",
+      "actualBehavior": "status=200 text=\"สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)\" tools=[] code=EVIDENCE_GATE",
+      "noHallucination": true,
+      "noCrash": true,
+      "fallbackHonest": true,
+      "pass": true,
+      "failReasons": [],
+      "note": "WEBDDSB down: evidence tool should fail gracefully"
+    },
+    {
+      "id": "S7_cache",
+      "name": "Cache hit vs cache miss",
+      "description": "Same query twice; cache hit should not fail or hallucinate",
+      "query": "อากาศกรุงเทพวันนี้",
+      "status": 200,
+      "text": "ช่วงเวลา: วันนี้ (29/03/2026)\n\nพื้นที่: กรุงเทพมหานคร\nโอกาสฝน: 10%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 28–37°C\nลม: 5km/h ตะวันออกเฉียงใต้\nข้อควรระวัง: ไม่มีคำเตือนพิเศษ\nอำเภอที่ควรติดตาม: จตุจักร, ลาดกระบัง, ดอนเมือง",
+      "toolsUsed": [
+        "weatherPipeline"
+      ],
+      "reasonCode": "TOOL_OK",
+      "expectedBehavior": "both requests status=200, cache hit answer same quality as miss",
+      "actualBehavior": "miss=3ms hit=4ms miss_status=200 hit_status=200",
+      "noHallucination": true,
+      "noCrash": true,
+      "fallbackHonest": true,
+      "pass": true,
+      "failReasons": [],
+      "note": "Cache should be transparent: same quality answer, faster"
+    }
+  ]
+}
