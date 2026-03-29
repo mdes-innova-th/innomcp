@@ -2369,7 +2369,7 @@ wss.on("connection", (ws, req) => {
         // Phase 1 GEO Round B: Deterministic GEO Gate (NO LLM tool planning)
         // Minimal Happy Path: address_normalize / geo_lookup / geo_validate
         // =====================================
-        if (mcpClient && geoLike && !prefersThaiKnowledgeRoute(routingMessage)) {
+        if (mcpClient && geoLike && !prefersThaiKnowledgeRoute(routingMessage) && !looksLikeMathLikeQuery(routingMessage)) {
           const geoToolName = "local-tools:thai_geo_tool";
           const action = inferGeoAction(routingMessage);
           const toolArgs: any =
@@ -2504,10 +2504,10 @@ wss.on("connection", (ws, req) => {
         // Phase 10.5: API Tool Gate — WorldBank, NASA, QR (direct MCP tool calls)
         // Queries with explicit tool/API names bypass GeneralGate to use real tools.
         // =====================================
-        if (mcpClient && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|qr\s*code|สร้าง\s*qr/i.test(routingMessage)) {
+        if (mcpClient && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก/i.test(routingMessage)) {
           const apiToolMatch = (() => {
             const t = routingMessage.toLowerCase();
-            if (/worldbank|world\s*bank|เวิลด์แบงก์/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
+            if (/worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
             if (/nasa|apod|นาซ่า/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
             if (/qr\s*code|qr\s*โค้ด|สร้าง\s*qr/i.test(t)) return { tool: "innomcp-server:qrCodeTool", gate: "QR" };
             return null;
@@ -3716,7 +3716,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Phase 1 GEO Round B: Deterministic GEO Gate (NO LLM tool planning)
     // Minimal Happy Path: address_normalize / geo_lookup / geo_validate
     // =====================================
-    if (mcpClient && geoLike && !prefersThaiKnowledgeRoute(routingMessage)) {
+    if (mcpClient && geoLike && !prefersThaiKnowledgeRoute(routingMessage) && !looksLikeMathLikeQuery(routingMessage)) {
       // Try local Thai geo resolver first
       const localResolve = resolveThaiGeoLocal(routingMessage);
       if (localResolve) {
@@ -3941,10 +3941,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     // Phase 10.5: API Tool Gate — WorldBank, NASA, QR (HTTP path)
     // =====================================
-    if (mcpClient && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|qr\s*code|สร้าง\s*qr/i.test(messageWithFile)) {
+    if (mcpClient && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก/i.test(messageWithFile)) {
       const apiToolMatch = (() => {
         const t = messageWithFile.toLowerCase();
-        if (/worldbank|world\s*bank|เวิลด์แบงก์/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
+        if (/worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
         if (/nasa|apod|นาซ่า/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
         if (/qr\s*code|qr\s*โค้ด|สร้าง\s*qr/i.test(t)) return { tool: "innomcp-server:qrCodeTool", gate: "QR" };
         return null;

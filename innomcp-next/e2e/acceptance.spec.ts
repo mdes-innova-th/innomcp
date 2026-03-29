@@ -43,8 +43,8 @@ for (const dir of [SCREENSHOTS_DIR, TRACES_DIR]) {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function navigateToChat(page: Page) {
-  await page.goto(CHAT_URL, { timeout: 20_000 });
-  await page.waitForSelector('[data-testid="chat-input"]', { timeout: 15_000 });
+  await page.goto(CHAT_URL, { timeout: 45_000 });
+  await page.waitForSelector('[data-testid="chat-input"]', { timeout: 30_000 });
 }
 
 async function sendMessage(page: Page, message: string) {

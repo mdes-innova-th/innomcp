@@ -27,6 +27,17 @@ innomcp-node/tests/*
 !innomcp-node/tests/geo/
 !innomcp-node/tests/geo/*.test.js
 
+# Allowlist: unit and integration tests (real coverage, not passWithNoTests)
+!innomcp-node/tests/unit/
+!innomcp-node/tests/unit/__tests__/
+!innomcp-node/tests/unit/__tests__/*.ts
+!innomcp-node/tests/unit/*.test.ts
+!innomcp-node/tests/integration/
+!innomcp-node/tests/integration/*.test.ts
+!innomcp-node/tests/evidence_tool.test.ts
+!innomcp-node/tests/weather_regression.test.ts
+!innomcp-node/tests/weather_regression_phase65_final.test.ts
+
 # Database files
 mariadb/data/
 
