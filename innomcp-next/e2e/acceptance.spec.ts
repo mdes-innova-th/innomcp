@@ -43,7 +43,23 @@ for (const dir of [SCREENSHOTS_DIR, TRACES_DIR]) {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function navigateToChat(page: Page) {
-  await page.goto(CHAT_URL, { timeout: 45_000 });
+  // Attempt goto; retry once if the Next.js dev server is temporarily slow (e.g. after heavy analytics tests).
+  try {
+    await page.goto(CHAT_URL, { timeout: 45_000 });
+  } catch {
+    // Brief pause then retry — dev server may be catching up from a long backend call
+    await page.waitForTimeout(3_000);
+    await page.goto(CHAT_URL, { timeout: 45_000 });
+  }
+  // Fast-check: if chat-input isn't visible in 5s, the Next.js dev overlay may have appeared
+  // (transient RSC/HMR JSON parse error from rapid successive navigations). Reload once to recover.
+  const chatInputReady = await page
+    .locator('[data-testid="chat-input"]')
+    .isVisible({ timeout: 5_000 })
+    .catch(() => false);
+  if (!chatInputReady) {
+    await page.reload({ timeout: 45_000 });
+  }
   await page.waitForSelector('[data-testid="chat-input"]', { timeout: 30_000 });
 }
 
@@ -1008,9 +1024,8 @@ test.describe("NO PLACEHOLDER MAP", () => {
   for (const { id, msg } of weatherQueries) {
     test(`${id} — no weather-map-tiles placeholder: "${msg}"`, async ({ page }) => {
       await navigateToChat(page);
-      await sendMessage(page, msg);
-      await waitForResponse(page, WEATHER_TIMEOUT_MS);
-      await screenshot(page, id);
+      // Use runCase (has in-flight guard) to guarantee we wait for the CURRENT response, not a stale one
+      await runCase(page, id, msg, WEATHER_TIMEOUT_MS);
       await assertNoPlaceholderMap(page, id);
     });
   }

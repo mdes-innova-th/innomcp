@@ -25,7 +25,17 @@ async function sendMessage(page: Page, message: string) {
 }
 
 async function waitForAIResponse(page: Page) {
-  // Wait for the send button to re-enable (response complete)
+  // Step 1: wait for button to become disabled (confirms send was registered).
+  // If it never disables within 5s the button may have briefly toggled already — continue.
+  await page.waitForFunction(
+    () => {
+      const btn = document.querySelector('[data-testid="send-btn"]');
+      return btn && (btn as HTMLButtonElement).disabled;
+    },
+    { timeout: 5_000 }
+  ).catch(() => {});
+
+  // Step 2: wait for button to re-enable (response complete)
   await page.waitForFunction(
     () => {
       const btn = document.querySelector('[data-testid="send-btn"]');

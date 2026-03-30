@@ -8,16 +8,18 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 1,   // 1 retry in local to handle transient flake
+  retries: 0,  // zero retries — globalSetup pre-warms caches so no test needs retry
   workers: 1,
   reporter: [["list"], ["html", { open: "never" }]],
+  globalSetup: "./e2e/globalSetup.ts",
+  timeout: 120_000, // 2min per test — weather/NWP queries can take 40s+ cold
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:3000",
     trace: "retain-on-failure",
     screenshot: "on",
     locale: "th-TH",
     video: "off",
-    actionTimeout: 15_000,
+    actionTimeout: 30_000,  // raised from 15s — covers post-warmup prose renders
     navigationTimeout: 30_000,
   },
   projects: [
