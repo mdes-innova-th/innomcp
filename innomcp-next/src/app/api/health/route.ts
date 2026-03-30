@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  // Accept multiple env var names — NEXT_PUBLIC_NODE_HOST is set in .env.local for dev
+  // Accept multiple env var names — canonical is NEXT_PUBLIC_API_URL (3011)
   const backendUrl = (
     process.env.NEXT_PUBLIC_BACKEND_URL ??
     process.env.NEXT_PUBLIC_NODE_HOST ??
+    process.env.NEXT_PUBLIC_API_URL ??
     "http://localhost:3011"
   ).replace(/\/$/, "");
   try {
@@ -22,12 +23,13 @@ export async function GET() {
     const healthData = await healthRes.json().catch(() => ({ status: "error" }));
     const aiModeData = aiModeRes && aiModeRes.ok ? await aiModeRes.json() : null;
     const normalizedStatus = String(healthData?.status || "error").toLowerCase();
-    const mode = normalizedStatus === "healthy" ? "online" : "offline";
     const modeReady = normalizedStatus === "healthy" || normalizedStatus === "degraded";
+    const mode = modeReady ? "online" : "offline";
     const mcpStatus = Array.isArray(healthData?.services)
       ? healthData.services.some((service: { name?: string; status?: string }) => {
           const serviceName = String(service?.name || "").toLowerCase();
-          return serviceName.includes("mcp") && String(service?.status || "").toLowerCase() === "healthy";
+          const serviceStatus = String(service?.status || "").toLowerCase();
+          return serviceName.includes("mcp") && (serviceStatus === "healthy" || serviceStatus === "degraded");
         })
         ? "connected"
         : "unknown"

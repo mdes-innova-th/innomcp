@@ -128,3 +128,5 @@ data/*.sqlite-*
 
 # Evidence logs are generated per run; keep reports in docs/reports instead
 innomcp-node/evidence/*.log
+innomcp-node/evidence/*.json
+innomcp-node/evidence/*.json

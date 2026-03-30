@@ -53,10 +53,13 @@ interface HealthCheckConfig {
   timeout?: number;
   expectedStatus?: number;
   validateResponse?: (data: any) => boolean;
+  /** When false, this service's failure causes DEGRADED (not UNHEALTHY) overall. Default: true */
+  critical?: boolean;
 }
 
 /**
  * Registered health checks
+ * critical=false: external APIs — their failure degrades but does not break core chat functionality
  */
 const HEALTH_CHECKS: HealthCheckConfig[] = [
   {
@@ -65,6 +68,7 @@ const HEALTH_CHECKS: HealthCheckConfig[] = [
     method: 'GET',
     timeout: 5000,
     expectedStatus: 401, // API ต้องการ token, 401 แสดงว่าเซิร์ฟเวอร์ทำงาน
+    critical: false,
   },
   {
     name: 'Open-Meteo API',
@@ -73,6 +77,7 @@ const HEALTH_CHECKS: HealthCheckConfig[] = [
     timeout: 5000,
     expectedStatus: 200,
     validateResponse: (data) => data?.current?.temperature_2m !== undefined,
+    critical: false,
   },
   {
     name: 'OpenSearch (Thai Gov)',
@@ -80,18 +85,29 @@ const HEALTH_CHECKS: HealthCheckConfig[] = [
     method: 'GET',
     timeout: 5000,
     expectedStatus: 200,
+    critical: false,
   },
   {
     name: 'Redis',
     url: 'redis://localhost:6379',
     method: 'GET',
     timeout: 2000,
+    critical: true,
   },
   {
     name: 'Database',
     url: 'mysql://localhost:3306',
     method: 'GET',
     timeout: 2000,
+    critical: true,
+  },
+  {
+    name: 'MCP Server',
+    url: process.env.MCP_SERVER_URL || 'http://localhost:3012/health',
+    method: 'GET',
+    timeout: 3000,
+    expectedStatus: 200,
+    critical: true,
   },
 ];
 
@@ -259,14 +275,21 @@ export async function checkAllServices(useCache = true): Promise<SystemHealth> {
   }
   
   // Determine overall status
-  const hasUnhealthy = results.some(r => r.status === HealthStatus.UNHEALTHY);
-  const hasDegraded = results.some(r => r.status === HealthStatus.DEGRADED);
+  // Critical services failing → UNHEALTHY; optional services failing → DEGRADED only
+  const criticalConfigs = HEALTH_CHECKS.filter(c => c.critical !== false);
+  const criticalNames = new Set(criticalConfigs.map(c => c.name));
+  const criticalResults = results.filter(r => criticalNames.has(r.service));
+  const optionalResults = results.filter(r => !criticalNames.has(r.service));
+
+  const hasCriticalUnhealthy = criticalResults.some(r => r.status === HealthStatus.UNHEALTHY);
+  const hasAnyDegraded = results.some(r => r.status === HealthStatus.DEGRADED);
+  const hasOptionalUnhealthy = optionalResults.some(r => r.status === HealthStatus.UNHEALTHY);
   const hasUnknown = results.every(r => r.status === HealthStatus.UNKNOWN);
-  
+
   let overallStatus = HealthStatus.HEALTHY;
-  if (hasUnhealthy) {
+  if (hasCriticalUnhealthy) {
     overallStatus = HealthStatus.UNHEALTHY;
-  } else if (hasDegraded) {
+  } else if (hasAnyDegraded || hasOptionalUnhealthy) {
     overallStatus = HealthStatus.DEGRADED;
   } else if (hasUnknown) {
     overallStatus = HealthStatus.UNKNOWN;

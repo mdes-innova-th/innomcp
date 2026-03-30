@@ -239,7 +239,13 @@ function wantsDeepExplain(text: string): boolean {
 }
 
 function looksLikeDeterministicWeatherQuery(text: string): boolean {
-  const t = String(text || "");
+  const raw = String(text || "");
+  // Normalise common Thai weather/location typos before pattern matching
+  const t = raw
+    .replace(/อากาส(?=[^\u0E00]|$)/g, "อากาศ")   // อากาส → อากาศ
+    .replace(/กรุเทพ/g, "กรุงเทพ")                 // กรุเทพ → กรุงเทพ
+    .replace(/วันี้/g, "วันนี้")                     // วันี้ → วันนี้
+    .replace(/พรุ่งนี[้]?(?=\s|$)/g, "พรุ่งนี้");   // พรุ่งนี → พรุ่งนี้
 
   // Core weather words
   // NOTE: do NOT match "ลม" as a bare substring (e.g. "ถนนสีลม" should not be treated as weather)
@@ -1789,6 +1795,7 @@ function chatTraceOut(params: {
     | "nasa"
     | "qr"
     | "calculator"
+    | "datetime"
     | "tmd_warning"
     | "tmd_climate"
     | "tmd_stations"
@@ -2572,6 +2579,90 @@ wss.on("connection", (ws, req) => {
               // Fall through to GeneralGate on failure
             }
           }
+        }
+
+        // =====================================
+        // Phase 11.1: CalculatorGate WS — Deterministic math eval (NO LLM)
+        // Mirrors the HTTP calculator gate (line ~4000). Must be AFTER geo/worldbank gates.
+        // =====================================
+        if (looksLikeMathLikeQuery(routingMessage)) {
+          try {
+            const expr = routingMessage
+              .replace(/(คำนวณ|calculate|compute|คิดเลข|เท่าไร|เท่าไหร่|ผลลัพธ์|ผลคือ|result|equals)/gi, "")
+              .replace(/บวก(?:เพิ่ม)?/g, "+")
+              .replace(/ลบ(?:ออก)?/g, "-")
+              .replace(/คูณ/g, "*")
+              .replace(/หาร/g, "/")
+              .replace(/×/g, "*")
+              .replace(/÷/g, "/")
+              .replace(/[^\d+\-*/().^%\s,eE]/g, "")
+              .trim();
+            if (expr && /\d/.test(expr)) {
+              const { evaluate } = require("mathjs");
+              const result = evaluate(expr);
+              if (typeof result === "number" || (result && typeof result.toString === "function")) {
+                const textOut = `ผลลัพธ์: ${expr.trim()} = ${result}`;
+                const scOut = withRenderMeta(
+                  { calculatorGate: { expression: expr, result: String(result) } },
+                  { route: "calculator" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.1" },
+                  ["calculatorTool"]
+                );
+                sessionHistory.push({ sender: "user", text: messageWithFile });
+                sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+                sessionManager.startResponse(currentSessionId);
+                const aiMsg: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["calculatorTool"] };
+                sessionHistory.push(aiMsg);
+                sessionManager.addMessage(currentSessionId, "assistant", textOut, ["calculatorTool"]);
+                sessionManager.completeResponse(currentSessionId);
+                sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["calculatorTool"] });
+                sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["calculatorTool"] });
+                sendDoneOnce();
+                chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "calculator", tool: "calculatorTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut });
+                return;
+              }
+            }
+          } catch (calcErr: any) {
+            logBoth("warn", `[CalculatorGate WS] eval failed: ${calcErr?.message || calcErr}`);
+            // Fall through to MCP
+          }
+        }
+
+        // =====================================
+        // Phase 11.3: DateTimeGate WS — Deterministic current datetime (NO LLM)
+        // Handles "วันนี้วันที่เท่าไร", "กี่โมงแล้ว", "today's date" etc.
+        // =====================================
+        if (looksLikeDateTimeLikeQuery(routingMessage)) {
+          const now = new Date();
+          const bkkOffset = 7 * 60 * 60 * 1000;
+          const bkk = new Date(now.getTime() + bkkOffset);
+          const dayNames = ["วันอาทิตย์","วันจันทร์","วันอังคาร","วันพุธ","วันพฤหัสบดี","วันศุกร์","วันเสาร์"];
+          const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+          const wd = dayNames[bkk.getUTCDay()];
+          const d = bkk.getUTCDate();
+          const mo = monthNames[bkk.getUTCMonth()];
+          const be = bkk.getUTCFullYear() + 543;
+          const hh = String(bkk.getUTCHours()).padStart(2, "0");
+          const min = String(bkk.getUTCMinutes()).padStart(2, "0");
+          const ss = String(bkk.getUTCSeconds()).padStart(2, "0");
+          const humanReadable = `${wd}ที่ ${d} ${mo} พ.ศ. ${be} เวลา ${hh}:${min}:${ss} น. (UTC+7)`;
+          const textOut = `ขณะนี้คือ${humanReadable}`;
+          const scOut = withRenderMeta(
+            { dateTimeGate: { datetime: humanReadable, timezone: "Asia/Bangkok (UTC+7)", isoUtc: now.toISOString() } },
+            { route: "datetime" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.3" },
+            ["dateTimeTool"]
+          );
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+          const aiMsg: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["dateTimeTool"] };
+          sessionHistory.push(aiMsg);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, ["dateTimeTool"]);
+          sessionManager.completeResponse(currentSessionId);
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["dateTimeTool"] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["dateTimeTool"] });
+          sendDoneOnce();
+          chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "datetime", tool: "dateTimeTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut });
+          return;
         }
 
         // =====================================
@@ -4050,6 +4141,54 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         logBoth("warn", `[CalculatorGate] eval failed: ${calcErr?.message || calcErr}`);
         // Fall through to MCP
       }
+    }
+
+    // =====================================
+    // Phase 11.3: DateTimeGate HTTP — Deterministic current datetime (NO LLM)
+    // Handles "วันนี้วันที่เท่าไร", "กี่โมงแล้ว", "today's date" etc.
+    // =====================================
+    if (looksLikeDateTimeLikeQuery(routingMessage)) {
+      const now = new Date();
+      const bkkOffset = 7 * 60 * 60 * 1000;
+      const bkk = new Date(now.getTime() + bkkOffset);
+      const dayNames = ["วันอาทิตย์","วันจันทร์","วันอังคาร","วันพุธ","วันพฤหัสบดี","วันศุกร์","วันเสาร์"];
+      const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+      const wd = dayNames[bkk.getUTCDay()];
+      const d = bkk.getUTCDate();
+      const mo = monthNames[bkk.getUTCMonth()];
+      const be = bkk.getUTCFullYear() + 543;
+      const hh = String(bkk.getUTCHours()).padStart(2, "0");
+      const min = String(bkk.getUTCMinutes()).padStart(2, "0");
+      const ss = String(bkk.getUTCSeconds()).padStart(2, "0");
+      const humanReadable = `${wd}ที่ ${d} ${mo} พ.ศ. ${be} เวลา ${hh}:${min}:${ss} น. (UTC+7)`;
+      const textOut = `ขณะนี้คือ${humanReadable}`;
+      const scOut = withRenderMeta(
+        { dateTimeGate: { datetime: humanReadable, timezone: "Asia/Bangkok (UTC+7)", isoUtc: now.toISOString() } },
+        { route: "datetime" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.3" },
+        ["dateTimeTool"]
+      );
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+      chatTraceOut({
+        transport: "http",
+        sid: httpSessionId,
+        cid: httpCid,
+        uiMode,
+        route: "datetime",
+        tool: "dateTimeTool",
+        code: 200,
+        durMs: Date.now() - traceStartMs,
+        q: messageWithFile,
+        ans: textOut,
+      });
+      return res.json({
+        text: textOut,
+        structuredContent: scOut,
+        messages: sessionHistory,
+        mcpUsed: false,
+        mcpResults: null,
+        toolsUsed: ["dateTimeTool"],
+        route: "datetime",
+      });
     }
 
     // =====================================

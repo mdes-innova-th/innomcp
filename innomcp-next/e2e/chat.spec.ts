@@ -33,7 +33,9 @@ async function waitForAIResponse(page: Page) {
     },
     { timeout: WAIT_FOR_RESPONSE_MS }
   );
-  await page.waitForTimeout(400);
+  // Wait for DOM to settle after button re-enables (avoids reading partial renders)
+  await page.waitForLoadState("domcontentloaded");
+  await page.waitForTimeout(200);
 }
 
 // ─── TC-01: Page loads and chat input is visible ──────────────────────────────
