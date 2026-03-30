@@ -13,8 +13,6 @@ logs/
 innomcp-next/logs/
 innomcp-server-node/logs/
 innomcp-node/logs/
-*.log
-!innomcp-node/evidence/*.log
 
 # tests
 innomcp-next/tests/
@@ -129,4 +127,18 @@ data/*.sqlite-*
 # Evidence logs are generated per run; keep reports in docs/reports instead
 innomcp-node/evidence/*.log
 innomcp-node/evidence/*.json
-innomcp-node/evidence/*.json
+
+# Root-level test/debug artifacts
+test_*.js
+test_*.ts
+tmp/
+screenshots/
+data/
+playwright-todos.json
+playwright-weather-results.json
+weather_resp.json
+wx_fresh.json
+wx_uni.json
+
+# AI session memory (personal, not source)
+.claude/

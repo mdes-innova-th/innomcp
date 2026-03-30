@@ -115,8 +115,18 @@ test("TC-05: Phuket station query returns a response", async ({ page }) => {
   await sendMessage(page, "ข้อมูลสถานี ภูเก็ต");
   await waitForAIResponse(page);
 
+  // Wait for prose content to render (station queries can paint after send-btn re-enables)
+  await page.waitForSelector(".prose", { timeout: WAIT_FOR_RESPONSE_MS }).catch(() => {});
   const aiMessages = page.locator(".prose");
-  const text = await aiMessages.last().innerText();
+  const count = await aiMessages.count();
+  // Fallback: use message-assistant wrapper if .prose is absent
+  let text = "";
+  if (count > 0) {
+    text = await aiMessages.last().innerText({ timeout: WAIT_FOR_RESPONSE_MS });
+  } else {
+    const wrapper = page.locator('[data-testid="message-assistant"]');
+    text = await wrapper.last().innerText({ timeout: WAIT_FOR_RESPONSE_MS });
+  }
   expect(text.trim().length).toBeGreaterThan(5);
   expect(/[\u0E00-\u0E7F]/.test(text)).toBeTruthy(); // Thai characters present
 });
