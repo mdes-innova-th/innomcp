@@ -553,10 +553,42 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   if (isYesterday && (hasEvidenceTerms || /(กี่รายการ|จำนวน|ทั้งหมด|รวม)/i.test(t))) {
     return "evidence_records_yesterday_total";
   }
+  // Scanner machines: "จำนวนเครื่องสแกนที่กำลังทำงาน" / "เครื่องสแกน...ทำงาน" / "scanner run กี่เครื่อง"
+  if (/(เครื่องสแกน|สแกน.*เครื่อง|จำนวน.*สแกน|scanner).*(กำลังทำงาน|ทำงาน|ออนไลน์|active|online|run|กี่เครื่อง)/i.test(t) ||
+      /จำนวน.*เครื่อง.*(ทำงาน|สแกน|active|online|ออนไลน์)/i.test(t) ||
+      /(scanner\s*(run|online|active)|สแกน.*run)/i.test(t)) {
+    return "active_machines_count";
+  }
+  // NIP top ISP this month: "isp/เครือข่าย...เดือนนี้" / "เดือนนี้...isp/เครือข่าย + url/พบ/เจอ"
+  if (/(isp|ผู้ให้บริการ|ค่าย|เครือข่าย).*(เดือนนี้|this\s*month)|เดือนนี้.*(isp|ผู้ให้บริการ|เครือข่าย)/i.test(t)) {
+    return "nip_top_isp_this_month";
+  }
+  if (/(เดือนนี้).*(url|nip|ผิดกฎหมาย|illegal|พบ|เจอ).*(มากสุด|เยอะสุด|สูงสุด|จาก|ไหน)/i.test(t) ||
+      /(url|nip|ผิดกฎหมาย|illegal).*(เดือนนี้).*(มากสุด|เยอะสุด|จาก|ไหน)/i.test(t)) {
+    return "nip_top_isp_this_month";
+  }
+  // NIP top ISP overall: "top isp" / "isp มากสุด/เยอะสุด"
+  if (/(top\s*\d*\s*isp|isp\s*top|isp.*มากสุด|มากสุด.*isp|isp.*เยอะสุด|เยอะสุด.*isp)/i.test(t) && !isYesterday) {
+    if (/(เดือนนี้|this\s*month)/i.test(t)) return "nip_top_isp_this_month";
+    return "nip_top_isp_all";
+  }
+  // Machine last scan: "machine/เครื่อง ล่าสุด/สแกนล่าสุด"
+  if (/(machine|เครื่อง).*(สแกนล่าสุด|ล่าสุด.*สแกน|last.*scan|latest.*scan)|สแกนล่าสุด/i.test(t)) {
+    return "machine_last_scan";
+  }
+  // NIP latest illegal URL
+  if (/(url.*ล่าสุด|ล่าสุด.*url|latest.*url|url.*latest|nip.*ล่าสุด|ล่าสุด.*nip)/i.test(t)) {
+    return "nip_latest";
+  }
+  // NIP by record top
+  if (/(nip.*มากสุด|มากสุด.*nip|nip.*เยอะสุด|nip.*top)/i.test(t)) {
+    return "nip_by_record_top";
+  }
   if (/(เครื่อง.*ออฟไลน์|ออฟไลน์กี่เครื่อง|offline\s*machines?|machines?\s*offline)/i.test(t)) {
     return "active_machines_offline_count";
   }
-  if (/(เครื่อง.*ออนไลน์|ออนไลน์กี่เครื่อง|active\s*machines?|online\s*machines?|machines?\s*online)/i.test(t)) {
+  if (/(เครื่อง.*ออนไลน์|ออนไลน์กี่เครื่อง|เครื่องที่\s*online|เครื่อง.*\bonline\b|active\s*machines?|online\s*machines?|machines?\s*online)/i.test(t) ||
+      /(สรุปเครื่อง.*(online|ออนไลน์)|เครื่อง.*(online|ออนไลน์).*(อยู่|กี่))/i.test(t)) {
     return "active_machines_count";
   }
   // Phase 7.2.4: "วันนี้ machine evidence ทำงานอยู่กี่เครื่อง".
@@ -1109,6 +1141,12 @@ function mapOfficerEvidenceActionToLocalIntent(action: string): string | undefin
   if (action === "evidence_records_yesterday_total") return "evidence_records_yesterday_total";
   if (action === "evidence_records_yesterday_by_isp_top") return "evidence_records_yesterday_by_isp_top";
   if (action === "evidence_records_last_7_days_trend") return "evidence_records_last_7_days_trend";
+  if (action === "nip_top_isp_this_month") return "nip_top_isp_this_month";
+  if (action === "nip_top_isp_all") return "nip_top_isp_all";
+  if (action === "machine_last_scan") return "machine_last_scan";
+  if (action === "nip_latest") return "nip_latest";
+  if (action === "nip_by_record_top") return "nip_by_record_top";
+  if (action === "detected_urls_today") return "detected_urls_today";
   return undefined;
 }
 
@@ -1443,6 +1481,43 @@ function renderStructuredDirect(
       }
       return { text: `ผลสรุปหลักฐาน: ${count}`, structuredContent };
     }
+
+      if (intent === "nip_top_isp_this_month" || intent === "nip_top_isp_all") {
+        const byIsp: Array<{isp:string; count:number}> = Array.isArray((sc as any).byIsp) ? (sc as any).byIsp : [];
+        const month = String((sc as any).month || "").trim();
+        const label = intent === "nip_top_isp_this_month" ? `เดือนนี้ (${month})` : "ทั้งหมด";
+        const lines: string[] = [`Top ISP ${label}:`];
+        byIsp.slice(0,10).forEach((r,i) => lines.push(`${i+1}) ${r.isp}: ${r.count.toLocaleString()} รายการ`));
+        if (lines.length === 1) lines.push("(ยังไม่มีข้อมูล)");
+        return { text: lines.join("\n"), structuredContent };
+      }
+      if (intent === "machine_last_scan") {
+        const machines: Array<any> = Array.isArray((sc as any).machines) ? (sc as any).machines : [];
+        const lines: string[] = ["เครื่องสแกนล่าสุด:"];
+        machines.slice(0,5).forEach((m,i) => {
+          const dt = m.last_check_in ? String(m.last_check_in).slice(0,16).replace("T"," ") : "-";
+          lines.push(`${i+1}) ${m.pc_name||"?"} (${m.isp_name||"?"}) - ${dt} - ${m.is_online ? "ออนไลน์" : "ออฟไลน์"}`);
+        });
+        if (machines.length === 0) lines.push("(ยังไม่มีข้อมูล)");
+        return { text: lines.join("\n"), structuredContent };
+      }
+      if (intent === "nip_latest") {
+        const items: Array<any> = Array.isArray((sc as any).items) ? (sc as any).items : [];
+        const lines: string[] = ["URL ผิดกฎหมายล่าสุด:"];
+        items.slice(0,5).forEach((r,i) => {
+          const dt = r.create_date ? String(r.create_date).slice(0,10) : "-";
+          lines.push(`${i+1}) ${r.url} (${r.isp_name||"?"}) - ${dt}`);
+        });
+        if (items.length === 0) lines.push("(ยังไม่มีข้อมูล)");
+        return { text: lines.join("\n"), structuredContent };
+      }
+      if (intent === "nip_by_record_top") {
+        const items: Array<any> = Array.isArray((sc as any).items) ? (sc as any).items : [];
+        const lines: string[] = ["NIP ที่มี record มากสุด:"];
+        items.slice(0,10).forEach((r,i) => lines.push(`${i+1}) nip_no=${r.nip_no}: ${r.count.toLocaleString()} รายการ`));
+        if (items.length === 0) lines.push("(ยังไม่มีข้อมูล)");
+        return { text: lines.join("\n"), structuredContent };
+      }
 
     // If we cannot interpret, fall back to a safe generic.
     return { text: "ขออภัย รูปแบบข้อมูลผลลัพธ์ไม่ครบถ้วน (ERR:SCHEMA)", structuredContent };

@@ -31,6 +31,11 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
           "evidence_records_last_7_days_trend",
           "pending_evidence",
           "recent_threats",
+          "nip_top_isp_this_month",
+          "nip_top_isp_all",
+          "machine_last_scan",
+          "nip_latest",
+          "nip_by_record_top",
         ],
         description: "The specific query intent to execute."
       },
@@ -447,6 +452,85 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       }
       const n = await countQuery(`SELECT COUNT(*) as c FROM nip WHERE DATE(\`${nipCreatedCol}\`) = ?`, [today]);
       return { ok: true, intent, meta: metaFor("detectdb"), count: n, summary: `เหตุการณ์ (NIP) วันนี้: ${n} รายการ` };
+    }
+
+    if (intent === "nip_top_isp_this_month") {
+      const now = new Date();
+      const yr = now.getFullYear();
+      const mo = now.getMonth() + 1;
+      const monthLabel = `${yr}-${String(mo).padStart(2,"0")}`;
+      const rows = await queryEvidence<any>(
+        "SELECT isp_name, COUNT(*) as c FROM nip WHERE YEAR(create_date)=? AND MONTH(create_date)=? GROUP BY isp_name ORDER BY c DESC LIMIT 10",
+        [yr, mo]
+      );
+      const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r.isp_name||"(ไม่ระบุ)").trim()||"(ไม่ระบุ)", count: Number(r.c||0) })) : [];
+      const top = byIsp[0] || null;
+      return {
+        ok: true, intent, month: monthLabel, byIsp, topIsp: top, meta: metaFor("detectdb"),
+        summary: top ? `เดือนนี้ (${monthLabel}) ISP มากสุด: ${top.isp} (${top.count} รายการ)` : `เดือนนี้ยังไม่มีข้อมูล`,
+      };
+    }
+
+    if (intent === "nip_top_isp_all") {
+      const topN = Math.min(Math.max(1, Number(args.limit)||10), 10);
+      const rows = await queryEvidence<any>(
+        `SELECT isp_name, COUNT(*) as c FROM nip GROUP BY isp_name ORDER BY c DESC LIMIT ${topN}`
+      );
+      const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r.isp_name||"(ไม่ระบุ)").trim()||"(ไม่ระบุ)", count: Number(r.c||0) })) : [];
+      const top = byIsp[0] || null;
+      return {
+        ok: true, intent, topN, byIsp, topIsp: top, meta: metaFor("detectdb"),
+        summary: top ? `Top ISP ทั้งหมด: ${top.isp} (${top.count.toLocaleString()} รายการ)` : "ยังไม่มีข้อมูล",
+      };
+    }
+
+    if (intent === "machine_last_scan") {
+      const rows = await queryEvidence<any>(
+        "SELECT pc_name, isp_name, ip_address, last_check_in, is_online FROM machines ORDER BY last_check_in DESC LIMIT 5"
+      );
+      const machines = Array.isArray(rows) ? rows.map((r:any) => ({
+        pc_name: String(r.pc_name||"(ไม่ระบุ)"),
+        isp_name: String(r.isp_name||"(ไม่ระบุ)"),
+        ip_address: String(r.ip_address||""),
+        last_check_in: r.last_check_in ? new Date(r.last_check_in).toISOString() : null,
+        is_online: Number(r.is_online||0) === 1,
+      })) : [];
+      const latest = machines[0] || null;
+      return {
+        ok: true, intent, machines, latest, meta: metaFor("detectdb"),
+        summary: latest ? `เครื่องสแกนล่าสุด: ${latest.pc_name} (${latest.isp_name}) ตรวจสอบล่าสุด ${latest.last_check_in?.slice(0,10)||"-"}` : "ไม่พบข้อมูล",
+      };
+    }
+
+    if (intent === "nip_latest") {
+      const topN = Math.min(Math.max(1, Number(args.limit)||5), 10);
+      const rows = await queryEvidence<any>(
+        `SELECT no, url, isp_name, create_date FROM nip ORDER BY create_date DESC LIMIT ${topN}`
+      );
+      const items = Array.isArray(rows) ? rows.map((r:any) => ({
+        no: Number(r.no||0),
+        url: String(r.url||""),
+        isp_name: String(r.isp_name||""),
+        create_date: r.create_date ? new Date(r.create_date).toISOString() : null,
+      })) : [];
+      const latest = items[0] || null;
+      return {
+        ok: true, intent, items, latest, meta: metaFor("detectdb"),
+        summary: latest ? `URL ผิดกฎหมายล่าสุด: ${latest.url} (${latest.isp_name})` : "ไม่พบข้อมูล",
+      };
+    }
+
+    if (intent === "nip_by_record_top") {
+      const topN = Math.min(Math.max(1, Number(args.limit)||10), 10);
+      const rows = await queryEvidence<any>(
+        `SELECT nip_no, COUNT(*) as c FROM record GROUP BY nip_no ORDER BY c DESC LIMIT ${topN}`
+      );
+      const items = Array.isArray(rows) ? rows.map((r:any) => ({ nip_no: Number(r.nip_no||0), count: Number(r.c||0) })) : [];
+      const top = items[0] || null;
+      return {
+        ok: true, intent, items, top, meta: metaFor("detectdb"),
+        summary: top ? `NIP ที่มี record มากสุด: nip_no=${top.nip_no} (${top.count.toLocaleString()} รายการ)` : "ไม่พบข้อมูล",
+      };
     }
 
     return { ok: false, code: "UNKNOWN_INTENT", meta: metaFor("placeholder"), message: `Unknown intent: ${String(intent)}` };

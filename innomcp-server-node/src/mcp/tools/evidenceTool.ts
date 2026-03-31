@@ -21,10 +21,15 @@ export const evidenceTool = {
         "officer_summary",
         "list_tables",
         "describe_table",
+        "nip_top_isp_this_month",
+        "nip_top_isp_all",
+        "machine_last_scan",
+        "nip_latest",
+        "nip_by_record_top",
       ])
       .describe("Action to perform"),
     tableName: z
-      .enum(["machines", "nip", "record", "entries"])
+      .enum(["machines", "nip", "record", "entries", "sip"])
       .optional()
       .describe("Table name for describe/query actions (whitelisted)"),
     limit: z
@@ -481,6 +486,84 @@ export const evidenceTool = {
         return {
           content: [{ type: "text" as const, text: lines.join("\n") }],
           structuredContent,
+        };
+      }
+
+      if (action === "nip_top_isp_this_month") {
+        const rows = await queryDetect<any>(
+          "SELECT isp_name, COUNT(*) as c FROM nip WHERE YEAR(create_date)=YEAR(NOW()) AND MONTH(create_date)=MONTH(NOW()) GROUP BY isp_name ORDER BY c DESC LIMIT 10"
+        );
+        const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r.isp_name||"(ไม่ระบุ)").trim()||"(ไม่ระบุ)", count: Number(r.c||0) })) : [];
+        const top = byIsp[0] || null;
+        const monthLabel = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; })();
+        return {
+          content: [{ type: "text" as const, text: top ? `เดือนนี้ (${monthLabel}) ISP มากสุด: ${top.isp} (${top.count} รายการ)` : `เดือนนี้ยังไม่มีข้อมูล` }],
+          structuredContent: { ok: true, intent: action, month: monthLabel, byIsp, topIsp: top, meta: metaFor("detectdb") },
+        };
+      }
+
+      if (action === "nip_top_isp_all") {
+        const safeL = Math.min(Math.max(1, safeLimit), 10);
+        const rows = await queryDetect<any>(
+          `SELECT isp_name, COUNT(*) as c FROM nip GROUP BY isp_name ORDER BY c DESC LIMIT ${safeL}`
+        );
+        const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r.isp_name||"(ไม่ระบุ)").trim()||"(ไม่ระบุ)", count: Number(r.c||0) })) : [];
+        const top = byIsp[0] || null;
+        return {
+          content: [{ type: "text" as const, text: top ? `Top ISP ทั้งหมด: ${top.isp} (${top.count} รายการ)` : "ยังไม่มีข้อมูล" }],
+          structuredContent: { ok: true, intent: action, topN: safeL, byIsp, topIsp: top, meta: metaFor("detectdb") },
+        };
+      }
+
+      if (action === "machine_last_scan") {
+        const rows = await queryDetect<any>(
+          "SELECT pc_name, isp_name, ip_address, last_check_in, is_online FROM machines ORDER BY last_check_in DESC LIMIT 5"
+        );
+        const machines = Array.isArray(rows) ? rows.map((r:any) => ({
+          pc_name: String(r.pc_name||"(ไม่ระบุ)"),
+          isp_name: String(r.isp_name||"(ไม่ระบุ)"),
+          ip_address: String(r.ip_address||""),
+          last_check_in: r.last_check_in ? new Date(r.last_check_in).toISOString() : null,
+          is_online: Number(r.is_online||0) === 1,
+        })) : [];
+        const latest = machines[0] || null;
+        const latestText = latest ? `เครื่องสแกนล่าสุด: ${latest.pc_name} (${latest.isp_name}) ตรวจสอบล่าสุด ${latest.last_check_in?.slice(0,16)||"-"}` : "ไม่พบข้อมูล";
+        return {
+          content: [{ type: "text" as const, text: latestText }],
+          structuredContent: { ok: true, intent: action, machines, latest, meta: metaFor("detectdb") },
+        };
+      }
+
+      if (action === "nip_latest") {
+        const safeL = Math.min(Math.max(1, safeLimit), 10);
+        const rows = await queryDetect<any>(
+          `SELECT no, url, isp_name, create_date FROM nip ORDER BY create_date DESC LIMIT ${safeL}`
+        );
+        const items = Array.isArray(rows) ? rows.map((r:any) => ({
+          no: Number(r.no||0),
+          url: String(r.url||""),
+          isp_name: String(r.isp_name||""),
+          create_date: r.create_date ? new Date(r.create_date).toISOString() : null,
+        })) : [];
+        const latest = items[0] || null;
+        const latestText = latest ? `URL ผิดกฎหมายล่าสุด: ${latest.url} (${latest.isp_name}) เมื่อ ${latest.create_date?.slice(0,10)||"-"}` : "ไม่พบข้อมูล";
+        return {
+          content: [{ type: "text" as const, text: latestText }],
+          structuredContent: { ok: true, intent: action, items, latest, meta: metaFor("detectdb") },
+        };
+      }
+
+      if (action === "nip_by_record_top") {
+        const safeL = Math.min(Math.max(1, safeLimit), 10);
+        const rows = await queryDetect<any>(
+          `SELECT nip_no, COUNT(*) as c FROM record GROUP BY nip_no ORDER BY c DESC LIMIT ${safeL}`
+        );
+        const items = Array.isArray(rows) ? rows.map((r:any) => ({ nip_no: Number(r.nip_no||0), count: Number(r.c||0) })) : [];
+        const top = items[0] || null;
+        const topText = top ? `NIP ที่มี record มากสุด: nip_no=${top.nip_no} (${top.count} รายการ)` : "ไม่พบข้อมูล";
+        return {
+          content: [{ type: "text" as const, text: topText }],
+          structuredContent: { ok: true, intent: action, items, top, meta: metaFor("detectdb") },
         };
       }
 
