@@ -8,7 +8,7 @@
 import { test, expect, Page } from "@playwright/test";
 
 const CHAT_URL = "/";
-const WAIT_FOR_RESPONSE_MS = 30_000; // 30s max per AI response
+const WAIT_FOR_RESPONSE_MS = 90_000; // 90s max per AI response — station/LLM queries can take 30–60s
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -25,27 +25,40 @@ async function sendMessage(page: Page, message: string) {
 }
 
 async function waitForAIResponse(page: Page) {
-  // Step 1: wait for button to become disabled (confirms send was registered).
-  // If it never disables within 5s the button may have briefly toggled already — continue.
+  // The send-btn is NEVER disabled during a response — it stays enabled but changes title.
+  // Correct approach: wait for title to flip to "หยุดการตอบ" (in-flight), then back to "ส่งข้อความ (Enter)" (done).
+
+  // Step 1: wait for in-flight signal ("หยุดการตอบ"). Fast-path may skip this entirely — ignore timeout.
   await page.waitForFunction(
     () => {
       const btn = document.querySelector('[data-testid="send-btn"]');
-      return btn && (btn as HTMLButtonElement).disabled;
+      return btn?.getAttribute("title") === "หยุดการตอบ";
     },
+    undefined,
     { timeout: 5_000 }
   ).catch(() => {});
 
-  // Step 2: wait for button to re-enable (response complete)
+  // Step 2: wait for response complete ("ส่งข้อความ (Enter)").
   await page.waitForFunction(
     () => {
       const btn = document.querySelector('[data-testid="send-btn"]');
-      return btn && !(btn as HTMLButtonElement).disabled;
+      return btn?.getAttribute("title") === "ส่งข้อความ (Enter)";
     },
+    undefined,
     { timeout: WAIT_FOR_RESPONSE_MS }
   );
-  // Wait for DOM to settle after button re-enables (avoids reading partial renders)
-  await page.waitForLoadState("domcontentloaded");
-  await page.waitForTimeout(200);
+
+  // Step 3: wait for prose content to be non-empty (avoids stale-read before React paints).
+  await page.waitForFunction(
+    () => {
+      const proses = document.querySelectorAll('.prose');
+      if (proses.length === 0) return false;
+      const last = proses[proses.length - 1] as HTMLElement;
+      return (last.innerText || '').trim().length > 0;
+    },
+    undefined,
+    { timeout: 5_000 }
+  ).catch(() => {});
 }
 
 // ─── TC-01: Page loads and chat input is visible ──────────────────────────────
@@ -147,8 +160,10 @@ test("TC-06: Thai knowledge query returns Thai-language response", async ({ page
   await sendMessage(page, "ภาษาไทยเป็นภาษาอะไร");
   await waitForAIResponse(page);
 
+  // Wait for prose to paint (may render just after send-btn title resets)
+  await page.waitForSelector(".prose", { timeout: WAIT_FOR_RESPONSE_MS }).catch(() => {});
   const aiMessages = page.locator(".prose");
-  const text = await aiMessages.last().innerText();
+  const text = await aiMessages.last().innerText({ timeout: WAIT_FOR_RESPONSE_MS });
   expect(text.trim().length).toBeGreaterThan(5);
   expect(/[\u0E00-\u0E7F]/.test(text)).toBeTruthy();
   // Should not be an error response

@@ -180,12 +180,16 @@ export class WeatherPipeline {
 
     private detectMode(text: string): "now" | "today" | "future" | "week" | "table" | "nationwide" {
         const t = text || "";
-        if (/ตารางแสดง|ตาราง|รายสถานี|สถานี|station\b/i.test(t)) return "table";
+        // Station-specific data requests → table/observation mode
+        if (/รายสถานี|สถานี|station\b/i.test(t)) return "table";
         // Mode v2: NOW must win even if other timewords exist.
         if (/ตอนนี้(ที่)?|ขณะนี้|เดี๋ยวนี้|ปัจจุบัน|observation|current\b|real\s*time/i.test(t)) return "now";
+        // WEEK wins over "ตาราง" — "จงแสดงในรูปตาราง" is a formatting instruction, not a data-type selector
         if (/7\s*วัน|๗\s*วัน|หนึ่งสัปดาห์|สัปดาห์นี้|สัปดาห์หน้า|อาทิตย์นี้|อาทิตย์หน้า/i.test(t)) return "week";
         // Support Thai digits for "อีก X วัน"
         if (/พรุ่งนี้|มะรืน|เดือนหน้า|ล่วงหน้า|พยากรณ์|forecast|\d+\s*วัน|[๐-๙]+\s*วัน|อีก\s*(\d+|[๐-๙]+)\s*วัน/i.test(t)) return "future";
+        // "ตาราง" in non-week, non-now queries → station/observation table mode
+        if (/ตารางแสดง|ตาราง/i.test(t)) return "table";
         return "today";
     }
 

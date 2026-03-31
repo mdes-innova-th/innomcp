@@ -474,6 +474,57 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
   return lines.join("\n");
 }
 
+// ─── Multi-Province Weekly Table (cross-province rain% comparison) ───
+
+function renderMultiProvinceWeekTable(
+  userText: string,
+  grouped: Map<string, WeatherResult[]>
+): string {
+  interface ProvinceForecast { province: string; dates: string[]; rains: (number | null)[] }
+  const forecasts: ProvinceForecast[] = [];
+
+  for (const [province, items] of grouped) {
+    const shaped = shapeWeatherResults(items, 10);
+    const fc = shaped.find((r) => r.type === "forecast7d" && r.data && typeof r.data === "object");
+    const block = fc?.data?.forecast;
+    if (!block || !Array.isArray(block.ForecastDate) || block.ForecastDate.length === 0) continue;
+
+    const dates: string[] = block.ForecastDate;
+    const rainPcts: string[] = block.PercentRainCover || [];
+    const indices = Array.from({ length: dates.length }, (_, i) => i);
+    indices.sort((a, b) => {
+      const toIso = (d: string) => { const p = d.split("/"); return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : d; };
+      return toIso(dates[a]).localeCompare(toIso(dates[b]));
+    });
+    forecasts.push({
+      province,
+      dates: indices.map((i) => dates[i]),
+      rains: indices.map((i) => toNumberOrNull(rainPcts[i])),
+    });
+  }
+
+  if (forecasts.length === 0) return "";
+
+  const refDates = forecasts[0].dates;
+  const headers = ["จังหวัด", ...refDates.map(formatDateThai)];
+  const rows: string[][] = forecasts.map((pf) =>
+    [
+      pf.province,
+      ...refDates.map((d) => {
+        const idx = pf.dates.indexOf(d);
+        if (idx < 0) return "—";
+        const r = pf.rains[idx];
+        return r !== null ? `${r}%` : "—";
+      }),
+    ]
+  );
+
+  const headerLine = `| ${headers.join(" | ")} |`;
+  const sepLine = `| ${headers.map(() => "---").join(" | ")} |`;
+  const rowLines = rows.map((r) => `| ${r.join(" | ")} |`);
+  return [headerLine, sepLine, ...rowLines].join("\n");
+}
+
 export function renderWeatherContractAnswer(userText: string, weatherResults: WeatherResult[]): { text: string; structuredContent: any } {
   const structuredContent = { weatherPipeline: weatherResults };
 
@@ -526,6 +577,20 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
   const tw = timeWindowLabel(userText);
   const header = `ช่วงเวลา: ${tw.label} (${tw.date})`;
   const weekMode = isWeekMode(userText);
+  const wantTable = /ตาราง/i.test(userText || "");
+
+  // Multi-province weekly table: "สัปดาห์นี้...ตาราง" with 2+ provinces → cross-province comparison table
+  if (weekMode && wantTable && provinces.length > 1) {
+    const table = renderMultiProvinceWeekTable(userText, grouped);
+    if (table) {
+      const isRainQuestion = /ฝน|rain/i.test(userText || "");
+      const caption = isRainQuestion
+        ? "โอกาสฝนตก (%) สัปดาห์นี้ แยกตามจังหวัด"
+        : "พยากรณ์อากาศสัปดาห์นี้ แยกตามจังหวัด";
+      return { text: [header, caption, table].join("\n\n"), structuredContent };
+    }
+  }
+
   const blocks = provinces.map((p) =>
     weekMode
       ? renderWeeklyProvince(userText, p, grouped.get(p) || [])
