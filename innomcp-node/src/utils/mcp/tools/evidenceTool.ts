@@ -31,6 +31,7 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
           "evidence_records_last_7_days_trend",
           "pending_evidence",
           "recent_threats",
+          "detected_urls_today",
           "nip_top_isp_this_month",
           "nip_top_isp_all",
           "machine_last_scan",
@@ -452,6 +453,11 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       }
       const n = await countQuery(`SELECT COUNT(*) as c FROM nip WHERE DATE(\`${nipCreatedCol}\`) = ?`, [today]);
       return { ok: true, intent, meta: metaFor("detectdb"), count: n, summary: `เหตุการณ์ (NIP) วันนี้: ${n} รายการ` };
+    }
+
+    if (intent === "detected_urls_today") {
+      const n = await countQuery(`SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) = ?`, [today]);
+      return { ok: true, intent, meta: metaFor("detectdb"), count: n, dateColumn: "create_date", summary: `วันนี้ตรวจพบ URL/NIP: ${n} รายการ` };
     }
 
     if (intent === "nip_top_isp_this_month") {
