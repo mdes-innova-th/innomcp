@@ -533,15 +533,21 @@ function buildHistoryAwareFollowUpAnswer(currentText: string, sessionHistory: Ch
 }
 
 function inferOfficerEvidenceAction(text: string): string | undefined {
-  const t = String(text || "");
+  // Normalize: collapse whitespace, trim, lowercase for matching
+  const raw = String(text || "");
+  const t = raw.replace(/\s+/g, " ").trim();
   // Phase 7.3 / Phase 8.2: Yesterday evidence totals / ISP breakdown
-  const isYesterday = /(เมื่อวาน|วานนี้|yesterday)/i.test(t);
-  const hasIsp = /\bisp\b/i.test(t) || /ผู้ให้บริการ|ค่าย/i.test(t);
-  const hasEvidenceTerms = /(evidence|หลักฐาน|record|วิดีโอ)/i.test(t);
-  const wants7dTrend = /(แนวโน้ม|เทรนด์|trend|7\s*วัน|เจ็ด\s*วัน|7\s*days?)/i.test(t);
-  const wantsBreakdownOrTop = /(แยกตาม|breakdown|top\b|most\b|highest\b|max\b|มากที่สุด|มากสุด|สูงสุด)/i.test(t);
+  const isYesterday = /(เมื่อวาน|วานนี้|yesterday|เมือวาน|มื่อวาน)/i.test(t);
+  const hasIsp = /\bisp\b/i.test(t) || /ผู้ให้บริการ|ค่าย|เครือข่าย|ไอเอสพี/i.test(t);
+  const hasEvidenceTerms = /(evidence|หลักฐาน|record|วิดีโอ|หลักฐาณ|evdence|evidnce)/i.test(t);
+  const wants7dTrend = /(แนวโน้ม|เทรนด์|trend|7\s*วัน|เจ็ด\s*วัน|7\s*days?|เเนวโน้ม)/i.test(t);
+  const wantsBreakdownOrTop = /(แยกตาม|breakdown|top\b|most\b|highest\b|max\b|มากที่สุด|มากสุด|สูงสุด|เยอะที่สุด|เยอะสุด)/i.test(t);
 
   if (wants7dTrend && hasEvidenceTerms) {
+    return "evidence_records_last_7_days_trend";
+  }
+  // "สรุปแนวโน้ม" / "แนวโน้มวันนี้" / "trend วันนี้" — evidence trend even without explicit "evidence" keyword
+  if (wants7dTrend && /(สรุป|วันนี้|today|เดือนนี้|this\s*month)/i.test(t)) {
     return "evidence_records_last_7_days_trend";
   }
 
@@ -554,17 +560,27 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
     return "evidence_records_yesterday_total";
   }
   // Scanner machines: "จำนวนเครื่องสแกนที่กำลังทำงาน" / "เครื่องสแกน...ทำงาน" / "scanner run กี่เครื่อง"
-  if (/(เครื่องสแกน|สแกน.*เครื่อง|จำนวน.*สแกน|scanner).*(กำลังทำงาน|ทำงาน|ออนไลน์|active|online|run|กี่เครื่อง)/i.test(t) ||
+  // Also: "evidence ตอนนี้มี scanner run อยู่กี่เครื่อง", "มีเครื่องสแกนกี่ตัว", "scanner online กี่เครื่อง"
+  if (/(เครื่องสแกน|สแกน.*เครื่อง|จำนวน.*สแกน|scanner).*(กำลังทำงาน|ทำงาน|ออนไลน์|active|online|run|กี่เครื่อง|กี่ตัว)/i.test(t) ||
       /จำนวน.*เครื่อง.*(ทำงาน|สแกน|active|online|ออนไลน์)/i.test(t) ||
-      /(scanner\s*(run|online|active)|สแกน.*run)/i.test(t)) {
+      /(scanner\s*(run|online|active)|สแกน.*run)/i.test(t) ||
+      /(evidence|หลักฐาน).*(scanner|สแกน).*(run|ทำงาน|online|กี่)/i.test(t) ||
+      /(มี.*scanner|มี.*สแกน).*(กี่|run|ทำงาน)/i.test(t)) {
     return "active_machines_count";
   }
   // NIP top ISP this month: "isp/เครือข่าย...เดือนนี้" / "เดือนนี้...isp/เครือข่าย + url/พบ/เจอ"
-  if (/(isp|ผู้ให้บริการ|ค่าย|เครือข่าย).*(เดือนนี้|this\s*month)|เดือนนี้.*(isp|ผู้ให้บริการ|เครือข่าย)/i.test(t)) {
+  // Also: "isp ไหนเจอ illegal url เยอะสุด", "top isp bad url"
+  if (/(isp|ผู้ให้บริการ|ค่าย|เครือข่าย|ไอเอสพี).*(เดือนนี้|this\s*month)|เดือนนี้.*(isp|ผู้ให้บริการ|เครือข่าย)/i.test(t)) {
     return "nip_top_isp_this_month";
   }
   if (/(เดือนนี้).*(url|nip|ผิดกฎหมาย|illegal|พบ|เจอ).*(มากสุด|เยอะสุด|สูงสุด|จาก|ไหน)/i.test(t) ||
       /(url|nip|ผิดกฎหมาย|illegal).*(เดือนนี้).*(มากสุด|เยอะสุด|จาก|ไหน)/i.test(t)) {
+    return "nip_top_isp_this_month";
+  }
+  // "isp ไหนเจอ illegal url เยอะสุด" / "top isp bad url" / "isp เจอ url มากสุด"
+  if (/(isp|ค่าย|เครือข่าย|ไอเอสพี).*(เจอ|พบ|ตรวจ).*(url|illegal|ผิดกฎหมาย|bad).*(มากสุด|เยอะสุด|สูงสุด)/i.test(t) ||
+      /top\s*isp.*(bad|illegal|url)/i.test(t) ||
+      /(isp|ค่าย).*(url|nip).*(มากสุด|เยอะสุด)/i.test(t)) {
     return "nip_top_isp_this_month";
   }
   // NIP top ISP overall: "top isp" / "isp มากสุด/เยอะสุด"
@@ -576,19 +592,27 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   if (/(machine|เครื่อง).*(สแกนล่าสุด|ล่าสุด.*สแกน|last.*scan|latest.*scan)|สแกนล่าสุด/i.test(t)) {
     return "machine_last_scan";
   }
-  // NIP latest illegal URL
+  // NIP latest illegal URL — also "record ล่าสุด" in evidence context
   if (/(url.*ล่าสุด|ล่าสุด.*url|latest.*url|url.*latest|nip.*ล่าสุด|ล่าสุด.*nip)/i.test(t)) {
+    return "nip_latest";
+  }
+  if (/(record|หลักฐาน).*(ล่าสุด|latest|ใหม่สุด)/i.test(t) || /(ล่าสุด|latest|ใหม่สุด).*(record|หลักฐาน)/i.test(t)) {
     return "nip_latest";
   }
   // NIP by record top
   if (/(nip.*มากสุด|มากสุด.*nip|nip.*เยอะสุด|nip.*top)/i.test(t)) {
     return "nip_by_record_top";
   }
-  if (/(เครื่อง.*ออฟไลน์|ออฟไลน์กี่เครื่อง|offline\s*machines?|machines?\s*offline)/i.test(t)) {
+  // Machine offline: also "machine ไหน offline", "machine offline ตัวไหน"
+  if (/(เครื่อง.*ออฟไลน์|ออฟไลน์กี่เครื่อง|offline\s*machines?|machines?\s*offline)/i.test(t) ||
+      /(machine|เครื่อง).*(ไหน|ตัวไหน|กี่).*(offline|ออฟไลน์)/i.test(t) ||
+      /(machine|เครื่อง).*(offline|ออฟไลน์)/i.test(t)) {
     return "active_machines_offline_count";
   }
   if (/(เครื่อง.*ออนไลน์|ออนไลน์กี่เครื่อง|เครื่องที่\s*online|เครื่อง.*\bonline\b|active\s*machines?|online\s*machines?|machines?\s*online)/i.test(t) ||
-      /(สรุปเครื่อง.*(online|ออนไลน์)|เครื่อง.*(online|ออนไลน์).*(อยู่|กี่))/i.test(t)) {
+      /(สรุปเครื่อง.*(online|ออนไลน์)|เครื่อง.*(online|ออนไลน์).*(อยู่|กี่))/i.test(t) ||
+      /machine\s*online\s*กี่/i.test(t) ||
+      /(กี่เครื่อง|กี่ตัว).*(online|ออนไลน์)/i.test(t)) {
     return "active_machines_count";
   }
   // Phase 7.2.4: "วันนี้ machine evidence ทำงานอยู่กี่เครื่อง".
@@ -599,9 +623,13 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   if (/(ตรวจพบ.*url|url.*วันนี้|nip.*วันนี้|detected\s*urls?\s*today|urls?\s*detected\s*today)/i.test(t)) {
     return "detected_urls_today";
   }
-  // Common Thai phrasing: "วันนี้ URL detected กี่รายการ" (no 'today' token)
-  if (/(วันนี้)/i.test(t) && /\burl\b/i.test(t) && /(detected|ตรวจพบ|กี่|ทั้งหมด|รวม)/i.test(t)) {
+  // "วันนี้พบ url กี่รายการ" / "URL detected วันนี้"
+  if (/(วันนี้)/i.test(t) && /\burl\b/i.test(t) && /(detected|ตรวจพบ|กี่|ทั้งหมด|รวม|พบ|เจอ)/i.test(t)) {
     return "detected_urls_today";
+  }
+  // "จำนวน record เดือนนี้" / "record เดือนนี้เท่าไหร่"
+  if (/(เดือนนี้|this\s*month)/i.test(t) && /(record|หลักฐาน|nip|url)/i.test(t) && /(จำนวน|เท่าไหร่|กี่|ทั้งหมด|รวม)/i.test(t)) {
+    return "evidence_records_today";
   }
   if (/(เก็บหลักฐาน|วิดีโอ|record.*วันนี้|บันทึก.*วันนี้|evidence\s*records?\s*today|video\s*evidence\s*today)/i.test(t)) {
     return "evidence_records_today";
@@ -629,17 +657,19 @@ function getGeneralBudgetMs(): number {
 function looksLikeEvidenceKeywordQuery(text: string): boolean {
   const t = String(text || "");
   const hasThaiMachine = /เครื่อง/i.test(t);
-  const hasEvidenceTerms = /(evidence|หลักฐาน|record|records|nip|url|mdes|วิดีโอ|บันทึก)/i.test(t);
+  const hasEvidenceTerms = /(evidence|หลักฐาน|record|records|nip|url|mdes|วิดีโอ|บันทึก|สแกน|scanner|แนวโน้ม.*หลักฐาน)/i.test(t);
   const hasIsp = /\bisp\b/i.test(t) || /ผู้ให้บริการ|ค่าย/i.test(t);
   const hasOnlineTerms = /(ออนไลน์|ออฟไลน์|online|offline|active)/i.test(t);
 
-  // English "machine" is ambiguous (e.g. "Machine Learning"). Only treat as evidence-like when paired with online/offline.
+  // English "machine" is ambiguous (e.g. "Machine Learning"). Only treat as evidence-like when paired with online/offline/scanner/evidence.
   const hasEnglishMachineToken = /\bmachine(s)?\b/i.test(t) && !/\bmachine\s+learning\b/i.test(t);
 
   if (hasThaiMachine) return true;
   if (hasEvidenceTerms) return true;
   if (hasIsp) return true;
   if (hasEnglishMachineToken && hasOnlineTerms) return true;
+  // "machine offline", "machine ไหน" in evidence contexts
+  if (hasEnglishMachineToken && /(ไหน|ตัวไหน|กี่|สถานะ|status)/i.test(t)) return true;
   return false;
 }
 
