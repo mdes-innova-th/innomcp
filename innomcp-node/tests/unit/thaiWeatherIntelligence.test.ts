@@ -275,8 +275,8 @@ console.log(`Total: ${passed + failed} | ✅ Passed: ${passed} | ❌ Failed: ${f
 if (failures.length > 0) {
   console.log("\nFailures:");
   failures.forEach((f) => console.log(f));
-  process.exit(1);
+  // Use throw instead of process.exit for Jest compatibility
+  throw new Error(`${failures.length} test(s) failed`);
 } else {
   console.log("\nAll tests passed.");
-  process.exit(0);
 }

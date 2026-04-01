@@ -547,7 +547,9 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
     return "evidence_records_last_7_days_trend";
   }
   // "สรุปแนวโน้ม" / "แนวโน้มวันนี้" / "trend วันนี้" — evidence trend even without explicit "evidence" keyword
-  if (wants7dTrend && /(สรุป|วันนี้|today|เดือนนี้|this\s*month)/i.test(t)) {
+  // BUT skip when the text clearly has weather intent (e.g. "สรุปพยากรณ์ 7 วัน")
+  const hasWeatherKw = /(พยากรณ์|อากาศ|ฝน|อุณหภูมิ|weather|forecast|อุตุ)/i.test(t);
+  if (wants7dTrend && /(สรุป|วันนี้|today|เดือนนี้|this\s*month)/i.test(t) && !hasWeatherKw) {
     return "evidence_records_last_7_days_trend";
   }
 

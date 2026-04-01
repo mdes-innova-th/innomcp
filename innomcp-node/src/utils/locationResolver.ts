@@ -287,6 +287,15 @@ export function resolveProvinces(text: string): string[] {
     }
   }
 
+  // BKK district substring scan (handles unsegmented "หลักสี่", "ลาดกระบัง" etc.)
+  for (const district of BKK_DISTRICTS) {
+    if (remaining.includes(district)) {
+      foundProvinces.add("กรุงเทพมหานคร");
+      remaining = replaceAll(remaining, district);
+      break; // one BKK match is enough
+    }
+  }
+
   if (foundProvinces.size > 0) {
     const resolved = finalizeResolved(foundProvinces);
     console.log(`[LocationResolver] resolvedProvinces=[${resolved.join(",")}] method=substring`);

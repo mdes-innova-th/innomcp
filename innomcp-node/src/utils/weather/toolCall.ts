@@ -287,6 +287,10 @@ export async function executeWeatherToolCall(opts: ToolExecutionOptions): Promis
     }
 }
 
+export function clearWeatherToolCallCache(): void {
+  TOOLCALL_CACHE.clear();
+}
+
 export function primeWeatherToolCallCachePayload(params: {
   toolName: string;
   args: any;

@@ -11,18 +11,32 @@ describe("Weather Architecture Regression (Phase 6.5)", () => {
     let WeatherPipeline: any;
     let resolveProvinces: any;
     let pipeline: any;
+    const origFixture = process.env.WEATHER_FIXTURE_W1;
 
     beforeEach(() => {
         jest.resetModules();
         jest.clearAllMocks();
+        // Disable fixture priming so mocks are reachable
+        delete process.env.WEATHER_FIXTURE_W1;
         
         // Dynamic import to ensure fresh module state (clears ForecastEngine cache)
         const pipelineModule = require("../src/utils/weather/weatherPipeline");
         WeatherPipeline = pipelineModule.WeatherPipeline;
         const resolverModule = require("../src/utils/locationResolver");
         resolveProvinces = resolverModule.resolveProvinces;
+        // Clear any primed cache from prior tests
+        const { clearWeatherToolCallCache } = require("../src/utils/weather/toolCall");
+        clearWeatherToolCallCache();
+        const { ToolCache } = require("../src/utils/cache/toolCache");
+        ToolCache.clear();
 
         pipeline = new WeatherPipeline(clients);
+    });
+
+    afterAll(() => {
+        // Restore env
+        if (origFixture !== undefined) process.env.WEATHER_FIXTURE_W1 = origFixture;
+        else delete process.env.WEATHER_FIXTURE_W1;
     });
 
     /**
