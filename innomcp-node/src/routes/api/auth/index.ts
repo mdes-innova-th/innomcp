@@ -62,11 +62,12 @@ router.post('/register', async (req: Request, res: Response) => {
 
     // Insert new user and create default workspace
     const userId = await withDbConnection(async (conn) => {
+      const generatedUsername = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 45);
       const [result] = await conn.query(
         `INSERT INTO \`user\` 
-         (user_email, user_pwd, user_disp_name, user_role_id, user_nickname, created_at, updated_at) 
-         VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-        [email, hashedPassword, displayName || email.split('@')[0], 2, nickname || displayName || email.split('@')[0]] // role_id 2 = normal user
+         (username, user_email, password, user_dispname, userrole_id, user_active) 
+         VALUES (?, ?, ?, ?, ?, '1')`,
+        [generatedUsername, email, hashedPassword, displayName || email.split('@')[0], 2] // userrole_id 2 = normal user
       );
 
       const newUserId = (result as any).insertId;
