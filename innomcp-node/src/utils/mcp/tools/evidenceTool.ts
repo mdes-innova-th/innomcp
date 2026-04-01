@@ -205,6 +205,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         intent: intent === "machine_status" ? "active_evidence_machines" : intent,
         meta: metaFor("detectdb"),
         count: online,
+        kpis: buildKpis(online, null, null),
         summary: `ตอนนี้เครื่องออนไลน์: ${online} เครื่อง`,
       };
     }
@@ -217,6 +218,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         intent,
         meta: metaFor("detectdb"),
         count: offline,
+        kpis: buildKpis(offline, null, null),
         summary: `ตอนนี้เครื่องออฟไลน์: ${offline} เครื่อง`,
       };
     }
@@ -249,6 +251,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         intent,
         meta: metaFor("detectdb"),
         count: n,
+        kpis: buildKpis(n, null, null),
         dateColumn: dateCol,
         summary: `วันนี้ machine evidence ทำงาน: ${n} เครื่อง`,
       };
@@ -267,6 +270,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         intent,
         meta: metaFor("detectdb"),
         count: n,
+        kpis: buildKpis(n, null, null),
         dateColumn: createdCol,
         summary: `วันนี้จัดเก็บหลักฐานวิดีโอได้: ${n} รายการ`,
       };
@@ -442,7 +446,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         `SELECT COUNT(*) as c FROM nip WHERE DATE(\`${nipCreatedCol}\`) = ? AND (status_rec IS NULL OR \`${nipNoCol}\` NOT IN (SELECT \`${nipNoCol}\` FROM record))`,
         [today]
       );
-      return { ok: true, intent, meta: metaFor("detectdb"), count: n, summary: `หลักฐานค้างดำเนินการวันนี้: ${n} รายการ` };
+      return { ok: true, intent, meta: metaFor("detectdb"), count: n, kpis: buildKpis(n, null, null), summary: `หลักฐานค้างดำเนินการวันนี้: ${n} รายการ` };
     }
 
     if (intent === "recent_threats") {
@@ -452,12 +456,12 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         return { ok: false, intent, code: "MISSING_DATE_COLUMN", meta: metaFor("placeholder"), table: "nip", columns: nipCols };
       }
       const n = await countQuery(`SELECT COUNT(*) as c FROM nip WHERE DATE(\`${nipCreatedCol}\`) = ?`, [today]);
-      return { ok: true, intent, meta: metaFor("detectdb"), count: n, summary: `เหตุการณ์ (NIP) วันนี้: ${n} รายการ` };
+      return { ok: true, intent, meta: metaFor("detectdb"), count: n, kpis: buildKpis(n, null, null), summary: `เหตุการณ์ (NIP) วันนี้: ${n} รายการ` };
     }
 
     if (intent === "detected_urls_today") {
       const n = await countQuery(`SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) = ?`, [today]);
-      return { ok: true, intent, meta: metaFor("detectdb"), count: n, dateColumn: "create_date", summary: `วันนี้ตรวจพบ URL/NIP: ${n} รายการ` };
+      return { ok: true, intent, meta: metaFor("detectdb"), count: n, kpis: buildKpis(n, null, null), dateColumn: "create_date", summary: `วันนี้ตรวจพบ URL/NIP: ${n} รายการ` };
     }
 
     if (intent === "nip_top_isp_this_month") {
@@ -469,10 +473,13 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         "SELECT isp_name, COUNT(*) as c FROM nip WHERE YEAR(create_date)=? AND MONTH(create_date)=? GROUP BY isp_name ORDER BY c DESC LIMIT 10",
         [yr, mo]
       );
-      const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r.isp_name||"(ไม่ระบุ)").trim()||"(ไม่ระบุ)", count: Number(r.c||0) })) : [];
+      const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r.isp_name||"ไม่ระบุ").trim()||"ไม่ระบุ", count: Number(r.c||0) })) : [];
       const top = byIsp[0] || null;
+      const total = byIsp.reduce((acc: number, r: any) => acc + (Number(r.count) || 0), 0);
       return {
         ok: true, intent, month: monthLabel, byIsp, topIsp: top, meta: metaFor("detectdb"),
+        kpis: buildKpis(total, top ? top.isp : null, top ? top.count : null),
+        table: { rows: byIsp },
         summary: top ? `เดือนนี้ (${monthLabel}) ISP มากสุด: ${top.isp} (${top.count} รายการ)` : `เดือนนี้ยังไม่มีข้อมูล`,
       };
     }
@@ -482,10 +489,13 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       const rows = await queryEvidence<any>(
         `SELECT isp_name, COUNT(*) as c FROM nip GROUP BY isp_name ORDER BY c DESC LIMIT ${topN}`
       );
-      const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r.isp_name||"(ไม่ระบุ)").trim()||"(ไม่ระบุ)", count: Number(r.c||0) })) : [];
+      const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r.isp_name||"ไม่ระบุ").trim()||"ไม่ระบุ", count: Number(r.c||0) })) : [];
       const top = byIsp[0] || null;
+      const total = byIsp.reduce((acc: number, r: any) => acc + (Number(r.count) || 0), 0);
       return {
         ok: true, intent, topN, byIsp, topIsp: top, meta: metaFor("detectdb"),
+        kpis: buildKpis(total, top ? top.isp : null, top ? top.count : null),
+        table: { rows: byIsp },
         summary: top ? `Top ISP ทั้งหมด: ${top.isp} (${top.count.toLocaleString()} รายการ)` : "ยังไม่มีข้อมูล",
       };
     }
@@ -504,6 +514,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       const latest = machines[0] || null;
       return {
         ok: true, intent, machines, latest, meta: metaFor("detectdb"),
+        kpis: buildKpis(machines.length, latest ? latest.isp_name : null, null),
         summary: latest ? `เครื่องสแกนล่าสุด: ${latest.pc_name} (${latest.isp_name}) ตรวจสอบล่าสุด ${latest.last_check_in?.slice(0,10)||"-"}` : "ไม่พบข้อมูล",
       };
     }
@@ -522,6 +533,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       const latest = items[0] || null;
       return {
         ok: true, intent, items, latest, meta: metaFor("detectdb"),
+        kpis: buildKpis(items.length, latest ? latest.isp_name : null, null),
         summary: latest ? `URL ผิดกฎหมายล่าสุด: ${latest.url} (${latest.isp_name})` : "ไม่พบข้อมูล",
       };
     }
@@ -533,8 +545,10 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       );
       const items = Array.isArray(rows) ? rows.map((r:any) => ({ nip_no: Number(r.nip_no||0), count: Number(r.c||0) })) : [];
       const top = items[0] || null;
+      const total = items.reduce((acc: number, r: any) => acc + (Number(r.count) || 0), 0);
       return {
         ok: true, intent, items, top, meta: metaFor("detectdb"),
+        kpis: buildKpis(total, top ? `nip_no=${top.nip_no}` : null, top ? top.count : null),
         summary: top ? `NIP ที่มี record มากสุด: nip_no=${top.nip_no} (${top.count.toLocaleString()} รายการ)` : "ไม่พบข้อมูล",
       };
     }

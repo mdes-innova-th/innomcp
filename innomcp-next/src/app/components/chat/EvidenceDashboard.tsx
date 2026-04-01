@@ -54,10 +54,12 @@ export default function EvidenceDashboard({ structuredContent }: Props) {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const kpis = sc && typeof sc === "object" ? sc.kpis ?? {} : {};
-  const total = safeNum(kpis?.total);
-  const topIspNameRaw = kpis?.topIspName;
+  // Primary: read from kpis object. Fallback: derive from count/topIsp/byIsp fields.
+  const total = safeNum(kpis?.total || sc?.count || sc?.total);
+  const topIspNameRaw = kpis?.topIspName ?? sc?.topIsp?.isp ?? (Array.isArray(sc?.byIsp) && sc.byIsp[0]?.isp) ?? null;
   const topIspName = topIspNameRaw === null ? "" : safeStr(topIspNameRaw);
-  const topIspCount = kpis?.topIspCount === null ? null : Number.isFinite(Number(kpis?.topIspCount)) ? Number(kpis?.topIspCount) : null;
+  const topIspCountRaw = kpis?.topIspCount ?? sc?.topIsp?.count ?? (Array.isArray(sc?.byIsp) && sc.byIsp[0]?.count) ?? null;
+  const topIspCount = topIspCountRaw === null ? null : Number.isFinite(Number(topIspCountRaw)) ? Number(topIspCountRaw) : null;
   const dataSource = safeStr(sc?.meta?.dataSource).toLowerCase();
   const dataSourceLabel = dataSource === "detectdb" ? "detectdb" : "placeholder";
 
