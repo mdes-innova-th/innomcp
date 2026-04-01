@@ -170,7 +170,7 @@ describe("Weather Architecture Regression (Phase 6.5)", () => {
             // We assert the outcome: RESULTS, not Error.
         });
 
-        test("H) Mixed Intent: 'รังสิตและทั่วไทย' -> Fetch Pathum Thani AND Nationwide Table", async () => {
+        test("H) Mixed Intent: 'รังสิตและทั่วไทย' -> Fetch Pathum Thani AND Nationwide (honest error when no data)", async () => {
             const query = "ขอมูลสภาพอากาศรังสิต และสรุปภาพรวมทั่วไทยแบบตาราง"; // Contains "รังสิต" (Rangsit) and "ทั่วไทย" (Nationwide)
             
             // 1. Resolve Target
@@ -192,6 +192,7 @@ describe("Weather Architecture Regression (Phase 6.5)", () => {
             });
 
             // 3. Nationwide (ALL_THAILAND) -> Nationwide Execution -> ForecastEngine.getAllForecasts
+            // Mock returns provinces but WITHOUT forecast data → nationwide should return honest error
             const mockNational = { Provinces: { Province: Array.from({ length: 5 }, (_, i) => ({ ProvinceNameThai: `P${i}` })) } };
             mockCallTool.mockResolvedValueOnce(mockNational);
 
@@ -199,16 +200,18 @@ describe("Weather Architecture Regression (Phase 6.5)", () => {
             const results = await pipeline.execute(target);
             
             // 3. Verify Results
-            expect(results.length).toBeGreaterThanOrEqual(2); // At least Pathum + National
+            expect(results.length).toBeGreaterThanOrEqual(2); // At least Pathum + National error
             
             const pathumResult = results.find((r: any) => r.province === "ปทุมธานี");
-            const nationalResult = results.find((r: any) => r.type === "national");
+            // Weather truth contract: nationwide with no real forecast data → honest error, not fake rankings
+            const nationalResult = results.find((r: any) => r.province === "ทั่วประเทศ");
             
             expect(pathumResult).toBeDefined();
             expect(pathumResult.type).not.toBe("error");
             
             expect(nationalResult).toBeDefined();
-            expect(nationalResult.data.tableMarkdown).toBeDefined();
+            expect(nationalResult.type).toBe("error");
+            expect(nationalResult.error).toBe("NATIONAL_DATA_UNAVAILABLE");
         });
     });
 });

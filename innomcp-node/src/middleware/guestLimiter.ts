@@ -117,7 +117,7 @@ export function guestLimiterMiddleware(req: AuthRequest, res: Response, next: Ne
     const smokeHeaderRaw = req.headers['x-smoke-run'] || req.headers['X-Smoke-Run'];
     const smokeHeader = Array.isArray(smokeHeaderRaw) ? smokeHeaderRaw[0] : String(smokeHeaderRaw || '');
     // smoke-only bypass; cannot activate in prod without env
-    const smokeBypassEnabled = (process.env.NODE_ENV === 'test' || String(process.env.SMOKE_MODE) === '1')
+    const smokeBypassEnabled = (process.env.NODE_ENV === 'test' || String(process.env.SMOKE_MODE || '').trim() === '1')
       && smokeHeader === '1';
 
     // Determine user role

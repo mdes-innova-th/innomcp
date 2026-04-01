@@ -72,6 +72,7 @@ function callChatApi(query: WarmupQuery): Promise<void> {
         headers: {
           "Content-Type": "application/json",
           "Content-Length": Buffer.byteLength(body),
+          "x-smoke-run": "1",
         },
         timeout: WARMUP_TIMEOUT_MS,
       },

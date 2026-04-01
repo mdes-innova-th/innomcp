@@ -75,7 +75,9 @@ function bkkIsoDateStr(offsetDays: number): string {
 
 // ─── Nationwide intent detection ───
 // Keep broad + cheap; pipeline decides national-mode (NOT resolver-only)
-const NATIONWIDE_KEYWORDS = /ในไทย|ประเทศไทย|ทั่วประเทศ|ทั้งประเทศ|ทั่วไทย|ที่ไหน/i;
+// NOTE: "ที่ไหน" removed — it's a question particle ("where?"), not a nationwide marker.
+// "ภาคเหนือฝนจะตกที่ไหน" = region query, not nationwide.
+const NATIONWIDE_KEYWORDS = /ในไทย|ประเทศไทย|ทั่วประเทศ|ทั้งประเทศ|ทั่วไทย/i;
 
 function hasExplicitLocalScopeCue(text: string): boolean {
     const t = String(text || "");
@@ -164,8 +166,13 @@ export class WeatherPipeline {
         const nat = detectNationwideParams(userText);
         const autoNational = provinces.length === 0 && shouldAutoNationwideDefault(userText);
 
-        // Mixed intent: keep province mode AND add a nationwide row block
-        if ((nat.national || autoNational) && provinces.length > 0 && !provinces.includes("ALL_THAILAND")) {
+        // Scope guard: if user specified a region (ภาคเหนือ, ภาคใต้, ภาคอีสาน etc.),
+        // do NOT add ALL_THAILAND — the user's scope must be preserved exactly.
+        // Province-level queries with explicit nationwide keywords ("ทั่วไทย") are OK to mix.
+        const hasRegionScope = /ภาค(เหนือ|ใต้|กลาง|อีสาน|ตะวันออก|ตะวันตก|ตะวันออกเฉียงเหนือ)/i.test(userText || "");
+
+        // Only add nationwide block when user explicitly asked for nationwide AND no region scope
+        if ((nat.national || autoNational) && provinces.length > 0 && !provinces.includes("ALL_THAILAND") && !hasRegionScope) {
             provinces.push("ALL_THAILAND");
         }
 
@@ -408,27 +415,13 @@ export class WeatherPipeline {
         const targetIsoDate = bkkIsoDateStr(offsetDays);
         const dateLabel = nat.wantToday ? "วันนี้" : "พรุ่งนี้";
 
+        // Weather truth contract: when upstream fails, return an honest error — NOT fake confident data.
+        // NEVER return hardcoded province rankings as if they are real forecasts.
         const fallbackNational = (): WeatherResult[] => {
-            const topN = clamp(target.intent.topN ?? nat.topN ?? NATIONWIDE_TOP_N_DEFAULT, 1, NATIONWIDE_TOP_N_MAX);
-            const rows = NATIONWIDE_FALLBACK_ROWS.slice(0, topN);
-            const markdownTable = (nat.wantTable || target.intent.mode === "table")
-                ? buildNationwideMarkdownTable(rows)
-                : undefined;
-
             return [{
                 province: "ทั่วประเทศ",
-                type: "national",
-                data: {
-                    date: targetDate,
-                    dateLabel,
-                    totalRainyProvinces: rows.length,
-                    topN: rows.length,
-                    sort: "percentRain_desc",
-                    rows,
-                    tableMarkdown: markdownTable,
-                    note: "โหมดสำรอง: จัดอันดับจากความเสี่ยงฝนเชิงภูมิอากาศทั่วไป (ไม่ใช่ข้อมูลเรียลไทม์)",
-                },
-                sourceTool: "fallback_climate_rank",
+                type: "error",
+                error: "NATIONAL_DATA_UNAVAILABLE",
             }];
         };
 
