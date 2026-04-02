@@ -655,6 +655,10 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   if (/(วันนี้)/i.test(t) && /\burl\b/i.test(t) && /(detected|ตรวจพบ|กี่|ทั้งหมด|รวม|พบ|เจอ)/i.test(t)) {
     return "detected_urls_today";
   }
+  // Catch-all: "สรุป url ผิดกฎหมาย" / "url ผิดกฎหมายทั้งหมด" / "สถานการณ์ url" (no temporal qualifier)
+  if (/\burl\b/i.test(t) && /(ผิดกฎหมาย|illegal)/i.test(t) && /(สรุป|ทั้งหมด|รวม|สถานการณ์|ภาพรวม)/i.test(t)) {
+    return "nip_top_isp_all";
+  }
   // "จำนวน record เดือนนี้" / "record เดือนนี้เท่าไหร่"
   if (/(เดือนนี้|this\s*month)/i.test(t) && /(record|หลักฐาน|nip|url)/i.test(t) && /(จำนวน|เท่าไหร่|กี่|ทั้งหมด|รวม)/i.test(t)) {
     return "evidence_records_today";
