@@ -563,11 +563,13 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   }
   // Scanner machines: "จำนวนเครื่องสแกนที่กำลังทำงาน" / "เครื่องสแกน...ทำงาน" / "scanner run กี่เครื่อง"
   // Also: "evidence ตอนนี้มี scanner run อยู่กี่เครื่อง", "มีเครื่องสแกนกี่ตัว", "scanner online กี่เครื่อง"
-  if (/(เครื่องสแกน|สแกน.*เครื่อง|จำนวน.*สแกน|scanner).*(กำลังทำงาน|ทำงาน|ออนไลน์|active|online|run|กี่เครื่อง|กี่ตัว)/i.test(t) ||
+  // Guard: skip if user explicitly says offline/ออฟไลน์ (handled by offline block below)
+  if (!/(offline|ออฟไลน์)/i.test(t) && (
+      /(เครื่องสแกน|สแกน.*เครื่อง|จำนวน.*สแกน|scanner).*(กำลังทำงาน|ทำงาน|ออนไลน์|active|online|run|กี่เครื่อง|กี่ตัว)/i.test(t) ||
       /จำนวน.*เครื่อง.*(ทำงาน|สแกน|active|online|ออนไลน์)/i.test(t) ||
       /(scanner\s*(run|online|active)|สแกน.*run)/i.test(t) ||
       /(evidence|หลักฐาน).*(scanner|สแกน).*(run|ทำงาน|online|กี่)/i.test(t) ||
-      /(มี.*scanner|มี.*สแกน).*(กี่|run|ทำงาน)/i.test(t)) {
+      /(มี.*scanner|มี.*สแกน).*(กี่|run|ทำงาน)/i.test(t))) {
     return "active_machines_count";
   }
   // NIP top ISP this month: "isp/เครือข่าย...เดือนนี้" / "เดือนนี้...isp/เครือข่าย + url/พบ/เจอ"
