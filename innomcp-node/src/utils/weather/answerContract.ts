@@ -71,6 +71,26 @@ function parseDayOffset(text: string): number {
     if (Number.isFinite(n) && n >= 0) return Math.min(n, 14);
   }
 
+  // Day-of-week names → compute offset from today (BKK timezone)
+  const dayMap: Record<string, number> = {
+    "อาทิตย์": 0, "จันทร์": 1, "อังคาร": 2, "พุธ": 3,
+    "พฤหัส": 4, "พฤหัสบดี": 4, "ศุกร์": 5, "เสาร์": 6,
+  };
+  const dayMatch = t.match(/วัน(อาทิตย์|จันทร์|อังคาร|พุธ|พฤหัสบดี|พฤหัส|ศุกร์|เสาร์)|(?:^|\s)(อาทิตย์|จันทร์|อังคาร|พุธ|พฤหัสบดี|พฤหัส|ศุกร์|เสาร์)\s*(?:นี้|หน้า|ที่จะถึง)?/i);
+  if (dayMatch) {
+    const dayName = (dayMatch[1] || dayMatch[2] || "").trim();
+    const targetDay = dayMap[dayName];
+    if (targetDay !== undefined) {
+      const now = new Date();
+      const bkkMs = now.getTime() + 7 * 60 * 60 * 1000;
+      const bkk = new Date(bkkMs);
+      const today = bkk.getUTCDay();
+      let diff = targetDay - today;
+      if (diff <= 0) diff += 7; // next occurrence
+      return Math.min(diff, 14);
+    }
+  }
+
   return 0;
 }
 
@@ -542,12 +562,21 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
 
   // Global all-error case (including province=""), keep operator-grade + deterministic token.
   if (!shaped.some((r) => r && r.type !== "error")) {
-    // If we still have explicit provinces, render per-province blocks (required for UX correctness).
+    // If we still have explicit provinces but ALL are error, collapse into a single clean message
     if (provinces.length > 0) {
       const tw = timeWindowLabel(userText);
       const header = `ช่วงเวลา: ${tw.label} (${tw.date})`;
-      const blocks = provinces.map((p) => renderErrorOnlyProvince(p, grouped.get(p) || []));
-      return { text: [header, ...blocks].join("\n\n"), structuredContent };
+      // Classify the dominant error
+      const allErrs = shaped.filter((r) => r && r.type === "error").map((r) => String(r.error || ""));
+      const allKinds = allErrs.map(classifyErrorCode);
+      const dominantKind = allKinds.includes("TIMEOUT") ? "TIMEOUT" : allKinds.includes("UPSTREAM") ? "UPSTREAM" : "NO_DATA";
+      const provList = provinces.join(", ");
+      const msg = dominantKind === "TIMEOUT"
+        ? `ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (${provList}) กรุณาลองถามใหม่อีกครั้งครับ`
+        : dominantKind === "UPSTREAM"
+        ? `ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง (${provList}) กรุณาลองถามใหม่อีกครั้งครับ`
+        : `ขออภัย ยังไม่มีข้อมูลอากาศสำหรับ ${provList} ในขณะนี้ กรุณาลองถามใหม่ภายหลังครับ`;
+      return { text: [header, msg].join("\n\n"), structuredContent };
     }
 
     const errs = shaped.filter((r) => r && r.type === "error").map((r) => String(r.error || ""));

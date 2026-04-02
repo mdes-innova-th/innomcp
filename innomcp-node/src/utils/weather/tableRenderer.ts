@@ -153,16 +153,24 @@ export function renderWeatherMarkdownTable(input: RenderInput, maxRows = 15): st
   if (nwp) return renderNwpTable(nwp, maxRows);
 
   const errResults = results.filter((r) => r.type === "error");
+  const errToThai = (e: string): string => {
+    const code = String(e || "");
+    if (code === "TIMEOUT" || code === "BUDGET_EXCEEDED") return "ดึงข้อมูลไม่ทันเวลา";
+    if (code.includes("NOT_FOUND") || code === "DATA_UNAVAILABLE" || code === "NWP_UNAVAILABLE") return "ยังไม่มีข้อมูล";
+    if (code === "NATIONAL_DATA_UNAVAILABLE") return "ยังไม่มีข้อมูลทั่วประเทศ";
+    if (code === "PROVINCE_MISSING") return "ไม่ระบุจังหวัด";
+    return "ยังไม่มีข้อมูล";
+  };
   if (errResults.length > 0) {
     const hasProvinces = errResults.some((r) => r.province);
     if (hasProvinces) {
       return buildMarkdownTable(
         ["จังหวัด", "สถานะ"],
-        errResults.map((r) => [mdEscape(normalizeProvinceDisplayName(r.province) || "—"), mdEscape(r.error || "ERROR")])
+        errResults.map((r) => [mdEscape(normalizeProvinceDisplayName(r.province) || "—"), errToThai(r.error || "")])
       );
     }
-    return buildMarkdownTable(["สถานะ"], [[mdEscape(errResults[0].error || "ERROR")]]);
+    return buildMarkdownTable(["สถานะ"], [[errToThai(errResults[0].error || "")]]);
   }
 
-  return buildMarkdownTable(["สถานะ"], [["NO_DATA"]]);
+  return buildMarkdownTable(["สถานะ"], [["ยังไม่มีข้อมูล"]]);
 }

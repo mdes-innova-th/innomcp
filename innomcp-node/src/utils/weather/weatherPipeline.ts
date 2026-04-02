@@ -546,7 +546,7 @@ export class WeatherPipeline {
                                     humidity: null,
                                 })),
                                 tableMarkdown: markdownTable,
-                                note: "TMD 7-day ไม่มี humidity (แสดงเป็น null และไม่เดา)",
+                                note: "",
             },
             sourceTool: "tmd_weather_forecast_7days_by_province",
         }];

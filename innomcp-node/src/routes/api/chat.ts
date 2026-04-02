@@ -206,6 +206,12 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
       return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${table}${note}`, structuredContent };
     }
 
+    // If all results are errors, fall through to contract renderer for clean error handling
+    if (!firstOk) {
+      const rendered = renderWeatherContractAnswer(userText || "", weatherResults as any);
+      return rendered;
+    }
+
     return {
       text: `ตารางสรุปสภาพอากาศ:\n\n${renderWeatherMarkdownTable(weatherResults)}`,
       structuredContent,
@@ -222,7 +228,9 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
       .map((r: any) => `${String(r?.province || "-")} (${Number(r?.percentRain ?? 0)}%)`)
       .join(", ");
     const suffix = topSummary ? `: ${topSummary}` : "";
-    return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${suffix} (ถ้าต้องการตาราง บอกได้ครับ)`, structuredContent };
+    const isWeek = /7\s*วัน|๗\s*วัน|สัปดาห์|อาทิตย์นี้|อาทิตย์หน้า|weekly|week/i.test(userText || "");
+    const weekNote = isWeek ? `\n\n💡 หมายเหตุ: ข้อมูลระดับประเทศแสดงภาพรวม${label} สำหรับพยากรณ์ 7 วันรายจังหวัด ลองระบุชื่อจังหวัดเพิ่มครับ` : "";
+    return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${suffix}${weekNote}`, structuredContent };
   }
 
   // Phase W1: strict deterministic contract renderer
