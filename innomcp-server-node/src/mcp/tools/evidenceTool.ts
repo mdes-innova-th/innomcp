@@ -503,10 +503,12 @@ export const evidenceTool = {
       }
 
       if (action === "nip_top_isp_this_month") {
+        const nipCols = await getColumns("nip");
+        const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]) || "isp_name";
         const rows = await queryDetect<any>(
-          "SELECT isp_name, COUNT(*) as c FROM nip WHERE YEAR(create_date)=YEAR(NOW()) AND MONTH(create_date)=MONTH(NOW()) GROUP BY isp_name ORDER BY c DESC LIMIT 10"
+          `SELECT \`${ispCol}\`, COUNT(*) as c FROM nip WHERE YEAR(create_date)=YEAR(NOW()) AND MONTH(create_date)=MONTH(NOW()) GROUP BY \`${ispCol}\` ORDER BY c DESC LIMIT 10`
         );
-        const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r.isp_name||"(ไม่ระบุ)").trim()||"(ไม่ระบุ)", count: Number(r.c||0) })) : [];
+        const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r[ispCol]||"(ไม่ระบุ)").trim()||"(ไม่ระบุ)", count: Number(r.c||0) })) : [];
         const top = byIsp[0] || null;
         const totalSum = byIsp.reduce((s: number, r: any) => s + (Number(r.count) || 0), 0);
         const monthLabel = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; })();
@@ -518,10 +520,12 @@ export const evidenceTool = {
 
       if (action === "nip_top_isp_all") {
         const safeL = Math.min(Math.max(1, safeLimit), 10);
+        const nipCols2 = await getColumns("nip");
+        const ispCol2 = pickFirstColumn(nipCols2, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]) || "isp_name";
         const rows = await queryDetect<any>(
-          `SELECT isp_name, COUNT(*) as c FROM nip GROUP BY isp_name ORDER BY c DESC LIMIT ${safeL}`
+          `SELECT \`${ispCol2}\`, COUNT(*) as c FROM nip GROUP BY \`${ispCol2}\` ORDER BY c DESC LIMIT ${safeL}`
         );
-        const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r.isp_name||"(ไม่ระบุ)").trim()||"(ไม่ระบุ)", count: Number(r.c||0) })) : [];
+        const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r[ispCol2]||"(ไม่ระบุ)").trim()||"(ไม่ระบุ)", count: Number(r.c||0) })) : [];
         const top = byIsp[0] || null;
         const totalSum = byIsp.reduce((s: number, r: any) => s + (Number(r.count) || 0), 0);
         return {
@@ -531,8 +535,12 @@ export const evidenceTool = {
       }
 
       if (action === "machine_last_scan") {
+        const machCols = await getColumns("machines");
+        const machIspCol = pickFirstColumn(machCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]) || "isp_name";
+        const machDateCol = pickFirstColumn(machCols, ["last_check_in", "last_checkin", "last_check", "last_seen", "updated_at", "update_date"]) || "last_check_in";
+        const machOnlineCol = pickFirstColumn(machCols, ["is_online", "online", "isOnline"]) || "is_online";
         const rows = await queryDetect<any>(
-          "SELECT pc_name, isp_name, ip_address, last_check_in, is_online FROM machines ORDER BY last_check_in DESC LIMIT 5"
+          `SELECT pc_name, \`${machIspCol}\` as isp_name, ip_address, \`${machDateCol}\` as last_check_in, \`${machOnlineCol}\` as is_online FROM machines ORDER BY \`${machDateCol}\` DESC LIMIT 5`
         );
         const machines = Array.isArray(rows) ? rows.map((r:any) => ({
           pc_name: String(r.pc_name||"(ไม่ระบุ)"),
@@ -551,8 +559,11 @@ export const evidenceTool = {
 
       if (action === "nip_latest") {
         const safeL = Math.min(Math.max(1, safeLimit), 10);
+        const nipCols3 = await getColumns("nip");
+        const nipIspCol = pickFirstColumn(nipCols3, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]) || "isp_name";
+        const nipNoCol = pickFirstColumn(nipCols3, ["no", "nip_no", "nipNo", "nip_id", "id"]) || "no";
         const rows = await queryDetect<any>(
-          `SELECT no, url, isp_name, create_date FROM nip ORDER BY create_date DESC LIMIT ${safeL}`
+          `SELECT \`${nipNoCol}\` as no, url, \`${nipIspCol}\` as isp_name, create_date FROM nip ORDER BY create_date DESC LIMIT ${safeL}`
         );
         const items = Array.isArray(rows) ? rows.map((r:any) => ({
           no: Number(r.no||0),

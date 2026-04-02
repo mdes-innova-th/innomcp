@@ -598,7 +598,7 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   }
   // NIP top ISP this month: "isp/เครือข่าย...เดือนนี้" / "เดือนนี้...isp/เครือข่าย + url/พบ/เจอ"
   // Also: "isp ไหนเจอ illegal url เยอะสุด", "top isp bad url"
-  if (/(isp|ผู้ให้บริการ|ค่าย|เครือข่าย|ไอเอสพี).*(เดือนนี้|this\s*month)|เดือนนี้.*(isp|ผู้ให้บริการ|เครือข่าย)/i.test(t)) {
+  if (/(isp|isi|ผู้ให้บริการ|ค่าย|เครือข่าย|ไอเอสพี).*(เดือนนี้|this\s*month)|เดือนนี้.*(isp|isi|ผู้ให้บริการ|เครือข่าย)/i.test(t)) {
     return "nip_top_isp_this_month";
   }
   if (/(เดือนนี้).*(url|nip|ผิดกฎหมาย|illegal|พบ|เจอ).*(มากสุด|เยอะสุด|สูงสุด|จาก|ไหน)/i.test(t) ||
@@ -606,13 +606,13 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
     return "nip_top_isp_this_month";
   }
   // "isp ไหนเจอ illegal url เยอะสุด" / "top isp bad url" / "isp เจอ url มากสุด"
-  if (/(isp|ค่าย|เครือข่าย|ไอเอสพี).*(เจอ|พบ|ตรวจ).*(url|illegal|ผิดกฎหมาย|bad).*(มากสุด|เยอะสุด|สูงสุด)/i.test(t) ||
-      /top\s*isp.*(bad|illegal|url)/i.test(t) ||
-      /(isp|ค่าย).*(url|nip).*(มากสุด|เยอะสุด)/i.test(t)) {
+  if (/(isp|isi|ค่าย|เครือข่าย|ไอเอสพี).*(เจอ|พบ|ตรวจ).*(url|illegal|ผิดกฎหมาย|bad).*(มากสุด|เยอะสุด|สูงสุด)/i.test(t) ||
+      /top\s*(isp|isi).*(bad|illegal|url)/i.test(t) ||
+      /(isp|isi|ค่าย).*(url|nip).*(มากสุด|เยอะสุด)/i.test(t)) {
     return "nip_top_isp_this_month";
   }
   // NIP top ISP overall: "top isp" / "isp มากสุด/เยอะสุด"
-  if (/(top\s*\d*\s*isp|isp\s*top|isp.*มากสุด|มากสุด.*isp|isp.*เยอะสุด|เยอะสุด.*isp)/i.test(t) && !isYesterday) {
+  if (/(top\s*\d*\s*(isp|isi)|(isp|isi)\s*top|(isp|isi).*มากสุด|มากสุด.*(isp|isi)|(isp|isi).*เยอะสุด|เยอะสุด.*(isp|isi))/i.test(t) && !isYesterday) {
     if (/(เดือนนี้|this\s*month)/i.test(t)) return "nip_top_isp_this_month";
     return "nip_top_isp_all";
   }
@@ -720,7 +720,7 @@ function looksLikeDateTimeLikeQuery(text: string): boolean {
   const looksLikeWeather = /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น)/i.test(t);
   if (looksLikeWeather) return false;
   // IMPORTANT: use full word boundaries for EN tokens so words like "downtime" won't match "time".
-  return (/(กี่โมง|ตอนนี้.*กี่โมง|เวลา(นี้|เท่าไหร่|อะไร|ไหน)|วันที่|วันอะไร|เดือนอะไร|ปีอะไร|\bnow\b|\btime\b|\bdate\b|\btoday\b)/i.test(t)
+  return (/(กี่โมง|ตอนนี้.*กี่โมง|บอกเวลา|เวลา(นี้|เท่าไหร่|อะไร|ไหน)|วันที่|วันอะไร|เดือนอะไร|ปีอะไร|\bnow\b|\btime\b|\bdate\b|\btoday\b)/i.test(t)
     || /นับจาก.*ถึง.*อีกกี่วัน|เหลืออีกกี่วัน|อีกกี่วันถึง|สิ้นปีนี้เหลือ/i.test(t))
     && t.length <= 120;
 }
