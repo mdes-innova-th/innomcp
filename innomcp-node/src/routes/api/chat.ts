@@ -1555,9 +1555,10 @@ function renderStructuredDirect(
 
       if (intent === "nip_top_isp_this_month" || intent === "nip_top_isp_all") {
         const byIsp: Array<{isp:string; count:number}> = Array.isArray((sc as any).byIsp) ? (sc as any).byIsp : [];
+        const totalSum = byIsp.reduce((s, r) => s + (Number(r.count) || 0), 0);
         const month = String((sc as any).month || "").trim();
         const label = intent === "nip_top_isp_this_month" ? `เดือนนี้ (${month})` : "ทั้งหมด";
-        const lines: string[] = [`Top ISP ${label}:`];
+        const lines: string[] = [`Top ISP ${label} (รวม ${totalSum.toLocaleString()} รายการ):`];
         byIsp.slice(0,10).forEach((r,i) => lines.push(`${i+1}) ${r.isp}: ${r.count.toLocaleString()} รายการ`));
         if (lines.length === 1) lines.push("(ยังไม่มีข้อมูล)");
         return { text: lines.join("\n"), structuredContent };
@@ -1574,7 +1575,7 @@ function renderStructuredDirect(
       }
       if (intent === "nip_latest") {
         const items: Array<any> = Array.isArray((sc as any).items) ? (sc as any).items : [];
-        const lines: string[] = ["URL ผิดกฎหมายล่าสุด:"];
+        const lines: string[] = [`URL ผิดกฎหมายล่าสุด (${items.length} รายการ):`];
         items.slice(0,5).forEach((r,i) => {
           const dt = r.create_date ? String(r.create_date).slice(0,10) : "-";
           lines.push(`${i+1}) ${r.url} (${r.isp_name||"?"}) - ${dt}`);

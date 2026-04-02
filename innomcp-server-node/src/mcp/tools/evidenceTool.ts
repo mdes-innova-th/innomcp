@@ -495,10 +495,11 @@ export const evidenceTool = {
         );
         const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r.isp_name||"(ไม่ระบุ)").trim()||"(ไม่ระบุ)", count: Number(r.c||0) })) : [];
         const top = byIsp[0] || null;
+        const totalSum = byIsp.reduce((s: number, r: any) => s + (Number(r.count) || 0), 0);
         const monthLabel = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}`; })();
         return {
           content: [{ type: "text" as const, text: top ? `เดือนนี้ (${monthLabel}) ISP มากสุด: ${top.isp} (${top.count} รายการ)` : `เดือนนี้ยังไม่มีข้อมูล` }],
-          structuredContent: { ok: true, intent: action, month: monthLabel, byIsp, topIsp: top, meta: metaFor("detectdb") },
+          structuredContent: { ok: true, intent: action, month: monthLabel, byIsp, topIsp: top, kpis: { total: totalSum, topIspName: top?.isp ?? null, topIspCount: top?.count ?? null }, table: { rows: byIsp }, meta: metaFor("detectdb") },
         };
       }
 
@@ -509,9 +510,10 @@ export const evidenceTool = {
         );
         const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r.isp_name||"(ไม่ระบุ)").trim()||"(ไม่ระบุ)", count: Number(r.c||0) })) : [];
         const top = byIsp[0] || null;
+        const totalSum = byIsp.reduce((s: number, r: any) => s + (Number(r.count) || 0), 0);
         return {
           content: [{ type: "text" as const, text: top ? `Top ISP ทั้งหมด: ${top.isp} (${top.count} รายการ)` : "ยังไม่มีข้อมูล" }],
-          structuredContent: { ok: true, intent: action, topN: safeL, byIsp, topIsp: top, meta: metaFor("detectdb") },
+          structuredContent: { ok: true, intent: action, topN: safeL, byIsp, topIsp: top, kpis: { total: totalSum, topIspName: top?.isp ?? null, topIspCount: top?.count ?? null }, table: { rows: byIsp }, meta: metaFor("detectdb") },
         };
       }
 

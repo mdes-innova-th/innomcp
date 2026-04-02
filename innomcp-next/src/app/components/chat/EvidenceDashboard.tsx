@@ -55,11 +55,15 @@ export default function EvidenceDashboard({ structuredContent }: Props) {
 
   const kpis = sc && typeof sc === "object" ? sc.kpis ?? {} : {};
   // Primary: read from kpis object. Fallback: derive from count/topIsp/byIsp fields.
-  const total = safeNum(kpis?.total || sc?.count || sc?.total);
-  const topIspNameRaw = kpis?.topIspName ?? sc?.topIsp?.isp ?? (Array.isArray(sc?.byIsp) && sc.byIsp[0]?.isp) ?? null;
+  const byIspArr: Array<{ isp: string; count: number }> = Array.isArray(sc?.byIsp) ? sc.byIsp : [];
+  const byIspSum = byIspArr.reduce((s, r) => s + safeNum(r?.count), 0);
+  const itemsArr = Array.isArray(sc?.items) ? sc.items : Array.isArray(sc?.machines) ? sc.machines : [];
+  const total = safeNum(kpis?.total || sc?.count || sc?.total || byIspSum || itemsArr.length);
+  const topIspNameRaw = kpis?.topIspName ?? sc?.topIsp?.isp ?? (byIspArr.length > 0 && byIspArr[0]?.isp) ?? null;
   const topIspName = topIspNameRaw === null ? "" : safeStr(topIspNameRaw);
-  const topIspCountRaw = kpis?.topIspCount ?? sc?.topIsp?.count ?? (Array.isArray(sc?.byIsp) && sc.byIsp[0]?.count) ?? null;
+  const topIspCountRaw = kpis?.topIspCount ?? sc?.topIsp?.count ?? (byIspArr.length > 0 && byIspArr[0]?.count) ?? null;
   const topIspCount = topIspCountRaw === null ? null : Number.isFinite(Number(topIspCountRaw)) ? Number(topIspCountRaw) : null;
+  const hasIspData = !!(topIspName && topIspCount !== null && topIspCount > 0);
   const dataSource = safeStr(sc?.meta?.dataSource).toLowerCase();
   const dataSourceLabel = dataSource === "detectdb" ? "detectdb" : "placeholder";
 
@@ -121,7 +125,7 @@ export default function EvidenceDashboard({ structuredContent }: Props) {
         </div>
       </div>
 
-      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+      <div className={`mt-2 grid grid-cols-1 gap-2 ${hasIspData ? "sm:grid-cols-3" : ""}`}>
         <div
           data-testid="evidence-kpi-total"
           className="rounded-md border border-green-500/20 bg-white/70 px-3 py-2 dark:border-green-400/20 dark:bg-gray-900/30"
@@ -129,6 +133,7 @@ export default function EvidenceDashboard({ structuredContent }: Props) {
           <div className="text-xs text-gray-600 dark:text-gray-300">รวมทั้งหมด</div>
           <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{total}</div>
         </div>
+        {hasIspData && (
         <div
           data-testid="evidence-kpi-topisp"
           className="rounded-md border border-green-500/20 bg-white/70 px-3 py-2 dark:border-green-400/20 dark:bg-gray-900/30"
@@ -136,6 +141,8 @@ export default function EvidenceDashboard({ structuredContent }: Props) {
           <div className="text-xs text-gray-600 dark:text-gray-300">ISP มากสุด</div>
           <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{topIspName || "(ไม่มีข้อมูล)"}</div>
         </div>
+        )}
+        {hasIspData && (
         <div
           data-testid="evidence-kpi-topcount"
           className="rounded-md border border-green-500/20 bg-white/70 px-3 py-2 dark:border-green-400/20 dark:bg-gray-900/30"
@@ -143,6 +150,7 @@ export default function EvidenceDashboard({ structuredContent }: Props) {
           <div className="text-xs text-gray-600 dark:text-gray-300">จำนวน (ISP มากสุด)</div>
           <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">{topIspCount ?? 0}</div>
         </div>
+        )}
       </div>
 
       {points.length > 0 && poly && (
