@@ -1301,11 +1301,36 @@ function formatOfficerEvidenceTraceAnswer(structuredContent: any): string {
   return "ERR:COUNT_MISSING";
 }
 
+/**
+ * Unwrap MCP-standard content arrays: [{type:"text",text:"..."}] → plain string.
+ * Returns null if not an MCP content array.
+ */
+function unwrapMcpContentText(val: any): string | null {
+  if (Array.isArray(val) && val.length > 0 && val[0]?.type === "text" && typeof val[0]?.text === "string") {
+    return val.map((item: any) => (typeof item?.text === "string" ? item.text : "")).join("\n").trim();
+  }
+  return null;
+}
+
 function renderStructuredDirect(
   toolName: string,
   structuredContent: any,
   originalQuery: string
 ): { text: string; structuredContent: any } | null {
+  // Phase 12: Unwrap MCP content arrays early so downstream renderers see plain data.
+  const unwrapped = unwrapMcpContentText(structuredContent);
+  if (unwrapped !== null) {
+    // Try to JSON-parse the unwrapped text (some tools encode JSON inside content[0].text)
+    let parsed: any;
+    try { parsed = JSON.parse(unwrapped); } catch { /* not JSON — treat as plain text */ }
+    if (parsed && typeof parsed === "object") {
+      // Re-enter with the parsed object (e.g., APOD JSON fields)
+      return renderStructuredDirect(toolName, parsed, originalQuery);
+    }
+    // Plain text result — return it directly as the answer
+    return { text: unwrapped, structuredContent: { __mcpText: true } };
+  }
+
   const deep = wantsDeepExplain(originalQuery || "");
 
   if (toolName === "weatherPipeline") {
@@ -1351,12 +1376,24 @@ function renderStructuredDirect(
     const title = (sc as any).title || "";
     const explanation = (sc as any).explanation || "";
     const url = (sc as any).url || (sc as any).hdurl || "";
+    const mediaType = (sc as any).media_type || "";
     if (title || explanation) {
-      const lines = [];
-      if (title) lines.push(`**${title}**`);
-      if (explanation) lines.push(explanation.slice(0, 300));
-      if (url) lines.push(`\n🔗 ${url}`);
-      return { text: lines.join("\n\n"), structuredContent: sc };
+      const lines: string[] = [];
+      if (title) lines.push(`🌌 **${title}**`);
+      if ((sc as any).date) lines.push(`📅 ${(sc as any).date}`);
+      if ((sc as any).copyright) lines.push(`©️ ${(sc as any).copyright}`);
+      if (explanation) {
+        const shortExpl = explanation.length > 400 ? explanation.slice(0, 400) + "..." : explanation;
+        lines.push(`\n${shortExpl}`);
+      }
+      if (url && mediaType === "image") {
+        lines.push(`\n🔗 [ดูภาพขนาดเต็ม](${(sc as any).hdurl || url})`);
+      } else if (url) {
+        lines.push(`\n🔗 ${url}`);
+      }
+      // Attach APOD fields to structuredContent so frontend can render image card
+      const enrichedSc = { ...sc, url, title, media_type: mediaType || "image" };
+      return { text: lines.join("\n"), structuredContent: enrichedSc };
     }
     return null;
   }
@@ -1557,9 +1594,19 @@ function renderStructuredDirect(
     return { text: "ขออภัย รูปแบบข้อมูลผลลัพธ์ไม่ครบถ้วน (ERR:SCHEMA)", structuredContent };
   }
 
-  const json = safeJsonStringify(structuredContent, 2400);
+  // Phase 12: Never dump raw JSON to user. Extract text if possible, else summarize.
+  if (typeof structuredContent === "string" && structuredContent.length > 0) {
+    return { text: structuredContent, structuredContent: { __rawText: true } };
+  }
+  // Try to extract any .text / .message / .result field from the object
+  const sc = structuredContent && typeof structuredContent === "object" ? structuredContent : {};
+  const extractedText = (sc as any).text || (sc as any).message || (sc as any).result;
+  if (typeof extractedText === "string" && extractedText.length > 5) {
+    return { text: extractedText, structuredContent };
+  }
+  // Last resort: concise summary instead of raw JSON dump
   return {
-    text: `ผลลัพธ์จากเครื่องมือ ${toolName}:\n\n\`\`\`json\n${json}\n\`\`\``,
+    text: `ได้รับข้อมูลจากเครื่องมือ ${toolName} แล้วครับ`,
     structuredContent,
   };
 }
@@ -2716,7 +2763,7 @@ wss.on("connection", (ws, req) => {
 
               // Try direct rendering first (QR/NASA image bypass)
               const direct = renderStructuredDirect(apiToolMatch.tool.split(":").pop() || "", sc, messageWithFile);
-              const textOut = direct ? direct.text : (typeof sc === "string" ? sc : JSON.stringify(sc).slice(0, 500));
+              const textOut = direct ? direct.text : (typeof sc === "string" ? sc : (unwrapMcpContentText(sc) || `ได้รับข้อมูลจาก ${apiToolMatch.gate} แล้วครับ`));
               const scOut = withRenderMeta(
                 direct ? direct.structuredContent : sc,
                 { route: apiToolMatch.gate.toLowerCase() as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.5" },
@@ -4227,7 +4274,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
           const sc = first?.structuredContent ?? first?.result ?? {};
           const direct = renderStructuredDirect(apiToolMatch.tool.split(":").pop() || "", sc, messageWithFile);
-          const textOut = direct ? direct.text : (typeof sc === "string" ? sc : JSON.stringify(sc).slice(0, 500));
+          const textOut = direct ? direct.text : (typeof sc === "string" ? sc : (unwrapMcpContentText(sc) || `ได้รับข้อมูลจาก ${apiToolMatch.gate} แล้วครับ`));
           const scOut = withRenderMeta(
             direct ? direct.structuredContent : sc,
             { route: apiToolMatch.gate.toLowerCase() as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.5" },

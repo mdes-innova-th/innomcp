@@ -237,25 +237,20 @@ function renderErrorOnlyProvince(province: string, items: WeatherResult[]): stri
   const msg = (() => {
     switch (kind) {
       case "TIMEOUT":
-        return `ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา กรุณาลองใหม่อีกครั้ง (ERR:WX_TIMEOUT)`;
+        return `ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา กรุณาลองถามใหม่อีกครั้งครับ`;
       case "PROVINCE_MISSING":
-        return "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)";
+        return "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการครับ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม)";
       case "UPSTREAM":
-        return `ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง (ERR:WX_UPSTREAM)`;
+        return `ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองถามใหม่อีกครั้งครับ`;
       case "NO_DATA":
       default:
-        return `ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)`;
+        return `ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ ลองถามใหม่อีกครั้งครับ`;
     }
   })();
 
-  // Operator-grade: always emit the same 5 fields for every area block.
+  // Concise error message instead of dumping placeholder fields
   const lines = [
-    `พื้นที่: ${province}`,
-    `โอกาสฝน: ยังไม่มีข้อมูล`,
-    `ช่วงเวลาเสี่ยง: ยังไม่มีข้อมูล`,
-    `อุณหภูมิ: ยังไม่มีข้อมูล`,
-    `ลม: ยังไม่มีข้อมูล`,
-    `ข้อควรระวัง: ${msg}`,
+    `**${province}**: ${msg}`,
   ];
 
   const districtHints = districtHintsForProvince(province);
@@ -458,6 +453,18 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
 
   const lines: string[] = [];
   lines.push(`พื้นที่: ${areaLabelForProvince(userText, province)}`);
+
+  // Phase 12: If ALL data fields are placeholders, collapse to a single concise message
+  const allPlaceholder = rainText === "ยังไม่มีข้อมูล" && tempOut === "ยังไม่มีข้อมูล" && windText === "ยังไม่มีข้อมูล";
+  if (allPlaceholder) {
+    lines.push(`ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ ลองถามใหม่อีกครั้งครับ`);
+    const districtHints = districtHintsForProvince(province);
+    if (districtHints.length > 0) {
+      lines.push(`อำเภอที่ควรติดตาม: ${districtHints.join(", ")}`);
+    }
+    return lines.join("\n");
+  }
+
   // Keep update time early (2nd line) so trace sanitizer 220-char truncation never drops it.
   if (updateTimeStr) lines.push(`เวลาอัปเดตข้อมูล: ${updateTimeStr}`);
   lines.push(`โอกาสฝน: ${rainText}`);
@@ -554,24 +561,24 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
     const text = (() => {
       switch (kind) {
         case "TIMEOUT":
-          return "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา กรุณาลองใหม่อีกครั้ง (ERR:WX_TIMEOUT)";
+          return "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา กรุณาลองถามใหม่อีกครั้งครับ";
         case "PROVINCE_MISSING":
-          return "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม) (ERR:WX_PROVINCE_MISSING)";
+          return "กรุณาระบุจังหวัด/พื้นที่ที่ต้องการครับ (เช่น พรุ่งนี้เชียงใหม่ฝนตกไหม)";
         case "UPSTREAM":
-          return "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองใหม่อีกครั้ง (ERR:WX_UPSTREAM)";
+          return "ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง กรุณาลองถามใหม่อีกครั้งครับ";
         case "NO_DATA":
         default:
           if (errs.includes("NATIONAL_DATA_UNAVAILABLE")) {
-            return "ค่าเริ่มต้นเป็นประเทศไทยแล้ว แต่ยังไม่มีข้อมูลทั่วประเทศในขณะนี้ (ERR:WX_NO_DATA)";
+            return "ขออภัย ยังไม่มีข้อมูลอากาศทั่วประเทศในขณะนี้ ลองระบุจังหวัดที่ต้องการครับ";
           }
-          return "ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)";
+          return "ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ ลองถามใหม่อีกครั้งครับ";
       }
     })();
 
     return { text, structuredContent };
   }
   if (provinces.length === 0) {
-    return { text: "ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ (ERR:WX_NO_DATA)", structuredContent };
+    return { text: "ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ ลองถามใหม่อีกครั้งครับ", structuredContent };
   }
 
   const tw = timeWindowLabel(userText);
