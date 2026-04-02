@@ -845,6 +845,15 @@ const ChatPage: React.FC = () => {
     console.log("isWaitingForResponse:", isWaitingForResponse);
   }, [isSocketReady, isWaitingForResponse]);
 
+  // Hydration guard: prevent SSR/client mismatch when localStorage has messages
+  if (!mounted) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="text-gray-400 animate-pulse">กำลังโหลด...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex">
       {/* Sidebar - stays above chat content but below nav */}
@@ -947,6 +956,11 @@ const ChatPage: React.FC = () => {
             }`}
           >
             <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 pb-2">
+              {!isSocketReady && (
+                <div className="text-center text-sm text-amber-600 dark:text-amber-400 py-1 animate-pulse mb-1">
+                  กำลังเชื่อมต่อ...
+                </div>
+              )}
               <ChatInput
                 input={input}
                 setInput={setInput}

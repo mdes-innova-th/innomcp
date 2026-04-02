@@ -43,6 +43,10 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
       limit: {
         type: "number",
         description: "Optional limit for results (default 10)"
+      },
+      ispFilter: {
+        type: "string",
+        description: "Optional ISP name filter (e.g. dtac, ais, true, tot, 3bb, nt)"
       }
     },
     required: ["intent"]
@@ -460,8 +464,22 @@ export async function handleEvidenceTool(args: any): Promise<any> {
     }
 
     if (intent === "detected_urls_today") {
-      const n = await countQuery(`SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) = ?`, [today]);
-      return { ok: true, intent, meta: metaFor("detectdb"), count: n, kpis: buildKpis(n, null, null), dateColumn: "create_date", summary: `วันนี้ตรวจพบ URL/NIP: ${n} รายการ` };
+      const ispFilter = args.ispFilter ? String(args.ispFilter).trim() : null;
+      let sql = `SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) = ?`;
+      const params: any[] = [today];
+      if (ispFilter) {
+        const nipCols = await getColumns("nip");
+        const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]);
+        if (ispCol) {
+          sql += ` AND LOWER(\`${ispCol}\`) = LOWER(?)`;
+          params.push(ispFilter);
+        }
+      }
+      const n = await countQuery(sql, params);
+      const label = ispFilter
+        ? `วันนี้ตรวจพบ URL/NIP จาก ${ispFilter.toUpperCase()}: ${n} รายการ`
+        : `วันนี้ตรวจพบ URL/NIP: ${n} รายการ`;
+      return { ok: true, intent, ispFilter: ispFilter || undefined, meta: metaFor("detectdb"), count: n, kpis: buildKpis(n, null, null), dateColumn: "create_date", summary: label };
     }
 
     if (intent === "nip_top_isp_this_month") {

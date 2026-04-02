@@ -94,18 +94,33 @@ function parseDayOffset(text: string): number {
   return 0;
 }
 
+function parseDaypart(text: string): string | null {
+  const t = String(text || "");
+  if (/ตอนเช้า|ช่วงเช้า|เช้า(?:มืด)?(?:ถึง|จนถึง|ถึงสาย)/i.test(t)) return "เช้า";
+  if (/ตอนสาย|ช่วงสาย/i.test(t)) return "สาย";
+  if (/บ่าย(?:ถึง|จนถึง)\s*ค่ำ/i.test(t)) return "บ่ายถึงค่ำ";
+  if (/ตอนบ่าย|ช่วงบ่าย|บ่าย/i.test(t)) return "บ่าย";
+  if (/ตอนเย็น|ช่วงเย็น|เย็น/i.test(t)) return "เย็น";
+  if (/ตอนค่ำ|ช่วงค่ำ|ค่ำ/i.test(t)) return "ค่ำ";
+  if (/กลางคืน|ตอนดึก|ดึก/i.test(t)) return "กลางคืน";
+  if (/ตอนเช้า|เช้า/i.test(t)) return "เช้า";
+  return null;
+}
+
 function isWeekMode(userText: string): boolean {
   const t = String(userText || "");
   return /7\s*วัน|๗\s*วัน|สัปดาห์|อาทิตย์นี้|อาทิตย์หน้า|weekly|week/i.test(t);
 }
 
-function timeWindowLabel(userText: string): { label: string; date: string; offset: number } {
+function timeWindowLabel(userText: string): { label: string; date: string; offset: number; daypart: string | null } {
+  const daypart = parseDaypart(userText);
   if (isWeekMode(userText)) {
-    return { label: "พยากรณ์ 7 วัน", date: bkkDateStr(0), offset: 0 };
+    return { label: "พยากรณ์ 7 วัน", date: bkkDateStr(0), offset: 0, daypart };
   }
   const offset = parseDayOffset(userText);
-  const label = offset === 0 ? "วันนี้" : offset === 1 ? "พรุ่งนี้" : offset === 2 ? "มะรืน" : `อีก ${offset} วัน`;
-  return { label, date: bkkDateStr(offset), offset };
+  const dayLabel = offset === 0 ? "วันนี้" : offset === 1 ? "พรุ่งนี้" : offset === 2 ? "มะรืน" : `อีก ${offset} วัน`;
+  const label = daypart ? `${dayLabel} (${daypart})` : dayLabel;
+  return { label, date: bkkDateStr(offset), offset, daypart };
 }
 
 function isTodayRainQuestion(text: string): boolean {
@@ -575,6 +590,8 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
         ? `ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (${provList}) กรุณาลองถามใหม่อีกครั้งครับ`
         : dominantKind === "UPSTREAM"
         ? `ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง (${provList}) กรุณาลองถามใหม่อีกครั้งครับ`
+        : tw.daypart
+        ? `ขออภัย ยังไม่มีข้อมูลอากาศรายช่วงเวลา (${tw.daypart}) สำหรับ ${provList} — ระบบมีเฉพาะพยากรณ์รายวัน ลองถามแบบ "${tw.label.replace(/ *\(.*\)/, "")} ${provList} อากาศเป็นอย่างไร" ครับ`
         : `ขออภัย ยังไม่มีข้อมูลอากาศสำหรับ ${provList} ในขณะนี้ กรุณาลองถามใหม่ภายหลังครับ`;
       return { text: [header, msg].join("\n\n"), structuredContent };
     }
@@ -588,6 +605,8 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
       "NO_DATA";
 
     const text = (() => {
+      const daypart = parseDaypart(userText);
+      const daypartNote = daypart ? ` (ช่วง${daypart}) — ระบบมีเฉพาะพยากรณ์รายวัน` : "";
       switch (kind) {
         case "TIMEOUT":
           return "ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา กรุณาลองถามใหม่อีกครั้งครับ";
@@ -598,9 +617,11 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
         case "NO_DATA":
         default:
           if (errs.includes("NATIONAL_DATA_UNAVAILABLE")) {
-            return "ขออภัย ยังไม่มีข้อมูลอากาศทั่วประเทศในขณะนี้ ลองระบุจังหวัดที่ต้องการครับ";
+            return daypart
+              ? `ขออภัย ยังไม่มีข้อมูลอากาศรายช่วงเวลา${daypartNote} — ลองระบุจังหวัดที่ต้องการครับ`
+              : "ขออภัย ยังไม่มีข้อมูลอากาศทั่วประเทศในขณะนี้ ลองระบุจังหวัดที่ต้องการครับ";
           }
-          return "ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้ ลองถามใหม่อีกครั้งครับ";
+          return `ขออภัย ยังไม่มีข้อมูลอากาศสำหรับพื้นที่นี้ในขณะนี้${daypartNote} ลองถามใหม่อีกครั้งครับ`;
       }
     })();
 
@@ -611,7 +632,8 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
   }
 
   const tw = timeWindowLabel(userText);
-  const header = `ช่วงเวลา: ${tw.label} (${tw.date})`;
+  const daypartCaveat = tw.daypart ? `\n(หมายเหตุ: ข้อมูลเป็นพยากรณ์รายวัน — ยังไม่รองรับการกรองเฉพาะช่วง "${tw.daypart}")` : "";
+  const header = `ช่วงเวลา: ${tw.label} (${tw.date})${daypartCaveat}`;
   const weekMode = isWeekMode(userText);
   const wantTable = /ตาราง/i.test(userText || "");
 

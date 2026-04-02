@@ -540,6 +540,22 @@ function buildHistoryAwareFollowUpAnswer(currentText: string, sessionHistory: Ch
   return null;
 }
 
+function extractIspName(text: string): string | null {
+  const t = String(text || "");
+  const ispPatterns: Array<[RegExp, string]> = [
+    [/\bdtac\b|ดีแทค/i, "dtac"],
+    [/\bais\b|เอไอเอส/i, "ais"],
+    [/\btrue\b|ทรู/i, "true"],
+    [/\btot\b|ทีโอที/i, "tot"],
+    [/\b3bb\b|สามบีบี/i, "3bb"],
+    [/\bnt\b(?!\s*(ที่|จะ|มี|นี้))/i, "nt"],
+  ];
+  for (const [pattern, name] of ispPatterns) {
+    if (pattern.test(t)) return name;
+  }
+  return null;
+}
+
 function inferOfficerEvidenceAction(text: string): string | undefined {
   // Normalize: collapse whitespace, trim, lowercase for matching
   const raw = String(text || "");
@@ -2296,8 +2312,11 @@ wss.on("connection", (ws, req) => {
 
           const primaryToolName = "innomcp-server:evidenceTool";
           let toolNameUsed = primaryToolName;
+          const ispFilter = extractIspName(routingMessage);
+          const evidenceToolArgs: any = { action: evidenceAction };
+          if (ispFilter) evidenceToolArgs.ispFilter = ispFilter;
           let toolResults = await mcpClient.executeTools([primaryToolName], messageWithFile, {
-            [primaryToolName]: { action: evidenceAction },
+            [primaryToolName]: evidenceToolArgs,
           });
 
           let first = Array.isArray(toolResults) ? toolResults[0] : undefined;
@@ -2333,8 +2352,10 @@ wss.on("connection", (ws, req) => {
             const localIntent = mapOfficerEvidenceActionToLocalIntent(evidenceAction);
             if (localIntent) {
               const localToolName = "local-tools:detect_evidence_stats";
+              const localArgs: any = { intent: localIntent };
+              if (ispFilter) localArgs.ispFilter = ispFilter;
               const localResults = await mcpClient.executeTools([localToolName], messageWithFile, {
-                [localToolName]: { intent: localIntent },
+                [localToolName]: localArgs,
               });
               const localFirst = Array.isArray(localResults) ? localResults[0] : undefined;
               const localSc = localFirst?.structuredContent ?? localFirst?.result;
@@ -3747,8 +3768,11 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
       const primaryToolName = "innomcp-server:evidenceTool";
       let toolNameUsed = primaryToolName;
+      const ispFilter = extractIspName(routingMessage);
+      const evidenceToolArgs: any = { action: evidenceAction };
+      if (ispFilter) evidenceToolArgs.ispFilter = ispFilter;
       let toolResults = await mcpClient.executeTools([primaryToolName], messageWithFile, {
-        [primaryToolName]: { action: evidenceAction },
+        [primaryToolName]: evidenceToolArgs,
       });
 
       let first = Array.isArray(toolResults) ? toolResults[0] : undefined;
@@ -3782,8 +3806,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         const localIntent = mapOfficerEvidenceActionToLocalIntent(evidenceAction);
         if (localIntent) {
           const localToolName = "local-tools:detect_evidence_stats";
+          const localArgs: any = { intent: localIntent };
+          if (ispFilter) localArgs.ispFilter = ispFilter;
           const localResults = await mcpClient.executeTools([localToolName], messageWithFile, {
-            [localToolName]: { intent: localIntent },
+            [localToolName]: localArgs,
           });
           const localFirst = Array.isArray(localResults) ? localResults[0] : undefined;
           const localSc = localFirst?.structuredContent ?? localFirst?.result;

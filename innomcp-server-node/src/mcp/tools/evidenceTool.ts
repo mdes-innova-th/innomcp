@@ -37,6 +37,10 @@ export const evidenceTool = {
       .optional()
       .default(5)
       .describe("Limit number of rows (default 5, max 20)"),
+    ispFilter: z
+      .string()
+      .optional()
+      .describe("Optional ISP name filter (e.g. dtac, ais, true, tot, 3bb, nt)"),
   }),
   execute: async (args: any) => {
     const { action, tableName, limit } = args;
@@ -231,14 +235,23 @@ export const evidenceTool = {
         }
 
         const today = getBangkokToday();
-        const n = await countQuery(
-          `SELECT COUNT(*) as c FROM nip WHERE DATE(\`${createdCol}\`) = ?`,
-          [today],
-          "detected_urls_today"
-        );
+        const ispFilter = args.ispFilter ? String(args.ispFilter).trim() : null;
+        let sql = `SELECT COUNT(*) as c FROM nip WHERE DATE(\`${createdCol}\`) = ?`;
+        const params: any[] = [today];
+        if (ispFilter) {
+          const ispCol = pickFirstColumn(cols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]);
+          if (ispCol) {
+            sql += ` AND LOWER(\`${ispCol}\`) = LOWER(?)`;
+            params.push(ispFilter);
+          }
+        }
+        const n = await countQuery(sql, params, "detected_urls_today");
+        const label = ispFilter
+          ? `วันนี้ตรวจพบ URL จาก ${ispFilter.toUpperCase()} แล้ว: ${n} รายการ`
+          : `วันนี้ตรวจพบ URL แล้ว: ${n} รายการ`;
         return {
-          content: [{ type: "text" as const, text: `วันนี้ตรวจพบ URL แล้ว: ${n} รายการ` }],
-          structuredContent: { ok: true, intent: action, count: n, dateColumn: createdCol, today, meta: metaFor("detectdb") },
+          content: [{ type: "text" as const, text: label }],
+          structuredContent: { ok: true, intent: action, count: n, ispFilter: ispFilter || undefined, dateColumn: createdCol, today, meta: metaFor("detectdb") },
         };
       }
 
