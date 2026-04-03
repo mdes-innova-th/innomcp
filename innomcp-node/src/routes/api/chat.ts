@@ -262,7 +262,7 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
 
   // Core weather words
   const hasWind = /(?:^|\s)ลม(?:\s|$)|ลมแรง|ความเร็วลม|ทิศทางลม|wind\b/i.test(t);
-  const hasWeatherCore = /ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|พายุ|weather|forecast|temperature|humidity|tmd|อุตุ|nwp|ร้อน|หนาว|แล้ง|หมอก|แผ่นดินไหว|seismic|earthquake|ริกเตอร์|เตือนภัย|ประกาศเตือน|รังสีดวงอาทิตย์|แสงอาทิตย์|แสงแดด|solar|uv/i.test(t) || hasWind;
+  const hasWeatherCore = /ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|พายุ|weather|forecast|temperature|humidity|tmd|อุตุ|nwp|ร้อน|หนาว|แล้ง|หมอก|แผ่นดินไหว|seismic|earthquake|ริกเตอร์|เตือนภัย|ประกาศเตือน|รังสีดวงอาทิตย์|แสงอาทิตย์|แสงแดด|solar|uv|\brain\b|\bcloudy\b|\bsunny\b/i.test(t) || hasWind;
 
   // Weather-specific patterns that often omit the word "อากาศ"
   const hasWeatherSpecific = /รายชั่วโมง|รายวัน|ตารางสถานี|สถานีอากาศ|รายสถานี|พยากรณ์\s*7\s*วัน|7\s*วัน|สัปดาห์/i.test(t);
@@ -293,7 +293,7 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
 }
 
 function hasExplicitWeatherIntentKeywords(text: string): boolean {
-  return /(อากาศ|พยากรณ์|ฝน|อุณหภูมิ|ลม|เรดาร์|weather|forecast|temperature|rain|storm|wind|อุตุ|NWP|nwp|แผ่นดินไหว|seismic|ริกเตอร์|earthquake|เตือนภัย|ประกาศเตือน|สถานีอุตุ|รังสีดวงอาทิตย์|แสงอาทิตย์|แสงแดด|solar|uv)/i.test(String(text || ""));
+  return /(อากาศ|อากาส|พยากรณ์|ฝน|อุณหภูมิ|ลม|เรดาร์|weather|forecast|temperature|rain|storm|wind|อุตุ|NWP|nwp|แผ่นดินไหว|seismic|ริกเตอร์|earthquake|เตือนภัย|ประกาศเตือน|สถานีอุตุ|รังสีดวงอาทิตย์|แสงอาทิตย์|แสงแดด|solar|uv)/i.test(String(text || ""));
 }
 
 const CARRY_FORWARD_ENTITY_RE = /เชียงใหม่|กรุงเทพ(?:มหานคร)?|ภูเก็ต|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|สงขลา|หาดใหญ่|สมุทรสงคราม|แม่กลอง|ชลบุรี|อยุธยา|สุราษฎร์ธานี|ระนอง|พังงา|กระบี่|ภาคกลาง|ภาคเหนือ|ภาคใต้|ภาคอีสาน|ภาคตะวันออกเฉียงเหนือ/g;
@@ -724,7 +724,7 @@ function looksLikeDateTimeLikeQuery(text: string): boolean {
   const looksLikeWeather = /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น)/i.test(t);
   if (looksLikeWeather) return false;
   // IMPORTANT: use full word boundaries for EN tokens so words like "downtime" won't match "time".
-  return (/(กี่โมง|ตอนนี้.*กี่โมง|บอกเวลา|เวลา(นี้|เท่าไหร่|อะไร|ไหน)|วันที่|วันอะไร|เดือนอะไร|ปีอะไร|\bnow\b|\btime\b|\bdate\b|\btoday\b)/i.test(t)
+  return (/(กี่โมง|ตอนนี้.*กี่โมง|บอกเวลา|เวลา(ตอนนี้|นี้|เท่าไหร่|อะไร|ไหน)|วันที่|วันอะไร|เดือนอะไร|ปีอะไร|\bnow\b|\btime\b|\bdate\b|\btoday\b)/i.test(t)
     || /นับจาก.*ถึง.*อีกกี่วัน|เหลืออีกกี่วัน|อีกกี่วันถึง|สิ้นปีนี้เหลือ/i.test(t))
     && t.length <= 120;
 }
@@ -1116,7 +1116,7 @@ function looksLikeDeterministicGeoQuery(text: string): boolean {
   // Phase 8.2: allow "<ชื่อสถานที่> อยู่ที่ไหน" even without explicit admin keywords,
   // but keep strict exclusions so evidence/ops questions are not hijacked.
   if (whereQ) {
-    const m = t.match(/^(.{2,40})\s*(อยู่ที่ไหน|อยู่ตรงไหน|แถวไหน|ที่ไหน)\s*\?*\s*$/i);
+    const m = t.match(/^(.{2,40})\s*(อยู่ที่ไหน|อยู่ตรงไหน|แถวไหน|ที่ไหน)\s*(?:ของ|ใน)?\s*(?:ประเทศ|ประเทศไทย|ไทย)?\s*\?*\s*$/i);
     const subject = String(m?.[1] || "").trim();
     const hasThai = /[\u0E00-\u0E7F]/.test(subject);
     const looksLikeEvidence = looksLikeEvidenceKeywordQuery(t) || !!inferOfficerEvidenceAction(t);
