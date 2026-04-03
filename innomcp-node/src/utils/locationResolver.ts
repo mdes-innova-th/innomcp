@@ -178,7 +178,8 @@ const PROVINCE_MAP: Record<string, ProvinceMapping> = {
 };
 
 // 🇹🇭 Region → representative provinces (for region-level weather queries)
-const REGION_PROVINCES: [string, string[]][] = [
+// Note: province names normalized NFKC at access time
+const REGION_PROVINCES_RAW: [string, string[]][] = [
   ["ภาคตะวันออกเฉียงเหนือ", ["ขอนแก่น", "นครราชสีมา", "อุดรธานี", "อุบลราชธานี"]],
   ["ภาคใต้ฝั่งอ่าวไทย", ["สุราษฎร์ธานี", "นครศรีธรรมราช", "สงขลา"]],
   ["ภาคใต้ฝั่งอันดามัน", ["ภูเก็ต", "กระบี่", "พังงา"]],
@@ -190,9 +191,12 @@ const REGION_PROVINCES: [string, string[]][] = [
   ["ภาคใต้", ["สุราษฎร์ธานี", "ภูเก็ต", "นครศรีธรรมราช", "สงขลา"]],
   ["อีสาน", ["ขอนแก่น", "นครราชสีมา", "อุดรธานี"]],
 ];
+const REGION_PROVINCES: [string, string[]][] = REGION_PROVINCES_RAW.map(
+  ([r, ps]) => [r.normalize("NFKC"), ps.map(p => p.normalize("NFKC"))]
+);
 
-// 🇹🇭 All 77 Provinces (Normalized)
-const ALL_PROVINCES = new Set([
+// 🇹🇭 All 77 Provinces (Normalized + NFKC so Thai SARA AM decomposes consistently)
+const ALL_PROVINCES_RAW = [
   "กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กาฬสินธุ์", "กำแพงเพชร", "ขอนแก่น",
   "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยนาท", "ชัยภูมิ", "ชุมพร", "เชียงราย",
   "เชียงใหม่", "ตรัง", "ตราด", "ตาก", "นครนายก", "นครปฐม", "นครพนม",
@@ -205,17 +209,24 @@ const ALL_PROVINCES = new Set([
   "สมุทรสาคร", "สระแก้ว", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี",
   "สุราษฎร์ธานี", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อ่างทอง", "อำนาจเจริญ",
   "อุดรธานี", "อุตรดิตถ์", "อุทัยธานี", "อุบลราชธานี"
-]);
+];
+const ALL_PROVINCES = new Set(ALL_PROVINCES_RAW.map(p => p.normalize("NFKC")));
 
 // ──────────────────────────────────────────────
 // PRE-COMPUTED: Sorted substring lookup tables
 const PROVINCE_NAMES_SORTED = Array.from(ALL_PROVINCES).sort((a, b) => b.length - a.length);
-const ALIAS_KEYS_SORTED = Object.keys(PROVINCE_MAP).sort((a, b) => b.length - a.length);
+const ALIAS_KEYS_SORTED = Object.keys(PROVINCE_MAP).map(k => k.normalize("NFKC")).sort((a, b) => b.length - a.length);
+
+// Build NFKC-normalized PROVINCE_MAP lookup (keys normalized to match input after NFKC)
+const PROVINCE_MAP_NFKC: Record<string, ProvinceMapping> = {};
+for (const [k, v] of Object.entries(PROVINCE_MAP)) {
+  PROVINCE_MAP_NFKC[k.normalize("NFKC")] = { ...v, canonical: v.canonical.normalize("NFKC") };
+}
 
 // Prepare Fuse.js data (secondary)
 const fuseData = [
   ...Array.from(ALL_PROVINCES).map(p => ({ name: p, type: "province", value: p })),
-  ...Object.entries(PROVINCE_MAP).map(([k, v]) => ({ name: k, type: v.granularity, value: v.canonical }))
+  ...Object.entries(PROVINCE_MAP_NFKC).map(([k, v]) => ({ name: k, type: v.granularity, value: v.canonical }))
 ];
 
 const fuse = new Fuse(fuseData, {
@@ -280,7 +291,7 @@ export function resolveProvinces(text: string): string[] {
     const haystack = isEnglish ? remainingLower : remaining;
 
     if (haystack.includes(needle)) {
-      const mapped = toNormalizedProvince(PROVINCE_MAP[alias]?.canonical);
+      const mapped = toNormalizedProvince(PROVINCE_MAP_NFKC[alias]?.canonical);
       if (mapped) foundProvinces.add(mapped);
       remaining = isEnglish ? remaining : replaceAll(remaining, needle);
       remainingLower = replaceAll(remainingLower, needle);
@@ -320,8 +331,8 @@ export function resolveProvinces(text: string): string[] {
       foundProvinces.add(cleanToken);
       continue;
     }
-    if (PROVINCE_MAP[cleanToken]) {
-      const mapped = toNormalizedProvince(PROVINCE_MAP[cleanToken]?.canonical);
+    if (PROVINCE_MAP_NFKC[cleanToken]) {
+      const mapped = toNormalizedProvince(PROVINCE_MAP_NFKC[cleanToken]?.canonical);
       if (mapped) foundProvinces.add(mapped);
       continue;
     }
@@ -383,7 +394,7 @@ export function resolveLocationsStructured(text: string): StructuredLocationResu
   // ─── Phase 1: Substring Scan with structured info ───
   for (const alias of ALIAS_KEYS_SORTED) {
     if (original.includes(alias) && !isProcessed(alias)) {
-      const mapping = PROVINCE_MAP[alias];
+      const mapping = PROVINCE_MAP_NFKC[alias];
       if (mapping) {
         results.push({
           originalEntity: alias,
@@ -461,7 +472,7 @@ export function mapToProvinceThai(location: string): string | null {
  * Check if location is a district-level entity
  */
 export function isDistrictLevel(entity: string): boolean {
-  const mapping = PROVINCE_MAP[entity];
+  const mapping = PROVINCE_MAP_NFKC[entity.normalize("NFKC")];
   return mapping?.granularity === "district" || false;
 }
 
@@ -469,6 +480,6 @@ export function isDistrictLevel(entity: string): boolean {
  * Get display label for a location entity
  */
 export function getLocationDisplayLabel(entity: string): string {
-  const mapping = PROVINCE_MAP[entity];
+  const mapping = PROVINCE_MAP_NFKC[entity.normalize("NFKC")];
   return mapping?.displayLabel || entity;
 }

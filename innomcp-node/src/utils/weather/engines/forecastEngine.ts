@@ -2,6 +2,7 @@ import { executeWeatherToolCall, TimeoutError } from "../toolCall";
 import { WeatherResult } from "../types";
 import { ToolCache } from "../../cache/toolCache";
 import { firstNonEmptyString } from "../shaping";
+import { resetFixturePrimeFlag, primeWeatherFixturesW1 } from "../fixtures/w1";
 
 // Timeout constants (configurable)
 const FORECAST_TIMEOUT_MS = 12_000;
@@ -52,18 +53,25 @@ export class ForecastEngine {
             if (!payload) {
                 // Fixture mode must never call upstream APIs.
                 if (this.isFixtureMode()) {
-                    return { province, type: "error", error: "FIXTURE_FORECAST_MISS" };
+                    // Re-prime fixtures and retry once before giving up
+                    resetFixturePrimeFlag();
+                    await primeWeatherFixturesW1();
+                    payload = ToolCache.get(cacheKey);
+                    if (!payload) {
+                        return { province, type: "error", error: "FIXTURE_FORECAST_MISS" };
+                    }
+                } else {
+                    // TMD 7-Day Forecast: returns all 77 provinces, we cache + filter
+                    payload = await executeWeatherToolCall({
+                        client,
+                        toolName,
+                        args: {},
+                        timeoutMs: forecastTimeoutMs,
+                        scope: "national",
+                        signal,
+                    });
+                    ToolCache.set(cacheKey, payload);
                 }
-                // TMD 7-Day Forecast: returns all 77 provinces, we cache + filter
-                payload = await executeWeatherToolCall({
-                    client,
-                    toolName,
-                    args: {},
-                    timeoutMs: forecastTimeoutMs,
-                    scope: "national",
-                    signal,
-                });
-                ToolCache.set(cacheKey, payload);
             }
 
             const data = this.extractForecast(payload, province);
@@ -149,8 +157,8 @@ export class ForecastEngine {
         const list = Array.isArray(raw) ? raw : (raw ? [raw] : []);
 
         const found = list.find((p: any) => {
-            const name = (p?.ProvinceNameThai || p?.ProvinceName || "").trim();
-            return name === target.trim();
+            const name = (p?.ProvinceNameThai || p?.ProvinceName || "").trim().normalize("NFKC");
+            return name === target.trim().normalize("NFKC");
         });
 
         if (!found) return null;

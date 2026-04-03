@@ -2,6 +2,7 @@
 import { executeWeatherToolCall, TimeoutError } from "../toolCall";
 import { WeatherResult } from "../types";
 import { ToolCache } from "../../cache/toolCache";
+import { resetFixturePrimeFlag, primeWeatherFixturesW1 } from "../fixtures/w1";
 
 // Timeout constants
 // Station APIs are slow (15-25s common). Keep tight to leave budget for fallback.
@@ -21,7 +22,7 @@ function getTimeoutFromEnv(name: string, fallback: number): number {
 }
 
 function normalizeThaiProvince(input: string): string {
-    const s = String(input || "").trim();
+    const s = String(input || "").trim().normalize("NFKC");
     if (!s) return "";
     const noPrefix = s.replace(/^จังหวัด\s*/u, "");
     const compact = noPrefix
@@ -83,17 +84,23 @@ export class StationEngine {
             if (!payload) {
                 // Fixture mode must never call upstream APIs.
                 if (this.isFixtureMode()) {
-                    return { province, type: "error", error: "FIXTURE_STATION_MISS" };
+                    resetFixturePrimeFlag();
+                    await primeWeatherFixturesW1();
+                    payload = ToolCache.get<any>(cacheKey);
+                    if (!payload) {
+                        return { province, type: "error", error: "FIXTURE_STATION_MISS" };
+                    }
+                } else {
+                    payload = await executeWeatherToolCall({
+                        client,
+                        toolName,
+                        args: {},
+                        timeoutMs: station3hTimeoutMs,
+                        scope: "province",
+                        signal,
+                    });
+                    ToolCache.set(cacheKey, payload, STATION_CACHE_TTL_MS);
                 }
-                payload = await executeWeatherToolCall({
-                    client,
-                    toolName,
-                    args: {},
-                    timeoutMs: station3hTimeoutMs,
-                    scope: "province",
-                    signal,
-                });
-                ToolCache.set(cacheKey, payload, STATION_CACHE_TTL_MS);
             }
 
             const { total, filtered } = this.extractStations(payload, province);
@@ -136,17 +143,23 @@ export class StationEngine {
                 if (!payload) {
                     // Fixture mode must never call upstream APIs.
                     if (this.isFixtureMode()) {
-                        return { province, type: "error", error: "FIXTURE_STATION_07AM_MISS" };
+                        resetFixturePrimeFlag();
+                        await primeWeatherFixturesW1();
+                        payload = ToolCache.get<any>(cacheKey);
+                        if (!payload) {
+                            return { province, type: "error", error: "FIXTURE_STATION_07AM_MISS" };
+                        }
+                    } else {
+                        payload = await executeWeatherToolCall({
+                            client,
+                            toolName,
+                            args: {},
+                            timeoutMs: stationTodayTimeoutMs,
+                            scope: "province",
+                            signal,
+                        });
+                        ToolCache.set(cacheKey, payload, STATION_CACHE_TTL_MS);
                     }
-                    payload = await executeWeatherToolCall({
-                        client,
-                        toolName,
-                        args: {},
-                        timeoutMs: stationTodayTimeoutMs,
-                        scope: "province",
-                        signal,
-                    });
-                    ToolCache.set(cacheKey, payload, STATION_CACHE_TTL_MS);
                 }
 
                 const { filtered } = this.extractStations(payload, province);
