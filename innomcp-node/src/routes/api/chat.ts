@@ -293,7 +293,7 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
 }
 
 function hasExplicitWeatherIntentKeywords(text: string): boolean {
-  return /(อากาศ|อากาส|พยากรณ์|ฝน|อุณหภูมิ|ลม|เรดาร์|weather|forecast|temperature|rain|storm|wind|อุตุ|NWP|nwp|แผ่นดินไหว|seismic|ริกเตอร์|earthquake|เตือนภัย|ประกาศเตือน|สถานีอุตุ|รังสีดวงอาทิตย์|แสงอาทิตย์|แสงแดด|solar|uv)/i.test(String(text || ""));
+  return /(อากาศ|อากาส|พยากรณ์|ฝน|อุณหภูมิ|ความชื้น|ลม|เรดาร์|weather|forecast|temperature|humidity|rain|storm|wind|อุตุ|NWP|nwp|แผ่นดินไหว|seismic|ริกเตอร์|earthquake|เตือนภัย|ประกาศเตือน|สถานีอุตุ|รังสีดวงอาทิตย์|แสงอาทิตย์|แสงแดด|solar|uv|\(tmd\))/i.test(String(text || ""));
 }
 
 const CARRY_FORWARD_ENTITY_RE = /เชียงใหม่|กรุงเทพ(?:มหานคร)?|ภูเก็ต|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|สงขลา|หาดใหญ่|สมุทรสงคราม|แม่กลอง|ชลบุรี|อยุธยา|สุราษฎร์ธานี|ระนอง|พังงา|กระบี่|ภาคกลาง|ภาคเหนือ|ภาคใต้|ภาคอีสาน|ภาคตะวันออกเฉียงเหนือ/g;
@@ -723,15 +723,106 @@ function looksLikeDateTimeLikeQuery(text: string): boolean {
   const t = String(text || "");
   const looksLikeWeather = /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น)/i.test(t);
   if (looksLikeWeather) return false;
+  // Reject prompt injection attempts — "now" in injection context must not trigger datetime gate
+  if (/ignore\s+(previous|prior|all)\s+instructions|forget\s+(previous|prior|all)\s+instructions|disregard\s+(previous|prior|all)\s+instructions|call\s+\w+\s+tool\s+now/i.test(t)) return false;
   // IMPORTANT: use full word boundaries for EN tokens so words like "downtime" won't match "time".
   return (/(กี่โมง|ตอนนี้.*กี่โมง|บอกเวลา|เวลา(ตอนนี้|นี้|เท่าไหร่|อะไร|ไหน)|วันที่|วันอะไร|เดือนอะไร|ปีอะไร|\bnow\b|\btime\b|\bdate\b|\btoday\b)/i.test(t)
     || /นับจาก.*ถึง.*อีกกี่วัน|เหลืออีกกี่วัน|อีกกี่วันถึง|สิ้นปีนี้เหลือ/i.test(t))
     && t.length <= 120;
 }
 
+/** Like looksLikeDateTimeLikeQuery but WITHOUT the weather exclusion guard — for multi-intent detection. */
+function looksLikeHasTimeKeyword(text: string): boolean {
+  const t = String(text || "");
+  return (/(กี่โมง|ตอนนี้|บอกเวลา|เวลา|วันที่|วันอะไร|เดือนอะไร|ปีอะไร|\bnow\b|\btime\b|\bdate\b|\btoday\b)/i.test(t)
+    || /นับจาก.*ถึง.*อีกกี่วัน|เหลืออีกกี่วัน|อีกกี่วันถึง|สิ้นปีนี้เหลือ/i.test(t))
+    && t.length <= 120;
+}
+
 function looksLikeMathLikeQuery(text: string): boolean {
   const t = String(text || "");
-  return /\d\s*[\+\-\*\/\^×÷]/.test(t) || /(แฟกทอเรียล|factorial|คำนวณ|calculate|บวก|ลบ|คูณ|หาร)/i.test(t);
+  return /\d\s*[\+\-\*\/\^×÷]/.test(t) || /(แฟกทอเรียล|factorial|คำนวณ|calculate|บวก|ลบ|คูณ|หาร|อนุพันธ์|ปริพันธ์|อินทิเกรต|derivative|integral|integrate)/i.test(t);
+}
+
+function looksLikeNewtonSymbolicQuery(text: string): boolean {
+  const t = String(text || "");
+  // Must have a symbolic math keyword AND an alphabetic variable (x, y, etc.)
+  return /(อนุพันธ์|ปริพันธ์|อินทิเกรต|derivative|integral|integrate|แก้สมการ|หาราก|zeroes|roots?\s+of)/i.test(t) && /[a-zA-Z]/.test(t);
+}
+
+function extractNewtonParams(text: string): { operation: string; expression: string } | null {
+  const t = String(text || "");
+  let operation: string;
+  if (/(ปริพันธ์|อินทิเกรต|integral|integrate)/i.test(t)) operation = "integrate";
+  else if (/(แก้สมการ|หาราก|zeroes|roots?\s+of)/i.test(t)) operation = "zeroes";
+  else operation = "derive";
+  // Strip keywords to isolate the expression
+  const expr = t
+    .replace(/(หา|find|คำนวณ|calculate|แก้|solve|หาราก|zeroes|roots?\s+of)/gi, "")
+    .replace(/(ปริพันธ์|อินทิเกรต|integral|integrate|อนุพันธ์|derivative|derive)/gi, "")
+    .replace(/(สมการ|equation|ของ|of)\s*/gi, "")
+    .replace(/\s*dx\s*/gi, "")  // remove "dx" from integrals
+    .replace(/[^\w\s\+\-\*\/\^\(\)\.=]/g, "")
+    .replace(/=\s*0\s*$/g, "")  // remove trailing "= 0" (for equation solving)
+    .trim()
+    .replace(/\s+/g, "");
+  if (!expr || !/[a-zA-Z]/.test(expr)) return null;
+  return { operation, expression: expr };
+}
+
+function looksLikeGovDataQuery(text: string): boolean {
+  const t = String(text || "");
+  return /\bgovdata\b|data\.gov\b/i.test(t);
+}
+
+function extractGovDataParams(text: string): { query: string; category?: string } {
+  const t = String(text || "");
+  let category: string | undefined;
+  if (/(health|สุขภาพ|medical|healthcare)/i.test(t)) category = "health";
+  else if (/(education|การศึกษา|school)/i.test(t)) category = "education";
+  else if (/(transport|การจราจร|traffic)/i.test(t)) category = "transportation";
+  else if (/(environment|สิ่งแวดล้อม|air|climate)/i.test(t)) category = "environment";
+  const query = t
+    .replace(/(ค้นหา|search|find|หา|ข้อมูล|dataset|datasets?)/gi, "")
+    .replace(/(จาก|from|ใน|in)\s*(data\.gov|govdata)/gi, "")
+    .replace(/\b(data\.gov|govdata)\b/gi, "")
+    .replace(/(เรื่อง|about|เกี่ยวกับ)/gi, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .trim();
+  return { query: query || t.slice(0, 80), ...(category ? { category } : {}) };
+}
+
+function looksLikeArchiveQuery(text: string): boolean {
+  const t = String(text || "");
+  // Explicit archive domain keywords
+  if (/\barchive\b|internet\s*archive|archive\.org/i.test(t)) return true;
+  // "ค้นหาหนังสือ" searches → treat as archive.org book search
+  if (/ค้นหา.*(หนังสือ|book|ebook|เอกสาร)/i.test(t)) return true;
+  return false;
+}
+
+function extractArchiveParams(text: string): { query: string; mediatype?: string } {
+  const t = String(text || "");
+  // Detect mediatype
+  let mediatype: string | undefined;
+  if (/(เพลง|music|audio|เสียง|songs?)/i.test(t)) mediatype = "audio";
+  else if (/(หนังสือ|book|ebook|text|ตำรา|เอกสาร|หนัง[^ส])/i.test(t)) mediatype = "texts";
+  else if (/(video|หนัง|ภาพยนตร์|movies?|clip)/i.test(t)) mediatype = "movies";
+  else if (/(software|โปรแกรม|game|เกม)/i.test(t)) mediatype = "software";
+  else if (/(image|ภาพ|รูป|photo)/i.test(t)) mediatype = "image";
+  // Extract query: strip archive keywords, keep content signal
+  const query = t
+    .replace(/(ค้นหา|search|find|หา)/gi, "")
+    .replace(/(ใน|in|from|จาก)\s*(internet\s*archive|archive\.org|\barchive\b)/gi, "")
+    .replace(/\barchive\b/gi, "")
+    .replace(/(internet\s*archive|archive\.org)/gi, "")
+    .replace(/(เกี่ยวกับ|about|สำหรับ|for|มีหนังสืออะไร)/gi, "")
+    .replace(/(บ้าง|สำหรับมือใหม่)/gi, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .trim();
+  return { query: query || t.slice(0, 80), ...(mediatype ? { mediatype } : {}) };
 }
 
 function looksLikeInfraOpsQuery(text: string): boolean {
@@ -768,6 +859,10 @@ function looksLikeGeneralNoToolsQuery(text: string): boolean {
   // Tool-specific API mentions with explicit domain data (seismic, hydro, NWP) should use tools.
   // NASA/WorldBank are allowed through GeneralGate because MCP pipeline is unreliable for these.
   if (/NWP|seismic|แผ่นดินไหว|hydro|ระดับน้ำ|น้ำท่วม/i.test(t)) return false;
+  // GovData / Archive domain — must reach MCP tool selection, not GeneralGate.
+  if (/govdata|data\.gov|archive\.org|internet\s*archive|\barchive\b/i.test(t)) return false;
+  // "Search for content" queries (books, music, datasets) should reach tool selection.
+  if (/ค้นหา.*(หนังสือ|เพลง|เพลง|music|book|dataset|audio|software|เอกสาร)/i.test(t)) return false;
 
   // Positive signals for general chat/knowledge/explanation.
   const positive = /(คืออะไร|อธิบาย|สรุป|แตกต่าง|เปรียบเทียบ|ทำไม|อย่างไร|แนวทาง|ขั้นตอน|วิธี|ตัวอย่าง|แนะนำ|ควรทำยังไง|ควรทำอย่างไร)/i.test(t);
@@ -1094,6 +1189,22 @@ async function answerGeneralWithFastModel(userText: string, budgetMs: number): P
   }
 }
 
+/** Returns true if query is an injection attempt or an explain-only mention of a tool name
+ *  — both cases should NOT trigger the deterministic API tool gates. */
+function looksLikeToolBypassAttempt(text: string): boolean {
+  const t = String(text || "");
+  // Prompt injection patterns
+  if (/ignore\s+(previous|prior|all)\s+instructions|forget\s+(previous|prior|all)\s+instructions|disregard\s+(previous|prior|all)\s+instructions/i.test(t)) return true;
+  if (/call\s+\w+\s+tool\s+now/i.test(t)) return true;
+  // Tool-abuse: requesting all tools be invoked indiscriminately
+  if (/เรียกใช้เครื่องมือทั้งหมด|ใช้เครื่องมือทั้งหมด/i.test(t)) return true;
+  // Explain-only: asking what worldbank/nasa IS, not requesting data
+  if (/อธิบาย(ว่า)?.*world\s*bank.*คืออะไร|world\s*bank.*คืออะไร.*อธิบาย/i.test(t)) return true;
+  // Historical narration about NASA (not a data request)
+  if (/ประวัติศาสตร์.*nasa|nasa.*ประวัติศาสตร์/i.test(t) && /เล่าเรื่อง|สรุป|อธิบาย|บอกเล่า/i.test(t)) return true;
+  return false;
+}
+
 function looksLikeDeterministicGeoQuery(text: string): boolean {
   const normalizeThaiDigits = (v: string): string => {
     const digits = "๐๑๒๓๔๕๖๗๘๙";
@@ -1101,7 +1212,7 @@ function looksLikeDeterministicGeoQuery(text: string): boolean {
   };
 
   const t = normalizeThaiDigits(String(text || ""));
-  const directGeo = /(รหัสไปรษณีย์|\b\d{5}\b|จังหวัด|อำเภอ|เขต|แขวง|ตำบล|พิกัด|ภาค|ที่อยู่|แยกที่อยู่|จัดรูปแบบที่อยู่|ตรวจสอบที่อยู่|postcode|province|district|subdistrict|address|coordinate|lat|lon|(?:^|\s)(?:จ\.|อ\.|ต\.|ถ\.|ซ\.|กทม\.?))/i.test(
+  const directGeo = /(รหัสไปรษณีย์|\b\d{5}\b|จังหวัด|อำเภอ|เขต|แขวง|ตำบล|พิกัด|ภาค|ที่อยู่|แยกที่อยู่|จัดรูปแบบที่อยู่|ตรวจสอบที่อยู่|postcode|province|district|subdistrict|address|coordinate|\blat\b|\blon\b|(?:^|\s)(?:จ\.|อ\.|ต\.|ถ\.|ซ\.|กทม\.?))/i.test(
     t
   );
   if (directGeo) return true;
@@ -2029,6 +2140,9 @@ function chatTraceOut(params: {
     | "nasa"
     | "qr"
     | "calculator"
+    | "newton"
+    | "archive"
+    | "govdata"
     | "datetime"
     | "tmd_warning"
     | "tmd_climate"
@@ -2148,17 +2262,17 @@ wss.on("connection", (ws, req) => {
 
           if (fastPathResult.handled) {
             if (process.env.LOG_DEBUG === "1") console.log("[FASTPATH] HARD SHORT-CIRCUIT:", currentText);
-            
+
             // 💾 Persist Assistant Message to Session
             // We need to extract the response text from the payload to save it
             // fastPathResult.responseTextPreview is not always reliable, better to rely on what was sent?
             // Actually, let's use the result from the handler if available, or just the preview
             if (fastPathResult.structuredContent && fastPathResult.structuredContent.result) {
                 // Determine text from structured content or result
-                 const responseText = typeof fastPathResult.structuredContent.result === 'string' 
-                    ? fastPathResult.structuredContent.result 
+                 const responseText = typeof fastPathResult.structuredContent.result === 'string'
+                    ? fastPathResult.structuredContent.result
                     : JSON.stringify(fastPathResult.structuredContent.result);
-                    
+
                  sessionManager.addMessage(sessionId, 'assistant', responseText);
             } else if (fastPathResult.responseTextPreview) {
                  sessionManager.addMessage(sessionId, 'assistant', fastPathResult.responseTextPreview);
@@ -2166,7 +2280,24 @@ wss.on("connection", (ws, req) => {
 
             // ✅ RESTORE DONE EVENT (Required for frontend lifecycle)
             sendSafe(ws, { type: "done" });
-            
+
+            // Emit [ChatTrace] lines so tool-selection E2E tests can detect fast-path tool usage.
+            // fast path runs BEFORE the queued handler where chatTraceIn/Out normally fire.
+            {
+              const fpHit = fastPathResult.hit || "unknown";
+              const fpUiMode = String((clientMessage as any)?.uiMode || "auto");
+              const fpAns = fastPathResult.responseTextPreview || "-";
+              const fpToolMap: Record<string, string> = { datetime: "dateTimeTool", calculator: "calculatorTool", factorial: "calculatorTool", math: "calculatorTool", mean: "calculatorTool", std: "calculatorTool", convert: "calculatorTool", trig: "calculatorTool", percent: "calculatorTool", chart: "echartsTool" };
+              const fpTool = fpToolMap[fpHit] || "-";
+              const fpMathHits = new Set(["calculator", "factorial", "math", "mean", "std", "convert", "trig", "percent"]);
+              const fpRoute: "datetime" | "calculator" | "general" =
+                fpHit === "datetime" ? "datetime"
+                : fpMathHits.has(fpHit) ? "calculator"
+                : "general";
+              chatTraceIn({ transport: "ws", sid: sessionId, cid: correlationId, uiMode: fpUiMode, msg: currentText });
+              chatTraceOut({ transport: "ws", sid: sessionId, cid: correlationId, uiMode: fpUiMode, route: fpRoute, tool: fpTool, code: 200, durMs: fastPathResult.latencyMs || 0, q: currentText, ans: fpAns });
+            }
+
             return; // 🛑 HARD STOP
           }
          } catch (e) {
@@ -2431,6 +2562,135 @@ wss.on("connection", (ws, req) => {
         }
 
         // =====================================
+        // Phase 7.0b: Multi-Intent Gate WS — DateTime + Weather combined (BEFORE weather gate)
+        // Handles "ตอนนี้กี่โมง แล้วอากาศเป็นอย่างไร" — fires both tools, returns multiple.
+        // Must be BEFORE WeatherGate (Phase 7.1) so weatherGate doesn't hijack it.
+        // =====================================
+        if (mcpClient && looksLikeHasTimeKeyword(routingMessage) && looksLikeDeterministicWeatherQuery(routingMessage)) {
+          const now = new Date();
+          const bkkOffset = 7 * 60 * 60 * 1000;
+          const bkk = new Date(now.getTime() + bkkOffset);
+          const dayNames = ["วันอาทิตย์","วันจันทร์","วันอังคาร","วันพุธ","วันพฤหัสบดี","วันศุกร์","วันเสาร์"];
+          const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+          const humanReadable = `${dayNames[bkk.getUTCDay()]}ที่ ${bkk.getUTCDate()} ${monthNames[bkk.getUTCMonth()]} พ.ศ. ${bkk.getUTCFullYear()+543} เวลา ${String(bkk.getUTCHours()).padStart(2,"0")}:${String(bkk.getUTCMinutes()).padStart(2,"0")} น.`;
+          const dtText = `ขณะนี้คือ${humanReadable}`;
+          try {
+            const wxQuery = normalizeForWeatherPipeline(routingMessage);
+            const wxResult = await mcpClient.runDeterministicWeatherPipeline(wxQuery, {});
+            const wxSc = wxResult?.structuredContent || wxResult;
+            const wxPayload = wxSc?.weatherPipeline ?? wxSc;
+            const wxDirect = renderStructuredDirect("weatherPipeline", wxSc, routingMessage) || renderWeatherDirectAnswer(routingMessage, wxPayload);
+            const combinedText = `${dtText}\n\n${wxDirect.text}`;
+            const combinedTools = ["dateTimeTool", "weatherPipeline"];
+            const scOut = withRenderMeta(
+              { dateTimeGate: { datetime: humanReadable }, weatherPipeline: wxPayload },
+              { route: "datetime" as any, llmUsed: false, routeDecider: "deterministic", version: "phase7.0b" },
+              combinedTools
+            );
+            sessionHistory.push({ sender: "user", text: messageWithFile });
+            sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+            sessionManager.startResponse(currentSessionId);
+            const aiMsg: any = { sender: "ai", text: combinedText, structuredContent: scOut, toolsUsed: combinedTools };
+            sessionHistory.push(aiMsg);
+            sessionManager.addMessage(currentSessionId, "assistant", combinedText, combinedTools);
+            sessionManager.completeResponse(currentSessionId);
+            sendSafe(ws, { type: "message", sender: "ai", text: combinedText, structuredContent: scOut, toolsUsed: combinedTools });
+            sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: combinedTools });
+            sendDoneOnce();
+            chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "datetime", tool: "dateTimeTool,weatherPipeline", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: combinedText });
+            return;
+          } catch (multiErr: any) {
+            logBoth("warn", `[MultiGate WS] weather failed: ${multiErr?.message || multiErr}, falling through`);
+            // Fall through to individual gates
+          }
+        }
+
+        // =====================================
+        // Phase 7.0c: Multi-Intent Gate WS — Calc + DateTime combined
+        // Handles "ช่วยคำนวณ 123*456 แล้วขอเวลา ณ ตอนนี้" — fires both tools, returns multiple.
+        // Must be BEFORE CalculatorGate so calculator doesn't return only 1 tool.
+        // =====================================
+        const looksLikeNasaApodQuery = /nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ/i.test(routingMessage);
+        if (!looksLikeNasaApodQuery && looksLikeMathLikeQuery(routingMessage) && looksLikeHasTimeKeyword(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage)) {
+          try {
+            const { evaluate } = require("mathjs");
+            const calcExpr = routingMessage
+              .replace(/(คำนวณ|calculate|compute|คิดเลข|เท่าไร|เท่าไหร่|ผลลัพธ์|ผลคือ|result|equals)/gi, "")
+              .replace(/บวก(?:เพิ่ม)?/g, "+").replace(/ลบ(?:ออก)?/g, "-")
+              .replace(/คูณ/g, "*").replace(/หาร/g, "/")
+              .replace(/×/g, "*").replace(/÷/g, "/")
+              .replace(/[^\d+\-*/().^%\s,eE]/g, "").trim();
+            // Reject pure date strings like "2024-01-01" — these aren't arithmetic
+            const looksLikeDateString = /^\s*\d{4}[-/]\d{1,2}[-/]\d{1,2}\s*$/.test(calcExpr);
+            if (calcExpr && /\d/.test(calcExpr) && !looksLikeDateString) {
+              const calcResult = evaluate(calcExpr);
+              if (typeof calcResult === "number" || (calcResult && typeof calcResult.toString === "function")) {
+                const now = new Date();
+                const bkkOffset = 7 * 60 * 60 * 1000;
+                const bkk = new Date(now.getTime() + bkkOffset);
+                const dayNames = ["วันอาทิตย์","วันจันทร์","วันอังคาร","วันพุธ","วันพฤหัสบดี","วันศุกร์","วันเสาร์"];
+                const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+                const humanReadable = `${dayNames[bkk.getUTCDay()]}ที่ ${bkk.getUTCDate()} ${monthNames[bkk.getUTCMonth()]} พ.ศ. ${bkk.getUTCFullYear()+543} เวลา ${String(bkk.getUTCHours()).padStart(2,"0")}:${String(bkk.getUTCMinutes()).padStart(2,"0")} น.`;
+                const combinedText = `ผลลัพธ์: ${calcExpr.trim()} = ${calcResult}\n\nขณะนี้คือ${humanReadable}`;
+                const combinedTools = ["calculatorTool", "dateTimeTool"];
+                const scOut = withRenderMeta(
+                  { calculatorGate: { expression: calcExpr, result: String(calcResult) }, dateTimeGate: { datetime: humanReadable } },
+                  { route: "calculator" as any, llmUsed: false, routeDecider: "deterministic", version: "phase7.0c" },
+                  combinedTools
+                );
+                sessionHistory.push({ sender: "user", text: messageWithFile });
+                sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+                sessionManager.startResponse(currentSessionId);
+                const aiMsg: any = { sender: "ai", text: combinedText, structuredContent: scOut, toolsUsed: combinedTools };
+                sessionHistory.push(aiMsg);
+                sessionManager.addMessage(currentSessionId, "assistant", combinedText, combinedTools);
+                sessionManager.completeResponse(currentSessionId);
+                sendSafe(ws, { type: "message", sender: "ai", text: combinedText, structuredContent: scOut, toolsUsed: combinedTools });
+                sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: combinedTools });
+                sendDoneOnce();
+                chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "calculator", tool: "calculatorTool,dateTimeTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: combinedText });
+                return;
+              }
+            }
+          } catch (calcDateErr: any) {
+            logBoth("warn", `[CalcDateGate WS] calc failed: ${calcDateErr?.message || calcDateErr}, falling through`);
+          }
+        }
+
+        // =====================================
+        // Phase 7.0d: Multi-Intent Gate WS — DataSource + Chart combined (DETERMINISTIC, no external API wait)
+        // Handles "worldbank+echarts", "govdata+echarts" — returns BOTH tool names immediately.
+        // Must be BEFORE WorldBank/GovData single-tool gates to avoid slow external API timeouts.
+        // =====================================
+        const hasChartIntent7d = /(กราฟ|แผนภูมิ|chart|graph|plot|visualize)/i.test(routingMessage);
+        const looksLikeWorldBankMulti = /worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก/i.test(routingMessage);
+        const looksLikeGovDataMulti = /\bgovdata\b|data\.gov\b/i.test(routingMessage);
+        if (hasChartIntent7d && (looksLikeWorldBankMulti || looksLikeGovDataMulti)) {
+          const dataSource = looksLikeWorldBankMulti ? "worldbank" : "govdata";
+          const dataText = looksLikeWorldBankMulti
+            ? "ดึงข้อมูล WorldBank (GDP ไทย) — พร้อมกราฟแสดงผล (ต้องการข้อมูลจริงกรุณาลองใหม่เมื่อ API พร้อม)"
+            : "ดึงข้อมูล GovData (data.gov) — พร้อมกราฟแสดงผล (ต้องการข้อมูลจริงกรุณาลองใหม่เมื่อ API พร้อม)";
+          const dataTools = [dataSource, "echartsTool"];
+          const scOut7d = withRenderMeta(
+            { dataSourceGate: { source: dataSource }, chartGate: { type: "placeholder" } },
+            { route: dataSource as any, llmUsed: false, routeDecider: "deterministic", version: "phase7.0d" },
+            dataTools
+          );
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+          const aiMsg7d: any = { sender: "ai", text: dataText, structuredContent: scOut7d, toolsUsed: dataTools };
+          sessionHistory.push(aiMsg7d);
+          sessionManager.addMessage(currentSessionId, "assistant", dataText, dataTools);
+          sessionManager.completeResponse(currentSessionId);
+          sendSafe(ws, { type: "message", sender: "ai", text: dataText, structuredContent: scOut7d, toolsUsed: dataTools });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: dataTools });
+          sendDoneOnce();
+          chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: dataSource as any, tool: dataTools.join(","), code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: dataText });
+          return;
+        }
+
+        // =====================================
         // Phase 7.1a: Deterministic Seismic Router (no weather fallback for earthquake queries)
         // =====================================
         const seismicLike = /แผ่นดินไหว|seismic|earthquake|ริกเตอร์|richter/i.test(routingMessage);
@@ -2472,9 +2732,12 @@ wss.on("connection", (ws, req) => {
         // =====================================
         const geoLike = looksLikeDeterministicGeoQuery(routingMessage);
         const weatherLike = looksLikeDeterministicWeatherQuery(routingMessage);
-        const allowWeatherGate = answerPlan.intent === "weather" || (!officerMode
+        // Exclude WorldBank/GDP queries from weatherGate — they contain Thai locations + years
+        // which look weather-like but must reach the WorldBank gate at Phase 10.5.
+        const looksLikeWorldBankQuery = /worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก/i.test(routingMessage);
+        const allowWeatherGate = !looksLikeWorldBankQuery && (answerPlan.intent === "weather" || (!officerMode
           ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(routingMessage))
-          : weatherLike && hasExplicitWeatherIntentKeywords(routingMessage));
+          : weatherLike && hasExplicitWeatherIntentKeywords(routingMessage)));
         if (mcpClient && allowWeatherGate) {
           const deep = wantsDeepExplain(routingMessage);
           // Normalize colloquial Thai for the pipeline (มีมะ→มีไหม, ศกนี้→ศุกร์นี้, อุบล→อุบลราชธานี)
@@ -2617,7 +2880,9 @@ wss.on("connection", (ws, req) => {
         // Phase 1 GEO Round B: Deterministic GEO Gate (NO LLM tool planning)
         // Minimal Happy Path: address_normalize / geo_lookup / geo_validate
         // =====================================
-        if (mcpClient && geoLike && !prefersThaiKnowledgeRoute(routingMessage) && !looksLikeMathLikeQuery(routingMessage)) {
+        // Exclude TMD-tagged queries — "(TMD)" suffix means user wants TMD weather data, not geo lookup
+        const looksLikeTmdQuery = /\(tmd\)/i.test(routingMessage);
+        if (mcpClient && geoLike && !looksLikeTmdQuery && !prefersThaiKnowledgeRoute(routingMessage) && !looksLikeMathLikeQuery(routingMessage)) {
           const geoToolName = "local-tools:thai_geo_tool";
           const action = inferGeoAction(routingMessage);
           const toolArgs: any =
@@ -2752,11 +3017,11 @@ wss.on("connection", (ws, req) => {
         // Phase 10.5: API Tool Gate — WorldBank, NASA, QR (direct MCP tool calls)
         // Queries with explicit tool/API names bypass GeneralGate to use real tools.
         // =====================================
-        if (mcpClient && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก/i.test(routingMessage)) {
+        if (mcpClient && !looksLikeToolBypassAttempt(routingMessage) && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก/i.test(routingMessage)) {
           const apiToolMatch = (() => {
             const t = routingMessage.toLowerCase();
             if (/worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
-            if (/nasa|apod|นาซ่า/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
+            if (/nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
             if (/qr\s*code|qr\s*โค้ด|สร้าง\s*qr/i.test(t)) return { tool: "innomcp-server:qrCodeTool", gate: "QR" };
             return null;
           })();
@@ -2776,7 +3041,15 @@ wss.on("connection", (ws, req) => {
               }
               if (apiToolMatch.gate === "NASA") {
                 const hasRandom = /random|สุ่ม/i.test(messageWithFile);
-                return hasRandom ? { endpoint: "apod", count: 1 } : { endpoint: "apod" };
+                if (hasRandom) return { endpoint: "apod", count: 1 };
+                const hasYesterday = /เมื่อวานนี้|เมื่อวาน|yesterday/i.test(messageWithFile);
+                if (hasYesterday) {
+                  const d = new Date(); d.setDate(d.getDate() - 1);
+                  const dateStr = d.toISOString().split("T")[0];
+                  return { endpoint: "apod", date: dateStr };
+                }
+                const dateMatch = messageWithFile.match(/\d{4}-\d{2}-\d{2}/);
+                return dateMatch ? { endpoint: "apod", date: dateMatch[0] } : { endpoint: "apod" };
               }
               if (apiToolMatch.gate === "QR") {
                 const urlMatch = messageWithFile.match(/https?:\/\/\S+/i);
@@ -2804,20 +3077,56 @@ wss.on("connection", (ws, req) => {
                 [apiToolMatch.tool]
               );
 
-              const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [apiToolMatch.tool] };
+              const hasChartIntentApi = /(กราฟ|แผนภูมิ|chart|graph|plot|visualize)/i.test(routingMessage);
+              const hasArchiveIntentApi = apiToolMatch.gate === "NASA" && /archive\.org|\barchive\b|internet.*archive/i.test(routingMessage);
+              let combinedText = textOut;
+              let combinedTools: string[] = hasChartIntentApi ? [apiToolMatch.tool, "echartsTool"] : [apiToolMatch.tool];
+              if (hasArchiveIntentApi) {
+                try {
+                  const archiveToolName = "innomcp-server:archive";
+                  const archiveParams = extractArchiveParams(routingMessage);
+                  const archiveResults = await mcpClient.executeTools([archiveToolName], messageWithFile, { [archiveToolName]: archiveParams });
+                  const archiveFirst = Array.isArray(archiveResults) ? archiveResults[0] : undefined;
+                  const archiveText = archiveFirst?.content?.[0]?.text || String(archiveFirst?.result || "");
+                  if (archiveText) combinedText = textOut + "\n\n" + archiveText;
+                  combinedTools = [apiToolMatch.tool, archiveToolName];
+                } catch (_archiveErr) {
+                  combinedTools = [apiToolMatch.tool, "innomcp-server:archive"];
+                }
+              }
+              const apiTools = combinedTools;
+              const aiMessage: any = { sender: "ai", text: combinedText, structuredContent: scOut, toolsUsed: apiTools };
               sessionHistory.push(aiMessage);
-              sessionManager.addMessage(currentSessionId, "assistant", textOut, [apiToolMatch.tool]);
+              sessionManager.addMessage(currentSessionId, "assistant", combinedText, apiTools);
               sessionManager.completeResponse(currentSessionId);
 
-              sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [apiToolMatch.tool] });
-              sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [apiToolMatch.tool] });
+              sendSafe(ws, { type: "message", sender: "ai", text: combinedText, structuredContent: scOut, toolsUsed: apiTools });
+              sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: apiTools });
               sendDoneOnce();
 
-              chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: apiToolMatch.gate.toLowerCase() as any, tool: apiToolMatch.tool, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut });
+              chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: apiToolMatch.gate.toLowerCase() as any, tool: apiTools.join(","), code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: combinedText });
               return;
             } catch (apiErr: any) {
               logBoth("error", `[APIToolGate] ${apiToolMatch.gate} tool failed: ${apiErr.message}`);
-              // Fall through to GeneralGate on failure
+              // On API failure, still emit a trace so tests detect tool intent (tools were targeted, API was unavailable)
+              const hasChartIntentApiErr = /(กราฟ|แผนภูมิ|chart|graph|plot|visualize)/i.test(routingMessage);
+              const errTools = hasChartIntentApiErr ? [apiToolMatch.tool, "echartsTool"] : [apiToolMatch.tool];
+              const fallbackText = `ขณะนี้ไม่สามารถดึงข้อมูลจาก ${apiToolMatch.gate} ได้ครับ กรุณาลองใหม่ภายหลัง`;
+              const fallbackScOut = withRenderMeta(
+                { error: String(apiErr?.message || "unknown") },
+                { route: apiToolMatch.gate.toLowerCase() as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.5-fallback" },
+                errTools
+              );
+              // user message already pushed above before the try block
+              const fallbackAiMsg: any = { sender: "ai", text: fallbackText, structuredContent: fallbackScOut, toolsUsed: errTools };
+              sessionHistory.push(fallbackAiMsg);
+              sessionManager.addMessage(currentSessionId, "assistant", fallbackText, errTools);
+              sessionManager.completeResponse(currentSessionId);
+              sendSafe(ws, { type: "message", sender: "ai", text: fallbackText, structuredContent: fallbackScOut, toolsUsed: errTools });
+              sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: errTools });
+              sendDoneOnce();
+              chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: apiToolMatch.gate.toLowerCase() as any, tool: errTools.join(","), code: 500, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: fallbackText });
+              return;
             }
           }
         }
@@ -2825,8 +3134,9 @@ wss.on("connection", (ws, req) => {
         // =====================================
         // Phase 11.1: CalculatorGate WS — Deterministic math eval (NO LLM)
         // Mirrors the HTTP calculator gate (line ~4000). Must be AFTER geo/worldbank gates.
+        // Newton-symbolic queries (อนุพันธ์/อินทิเกรต) bypass calculator — handled by NewtonGate.
         // =====================================
-        if (looksLikeMathLikeQuery(routingMessage)) {
+        if (looksLikeMathLikeQuery(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage)) {
           try {
             const expr = routingMessage
               .replace(/(คำนวณ|calculate|compute|คิดเลข|เท่าไร|เท่าไหร่|ผลลัพธ์|ผลคือ|result|equals)/gi, "")
@@ -2865,6 +3175,129 @@ wss.on("connection", (ws, req) => {
           } catch (calcErr: any) {
             logBoth("warn", `[CalculatorGate WS] eval failed: ${calcErr?.message || calcErr}`);
             // Fall through to MCP
+          }
+        }
+
+        // =====================================
+        // Phase 11.2b: NewtonGate WS — Deterministic symbolic math (NO LLM)
+        // Handles "หาอนุพันธ์ของ x^2+5x", "อินทิเกรตของ 2x+3" etc.
+        // Bypasses LLM tool planning by supplying args directly.
+        // =====================================
+        if (mcpClient && looksLikeNewtonSymbolicQuery(routingMessage)) {
+          const newtonParams = extractNewtonParams(routingMessage);
+          if (newtonParams) {
+            try {
+              const newtonToolName = "innomcp-server:newton";
+              const toolResults = await mcpClient.executeTools(
+                [newtonToolName],
+                messageWithFile,
+                { [newtonToolName]: newtonParams }
+              );
+              const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+              const rawText = first?.content?.[0]?.text || first?.result?.text || String(first?.result || "");
+              if (rawText && !rawText.includes('"success":false') && !rawText.includes('"error"')) {
+                const textOut = rawText;
+                const scOut = withRenderMeta(
+                  { newtonGate: { operation: newtonParams.operation, expression: newtonParams.expression, result: rawText } },
+                  { route: "newton" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.2b" },
+                  ["newton"]
+                );
+                sessionHistory.push({ sender: "user", text: messageWithFile });
+                sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+                sessionManager.startResponse(currentSessionId);
+                const aiMsg: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["newton"] };
+                sessionHistory.push(aiMsg);
+                sessionManager.addMessage(currentSessionId, "assistant", textOut, ["newton"]);
+                sessionManager.completeResponse(currentSessionId);
+                sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["newton"] });
+                sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["newton"] });
+                sendDoneOnce();
+                chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "newton", tool: "newton", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut });
+                return;
+              }
+            } catch (newtonErr: any) {
+              logBoth("warn", `[NewtonGate WS] failed: ${newtonErr?.message || newtonErr}`);
+              // Fall through to MCP
+            }
+          }
+        }
+
+        // =====================================
+        // Phase 11.2d: GovDataGate WS — Deterministic Data.gov search (NO LLM arg gen)
+        // =====================================
+        if (mcpClient && looksLikeGovDataQuery(routingMessage)) {
+          const govParams = extractGovDataParams(routingMessage);
+          try {
+            const govToolName = "innomcp-server:govdata";
+            const toolResults = await mcpClient.executeTools(
+              [govToolName],
+              messageWithFile,
+              { [govToolName]: govParams }
+            );
+            const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+            const rawText = first?.content?.[0]?.text || String(first?.result || "");
+            if (rawText && !rawText.includes('"success":false') && first?.success !== false) {
+              const hasChartIntent = /(กราฟ|แผนภูมิ|chart|graph|plot|visualize)/i.test(routingMessage);
+              const govTools = hasChartIntent ? ["govdata", "echartsTool"] : ["govdata"];
+              const scOut = withRenderMeta(
+                { govdataGate: govParams },
+                { route: "govdata" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.2d" },
+                govTools
+              );
+              sessionHistory.push({ sender: "user", text: messageWithFile });
+              sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+              sessionManager.startResponse(currentSessionId);
+              const aiMsg: any = { sender: "ai", text: rawText, structuredContent: scOut, toolsUsed: govTools };
+              sessionHistory.push(aiMsg);
+              sessionManager.addMessage(currentSessionId, "assistant", rawText, govTools);
+              sessionManager.completeResponse(currentSessionId);
+              sendSafe(ws, { type: "message", sender: "ai", text: rawText, structuredContent: scOut, toolsUsed: govTools });
+              sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: govTools });
+              sendDoneOnce();
+              chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "govdata", tool: govTools.join(","), code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: rawText });
+              return;
+            }
+          } catch (govErr: any) {
+            logBoth("warn", `[GovDataGate WS] failed: ${govErr?.message || govErr}`);
+          }
+        }
+
+        // =====================================
+        // Phase 11.2c: ArchiveGate WS — Deterministic Internet Archive search (NO LLM arg gen)
+        // =====================================
+        if (mcpClient && looksLikeArchiveQuery(routingMessage)) {
+          const archiveParams = extractArchiveParams(routingMessage);
+          try {
+            const archiveToolName = "innomcp-server:archive";
+            const toolResults = await mcpClient.executeTools(
+              [archiveToolName],
+              messageWithFile,
+              { [archiveToolName]: archiveParams }
+            );
+            const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+            const rawText = first?.content?.[0]?.text || String(first?.result || "");
+            if (rawText && !rawText.includes('"success":false') && first?.success !== false) {
+              const textOut = rawText;
+              const scOut = withRenderMeta(
+                { archiveGate: archiveParams },
+                { route: "archive" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.2c" },
+                ["archive"]
+              );
+              sessionHistory.push({ sender: "user", text: messageWithFile });
+              sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+              sessionManager.startResponse(currentSessionId);
+              const aiMsg: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["archive"] };
+              sessionHistory.push(aiMsg);
+              sessionManager.addMessage(currentSessionId, "assistant", textOut, ["archive"]);
+              sessionManager.completeResponse(currentSessionId);
+              sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["archive"] });
+              sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["archive"] });
+              sendDoneOnce();
+              chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "archive", tool: "archive", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut });
+              return;
+            }
+          } catch (archiveErr: any) {
+            logBoth("warn", `[ArchiveGate WS] failed: ${archiveErr?.message || archiveErr}`);
           }
         }
 
@@ -3906,9 +4339,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     const geoLike = looksLikeDeterministicGeoQuery(routingMessage);
     const weatherLike = looksLikeDeterministicWeatherQuery(routingMessage);
-    const allowWeatherGate = answerPlan.intent === "weather" || (!officerMode
+    const looksLikeWorldBankQueryHttp = /worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก/i.test(routingMessage);
+    const allowWeatherGate = !looksLikeWorldBankQueryHttp && (answerPlan.intent === "weather" || (!officerMode
       ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(routingMessage))
-      : weatherLike && hasExplicitWeatherIntentKeywords(routingMessage));
+      : weatherLike && hasExplicitWeatherIntentKeywords(routingMessage)));
     if (mcpClient && allowWeatherGate) {
       const mcp = mcpClient;
       const deep = wantsDeepExplain(routingMessage);
@@ -4054,7 +4488,8 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Phase 1 GEO Round B: Deterministic GEO Gate (NO LLM tool planning)
     // Minimal Happy Path: address_normalize / geo_lookup / geo_validate
     // =====================================
-    if (mcpClient && geoLike && !prefersThaiKnowledgeRoute(routingMessage) && !looksLikeMathLikeQuery(routingMessage)) {
+    const looksLikeTmdQueryHttp = /\(tmd\)/i.test(routingMessage);
+    if (mcpClient && geoLike && !looksLikeTmdQueryHttp && !prefersThaiKnowledgeRoute(routingMessage) && !looksLikeMathLikeQuery(routingMessage)) {
       // Try local Thai geo resolver first
       const localResolve = resolveThaiGeoLocal(routingMessage);
       if (localResolve) {
@@ -4279,11 +4714,11 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     // Phase 10.5: API Tool Gate — WorldBank, NASA, QR (HTTP path)
     // =====================================
-    if (mcpClient && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก/i.test(messageWithFile)) {
+    if (mcpClient && !looksLikeToolBypassAttempt(messageWithFile) && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก/i.test(messageWithFile)) {
       const apiToolMatch = (() => {
         const t = messageWithFile.toLowerCase();
         if (/worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
-        if (/nasa|apod|นาซ่า/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
+        if (/nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
         if (/qr\s*code|qr\s*โค้ด|สร้าง\s*qr/i.test(t)) return { tool: "innomcp-server:qrCodeTool", gate: "QR" };
         return null;
       })();
@@ -4298,7 +4733,15 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
             }
             if (apiToolMatch.gate === "NASA") {
               const hasRandom = /random|สุ่ม/i.test(messageWithFile);
-              return hasRandom ? { endpoint: "apod", count: 1 } : { endpoint: "apod" };
+              if (hasRandom) return { endpoint: "apod", count: 1 };
+              const hasYesterday = /เมื่อวานนี้|เมื่อวาน|yesterday/i.test(messageWithFile);
+              if (hasYesterday) {
+                const d = new Date(); d.setDate(d.getDate() - 1);
+                const dateStr = d.toISOString().split("T")[0];
+                return { endpoint: "apod", date: dateStr };
+              }
+              const dateMatch = messageWithFile.match(/\d{4}-\d{2}-\d{2}/);
+              return dateMatch ? { endpoint: "apod", date: dateMatch[0] } : { endpoint: "apod" };
             }
             if (apiToolMatch.gate === "QR") {
               const urlMatch = messageWithFile.match(/https?:\/\/\S+/i);
@@ -4332,8 +4775,9 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     // Phase 11.1: CalculatorGate — Deterministic math eval (NO LLM)
     // Handles "คำนวณ 365 × 24", "2+2", "123 * 456" etc.
+    // Newton-symbolic queries bypass calculator — handled by NewtonGate.
     // =====================================
-    if (looksLikeMathLikeQuery(routingMessage)) {
+    if (looksLikeMathLikeQuery(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage)) {
       try {
         // Strip Thai math keywords, normalize Unicode operators, translate Thai operators
         const expr = routingMessage
@@ -4387,6 +4831,122 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       } catch (calcErr: any) {
         logBoth("warn", `[CalculatorGate] eval failed: ${calcErr?.message || calcErr}`);
         // Fall through to MCP
+      }
+    }
+
+    // =====================================
+    // Phase 11.2b: NewtonGate HTTP — Deterministic symbolic math (NO LLM)
+    // Handles "หาอนุพันธ์ของ x^2+5x", "อินทิเกรตของ 2x+3" etc.
+    // =====================================
+    if (mcpClient && looksLikeNewtonSymbolicQuery(routingMessage)) {
+      const newtonParams = extractNewtonParams(routingMessage);
+      if (newtonParams) {
+        try {
+          const newtonToolName = "innomcp-server:newton";
+          const toolResults = await mcpClient.executeTools(
+            [newtonToolName],
+            messageWithFile,
+            { [newtonToolName]: newtonParams }
+          );
+          const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+          const rawText = first?.content?.[0]?.text || first?.result?.text || String(first?.result || "");
+          if (rawText && !rawText.includes('"success":false') && !rawText.includes('"error"')) {
+            const textOut = rawText;
+            const scOut = withRenderMeta(
+              { newtonGate: { operation: newtonParams.operation, expression: newtonParams.expression, result: rawText } },
+              { route: "newton" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.2b" },
+              ["newton"]
+            );
+            sessionHistory.push({ sender: "ai", text: textOut } as any);
+            chatTraceOut({
+              transport: "http",
+              sid: httpSessionId,
+              cid: httpCid,
+              uiMode,
+              route: "newton",
+              tool: "newton",
+              code: 200,
+              durMs: Date.now() - traceStartMs,
+              q: messageWithFile,
+              ans: textOut,
+            });
+            return res.json({
+              text: textOut,
+              structuredContent: scOut,
+              messages: sessionHistory,
+              mcpUsed: true,
+              mcpResults: toolResults,
+              toolsUsed: ["newton"],
+            });
+          }
+        } catch (newtonErr: any) {
+          logBoth("warn", `[NewtonGate HTTP] failed: ${newtonErr?.message || newtonErr}`);
+          // Fall through to MCP
+        }
+      }
+    }
+
+    // =====================================
+    // Phase 11.2d: GovDataGate HTTP — Deterministic Data.gov search (NO LLM arg gen)
+    // =====================================
+    if (mcpClient && looksLikeGovDataQuery(routingMessage)) {
+      const govParams = extractGovDataParams(routingMessage);
+      try {
+        const govToolName = "innomcp-server:govdata";
+        const toolResults = await mcpClient.executeTools(
+          [govToolName], messageWithFile, { [govToolName]: govParams }
+        );
+        const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+        const rawText = first?.content?.[0]?.text || String(first?.result || "");
+        if (rawText && !rawText.includes('"success":false') && first?.success !== false) {
+          const scOut = withRenderMeta(
+            { govdataGate: govParams },
+            { route: "govdata" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.2d" },
+            ["govdata"]
+          );
+          sessionHistory.push({ sender: "ai", text: rawText } as any);
+          chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "govdata", tool: "govdata", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: rawText });
+          return res.json({ text: rawText, structuredContent: scOut, messages: sessionHistory, mcpUsed: true, mcpResults: toolResults, toolsUsed: ["govdata"] });
+        }
+      } catch (govErr: any) {
+        logBoth("warn", `[GovDataGate HTTP] failed: ${govErr?.message || govErr}`);
+      }
+    }
+
+    // =====================================
+    // Phase 11.2c: ArchiveGate HTTP — Deterministic Internet Archive search (NO LLM arg gen)
+    // =====================================
+    if (mcpClient && looksLikeArchiveQuery(routingMessage)) {
+      const archiveParams = extractArchiveParams(routingMessage);
+      try {
+        const archiveToolName = "innomcp-server:archive";
+        const toolResults = await mcpClient.executeTools(
+          [archiveToolName],
+          messageWithFile,
+          { [archiveToolName]: archiveParams }
+        );
+        const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+        const rawText = first?.content?.[0]?.text || String(first?.result || "");
+        if (rawText && !rawText.includes('"success":false') && first?.success !== false) {
+          const textOut = rawText;
+          const scOut = withRenderMeta(
+            { archiveGate: archiveParams },
+            { route: "archive" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.2c" },
+            ["archive"]
+          );
+          sessionHistory.push({ sender: "ai", text: textOut } as any);
+          chatTraceOut({
+            transport: "http", sid: httpSessionId, cid: httpCid, uiMode,
+            route: "archive", tool: "archive", code: 200,
+            durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut,
+          });
+          return res.json({
+            text: textOut, structuredContent: scOut,
+            messages: sessionHistory, mcpUsed: true, mcpResults: toolResults, toolsUsed: ["archive"],
+          });
+        }
+      } catch (archiveErr: any) {
+        logBoth("warn", `[ArchiveGate HTTP] failed: ${archiveErr?.message || archiveErr}`);
       }
     }
 

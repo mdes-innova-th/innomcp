@@ -18,6 +18,10 @@ function hasWeatherIntent(text: string): boolean {
 }
 
 function hasEvidenceIntent(text: string): boolean {
+  // Exclude data-source+chart combos (worldbank, govdata, nasa, archive + chart keywords)
+  // to prevent "กราฟ" from falsely triggering evidence intent on data visualization queries.
+  const isDataSourceChart = /worldbank|world\s*bank|\bgdp\b|ธนาคารโลก|govdata|data\.gov|nasa|apod|\barchive\b|archive\.org/i.test(text);
+  if (isDataSourceChart) return false;
   return /(หลักฐาน|พยาน|คดี|custody|chain\s+of\s+custody|forensic|evidence|สถิติ|กราฟ|\bISP\b|traffic|detect)/i.test(text);
 }
 

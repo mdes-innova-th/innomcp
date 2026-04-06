@@ -91,6 +91,10 @@ package-lock.json
 !/tests/e2e/tests/
 !/tests/e2e/tests/evidence-dashboard.spec.ts
 
+# Allowlist: tool-selection 2026 robust suite
+!/tests/e2e/testlist/
+!/tests/e2e/testlist/tool-selection.spec.ts
+
 # Allowlist: DB port audit report + evidence
 !/docs/
 !/docs/reports/

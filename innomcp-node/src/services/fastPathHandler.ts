@@ -466,6 +466,13 @@ export async function tryFastPathWebSocket(
 
   const t = text.toLowerCase();
 
+  // ===== SECURITY GUARDRAILS: injection/tool-abuse — must come BEFORE all tool gates =====
+  if (/ignore\s+(previous|prior|all)\s+instructions|forget\s+(previous|prior|all)\s+instructions|disregard\s+(previous|prior|all)\s+instructions/i.test(text)
+    || /call\s+\w+\s+tool\s+now/i.test(text)
+    || /เรียกใช้เครื่องมือทั้งหมด|ใช้เครื่องมือทั้งหมด/i.test(text)) {
+    return sendAiText("guardrail", "ขอโทษครับ ไม่สามารถดำเนินการตามคำขอนี้ได้");
+  }
+
   // ===== GREETING / SMALL TALK (WS fastpath) =====
   // Thai greetings often attach polite particles without spaces (e.g. "สวัสดีครับ")
   if (/^\s*(สวัสดี|หวัดดี)(ครับ|ค่ะ|คับ|นะ|จ้า|ฮะ|ฮ่ะ)?/i.test(text) || /^\s*(hello|hi|hey)(\s|$)/i.test(text)) {
@@ -553,12 +560,16 @@ export async function tryFastPathWebSocket(
   // ===== TIME / DATE (deterministic, no tool/LLM dependency) =====
   // Include common Thai phrasings used in E2E (e.g. "วันนี้วันที่เท่าไร")
   // NOTE: Avoid hijacking weather queries that mention "วันนี้".
-  const looksLikeWeatherQuery = /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น|พายุ|ลม|หมอก|ฟ้า|แดด|ฝนฟ้า|แผ่นดินไหว|น้ำท่วม|ระดับน้ำ|อุทก|seismic|hydro|น้ำ|nasa|apod|อวกาศ|gdp|worldbank|เศรษฐกิจ)/i.test(text);
+  const looksLikeWeatherQuery = /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น|พายุ|ลม|หมอก|ฟ้า|แดด|ฝนฟ้า|แผ่นดินไหว|น้ำท่วม|ระดับน้ำ|อุทก|seismic|hydro|น้ำ|nasa|apod|อวกาศ|gdp|worldbank|เศรษฐกิจ|\(tmd\)|tmd\b)/i.test(text);
   const looksLikeEvidenceQuery = /(evidence|หลักฐาน|record|records|nip|url|mdes|detect|เครื่อง|machine|isp|trend)/i.test(text);
   // Don't intercept specific-date queries (they contain a 4-digit year or explicit date like "25 ธันวาคม")
   const hasSpecificDate = /\b(19|20|21|256|257|258|259|260)\d{2}\b/.test(text)
     || /\d{1,2}\s*(มกราคม|กุมภาพันธ์|มีนาคม|เมษายน|พฤษภาคม|มิถุนายน|กรกฎาคม|สิงหาคม|กันยายน|ตุลาคม|พฤศจิกายน|ธันวาคม)/i.test(text);
-  if (!looksLikeWeatherQuery && !looksLikeEvidenceQuery && !hasSpecificDate && /(กี่โมง|เวลา|ตอนนี้|time|now|date|today|วันนี้|วันที่|วันอะไร|วันไหน)/i.test(text) && text.length <= 80) {
+  // Exclude calc+date combos: let chat.ts multi-gate (Phase 7.0c) handle them instead
+  const hasMathCalcQuery = /\d\s*[\+\-\*\/\^×÷]|คำนวณ|calculate/i.test(text);
+  // Exclude prompt injection attempts — "now" in injection context must not trigger datetime
+  const looksLikeInjectionAttempt = /ignore\s+(previous|prior|all)\s+instructions|forget\s+(previous|prior|all)\s+instructions|disregard\s+(previous|prior|all)\s+instructions|call\s+\w+\s+tool\s+now/i.test(text);
+  if (!looksLikeInjectionAttempt && !looksLikeWeatherQuery && !looksLikeEvidenceQuery && !hasSpecificDate && !hasMathCalcQuery && /(กี่โมง|เวลา|ตอนนี้|\btime\b|\bnow\b|\bdate\b|\btoday\b|วันนี้|วันที่|วันอะไร|วันไหน)/i.test(text) && text.length <= 80) {
     const now = new Date();
     const timeStr = now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
     const dateStr = now.toLocaleDateString("th-TH", { year: "numeric", month: "long", day: "numeric" });
@@ -586,7 +597,10 @@ export async function tryFastPathWebSocket(
   const looksLikeChartRequest = /(กราฟ|แผนภูมิ|chart|graph|plot|visualize)/i.test(text);
 
   // ===== CHART / GRAPH (deterministic SVG placeholder; avoids LLM/tool dependency in E2E) =====
-  if (/(กราฟ|แผนภูมิ|chart|graph|plot|visualize)/i.test(text) && text.length <= 220) {
+  // Exclude multi-intent data-source queries (govdata+chart, worldbank+chart, nasa+chart, archive+chart)
+  // so chat.ts multi-tool gates handle them and log both tools.
+  const looksLikeDataSourceQuery = /govdata|data\.gov|worldbank|world\s*bank|nasa|apod|archive\.org|\barchive\b/i.test(text);
+  if (!looksLikeDataSourceQuery && /(กราฟ|แผนภูมิ|chart|graph|plot|visualize)/i.test(text) && text.length <= 220) {
     const lower = text.toLowerCase();
     const chartType =
       lower.includes("วงกลม") || lower.includes("pie") || lower.includes("donut")
@@ -675,10 +689,68 @@ export async function tryFastPathWebSocket(
     }
   }
 
+  // ===== STD DEV / VARIANCE (deterministic, stats) =====
+  // Example: "หา std([10,20,30,40,50])" -> ~15.8114
+  if (/\bstd\b/i.test(text) && /\d/.test(text) && text.length <= 220) {
+    const nums = (text.match(/-?\d+(?:\.\d+)?/g) || []).map(Number).filter(Number.isFinite);
+    if (nums.length >= 2) {
+      const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
+      const variance = nums.reduce((a, b) => a + (b - mean) ** 2, 0) / (nums.length - 1);
+      const std = Math.sqrt(variance);
+      const stdText = Number.isInteger(std) ? String(std) : std.toFixed(4);
+      return sendAiText("std", `ผลลัพธ์: std(${nums.join(", ")}) ≈ ${stdText}`);
+    }
+  }
+
+  // ===== UNIT CONVERT (mathjs-style, e.g. convert(100, 'fahrenheit', 'celsius')) =====
+  // Example: "convert(100, 'fahrenheit', 'celsius')" -> 37.7778
+  const unitConvertMatch = text.match(/convert\s*\(\s*([0-9.]+)\s*,\s*['"]?([a-zA-Z]+)['"]?\s*,\s*['"]?([a-zA-Z]+)['"]?\s*\)/i);
+  if (unitConvertMatch) {
+    try {
+      const expr = `${unitConvertMatch[1]} ${unitConvertMatch[2]} to ${unitConvertMatch[3]}`;
+      const result = evaluate(expr);
+      const val = typeof result === "number" ? result : (result && typeof result.toNumber === "function" ? result.toNumber() : null);
+      if (val !== null) {
+        const valText = Number.isInteger(val) ? String(val) : val.toFixed(4);
+        return sendAiText("convert", `ผลลัพธ์: convert(${unitConvertMatch[1]}, '${unitConvertMatch[2]}', '${unitConvertMatch[3]}') ≈ ${valText}`);
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  // ===== TRIG FUNCTIONS (sin/cos/tan with "deg" support) =====
+  // Example: "sin(30 deg) + cos(60 deg)" -> 1.0
+  if (/\b(sin|cos|tan|asin|acos|atan)\s*\(/i.test(text) && /\d/.test(text) && text.length <= 120) {
+    try {
+      const result = evaluate(text);
+      const val = typeof result === "number" ? result : (result && typeof result.toNumber === "function" ? result.toNumber() : null);
+      if (val !== null) {
+        const valText = Number.isInteger(val) ? String(val) : val.toFixed(4);
+        return sendAiText("trig", `ผลลัพธ์: ${text.trim()} = ${valText}`);
+      }
+    } catch {
+      // fall through
+    }
+  }
+
+  // ===== PERCENT CALCULATION (Thai/EN) =====
+  // Example: "1.5% ของ 320000 เท่ากับเท่าไร" -> 4800
+  const pctMatch = text.match(/([0-9]+(?:\.[0-9]+)?)\s*%\s*(?:ของ|of|×|x)?\s*([0-9]+(?:[,.]?[0-9]+)*)/i);
+  if (pctMatch && /เท่ากับ|เท่าไร|=|equals?/i.test(text)) {
+    const pct = parseFloat(pctMatch[1]);
+    const base = parseFloat(pctMatch[2].replace(/,/g, ""));
+    if (Number.isFinite(pct) && Number.isFinite(base)) {
+      const result = (pct / 100) * base;
+      const resultText = Number.isInteger(result) ? String(result) : result.toFixed(4);
+      return sendAiText("percent", `ผลลัพธ์: ${pct}% ของ ${base.toLocaleString()} = ${resultText}`);
+    }
+  }
+
   // ===== HARD MATH DETECTION =====
   // Regex: Detect numbers and operators, optional "เท่ากับเท่าไร"
   const mathMatch = text.match(/^\s*(\d+\s*[\+\-\*\/]\s*\d+)\s*(?:เท่ากับเท่าไร|เท่าไร|=?\s*)?$/i);
-  
+
   if (mathMatch) {
     try {
       const expression = mathMatch[1];
