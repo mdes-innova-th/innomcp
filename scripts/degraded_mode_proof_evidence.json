@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-04-06T14:35:53.720Z",
+  "timestamp": "2026-04-06T18:31:18.359Z",
   "target": "http://localhost:3011",
   "summary": {
     "total": 8,
@@ -14,8 +14,8 @@
       "expectedBehavior": "Falls back to NWP or nationwide fallback data",
       "fallbackPath": "forecastEngine→error → nwpEngine → or NATIONWIDE_FALLBACK",
       "actualStatus": 200,
-      "actualAnswer": "ช่วงเวลา: วันนี้ (06/04/2026)\n\nขออภัย ยังไม่มีข้อมูลอากาศสำหรับ กรุงเทพมหานคร ในขณะนี้ กรุณาลองถามใหม่ภายหลังครับ",
-      "latencyMs": 58,
+      "actualAnswer": "ช่วงเวลา: วันนี้ (07/04/2026)\n\nขออภัย ยังไม่มีข้อมูลอากาศสำหรับ กรุงเทพมหานคร ในขณะนี้ กรุณาลองถามใหม่ภายหลังครับ",
+      "latencyMs": 565,
       "groundedness": "{\"route\":\"weather\",\"tools\":[{\"name\":\"weatherPipeline\"}],\"source\":\"unknown\"}",
       "verdict": "PASS"
     },
@@ -26,8 +26,8 @@
       "expectedBehavior": "Falls back to TMD forecast/station engine",
       "fallbackPath": "nwpEngine→error → forecastEngine → stationEngine",
       "actualStatus": 200,
-      "actualAnswer": "ช่วงเวลา: พรุ่งนี้ (07/04/2026)\n\nพื้นที่: เชียงใหม่\nเวลาอัปเดตข้อมูล: 2026-04-06 15:22\nโอกาสฝน: 27%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 19–35°C\nลม: 8km/h\nข้อควรระวัง: ไม่มีคำเตือนพิเศษ\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย",
-      "latencyMs": 9,
+      "actualAnswer": "ช่วงเวลา: พรุ่งนี้ (08/04/2026)\n\nพื้นที่: เชียงใหม่\nเวลาอัปเดตข้อมูล: 2026-04-07 01:27\nโอกาสฝน: 27%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 19–35°C\nลม: 8km/h\nข้อควรระวัง: ไม่มีคำเตือนพิเศษ\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย",
+      "latencyMs": 34,
       "groundedness": "{\"route\":\"weather\",\"tools\":[{\"name\":\"weatherPipeline\"}],\"source\":\"unknown\"}",
       "verdict": "PASS"
     },
@@ -38,7 +38,7 @@
       "expectedBehavior": "Returns nationwide fallback static data or graceful error",
       "fallbackPath": "all engines fail → NATIONWIDE_FALLBACK_ROWS or error message",
       "actualStatus": 200,
-      "actualAnswer": "ช่วงเวลา: วันนี้ (06/04/2026)\n\nขออภัย ยังไม่มีข้อมูลอากาศสำหรับ กรุงเทพมหานคร ในขณะนี้ กรุณาลองถามใหม่ภายหลังครับ",
+      "actualAnswer": "ช่วงเวลา: วันนี้ (07/04/2026)\n\nขออภัย ยังไม่มีข้อมูลอากาศสำหรับ กรุงเทพมหานคร ในขณะนี้ กรุณาลองถามใหม่ภายหลังครับ",
       "latencyMs": 11,
       "groundedness": "{\"route\":\"weather\",\"tools\":[{\"name\":\"weatherPipeline\"}],\"source\":\"unknown\"}",
       "verdict": "PASS"
@@ -50,8 +50,8 @@
       "expectedBehavior": "Graceful fallback or error within budget (30s)",
       "fallbackPath": "engines error fast (degrade=instant) → fallback data",
       "actualStatus": 200,
-      "actualAnswer": "ช่วงเวลา: พยากรณ์ 7 วัน (06/04/2026)\n\nขออภัย ยังไม่มีข้อมูลอากาศสำหรับ สงขลา ในขณะนี้ กรุณาลองถามใหม่ภายหลังครับ",
-      "latencyMs": 29,
+      "actualAnswer": "ช่วงเวลา: พยากรณ์ 7 วัน (07/04/2026)\n\nขออภัย ยังไม่มีข้อมูลอากาศสำหรับ สงขลา ในขณะนี้ กรุณาลองถามใหม่ภายหลังครับ",
+      "latencyMs": 9,
       "groundedness": "{\"route\":\"weather\",\"tools\":[{\"name\":\"weatherPipeline\"}],\"source\":\"unknown\"}",
       "verdict": "PASS"
     },
@@ -74,8 +74,8 @@
       "expectedBehavior": "Normal response, rate limiter uses in-memory fallback silently",
       "fallbackPath": "Redis error → memoryLimiter.check()",
       "actualStatus": 200,
-      "actualAnswer": "ขณะนี้คือวันจันทร์ที่ 6 เมษายน พ.ศ. 2569 เวลา 21:35:52 น. (UTC+7)",
-      "latencyMs": 29,
+      "actualAnswer": "ขณะนี้คือวันอังคารที่ 7 เมษายน พ.ศ. 2569 เวลา 01:31:16 น. (UTC+7)",
+      "latencyMs": 14,
       "groundedness": "{\"route\":\"datetime\",\"tools\":[{\"name\":\"dateTimeTool\"}],\"source\":\"unknown\"}",
       "verdict": "PASS"
     },
@@ -87,7 +87,7 @@
       "fallbackPath": "remote Ollama fail → local Ollama → or static answer",
       "actualStatus": 200,
       "actualAnswer": "AI คือเทคโนโลยีที่ทำให้คอมพิวเตอร์ทำงานที่ปกติใช้การคิดของมนุษย์ได้ เช่น จำแนกข้อมูล คาดการณ์ หรือช่วยสรุปข้อความ โดยต้องระบุโจทย์และข้อมูลให้ชัดเพื่อความแม่นยำครับ",
-      "latencyMs": 10,
+      "latencyMs": 12,
       "groundedness": "{\"route\":\"general\",\"tools\":[],\"source\":\"unknown\"}",
       "verdict": "PASS"
     },
@@ -99,7 +99,7 @@
       "fallbackPath": "evidenceTool → throw DB_DEGRADED → error message to user",
       "actualStatus": 200,
       "actualAnswer": "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)",
-      "latencyMs": 25,
+      "latencyMs": 7,
       "groundedness": "{\"route\":\"evidence\",\"tools\":[],\"source\":\"unknown\"}",
       "verdict": "PASS"
     }

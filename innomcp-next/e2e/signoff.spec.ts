@@ -547,8 +547,10 @@ test.describe("S6: General Tool Flow", () => {
 // Bug reproduction: region scope, honest errors, no mixed confidence state
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const NORTH_PROVINCES = ["เชียงใหม่", "เชียงราย", "พิษณุโลก", "ลำปาง"];
-const SOUTH_PROVINCES = ["สุราษฎร์ธานี", "สงขลา", "ภูเก็ต", "นครศรีธรรมราช"];
+/** Normalize Thai Sara Am: ํา (U+0E4D + U+0E32) → ำ (U+0E33) */
+const normThai = (s: string) => s.normalize("NFC").replace(/\u0E4D\u0E32/g, "\u0E33");
+const NORTH_PROVINCES = ["เชียงใหม่", "เชียงราย", "พิษณุโลก", "ลำปาง"].map(normThai);
+const SOUTH_PROVINCES = ["สุราษฎร์ธานี", "สงขลา", "ภูเก็ต", "นครศรีธรรมราช"].map(normThai);
 
 test.describe("S7: Weather Truth Contract", () => {
   test("S7-01: Region query routes to weather (not general)", async () => {
@@ -577,7 +579,7 @@ test.describe("S7: Weather Truth Contract", () => {
 
   test("S7-02: Region query returns ONLY region provinces (no nationwide pollution)", async () => {
     const r = await apiChatDeep("วันนี้ฝนจะตกที่ไหนบ้าง ในภาคเหนือ");
-    const provinces = r.weatherResults.map(w => w.province);
+    const provinces = r.weatherResults.map(w => normThai(w.province || ""));
     // Must contain ONLY northern provinces
     for (const p of provinces) {
       expect(NORTH_PROVINCES).toContain(p);
@@ -662,7 +664,7 @@ test.describe("S7: Weather Truth Contract", () => {
     // Proof of weather routing
     expect(r.weatherResults.length).toBeGreaterThan(0);
     expect(r.tools).toContain("weatherPipeline");
-    const provinces = r.weatherResults.map(w => w.province);
+    const provinces = r.weatherResults.map(w => normThai(w.province || ""));
     // Must not contain northern provinces
     for (const np of NORTH_PROVINCES) {
       expect(provinces).not.toContain(np);

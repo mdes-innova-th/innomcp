@@ -741,7 +741,8 @@ function looksLikeHasTimeKeyword(text: string): boolean {
 
 function looksLikeMathLikeQuery(text: string): boolean {
   const t = String(text || "");
-  return /\d\s*[\+\-\*\/\^×÷]/.test(t) || /(แฟกทอเรียล|factorial|คำนวณ|calculate|บวก|ลบ|คูณ|หาร|อนุพันธ์|ปริพันธ์|อินทิเกรต|derivative|integral|integrate)/i.test(t);
+  return /\d\s*[\+\-\*\/\^×÷]/.test(t) || /(แฟกทอเรียล|factorial|คำนวณ|calculate|บวก|ลบ|คูณ|หาร|อนุพันธ์|ปริพันธ์|อินทิเกรต|derivative|integral|integrate)/i.test(t)
+    || /\b(mean|sum|min|max|median|avg|average|sqrt|abs|log|round|ceil|floor)\s*\(/i.test(t);
 }
 
 function looksLikeNewtonSymbolicQuery(text: string): boolean {
@@ -889,6 +890,8 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
     if (/(อยู่จังหวัด|จังหวัดอะไร|จังหวัดไหน)/.test(t)) return "city_to_province";
     if (/(อยู่ภาค|ภาคอะไร|ภาคไหน)/.test(t)) return "province_to_region";
     if (/มี.*อำเภอ|อำเภอ.*อะไรบ้าง|กี่อำเภอ/.test(t)) return "province_to_districts";
+    // Phase 11.3: "ข้อมูลจังหวัดX" / "จังหวัดX ภูมิศาสตร์" / "จังหวัดX แบบย่อ" → province info
+    if (/ข้อมูล.*จังหวัด|จังหวัด.*(ภูมิศาสตร์|แบบย่อ|ข้อมูล|รายละเอียด|สั้นๆ)|รายละเอียดจังหวัด/.test(t)) return "province_info";
     return "unknown";
   })();
 
@@ -991,6 +994,39 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
       if (districts && districts.length > 0) {
         const uniqueDistricts = [...new Set(districts)];
         text = `จังหวัด${place === "กรุงเทพ" ? "กรุงเทพมหานคร" : place}มี ${uniqueDistricts.length} อำเภอ/เขต ได้แก่ ${uniqueDistricts.join(" ")}`;
+      }
+    }
+  }
+
+  // Phase 11.3: province_info — "ข้อมูลจังหวัดX", "จังหวัดX ภูมิศาสตร์"
+  if (geoIntent === "province_info") {
+    const place = placeMatch?.[1];
+    if (place) {
+      canonicalQuery = place;
+      const region = PROVINCE_REGION[place];
+      if (region) {
+        const PROVINCE_AREA: Record<string, string> = {
+          "เชียงใหม่": "พื้นที่ประมาณ 20,107 ตร.กม. เป็นจังหวัดที่ใหญ่ที่สุดในภาคเหนือ",
+          "เชียงราย": "พื้นที่ประมาณ 11,678 ตร.กม. ติดชายแดนเมียนมาและลาว",
+          "ภูเก็ต": "พื้นที่ประมาณ 576 ตร.กม. เป็นเกาะที่ใหญ่ที่สุดของไทย",
+          "สงขลา": "พื้นที่ประมาณ 7,394 ตร.กม. เมืองหลักคือหาดใหญ่",
+          "กรุงเทพมหานคร": "พื้นที่ประมาณ 1,569 ตร.กม. เป็นเมืองหลวงของประเทศไทย",
+          "ขอนแก่น": "พื้นที่ประมาณ 10,886 ตร.กม. เป็นศูนย์กลางของภาคอีสาน",
+          "นครราชสีมา": "พื้นที่ประมาณ 20,494 ตร.กม. เป็นจังหวัดที่ใหญ่ที่สุดในประเทศ",
+          "ลำพูน": "พื้นที่ประมาณ 4,506 ตร.กม. เป็นจังหวัดที่เล็กที่สุดในภาคเหนือ",
+          "ลำปาง": "พื้นที่ประมาณ 12,534 ตร.กม. มีแหล่งท่องเที่ยวทางธรรมชาติมาก",
+          "ชลบุรี": "พื้นที่ประมาณ 4,363 ตร.กม. เป็นจังหวัดชายทะเลภาคตะวันออก",
+          "สุราษฎร์ธานี": "พื้นที่ประมาณ 12,892 ตร.กม. รวมเกาะสมุยและเกาะพะงัน",
+          "นครศรีธรรมราช": "พื้นที่ประมาณ 9,943 ตร.กม. มีมรดกทางวัฒนธรรมมาก",
+          "อุบลราชธานี": "พื้นที่ประมาณ 15,745 ตร.กม. ติดชายแดนลาวและกัมพูชา",
+          "อุดรธานี": "พื้นที่ประมาณ 11,730 ตร.กม. เป็นศูนย์กลางภาคอีสานตอนบน",
+          "พิษณุโลก": "พื้นที่ประมาณ 10,816 ตร.กม. เป็นศูนย์กลางภาคเหนือตอนล่าง",
+          "กาญจนบุรี": "พื้นที่ประมาณ 19,483 ตร.กม. ติดชายแดนเมียนมา",
+          "อยุธยา": "พื้นที่ประมาณ 2,557 ตร.กม. เป็นอดีตราชธานีของไทย",
+          "พระนครศรีอยุธยา": "พื้นที่ประมาณ 2,557 ตร.กม. เป็นอดีตราชธานีของไทย",
+        };
+        const areaInfo = PROVINCE_AREA[place] || "";
+        text = `จังหวัด${place}อยู่ใน${region}ของประเทศไทย${areaInfo ? " " + areaInfo : ""}`;
       }
     }
   }
@@ -3133,12 +3169,13 @@ wss.on("connection", (ws, req) => {
 
         // =====================================
         // Phase 11.1: CalculatorGate WS — Deterministic math eval (NO LLM)
-        // Mirrors the HTTP calculator gate (line ~4000). Must be AFTER geo/worldbank gates.
+        // Mirrors the HTTP calculator gate. Must be AFTER geo/worldbank gates.
         // Newton-symbolic queries (อนุพันธ์/อินทิเกรต) bypass calculator — handled by NewtonGate.
         // =====================================
         if (looksLikeMathLikeQuery(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage)) {
           try {
-            const expr = routingMessage
+            // Phase 11.3: Normalize function-style math before stripping
+            let exprRaw = routingMessage
               .replace(/(คำนวณ|calculate|compute|คิดเลข|เท่าไร|เท่าไหร่|ผลลัพธ์|ผลคือ|result|equals)/gi, "")
               .replace(/บวก(?:เพิ่ม)?/g, "+")
               .replace(/ลบ(?:ออก)?/g, "-")
@@ -3146,8 +3183,24 @@ wss.on("connection", (ws, req) => {
               .replace(/หาร/g, "/")
               .replace(/×/g, "*")
               .replace(/÷/g, "/")
-              .replace(/[^\d+\-*/().^%\s,eE]/g, "")
+              .replace(/\baverage\b/gi, "mean")
+              .replace(/\bavg\b/gi, "mean")
               .trim();
+            const mathFns = ["mean","sum","min","max","median","std","variance","sqrt","abs","log","round","ceil","floor","mod","gcd","lcm"];
+            const fnPattern = new RegExp(`\\b(${mathFns.join("|")})\\s*\\(`, "gi");
+            const fnHits: { name: string; idx: number }[] = [];
+            let fnMatch: RegExpExecArray | null;
+            while ((fnMatch = fnPattern.exec(exprRaw)) !== null) {
+              fnHits.push({ name: fnMatch[1].toLowerCase(), idx: fnMatch.index });
+            }
+            exprRaw = exprRaw.replace(/(\w)\(\[/g, "$1(").replace(/\]\)/g, ")");
+            exprRaw = exprRaw.replace(/\[/g, "(").replace(/\]/g, ")");
+            let expr: string;
+            if (fnHits.length > 0) {
+              expr = exprRaw.replace(/[^\w+\-*/().^%\s,eE]/g, "").trim();
+            } else {
+              expr = exprRaw.replace(/[^\d+\-*/().^%\s,eE]/g, "").trim();
+            }
             if (expr && /\d/.test(expr)) {
               const { evaluate } = require("mathjs");
               const result = evaluate(expr);
@@ -4774,13 +4827,14 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
     // =====================================
     // Phase 11.1: CalculatorGate — Deterministic math eval (NO LLM)
-    // Handles "คำนวณ 365 × 24", "2+2", "123 * 456" etc.
+    // Handles "คำนวณ 365 × 24", "2+2", "123 * 456", "mean([10,20,30])" etc.
     // Newton-symbolic queries bypass calculator — handled by NewtonGate.
     // =====================================
     if (looksLikeMathLikeQuery(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage)) {
       try {
-        // Strip Thai math keywords, normalize Unicode operators, translate Thai operators
-        const expr = routingMessage
+        // Phase 11.3: Normalize function-style math before stripping
+        // Convert avg/average → mean (mathjs native), preserve [] brackets as ()
+        let exprRaw = routingMessage
           .replace(/(คำนวณ|calculate|compute|คิดเลข|เท่าไร|เท่าไหร่|ผลลัพธ์|ผลคือ|result|equals)/gi, "")
           .replace(/บวก(?:เพิ่ม)?/g, "+")
           .replace(/ลบ(?:ออก)?/g, "-")
@@ -4788,8 +4842,27 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           .replace(/หาร/g, "/")
           .replace(/×/g, "*")
           .replace(/÷/g, "/")
-          .replace(/[^\d+\-*/().^%\s,eE]/g, "")
+          .replace(/\baverage\b/gi, "mean")
+          .replace(/\bavg\b/gi, "mean")
           .trim();
+        // Preserve mathjs function names: extract them, replace with placeholders, strip non-math, restore
+        const mathFns = ["mean","sum","min","max","median","std","variance","sqrt","abs","log","round","ceil","floor","mod","gcd","lcm"];
+        const fnPattern = new RegExp(`\\b(${mathFns.join("|")})\\s*\\(`, "gi");
+        const fnHits: { name: string; idx: number }[] = [];
+        let fnMatch: RegExpExecArray | null;
+        while ((fnMatch = fnPattern.exec(exprRaw)) !== null) {
+          fnHits.push({ name: fnMatch[1].toLowerCase(), idx: fnMatch.index });
+        }
+        // Convert fn([...]) to fn(...) for mathjs compatibility, then strip remaining []
+        exprRaw = exprRaw.replace(/(\w)\(\[/g, "$1(").replace(/\]\)/g, ")");
+        exprRaw = exprRaw.replace(/\[/g, "(").replace(/\]/g, ")");
+        let expr: string;
+        if (fnHits.length > 0) {
+          // Function-style: keep function names + parens + digits + operators
+          expr = exprRaw.replace(/[^\w+\-*/().^%\s,eE]/g, "").trim();
+        } else {
+          expr = exprRaw.replace(/[^\d+\-*/().^%\s,eE]/g, "").trim();
+        }
 
         if (expr && /\d/.test(expr)) {
           const { evaluate } = require("mathjs");
