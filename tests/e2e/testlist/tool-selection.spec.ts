@@ -109,9 +109,10 @@ function pickLatestMcpLog(): string | undefined {
         catch { return null; }
       })
       .filter((x): x is { full: string; mtimeMs: number; birthtimeMs: number; size: number } => x !== null)
-      // Sort: newest birthtime first (creation time, not last-write time).
-      // This ensures the current-process log file ranks first even when empty.
-      .sort((a, b) => b.birthtimeMs - a.birthtimeMs);
+      // Sort: most-recently-modified first (last-write time).
+      // A stale log from a failed server start may have a newer creation time
+      // but an older last-write time — mtimeMs correctly picks the active log.
+      .sort((a, b) => b.mtimeMs - a.mtimeMs);
     return files[0]?.full;
   } catch {
     return undefined;
