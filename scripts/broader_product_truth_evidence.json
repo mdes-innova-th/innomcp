@@ -1,0 +1,654 @@
+{
+  "timestamp": "2026-04-06T14:44:24.037Z",
+  "target": "http://localhost:3011",
+  "summary": {
+    "total": 40,
+    "passed": 37,
+    "failed": 3
+  },
+  "domainBreakdown": {
+    "weather": {
+      "pass": 8,
+      "fail": 0
+    },
+    "evidence": {
+      "pass": 3,
+      "fail": 0
+    },
+    "NASA": {
+      "pass": 3,
+      "fail": 0
+    },
+    "archive": {
+      "pass": 3,
+      "fail": 0
+    },
+    "worldbank": {
+      "pass": 3,
+      "fail": 0
+    },
+    "thai-knowledge": {
+      "pass": 1,
+      "fail": 2
+    },
+    "calculator": {
+      "pass": 3,
+      "fail": 1
+    },
+    "datetime": {
+      "pass": 3,
+      "fail": 0
+    },
+    "general": {
+      "pass": 3,
+      "fail": 0
+    },
+    "typo": {
+      "pass": 1,
+      "fail": 0
+    },
+    "shorthand": {
+      "pass": 1,
+      "fail": 0
+    },
+    "mixed-lang": {
+      "pass": 2,
+      "fail": 0
+    },
+    "incomplete": {
+      "pass": 2,
+      "fail": 0
+    },
+    "follow-up": {
+      "pass": 1,
+      "fail": 0
+    }
+  },
+  "results": [
+    {
+      "id": 1,
+      "domain": "weather",
+      "query": "พยากรณ์อากาศกรุงเทพวันนี้",
+      "normalizedIntent": "weather-forecast",
+      "normalizedScope": "กรุงเทพ/today",
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ช่วงเวลา: วันนี้ (06/04/2026)\n\nพื้นที่: กรุงเทพมหานคร\nเวลาอัปเดตข้อมูล: 2026-04-06 15:22\nโอกาสฝน: 50%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 26–33°C\nลม: 12km/h\nข้อควรระวัง: อาจมีฝนประปราย\nอำเภอที่ควรติดตาม: จตุจักร, ลาดกระบัง, ดอนเมือง",
+      "latencyMs": 61,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 2,
+      "domain": "weather",
+      "query": "เชียงใหม่พรุ่งนี้ฝนตกไหม",
+      "normalizedIntent": "rain-check",
+      "normalizedScope": "เชียงใหม่/tomorrow",
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ช่วงเวลา: พรุ่งนี้ (07/04/2026)\n\nพื้นที่: เชียงใหม่\nเวลาอัปเดตข้อมูล: 2026-04-06 15:22\nโอกาสฝน: 27%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 19–35°C\nลม: 8km/h\nข้อควรระวัง: ไม่มีคำเตือนพิเศษ\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย",
+      "latencyMs": 10,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 3,
+      "domain": "weather/NWP",
+      "query": "อากาศภูเก็ตสัปดาห์หน้า",
+      "normalizedIntent": "weather-forecast-week",
+      "normalizedScope": "ภูเก็ต/week",
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ช่วงเวลา: พยากรณ์ 7 วัน (06/04/2026)\n\nพื้นที่: ภูเก็ต\nเวลาอัปเดตข้อมูล: 2026-04-06 15:22\n\n🌧️ จันทร์ 06/04: ฝน 65% | 25–32°C | มีฝนฟ้าคะนองบางแห่ง | ลม 16km/h ใต้\n🌦️ อังคาร 07/04: ฝน 52% | 24–33°C | มีฝนฟ้าคะนองกระจาย | ลม 17km/h ใต้\n🌦️ พุธ 08/04: ฝน 54% | 25–32°C | มีฝนฟ้าคะนองบางแห่ง | ลม 18km/h ตะวันตกเฉียงใต้\n🌧️ พฤหัส 09/04: ฝน 71% | 24–33°C | มีฝนฟ้าคะนองกระจาย | ลม 16km/h ตะวันตกเฉียงใต้\n",
+      "latencyMs": 8,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 4,
+      "domain": "weather/TMD",
+      "query": "ฝนตกที่ไหนบ้างในภาคเหนือ",
+      "normalizedIntent": "rain-region",
+      "normalizedScope": "ภาคเหนือ",
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ช่วงเวลา: วันนี้ (06/04/2026)\n\nพื้นที่: เชียงใหม่\nเวลาอัปเดตข้อมูล: 2026-04-06 15:22\nโอกาสฝน: 40%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 20–34°C\nลม: 7km/h\nข้อควรระวัง: อาจมีฝนประปราย\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย\n\nพื้นที่: เชียงราย\nเวลาอัปเดตข้อมูล: 2026-04-06 15:22\nโอกาสฝน: 30%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 19–30°C\n",
+      "latencyMs": 9,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 5,
+      "domain": "weather",
+      "query": "weather forecast Udon Thani tomorrow",
+      "normalizedIntent": "weather-forecast-en",
+      "normalizedScope": "อุดรธานี/tomorrow",
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10: ยะลา (62%), สงขลา (57%), ภูเก็ต (52%), ชลบุรี (42%), กรุงเทพมหานคร (37%)",
+      "latencyMs": 13,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 6,
+      "domain": "weather/typo",
+      "query": "อากาสเชียงใหม่พุ่งนี้",
+      "normalizedIntent": "weather-forecast-typo",
+      "normalizedScope": "เชียงใหม่/tomorrow",
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ช่วงเวลา: วันนี้ (06/04/2026)\n\nพื้นที่: เชียงใหม่\nเวลาอัปเดตข้อมูล: 2026-04-06 15:22\nโอกาสฝน: 40%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 20–34°C\nลม: 7km/h\nข้อควรระวัง: อาจมีฝนประปราย\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย",
+      "latencyMs": 8,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 7,
+      "domain": "weather/multi",
+      "query": "เปรียบเทียบอากาศกรุงเทพกับเชียงใหม่",
+      "normalizedIntent": "weather-compare",
+      "normalizedScope": "กรุงเทพ+เชียงใหม่",
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ช่วงเวลา: วันนี้ (06/04/2026)\n\nพื้นที่: เชียงใหม่\nเวลาอัปเดตข้อมูล: 2026-04-06 15:22\nโอกาสฝน: 40%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 20–34°C\nลม: 7km/h\nข้อควรระวัง: อาจมีฝนประปราย\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย\n\nพื้นที่: กรุงเทพมหานคร\nเวลาอัปเดตข้อมูล: 2026-04-06 15:22\nโอกาสฝน: 50%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 26–",
+      "latencyMs": 8,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 8,
+      "domain": "weather/table",
+      "query": "ตารางพยากรณ์ฝนวันนี้",
+      "normalizedIntent": "rain-forecast-table",
+      "normalizedScope": "nationwide/today",
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "จังหวัดที่ฝนตกมากสุดในไทย (วันนี้) Top 10\n\n| จังหวัด | %ฝน | สูงสุด | ต่ำสุด | ลม | ทิศลม | คำอธิบาย |\n| --- | --- | --- | --- | --- | --- | --- |\n| ยะลา | 75 | 31°C | 23°C | 14km/h | ใต้ | มีฝนฟ้าคะนองกระจาย |\n| สงขลา | 70 | 32°C | 24°C | 17km/h | ใต้ | มีฝนฟ้าคะนองกระจาย |\n| ภูเก็ต | 65 | 32°C | 25°C | 16km/h | ใต้ | มีฝนฟ้าคะนองบางแห่ง |\n| ชลบุรี | 55 | 34°C | 26°C | 13km/h | ตะวันออกเฉียงใต้ |",
+      "latencyMs": 23,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 9,
+      "domain": "evidence",
+      "query": "ค้นหาหลักฐานเกี่ยวกับสิ่งแวดล้อม",
+      "normalizedIntent": "evidence-search",
+      "normalizedScope": "environment",
+      "selectedRoute": "evidence",
+      "selectedTools": [],
+      "providerModel": "deterministic",
+      "finalAnswer": "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)",
+      "latencyMs": 5,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 10,
+      "domain": "evidence",
+      "query": "DetectDB search corruption cases",
+      "normalizedIntent": "evidence-search-en",
+      "normalizedScope": "corruption",
+      "selectedRoute": "evidence",
+      "selectedTools": [],
+      "providerModel": "deterministic",
+      "finalAnswer": "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)",
+      "latencyMs": 6,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 11,
+      "domain": "evidence",
+      "query": "หาข้อมูลคดีทุจริตจากฐานข้อมูล",
+      "normalizedIntent": "evidence-search-db",
+      "normalizedScope": "corruption/db",
+      "selectedRoute": "evidence",
+      "selectedTools": [],
+      "providerModel": "deterministic",
+      "finalAnswer": "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)",
+      "latencyMs": 16,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 12,
+      "domain": "NASA",
+      "query": "ภาพอวกาศวันนี้จาก NASA",
+      "normalizedIntent": "nasa-apod",
+      "normalizedScope": "today",
+      "selectedRoute": "nasa",
+      "selectedTools": [
+        "innomcp-server:nasa"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ได้รับข้อมูลจาก NASA แล้วครับ",
+      "latencyMs": 60023,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 13,
+      "domain": "NASA",
+      "query": "นาซ่าข่าวอวกาศวันนี้",
+      "normalizedIntent": "nasa-news",
+      "normalizedScope": "latest",
+      "selectedRoute": "nasa",
+      "selectedTools": [
+        "innomcp-server:nasa"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ได้รับข้อมูลจาก NASA แล้วครับ",
+      "latencyMs": 60054,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 14,
+      "domain": "NASA",
+      "query": "NASA ภาพดาว APOD",
+      "normalizedIntent": "nasa-apod2",
+      "normalizedScope": "today",
+      "selectedRoute": "nasa",
+      "selectedTools": [
+        "innomcp-server:nasa"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ได้รับข้อมูลจาก NASA แล้วครับ",
+      "latencyMs": 18092,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 15,
+      "domain": "archive",
+      "query": "ค้นหาหนังสือ Python programming จาก archive",
+      "normalizedIntent": "archive-search",
+      "normalizedScope": "Python",
+      "selectedRoute": "archive",
+      "selectedTools": [
+        "archive"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "{\"archiveGate\":{\"query\":\"หนังสือ Python programming\",\"mediatype\":\"texts\"},\"__render\":{\"route\":\"archive\",\"llmUsed\":false,\"routeDecider\":\"deterministic\",\"version\":\"phase11.2c\"},\"chatMeta\":{\"mode\":\"online\",\"route\":\"archive\",\"toolsUsed\":[{\"name\":\"archive\"}],\"reason_code\":\"TOOL_OK\"},\"__groundedContract\":{\"selectedRoute\":\"archive\",\"selectedTools\":[\"archive\"],\"llmUsed\":false,\"routeDecider\":\"deterministic",
+      "latencyMs": 1487,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 16,
+      "domain": "archive",
+      "query": "archive ค้นหาเพลง jazz",
+      "normalizedIntent": "archive-search-music",
+      "normalizedScope": "jazz",
+      "selectedRoute": "archive",
+      "selectedTools": [
+        "archive"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "{\"archiveGate\":{\"query\":\"เพลง jazz\",\"mediatype\":\"audio\"},\"__render\":{\"route\":\"archive\",\"llmUsed\":false,\"routeDecider\":\"deterministic\",\"version\":\"phase11.2c\"},\"chatMeta\":{\"mode\":\"online\",\"route\":\"archive\",\"toolsUsed\":[{\"name\":\"archive\"}],\"reason_code\":\"TOOL_OK\"},\"__groundedContract\":{\"selectedRoute\":\"archive\",\"selectedTools\":[\"archive\"],\"llmUsed\":false,\"routeDecider\":\"deterministic\",\"sourceType\":\"t",
+      "latencyMs": 552,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 17,
+      "domain": "archive",
+      "query": "ค้นหา archive เรื่อง history Thailand",
+      "normalizedIntent": "archive-search-en",
+      "normalizedScope": "Thai history",
+      "selectedRoute": "archive",
+      "selectedTools": [
+        "archive"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "{\"archiveGate\":{\"query\":\"เรื่อง history Thailand\"},\"__render\":{\"route\":\"archive\",\"llmUsed\":false,\"routeDecider\":\"deterministic\",\"version\":\"phase11.2c\"},\"chatMeta\":{\"mode\":\"online\",\"route\":\"archive\",\"toolsUsed\":[{\"name\":\"archive\"}],\"reason_code\":\"TOOL_OK\"},\"__groundedContract\":{\"selectedRoute\":\"archive\",\"selectedTools\":[\"archive\"],\"llmUsed\":false,\"routeDecider\":\"deterministic\",\"sourceType\":\"tool-on",
+      "latencyMs": 509,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 18,
+      "domain": "worldbank",
+      "query": "GDP ของไทยปี 2023 จาก World Bank",
+      "normalizedIntent": "worldbank-gdp",
+      "normalizedScope": "Thailand/2023",
+      "selectedRoute": "worldbank",
+      "selectedTools": [
+        "innomcp-server:worldbank"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "🌍 World Bank Data\n\n📍 Country: **Thailand** (TH)\n📊 Indicator: **GDP (current US$)**\n🔖 Code: NY.GDP.MKTP.CD\n\n---\n\n📌 **Latest Data (2024)**\n   Value: **526.52 billion**\n\n📈 **Historical Data**\n\n   2024: 526.52 billion\n   2023: 515.91 billion\n   2022: 495.64 billion\n   2021: 506.19 billion\n   2020: 500.46 billion\n   2019: 543.98 billion\n   2018: 506.75 billion\n   2017: 456.36 billion\n   2016: 413",
+      "latencyMs": 513,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 19,
+      "domain": "worldbank",
+      "query": "ประชากรไทยล่าสุด worldbank",
+      "normalizedIntent": "worldbank-population",
+      "normalizedScope": "Thailand/latest",
+      "selectedRoute": "worldbank",
+      "selectedTools": [
+        "innomcp-server:worldbank"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "🌍 World Bank Data\n\n📍 Country: **Thailand** (TH)\n📊 Indicator: **GDP (current US$)**\n🔖 Code: NY.GDP.MKTP.CD\n\n---\n\n📌 **Latest Data (2024)**\n   Value: **526.52 billion**\n\n📈 **Historical Data**\n\n   2024: 526.52 billion\n   2023: 515.91 billion\n   2022: 495.64 billion\n   2021: 506.19 billion\n   2020: 500.46 billion\n   2019: 543.98 billion\n   2018: 506.75 billion\n   2017: 456.36 billion\n   2016: 413",
+      "latencyMs": 394,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 20,
+      "domain": "worldbank",
+      "query": "GDP growth rate China World Bank",
+      "normalizedIntent": "worldbank-gdp-en",
+      "normalizedScope": "China",
+      "selectedRoute": "worldbank",
+      "selectedTools": [
+        "innomcp-server:worldbank"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "🌍 World Bank Data\n\n📍 Country: **Thailand** (TH)\n📊 Indicator: **GDP growth (annual %)**\n🔖 Code: NY.GDP.MKTP.KD.ZG\n\n---\n\n📌 **Latest Data (2024)**\n   Value: **2.54**\n\n📈 **Historical Data**\n\n   2024: 2.54\n   2023: 2.02\n   2022: 2.58\n   2021: 1.55\n   2020: -6.05\n   2019: 2.11\n   2018: 4.22\n   2017: 4.18\n   2016: 3.44\n   2015: 3.13\n   ... and 54 more years\n\n📊 **Trend (1961 to 2024)**\n   📉 Decrea",
+      "latencyMs": 433,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 21,
+      "domain": "thai-knowledge",
+      "query": "ข้อมูลจังหวัดเชียงใหม่ ภูมิศาสตร์",
+      "normalizedIntent": "thai-geo",
+      "normalizedScope": "เชียงใหม่/geo",
+      "selectedRoute": "general",
+      "selectedTools": [],
+      "providerModel": "deterministic",
+      "finalAnswer": "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ",
+      "latencyMs": 51,
+      "semanticVerdict": "FAIL",
+      "failReason": "Missing patterns: เชียงใหม่|Chiang\\s*Mai|จังหวัด|province|"
+    },
+    {
+      "id": 22,
+      "domain": "thai-knowledge",
+      "query": "ประวัติศาสตร์ไทยสมัยสุโขทัย",
+      "normalizedIntent": "thai-history",
+      "normalizedScope": "สุโขทัย",
+      "selectedRoute": "general",
+      "selectedTools": [],
+      "providerModel": "deterministic",
+      "finalAnswer": "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ",
+      "latencyMs": 13,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 23,
+      "domain": "thai-knowledge",
+      "query": "ข้อมูลจังหวัดภูเก็ต ภูมิศาสตร์",
+      "normalizedIntent": "thai-geo2",
+      "normalizedScope": "ภูเก็ต",
+      "selectedRoute": "general",
+      "selectedTools": [],
+      "providerModel": "deterministic",
+      "finalAnswer": "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ",
+      "latencyMs": 9,
+      "semanticVerdict": "FAIL",
+      "failReason": "Missing patterns: ภูเก็ต|Phuket|จังหวัด|province|ภูมิศาสตร"
+    },
+    {
+      "id": 24,
+      "domain": "calculator",
+      "query": "123 * 456 + 789",
+      "normalizedIntent": "calc-basic",
+      "normalizedScope": "arithmetic",
+      "selectedRoute": "calculator",
+      "selectedTools": [
+        "calculatorTool"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ผลลัพธ์: 123 * 456 + 789 = 56877",
+      "latencyMs": 10,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 25,
+      "domain": "calculator",
+      "query": "คำนวณ mean([10,20,30,40,50])",
+      "normalizedIntent": "calc-stats",
+      "normalizedScope": "mean",
+      "selectedRoute": "unknown",
+      "selectedTools": [
+        "calculatorTool"
+      ],
+      "providerModel": "deterministic",
+      "finalAnswer": "ได้รับข้อมูลจากเครื่องมือ innomcp-server:calculatorTool แล้วครับ",
+      "latencyMs": 33,
+      "semanticVerdict": "FAIL",
+      "failReason": "Missing patterns: 30|mean|ค่าเฉลี่ย|average|ผลลัพธ์|result"
+    },
+    {
+      "id": 26,
+      "domain": "calculator",
+      "query": "คำนวณ 100 องศาฟาเรนไฮต์ เป็นเซลเซียส",
+      "normalizedIntent": "calc-convert",
+      "normalizedScope": "temp-conversion",
+      "selectedRoute": "calculator",
+      "selectedTools": [
+        "calculatorTool"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ผลลัพธ์: 100 = 100",
+      "latencyMs": 9,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 27,
+      "domain": "calculator",
+      "query": "คำนวณ 1.5% ของ 320000",
+      "normalizedIntent": "calc-percent",
+      "normalizedScope": "percent",
+      "selectedRoute": "calculator",
+      "selectedTools": [
+        "calculatorTool"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ผลลัพธ์: 1.5%  320000 = 1.5",
+      "latencyMs": 14,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 28,
+      "domain": "datetime",
+      "query": "ตอนนี้กี่โมง",
+      "normalizedIntent": "time-now",
+      "normalizedScope": "Thailand/now",
+      "selectedRoute": "datetime",
+      "selectedTools": [
+        "dateTimeTool"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ขณะนี้คือวันจันทร์ที่ 6 เมษายน พ.ศ. 2569 เวลา 21:44:01 น. (UTC+7)",
+      "latencyMs": 8,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 29,
+      "domain": "datetime",
+      "query": "วันนี้วันที่เท่าไร",
+      "normalizedIntent": "date-today",
+      "normalizedScope": "Thailand/today",
+      "selectedRoute": "datetime",
+      "selectedTools": [
+        "dateTimeTool"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ขณะนี้คือวันจันทร์ที่ 6 เมษายน พ.ศ. 2569 เวลา 21:44:02 น. (UTC+7)",
+      "latencyMs": 11,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 30,
+      "domain": "datetime",
+      "query": "what day is today",
+      "normalizedIntent": "date-today-en",
+      "normalizedScope": "today",
+      "selectedRoute": "datetime",
+      "selectedTools": [
+        "dateTimeTool"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ขณะนี้คือวันจันทร์ที่ 6 เมษายน พ.ศ. 2569 เวลา 21:44:02 น. (UTC+7)",
+      "latencyMs": 15,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 31,
+      "domain": "general",
+      "query": "สวัสดี AI คุณชื่ออะไร",
+      "normalizedIntent": "greeting",
+      "normalizedScope": "identity",
+      "selectedRoute": "general",
+      "selectedTools": [],
+      "providerModel": "deterministic",
+      "finalAnswer": "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ",
+      "latencyMs": 9,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 32,
+      "domain": "general",
+      "query": "AI คืออะไร อธิบายสั้นๆ",
+      "normalizedIntent": "explain-ai",
+      "normalizedScope": "AI",
+      "selectedRoute": "general",
+      "selectedTools": [],
+      "providerModel": "deterministic",
+      "finalAnswer": "AI คือเทคโนโลยีที่ทำให้คอมพิวเตอร์ทำงานที่ปกติใช้การคิดของมนุษย์ได้ เช่น จำแนกข้อมูล คาดการณ์ หรือช่วยสรุปข้อความ โดยต้องระบุโจทย์และข้อมูลให้ชัดเพื่อความแม่นยำครับ",
+      "latencyMs": 9,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 33,
+      "domain": "general",
+      "query": "quantum computing คืออะไร",
+      "normalizedIntent": "explain-quantum",
+      "normalizedScope": "quantum computing",
+      "selectedRoute": "general",
+      "selectedTools": [],
+      "providerModel": "deterministic",
+      "finalAnswer": "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ",
+      "latencyMs": 17,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 34,
+      "domain": "typo",
+      "query": "อากาสเชียงใหมพุ่งนี้",
+      "normalizedIntent": "weather-typo-heavy",
+      "normalizedScope": "เชียงใหม่/tomorrow",
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10: ยะลา (62%), สงขลา (57%), ภูเก็ต (52%), ชลบุรี (42%), กรุงเทพมหานคร (37%)",
+      "latencyMs": 11,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 35,
+      "domain": "shorthand",
+      "query": "กี่โมงแล้ว",
+      "normalizedIntent": "time-shorthand",
+      "normalizedScope": "now",
+      "selectedRoute": "datetime",
+      "selectedTools": [
+        "dateTimeTool"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ขณะนี้คือวันจันทร์ที่ 6 เมษายน พ.ศ. 2569 เวลา 21:44:04 น. (UTC+7)",
+      "latencyMs": 7,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 36,
+      "domain": "mixed-lang",
+      "query": "weather กรุงเทพ tomorrow มีฝนไหม",
+      "normalizedIntent": "weather-mixed",
+      "normalizedScope": "กรุงเทพ/tomorrow",
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ช่วงเวลา: วันนี้ (06/04/2026)\n\nพื้นที่: กรุงเทพมหานคร\nเวลาอัปเดตข้อมูล: 2026-04-06 15:22\nโอกาสฝน: 50%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 26–33°C\nลม: 12km/h\nข้อควรระวัง: อาจมีฝนประปราย\nอำเภอที่ควรติดตาม: จตุจักร, ลาดกระบัง, ดอนเมือง",
+      "latencyMs": 8,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 37,
+      "domain": "mixed-lang",
+      "query": "NASA ภารกิจ Mars ล่าสุด",
+      "normalizedIntent": "nasa-mars-mixed",
+      "normalizedScope": "Mars/latest",
+      "selectedRoute": "nasa",
+      "selectedTools": [
+        "innomcp-server:nasa"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ได้รับข้อมูลจาก NASA แล้วครับ",
+      "latencyMs": 17997,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 38,
+      "domain": "incomplete",
+      "query": "อากาศเป็นไงบ้าง",
+      "normalizedIntent": "weather-no-place",
+      "normalizedScope": "unspecified",
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10: ยะลา (62%), สงขลา (57%), ภูเก็ต (52%), ชลบุรี (42%), กรุงเทพมหานคร (37%)",
+      "latencyMs": 48,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 39,
+      "domain": "incomplete",
+      "query": "ฝนตกไหม",
+      "normalizedIntent": "rain-no-place",
+      "normalizedScope": "unspecified",
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "จังหวัดที่ฝนตกมากสุดในไทย (พรุ่งนี้) Top 10: ยะลา (62%), สงขลา (57%), ภูเก็ต (52%), ชลบุรี (42%), กรุงเทพมหานคร (37%)",
+      "latencyMs": 8,
+      "semanticVerdict": "PASS"
+    },
+    {
+      "id": 40,
+      "domain": "follow-up",
+      "query": "ตอนนี้กี่โมง แล้วอากาศกรุงเทพเป็นไง",
+      "normalizedIntent": "multi-intent",
+      "normalizedScope": "datetime+weather",
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "providerModel": "tool-only",
+      "finalAnswer": "ช่วงเวลา: วันนี้ (06/04/2026)\n\nพื้นที่: กรุงเทพมหานคร\nเวลาอัปเดตข้อมูล: 2026-04-06 15:22\nโอกาสฝน: 50%\nช่วงเวลาเสี่ยง: ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)\nอุณหภูมิ: 26–33°C\nลม: 11km/h\nข้อควรระวัง: อาจมีฝนประปราย\nอำเภอที่ควรติดตาม: จตุจักร, ลาดกระบัง, ดอนเมือง",
+      "latencyMs": 8,
+      "semanticVerdict": "PASS"
+    }
+  ]
+}

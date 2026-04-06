@@ -1053,10 +1053,39 @@ async function waitForAssistantStable2026(page: any, timeoutMs: number, stableHi
     return { text: last || "NO_RESPONSE", stableMs: Date.now() - start };
 }
 
+/**
+ * Capture toolsUsed from WebSocket `history-update` messages.
+ * This provides a log-independent second signal for tool detection,
+ * removing release dependency on log file shape.
+ */
+function setupWsToolCapture(page: any): { getToolsUsed: () => string[]; reset: () => void; cleanup: () => void } {
+    const captured: string[] = [];
+    const wsHandler = (ws: any) => {
+        ws.on("framereceived", (frame: any) => {
+            try {
+                const data = JSON.parse(frame.payload);
+                if (data.type === "history-update" && Array.isArray(data.toolsUsed)) {
+                    for (const t of data.toolsUsed) {
+                        const name = typeof t === "string" ? t : t?.name;
+                        if (name && !captured.includes(name)) captured.push(name);
+                    }
+                }
+            } catch { /* non-JSON frame, ignore */ }
+        });
+    };
+    page.on("websocket", wsHandler);
+    return {
+        getToolsUsed: () => [...captured],
+        /** Reset captured tools — call after page load to discard history replay artifacts */
+        reset: () => { captured.length = 0; },
+        cleanup: () => { captured.length = 0; },
+    };
+}
+
 async function askRobust2026(
     page: any,
     question: string,
-    opts?: { perTestTimeoutMs?: number }
+    opts?: { perTestTimeoutMs?: number; onPageReady?: () => void | Promise<void> }
 ): Promise<{ response: string; metrics: RichAskMetrics }> {
     const perTestTimeoutMs = opts?.perTestTimeoutMs ?? PER_TEST_TIMEOUT_MS;
 
@@ -1067,6 +1096,10 @@ async function askRobust2026(
 
     await input.waitFor({ state: "visible", timeout: 20_000 });
     await send.waitFor({ state: "visible", timeout: 20_000 });
+
+    // Page is loaded, WS history replay is done — notify caller to reset WS capture
+    await page.waitForTimeout(200);
+    if (opts?.onPageReady) await opts.onPageReady();
 
     await input.fill("").catch(() => {});
     await page.waitForTimeout(30);
@@ -1326,6 +1359,9 @@ test.describe("INNOMCP Tool Selection – 2026 Robust Suite (delta logs + artifa
         test(`${id} :: ${tc.group} :: expect=${tc.expectedTool}`, async ({ page }) => {
             test.setTimeout(PER_TEST_TIMEOUT_MS);
 
+            // WS-based tool capture (log-independent signal)
+            const wsCapture = setupWsToolCapture(page);
+
             // checkpoint logs just before sending (delta-based tool detection)
             const chk = {
                 backendDev: getLogCheckpoint(LOG_PATHS.backendDev),
@@ -1334,13 +1370,20 @@ test.describe("INNOMCP Tool Selection – 2026 Robust Suite (delta logs + artifa
             };
 
             const start = Date.now();
-            const { response, metrics } = await askRobust2026(page, tc.question);
+            const { response, metrics } = await askRobust2026(page, tc.question, {
+                onPageReady: () => wsCapture.reset(),  // discard history-replay tools before query
+            });
 
             // let logs flush (streaming + async writes)
             await page.waitForTimeout(Math.max(120, Math.min(600, Math.floor(metrics.totalMs / 10))));
 
             const deltas = buildLogDeltasFromCheckpoints(chk);
-            const toolsUsed = detectToolsFromDeltas({ backendDev: deltas.backendDev, mcpServer: deltas.mcpServer });
+            const logTools = detectToolsFromDeltas({ backendDev: deltas.backendDev, mcpServer: deltas.mcpServer });
+
+            // Merge: log-delta tools + WS toolsUsed (removes log-shape dependency)
+            const wsTools = wsCapture.getToolsUsed();
+            const toolsUsed = uniq([...logTools, ...wsTools]);
+            wsCapture.cleanup();
 
             const success = matchExpected2026(tc.expectedTool, toolsUsed);
 
