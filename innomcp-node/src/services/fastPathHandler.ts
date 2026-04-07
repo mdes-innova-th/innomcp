@@ -721,12 +721,13 @@ export async function tryFastPathWebSocket(
 
   // ===== TRIG FUNCTIONS (sin/cos/tan with "deg" support) =====
   // Example: "sin(30 deg) + cos(60 deg)" -> 1.0
+  // Phase 12.1: Use String(val) for full precision — parity with HTTP calculator gate
   if (/\b(sin|cos|tan|asin|acos|atan)\s*\(/i.test(text) && /\d/.test(text) && text.length <= 120) {
     try {
       const result = evaluate(text);
       const val = typeof result === "number" ? result : (result && typeof result.toNumber === "function" ? result.toNumber() : null);
       if (val !== null) {
-        const valText = Number.isInteger(val) ? String(val) : val.toFixed(4);
+        const valText = String(val);
         return sendAiText("trig", `ผลลัพธ์: ${text.trim()} = ${valText}`);
       }
     } catch {

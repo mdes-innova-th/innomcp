@@ -2702,12 +2702,23 @@ wss.on("connection", (ws, req) => {
         if (!looksLikeNasaApodQuery && looksLikeMathLikeQuery(routingMessage) && looksLikeHasTimeKeyword(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage)) {
           try {
             const { evaluate } = require("mathjs");
-            const calcExpr = routingMessage
+            let calcExprRaw = routingMessage
               .replace(/(คำนวณ|calculate|compute|คิดเลข|เท่าไร|เท่าไหร่|ผลลัพธ์|ผลคือ|result|equals)/gi, "")
               .replace(/บวก(?:เพิ่ม)?/g, "+").replace(/ลบ(?:ออก)?/g, "-")
               .replace(/คูณ/g, "*").replace(/หาร/g, "/")
               .replace(/×/g, "*").replace(/÷/g, "/")
-              .replace(/[^\d+\-*/().^%\s,eE]/g, "").trim();
+              .replace(/\baverage\b/gi, "mean")
+              .replace(/\bavg\b/gi, "mean")
+              .trim();
+            // Phase 12.1: Function detection for multi-intent calc+datetime (WS parity)
+            const mathFnsMI = ["mean","sum","min","max","median","std","variance","sqrt","abs","log","round","ceil","floor","sin","cos","tan","asin","acos","atan","mod","gcd","lcm"];
+            const fnPatternMI = new RegExp(`\\b(${mathFnsMI.join("|")})\\s*\\(`, "gi");
+            const hasFnMI = fnPatternMI.test(calcExprRaw);
+            calcExprRaw = calcExprRaw.replace(/(\w)\(\[/g, "$1(").replace(/\]\)/g, ")");
+            calcExprRaw = calcExprRaw.replace(/\[/g, "(").replace(/\]/g, ")");
+            const calcExpr = hasFnMI
+              ? calcExprRaw.replace(/[^\w+\-*/().^%\s,eE]/g, "").trim()
+              : calcExprRaw.replace(/[^\d+\-*/().^%\s,eE]/g, "").trim();
             // Reject pure date strings like "2024-01-01" — these aren't arithmetic
             const looksLikeDateString = /^\s*\d{4}[-/]\d{1,2}[-/]\d{1,2}\s*$/.test(calcExpr);
             if (calcExpr && /\d/.test(calcExpr) && !looksLikeDateString) {
@@ -3352,7 +3363,7 @@ wss.on("connection", (ws, req) => {
               const baseVal = pctOfMatch[2].replace(/,/g, "");
               exprRaw = `(${pctVal}/100)*${baseVal}`;
             }
-            const mathFns = ["mean","sum","min","max","median","std","variance","sqrt","abs","log","round","ceil","floor","mod","gcd","lcm"];
+            const mathFns = ["mean","sum","min","max","median","std","variance","sqrt","abs","log","round","ceil","floor","sin","cos","tan","asin","acos","atan","mod","gcd","lcm"];
             const fnPattern = new RegExp(`\\b(${mathFns.join("|")})\\s*\\(`, "gi");
             const fnHits: { name: string; idx: number }[] = [];
             let fnMatch: RegExpExecArray | null;
@@ -5156,7 +5167,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           exprRaw = `(${pctVal}/100)*${baseVal}`;
         }
         // Preserve mathjs function names: extract them, replace with placeholders, strip non-math, restore
-        const mathFns = ["mean","sum","min","max","median","std","variance","sqrt","abs","log","round","ceil","floor","mod","gcd","lcm"];
+        const mathFns = ["mean","sum","min","max","median","std","variance","sqrt","abs","log","round","ceil","floor","sin","cos","tan","asin","acos","atan","mod","gcd","lcm"];
         const fnPattern = new RegExp(`\\b(${mathFns.join("|")})\\s*\\(`, "gi");
         const fnHits: { name: string; idx: number }[] = [];
         let fnMatch: RegExpExecArray | null;
