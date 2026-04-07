@@ -631,6 +631,10 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   if (/(nip.*มากสุด|มากสุด.*nip|nip.*เยอะสุด|nip.*top)/i.test(t)) {
     return "nip_by_record_top";
   }
+  // NIP report/summary: "NIP report summary", "NIP สรุป", "สรุป NIP"
+  if (/\bnip\b/i.test(t) && /(report|summary|สรุป|ภาพรวม|overview)/i.test(t)) {
+    return "nip_latest";
+  }
   // Machine offline: also "machine ไหน offline", "machine offline ตัวไหน"
   if (/(เครื่อง.*ออฟไลน์|ออฟไลน์กี่เครื่อง|offline\s*machines?|machines?\s*offline)/i.test(t) ||
       /(machine|เครื่อง).*(ไหน|ตัวไหน|กี่).*(offline|ออฟไลน์)/i.test(t) ||
@@ -727,7 +731,7 @@ function looksLikeDateTimeLikeQuery(text: string): boolean {
   if (/ignore\s+(previous|prior|all)\s+instructions|forget\s+(previous|prior|all)\s+instructions|disregard\s+(previous|prior|all)\s+instructions|call\s+\w+\s+tool\s+now/i.test(t)) return false;
   // IMPORTANT: use full word boundaries for EN tokens so words like "downtime" won't match "time".
   return (/(กี่โมง|ตอนนี้.*กี่โมง|บอกเวลา|เวลา(ตอนนี้|นี้|เท่าไหร่|อะไร|ไหน)|วันที่|วันอะไร|เดือนอะไร|ปีอะไร|\bnow\b|\btime\b|\bdate\b|\btoday\b)/i.test(t)
-    || /นับจาก.*ถึง.*อีกกี่วัน|เหลืออีกกี่วัน|อีกกี่วันถึง|สิ้นปีนี้เหลือ/i.test(t))
+    || /นับจาก.*ถึง.*อีกกี่วัน|เหลืออีกกี่วัน|อีกกี่วันถึง|กี่วันถึง|สิ้นปีนี้เหลือ/i.test(t))
     && t.length <= 120;
 }
 
@@ -735,14 +739,14 @@ function looksLikeDateTimeLikeQuery(text: string): boolean {
 function looksLikeHasTimeKeyword(text: string): boolean {
   const t = String(text || "");
   return (/(กี่โมง|ตอนนี้|บอกเวลา|เวลา|วันที่|วันอะไร|เดือนอะไร|ปีอะไร|\bnow\b|\btime\b|\bdate\b|\btoday\b)/i.test(t)
-    || /นับจาก.*ถึง.*อีกกี่วัน|เหลืออีกกี่วัน|อีกกี่วันถึง|สิ้นปีนี้เหลือ/i.test(t))
+    || /นับจาก.*ถึง.*อีกกี่วัน|เหลืออีกกี่วัน|อีกกี่วันถึง|กี่วันถึง|สิ้นปีนี้เหลือ/i.test(t))
     && t.length <= 120;
 }
 
 function looksLikeMathLikeQuery(text: string): boolean {
   const t = String(text || "");
   return /\d\s*[\+\-\*\/\^×÷]/.test(t) || /(แฟกทอเรียล|factorial|คำนวณ|calculate|บวก|ลบ|คูณ|หาร|อนุพันธ์|ปริพันธ์|อินทิเกรต|derivative|integral|integrate)/i.test(t)
-    || /\b(mean|sum|min|max|median|avg|average|sqrt|abs|log|round|ceil|floor)\s*\(/i.test(t)
+    || /\b(mean|sum|min|max|median|avg|average|sqrt|abs|log|round|ceil|floor|sin|cos|tan|asin|acos|atan)\s*\(/i.test(t)
     || /\d+\s*(องศา)?\s*(ฟาเรนไฮต์|fahrenheit|°F)\s*(เป็น|to|แปลง|convert)\s*(เซลเซียส|celsius|°C)/i.test(t)
     || /\d+\s*(องศา)?\s*(เซลเซียส|celsius|°C)\s*(เป็น|to|แปลง|convert)\s*(ฟาเรนไฮต์|fahrenheit|°F)/i.test(t)
     || /\d+(\.\d+)?\s*%\s*(ของ|of)\s*\d/i.test(t);
@@ -890,6 +894,10 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
     if (/ภาค.*ท่องเที่ยว/.test(t)) return "region_tourism_highlights";
     if (/ภาค.*(จังหวัด|ประกอบ|อะไรบ้าง)|จังหวัด.*ภาค(กลาง|เหนือ|ใต้|อีสาน|ตะวันออก|ตะวันตก|ตะวันออกเฉียงเหนือ)/.test(t)) return "region_to_provinces";
     if (/ภาค.*กี่จังหวัด/.test(t)) return "region_count";
+    // Phase 12: total province count in Thailand
+    if (/จำนวนจังหวัด|กี่จังหวัด.*ไทย|ไทย.*กี่จังหวัด|ประเทศไทย.*กี่จังหวัด|ทั้งหมดกี่จังหวัด/.test(t)) return "total_province_count";
+    // Phase 12: tambon count in amphoe
+    if (/กี่ตำบล|มี.*ตำบล.*อะไรบ้าง|ตำบล.*อะไรบ้าง/.test(t)) return "district_to_tambons";
     if (/(อยู่จังหวัด|จังหวัดอะไร|จังหวัดไหน)/.test(t)) return "city_to_province";
     if (/(อยู่ภาค|ภาคอะไร|ภาคไหน)/.test(t)) return "province_to_region";
     if (/มี.*อำเภอ|อำเภอ.*อะไรบ้าง|กี่อำเภอ/.test(t)) return "province_to_districts";
@@ -968,6 +976,26 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
     const r = REGION_DATA[regionMatch[1]]; if (r) { canonicalQuery = regionMatch[1]; text = `${r.name}ของประเทศไทยประกอบด้วย ${r.provinces.length} จังหวัด ได้แก่ ${r.provinces.join(" ")}`; }
   } else if (geoIntent === "region_count" && regionMatch) {
     const r = REGION_DATA[regionMatch[1]]; if (r) { canonicalQuery = regionMatch[1]; text = `${r.name}มี ${r.provinces.length} จังหวัด`; }
+  } else if (geoIntent === "total_province_count") {
+    // Phase 12: "จำนวนจังหวัดในประเทศไทย" / "ไทยมีกี่จังหวัด"
+    canonicalQuery = "ประเทศไทย";
+    text = "ประเทศไทยมี 77 จังหวัด (รวมกรุงเทพมหานคร) แบ่งเป็นภาคเหนือ 17, ภาคตะวันออกเฉียงเหนือ 20, ภาคกลาง 19, ภาคตะวันออก 7, ภาคใต้ 14 จังหวัด";
+  } else if (geoIntent === "district_to_tambons") {
+    // Phase 12: tambon count — provide general info since full tambon data is large
+    const place = placeMatch?.[1];
+    if (place) {
+      canonicalQuery = place;
+      // Provide known tambon counts for common districts
+      const AMPHOE_TAMBON_COUNT: Record<string, { amphoe: string; count: number; tambons?: string[] }> = {
+        "เชียงใหม่": { amphoe: "เมืองเชียงใหม่", count: 16, tambons: ["ศรีภูมิ","พระสิงห์","หายยา","ช้างม่อย","ช้างคลาน","วัดเกต","ช้างเผือก","สุเทพ","แม่เหียะ","ป่าแดด","หนองหอย","ท่าศาลา","หนองป่าครั่ง","ฟ้าฮ่าม","ป่าตัน","สันผีเสื้อ"] },
+      };
+      const info = AMPHOE_TAMBON_COUNT[place];
+      if (info) {
+        text = `อำเภอ${info.amphoe}มี ${info.count} ตำบล${info.tambons ? " ได้แก่ " + info.tambons.join(" ") : ""}`;
+      } else {
+        text = `ข้อมูลตำบลของอำเภอในจังหวัด${place} — กรุณาระบุชื่ออำเภอที่ต้องการทราบจำนวนตำบล เช่น "อำเภอเมืองเชียงใหม่มีกี่ตำบล"`;
+      }
+    }
   } else if (geoIntent === "city_to_province") {
     const place = placeMatch?.[1]; if (place) { canonicalQuery = place; const prov = CITY_PROVINCE[place]; if (prov) text = `${place}เป็นอำเภอ/เมืองในจังหวัด${prov} ${PROVINCE_REGION[prov] || ""}`; }
   } else if (geoIntent === "province_to_region") {
@@ -1046,8 +1074,13 @@ function renderGeneralSmokeAnswer(userText: string): string {
   const t = String(userText || "").trim();
 
   // Phase 11.4: Identity/greeting combo — "สวัสดี คุณชื่ออะไร", "สวัสดี AI คุณคือใคร"
-  if (/(ชื่ออะไร|คือใคร|who are you|what is your name|what are you|are you)/i.test(t)) {
+  if (/(ชื่ออะไร|คือใคร|เป็นใคร|who are you|what is your name|what are you|are you)/i.test(t)) {
     return "สวัสดีครับ ผมชื่อ Innova-bot เป็น AI ผู้ช่วยสำหรับระบบ InnoMCP ยินดีให้บริการครับ";
+  }
+
+  // Phase 12: Capability/help queries — must be BEFORE non-Thai fallback
+  if (/(ทำอะไรได้|ช่วยอะไรได้|ความสามารถ|what can you do|\bhelp\b|how can you help)/i.test(t)) {
+    return "ระบบนี้ช่วยได้หลายเรื่องครับ เช่น พยากรณ์อากาศ (weather), สถิติหลักฐานดิจิทัล (evidence), คำนวณ (calculator), ข้อมูล WorldBank (GDP/ประชากร), ภาพดาราศาสตร์ NASA, ค้นหา Internet Archive, ข้อมูลภูมิศาสตร์ไทย และอื่นๆ ลองถามได้เลยครับ";
   }
 
   // Low confidence / non-Thai fallback (phase10.5 deterministic behavior)
@@ -2789,7 +2822,7 @@ wss.on("connection", (ws, req) => {
         const weatherLike = looksLikeDeterministicWeatherQuery(routingMessage);
         // Exclude WorldBank/GDP queries from weatherGate — they contain Thai locations + years
         // which look weather-like but must reach the WorldBank gate at Phase 10.5.
-        const looksLikeWorldBankQuery = /worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร.*ประเทศ|population.*country/i.test(routingMessage);
+        const looksLikeWorldBankQuery = /worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร|\bpopulation\b|\binflation\b|เงินเฟ้อ|life\s*expectancy|อายุขัย/i.test(routingMessage);
         const allowWeatherGate = !looksLikeWorldBankQuery && (answerPlan.intent === "weather" || (!officerMode
           ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(routingMessage))
           : weatherLike && hasExplicitWeatherIntentKeywords(routingMessage)));
@@ -3072,10 +3105,10 @@ wss.on("connection", (ws, req) => {
         // Phase 10.5: API Tool Gate — WorldBank, NASA, QR (direct MCP tool calls)
         // Queries with explicit tool/API names bypass GeneralGate to use real tools.
         // =====================================
-        if (mcpClient && !looksLikeToolBypassAttempt(routingMessage) && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก|ประชากร.*ประเทศ|population.*country|เงินเฟ้อ.*ประเทศ|inflation.*country/i.test(routingMessage)) {
+        if (mcpClient && !looksLikeToolBypassAttempt(routingMessage) && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก|ประชากร|เงินเฟ้อ|\bpopulation\b|\binflation\b|life\s*expectancy|อายุขัย/i.test(routingMessage)) {
           const apiToolMatch = (() => {
             const t = routingMessage.toLowerCase();
-            if (/worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร.*ประเทศ|population.*country|inflation.*country|เงินเฟ้อ.*ประเทศ/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
+            if (/worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร|เงินเฟ้อ|\bpopulation\b|\binflation\b|life\s*expectancy|อายุขัย/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
             if (/nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
             if (/qr\s*code|qr\s*โค้ด|สร้าง\s*qr/i.test(t)) return { tool: "innomcp-server:qrCodeTool", gate: "QR" };
             return null;
@@ -4557,7 +4590,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     const geoLike = looksLikeDeterministicGeoQuery(routingMessage);
     const weatherLike = looksLikeDeterministicWeatherQuery(routingMessage);
-    const looksLikeWorldBankQueryHttp = /worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร.*ประเทศ|population.*country/i.test(routingMessage);
+    const looksLikeWorldBankQueryHttp = /worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร|\bpopulation\b|\binflation\b|เงินเฟ้อ|life\s*expectancy|อายุขัย/i.test(routingMessage);
     const allowWeatherGate = !looksLikeWorldBankQueryHttp && (answerPlan.intent === "weather" || (!officerMode
       ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(routingMessage))
       : weatherLike && hasExplicitWeatherIntentKeywords(routingMessage)));
@@ -4932,10 +4965,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     // Phase 10.5: API Tool Gate — WorldBank, NASA, QR (HTTP path)
     // =====================================
-    if (mcpClient && !looksLikeToolBypassAttempt(messageWithFile) && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก|ประชากร.*ประเทศ|population.*country|เงินเฟ้อ.*ประเทศ|inflation.*country/i.test(messageWithFile)) {
+    if (mcpClient && !looksLikeToolBypassAttempt(messageWithFile) && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก|ประชากร|เงินเฟ้อ|\bpopulation\b|\binflation\b|life\s*expectancy|อายุขัย/i.test(messageWithFile)) {
       const apiToolMatch = (() => {
         const t = messageWithFile.toLowerCase();
-        if (/worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร.*ประเทศ|population.*country|เงินเฟ้อ.*ประเทศ|inflation.*country/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
+        if (/worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร|เงินเฟ้อ|\bpopulation\b|\binflation\b|life\s*expectancy|อายุขัย/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
         if (/nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
         if (/qr\s*code|qr\s*โค้ด|สร้าง\s*qr/i.test(t)) return { tool: "innomcp-server:qrCodeTool", gate: "QR" };
         return null;
