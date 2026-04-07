@@ -742,7 +742,10 @@ function looksLikeHasTimeKeyword(text: string): boolean {
 function looksLikeMathLikeQuery(text: string): boolean {
   const t = String(text || "");
   return /\d\s*[\+\-\*\/\^×÷]/.test(t) || /(แฟกทอเรียล|factorial|คำนวณ|calculate|บวก|ลบ|คูณ|หาร|อนุพันธ์|ปริพันธ์|อินทิเกรต|derivative|integral|integrate)/i.test(t)
-    || /\b(mean|sum|min|max|median|avg|average|sqrt|abs|log|round|ceil|floor)\s*\(/i.test(t);
+    || /\b(mean|sum|min|max|median|avg|average|sqrt|abs|log|round|ceil|floor)\s*\(/i.test(t)
+    || /\d+\s*(องศา)?\s*(ฟาเรนไฮต์|fahrenheit|°F)\s*(เป็น|to|แปลง|convert)\s*(เซลเซียส|celsius|°C)/i.test(t)
+    || /\d+\s*(องศา)?\s*(เซลเซียส|celsius|°C)\s*(เป็น|to|แปลง|convert)\s*(ฟาเรนไฮต์|fahrenheit|°F)/i.test(t)
+    || /\d+(\.\d+)?\s*%\s*(ของ|of)\s*\d/i.test(t);
 }
 
 function looksLikeNewtonSymbolicQuery(text: string): boolean {
@@ -1041,6 +1044,11 @@ function renderGeneralFallbackMessage(): string {
 
 function renderGeneralSmokeAnswer(userText: string): string {
   const t = String(userText || "").trim();
+
+  // Phase 11.4: Identity/greeting combo — "สวัสดี คุณชื่ออะไร", "สวัสดี AI คุณคือใคร"
+  if (/(ชื่ออะไร|คือใคร|who are you|what is your name|what are you|are you)/i.test(t)) {
+    return "สวัสดีครับ ผมชื่อ Innova-bot เป็น AI ผู้ช่วยสำหรับระบบ InnoMCP ยินดีให้บริการครับ";
+  }
 
   // Low confidence / non-Thai fallback (phase10.5 deterministic behavior)
   if (!/[ก-ฮ]/.test(t)) {
@@ -2432,7 +2440,7 @@ wss.on("connection", (ws, req) => {
 
         const traceStartMs = Date.now();
         const historyAwareDirectAnswer = buildHistoryAwareFollowUpAnswer(messageWithFile, sessionHistory);
-        const evidenceAction = inferOfficerEvidenceAction(routingMessage);
+        let evidenceAction = inferOfficerEvidenceAction(routingMessage);
         const answerPlan = planAnswer(routingMessage);
         const planStr = answerPlan.steps.map((s) => s.name).join(",") || "none";
         const fallbackStr = answerPlan.steps.map((s) => s.fallback).join(",") || "none";
@@ -2456,6 +2464,17 @@ wss.on("connection", (ws, req) => {
           sessionHistory.push({ sender: "user", text: messageWithFile });
           sessionManager.addMessage(currentSessionId, "user", messageWithFile);
           sessionManager.startResponse(currentSessionId);
+
+          if (!evidenceAction) {
+            // Phase 11.4: Try to infer a reasonable default action instead of returning placeholder
+            const vagueSearch = /ค้นหา|ดึงข้อมูล|ข้อมูล.*ล่าสุด|search|fetch|latest/i.test(routingMessage);
+            const vagueStats = /สถิติ|ภาพรวม|summary|statistics|ประจำวัน/i.test(routingMessage);
+            if (vagueSearch) {
+              evidenceAction = "nip_latest";
+            } else if (vagueStats) {
+              evidenceAction = "evidence_records_today";
+            }
+          }
 
           if (!evidenceAction) {
             const placeholderText = "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)";
@@ -2770,7 +2789,7 @@ wss.on("connection", (ws, req) => {
         const weatherLike = looksLikeDeterministicWeatherQuery(routingMessage);
         // Exclude WorldBank/GDP queries from weatherGate — they contain Thai locations + years
         // which look weather-like but must reach the WorldBank gate at Phase 10.5.
-        const looksLikeWorldBankQuery = /worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก/i.test(routingMessage);
+        const looksLikeWorldBankQuery = /worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร.*ประเทศ|population.*country/i.test(routingMessage);
         const allowWeatherGate = !looksLikeWorldBankQuery && (answerPlan.intent === "weather" || (!officerMode
           ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(routingMessage))
           : weatherLike && hasExplicitWeatherIntentKeywords(routingMessage)));
@@ -3053,10 +3072,10 @@ wss.on("connection", (ws, req) => {
         // Phase 10.5: API Tool Gate — WorldBank, NASA, QR (direct MCP tool calls)
         // Queries with explicit tool/API names bypass GeneralGate to use real tools.
         // =====================================
-        if (mcpClient && !looksLikeToolBypassAttempt(routingMessage) && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก/i.test(routingMessage)) {
+        if (mcpClient && !looksLikeToolBypassAttempt(routingMessage) && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก|ประชากร.*ประเทศ|population.*country|เงินเฟ้อ.*ประเทศ|inflation.*country/i.test(routingMessage)) {
           const apiToolMatch = (() => {
             const t = routingMessage.toLowerCase();
-            if (/worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
+            if (/worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร.*ประเทศ|population.*country|inflation.*country|เงินเฟ้อ.*ประเทศ/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
             if (/nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
             if (/qr\s*code|qr\s*โค้ด|สร้าง\s*qr/i.test(t)) return { tool: "innomcp-server:qrCodeTool", gate: "QR" };
             return null;
@@ -3072,8 +3091,54 @@ wss.on("connection", (ws, req) => {
             // Infer tool arguments from query
             const toolArgs: any = (() => {
               if (apiToolMatch.gate === "WorldBank") {
-                const hasGrowth = /growth|เติบโต|อัตรา/i.test(messageWithFile);
-                return { country: "TH", indicator: hasGrowth ? "GDP_GROWTH" : "GDP" };
+                // Phase 11.4: Parse country + indicator from query (not hardcoded) — WS path
+                const wbMsg = messageWithFile;
+                const COUNTRY_MAP: Record<string, string> = {
+                  "ไทย": "TH", "thailand": "TH", "thai": "TH",
+                  "จีน": "CN", "china": "CN", "chinese": "CN",
+                  "ญี่ปุ่น": "JP", "japan": "JP", "japanese": "JP",
+                  "สหรัฐ": "US", "อเมริกา": "US", "usa": "US", "us": "US", "america": "US", "united states": "US",
+                  "อังกฤษ": "GB", "uk": "GB", "britain": "GB", "england": "GB",
+                  "เกาหลี": "KR", "korea": "KR", "south korea": "KR",
+                  "อินเดีย": "IN", "india": "IN",
+                  "เวียดนาม": "VN", "vietnam": "VN",
+                  "อินโดนีเซีย": "ID", "indonesia": "ID",
+                  "มาเลเซีย": "MY", "malaysia": "MY",
+                  "สิงคโปร์": "SG", "singapore": "SG",
+                  "ฟิลิปปินส์": "PH", "philippines": "PH",
+                  "เยอรมัน": "DE", "germany": "DE",
+                  "ฝรั่งเศส": "FR", "france": "FR",
+                  "บราซิล": "BR", "brazil": "BR",
+                  "รัสเซีย": "RU", "russia": "RU",
+                  "ออสเตรเลีย": "AU", "australia": "AU",
+                  "แคนาดา": "CA", "canada": "CA",
+                };
+                const wbLower = wbMsg.toLowerCase();
+                let country = "TH";
+                for (const [kw, code] of Object.entries(COUNTRY_MAP)) {
+                  if (wbLower.includes(kw)) { country = code; break; }
+                }
+                const hasPopulation = /population|ประชากร|จำนวนคน|จำนวนประชากร/i.test(wbMsg);
+                const hasGrowth = /growth|เติบโต|อัตรา/i.test(wbMsg);
+                const hasPerCapita = /per\s*capita|ต่อหัว|ต่อคน/i.test(wbMsg);
+                const hasInflation = /inflation|เงินเฟ้อ/i.test(wbMsg);
+                const hasUnemployment = /unemployment|ว่างงาน|การว่างงาน/i.test(wbMsg);
+                const hasLifeExpectancy = /life\s*expectancy|อายุขัย/i.test(wbMsg);
+                let indicator = "GDP";
+                if (hasPopulation) indicator = "POPULATION";
+                else if (hasPerCapita) indicator = "GDP_PER_CAPITA";
+                else if (hasGrowth) indicator = "GDP_GROWTH";
+                else if (hasInflation) indicator = "INFLATION";
+                else if (hasUnemployment) indicator = "UNEMPLOYMENT";
+                else if (hasLifeExpectancy) indicator = "LIFE_EXPECTANCY";
+                const yearMatch = wbMsg.match(/(?:ปี|year)\s*(\d{4})/i) || wbMsg.match(/\b(20\d{2}|19\d{2})\b/);
+                const args: any = { country, indicator };
+                if (yearMatch) {
+                  const yr = parseInt(yearMatch[1]);
+                  args.startYear = yr;
+                  args.endYear = yr;
+                }
+                return args;
               }
               if (apiToolMatch.gate === "NASA") {
                 const hasRandom = /random|สุ่ม/i.test(messageWithFile);
@@ -3106,7 +3171,39 @@ wss.on("connection", (ws, req) => {
 
               // Try direct rendering first (QR/NASA image bypass)
               const direct = renderStructuredDirect(apiToolMatch.tool.split(":").pop() || "", sc, messageWithFile);
-              const textOut = direct ? direct.text : (typeof sc === "string" ? sc : (unwrapMcpContentText(sc) || `ได้รับข้อมูลจาก ${apiToolMatch.gate} แล้วครับ`));
+              // Phase 11.4: Archive gate — parse raw JSON into readable text (WS path)
+              let textOut: string;
+              if (direct) {
+                textOut = direct.text;
+              } else if (typeof sc === "string") {
+                textOut = sc;
+              } else if (apiToolMatch.gate === "Archive") {
+                try {
+                  const parsed = typeof sc === "string" ? JSON.parse(sc) : sc;
+                  const contentText = unwrapMcpContentText(sc);
+                  if (contentText && !contentText.startsWith("{") && !contentText.startsWith("[")) {
+                    textOut = contentText;
+                  } else {
+                    const raw = contentText ? JSON.parse(contentText) : parsed;
+                    const docs = raw?.response?.docs || raw?.docs || (Array.isArray(raw) ? raw : null);
+                    if (docs && Array.isArray(docs) && docs.length > 0) {
+                      const items = docs.slice(0, 5).map((d: any, i: number) => {
+                        const title = d.title || d.identifier || "ไม่ทราบชื่อ";
+                        const desc = d.description ? (typeof d.description === "string" ? d.description : d.description[0]) : "";
+                        const url = d.identifier ? `https://archive.org/details/${d.identifier}` : "";
+                        return `${i + 1}. ${title}${desc ? " — " + desc.slice(0, 100) : ""}${url ? "\n   " + url : ""}`;
+                      }).join("\n");
+                      textOut = `ผลการค้นหาจาก Internet Archive:\n${items}`;
+                    } else {
+                      textOut = `ได้รับข้อมูลจาก Archive แล้วครับ: ${JSON.stringify(raw).slice(0, 300)}`;
+                    }
+                  }
+                } catch {
+                  textOut = unwrapMcpContentText(sc) || `ได้รับข้อมูลจาก ${apiToolMatch.gate} แล้วครับ`;
+                }
+              } else {
+                textOut = unwrapMcpContentText(sc) || `ได้รับข้อมูลจาก ${apiToolMatch.gate} แล้วครับ`;
+              }
               const scOut = withRenderMeta(
                 direct ? direct.structuredContent : sc,
                 { route: apiToolMatch.gate.toLowerCase() as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.5" },
@@ -3174,6 +3271,35 @@ wss.on("connection", (ws, req) => {
         // =====================================
         if (looksLikeMathLikeQuery(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage)) {
           try {
+            // Phase 11.4: Temperature conversion — intercept before general math (WS)
+            const tempF2C = routingMessage.match(/(\d+(?:\.\d+)?)\s*(?:องศา)?\s*(?:ฟาเรนไฮต์|fahrenheit|°F)\s*(?:เป็น|to|แปลง|convert)\s*(?:เซลเซียส|celsius|°C)/i);
+            const tempC2F = routingMessage.match(/(\d+(?:\.\d+)?)\s*(?:องศา)?\s*(?:เซลเซียส|celsius|°C)\s*(?:เป็น|to|แปลง|convert)\s*(?:ฟาเรนไฮต์|fahrenheit|°F)/i);
+            if (tempF2C || tempC2F) {
+              const inputVal = parseFloat((tempF2C || tempC2F)![1]);
+              const converted = tempF2C ? ((inputVal - 32) * 5 / 9) : (inputVal * 9 / 5 + 32);
+              const rounded = Math.round(converted * 100) / 100;
+              const fromUnit = tempF2C ? "°F" : "°C";
+              const toUnit = tempF2C ? "°C" : "°F";
+              const textOut = `ผลลัพธ์: ${inputVal}${fromUnit} = ${rounded}${toUnit}`;
+              const scOut = withRenderMeta(
+                { calculatorGate: { expression: `${inputVal}${fromUnit} → ${toUnit}`, result: `${rounded}${toUnit}` } },
+                { route: "calculator" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.4" },
+                ["calculatorTool"]
+              );
+              sessionHistory.push({ sender: "user", text: messageWithFile });
+              sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+              sessionManager.startResponse(currentSessionId);
+              const aiMsg: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["calculatorTool"] };
+              sessionHistory.push(aiMsg);
+              sessionManager.addMessage(currentSessionId, "assistant", textOut, ["calculatorTool"]);
+              sessionManager.completeResponse(currentSessionId);
+              sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["calculatorTool"] });
+              sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["calculatorTool"] });
+              sendDoneOnce();
+              chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "calculator", tool: "calculatorTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut });
+              return;
+            }
+
             // Phase 11.3: Normalize function-style math before stripping
             let exprRaw = routingMessage
               .replace(/(คำนวณ|calculate|compute|คิดเลข|เท่าไร|เท่าไหร่|ผลลัพธ์|ผลคือ|result|equals)/gi, "")
@@ -3186,6 +3312,13 @@ wss.on("connection", (ws, req) => {
               .replace(/\baverage\b/gi, "mean")
               .replace(/\bavg\b/gi, "mean")
               .trim();
+            // Phase 11.4: Convert "X% ของ Y" / "X% of Y" → "(X/100)*Y"
+            const pctOfMatch = exprRaw.match(/(\d+(?:\.\d+)?)\s*%\s*(?:ของ|of)\s*(\d[\d,]*(?:\.\d+)?)/i);
+            if (pctOfMatch) {
+              const pctVal = pctOfMatch[1];
+              const baseVal = pctOfMatch[2].replace(/,/g, "");
+              exprRaw = `(${pctVal}/100)*${baseVal}`;
+            }
             const mathFns = ["mean","sum","min","max","median","std","variance","sqrt","abs","log","round","ceil","floor","mod","gcd","lcm"];
             const fnPattern = new RegExp(`\\b(${mathFns.join("|")})\\s*\\(`, "gi");
             const fnHits: { name: string; idx: number }[] = [];
@@ -3328,7 +3461,27 @@ wss.on("connection", (ws, req) => {
               { [archiveToolName]: archiveParams }
             );
             const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
-            const rawText = first?.content?.[0]?.text || String(first?.result || "");
+            let rawText = first?.content?.[0]?.text || "";
+            // Phase 11.4: Archive result parsing (WS)
+            if (!rawText && first?.result) {
+              try {
+                const resultObj = typeof first.result === "string" ? JSON.parse(first.result) : first.result;
+                const docs = resultObj?.response?.docs || resultObj?.docs || (Array.isArray(resultObj) ? resultObj : null);
+                if (docs && Array.isArray(docs) && docs.length > 0) {
+                  const items = docs.slice(0, 5).map((d: any, i: number) => {
+                    const title = d.title || d.identifier || "ไม่ทราบชื่อ";
+                    const desc = d.description ? (typeof d.description === "string" ? d.description : d.description[0]) : "";
+                    const url = d.identifier ? `https://archive.org/details/${d.identifier}` : "";
+                    return `${i + 1}. ${title}${desc ? " — " + String(desc).slice(0, 100) : ""}${url ? "\n   " + url : ""}`;
+                  }).join("\n");
+                  rawText = `ผลการค้นหาจาก Internet Archive:\n${items}`;
+                } else {
+                  rawText = `ได้รับข้อมูลจาก Archive: ${JSON.stringify(resultObj).slice(0, 300)}`;
+                }
+              } catch {
+                rawText = String(first.result || "").slice(0, 300);
+              }
+            }
             if (rawText && !rawText.includes('"success":false') && first?.success !== false) {
               const textOut = rawText;
               const scOut = withRenderMeta(
@@ -4171,7 +4324,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     const traceStartMs = Date.now();
     // Use enrichedMessage for routing/planning when it differs from raw message
     const routingMessage = enrichedMessage !== messageWithFile ? enrichedMessage : messageWithFile;
-    const evidenceAction = inferOfficerEvidenceAction(routingMessage);
+    let evidenceAction = inferOfficerEvidenceAction(routingMessage);
     const answerPlan = planAnswer(routingMessage);
     const historyAwareDirectAnswer = buildHistoryAwareFollowUpAnswer(messageWithFile, sessionHistory);
     const planStr = answerPlan.steps.map((s) => s.name).join(",") || "none";
@@ -4237,6 +4390,18 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     if (mcpClient && (evidenceAction || answerPlan.intent === "evidence")) {
       logBoth("info", `[EvidenceFastPath] deterministicEvidence=true transport=http action=${evidenceAction} uiMode=${uiMode}`);
+
+      if (!evidenceAction) {
+        // Phase 11.4: Try to infer a reasonable default action instead of returning placeholder
+        // Vague evidence queries → try nip_latest as a sensible default
+        const vagueSearch = /ค้นหา|ดึงข้อมูล|ข้อมูล.*ล่าสุด|search|fetch|latest/i.test(routingMessage);
+        const vagueStats = /สถิติ|ภาพรวม|summary|statistics|ประจำวัน/i.test(routingMessage);
+        if (vagueSearch) {
+          evidenceAction = "nip_latest";
+        } else if (vagueStats) {
+          evidenceAction = "evidence_records_today";
+        }
+      }
 
       if (!evidenceAction) {
         const textOut = "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)";
@@ -4392,7 +4557,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     const geoLike = looksLikeDeterministicGeoQuery(routingMessage);
     const weatherLike = looksLikeDeterministicWeatherQuery(routingMessage);
-    const looksLikeWorldBankQueryHttp = /worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก/i.test(routingMessage);
+    const looksLikeWorldBankQueryHttp = /worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร.*ประเทศ|population.*country/i.test(routingMessage);
     const allowWeatherGate = !looksLikeWorldBankQueryHttp && (answerPlan.intent === "weather" || (!officerMode
       ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(routingMessage))
       : weatherLike && hasExplicitWeatherIntentKeywords(routingMessage)));
@@ -4767,10 +4932,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     // Phase 10.5: API Tool Gate — WorldBank, NASA, QR (HTTP path)
     // =====================================
-    if (mcpClient && !looksLikeToolBypassAttempt(messageWithFile) && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก/i.test(messageWithFile)) {
+    if (mcpClient && !looksLikeToolBypassAttempt(messageWithFile) && /worldbank|world\s*bank|เวิลด์แบงก์|nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ|qr\s*code|สร้าง\s*qr|\bgdp\b|ธนาคารโลก|ประชากร.*ประเทศ|population.*country|เงินเฟ้อ.*ประเทศ|inflation.*country/i.test(messageWithFile)) {
       const apiToolMatch = (() => {
         const t = messageWithFile.toLowerCase();
-        if (/worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
+        if (/worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร.*ประเทศ|population.*country|เงินเฟ้อ.*ประเทศ|inflation.*country/.test(t)) return { tool: "innomcp-server:worldbank", gate: "WorldBank" };
         if (/nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ/.test(t)) return { tool: "innomcp-server:nasa", gate: "NASA" };
         if (/qr\s*code|qr\s*โค้ด|สร้าง\s*qr/i.test(t)) return { tool: "innomcp-server:qrCodeTool", gate: "QR" };
         return null;
@@ -4781,8 +4946,57 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         try {
           const toolArgs: any = (() => {
             if (apiToolMatch.gate === "WorldBank") {
-              const hasGrowth = /growth|เติบโต|อัตรา/i.test(messageWithFile);
-              return { country: "TH", indicator: hasGrowth ? "GDP_GROWTH" : "GDP" };
+              // Phase 11.4: Parse country + indicator from query (not hardcoded)
+              const wbMsg = messageWithFile;
+              // Country extraction
+              const COUNTRY_MAP: Record<string, string> = {
+                "ไทย": "TH", "thailand": "TH", "thai": "TH",
+                "จีน": "CN", "china": "CN", "chinese": "CN",
+                "ญี่ปุ่น": "JP", "japan": "JP", "japanese": "JP",
+                "สหรัฐ": "US", "อเมริกา": "US", "usa": "US", "us": "US", "america": "US", "united states": "US",
+                "อังกฤษ": "GB", "uk": "GB", "britain": "GB", "england": "GB",
+                "เกาหลี": "KR", "korea": "KR", "south korea": "KR",
+                "อินเดีย": "IN", "india": "IN",
+                "เวียดนาม": "VN", "vietnam": "VN",
+                "อินโดนีเซีย": "ID", "indonesia": "ID",
+                "มาเลเซีย": "MY", "malaysia": "MY",
+                "สิงคโปร์": "SG", "singapore": "SG",
+                "ฟิลิปปินส์": "PH", "philippines": "PH",
+                "เยอรมัน": "DE", "germany": "DE",
+                "ฝรั่งเศส": "FR", "france": "FR",
+                "บราซิล": "BR", "brazil": "BR",
+                "รัสเซีย": "RU", "russia": "RU",
+                "ออสเตรเลีย": "AU", "australia": "AU",
+                "แคนาดา": "CA", "canada": "CA",
+              };
+              const wbLower = wbMsg.toLowerCase();
+              let country = "TH"; // default
+              for (const [kw, code] of Object.entries(COUNTRY_MAP)) {
+                if (wbLower.includes(kw)) { country = code; break; }
+              }
+              // Indicator extraction
+              const hasPopulation = /population|ประชากร|จำนวนคน|จำนวนประชากร/i.test(wbMsg);
+              const hasGrowth = /growth|เติบโต|อัตรา/i.test(wbMsg);
+              const hasPerCapita = /per\s*capita|ต่อหัว|ต่อคน/i.test(wbMsg);
+              const hasInflation = /inflation|เงินเฟ้อ/i.test(wbMsg);
+              const hasUnemployment = /unemployment|ว่างงาน|การว่างงาน/i.test(wbMsg);
+              const hasLifeExpectancy = /life\s*expectancy|อายุขัย/i.test(wbMsg);
+              let indicator = "GDP";
+              if (hasPopulation) indicator = "POPULATION";
+              else if (hasPerCapita) indicator = "GDP_PER_CAPITA";
+              else if (hasGrowth) indicator = "GDP_GROWTH";
+              else if (hasInflation) indicator = "INFLATION";
+              else if (hasUnemployment) indicator = "UNEMPLOYMENT";
+              else if (hasLifeExpectancy) indicator = "LIFE_EXPECTANCY";
+              // Year extraction
+              const yearMatch = wbMsg.match(/(?:ปี|year)\s*(\d{4})/i) || wbMsg.match(/\b(20\d{2}|19\d{2})\b/);
+              const args: any = { country, indicator };
+              if (yearMatch) {
+                const yr = parseInt(yearMatch[1]);
+                args.startYear = yr;
+                args.endYear = yr;
+              }
+              return args;
             }
             if (apiToolMatch.gate === "NASA") {
               const hasRandom = /random|สุ่ม/i.test(messageWithFile);
@@ -4809,7 +5023,41 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
           const sc = first?.structuredContent ?? first?.result ?? {};
           const direct = renderStructuredDirect(apiToolMatch.tool.split(":").pop() || "", sc, messageWithFile);
-          const textOut = direct ? direct.text : (typeof sc === "string" ? sc : (unwrapMcpContentText(sc) || `ได้รับข้อมูลจาก ${apiToolMatch.gate} แล้วครับ`));
+          // Phase 11.4: Archive gate — parse raw JSON into readable text
+          let textOut: string;
+          if (direct) {
+            textOut = direct.text;
+          } else if (typeof sc === "string") {
+            textOut = sc;
+          } else if (apiToolMatch.gate === "Archive") {
+            // Archive tool returns JSON with docs array or similar structures
+            try {
+              const parsed = typeof sc === "string" ? JSON.parse(sc) : sc;
+              const contentText = unwrapMcpContentText(sc);
+              if (contentText && !contentText.startsWith("{") && !contentText.startsWith("[")) {
+                textOut = contentText;
+              } else {
+                // Try to extract docs from Archive response
+                const raw = contentText ? JSON.parse(contentText) : parsed;
+                const docs = raw?.response?.docs || raw?.docs || (Array.isArray(raw) ? raw : null);
+                if (docs && Array.isArray(docs) && docs.length > 0) {
+                  const items = docs.slice(0, 5).map((d: any, i: number) => {
+                    const title = d.title || d.identifier || "ไม่ทราบชื่อ";
+                    const desc = d.description ? (typeof d.description === "string" ? d.description : d.description[0]) : "";
+                    const url = d.identifier ? `https://archive.org/details/${d.identifier}` : "";
+                    return `${i + 1}. ${title}${desc ? " — " + desc.slice(0, 100) : ""}${url ? "\n   " + url : ""}`;
+                  }).join("\n");
+                  textOut = `ผลการค้นหาจาก Internet Archive:\n${items}`;
+                } else {
+                  textOut = `ได้รับข้อมูลจาก Archive แล้วครับ: ${JSON.stringify(raw).slice(0, 300)}`;
+                }
+              }
+            } catch {
+              textOut = unwrapMcpContentText(sc) || `ได้รับข้อมูลจาก ${apiToolMatch.gate} แล้วครับ`;
+            }
+          } else {
+            textOut = unwrapMcpContentText(sc) || `ได้รับข้อมูลจาก ${apiToolMatch.gate} แล้วครับ`;
+          }
           const scOut = withRenderMeta(
             direct ? direct.structuredContent : sc,
             { route: apiToolMatch.gate.toLowerCase() as any, llmUsed: false, routeDecider: "deterministic", version: "phase10.5" },
@@ -4832,6 +5080,28 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // =====================================
     if (looksLikeMathLikeQuery(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage)) {
       try {
+        // Phase 11.4: Temperature conversion — intercept before general math
+        const tempF2C = routingMessage.match(/(\d+(?:\.\d+)?)\s*(?:องศา)?\s*(?:ฟาเรนไฮต์|fahrenheit|°F)\s*(?:เป็น|to|แปลง|convert)\s*(?:เซลเซียส|celsius|°C)/i);
+        const tempC2F = routingMessage.match(/(\d+(?:\.\d+)?)\s*(?:องศา)?\s*(?:เซลเซียส|celsius|°C)\s*(?:เป็น|to|แปลง|convert)\s*(?:ฟาเรนไฮต์|fahrenheit|°F)/i);
+        if (tempF2C || tempC2F) {
+          const inputVal = parseFloat((tempF2C || tempC2F)![1]);
+          const converted = tempF2C
+            ? ((inputVal - 32) * 5 / 9)
+            : (inputVal * 9 / 5 + 32);
+          const rounded = Math.round(converted * 100) / 100;
+          const fromUnit = tempF2C ? "°F" : "°C";
+          const toUnit = tempF2C ? "°C" : "°F";
+          const textOut = `ผลลัพธ์: ${inputVal}${fromUnit} = ${rounded}${toUnit}`;
+          const scOut = withRenderMeta(
+            { calculatorGate: { expression: `${inputVal}${fromUnit} → ${toUnit}`, result: `${rounded}${toUnit}` } },
+            { route: "calculator" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.4" },
+            ["calculatorTool"]
+          );
+          sessionHistory.push({ sender: "ai", text: textOut } as any);
+          chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "calculator", tool: "calculatorTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut });
+          return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: false, mcpResults: null, toolsUsed: ["calculatorTool"] });
+        }
+
         // Phase 11.3: Normalize function-style math before stripping
         // Convert avg/average → mean (mathjs native), preserve [] brackets as ()
         let exprRaw = routingMessage
@@ -4845,6 +5115,13 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           .replace(/\baverage\b/gi, "mean")
           .replace(/\bavg\b/gi, "mean")
           .trim();
+        // Phase 11.4: Convert "X% ของ Y" / "X% of Y" → "(X/100)*Y"
+        const pctOfMatch = exprRaw.match(/(\d+(?:\.\d+)?)\s*%\s*(?:ของ|of)\s*(\d[\d,]*(?:\.\d+)?)/i);
+        if (pctOfMatch) {
+          const pctVal = pctOfMatch[1];
+          const baseVal = pctOfMatch[2].replace(/,/g, "");
+          exprRaw = `(${pctVal}/100)*${baseVal}`;
+        }
         // Preserve mathjs function names: extract them, replace with placeholders, strip non-math, restore
         const mathFns = ["mean","sum","min","max","median","std","variance","sqrt","abs","log","round","ceil","floor","mod","gcd","lcm"];
         const fnPattern = new RegExp(`\\b(${mathFns.join("|")})\\s*\\(`, "gi");
@@ -4999,7 +5276,31 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           { [archiveToolName]: archiveParams }
         );
         const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
-        const rawText = first?.content?.[0]?.text || String(first?.result || "");
+        let rawText = first?.content?.[0]?.text || "";
+        // Phase 11.4: If rawText is empty but result is an object, try to extract Archive docs
+        if (!rawText && first?.result) {
+          try {
+            const resultObj = typeof first.result === "string" ? JSON.parse(first.result) : first.result;
+            const docs = resultObj?.response?.docs || resultObj?.docs || resultObj?.results || (Array.isArray(resultObj) ? resultObj : null);
+            if (docs && Array.isArray(docs) && docs.length > 0) {
+              const items = docs.slice(0, 5).map((d, i) => {
+                const title = d.title || d.identifier || "ไม่ทราบชื่อ";
+                const desc = d.description ? (typeof d.description === "string" ? d.description : d.description[0]) : "";
+                const url = d.identifier ? `https://archive.org/details/${d.identifier}` : "";
+                return `${i + 1}. ${title}${desc ? " — " + (desc).slice(0, 100) : ""}${url ? "\n   " + url : ""}`;
+              }).join("\n");
+              rawText = `ผลการค้นหาจาก Internet Archive:\n${items}`;
+            } else if (resultObj?.message) {
+              rawText = `Internet Archive: ${resultObj.message}`;
+            } else if (resultObj?.totalFound === 0) {
+              rawText = `ไม่พบผลลัพธ์จาก Internet Archive สำหรับคำค้นหานี้ ลองใช้คำค้นหาเป็นภาษาอังกฤษครับ`;
+            } else {
+              rawText = `ได้รับข้อมูลจาก Archive: ${JSON.stringify(resultObj).slice(0, 300)}`;
+            }
+          } catch {
+            rawText = String(first.result || "").slice(0, 300);
+          }
+        }
         if (rawText && !rawText.includes('"success":false') && first?.success !== false) {
           const textOut = rawText;
           const scOut = withRenderMeta(

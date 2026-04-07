@@ -994,3 +994,14 @@
 
 ## Sentinel Heartbeat
 - Phase 45 Multi-IDE Sentinel heartbeat: verified `2026-03-31`
+- [ ] [Ghost Coder] pytest failure (attempt 1):
+```
+/usr/local/bin/python: No module named pytest
+```
+- [ ] [Ghost Coder] pytest failure (attempt 2):
+```
+/usr/local/bin/python: No module named pytest
+```
+
+## Sentinel Heartbeat
+- Phase 45 Multi-IDE Sentinel heartbeat: verified `2026-04-01`
