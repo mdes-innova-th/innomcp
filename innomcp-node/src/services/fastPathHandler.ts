@@ -16,6 +16,34 @@ import { checkRateLimit, buildRateLimitKey } from "../fastpath/rateLimit";
  * - Optional: enrich greeting/keywords from external JSON file or local HTTP endpoint
  */
 
+/**
+ * Convert bare trig calls to use degree units for mathjs.
+ * Users typing sin(90), cos(0), tan(45) expect degrees, not radians.
+ * If the expression already contains "deg"/"rad"/"pi", leave it as-is.
+ * Example: "sin(90)" -> "sin(90 deg)"  |  "sin(pi/2)" -> unchanged
+ */
+export function trigToDeg(expr: string): string {
+  if (/\b(deg|rad)\b/i.test(expr) || /\bpi\b/i.test(expr)) return expr;
+  return expr.replace(/\b(sin|cos|tan|asin|acos|atan)\s*\(([^)]+)\)/gi, (_, fn, arg) => {
+    const trimmed = arg.trim();
+    // Only convert if the argument is a plain number (possibly negative)
+    if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
+      return `${fn}(${trimmed} deg)`;
+    }
+    return `${fn}(${trimmed})`;
+  });
+}
+
+/**
+ * Clean up floating-point display artifacts.
+ * e.g. 0.9999999999999999 → 1, 2.0000000000000004 → 2
+ */
+export function cleanFloat(val: number): string {
+  const rounded = Math.round(val * 1e10) / 1e10;
+  if (Number.isInteger(rounded)) return String(rounded);
+  return String(rounded);
+}
+
 export type FastPathMode = "off" | "on";
 
 export interface FastPathHandlerOptions {
@@ -239,16 +267,16 @@ export async function handleFastPathMessage(
   // 1. Math (Strict Regex)
   // Only allow numbers, operators, parentheses, and math functions common in mathjs
   // (sin|cos|tan|sqrt|log|exp|pow|abs|pi|e)
-  if (/^[\d+\-*/().\s%^]+$|^(sin|cos|tan|sqrt|log|exp|pow|abs|pi|e)[\d\W]+$/i.test(q)) {
+  if (/^[\d+\-*/().\s%^]+$|^(sin|cos|tan|sqrt|log|exp|pow|abs|pi|e|gcd|lcm|std|mean|median|sum|min|max|mod|variance)[\d\W]+$/i.test(q)) {
       try {
           // Dynamic import to avoid load time if not needed (or require if CommonJS)
           // We can use the installed 'mathjs'
           const { evaluate } = require('mathjs'); 
-          const result = evaluate(q);
+          const result = evaluate(trigToDeg(q));
           
           if (typeof result === 'number' || (result && result.type === 'Complex')) {
               const latencyMs = Math.round(performance.now() - start);
-              const responseText = `${result}`;
+              const responseText = typeof result === 'number' ? cleanFloat(result) : `${result}`;
               
               await respond({
                   text: responseText,
@@ -722,12 +750,13 @@ export async function tryFastPathWebSocket(
   // ===== TRIG FUNCTIONS (sin/cos/tan with "deg" support) =====
   // Example: "sin(30 deg) + cos(60 deg)" -> 1.0
   // Phase 12.1: Use String(val) for full precision — parity with HTTP calculator gate
+  // Phase 12.2: Auto-convert bare trig(N) to degrees for user expectation
   if (/\b(sin|cos|tan|asin|acos|atan)\s*\(/i.test(text) && /\d/.test(text) && text.length <= 120) {
     try {
-      const result = evaluate(text);
+      const result = evaluate(trigToDeg(text));
       const val = typeof result === "number" ? result : (result && typeof result.toNumber === "function" ? result.toNumber() : null);
       if (val !== null) {
-        const valText = String(val);
+        const valText = cleanFloat(val);
         return sendAiText("trig", `ผลลัพธ์: ${text.trim()} = ${valText}`);
       }
     } catch {

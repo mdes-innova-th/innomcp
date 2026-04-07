@@ -725,7 +725,7 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
 /** Build a 1-2 line summary for multi-province regional queries */
 function buildRegionalSummary(userText: string, grouped: Map<string, WeatherResult[]>): string | null {
   // Detect region name from user text
-  const regionMatch = (userText || "").match(/ภาค(กลาง|เหนือ|ใต้|ตะวันออก|ตะวันตก|อีสาน|ตะวันออกเฉียงเหนือ)/);
+  const regionMatch = (userText || "").match(/ภาค(ตะวันออกเฉียงเหนือ|กลาง|เหนือ|ใต้|ตะวันออก|ตะวันตก|อีสาน)/);
   if (!regionMatch && grouped.size <= 1) return null;
 
   const regionName = regionMatch ? `ภาค${regionMatch[1]}` : "";

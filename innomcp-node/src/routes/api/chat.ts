@@ -24,6 +24,7 @@ import reportRouter from "./chat/report";
 import { optionalAuth } from "../../utils/jwt";
 import { guestLimiterMiddleware, getLimitsForUser, checkToolAccess, limitResponseLength } from "../../middleware/guestLimiter";
 import { tryFastPathWebSocket } from "../../services/fastPathHandler";
+import { trigToDeg, cleanFloat } from "../../services/fastPathHandler";
 import { renderWeatherMarkdownTable } from "../../utils/weather/tableRenderer";
 import { renderWeatherContractAnswer } from "../../utils/weather/answerContract";
 import { sanitizeForTraceV3, normalizeTraceAnswerV3ByRoute } from "../../utils/traceSanitizer";
@@ -271,7 +272,7 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
   const hasStationType = /สถานีผิวพื้น|สถานีอุทก|สถานีเกษตร|surface\s*station|hydro\s*station|agro\s*station|\bsynop\b|\bhydro\b|\bagro\b/i.test(t);
 
   // Regional/national weather summaries
-  const hasRegionWeather = /(ภาคกลาง|ภาคเหนือ|ภาคอีสาน|ภาคใต้|ภาคตะวันออก|ภาคตะวันตก|ภาคตะวันออกเฉียงเหนือ).*(อากาศ|ฝน|อุณหภูมิ|ความชื้น|พยากรณ์)|(อากาศ|ฝน|พยากรณ์).*(ภาคกลาง|ภาคเหนือ|ภาคอีสาน|ภาคใต้)/i.test(t);
+  const hasRegionWeather = /(ภาคตะวันออกเฉียงเหนือ|ภาคกลาง|ภาคเหนือ|ภาคอีสาน|ภาคใต้|ภาคตะวันออก|ภาคตะวันตก).*(อากาศ|ฝน|อุณหภูมิ|ความชื้น|พยากรณ์)|(อากาศ|ฝน|พยากรณ์).*(ภาคกลาง|ภาคเหนือ|ภาคอีสาน|ภาคใต้)/i.test(t);
 
   // Water level / flood hydrology queries
   const hasHydroWater = /น้ำ.*(ขึ้น|ลง|ท่วม|หลาก|ระดับ)|ระดับน้ำ|น้ำท่วม|ปริมาณน้ำ|ปริมาณฝน/i.test(t);
@@ -710,7 +711,7 @@ function looksLikeEvidenceKeywordQuery(text: string): boolean {
 }
 
 function looksLikeGeoLikeQuery(text: string): boolean {
-  return /(เขต|แขวง|อำเภอ|ตำบล|รหัสไปรษณีย์|postcode|อยู่ที่ไหน|อยู่ตรงไหน|แถวไหน|พิกัด|lat\b|lon\b|ละติจูด|ลองจิจูด)/i.test(String(text || ""));
+  return /(เขต|แขวง|อำเภอ|ตำบล|รหัสไปรษณีย์|postcode|อยู่ที่ไหน|อยู่ตรงไหน|แถวไหน|พิกัด|lat\b|latitude|lon\b|longitude|ละติจูด|ลองจิจูด)/i.test(String(text || ""));
 }
 
 function prefersThaiKnowledgeRoute(text: string): boolean {
@@ -718,7 +719,7 @@ function prefersThaiKnowledgeRoute(text: string): boolean {
   if (/(ประเทศไทย|thai|thailand|ประวัติศาสตร์|กฎหมาย|ศาสนา|วัฒนธรรม|ภูมิศาสตร์)/i.test(t)) return true;
 
   const hasGeoEntity = /(จังหวัด|อำเภอ|ตำบล|ภาค)/i.test(t);
-  const hasKnowledgeIntent = /(อยู่ภาค|ภาคอะไร|มีกี่|มี.*อะไรบ้าง|ข้อมูล|ความรู้|รายละเอียด|สำคัญ|คืออะไร|คืออะไรบ้าง|อะไรบ้าง|ประกอบด้วย|อยู่จังหวัด|กี่จังหวัด|กี่อำเภอ)/i.test(t);
+  const hasKnowledgeIntent = /(อยู่ภาค|ภาคอะไร|มีกี่|มี.*อะไรบ้าง|ข้อมูล|ความรู้|รายละเอียด|สำคัญ|คืออะไร|คืออะไรบ้าง|อะไรบ้าง|ประกอบด้วย|กี่จังหวัด|กี่อำเภอ)/i.test(t);
   return hasGeoEntity && hasKnowledgeIntent;
 }
 
@@ -746,7 +747,7 @@ function looksLikeHasTimeKeyword(text: string): boolean {
 function looksLikeMathLikeQuery(text: string): boolean {
   const t = String(text || "");
   return /\d\s*[\+\-\*\/\^×÷]/.test(t) || /(แฟกทอเรียล|factorial|คำนวณ|calculate|บวก|ลบ|คูณ|หาร|อนุพันธ์|ปริพันธ์|อินทิเกรต|derivative|integral|integrate)/i.test(t)
-    || /\b(mean|sum|min|max|median|avg|average|sqrt|abs|log|round|ceil|floor|sin|cos|tan|asin|acos|atan)\s*\(/i.test(t)
+    || /\b(mean|sum|min|max|median|avg|average|sqrt|abs|log|round|ceil|floor|sin|cos|tan|asin|acos|atan|mod|gcd|lcm|std|variance)\s*\(/i.test(t)
     || /\d+\s*(องศา)?\s*(ฟาเรนไฮต์|fahrenheit|°F)\s*(เป็น|to|แปลง|convert)\s*(เซลเซียส|celsius|°C)/i.test(t)
     || /\d+\s*(องศา)?\s*(เซลเซียส|celsius|°C)\s*(เป็น|to|แปลง|convert)\s*(ฟาเรนไฮต์|fahrenheit|°F)/i.test(t)
     || /\d+(\.\d+)?\s*%\s*(ของ|of)\s*\d/i.test(t);
@@ -950,8 +951,8 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
     "บางกะปิ": "กรุงเทพมหานคร", "พญาไท": "กรุงเทพมหานคร", "ดินแดง": "กรุงเทพมหานคร",
   };
 
-  const regionMatch = t.match(/ภาค(กลาง|เหนือ|ใต้|อีสาน|ตะวันออก|ตะวันตก|ตะวันออกเฉียงเหนือ)/);
-  const placeMatch = t.match(/(กรุงเทพ(?:มหานคร)?|กรงุเทพ|เชียงใหม่|เชียงใม่|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|ภูเก็ต|สงขลา|หาดใหญ่|อุบล(?:ราชธานี)?|สุราษฎร์ธานี|นครศรีธรรมราช|พิษณุโลก|ชลบุรี|กาญจนบุรี|อุดรธานี|บุรีรัมย์|สุรินทร์|พัทยา|แม่กลอง|เกาะสมุย|กทม|ลำพูน|ลำปาง|น่าน|พะเยา|แพร่|แม่ฮ่องสอน|หัวหิน|ปากช่อง|เขาใหญ่|ศรีราชา|บางรัก|ปทุมวัน|สาทร|สีลม|จตุจักร|บางนา|ดอนเมือง|หลักสี่|อยุธยา|แปดริ้ว|อุดร|ปาย|เบตง|แม่สอด|แม่สาย|เชียงแสน|แม่ริม|รังสิต|ลำลูกกา|ปากเกร็ด|บางบัวทอง)/);
+  const regionMatch = t.match(/ภาค(ตะวันออกเฉียงเหนือ|กลาง|เหนือ|ใต้|อีสาน|ตะวันออก|ตะวันตก)/);
+  const placeMatch = t.match(/(กรุงเทพ(?:มหานคร)?|กรงุเทพ|เชียงใหม่|เชียงใม่|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|ภูเก็ต|สงขลา|หาดใหญ่|อุบล(?:ราชธานี)?|สุราษฎร์ธานี|นครศรีธรรมราช|พิษณุโลก|ชลบุรี|กาญจนบุรี|อุดรธานี|บุรีรัมย์|สุรินทร์|พัทยา|แม่กลอง|อัมพวา|เกาะสมุย|กทม|ลำพูน|ลำปาง|น่าน|พะเยา|แพร่|แม่ฮ่องสอน|หัวหิน|ปากช่อง|เขาใหญ่|ศรีราชา|บางรัก|ปทุมวัน|สาทร|สีลม|จตุจักร|บางนา|ดอนเมือง|หลักสี่|อยุธยา|แปดริ้ว|อุดร|ปาย|เบตง|แม่สอด|แม่สาย|เชียงแสน|แม่ริม|รังสิต|ลำลูกกา|ปากเกร็ด|บางบัวทอง)/);
 
   let text: string | null = null;
   let canonicalQuery = "";
@@ -1289,7 +1290,7 @@ function looksLikeDeterministicGeoQuery(text: string): boolean {
   };
 
   const t = normalizeThaiDigits(String(text || ""));
-  const directGeo = /(รหัสไปรษณีย์|\b\d{5}\b|จังหวัด|อำเภอ|เขต|แขวง|ตำบล|พิกัด|ภาค|ที่อยู่|แยกที่อยู่|จัดรูปแบบที่อยู่|ตรวจสอบที่อยู่|postcode|province|district|subdistrict|address|coordinate|\blat\b|\blon\b|(?:^|\s)(?:จ\.|อ\.|ต\.|ถ\.|ซ\.|กทม\.?))/i.test(
+  const directGeo = /(รหัสไปรษณีย์|\b\d{5}\b|จังหวัด|อำเภอ|เขต|แขวง|ตำบล|พิกัด|ภาค|ที่อยู่|แยกที่อยู่|จัดรูปแบบที่อยู่|ตรวจสอบที่อยู่|postcode|province|district|subdistrict|address|coordinate|\blat\b|latitude|\blon\b|longitude|(?:^|\s)(?:จ\.|อ\.|ต\.|ถ\.|ซ\.|กทม\.?))/i.test(
     t
   );
   if (directGeo) return true;
@@ -2722,7 +2723,7 @@ wss.on("connection", (ws, req) => {
             // Reject pure date strings like "2024-01-01" — these aren't arithmetic
             const looksLikeDateString = /^\s*\d{4}[-/]\d{1,2}[-/]\d{1,2}\s*$/.test(calcExpr);
             if (calcExpr && /\d/.test(calcExpr) && !looksLikeDateString) {
-              const calcResult = evaluate(calcExpr);
+              const calcResult = evaluate(trigToDeg(calcExpr));
               if (typeof calcResult === "number" || (calcResult && typeof calcResult.toString === "function")) {
                 const now = new Date();
                 const bkkOffset = 7 * 60 * 60 * 1000;
@@ -2730,7 +2731,8 @@ wss.on("connection", (ws, req) => {
                 const dayNames = ["วันอาทิตย์","วันจันทร์","วันอังคาร","วันพุธ","วันพฤหัสบดี","วันศุกร์","วันเสาร์"];
                 const monthNames = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
                 const humanReadable = `${dayNames[bkk.getUTCDay()]}ที่ ${bkk.getUTCDate()} ${monthNames[bkk.getUTCMonth()]} พ.ศ. ${bkk.getUTCFullYear()+543} เวลา ${String(bkk.getUTCHours()).padStart(2,"0")}:${String(bkk.getUTCMinutes()).padStart(2,"0")} น.`;
-                const combinedText = `ผลลัพธ์: ${calcExpr.trim()} = ${calcResult}\n\nขณะนี้คือ${humanReadable}`;
+                const cleanResult = typeof calcResult === 'number' ? cleanFloat(calcResult) : String(calcResult);
+                const combinedText = `ผลลัพธ์: ${calcExpr.trim()} = ${cleanResult}\n\nขณะนี้คือ${humanReadable}`;
                 const combinedTools = ["calculatorTool", "dateTimeTool"];
                 const scOut = withRenderMeta(
                   { calculatorGate: { expression: calcExpr, result: String(calcResult) }, dateTimeGate: { datetime: humanReadable } },
@@ -3380,9 +3382,9 @@ wss.on("connection", (ws, req) => {
             }
             if (expr && /\d/.test(expr)) {
               const { evaluate } = require("mathjs");
-              const result = evaluate(expr);
+              const result = evaluate(trigToDeg(expr));
               if (typeof result === "number" || (result && typeof result.toString === "function")) {
-                const textOut = `ผลลัพธ์: ${expr.trim()} = ${result}`;
+                const textOut = `ผลลัพธ์: ${expr.trim()} = ${typeof result === 'number' ? cleanFloat(result) : result}`;
                 const scOut = withRenderMeta(
                   { calculatorGate: { expression: expr, result: String(result) } },
                   { route: "calculator" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.1" },
@@ -5187,11 +5189,11 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
         if (expr && /\d/.test(expr)) {
           const { evaluate } = require("mathjs");
-          const result = evaluate(expr);
+          const result = evaluate(trigToDeg(expr));
 
           if (typeof result === "number" || (result && typeof result.toString === "function")) {
             const displayExpr = expr.replace(/\s+/g, "").length > 0 ? expr.trim() : routingMessage.replace(/(คำนวณ|calculate)/gi, "").trim();
-            const textOut = `ผลลัพธ์: ${displayExpr} = ${result}`;
+            const textOut = `ผลลัพธ์: ${displayExpr} = ${typeof result === 'number' ? cleanFloat(result) : result}`;
             const scOut = withRenderMeta(
               { calculatorGate: { expression: expr, result: String(result) } },
               { route: "calculator" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.1" },
