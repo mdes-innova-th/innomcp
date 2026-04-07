@@ -1,5 +1,6 @@
 import { shapeWeatherResults, firstNonEmptyString, normalizeProvinceDisplayName, toNumberOrNull } from "./shaping";
 import { WeatherResult } from "./types";
+import { getLocationDisplayLabel, isDistrictLevel } from "../locationResolver";
 
 const PROVINCE_DISTRICT_HINTS: Record<string, string[]> = {
   "เชียงใหม่": ["เมืองเชียงใหม่", "แม่ริม", "สันทราย"],
@@ -190,9 +191,41 @@ function pickStationItemsForArea(userText: string, province: string, stationItem
 
 function areaLabelForProvince(userText: string, province: string): string {
   const p = normalizeProvinceDisplayName(province);
+  // Check if user text contains a district/alias name that resolved to this province
+  const aliasMatch = findAliasInUserText(userText, p);
+  if (aliasMatch) return aliasMatch;
   if (p !== "กรุงเทพมหานคร") return p;
   const d = detectBangkokDistrict(userText);
   return d ? `กรุงเทพมหานคร (${d})` : p;
+}
+
+/** Detect if user text contains a known alias/district that resolved to the given province */
+function findAliasInUserText(userText: string, province: string): string | null {
+  const t = String(userText || "");
+  // Known district-level aliases that differ from province name
+  const DISTRICT_ALIASES: Record<string, string[]> = {
+    "สมุทรสงคราม": ["อัมพวา", "แม่กลอง"],
+    "สมุทรสาคร": ["มหาชัย", "กระทุ่มแบน"],
+    "สงขลา": ["หาดใหญ่", "สะเดา"],
+    "ชลบุรี": ["พัทยา", "เกาะล้าน"],
+    "นครราชสีมา": ["ปากช่อง", "เขาใหญ่", "วังน้ำเขียว"],
+    "เชียงราย": ["แม่สาย", "เชียงแสน"],
+    "ตาก": ["แม่สอด"],
+    "ยะลา": ["เบตง"],
+    "สุราษฎร์ธานี": ["เกาะสมุย", "สมุย", "เกาะพะงัน", "เกาะเต่า"],
+    "ระยอง": ["เกาะเสม็ด"],
+    "ตราด": ["เกาะช้าง"],
+    "แม่ฮ่องสอน": ["ปาย"],
+    "นราธิวาส": ["สุไหงโก-ลก"],
+  };
+  const aliases = DISTRICT_ALIASES[province];
+  if (!aliases) return null;
+  for (const alias of aliases) {
+    if (t.includes(alias)) {
+      return `${province} (${alias})`;
+    }
+  }
+  return null;
 }
 
 function districtHintsForProvince(province: string): string[] {
@@ -337,14 +370,19 @@ function renderWeeklyProvince(userText: string, province: string, items: Weather
   const windDirs: string[] = forecastBlock.WindDirection || [];
 
   // Sort indices by date ascending (TMD returns future-first)
-  const indices = Array.from({ length: dates.length }, (_, i) => i);
-  indices.sort((a, b) => {
-    const toIso = (d: string) => {
-      const p = d.split("/");
-      return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : d;
-    };
-    return toIso(dates[a]).localeCompare(toIso(dates[b]));
-  });
+  const toIsoDate = (d: string) => {
+    const p = d.split("/");
+    return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : d;
+  };
+  const allIndices = Array.from({ length: dates.length }, (_, i) => i);
+  allIndices.sort((a, b) => toIsoDate(dates[a]).localeCompare(toIsoDate(dates[b])));
+
+  // Filter out past dates (before today BKK time)
+  const todayStr = bkkDateStr(0);
+  const todayIso = toIsoDate(todayStr);
+  const indices = allIndices.filter((i) => toIsoDate(dates[i]) >= todayIso);
+  // Fallback: if all filtered out, keep all (shouldn't happen normally)
+  if (indices.length === 0) indices.push(...allIndices);
 
   const lines: string[] = [];
   lines.push(`พื้นที่: ${areaLabelForProvince(userText, province)}`);
@@ -464,11 +502,12 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
 
   const timeRisk = (() => {
     if (isTodayRainQuestion(userText)) {
-      const obs = obsTime || "ยังไม่มีข้อมูล";
-      const fc = forecastTime || "ยังไม่มีข้อมูล";
-      return `เช้า: สังเกตการณ์ล่าสุด (${obs}) | บ่าย-เย็น: พยากรณ์วันนี้ (${fc})`;
+      if (rainPct !== null && rainPct >= 60) return "ช่วงบ่ายถึงค่ำ ฝนตกหนักได้";
+      if (rainPct !== null && rainPct >= 30) return "อาจมีฝนช่วงบ่ายถึงเย็น";
+      if (rainPct !== null && rainPct > 0) return "โอกาสฝนน้อยตลอดวัน";
+      return "แดดจัดตลอดวัน";
     }
-    return "ยังไม่มีข้อมูลช่วงเวลา (มีเฉพาะรายวัน)";
+    return "พยากรณ์รายวัน";
   })();
 
   const advice = (() => {
@@ -486,8 +525,23 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
 
   const updateTimeStr = firstNonEmptyString(obsTime, forecastTime);
 
+  // Build natural opening sentence
+  const naturalSummary = (() => {
+    const area = areaLabelForProvince(userText, province);
+    const parts: string[] = [];
+    if (rainPct !== null) {
+      if (rainPct >= 60) parts.push("มีฝนตกหนัก");
+      else if (rainPct >= 30) parts.push("มีโอกาสฝนตก");
+      else if (rainPct > 0) parts.push("โอกาสฝนน้อย");
+      else parts.push("อากาศดี ฟ้าใส");
+    }
+    if (tempText) parts.push(`อุณหภูมิ ${tempText}`);
+    return parts.length > 0 ? `📍 ${area} — ${parts.join(" ")}` : `📍 ${area}`;
+  })();
+
   const lines: string[] = [];
   lines.push(`พื้นที่: ${areaLabelForProvince(userText, province)}`);
+  lines.push(naturalSummary);
 
   // Phase 12: If ALL data fields are placeholders, collapse to a single concise message
   const allPlaceholder = rainText === "ยังไม่มีข้อมูล" && tempOut === "ยังไม่มีข้อมูล" && windText === "ยังไม่มีข้อมูล";
@@ -533,11 +587,13 @@ function renderMultiProvinceWeekTable(
 
     const dates: string[] = block.ForecastDate;
     const rainPcts: string[] = block.PercentRainCover || [];
-    const indices = Array.from({ length: dates.length }, (_, i) => i);
-    indices.sort((a, b) => {
-      const toIso = (d: string) => { const p = d.split("/"); return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : d; };
-      return toIso(dates[a]).localeCompare(toIso(dates[b]));
-    });
+    const toIso = (d: string) => { const p = d.split("/"); return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : d; };
+    const allIdx = Array.from({ length: dates.length }, (_, i) => i);
+    allIdx.sort((a, b) => toIso(dates[a]).localeCompare(toIso(dates[b])));
+    // Filter out past dates
+    const todayIso = toIso(bkkDateStr(0));
+    const indices = allIdx.filter((i) => toIso(dates[i]) >= todayIso);
+    if (indices.length === 0) indices.push(...allIdx);
     forecasts.push({
       province,
       dates: indices.map((i) => dates[i]),
@@ -654,5 +710,66 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
       ? renderWeeklyProvince(userText, p, grouped.get(p) || [])
       : renderOneProvince(userText, p, grouped.get(p) || [])
   );
+
+  // Regional summary for multi-province queries (e.g., "ภาคกลาง", "ภาคเหนือ")
+  if (provinces.length > 1 && !weekMode) {
+    const regionSummary = buildRegionalSummary(userText, grouped);
+    if (regionSummary) {
+      return { text: [header, regionSummary, ...blocks].join("\n\n"), structuredContent };
+    }
+  }
+
   return { text: [header, ...blocks].join("\n\n"), structuredContent };
+}
+
+/** Build a 1-2 line summary for multi-province regional queries */
+function buildRegionalSummary(userText: string, grouped: Map<string, WeatherResult[]>): string | null {
+  // Detect region name from user text
+  const regionMatch = (userText || "").match(/ภาค(กลาง|เหนือ|ใต้|ตะวันออก|ตะวันตก|อีสาน|ตะวันออกเฉียงเหนือ)/);
+  if (!regionMatch && grouped.size <= 1) return null;
+
+  const regionName = regionMatch ? `ภาค${regionMatch[1]}` : "";
+  const provinces = Array.from(grouped.keys());
+  const rainPcts: number[] = [];
+  let minTemp = Infinity;
+  let maxTemp = -Infinity;
+
+  for (const [, items] of grouped) {
+    const shaped = shapeWeatherResults(items, 10);
+    const fc = shaped.find((r) => r.type === "forecast7d" && r.data && typeof r.data === "object");
+    const block = fc?.data?.forecast;
+    if (!block) continue;
+    const offset = parseDayOffset(userText);
+    const dayIdx = pickForecastDayIndex(block, offset);
+    const rain = toNumberOrNull(block.PercentRainCover?.[dayIdx]);
+    if (rain !== null) rainPcts.push(rain);
+    const lo = toNumberOrNull(block.MinimumTemperature?.[dayIdx]);
+    const hi = toNumberOrNull(block.MaximumTemperature?.[dayIdx]);
+    if (lo !== null && lo < minTemp) minTemp = lo;
+    if (hi !== null && hi > maxTemp) maxTemp = hi;
+  }
+
+  if (rainPcts.length === 0) return null;
+
+  const avgRain = Math.round(rainPcts.reduce((a, b) => a + b, 0) / rainPcts.length);
+  const maxRainProv = (() => {
+    let best = { prov: "", rain: -1 };
+    for (const [prov, items] of grouped) {
+      const shaped = shapeWeatherResults(items, 10);
+      const fc = shaped.find((r) => r.type === "forecast7d" && r.data && typeof r.data === "object");
+      const block = fc?.data?.forecast;
+      if (!block) continue;
+      const offset = parseDayOffset(userText);
+      const dayIdx = pickForecastDayIndex(block, offset);
+      const rain = toNumberOrNull(block.PercentRainCover?.[dayIdx]);
+      if (rain !== null && rain > best.rain) best = { prov, rain };
+    }
+    return best.prov ? `${best.prov} (${best.rain}%)` : "";
+  })();
+
+  const tempStr = (minTemp < Infinity && maxTemp > -Infinity) ? ` อุณหภูมิ ${minTemp}–${maxTemp}°C` : "";
+  const label = regionName || `${provinces.length} จังหวัด`;
+  const rainDesc = avgRain >= 60 ? "มีฝนตกหนัก" : avgRain >= 30 ? "มีโอกาสฝนตก" : "โอกาสฝนน้อย";
+
+  return `📊 สรุป${label}: ${rainDesc} เฉลี่ย ${avgRain}%${tempStr}\nจังหวัดที่ฝนมากสุด: ${maxRainProv}`;
 }

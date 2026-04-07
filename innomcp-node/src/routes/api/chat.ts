@@ -224,7 +224,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
     const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
     const topRows = Array.isArray(d.rows) ? d.rows : [];
     const topSummary = topRows
-      .slice(0, 5)
+      .slice(0, topN > 0 ? Math.min(topN, 10) : 10)
       .map((r: any) => `${String(r?.province || "-")} (${Number(r?.percentRain ?? 0)}%)`)
       .join(", ");
     const suffix = topSummary ? `: ${topSummary}` : "";
