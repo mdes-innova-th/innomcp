@@ -276,12 +276,15 @@ export async function handleFastPathMessage(
           
           if (typeof result === 'number' || (result && result.type === 'Complex')) {
               const latencyMs = Math.round(performance.now() - start);
-              const responseText = typeof result === 'number' ? cleanFloat(result) : `${result}`;
+              const rawResult = typeof result === 'number' ? cleanFloat(result) : `${result}`;
+              // Phase 15: Format function-style math with "expression = result" for readability
+              const hasMathFn = /^(sin|cos|tan|sqrt|log|exp|pow|abs|gcd|lcm|std|mean|median|sum|min|max|mod|variance)\s*[\(\[]/i.test(q);
+              const responseText = hasMathFn ? `ผลลัพธ์: ${q} = ${rawResult}` : rawResult;
               
               await respond({
                   text: responseText,
                   content: [{ type: "text", text: responseText }],
-                  structuredContent: { fastPath: true, fastPathHit: "math", result: responseText }
+                  structuredContent: { fastPath: true, fastPathHit: "math", result: rawResult, expression: q }
               });
               
               logger.debug(`[FastPath] Math handled: ${q} -> ${responseText}`);

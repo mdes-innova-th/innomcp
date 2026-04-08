@@ -37,6 +37,10 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
           "machine_last_scan",
           "nip_latest",
           "nip_by_record_top",
+          "nip_unique_this_month",
+          "detected_urls_this_week",
+          "nip_latest_by_isp_month",
+          "detected_urls_delta",
         ],
         description: "The specific query intent to execute."
       },
@@ -579,6 +583,125 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         ok: true, intent, items, top, meta: metaFor("detectdb"),
         kpis: buildKpis(total, top ? `nip_no=${top.nip_no}` : null, top ? top.count : null),
         summary: top ? `NIP ที่มี record มากสุด: nip_no=${top.nip_no} (${top.count.toLocaleString()} รายการ)` : "ไม่พบข้อมูล",
+      };
+    }
+
+    // Phase 15: CONTRACT 1 — unique NIP (distinct URL) this month, optional multi-ISP filter
+    if (intent === "nip_unique_this_month") {
+      const now = new Date();
+      const yr = now.getFullYear();
+      const mo = now.getMonth() + 1;
+      const monthLabel = `${yr}-${String(mo).padStart(2, "0")}`;
+      const nipCols = await getColumns("nip");
+      const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]) || "isp_name";
+      const ispFilter = args.ispFilter ? String(args.ispFilter).trim() : null;
+      // Support multi-ISP: "nt,true" → ['nt','true']
+      const ispList = ispFilter ? ispFilter.split(",").map((s: string) => s.trim().toLowerCase()).filter(Boolean) : [];
+      let sql = `SELECT \`${ispCol}\` as isp, COUNT(DISTINCT url) as c FROM nip WHERE YEAR(create_date)=? AND MONTH(create_date)=?`;
+      const params: any[] = [yr, mo];
+      if (ispList.length === 1) {
+        sql += ` AND LOWER(\`${ispCol}\`) = LOWER(?)`;
+        params.push(ispList[0]);
+      } else if (ispList.length > 1) {
+        sql += ` AND LOWER(\`${ispCol}\`) IN (${ispList.map(() => "LOWER(?)").join(",")})`;
+        params.push(...ispList);
+      }
+      sql += ` GROUP BY \`${ispCol}\` ORDER BY c DESC`;
+      const rows = await queryEvidence<any>(sql, params);
+      const byIsp = Array.isArray(rows) ? rows.map((r: any) => ({ isp: String(r.isp || "ไม่ระบุ").trim() || "ไม่ระบุ", count: Number(r.c || 0) })) : [];
+      const total = byIsp.reduce((s, r) => s + r.count, 0);
+      return {
+        ok: true, intent, month: monthLabel, ispFilter: ispFilter || undefined, byIsp, meta: metaFor("detectdb"),
+        kpis: buildKpis(total, byIsp[0]?.isp || null, byIsp[0]?.count || null),
+        metric: "COUNT(DISTINCT url)",
+        summary: `เดือนนี้ (${monthLabel}) URL ไม่ซ้ำ: ${total} รายการ${ispFilter ? ` (${ispFilter.toUpperCase()})` : ""}`,
+      };
+    }
+
+    // Phase 15: CONTRACT 2 — detected URLs this week, optional ISP filter
+    if (intent === "detected_urls_this_week") {
+      const today = getBangkokDate(0);
+      const bkkNow = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
+      const dow = bkkNow.getUTCDay(); // 0=Sun
+      const mondayOffset = dow === 0 ? -6 : -(dow - 1);
+      const weekStart = getBangkokDate(mondayOffset);
+      const ispFilter = args.ispFilter ? String(args.ispFilter).trim() : null;
+      let sql = `SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) BETWEEN ? AND ?`;
+      const params: any[] = [weekStart, today];
+      if (ispFilter) {
+        const nipCols = await getColumns("nip");
+        const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]);
+        if (ispCol) {
+          sql += ` AND LOWER(\`${ispCol}\`) = LOWER(?)`;
+          params.push(ispFilter);
+        }
+      }
+      const n = await countQuery(sql, params);
+      const label = ispFilter
+        ? `สัปดาห์นี้ (${weekStart} ถึง ${today}) ตรวจพบ URL/NIP จาก ${ispFilter.toUpperCase()}: ${n} รายการ`
+        : `สัปดาห์นี้ (${weekStart} ถึง ${today}) ตรวจพบ URL/NIP: ${n} รายการ`;
+      return { ok: true, intent, ispFilter: ispFilter || undefined, weekStart, weekEnd: today, meta: metaFor("detectdb"), count: n, kpis: buildKpis(n, null, null), summary: label };
+    }
+
+    // Phase 15: CONTRACT 3 — latest N NIP URLs by ISP, this month, with limit up to 50
+    if (intent === "nip_latest_by_isp_month") {
+      const topN = Math.min(Math.max(1, Number(args.limit) || 20), 50);
+      const now = new Date();
+      const yr = now.getFullYear();
+      const mo = now.getMonth() + 1;
+      const monthLabel = `${yr}-${String(mo).padStart(2, "0")}`;
+      const nipCols = await getColumns("nip");
+      const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]) || "isp_name";
+      const nipNoCol = pickFirstColumn(nipCols, ["no", "nip_no", "nipNo", "nip_id", "id"]) || "no";
+      const ispFilter = args.ispFilter ? String(args.ispFilter).trim() : null;
+      let sql = `SELECT \`${nipNoCol}\` as no, url, \`${ispCol}\` as isp_name, create_date FROM nip WHERE YEAR(create_date)=? AND MONTH(create_date)=?`;
+      const params: any[] = [yr, mo];
+      if (ispFilter) {
+        sql += ` AND LOWER(\`${ispCol}\`) = LOWER(?)`;
+        params.push(ispFilter);
+      }
+      sql += ` ORDER BY create_date DESC LIMIT ${topN}`;
+      const rows = await queryEvidence<any>(sql, params);
+      const items = Array.isArray(rows) ? rows.map((r: any) => ({
+        no: Number(r.no || 0),
+        url: String(r.url || ""),
+        isp_name: String(r.isp_name || ""),
+        create_date: r.create_date ? new Date(r.create_date).toISOString() : null,
+      })) : [];
+      return {
+        ok: true, intent, month: monthLabel, ispFilter: ispFilter || undefined, requestedLimit: topN, actualCount: items.length, items, meta: metaFor("detectdb"),
+        kpis: buildKpis(items.length, ispFilter || null, null),
+        summary: `${monthLabel} URL ผิดกฎหมายล่าสุด${ispFilter ? ` ของ ${ispFilter.toUpperCase()}` : ""}: ${items.length} รายการ (ขอ ${topN})`,
+      };
+    }
+
+    // Phase 15: CONTRACT 4 — delta today vs yesterday by ISP
+    if (intent === "detected_urls_delta") {
+      const today = getBangkokDate(0);
+      const yesterday = getBangkokDate(-1);
+      const ispFilter = args.ispFilter ? String(args.ispFilter).trim() : null;
+      const nipCols = await getColumns("nip");
+      const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]);
+
+      let sqlToday = `SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) = ?`;
+      let sqlYesterday = `SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) = ?`;
+      const paramsToday: any[] = [today];
+      const paramsYesterday: any[] = [yesterday];
+      if (ispFilter && ispCol) {
+        sqlToday += ` AND LOWER(\`${ispCol}\`) = LOWER(?)`;
+        sqlYesterday += ` AND LOWER(\`${ispCol}\`) = LOWER(?)`;
+        paramsToday.push(ispFilter);
+        paramsYesterday.push(ispFilter);
+      }
+      const todayCount = await countQuery(sqlToday, paramsToday);
+      const yesterdayCount = await countQuery(sqlYesterday, paramsYesterday);
+      const delta = todayCount - yesterdayCount;
+      const direction = delta > 0 ? "มากกว่า" : delta < 0 ? "น้อยกว่า" : "เท่ากัน";
+      const ispLabel = ispFilter ? ispFilter.toUpperCase() : "ทั้งหมด";
+      return {
+        ok: true, intent, ispFilter: ispFilter || undefined, todayCount, yesterdayCount, delta, direction, today, yesterday, meta: metaFor("detectdb"),
+        kpis: buildKpis(todayCount, ispLabel, delta),
+        summary: `${ispLabel}: วันนี้ ${todayCount} / เมื่อวาน ${yesterdayCount} (${direction} ${Math.abs(delta)} รายการ)`,
       };
     }
 

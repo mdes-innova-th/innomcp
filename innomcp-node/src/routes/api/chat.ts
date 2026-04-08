@@ -266,7 +266,7 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
 
   // Core weather words
   const hasWind = /(?:^|\s)ลม(?:\s|$)|ลมแรง|ความเร็วลม|ทิศทางลม|wind\b/i.test(t);
-  const hasWeatherCore = /ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|พายุ|weather|forecast|temperature|humidity|tmd|อุตุ|nwp|ร้อน|หนาว|แล้ง|หมอก|แผ่นดินไหว|seismic|earthquake|ริกเตอร์|เตือนภัย|ประกาศเตือน|รังสีดวงอาทิตย์|แสงอาทิตย์|แสงแดด|solar|uv|\brain\b|\bcloudy\b|\bsunny\b/i.test(t) || hasWind;
+  const hasWeatherCore = /ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|พายุ|weather|forecast|temperature|\btemp\b|humidity|tmd|อุตุ|nwp|ร้อน|หนาว|แล้ง|หมอก|แผ่นดินไหว|seismic|earthquake|ริกเตอร์|เตือนภัย|ประกาศเตือน|รังสีดวงอาทิตย์|แสงอาทิตย์|แสงแดด|solar|uv|\brain\b|\bcloudy\b|\bsunny\b/i.test(t) || hasWind;
 
   // Weather-specific patterns that often omit the word "อากาศ"
   const hasWeatherSpecific = /รายชั่วโมง|รายวัน|ตารางสถานี|สถานีอากาศ|รายสถานี|พยากรณ์\s*7\s*วัน|7\s*วัน|สัปดาห์/i.test(t);
@@ -562,6 +562,32 @@ function extractIspName(text: string): string | null {
   return null;
 }
 
+// Phase 15: Extract ALL mentioned ISP names (for multi-ISP queries like "NT และ TRUE")
+function extractAllIspNames(text: string): string[] {
+  const t = String(text || "");
+  const ispPatterns: Array<[RegExp, string]> = [
+    [/\bdtac\b|ดีแทค/i, "dtac"],
+    [/\bais\b|เอไอเอส/i, "ais"],
+    [/\btrue\b|ทรู/i, "true"],
+    [/\btot\b|ทีโอที/i, "tot"],
+    [/\b3bb\b|สามบีบี/i, "3bb"],
+    [/\bnt\b(?!\s*(ที่|จะ|มี|นี้))/i, "nt"],
+  ];
+  const found: string[] = [];
+  for (const [pattern, name] of ispPatterns) {
+    if (pattern.test(t) && !found.includes(name)) found.push(name);
+  }
+  return found;
+}
+
+// Phase 15: Extract numeric limit from user query (e.g. "20รายการ", "10 รายการล่าสุด")
+function extractRequestedLimit(text: string): number | null {
+  const t = String(text || "");
+  const m = t.match(/(\d+)\s*รายการ/);
+  if (m) return Math.min(Math.max(1, Number(m[1])), 50);
+  return null;
+}
+
 function inferOfficerEvidenceAction(text: string): string | undefined {
   // Normalize: collapse whitespace, trim, lowercase for matching
   const raw = String(text || "");
@@ -583,6 +609,40 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   const hasWeatherKw = /(พยากรณ์|อากาศ|ฝน|อุณหภูมิ|weather|forecast|อุตุ)/i.test(t);
   if (wants7dTrend && /(สรุป|วันนี้|today|เดือนนี้|this\s*month)/i.test(t) && !hasWeatherKw) {
     return "evidence_records_last_7_days_trend";
+  }
+
+  // Phase 15: Normalize ผิดกฏหมาย (common ฏ/ฎ typo) early for all checks below
+  const tNorm15 = t.replace(/ผิดกฏหมาย/g, "ผิดกฎหมาย");
+  const hasUrlOrNip15 = /\b(url|nip)\b/i.test(tNorm15) || /ผิดกฎหมาย|illegal/i.test(tNorm15);
+
+  // Phase 15 CONTRACT 4: delta today vs yesterday — must be BEFORE `url.*วันนี้` catch-all
+  // "มากกว่าเมื่อวาน", "เทียบเมื่อวาน", "วันนี้...เมื่อวาน...เท่าไ"
+  if (hasUrlOrNip15 && hasTelecomName && /(มากกว่า.*เมื่อวาน|เมื่อวาน.*มากกว่า|เปรียบเทียบ.*เมื่อวาน|เทียบ.*เมื่อวาน|วันนี้.*เมื่อวาน.*เท่าไ|เพิ่ม.*จาก.*เมื่อวาน|ต่าง.*จาก.*เมื่อวาน)/i.test(tNorm15)) {
+    return "detected_urls_delta";
+  }
+
+  // Phase 15 CONTRACT 1: unique/new this month multi-ISP — must be BEFORE `เดือนนี้` catch-all
+  if (hasUrlOrNip15 && /(เดือนนี้|this\s*month)/i.test(tNorm15) && /(ใหม่|ไม่ซ้ำ|ไม่ซ้ำเดิม|distinct|unique|new)/i.test(tNorm15)) {
+    return "nip_unique_this_month";
+  }
+
+  // Phase 15 CONTRACT 3: latest N URL list — must be BEFORE `url.*ล่าสุด` catch-all
+  if (hasUrlOrNip15 && /(แสดง|ดู|ขอ|list|show)/i.test(tNorm15) && /\d+\s*รายการ/i.test(tNorm15) && /(ล่าสุด|latest|ใหม่สุด)/i.test(tNorm15)) {
+    return "nip_latest_by_isp_month";
+  }
+
+  // Phase 15 CONTRACT 5+6: all-time top ISP — must be BEFORE `top isp` catch-all
+  if (/(ตั้งแต่เก็บข้อมูล|ตั้งแต่แรก|ตั้งแต่เริ่ม|all[\s\-]*time|ทั้งหมด.*ตั้งแต่)/i.test(tNorm15) && (hasUrlOrNip15 || /\bisp\b/i.test(tNorm15) || /ผู้ให้บริการ|ค่าย|เครือข่าย/i.test(tNorm15) || wantsBreakdownOrTop)) {
+    return "nip_top_isp_all";
+  }
+  // "ISP ใดมี top url ที่สุด (ตั้งแต่เก็บข้อมูล)" — all-time disambiguation
+  if (/\bisp\b/i.test(tNorm15) && /(ใด|ไหน)/i.test(tNorm15) && /(top|มากที่สุด|เยอะที่สุด|สูงสุด)/i.test(tNorm15) && /\burl\b/i.test(tNorm15)) {
+    return "nip_top_isp_all";
+  }
+
+  // Phase 15 CONTRACT 2: week scope — must be BEFORE `url.*วันนี้` catch-all
+  if (hasUrlOrNip15 && /(สัปดาห์นี้|this\s*week|อาทิตย์นี้)/i.test(tNorm15) && hasTelecomName) {
+    return "detected_urls_this_week";
   }
 
   // Accept real Thai variants even if the user omits the word "หลักฐาน".
@@ -683,29 +743,58 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
     return "evidence_records_today";
   }
 
-  // Phase 14: ISP-specific queries with time scope — "รายการ NIP/url ผิดกฎหมาย วันนี้/เดือนนี้/สัปดาห์นี้ ของ DTAC/AIS"
+  // Phase 14+15: ISP-specific queries with time scope — "รายการ NIP/url ผิดกฎหมาย วันนี้/เดือนนี้/สัปดาห์นี้ ของ DTAC/AIS"
   // Normalize ผิดกฏหมาย (common ฏ/ฎ typo) to match
   const tNorm = t.replace(/ผิดกฏหมาย/g, "ผิดกฎหมาย");
   const hasUrlOrNip = /\b(url|nip)\b/i.test(tNorm) || /ผิดกฎหมาย|illegal/i.test(tNorm);
   const hasTimePeriod = /(วันนี้|today|เดือนนี้|this\s*month|สัปดาห์นี้|this\s*week|อาทิตย์นี้)/i.test(tNorm);
-  const hasListRequest = /(รายการ|จำนวน|ทั้งหมด|ดู|ขอ|แสดง|list|show|report)/i.test(tNorm);
+  const hasListRequest = /(รายการ|จำนวน|ทั้งหมด|ดู|ขอ|แสดง|list|show|report|สรุป)/i.test(tNorm);
+
+  // Phase 15 CONTRACT 4: delta today vs yesterday — "มากกว่าเมื่อวาน", "เทียบเมื่อวาน"
+  if (hasUrlOrNip && hasTelecomName && /(มากกว่า.*เมื่อวาน|เมื่อวาน.*มากกว่า|เปรียบเทียบ.*เมื่อวาน|เทียบ.*เมื่อวาน|วันนี้.*เมื่อวาน.*เท่าไ|เพิ่ม.*จาก.*เมื่อวาน|ต่าง.*จาก.*เมื่อวาน)/i.test(tNorm)) {
+    return "detected_urls_delta";
+  }
+
+  // Phase 15 CONTRACT 1: unique/new this month multi-ISP — "ใหม่ไม่ซ้ำ", "ไม่ซ้ำเดิม", "ใหม่ เดือนนี้"
+  if (hasUrlOrNip && /(เดือนนี้|this\s*month)/i.test(tNorm) && /(ใหม่|ไม่ซ้ำ|ไม่ซ้ำเดิม|distinct|unique|new)/i.test(tNorm)) {
+    return "nip_unique_this_month";
+  }
+
+  // Phase 15 CONTRACT 3: latest N URL list — "แสดง ชื่อ url 20รายการล่าสุด", "url 20 รายการล่าสุด"
+  if (hasUrlOrNip && /(แสดง|ดู|ขอ|list|show)/i.test(tNorm) && /\d+\s*รายการ/i.test(tNorm) && /(ล่าสุด|latest|ใหม่สุด)/i.test(tNorm)) {
+    return "nip_latest_by_isp_month";
+  }
+
+  // Phase 15 CONTRACT 5+6: all-time top ISP — "ทั้งหมดตั้งแต่เก็บข้อมูล", "top ISP ตั้งแต่แรก"
+  if (/(ตั้งแต่เก็บข้อมูล|ตั้งแต่แรก|ตั้งแต่เริ่ม|all[\s\-]*time|ทั้งหมด.*ตั้งแต่)/i.test(tNorm) && (hasUrlOrNip || /\bisp\b/i.test(tNorm) || /ผู้ให้บริการ|ค่าย|เครือข่าย/i.test(tNorm) || wantsBreakdownOrTop)) {
+    return "nip_top_isp_all";
+  }
+  // "ISP ใดมี top url ที่สุด" — all-time disambiguation
+  if (/\bisp\b/i.test(tNorm) && /(ใด|ไหน)/i.test(tNorm) && /(top|มากที่สุด|เยอะที่สุด|สูงสุด)/i.test(tNorm) && /\burl\b/i.test(tNorm)) {
+    return "nip_top_isp_all";
+  }
+
   // ISP-specific period query: "รายการ url ผิดกฎหมาย เดือนนี้ของ DTAC"
   if (hasUrlOrNip && hasTimePeriod && hasTelecomName) {
     if (/(เดือนนี้|this\s*month)/i.test(tNorm)) return "nip_top_isp_this_month";
-    if (/(สัปดาห์นี้|this\s*week|อาทิตย์นี้)/i.test(tNorm)) return "detected_urls_today"; // week scope uses same tool with different args
+    // Phase 15 CONTRACT 2: week scope — must use detected_urls_this_week, NOT today fallback
+    if (/(สัปดาห์นี้|this\s*week|อาทิตย์นี้)/i.test(tNorm)) return "detected_urls_this_week";
     return "detected_urls_today"; // default to today scope
   }
   // "รายการ NIP สัปดาห์นี้ ของ DTAC" or "NIP วันนี้ DTAC"
   if (/\bnip\b/i.test(tNorm) && hasTimePeriod && hasTelecomName) {
+    if (/(สัปดาห์นี้|this\s*week|อาทิตย์นี้)/i.test(tNorm)) return "detected_urls_this_week";
     return "detected_urls_today";
   }
   // Broader: "รายการ url ผิดกฎหมาย เดือนนี้" (no specific ISP)
   if (hasUrlOrNip && hasTimePeriod && hasListRequest) {
     if (/(เดือนนี้|this\s*month)/i.test(tNorm)) return "nip_top_isp_this_month";
+    if (/(สัปดาห์นี้|this\s*week|อาทิตย์นี้)/i.test(tNorm)) return "detected_urls_this_week";
     return "detected_urls_today";
   }
   // "top ISP วันนี้/เดือนนี้" — already partially handled above, but ensure telecom names route here too
   if (hasTelecomName && hasTimePeriod && (hasUrlOrNip || hasListRequest)) {
+    if (/(สัปดาห์นี้|this\s*week|อาทิตย์นี้)/i.test(tNorm)) return "detected_urls_this_week";
     return "detected_urls_today";
   }
   return undefined;
@@ -765,7 +854,7 @@ function prefersThaiKnowledgeRoute(text: string): boolean {
 function looksLikeDateTimeLikeQuery(text: string): boolean {
   // Keep narrow: avoid hijacking weather queries containing "วันนี้".
   const t = String(text || "");
-  const looksLikeWeather = /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น)/i.test(t);
+  const looksLikeWeather = /(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ|ความชื้น|\btemp\b)/i.test(t);
   if (looksLikeWeather) return false;
   // Reject prompt injection attempts — "now" in injection context must not trigger datetime gate
   if (/ignore\s+(previous|prior|all)\s+instructions|forget\s+(previous|prior|all)\s+instructions|disregard\s+(previous|prior|all)\s+instructions|call\s+\w+\s+tool\s+now/i.test(t)) return false;
@@ -1452,6 +1541,11 @@ function mapOfficerEvidenceActionToLocalIntent(action: string): string | undefin
   if (action === "nip_latest") return "nip_latest";
   if (action === "nip_by_record_top") return "nip_by_record_top";
   if (action === "detected_urls_today") return "detected_urls_today";
+  // Phase 15: new evidence contracts
+  if (action === "nip_unique_this_month") return "nip_unique_this_month";
+  if (action === "detected_urls_this_week") return "detected_urls_this_week";
+  if (action === "nip_latest_by_isp_month") return "nip_latest_by_isp_month";
+  if (action === "detected_urls_delta") return "detected_urls_delta";
   return undefined;
 }
 
@@ -1928,7 +2022,24 @@ function renderStructuredDirect(
         return { text: `เมื่อวานนี้จัดเก็บหลักฐานวิดีโอได้: ${count} รายการ`, structuredContent };
       }
       if (intent === "detected_urls_today") {
-        return { text: `วันนี้ตรวจพบ URL/NIP: ${count} รายการ`, structuredContent };
+        // Phase 15: Include ISP name if query targets a specific ISP
+        const queryIsp = extractIspName(originalQuery || "");
+        const ispLabel = queryIsp ? ` ของ ${queryIsp.toUpperCase()}` : "";
+        // Phase 15: Zero-confirmation — if count is 0 and user asks yes/no, respond explicitly
+        const isConfirmation = /(ใช่ไหม|ใช่มั้ย|ใช่หรือ|จริงไหม|จริงหรือ|ไม่พบ.*ใช่|ไม่มี.*ใช่)/i.test(originalQuery || "");
+        if (count === 0 && isConfirmation) {
+          return { text: `ใช่ครับ วันนี้ไม่พบรายการ URL${ispLabel} (0 รายการ)`, structuredContent };
+        }
+        return { text: `วันนี้ตรวจพบ URL/NIP${ispLabel}: ${count} รายการ`, structuredContent };
+      }
+      // Phase 15: week scope count rendering
+      if (intent === "detected_urls_this_week") {
+        const queryIsp = extractIspName(originalQuery || "");
+        const ispLabel = queryIsp ? ` ของ ${queryIsp.toUpperCase()}` : "";
+        const weekStart = String((sc as any).weekStart || "").trim();
+        const weekEnd = String((sc as any).weekEnd || "").trim();
+        const periodLabel = weekStart && weekEnd ? ` (${weekStart} ถึง ${weekEnd})` : "";
+        return { text: `สัปดาห์นี้${periodLabel} ตรวจพบ URL/NIP${ispLabel}: ${count} รายการ`, structuredContent };
       }
       return { text: `ผลสรุปหลักฐาน: ${count}`, structuredContent };
     }
@@ -1937,10 +2048,25 @@ function renderStructuredDirect(
         const byIsp: Array<{isp:string; count:number}> = Array.isArray((sc as any).byIsp) ? (sc as any).byIsp : [];
         const totalSum = byIsp.reduce((s, r) => s + (Number(r.count) || 0), 0);
         const month = String((sc as any).month || "").trim();
-        const label = intent === "nip_top_isp_this_month" ? `เดือนนี้ (${month})` : "ทั้งหมด";
+        const label = intent === "nip_top_isp_this_month" ? `เดือนนี้ (${month})` : "ทั้งหมด (ตั้งแต่เก็บข้อมูล)";
+        // Phase 15: If query targets a specific ISP, filter and show only that ISP's data
+        const queryIsp = extractIspName(originalQuery || "");
+        if (queryIsp) {
+          const ispNorm = queryIsp.toLowerCase();
+          const filtered = byIsp.filter((r) => r.isp.toLowerCase().includes(ispNorm));
+          const filteredSum = filtered.reduce((s, r) => s + (Number(r.count) || 0), 0);
+          const lines: string[] = [`สรุปรายการผิดกฎหมายของ ${queryIsp.toUpperCase()} ${label} (${filteredSum.toLocaleString()} รายการ):`];
+          if (filtered.length > 0) {
+            filtered.forEach((r, i) => lines.push(`${i + 1}) ${r.isp}: ${r.count.toLocaleString()} รายการ`));
+          } else {
+            lines.push(`ไม่พบข้อมูลของ ${queryIsp.toUpperCase()} ในช่วงเวลานี้`);
+          }
+          return { text: lines.join("\n"), structuredContent };
+        }
         const lines: string[] = [`Top ISP ${label} (รวม ${totalSum.toLocaleString()} รายการ):`];
+        if (intent === "nip_top_isp_all") lines.push("เกณฑ์: จำนวน URL ผิดกฎหมายทั้งหมดแยกตาม ISP");
         byIsp.slice(0,10).forEach((r,i) => lines.push(`${i+1}) ${r.isp}: ${r.count.toLocaleString()} รายการ`));
-        if (lines.length === 1) lines.push("(ยังไม่มีข้อมูล)");
+        if (byIsp.length === 0) lines.push("(ยังไม่มีข้อมูล)");
         return { text: lines.join("\n"), structuredContent };
       }
       if (intent === "machine_last_scan") {
@@ -1968,6 +2094,73 @@ function renderStructuredDirect(
         const lines: string[] = ["NIP ที่มี record มากสุด:"];
         items.slice(0,10).forEach((r,i) => lines.push(`${i+1}) nip_no=${r.nip_no}: ${r.count.toLocaleString()} รายการ`));
         if (items.length === 0) lines.push("(ยังไม่มีข้อมูล)");
+        return { text: lines.join("\n"), structuredContent };
+      }
+
+      // Phase 15: CONTRACT 1 — unique NIP this month (multi-ISP)
+      if (intent === "nip_unique_this_month") {
+        const byIsp: Array<{isp:string; count:number}> = Array.isArray((sc as any).byIsp) ? (sc as any).byIsp : [];
+        const total = byIsp.reduce((s, r) => s + (Number(r.count) || 0), 0);
+        const month = String((sc as any).month || "").trim();
+        const metric = String((sc as any).metric || "COUNT(DISTINCT url)");
+        const ispFilterUsed = String((sc as any).ispFilter || "").toUpperCase();
+        const lines: string[] = [`URL ผิดกฎหมาย (ไม่ซ้ำ) เดือนนี้ (${month})${ispFilterUsed ? ` — ISP: ${ispFilterUsed}` : ""}:`];
+        lines.push(`เกณฑ์: ${metric}`);
+        lines.push(`รวม: ${total.toLocaleString()} URL ไม่ซ้ำ`);
+        if (byIsp.length > 0) {
+          lines.push("แยกตาม ISP:");
+          byIsp.forEach((r, i) => lines.push(`  ${i + 1}) ${r.isp}: ${r.count.toLocaleString()} URL`));
+        }
+        if (byIsp.length === 0) lines.push("(ยังไม่มีข้อมูล)");
+        return { text: lines.join("\n"), structuredContent };
+      }
+
+      // Phase 15: CONTRACT 2 — detected URLs this week
+      if (intent === "detected_urls_this_week") {
+        const n = extractEvidenceCount(sc);
+        const weekStart = String((sc as any).weekStart || "").trim();
+        const weekEnd = String((sc as any).weekEnd || "").trim();
+        const queryIsp = extractIspName(originalQuery || "");
+        const ispLabel = queryIsp ? ` ของ ${queryIsp.toUpperCase()}` : "";
+        const periodLabel = weekStart && weekEnd ? ` (${weekStart} ถึง ${weekEnd})` : "";
+        const cnt = typeof n === "number" ? n : 0;
+        return { text: `สัปดาห์นี้${periodLabel} ตรวจพบ URL/NIP${ispLabel}: ${cnt} รายการ`, structuredContent };
+      }
+
+      // Phase 15: CONTRACT 3 — latest N URL list by ISP this month
+      if (intent === "nip_latest_by_isp_month") {
+        const items: Array<any> = Array.isArray((sc as any).items) ? (sc as any).items : [];
+        const month = String((sc as any).month || "").trim();
+        const requested = Number((sc as any).requestedLimit || 20);
+        const queryIsp = extractIspName(originalQuery || "");
+        const ispLabel = queryIsp ? ` ของ ${queryIsp.toUpperCase()}` : "";
+        const lines: string[] = [`URL ผิดกฎหมายล่าสุด${ispLabel} เดือน ${month} (พบ ${items.length}/${requested} รายการ):`];
+        items.forEach((r: any, i: number) => {
+          const dt = r.create_date ? String(r.create_date).slice(0, 10) : "-";
+          lines.push(`${i + 1}) ${r.url || "(ไม่ระบุ)"} (${r.isp_name || "?"}) - ${dt}`);
+        });
+        if (items.length === 0) lines.push("(ไม่พบรายการในเดือนนี้)");
+        return { text: lines.join("\n"), structuredContent };
+      }
+
+      // Phase 15: CONTRACT 4 — delta today vs yesterday
+      if (intent === "detected_urls_delta") {
+        const todayCount = Number((sc as any).todayCount ?? 0);
+        const yesterdayCount = Number((sc as any).yesterdayCount ?? 0);
+        const delta = Number((sc as any).delta ?? (todayCount - yesterdayCount));
+        const direction = String((sc as any).direction || (delta > 0 ? "มากกว่า" : delta < 0 ? "น้อยกว่า" : "เท่ากัน"));
+        const queryIsp = extractIspName(originalQuery || "");
+        const ispLabel = queryIsp ? ` ของ ${queryIsp.toUpperCase()}` : "";
+        const lines: string[] = [`เปรียบเทียบ URL ผิดกฎหมาย${ispLabel}:`];
+        lines.push(`วันนี้: ${todayCount} รายการ`);
+        lines.push(`เมื่อวาน: ${yesterdayCount} รายการ`);
+        if (delta > 0) {
+          lines.push(`วันนี้${direction}เมื่อวาน ${Math.abs(delta)} รายการ`);
+        } else if (delta < 0) {
+          lines.push(`วันนี้${direction}เมื่อวาน ${Math.abs(delta)} รายการ`);
+        } else {
+          lines.push(`วันนี้และเมื่อวานพบจำนวน${direction}`);
+        }
         return { text: lines.join("\n"), structuredContent };
       }
 
@@ -2702,8 +2895,14 @@ wss.on("connection", (ws, req) => {
           const primaryToolName = "innomcp-server:evidenceTool";
           let toolNameUsed = primaryToolName;
           const ispFilter = extractIspName(routingMessage);
+          // Phase 15: For multi-ISP queries (e.g., "NT และ TRUE"), pass comma-separated ISP list
+          const allIsps = extractAllIspNames(routingMessage);
+          const effectiveIspFilter = allIsps.length > 1 ? allIsps.join(",") : ispFilter;
+          // Phase 15: Extract numeric limit for latest-N queries
+          const requestedLimit = extractRequestedLimit(routingMessage);
           const evidenceToolArgs: any = { action: evidenceAction };
-          if (ispFilter) evidenceToolArgs.ispFilter = ispFilter;
+          if (effectiveIspFilter) evidenceToolArgs.ispFilter = effectiveIspFilter;
+          if (requestedLimit) evidenceToolArgs.limit = requestedLimit;
           let toolResults = await mcpClient.executeTools([primaryToolName], messageWithFile, {
             [primaryToolName]: evidenceToolArgs,
           });
@@ -2742,7 +2941,8 @@ wss.on("connection", (ws, req) => {
             if (localIntent) {
               const localToolName = "local-tools:detect_evidence_stats";
               const localArgs: any = { intent: localIntent };
-              if (ispFilter) localArgs.ispFilter = ispFilter;
+              if (effectiveIspFilter) localArgs.ispFilter = effectiveIspFilter;
+              if (requestedLimit) localArgs.limit = requestedLimit;
               const localResults = await mcpClient.executeTools([localToolName], messageWithFile, {
                 [localToolName]: localArgs,
               });
@@ -4644,8 +4844,13 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       const primaryToolName = "innomcp-server:evidenceTool";
       let toolNameUsed = primaryToolName;
       const ispFilter = extractIspName(routingMessage);
+      // Phase 15: multi-ISP and limit for HTTP path
+      const allIsps = extractAllIspNames(routingMessage);
+      const effectiveIspFilter = allIsps.length > 1 ? allIsps.join(",") : ispFilter;
+      const requestedLimit = extractRequestedLimit(routingMessage);
       const evidenceToolArgs: any = { action: evidenceAction };
-      if (ispFilter) evidenceToolArgs.ispFilter = ispFilter;
+      if (effectiveIspFilter) evidenceToolArgs.ispFilter = effectiveIspFilter;
+      if (requestedLimit) evidenceToolArgs.limit = requestedLimit;
       let toolResults = await mcpClient.executeTools([primaryToolName], messageWithFile, {
         [primaryToolName]: evidenceToolArgs,
       });
@@ -4682,7 +4887,8 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         if (localIntent) {
           const localToolName = "local-tools:detect_evidence_stats";
           const localArgs: any = { intent: localIntent };
-          if (ispFilter) localArgs.ispFilter = ispFilter;
+          if (effectiveIspFilter) localArgs.ispFilter = effectiveIspFilter;
+          if (requestedLimit) localArgs.limit = requestedLimit;
           const localResults = await mcpClient.executeTools([localToolName], messageWithFile, {
             [localToolName]: localArgs,
           });
