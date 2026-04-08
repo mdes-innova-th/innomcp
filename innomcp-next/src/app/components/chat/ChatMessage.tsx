@@ -188,6 +188,27 @@ export default function ChatMessage({
           </div>
         )}
 
+        {/* AI Generated Image: render from Pollinations.ai URL for authenticated users */}
+        {structuredContent?.generatedImageUrl && (
+          <div className="mb-4" data-testid="generated-image">
+            <div className="flex justify-center">
+              <img
+                src={structuredContent.generatedImageUrl}
+                alt={structuredContent.imagePrompt || 'AI Generated Image'}
+                className="max-w-[512px] h-auto rounded-lg shadow-md"
+                loading="lazy"
+              />
+            </div>
+            {structuredContent.imagePrompt && (
+              <div className="flex justify-center mt-2">
+                <span className="text-xs text-gray-400 dark:text-gray-500">
+                  🎨 {structuredContent.imageProvider || 'AI'} — &quot;{structuredContent.imagePrompt}&quot;
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Weather unavailable notice: shown when weather was attempted but no real data */}
         {structuredContent?.weatherPayload && !hasProvinceMissingError &&
           (mapTiles.length === 0 || !hasRealWeatherData(structuredContent?.weatherPayload)) && (() => {

@@ -1544,6 +1544,115 @@ function unwrapMcpContentText(val: any): string | null {
   return null;
 }
 
+// ============================================================
+// Phase 13: Historical Rainfall Chart — Open-Meteo ERA5 data
+// ============================================================
+interface RainfallMonth { label: string; total: number; year: number; month: number }
+
+async function fetchOpenMeteo3MonthRainfall(): Promise<{ months: RainfallMonth[]; ok: boolean; error?: string }> {
+  const now = new Date();
+  // Last 3 full calendar months (e.g., if April → Jan, Feb, Mar)
+  const months: { year: number; month: number; start: string; end: string; label: string }[] = [];
+  const thaiMonths = ["มกราคม","กุมภาพันธ์","มีนาคม","เมษายน","พฤษภาคม","มิถุนายน","กรกฎาคม","สิงหาคม","กันยายน","ตุลาคม","พฤศจิกายน","ธันวาคม"];
+  for (let i = 3; i >= 1; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const y = d.getFullYear();
+    const m = d.getMonth(); // 0-based
+    const lastDay = new Date(y, m + 1, 0).getDate();
+    months.push({
+      year: y,
+      month: m + 1,
+      start: `${y}-${String(m + 1).padStart(2, "0")}-01`,
+      end: `${y}-${String(m + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`,
+      label: `${thaiMonths[m]} ${y + 543}`,
+    });
+  }
+  const startDate = months[0].start;
+  const endDate = months[months.length - 1].end;
+  const url = `https://archive-api.open-meteo.com/v1/archive?latitude=13.75&longitude=100.52&start_date=${startDate}&end_date=${endDate}&daily=precipitation_sum&timezone=Asia%2FBangkok`;
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30000);
+    const resp = await fetch(url, { signal: controller.signal });
+    clearTimeout(timer);
+    if (!resp.ok) return { months: [], ok: false, error: `Open-Meteo HTTP ${resp.status}` };
+    const data = await resp.json() as any;
+    const times: string[] = data?.daily?.time ?? [];
+    const precips: number[] = data?.daily?.precipitation_sum ?? [];
+    const result: RainfallMonth[] = months.map((mo) => {
+      let total = 0;
+      for (let j = 0; j < times.length; j++) {
+        if (times[j] >= mo.start && times[j] <= mo.end && typeof precips[j] === "number") {
+          total += precips[j];
+        }
+      }
+      return { label: mo.label, total: Math.round(total * 10) / 10, year: mo.year, month: mo.month };
+    });
+    return { months: result, ok: true };
+  } catch (err: any) {
+    return { months: [], ok: false, error: err?.message || "Open-Meteo fetch failed" };
+  }
+}
+
+function buildRainfallBarChartSvg(months: RainfallMonth[]): string {
+  const W = 620, H = 400;
+  const PAD = { top: 65, right: 30, bottom: 65, left: 75 };
+  const chartW = W - PAD.left - PAD.right;
+  const chartH = H - PAD.top - PAD.bottom;
+  const maxVal = Math.max(...months.map((m) => m.total), 1) * 1.15;
+  const barW = Math.min(100, (chartW / months.length) * 0.55);
+  const gap = (chartW - barW * months.length) / (months.length + 1);
+  const colors = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6"];
+
+  let bars = "";
+  months.forEach((m, i) => {
+    const x = PAD.left + gap * (i + 1) + barW * i;
+    const barH = (m.total / maxVal) * chartH;
+    const y = PAD.top + chartH - barH;
+    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${colors[i % colors.length]}" rx="4" opacity="0.9"/>`;
+    bars += `<text x="${x + barW / 2}" y="${y - 8}" text-anchor="middle" font-size="13" fill="#374151" font-weight="600">${m.total.toFixed(1)} มม.</text>`;
+    bars += `<text x="${x + barW / 2}" y="${PAD.top + chartH + 20}" text-anchor="middle" font-size="11" fill="#6B7280">${m.label}</text>`;
+  });
+
+  let grid = "";
+  for (let i = 0; i <= 4; i++) {
+    const y = PAD.top + (chartH / 4) * i;
+    const val = maxVal * (1 - i / 4);
+    grid += `<line x1="${PAD.left}" y1="${y}" x2="${PAD.left + chartW}" y2="${y}" stroke="#E5E7EB" stroke-dasharray="4"/>`;
+    grid += `<text x="${PAD.left - 10}" y="${y + 4}" text-anchor="end" font-size="11" fill="#9CA3AF">${val.toFixed(0)}</text>`;
+  }
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" style="max-width:100%;height:auto;font-family:system-ui,sans-serif;">
+  <rect width="${W}" height="${H}" fill="#FAFAFA" rx="8"/>
+  <text x="${W / 2}" y="28" text-anchor="middle" font-size="16" font-weight="700" fill="#111827">เปรียบเทียบปริมาณฝนสะสมย้อนหลัง 3 เดือน</text>
+  <text x="${W / 2}" y="48" text-anchor="middle" font-size="11" fill="#9CA3AF">แหล่งข้อมูล: Open-Meteo ERA5 Reanalysis — พื้นที่กรุงเทพมหานคร (13.75°N, 100.52°E)</text>
+  ${grid}
+  <line x1="${PAD.left}" y1="${PAD.top}" x2="${PAD.left}" y2="${PAD.top + chartH}" stroke="#D1D5DB"/>
+  <line x1="${PAD.left}" y1="${PAD.top + chartH}" x2="${PAD.left + chartW}" y2="${PAD.top + chartH}" stroke="#D1D5DB"/>
+  <text x="18" y="${PAD.top + chartH / 2}" transform="rotate(-90, 18, ${PAD.top + chartH / 2})" text-anchor="middle" font-size="12" fill="#6B7280">ปริมาณฝนสะสม (มม.)</text>
+  ${bars}
+  <text x="${W / 2}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#D1D5DB">open-meteo.com | ERA5 reanalysis dataset</text>
+</svg>`;
+}
+
+// ============================================================
+// Phase 13: AI Image Generation — Pollinations.ai (free, no key)
+// ============================================================
+function buildImageGenerationUrl(prompt: string): string {
+  const encoded = encodeURIComponent(prompt.trim().slice(0, 500));
+  return `https://image.pollinations.ai/prompt/${encoded}?width=768&height=768&nologo=true`;
+}
+
+function extractImagePrompt(msg: string): string {
+  // Strip Thai prefixes: สร้างรูป, วาดรูป, สร้างภาพ, วาดภาพ, generate, draw, create
+  let p = msg
+    .replace(/^(สร้าง|วาด|generate|draw|create)\s*(รูป|ภาพ|รูปภาพ|image|picture|img)\s*/i, "")
+    .replace(/^(รูป|ภาพ|รูปภาพ|image|picture)\s*(สร้าง|วาด|generate|draw|create)\s*/i, "")
+    .trim();
+  if (p.length < 3) p = msg; // fallback to full message if stripping removed too much
+  return p;
+}
+
 function renderStructuredDirect(
   toolName: string,
   structuredContent: any,
@@ -2241,7 +2350,9 @@ function chatTraceOut(params: {
     | "tmd_climate"
     | "tmd_stations"
     | "tmd_rainfall"
-    | "tmd_rain_regions";
+    | "tmd_rain_regions"
+    | "rainfall_chart"
+    | "image_generation";
   tool?: string;
   code: number;
   durMs: number;
@@ -4574,6 +4685,66 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         mcpUsed: true,
         mcpResults: toolResults,
       });
+    }
+
+    // =====================================
+    // Phase 13.1: Historical Rainfall Chart — Real 3-Month Comparison (CHART-01)
+    // Uses Open-Meteo ERA5 reanalysis data (free, no API key, real scientific data)
+    // =====================================
+    const rainfallChartLike = /กราฟ.*ฝน.*(?:3|สาม|๓).*เดือน|เปรียบเทียบ.*ฝน.*(?:3|สาม|๓|ย้อนหลัง).*เดือน|ฝน.*ย้อนหลัง.*(?:3|สาม|๓).*เดือน|rainfall.*chart.*(?:3|three).*month|กราฟ.*ปริมาณ.*ฝน.*(?:ย้อนหลัง|เปรียบเทียบ)|เปรียบเทียบ.*ปริมาณ.*ฝน/i.test(routingMessage);
+    if (rainfallChartLike) {
+      logBoth("info", `[RainfallChartGate] bypass=true transport=http query=${routingMessage.slice(0, 80)}`);
+      const rainfall = await fetchOpenMeteo3MonthRainfall();
+      if (rainfall.ok && rainfall.months.length > 0) {
+        const chartSvg = buildRainfallBarChartSvg(rainfall.months);
+        const periodText = rainfall.months.map((m) => `${m.label}: ${m.total.toFixed(1)} มม.`).join(" | ");
+        const textOut = `📊 **เปรียบเทียบปริมาณฝนย้อนหลัง 3 เดือน (กรุงเทพมหานคร)**\n\n${periodText}\n\n🔽 ดูกราฟด้านล่าง\n\n📌 แหล่งข้อมูล: Open-Meteo ERA5 Reanalysis (reanalysis dataset จากศูนย์พยากรณ์อากาศยุโรป ECMWF)`;
+        const sc: any = {
+          chartSvg,
+          rainfallData: rainfall.months,
+          dataSource: "Open-Meteo ERA5 Reanalysis",
+          dataSourceUrl: "https://open-meteo.com",
+          location: { lat: 13.75, lon: 100.52, name: "กรุงเทพมหานคร" },
+        };
+        const scOut = withRenderMeta(sc, { route: "rainfall_chart", llmUsed: false, routeDecider: "deterministic", version: "phase13" }, ["open-meteo-era5"]);
+        sessionHistory.push({ sender: "ai", text: textOut } as any);
+        chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "rainfall_chart", tool: "open-meteo-era5", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+        return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: false, mcpResults: null, toolsUsed: ["open-meteo-era5"], route: "rainfall_chart" });
+      } else {
+        const fallbackText = `ขออภัย ไม่สามารถดึงข้อมูลปริมาณฝนย้อนหลังจาก Open-Meteo ได้ในขณะนี้ (${rainfall.error || "unknown error"})`;
+        sessionHistory.push({ sender: "ai", text: fallbackText } as any);
+        return res.json({ text: fallbackText, structuredContent: {}, messages: sessionHistory, mcpUsed: false, route: "rainfall_chart" });
+      }
+    }
+
+    // =====================================
+    // Phase 13.2: AI Image Generation — Authenticated Only (IMAGE-01)
+    // Uses Pollinations.ai (free, no API key, Flux model)
+    // =====================================
+    const imageGenLike = /^(?:สร้าง|วาด|generate|draw|create)\s*(?:รูป|ภาพ|รูปภาพ|image|picture|img)|(?:รูป|ภาพ|image)\s*(?:สร้าง|วาด)/i.test(routingMessage);
+    if (imageGenLike) {
+      logBoth("info", `[ImageGenGate] bypass=true transport=http query=${routingMessage.slice(0, 80)}`);
+      // Authenticated users only — guest mode cannot use image generation
+      const authReq = req as any;
+      if (!authReq.user) {
+        const textOut = "🔒 ฟีเจอร์สร้างรูปภาพ AI สำหรับผู้ใช้ที่เข้าสู่ระบบแล้วเท่านั้น กรุณาเข้าสู่ระบบก่อนใช้งาน";
+        sessionHistory.push({ sender: "ai", text: textOut } as any);
+        chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "image_generation", tool: "auth_required", code: 403, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: "AUTH_REQUIRED" });
+        return res.json({ text: textOut, structuredContent: { __authRequired: true }, messages: sessionHistory, mcpUsed: false, route: "image_generation" });
+      }
+      const imagePrompt = extractImagePrompt(routingMessage);
+      const imageUrl = buildImageGenerationUrl(imagePrompt);
+      const textOut = `🎨 **สร้างรูปภาพ AI ให้แล้วครับ**\n\n📝 คำสั่ง: "${imagePrompt}"\n🖼️ ดูภาพด้านล่าง\n\n⚙️ สร้างโดย: Pollinations.ai (Flux model — ฟรี, ไม่ต้อง API key)`;
+      const sc: any = {
+        generatedImageUrl: imageUrl,
+        imagePrompt,
+        imageProvider: "Pollinations.ai",
+        imageModel: "flux",
+      };
+      const scOut = withRenderMeta(sc, { route: "image_generation", llmUsed: false, routeDecider: "deterministic", version: "phase13" }, ["pollinations-ai"]);
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+      chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "image_generation", tool: "pollinations-ai", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+      return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: false, mcpResults: null, toolsUsed: ["pollinations-ai"], route: "image_generation" });
     }
 
     // =====================================
