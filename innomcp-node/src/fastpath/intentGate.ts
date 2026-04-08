@@ -37,7 +37,10 @@ const WORK_KEYWORDS = [
   "archive", "องค์กร", "govdata", "government", "ราชการ", "dataset",
   
   // Web filtering
-  "webd", "ผิดกฎหมาย", "บล็อก", "เว็บไซต์", "website", "filter"
+  "webd", "ผิดกฎหมาย", "บล็อก", "เว็บไซต์", "website", "filter",
+
+  // Geo / Coordinates
+  "พิกัด", "ละติจูด", "ลองจิจูด", "latitude", "longitude", "coordinate"
 ];
 
 /**

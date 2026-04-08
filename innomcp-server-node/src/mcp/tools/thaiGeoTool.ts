@@ -104,7 +104,8 @@ export const THAI_GEO_SEED: ThaiGeoEntity[] = [
   { id: "DIST-5006", domain: "geo", type: "district", name_th: "แม่ริม", aliases: [], description: "อำเภอแม่ริม จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "แม่ริม", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
   { id: "DIST-5007", domain: "geo", type: "district", name_th: "ฝาง", aliases: [], description: "อำเภอฝาง จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "ฝาง", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
   { id: "DIST-5008", domain: "geo", type: "district", name_th: "แม่แตง", aliases: [], description: "อำเภอแม่แตง จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "แม่แตง", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
-  { id: "DIST-9001", domain: "geo", type: "district", name_th: "หาดใหญ่", aliases: [], description: "อำเภอหาดใหญ่ จังหวัดสงขลา", attributes: { province: "สงขลา", district: "หาดใหญ่", region: "ใต้" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
+  { id: "DIST-9001", domain: "geo", type: "district", name_th: "หาดใหญ่", aliases: [], description: "อำเภอหาดใหญ่ จังหวัดสงขลา", attributes: { province: "สงขลา", district: "หาดใหญ่", region: "ใต้", lat: 7.0061, lon: 100.4722 }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
+  { id: "DIST-7502", domain: "geo", type: "district", name_th: "อัมพวา", aliases: [], description: "อำเภออัมพวา จังหวัดสมุทรสงคราม", attributes: { province: "สมุทรสงคราม", district: "อัมพวา", region: "กลาง", lat: 13.4268, lon: 99.9573 }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
 ];
 
 export interface GeoDbAdapter {
@@ -351,6 +352,12 @@ export const thaiGeoTool = {
         fallbackToMemory = true;
         const inMemory = new InMemoryGeoDb(THAI_GEO_SEED);
         entities = await inMemory.search({ queryText: searchTerm, filterRegion, limit: 10 });
+      }
+      // Phase 12.3: If DB returned 0 results but didn't throw, try in-memory seed as fallback
+      if (entities.length === 0 && !fallbackToMemory) {
+        const inMemory = new InMemoryGeoDb(THAI_GEO_SEED);
+        entities = await inMemory.search({ queryText: searchTerm, filterRegion, limit: 10 });
+        if (entities.length > 0) fallbackToMemory = true;
       }
       if (entities.length === 0) {
         return errorResult({

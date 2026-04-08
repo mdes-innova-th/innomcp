@@ -364,8 +364,8 @@ const SEED: SeedEntity[] = [
     id: "geo:songkhla",
     type: "province",
     name_th: "สงขลา",
-    aliases: [],
-    attributes: { province: "สงขลา", region: "ใต้" },
+    aliases: ["หาดใหญ่"],
+    attributes: { province: "สงขลา", region: "ใต้", lat: 7.1896, lon: 100.5945 },
   },
   {
     id: "geo:nakhon-si-thammarat",
@@ -394,6 +394,36 @@ const SEED: SeedEntity[] = [
     name_th: "อุบลราชธานี",
     aliases: [],
     attributes: { province: "อุบลราชธานี", region: "อีสาน" },
+  },
+
+  // Phase 12.3: Additional provinces/districts for coordinate lookup
+  {
+    id: "geo:lamphun",
+    type: "province",
+    name_th: "ลำพูน",
+    aliases: [],
+    attributes: { province: "ลำพูน", region: "เหนือ", lat: 18.5744, lon: 98.9862 },
+  },
+  {
+    id: "geo:samut-songkhram",
+    type: "province",
+    name_th: "สมุทรสงคราม",
+    aliases: ["แม่กลอง"],
+    attributes: { province: "สมุทรสงคราม", region: "กลาง", lat: 13.4098, lon: 100.0022 },
+  },
+  {
+    id: "geo:hat-yai-district",
+    type: "district",
+    name_th: "หาดใหญ่",
+    aliases: [],
+    attributes: { province: "สงขลา", district: "หาดใหญ่", region: "ใต้", lat: 7.0061, lon: 100.4722 },
+  },
+  {
+    id: "geo:amphawa-district",
+    type: "district",
+    name_th: "อัมพวา",
+    aliases: [],
+    attributes: { province: "สมุทรสงคราม", district: "อัมพวา", region: "กลาง", lat: 13.4268, lon: 99.9573 },
   },
 
   // Ambiguous common names (repeat across provinces)
@@ -1134,6 +1164,12 @@ export function renderThaiGeoAnswerShort(toolResult: any): { text: string; trace
       const prov = sanitize(best.attributes?.province);
       const p = prov || (isBangkok(best.name_th || "") ? "กรุงเทพมหานคร" : "");
       const lines = renderAdminLines(p, best.name_th);
+      // Phase 12.3: Include coordinates for district results
+      const dlat = best.attributes?.lat;
+      const dlon = best.attributes?.lon;
+      if (typeof dlat === "number" && typeof dlon === "number") {
+        lines.push(`พิกัด: ${dlat.toFixed(4)}°N, ${dlon.toFixed(4)}°E`);
+      }
       const text = sanitize(["คำตอบ:", ...lines].join("\n"));
       return { text, trace: "OK" };
     }
@@ -1142,6 +1178,12 @@ export function renderThaiGeoAnswerShort(toolResult: any): { text: string; trace
     const regionLine = regionMapped ? `ภาค: ${sanitize(regionMapped)}` : "";
     const lines = ["คำตอบ:", `จังหวัด: ${sanitize(best.name_th)}`];
     if (regionLine) lines.push(regionLine);
+    // Phase 12.3: Include coordinates when available
+    const lat = best.attributes?.lat;
+    const lon = best.attributes?.lon;
+    if (typeof lat === "number" && typeof lon === "number") {
+      lines.push(`พิกัด: ${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`);
+    }
     const text = sanitize(lines.join("\n"));
     return { text, trace: "OK" };
   }

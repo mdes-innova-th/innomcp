@@ -1290,7 +1290,7 @@ function looksLikeDeterministicGeoQuery(text: string): boolean {
   };
 
   const t = normalizeThaiDigits(String(text || ""));
-  const directGeo = /(รหัสไปรษณีย์|\b\d{5}\b|จังหวัด|อำเภอ|เขต|แขวง|ตำบล|พิกัด|ภาค|ที่อยู่|แยกที่อยู่|จัดรูปแบบที่อยู่|ตรวจสอบที่อยู่|postcode|province|district|subdistrict|address|coordinate|\blat\b|latitude|\blon\b|longitude|(?:^|\s)(?:จ\.|อ\.|ต\.|ถ\.|ซ\.|กทม\.?))/i.test(
+  const directGeo = /(รหัสไปรษณีย์|\b\d{5}\b|จังหวัด|อำเภอ|เขต|แขวง|ตำบล|พิกัด|ภาค|ที่อยู่|แยกที่อยู่|จัดรูปแบบที่อยู่|ตรวจสอบที่อยู่|postcode|province|district|subdistrict|address|coordinate|\blat\b|latitude|\blon\b|longitude|ละติจูด|ลองจิจูด|(?:^|\s)(?:จ\.|อ\.|ต\.|ถ\.|ซ\.|กทม\.?))/i.test(
     t
   );
   if (directGeo) return true;
@@ -1369,6 +1369,21 @@ function extractGeoLookupQuery(text: string): string {
 
   const mProv = t.match(/(?:จังหวัด|จ\.)\s*([ก-๙A-Za-z]+)/) || t.match(/จังหวัด([ก-๙A-Za-z]+)/);
   if (mProv && !isQuestionToken(mProv[1])) return stripLeadingAdminPrefixes(mProv[1]);
+
+  // Phase 12.3: Coordinate-intent extraction — strip coord/question noise, keep Thai place name
+  const isCoordQuery = /(latitude|longitude|\blat\b|\blon\b|ละติจูด|ลองจิจูด|พิกัด|coordinate)/i.test(t);
+  if (isCoordQuery) {
+    const stripped = t
+      .replace(/(latitude|longitude|\blat\b|\blon\b|ละติจูด|ลองจิจูด|พิกัด|coordinate)/gi, " ")
+      .replace(/(เท่าไร|เท่าไหร่|คืออะไร|คือ|อะไร|ของ|ขอ|บอก|แสดง|ดู|จังหวัด)/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const thaiTokens = stripped.match(/[ก-๙]{2,}/g);
+    if (thaiTokens && thaiTokens.length > 0) {
+      const place = thaiTokens.sort((a, b) => b.length - a.length)[0];
+      return place.slice(0, 80);
+    }
+  }
 
   const mCoord = t.match(/พิกัด(?:ของ)?\s*([ก-๙A-Za-z]+)/);
   if (mCoord) return mCoord[1];
