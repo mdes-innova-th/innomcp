@@ -259,7 +259,10 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
     .replace(/อากาส(?=[^\u0E00]|$)/g, "อากาศ")
     .replace(/กรุเทพ/g, "กรุงเทพ")
     .replace(/วันี้/g, "วันนี้")
-    .replace(/พรุ่งนี[้]?(?=\s|$)/g, "พรุ่งนี้");
+    .replace(/พรุ่งนี[้]?(?=\s|$)/g, "พรุ่งนี้")
+    // Phase 14: Typo normalization — repeated vowels / common Thai misspellings
+    .replace(/ร้ออน/g, "ร้อน")
+    .replace(/หนาวว/g, "หนาว");
 
   // Core weather words
   const hasWind = /(?:^|\s)ลม(?:\s|$)|ลมแรง|ความเร็วลม|ทิศทางลม|wind\b/i.test(t);
@@ -294,7 +297,9 @@ function looksLikeDeterministicWeatherQuery(text: string): boolean {
 }
 
 function hasExplicitWeatherIntentKeywords(text: string): boolean {
-  return /(อากาศ|อากาส|พยากรณ์|ฝน|อุณหภูมิ|ความชื้น|ลม|เรดาร์|weather|forecast|temperature|humidity|rain|storm|wind|อุตุ|NWP|nwp|แผ่นดินไหว|seismic|ริกเตอร์|earthquake|เตือนภัย|ประกาศเตือน|สถานีอุตุ|รังสีดวงอาทิตย์|แสงอาทิตย์|แสงแดด|solar|uv|\(tmd\))/i.test(String(text || ""));
+  // Phase 14: Add ร้อน/ร้ออน/หนาว as explicit weather keywords so they outrank geo
+  const t = String(text || "").replace(/ร้ออน/g, "ร้อน");
+  return /(อากาศ|อากาส|พยากรณ์|ฝน|อุณหภูมิ|ความชื้น|ลม|เรดาร์|weather|forecast|temperature|humidity|rain|storm|wind|อุตุ|NWP|nwp|แผ่นดินไหว|seismic|ริกเตอร์|earthquake|เตือนภัย|ประกาศเตือน|สถานีอุตุ|รังสีดวงอาทิตย์|แสงอาทิตย์|แสงแดด|solar|uv|\(tmd\)|ร้อน|หนาว|แล้ง|temp\b)/i.test(t);
 }
 
 const CARRY_FORWARD_ENTITY_RE = /เชียงใหม่|กรุงเทพ(?:มหานคร)?|ภูเก็ต|เชียงราย|ขอนแก่น|นครราชสีมา|โคราช|สงขลา|หาดใหญ่|สมุทรสงคราม|แม่กลอง|ชลบุรี|อยุธยา|สุราษฎร์ธานี|ระนอง|พังงา|กระบี่|ภาคกลาง|ภาคเหนือ|ภาคใต้|ภาคอีสาน|ภาคตะวันออกเฉียงเหนือ/g;
@@ -564,6 +569,8 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   // Phase 7.3 / Phase 8.2: Yesterday evidence totals / ISP breakdown
   const isYesterday = /(เมื่อวาน|วานนี้|yesterday|เมือวาน|มื่อวาน)/i.test(t);
   const hasIsp = /\bisp\b/i.test(t) || /ผู้ให้บริการ|ค่าย|เครือข่าย|ไอเอสพี/i.test(t);
+  // Phase 14: Detect specific telecom/ISP company names as ISP-context signals
+  const hasTelecomName = /\b(dtac|ดีแทค|ais|เอไอเอส|true|ทรู|trueonline|truemove|ทรูมูฟ|nt\b|cat\b|tot\b|3bb|ทีโอที)/i.test(t);
   const hasEvidenceTerms = /(evidence|หลักฐาน|record|วิดีโอ|หลักฐาณ|evdence|evidnce)/i.test(t);
   const wants7dTrend = /(แนวโน้ม|เทรนด์|trend|7\s*วัน|เจ็ด\s*วัน|7\s*days?|เเนวโน้ม)/i.test(t);
   const wantsBreakdownOrTop = /(แยกตาม|breakdown|top\b|most\b|highest\b|max\b|มากที่สุด|มากสุด|สูงสุด|เยอะที่สุด|เยอะสุด)/i.test(t);
@@ -675,6 +682,32 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   if (/(วันนี้)/i.test(t) && /(evidence|หลักฐาน|record|วิดีโอ)/i.test(t) && /(ได้เท่าไหร่|กี่|ทั้งหมด|รวม)/i.test(t)) {
     return "evidence_records_today";
   }
+
+  // Phase 14: ISP-specific queries with time scope — "รายการ NIP/url ผิดกฎหมาย วันนี้/เดือนนี้/สัปดาห์นี้ ของ DTAC/AIS"
+  // Normalize ผิดกฏหมาย (common ฏ/ฎ typo) to match
+  const tNorm = t.replace(/ผิดกฏหมาย/g, "ผิดกฎหมาย");
+  const hasUrlOrNip = /\b(url|nip)\b/i.test(tNorm) || /ผิดกฎหมาย|illegal/i.test(tNorm);
+  const hasTimePeriod = /(วันนี้|today|เดือนนี้|this\s*month|สัปดาห์นี้|this\s*week|อาทิตย์นี้)/i.test(tNorm);
+  const hasListRequest = /(รายการ|จำนวน|ทั้งหมด|ดู|ขอ|แสดง|list|show|report)/i.test(tNorm);
+  // ISP-specific period query: "รายการ url ผิดกฎหมาย เดือนนี้ของ DTAC"
+  if (hasUrlOrNip && hasTimePeriod && hasTelecomName) {
+    if (/(เดือนนี้|this\s*month)/i.test(tNorm)) return "nip_top_isp_this_month";
+    if (/(สัปดาห์นี้|this\s*week|อาทิตย์นี้)/i.test(tNorm)) return "detected_urls_today"; // week scope uses same tool with different args
+    return "detected_urls_today"; // default to today scope
+  }
+  // "รายการ NIP สัปดาห์นี้ ของ DTAC" or "NIP วันนี้ DTAC"
+  if (/\bnip\b/i.test(tNorm) && hasTimePeriod && hasTelecomName) {
+    return "detected_urls_today";
+  }
+  // Broader: "รายการ url ผิดกฎหมาย เดือนนี้" (no specific ISP)
+  if (hasUrlOrNip && hasTimePeriod && hasListRequest) {
+    if (/(เดือนนี้|this\s*month)/i.test(tNorm)) return "nip_top_isp_this_month";
+    return "detected_urls_today";
+  }
+  // "top ISP วันนี้/เดือนนี้" — already partially handled above, but ensure telecom names route here too
+  if (hasTelecomName && hasTimePeriod && (hasUrlOrNip || hasListRequest)) {
+    return "detected_urls_today";
+  }
   return undefined;
 }
 
@@ -694,8 +727,12 @@ function getGeneralBudgetMs(): number {
 function looksLikeEvidenceKeywordQuery(text: string): boolean {
   const t = String(text || "");
   const hasThaiMachine = /เครื่อง/i.test(t);
-  const hasEvidenceTerms = /(evidence|หลักฐาน|record|records|nip|url|mdes|วิดีโอ|บันทึก|สแกน|scanner|แนวโน้ม.*หลักฐาน)/i.test(t);
+  // Phase 14: Normalize ผิดกฏหมาย→ผิดกฎหมาย typo for detection
+  const tFixed = t.replace(/ผิดกฏหมาย/g, "ผิดกฎหมาย");
+  const hasEvidenceTerms = /(evidence|หลักฐาน|record|records|nip|url|mdes|วิดีโอ|บันทึก|สแกน|scanner|แนวโน้ม.*หลักฐาน|ผิดกฎหมาย|illegal)/i.test(tFixed);
   const hasIsp = /\bisp\b/i.test(t) || /ผู้ให้บริการ|ค่าย/i.test(t);
+  // Phase 14: Detect specific telecom/ISP names
+  const hasTelecomName = /\b(dtac|ดีแทค|ais|เอไอเอส|true|ทรู|trueonline|truemove|ทรูมูฟ|nt\b|cat\b|tot\b|3bb|ทีโอที)/i.test(t);
   const hasOnlineTerms = /(ออนไลน์|ออฟไลน์|online|offline|active)/i.test(t);
 
   // English "machine" is ambiguous (e.g. "Machine Learning"). Only treat as evidence-like when paired with online/offline/scanner/evidence.
@@ -704,6 +741,8 @@ function looksLikeEvidenceKeywordQuery(text: string): boolean {
   if (hasThaiMachine) return true;
   if (hasEvidenceTerms) return true;
   if (hasIsp) return true;
+  // Phase 14: Telecom name + evidence-ish keywords (url/nip/ผิดกฎหมาย/รายการ) → evidence context
+  if (hasTelecomName && /(url|nip|ผิดกฎหมาย|illegal|รายการ|สแกน)/i.test(tFixed)) return true;
   if (hasEnglishMachineToken && hasOnlineTerms) return true;
   // "machine offline", "machine ไหน" in evidence contexts
   if (hasEnglishMachineToken && /(ไหน|ตัวไหน|กี่|สถานะ|status)/i.test(t)) return true;
@@ -2962,7 +3001,9 @@ wss.on("connection", (ws, req) => {
         // Exclude WorldBank/GDP queries from weatherGate — they contain Thai locations + years
         // which look weather-like but must reach the WorldBank gate at Phase 10.5.
         const looksLikeWorldBankQuery = /worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร|\bpopulation\b|\binflation\b|เงินเฟ้อ|life\s*expectancy|อายุขัย/i.test(routingMessage);
-        const allowWeatherGate = !looksLikeWorldBankQuery && (answerPlan.intent === "weather" || (!officerMode
+        // Phase 14: Evidence/ISP queries must NOT enter weather gate — telecom names are NOT provinces
+        const looksLikeEvidenceForWeatherBlock = looksLikeEvidenceKeywordQuery(routingMessage) || !!inferOfficerEvidenceAction(routingMessage);
+        const allowWeatherGate = !looksLikeWorldBankQuery && !looksLikeEvidenceForWeatherBlock && (answerPlan.intent === "weather" || (!officerMode
           ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(routingMessage))
           : weatherLike && hasExplicitWeatherIntentKeywords(routingMessage)));
         if (mcpClient && allowWeatherGate) {
@@ -4797,7 +4838,9 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     const geoLike = looksLikeDeterministicGeoQuery(routingMessage);
     const weatherLike = looksLikeDeterministicWeatherQuery(routingMessage);
     const looksLikeWorldBankQueryHttp = /worldbank|world\s*bank|เวิลด์แบงก์|\bgdp\b|ธนาคารโลก|ประชากร|\bpopulation\b|\binflation\b|เงินเฟ้อ|life\s*expectancy|อายุขัย/i.test(routingMessage);
-    const allowWeatherGate = !looksLikeWorldBankQueryHttp && (answerPlan.intent === "weather" || (!officerMode
+    // Phase 14: Evidence/ISP queries must NOT enter weather gate
+    const looksLikeEvidenceForWeatherBlockHttp = looksLikeEvidenceKeywordQuery(routingMessage) || !!inferOfficerEvidenceAction(routingMessage);
+    const allowWeatherGate = !looksLikeWorldBankQueryHttp && !looksLikeEvidenceForWeatherBlockHttp && (answerPlan.intent === "weather" || (!officerMode
       ? weatherLike && (!geoLike || hasExplicitWeatherIntentKeywords(routingMessage))
       : weatherLike && hasExplicitWeatherIntentKeywords(routingMessage)));
     if (mcpClient && allowWeatherGate) {
