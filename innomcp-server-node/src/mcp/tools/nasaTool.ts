@@ -38,6 +38,12 @@ interface APODResponse {
 }
 
 /**
+ * In-memory cache for last-known-good APOD result.
+ * Provides resilience when NASA API returns 500 or is unreachable.
+ */
+let apodCache: { result: string; fetchedAt: string } | null = null;
+
+/**
  * Get NASA API key from environment or use DEMO_KEY
  */
 function getNasaApiKey(): string {
@@ -98,15 +104,25 @@ async function fetchAPOD(params: NasaToolInput): Promise<string> {
     
     // Handle multiple results (random mode)
     if (Array.isArray(data)) {
-      return formatMultipleAPOD(data, duration);
+      const result = formatMultipleAPOD(data, duration);
+      apodCache = { result, fetchedAt: new Date().toISOString() };
+      return result;
     }
     
     // Handle single result
-    return formatSingleAPOD(data, duration);
+    const result = formatSingleAPOD(data, duration);
+    apodCache = { result, fetchedAt: new Date().toISOString() };
+    return result;
     
   } catch (error: any) {
     const duration = Date.now() - startTime;
     logBoth('ERROR', `[NasaTool] Error after ${duration}ms: ${error && error.message ? error.message : error}`);
+    
+    // Resilience: serve cached result on upstream failure
+    if (apodCache) {
+      logBoth('INFO', `[NasaTool] Serving cached APOD from ${apodCache.fetchedAt}`);
+      return apodCache.result + `\n\n⚠️ หมายเหตุ: ข้อมูลจากแคช (ดึงเมื่อ ${apodCache.fetchedAt}) เนื่องจาก NASA API ขัดข้อง`;
+    }
     
     return JSON.stringify({
       success: false,

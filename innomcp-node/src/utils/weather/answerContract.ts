@@ -129,6 +129,11 @@ function isTodayRainQuestion(text: string): boolean {
   return /วันนี้/i.test(t) && /(ฝนตกไหม|ฝนจะตก|ฝนตกช่วงไหน|ฝน\s*ตก)/i.test(t);
 }
 
+function isTemperatureQuestion(text: string): boolean {
+  const t = String(text || "");
+  return /อุณหภูมิ|สูงสุด.*ต่ำสุด|ต่ำสุด.*สูงสุด|ร้อนสุด|หนาวสุด|กี่องศา|temp.*max|temp.*min|max.*temp|min.*temp/i.test(t);
+}
+
 function pickStationUpdateTime(stationItems: any[]): string {
   const s = (Array.isArray(stationItems) ? stationItems : [])[0] || {};
   return firstNonEmptyString(
@@ -529,13 +534,17 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
   const naturalSummary = (() => {
     const area = areaLabelForProvince(userText, province);
     const parts: string[] = [];
+    const isTempQ = isTemperatureQuestion(userText);
+    if (isTempQ && tempText) {
+      parts.push(`อุณหภูมิ ${tempText}`);
+    }
     if (rainPct !== null) {
       if (rainPct >= 60) parts.push("มีฝนตกหนัก");
       else if (rainPct >= 30) parts.push("มีโอกาสฝนตก");
       else if (rainPct > 0) parts.push("โอกาสฝนน้อย");
       else parts.push("อากาศดี ฟ้าใส");
     }
-    if (tempText) parts.push(`อุณหภูมิ ${tempText}`);
+    if (!isTempQ && tempText) parts.push(`อุณหภูมิ ${tempText}`);
     return parts.length > 0 ? `📍 ${area} — ${parts.join(" ")}` : `📍 ${area}`;
   })();
 
@@ -556,9 +565,14 @@ function renderOneProvince(userText: string, province: string, items: WeatherRes
 
   // Keep update time early (2nd line) so trace sanitizer 220-char truncation never drops it.
   if (updateTimeStr) lines.push(`เวลาอัปเดตข้อมูล: ${updateTimeStr}`);
-  lines.push(`โอกาสฝน: ${rainText}`);
-  lines.push(`ช่วงเวลาเสี่ยง: ${timeRisk}`);
-  lines.push(`อุณหภูมิ: ${tempOut}`);
+  if (isTemperatureQuestion(userText)) {
+    lines.push(`อุณหภูมิ: ${tempOut}`);
+    lines.push(`โอกาสฝน: ${rainText}`);
+  } else {
+    lines.push(`โอกาสฝน: ${rainText}`);
+    lines.push(`ช่วงเวลาเสี่ยง: ${timeRisk}`);
+    lines.push(`อุณหภูมิ: ${tempOut}`);
+  }
   lines.push(`ลม: ${windText}`);
   lines.push(`ข้อควรระวัง: ${advice}`);
 

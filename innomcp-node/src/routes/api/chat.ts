@@ -3943,7 +3943,9 @@ wss.on("connection", (ws, req) => {
                 const note = d.note ? `\n\nหมายเหตุ: ${d.note}` : "";
                 const table = d.tableMarkdown ? `\n\n${d.tableMarkdown}` : "";
                 const suffix = topSummary ? `: ${topSummary}` : "";
-                finalText = `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${suffix}${table}${note}`;
+                const isTempQNat = /อุณหภูมิ|สูงสุด.*ต่ำสุด|ต่ำสุด.*สูงสุด|ร้อนสุด|หนาวสุด|กี่องศา/i.test(currentText || "");
+                const tempHint = isTempQNat ? `\n\n💡 สำหรับอุณหภูมิสูงสุด/ต่ำสุด กรุณาระบุจังหวัดที่ต้องการ เช่น "อุณหภูมิสูงสุดต่ำสุดกรุงเทพวันนี้"` : "";
+                finalText = `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${suffix}${table}${note}${tempHint}`;
               } else if (firstOk.type === "forecast7d") {
                 const province = firstOk.province || "";
                 const f = firstOk.data?.forecast;
@@ -3956,7 +3958,12 @@ wss.on("connection", (ws, req) => {
                   const tmax = (f as any).MaximumTemperature?.[i];
                   const tmin = (f as any).MinimumTemperature?.[i];
                   const desc = String((f as any).DescriptionThai?.[i] || "").trim();
-                  finalText = `พยากรณ์อากาศ${province} (${targetDate}): โอกาสฝน ~${rain}% อุณหภูมิ ${tmin ?? "—"}–${tmax ?? "—"}°C${desc ? `, ${desc}` : ""}`;
+                  const isTempQ = /อุณหภูมิ|สูงสุด.*ต่ำสุด|ต่ำสุด.*สูงสุด|ร้อนสุด|หนาวสุด|กี่องศา/i.test(currentText || "");
+                  if (isTempQ) {
+                    finalText = `อุณหภูมิ${province} (${targetDate}): สูงสุด ${tmax ?? "—"}°C ต่ำสุด ${tmin ?? "—"}°C โอกาสฝน ~${rain}%${desc ? `, ${desc}` : ""}`;
+                  } else {
+                    finalText = `พยากรณ์อากาศ${province} (${targetDate}): โอกาสฝน ~${rain}% อุณหภูมิ ${tmin ?? "—"}–${tmax ?? "—"}°C${desc ? `, ${desc}` : ""}`;
+                  }
                 } else {
                   finalText = `พยากรณ์อากาศ${province}: ดึงข้อมูลพยากรณ์ 7 วันสำเร็จ (หากต้องการ \"ตาราง\" บอกได้ครับ)`;
                 }
