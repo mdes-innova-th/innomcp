@@ -91,6 +91,13 @@ package-lock.json
 !/tests/e2e/tests/
 !/tests/e2e/tests/evidence-dashboard.spec.ts
 
+# Allowlist: release gate E2E test files
+!/tests/e2e/browser-release-flows.spec.ts
+!/tests/e2e/comprehensive-test-suite.spec.ts
+!/tests/e2e/mcp-reliability-battery.spec.ts
+!/tests/e2e/playwright.config.ts
+!/tests/e2e/package.json
+
 # Allowlist: tool-selection 2026 robust suite
 !/tests/e2e/testlist/
 !/tests/e2e/testlist/tool-selection.spec.ts
