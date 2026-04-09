@@ -377,8 +377,8 @@ function buildHistoryAwareFollowUpQuery(currentText: string, sessionHistory: Cha
   const cur = String(currentText || "").trim();
   if (sessionHistory.length < 2) return cur;
 
-  const isAmbiguousFollowUp = /^(แล้ว|ถ้า|ถ้าเทียบ|เทียบ|สรุป|ขอเหตุผล|ขอสรุป|ขอ|แล้วล่ะ|แปลงเป็นข้อความ|จังหวัดไหนเด่น|สรุปต่างจาก)/i.test(cur)
-    || /จังหวัดนี้|ที่นี่|ที่นั่น|ภาคนี้|ล่ะ$|อ่านว่า|เขียนเป็นคำ/i.test(cur);
+  const isAmbiguousFollowUp = /^(แล้ว|ถ้า|ถ้าเทียบ|เทียบ|สรุป|ขอเหตุผล|ขอสรุป|ขอ|แล้วล่ะ|แปลงเป็นข้อความ|จังหวัดไหนเด่น|สรุปต่างจาก|งั้น|เปลี่ยน|กลับมา)/i.test(cur)
+    || /จังหวัดนี้|ที่นี่|ที่นั่น|ภาคนี้|ล่ะ$|อ่านว่า|เขียนเป็นคำ|ค่ายนี้|ของค่ายนี้/i.test(cur);
   if (!isAmbiguousFollowUp) return cur;
 
   const historyText = sessionHistory
@@ -394,12 +394,70 @@ function buildHistoryAwareFollowUpQuery(currentText: string, sessionHistory: Cha
   const explicitLocation = extractExplicitCarryLocation(cur);
   const recentWeatherContext = /(ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|ลม|weather|forecast|temperature|humidity|แนวโน้มฝน|น้ำเสี่ยง|น้ำท่วม|ระดับน้ำ)/i.test(historyText);
   const recentEvidenceMachineContext = /(เครื่องออนไลน์|เครื่องออฟไลน์|ออนไลน์.*เครื่อง|เครื่อง.*ออนไลน์|machine.*online|online.*machine)/i.test(historyText);
+  // Phase 15: Detect evidence URL/NIP context in recent history
+  const recentEvidenceUrlContext = /(url\s*ผิดกฎหมาย|url\s*ผิดกฏหมาย|nip.*ผิด|ตรวจพบ\s*url|url\/nip|illegal\s*url|url.*เจอ|เจอ.*url)/i.test(historyText);
+  // Phase 15: Extract last ISP name mentioned in history for carry-forward
+  const lastHistoryIsp = (() => {
+    const ispPattern = /\b(ais|dtac|ดีแทค|true|ทรู|trueonline|truemove|nt\b|cat\b|tot\b|3bb|เอไอเอส|ทีโอที)\b/gi;
+    const tokens = historyText.match(ispPattern);
+    return tokens && tokens.length > 0 ? tokens[tokens.length - 1].toUpperCase() : null;
+  })();
 
   // Evidence machine carry-forward
   if (recentEvidenceMachineContext) {
     if (/(offline|ออฟไลน์)/i.test(cur)) return "เครื่องออฟไลน์กี่เครื่อง";
     if (/(online|ออนไลน์)/i.test(cur)) return "เครื่องออนไลน์กี่เครื่อง";
     if (/สรุป/i.test(cur)) return "สรุปเครื่องออนไลน์และออฟไลน์";
+  }
+
+  // Phase 15: Evidence URL/ISP context carry-forward
+  if (recentEvidenceUrlContext && lastHistoryIsp) {
+    // "แล้วของเมื่อวานล่ะ" → "url ผิดกฎหมายของ {ISP} เมื่อวาน"
+    if (/(เมื่อวาน|วานนี้|yesterday)/i.test(cur) && !/\b(ais|dtac|true|nt|cat|tot|3bb)\b/i.test(cur)) {
+      if (/(มากกว่า|น้อยกว่า|เปรียบเทียบ|เทียบ|ต่าง|delta)/i.test(cur)) {
+        return `url ผิดกฎหมาย ของ ${lastHistoryIsp} วันนี้ มากกว่าที่พบเมื่อวาน เท่าไหร่`;
+      }
+      // Use yesterday_total + ISP form that the evidence gate catches
+      return `จำนวน url ผิดกฎหมาย เมื่อวาน ของ ${lastHistoryIsp}`;
+    }
+    // "งั้นเอา DTAC ด้วย" — explicit ISP switch in evidence context
+    const explicitIsp = (() => {
+      const m = cur.match(/\b(ais|dtac|ดีแทค|true|ทรู|nt|cat|tot|3bb)\b/i);
+      return m ? m[1].toUpperCase() : null;
+    })();
+    if (explicitIsp) {
+      // Infer same time scope from the most recent user query in history
+      const lastUserMsgs = sessionHistory.filter(m => m.sender === 'user').slice(-2);
+      const recentUserText = lastUserMsgs.map(m => String(m.text || "")).join(" ");
+      if (/(เมื่อวาน|วานนี้)/i.test(recentUserText) && !/(วันนี้|today)/i.test(cur)) {
+        return `url ผิดกฎหมายของ ${explicitIsp} เมื่อวาน`;
+      }
+      if (/(สัปดาห์นี้|this\s*week)/i.test(recentUserText)) {
+        return `url ผิดกฎหมายของ ${explicitIsp} สัปดาห์นี้`;
+      }
+      return `url ผิดกฎหมายของ ${explicitIsp} วันนี้`;
+    }
+    // "ค่ายนี้" → reuse last ISP
+    if (/ค่ายนี้|ของค่ายนี้/i.test(cur)) {
+      const hasLimit = /\d+\s*รายการ/i.test(cur);
+      if (hasLimit && /(ล่าสุด|latest)/i.test(cur)) {
+        return `แสดง url ผิดกฎหมาย ${cur.match(/\d+\s*รายการ/)?.[0] || "20รายการ"}ล่าสุด ของ ${lastHistoryIsp} เดือนนี้`;
+      }
+      if (/สรุป/i.test(cur)) {
+        return `สรุป url ผิดกฎหมายของ ${lastHistoryIsp} เดือนนี้`;
+      }
+      return `url ผิดกฎหมายของ ${lastHistoryIsp} วันนี้`;
+    }
+    // "ขอ 20 รายการล่าสุดของค่ายนี้เดือนนี้" / "ขอ 20 รายการล่าสุดของเดือนนี้"
+    if (/\d+\s*รายการ/i.test(cur) && /(ล่าสุด|latest)/i.test(cur)) {
+      const limitMatch = cur.match(/(\d+)\s*รายการ/);
+      const limit = limitMatch ? limitMatch[1] : "20";
+      return `แสดง url ผิดกฎหมาย ${limit}รายการล่าสุด ของ ${lastHistoryIsp} เดือนนี้`;
+    }
+    // Generic "สรุป" in evidence context
+    if (/^สรุป/i.test(cur) && !recentWeatherContext) {
+      return `สรุป url ผิดกฎหมายของ ${lastHistoryIsp} วันนี้`;
+    }
   }
 
   if (/(machine\s*learning|\bML\b)/i.test(historyText)) {
@@ -412,6 +470,14 @@ function buildHistoryAwareFollowUpQuery(currentText: string, sessionHistory: Cha
   }
 
   if (recentWeatherContext) {
+    // Phase 15: "เปลี่ยนกลับไปกรุงเทพ" / "กลับมาเรื่องอากาศ ขอXXX" — switch to explicit province
+    if (/(เปลี่ยน|กลับ)/i.test(cur)) {
+      const switchTarget = explicitLocation || previousProvince || lastProvince;
+      if (switchTarget) {
+        return `อากาศ${switchTarget}วันนี้`;
+      }
+    }
+
     if (/สรุปเป็นตาราง/i.test(cur) && lastProvince && previousProvince) {
       return `อากาศ${previousProvince}เทียบกับ${lastProvince}เป็นตาราง`;
     }
@@ -619,6 +685,15 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   // "มากกว่าเมื่อวาน", "เทียบเมื่อวาน", "วันนี้...เมื่อวาน...เท่าไ"
   if (hasUrlOrNip15 && hasTelecomName && /(มากกว่า.*เมื่อวาน|เมื่อวาน.*มากกว่า|เปรียบเทียบ.*เมื่อวาน|เทียบ.*เมื่อวาน|วันนี้.*เมื่อวาน.*เท่าไ|เพิ่ม.*จาก.*เมื่อวาน|ต่าง.*จาก.*เมื่อวาน)/i.test(tNorm15)) {
     return "detected_urls_delta";
+  }
+
+  // Phase 15: "url ผิดกฎหมาย + ISP + เมื่อวาน" (carry-forward from follow-up)
+  // Use delta intent since it returns both today and yesterday counts
+  if (hasUrlOrNip15 && isYesterday && hasTelecomName) {
+    return "detected_urls_delta";
+  }
+  if (hasUrlOrNip15 && isYesterday) {
+    return "evidence_records_yesterday_total";
   }
 
   // Phase 15 CONTRACT 1: unique/new this month multi-ISP — must be BEFORE `เดือนนี้` catch-all
