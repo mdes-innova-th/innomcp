@@ -1,13 +1,84 @@
-
+﻿/**
+ * Evidence Tool — THIN HTTP ADAPTER (Phase 19)
+ *
+ * This file contains NO business SQL. All queries are delegated to
+ * the detect-evidence-api microservice on port 3013.
+ *
+ * Architecture: innomcp-node -> HTTP -> detect-evidence-api -> MySQL
+ */
 import { MCPTool } from "../types";
-import { queryEvidence } from "../../db/evidenceConnection";
 
 export const EVIDENCE_TOOL_NAME = "detect_evidence_stats";
+
+const DETECT_API_BASE = `http://${process.env.DETECT_API_HOST || "localhost"}:${process.env.DETECT_API_PORT || "3013"}`;
+
+/** HTTP helper — call detect-evidence-api */
+async function callDetectAPI<T = any>(path: string, timeoutMs = 15000): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${DETECT_API_BASE}${path}`, {
+      signal: controller.signal,
+      headers: { "Accept": "application/json" },
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new Error(`DetectAPI ${res.status}: ${body.slice(0, 200)}`);
+    }
+    return (await res.json()) as T;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Bangkok helpers */
+function bkkMonth(): string {
+  const d = new Date(Date.now() + 7 * 3600_000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function getBangkokDate(offsetDays: number): string {
+  const d = new Date(Date.now() + 7 * 3600_000 + offsetDays * 86400_000);
+  return d.toISOString().slice(0, 10);
+}
+
+type EvidenceDataSource = "detect-api" | "placeholder";
+
+const buildKpis = (total: number, topIspName?: string | null, topIspCount?: number | null) => ({
+  total: Number.isFinite(total) ? total : 0,
+  topIspName: topIspName ?? null,
+  topIspCount: typeof topIspCount === "number" && Number.isFinite(topIspCount) ? topIspCount : null,
+});
+
+const metaFor = (dataSource: EvidenceDataSource, note?: string) => {
+  const meta: any = { dataSource };
+  if (dataSource === "placeholder") meta.note = note || "detect-evidence-api not available";
+  return meta;
+};
+
+const buildMissingCreds = (currentIntent: string) => ({
+  ok: false,
+  code: "DETECT_API_UNAVAILABLE",
+  intent: currentIntent,
+  meta: metaFor("placeholder"),
+  message: "ขออภัย ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน กรุณาติดต่อผู้ดูแลระบบหรือลองใหม่ภายหลังครับ",
+  kpis: buildKpis(0, null, null),
+  table: { rows: [{ isp: "(ยังไม่มีข้อมูล)", count: 0 }] },
+});
+
+const buildErrorShell = (currentIntent: string, code: string) => ({
+  ok: false,
+  code,
+  intent: currentIntent,
+  meta: metaFor("placeholder"),
+  message: "ขออภัย ระบบสืบค้นฐานข้อมูลหลักฐานขัดข้อง กรุณาลองใหม่อีกครั้งครับ",
+  kpis: buildKpis(0, null, null),
+});
 
 export const EVIDENCE_TOOL_DEF: MCPTool = {
   name: EVIDENCE_TOOL_NAME,
   description:
-    "Officer evidence reporting tool (Detect DB). Aggregation-only (counts), parameterized SQL, optional schema detection when columns differ.",
+    "Officer evidence reporting tool (Detect DB via detect-evidence-api). Thin HTTP adapter — no business SQL.",
   category: "evidence",
   keywords: ["evidence", "threat", "nip", "record", "หลักฐาน", "คนร้าย", "สถานะเครื่อง", "cloud", "server"],
   examples: [
@@ -44,14 +115,8 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
         ],
         description: "The specific query intent to execute."
       },
-      limit: {
-        type: "number",
-        description: "Optional limit for results (default 10)"
-      },
-      ispFilter: {
-        type: "string",
-        description: "Optional ISP name filter (e.g. dtac, ais, true, tot, 3bb, nt)"
-      }
+      limit: { type: "number", description: "Optional limit for results (default 10)" },
+      ispFilter: { type: "string", description: "Optional ISP name filter (e.g. dtac, ais, true, tot, 3bb, nt)" }
     },
     required: ["intent"]
   }
@@ -59,668 +124,219 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
 
 export async function handleEvidenceTool(args: any): Promise<any> {
   const { intent } = args || {};
-
-  type EvidenceDataSource = "detectdb" | "placeholder";
-
-  const PLACEHOLDER_NOTE =
-    "หมายเหตุ: ข้อมูลชุดนี้เป็นค่าตัวอย่าง (placeholder) เนื่องจากระบบฐานข้อมูลหลักฐานยังไม่พร้อมใช้งานครับ";
-
-  const metaFor = (dataSource: EvidenceDataSource, note?: string) => {
-    const meta: any = { dataSource };
-    if (dataSource === "placeholder") {
-      meta.note = String(note || PLACEHOLDER_NOTE);
-    }
-    return meta;
-  };
-
-  const placeholderIspTable = () => ({
-    rows: [
-      { isp: "(ยังไม่มีข้อมูล)", count: 0 },
-      { isp: "(ยังไม่มีข้อมูล)", count: 0 },
-      { isp: "(ยังไม่มีข้อมูล)", count: 0 },
-      { isp: "อื่นๆ", count: 0 },
-    ],
-  });
-
-  const buildKpis = (total: number, topIspName?: string | null, topIspCount?: number | null) => {
-    const t = Number(total);
-    return {
-      total: Number.isFinite(t) ? t : 0,
-      topIspName: topIspName ?? null,
-      topIspCount: typeof topIspCount === "number" && Number.isFinite(topIspCount) ? topIspCount : null,
-    };
-  };
-
-  const buildMissingCreds = (currentIntent: string) => {
-    const base: any = {
-      ok: false,
-      code: "MISSING_DETECT_DB_CREDS",
-      intent: currentIntent,
-      meta: metaFor("placeholder"),
-      message: "ขออภัย ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน กรุณาติดต่อผู้ดูแลระบบหรือลองใหม่ภายหลังครับ",
-      kpis: buildKpis(0, null, null),
-      table: {
-        rows: [
-          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
-          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
-          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
-          { isp: "อื่นๆ", count: 0 },
-        ],
-      },
-    };
-
-    if (currentIntent === "evidence_records_last_7_days_trend") {
-      const end = getBangkokDate(0);
-      const start = getBangkokDate(-6);
-      base.range = { start, end };
-      base.series = {
-        label: "หลักฐานต่อวัน",
-        points: Array.from({ length: 7 }).map((_, idx) => ({ date: getBangkokDate(-6 + idx), count: 0 })),
-      };
-    }
-
-    return base;
-  };
-
-  const buildErrorShell = (currentIntent: string, code: string) => {
-    const base: any = {
-      ok: false,
-      code,
-      intent: currentIntent,
-      meta: metaFor("placeholder"),
-      message: "ขออภัย ระบบสืบค้นฐานข้อมูลหลักฐานขัดข้อง กรุณาลองใหม่อีกครั้งครับ",
-      kpis: buildKpis(0, null, null),
-    };
-
-    if (currentIntent === "evidence_records_yesterday_by_isp_top") {
-      base.table = {
-        rows: [
-          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
-          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
-          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
-          { isp: "อื่นๆ", count: 0 },
-        ],
-      };
-    }
-
-    if (currentIntent === "evidence_records_last_7_days_trend") {
-      const end = getBangkokDate(0);
-      const start = getBangkokDate(-6);
-      base.range = { start, end };
-      base.series = {
-        label: "หลักฐานต่อวัน",
-        points: Array.from({ length: 7 }).map((_, idx) => ({ date: getBangkokDate(-6 + idx), count: 0 })),
-      };
-    }
-
-    return base;
-  };
-
-  const getBangkokDate = (offsetDays: number): string => {
-    const now = new Date();
-    const bkkMs = now.getTime() + 7 * 60 * 60 * 1000;
-    const bkk = new Date(bkkMs);
-    bkk.setUTCDate(bkk.getUTCDate() + offsetDays);
-    const yyyy = bkk.getUTCFullYear();
-    const mm = String(bkk.getUTCMonth() + 1).padStart(2, "0");
-    const dd = String(bkk.getUTCDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  };
-
-  const toYmd = (value: any, fallback: string): string => {
-    const raw = String(value ?? "").slice(0, 10);
-    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : fallback;
-  };
-
-  const pickFirstColumn = (cols: string[], candidates: string[]): string | undefined => {
-    const lower = new Map(cols.map((c) => [c.toLowerCase(), c] as const));
-    for (const want of candidates) {
-      const found = lower.get(want.toLowerCase());
-      if (found) return found;
-    }
-    return undefined;
-  };
-
-  const getColumns = async (table: string): Promise<string[]> => {
-    const rows = await queryEvidence<any>(`SHOW COLUMNS FROM \`${table}\``);
-    return Array.isArray(rows)
-      ? rows.map((r: any) => String(r.Field || r.field || "").trim()).filter(Boolean)
-      : [];
-  };
-
-  const countQuery = async (sql: string, params: any[] = []): Promise<number> => {
-    const rows = await queryEvidence<any>(sql, params);
-    const n = Number((rows?.[0] as any)?.c ?? (rows?.[0] as any)?.count ?? (rows?.[0] as any)?.total ?? 0) || 0;
-    return n;
-  };
+  const ispFilter = args?.ispFilter ? String(args.ispFilter).trim() : null;
+  const limit = Math.min(Math.max(1, Number(args?.limit) || 10), 50);
+  const meta = metaFor("detect-api");
+  const today = getBangkokDate(0);
 
   try {
-    if (process.env.TEST_DEGRADE_DB === "1") throw Object.assign(new Error("DB_DEGRADED"), { code: "MISSING_DETECT_DB_CREDS" });
-    if (process.env.TEST_DEGRADE_WEBDDSB === "1") throw Object.assign(new Error("WEBDDSB_DEGRADED"), { code: "WEBDDSB_UNAVAILABLE" });
+    if (process.env.TEST_DEGRADE_DB === "1") throw Object.assign(new Error("DB_DEGRADED"), { code: "DETECT_API_UNAVAILABLE" });
+    if (!intent) return { ok: false, code: "MISSING_INTENT", meta: metaFor("placeholder"), message: "intent is required" };
 
-    if (!intent) {
-      return { ok: false, code: "MISSING_INTENT", meta: metaFor("placeholder"), message: "intent is required" };
-    }
-
-    const today = getBangkokDate(0);
-    const yesterday = getBangkokDate(-1);
-
-    // 1) ตอนนี้เครื่องออนไลน์กี่เครื่อง → machines WHERE is_online=1
+    // ===== MACHINES =====
     if (intent === "active_evidence_machines" || intent === "machine_status") {
-      const online = await countQuery("SELECT COUNT(*) as c FROM machines WHERE is_online = ?", [1]);
-      return {
-        ok: true,
-        intent: intent === "machine_status" ? "active_evidence_machines" : intent,
-        meta: metaFor("detectdb"),
-        count: online,
-        kpis: buildKpis(online, null, null),
-        summary: `ตอนนี้เครื่องออนไลน์: ${online} เครื่อง`,
-      };
+      const data = await callDetectAPI<any>("/machines/active");
+      const n = Number(data.count || 0);
+      return { ok: true, intent: "active_evidence_machines", meta, count: n, kpis: buildKpis(n, null, null), summary: `ตอนนี้เครื่องออนไลน์: ${n} เครื่อง` };
     }
 
-    // 1b) ตอนนี้เครื่องออฟไลน์กี่เครื่อง → machines WHERE is_online=0
     if (intent === "active_evidence_machines_offline") {
-      const offline = await countQuery("SELECT COUNT(*) as c FROM machines WHERE is_online = ?", [0]);
-      return {
-        ok: true,
-        intent,
-        meta: metaFor("detectdb"),
-        count: offline,
-        kpis: buildKpis(offline, null, null),
-        summary: `ตอนนี้เครื่องออฟไลน์: ${offline} เครื่อง`,
-      };
+      const data = await callDetectAPI<any>("/machines/offline");
+      const n = Number(data.count || 0);
+      return { ok: true, intent, meta, count: n, kpis: buildKpis(n, null, null), summary: `ตอนนี้เครื่องออฟไลน์: ${n} เครื่อง` };
     }
 
-    // 2) วันนี้ machine evidence ทำงานอยู่กี่เครื่อง
     if (intent === "machines_evidence_active_today") {
-      const cols = await getColumns("machines");
-      const dateCol = pickFirstColumn(cols, ["last_check_in", "create_datetime"]);
-      const onlineCol = pickFirstColumn(cols, ["is_online", "online", "isOnline"]);
-      if (!dateCol) {
-        // Schema detect step: return only column names (no rows)
-        return {
-          ok: false,
-          intent,
-          code: "MISSING_DATE_COLUMN",
-          meta: metaFor("placeholder"),
-          table: "machines",
-          columns: cols,
-        };
-      }
+      const data = await callDetectAPI<any>("/machines/status");
+      const n = Number(data.online || 0);
+      return { ok: true, intent, meta, count: n, kpis: buildKpis(n, null, null), summary: `วันนี้ machine evidence ทำงาน: ${n} เครื่อง` };
+    }
 
-      const n = onlineCol
-        ? await countQuery(
-            `SELECT COUNT(*) as c FROM machines WHERE DATE(\`${dateCol}\`) = ? AND \`${onlineCol}\` = ?`,
-            [today, 1]
-          )
-        : await countQuery(`SELECT COUNT(*) as c FROM machines WHERE DATE(\`${dateCol}\`) = ?`, [today]);
+    if (intent === "machine_last_scan") {
+      const data = await callDetectAPI<any>("/machines/latest?limit=5");
+      const machines = data.items || [];
+      const latest = machines[0] || null;
       return {
-        ok: true,
-        intent,
-        meta: metaFor("detectdb"),
-        count: n,
-        kpis: buildKpis(n, null, null),
-        dateColumn: dateCol,
-        summary: `วันนี้ machine evidence ทำงาน: ${n} เครื่อง`,
+        ok: true, intent, machines, latest, meta,
+        kpis: buildKpis(machines.length, latest?.isp_name ?? null, null),
+        summary: latest ? `เครื่องสแกนล่าสุด: ${latest.pc_name} (${latest.isp_name}) ตรวจสอบล่าสุด ${String(latest.last_check_in || "").slice(0,10)||"-"}` : "ไม่พบข้อมูล",
       };
     }
 
-    // 3) วันนี้จัดเก็บหลักฐานวิดีโอได้เท่าไหร่ → record WHERE DATE(create_date)=today (detect actual column)
+    // ===== RECORDS / EVIDENCE =====
     if (intent === "evidence_records_today") {
-      const cols = await getColumns("record");
-      const createdCol = pickFirstColumn(cols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
-      if (!createdCol) {
-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", meta: metaFor("placeholder"), table: "record", columns: cols };
-      }
-      const n = await countQuery(`SELECT COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) = ?`, [today]);
-      return {
-        ok: true,
-        intent,
-        meta: metaFor("detectdb"),
-        count: n,
-        kpis: buildKpis(n, null, null),
-        dateColumn: createdCol,
-        summary: `วันนี้จัดเก็บหลักฐานวิดีโอได้: ${n} รายการ`,
-      };
+      const data = await callDetectAPI<any>("/records/count/today");
+      const n = Number(data.count || 0);
+      return { ok: true, intent, meta, count: n, kpis: buildKpis(n, null, null), summary: `วันนี้จัดเก็บหลักฐานวิดีโอได้: ${n} รายการ` };
     }
 
-    // Phase 7.3: เมื่อวาน evidence ได้เท่าไหร่
     if (intent === "evidence_records_yesterday_total") {
-      const cols = await getColumns("record");
-      const createdCol = pickFirstColumn(cols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
-      if (!createdCol) {
-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", meta: metaFor("placeholder"), table: "record", columns: cols };
-      }
-      const n = await countQuery(`SELECT COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) = ?`, [yesterday]);
-      return {
-        ok: true,
-        intent,
-        meta: metaFor("detectdb"),
-        date: yesterday,
-        count: n,
-        kpis: buildKpis(n, null, null),
-        dateColumn: createdCol,
-        summary: `เมื่อวานนี้จัดเก็บหลักฐานวิดีโอได้: ${n} รายการ`,
-      };
+      const data = await callDetectAPI<any>("/records/count/yesterday");
+      const n = Number(data.count || 0);
+      return { ok: true, intent, meta, date: data.date, count: n, kpis: buildKpis(n, null, null), summary: `เมื่อวานนี้จัดเก็บหลักฐานวิดีโอได้: ${n} รายการ` };
     }
 
-    // Phase 7.3: เมื่อวาน evidence แยกตาม ISP + ใครมากสุด
     if (intent === "evidence_records_yesterday_by_isp_top") {
-      const recordCols = await getColumns("record");
-      const nipCols = await getColumns("nip");
-
-      const createdCol = pickFirstColumn(recordCols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
-      const recordNipCol = pickFirstColumn(recordCols, ["nip_no", "nipNo", "nip_id", "nipId", "nip", "id_nip"]);
-      const nipNoCol = pickFirstColumn(nipCols, ["no", "nip_no", "nipNo", "nip_id", "id"]);
-      const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]);
-
-      if (!createdCol) {
-        return {
-          ok: false,
-          intent,
-          code: "MISSING_DATE_COLUMN",
-          meta: metaFor("placeholder"),
-          dbTable: "record",
-          columns: recordCols,
-          kpis: buildKpis(0, null, null),
-          tableShape: "isp_top3_plus_others",
-          table: placeholderIspTable(),
-          summary: "ยังไม่สามารถสรุปแยกตาม ISP ได้ เพราะไม่พบคอลัมน์วันที่ในตาราง record",
-        };
-      }
-
-      // Always compute total (even if we cannot join)
-      const total = await countQuery(`SELECT COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) = ?`, [yesterday]);
-
-      if (!recordNipCol || !nipNoCol || !ispCol) {
-        return {
-          ok: false,
-          intent,
-          code: "MISSING_REQUIRED_COLUMNS",
-          meta: metaFor("placeholder"),
-          date: yesterday,
-          total,
-          kpis: buildKpis(total, null, null),
-          tableShape: "isp_top3_plus_others",
-          table: placeholderIspTable(),
-          missing: {
-            recordNipCol: recordNipCol || null,
-            nipNoCol: nipNoCol || null,
-            ispCol: ispCol || null,
-          },
-          summary:
-            "ดึงยอดรวมเมื่อวานได้แล้ว แต่ยังไม่สามารถแยกตาม ISP ได้ เพราะ schema ของตาราง nip/record ไม่ตรงกับที่คาดไว้",
-        };
-      }
-
-      const rows = await queryEvidence<any>(
-        `SELECT n.\`${ispCol}\` as isp, COUNT(*) as c\n` +
-          `FROM record r\n` +
-          `JOIN nip n ON r.\`${recordNipCol}\` = n.\`${nipNoCol}\`\n` +
-          `WHERE DATE(r.\`${createdCol}\`) = ?\n` +
-          `GROUP BY n.\`${ispCol}\`\n` +
-          `ORDER BY c DESC\n` +
-          `LIMIT 3`,
-        [yesterday]
-      );
-
-      const byIsp = Array.isArray(rows)
-        ? rows
-            .map((r: any) => ({ isp: String(r.isp ?? "(ไม่ระบุ)").trim() || "(ไม่ระบุ)", count: Number(r.c || 0) || 0 }))
-            .filter((r: any) => r.count >= 0)
-        : [];
-
-      const top = byIsp.length > 0 ? byIsp[0] : null;
-
-      const sumTop = byIsp.reduce((acc: number, r: any) => acc + (Number(r.count) || 0), 0);
-      const others = Math.max(0, total - sumTop);
-
-      const tableRows: Array<{ isp: string; count: number }> = (() => {
-        const out = byIsp.slice(0, 3);
-        while (out.length < 3) out.push({ isp: "(ยังไม่มีข้อมูล)", count: 0 });
-        out.push({ isp: "อื่นๆ", count: others });
-        return out;
-      })();
-
+      const data = await callDetectAPI<any>("/records/count/yesterday/by-isp");
+      const byIsp = data.byIsp || [];
+      const total = Number(data.total || 0);
+      const top = byIsp[0] || null;
+      const tableRows = byIsp.slice(0, 3);
+      while (tableRows.length < 3) tableRows.push({ isp: "(ยังไม่มีข้อมูล)", count: 0 });
+      const sumTop = tableRows.reduce((s: number, r: any) => s + Number(r.count || 0), 0);
+      tableRows.push({ isp: "อื่นๆ", count: Math.max(0, total - sumTop) });
       return {
-        ok: true,
-        intent,
-        meta: metaFor("detectdb"),
-        date: yesterday,
-        total,
-        byIsp: tableRows,
-        topIsp: top,
-        kpis: buildKpis(total, top ? top.isp : null, top ? top.count : null),
+        ok: true, intent, meta, date: data.date, total, byIsp: tableRows, topIsp: top,
+        kpis: buildKpis(total, top?.isp ?? null, top?.count ?? null),
         table: { rows: tableRows },
-        summary: top
-          ? `เมื่อวานนี้รวม ${total} รายการ | ISP มากสุด: ${top.isp} (${top.count})`
-          : `เมื่อวานนี้รวม ${total} รายการ`,
+        summary: top ? `เมื่อวานนี้รวม ${total} รายการ | ISP มากสุด: ${top.isp} (${top.count})` : `เมื่อวานนี้รวม ${total} รายการ`,
       };
     }
 
     if (intent === "evidence_records_last_7_days_trend") {
-      const cols = await getColumns("record");
-      const createdCol = pickFirstColumn(cols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
-      if (!createdCol) {
-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", meta: metaFor("placeholder"), table: "record", columns: cols };
-      }
-
-      const end = getBangkokDate(0);
-      const start = getBangkokDate(-6);
-      const rows = await queryEvidence<any>(
-        `SELECT DATE_FORMAT(\`${createdCol}\`, '%Y-%m-%d') as d, COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) BETWEEN ? AND ? GROUP BY d ORDER BY d ASC`,
-        [start, end]
-      );
-
-      const byDate = new Map<string, number>();
-      if (Array.isArray(rows)) {
-        for (const r of rows) {
-          const d = toYmd(r?.d, "");
-          const c = Number(r?.c || 0) || 0;
-          if (d) byDate.set(d, c);
-        }
-      }
-
-      const points = Array.from({ length: 7 }).map((_, idx) => {
-        const date = toYmd(getBangkokDate(-6 + idx), getBangkokDate(-6 + idx));
-        return { date, count: byDate.get(date) ?? 0 };
-      });
-      const total = points.reduce((acc, p) => acc + (Number(p.count) || 0), 0);
-
+      const data = await callDetectAPI<any>("/records/trend/7days");
+      const points = data.points || [];
+      const total = Number(data.total || 0);
       return {
-        ok: true,
-        intent,
-        meta: metaFor("detectdb"),
-        range: { start, end },
+        ok: true, intent, meta, range: { start: data.start, end: data.end },
         kpis: buildKpis(total, null, null),
         series: { label: "หลักฐานต่อวัน", points },
-        dateColumn: createdCol,
         summary: `แนวโน้ม 7 วันล่าสุด: รวม ${total} รายการ`,
       };
     }
 
-    // Legacy intents (aggregation only; no raw rows)
     if (intent === "pending_evidence") {
-      const nipCols = await getColumns("nip");
-      const nipCreatedCol = pickFirstColumn(nipCols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
-      const nipNoCol = pickFirstColumn(nipCols, ["no", "nip_no", "nipNo", "nip_id", "id"]);
-      if (!nipCreatedCol || !nipNoCol) {
-        return { ok: false, intent, code: "MISSING_REQUIRED_COLUMNS", meta: metaFor("placeholder"), table: "nip", columns: nipCols };
-      }
-
-      // Best-effort: count NIP created today where status_rec is NULL OR not in record.
-      // This avoids returning any row-level details.
-      const n = await countQuery(
-        `SELECT COUNT(*) as c FROM nip WHERE DATE(\`${nipCreatedCol}\`) = ? AND (status_rec IS NULL OR \`${nipNoCol}\` NOT IN (SELECT \`${nipNoCol}\` FROM record))`,
-        [today]
-      );
-      return { ok: true, intent, meta: metaFor("detectdb"), count: n, kpis: buildKpis(n, null, null), summary: `หลักฐานค้างดำเนินการวันนี้: ${n} รายการ` };
+      const data = await callDetectAPI<any>("/records/pending");
+      const n = Number(data.count || 0);
+      return { ok: true, intent, meta, count: n, kpis: buildKpis(n, null, null), summary: `หลักฐานค้างดำเนินการวันนี้: ${n} รายการ` };
     }
 
     if (intent === "recent_threats") {
-      const nipCols = await getColumns("nip");
-      const nipCreatedCol = pickFirstColumn(nipCols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
-      if (!nipCreatedCol) {
-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", meta: metaFor("placeholder"), table: "nip", columns: nipCols };
-      }
-      const n = await countQuery(`SELECT COUNT(*) as c FROM nip WHERE DATE(\`${nipCreatedCol}\`) = ?`, [today]);
-      return { ok: true, intent, meta: metaFor("detectdb"), count: n, kpis: buildKpis(n, null, null), summary: `เหตุการณ์ (NIP) วันนี้: ${n} รายการ` };
+      const data = await callDetectAPI<any>("/nip/recent-threats");
+      const n = Number(data.count || 0);
+      return { ok: true, intent, meta, count: n, kpis: buildKpis(n, null, null), summary: `เหตุการณ์ (NIP) วันนี้: ${n} รายการ` };
     }
 
+    // ===== NIP =====
     if (intent === "detected_urls_today") {
-      const ispFilter = args.ispFilter ? String(args.ispFilter).trim() : null;
-      let sql = `SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) = ?`;
-      const params: any[] = [today];
-      if (ispFilter) {
-        const nipCols = await getColumns("nip");
-        const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]);
-        if (ispCol) {
-          sql += ` AND LOWER(\`${ispCol}\`) = LOWER(?)`;
-          params.push(ispFilter);
-        }
-      }
-      const n = await countQuery(sql, params);
+      const qs = ispFilter ? `?isp=${encodeURIComponent(ispFilter)}` : "";
+      const data = await callDetectAPI<any>(`/nip/stats/isp/today${qs}`);
+      const n = Number(data.count || 0);
+      const label = ispFilter ? `วันนี้ตรวจพบ URL/NIP จาก ${ispFilter.toUpperCase()}: ${n} รายการ` : `วันนี้ตรวจพบ URL/NIP: ${n} รายการ`;
+      return { ok: true, intent, ispFilter: ispFilter || undefined, meta, count: n, kpis: buildKpis(n, null, null), summary: label };
+    }
+
+    if (intent === "detected_urls_this_week") {
+      const qs = ispFilter ? `?isp=${encodeURIComponent(ispFilter)}` : "";
+      const data = await callDetectAPI<any>(`/nip/stats/isp/week${qs}`);
+      const n = Number(data.count || 0);
       const label = ispFilter
-        ? `วันนี้ตรวจพบ URL/NIP จาก ${ispFilter.toUpperCase()}: ${n} รายการ`
-        : `วันนี้ตรวจพบ URL/NIP: ${n} รายการ`;
-      return { ok: true, intent, ispFilter: ispFilter || undefined, meta: metaFor("detectdb"), count: n, kpis: buildKpis(n, null, null), dateColumn: "create_date", summary: label };
+        ? `สัปดาห์นี้ (${data.weekStart} ถึง ${data.weekEnd}) ตรวจพบ URL/NIP จาก ${ispFilter.toUpperCase()}: ${n} รายการ`
+        : `สัปดาห์นี้ (${data.weekStart} ถึง ${data.weekEnd}) ตรวจพบ URL/NIP: ${n} รายการ`;
+      return { ok: true, intent, ispFilter: ispFilter || undefined, weekStart: data.weekStart, weekEnd: data.weekEnd, meta, count: n, kpis: buildKpis(n, null, null), summary: label };
+    }
+
+    if (intent === "detected_urls_delta") {
+      const qs = ispFilter ? `?isp=${encodeURIComponent(ispFilter)}` : "";
+      const data = await callDetectAPI<any>(`/nip/stats/isp/delta/today-vs-yesterday${qs}`);
+      const todayCount = Number(data.todayCount || 0);
+      const yesterdayCount = Number(data.yesterdayCount || 0);
+      const delta = Number(data.delta || 0);
+      const direction = delta > 0 ? "มากกว่า" : delta < 0 ? "น้อยกว่า" : "เท่ากัน";
+      const ispLabel = ispFilter ? ispFilter.toUpperCase() : "ทั้งหมด";
+      return {
+        ok: true, intent, ispFilter: ispFilter || undefined, todayCount, yesterdayCount, delta, direction, today, yesterday: getBangkokDate(-1), meta,
+        kpis: buildKpis(todayCount, ispLabel, delta),
+        summary: `${ispLabel}: วันนี้ ${todayCount} / เมื่อวาน ${yesterdayCount} (${direction} ${Math.abs(delta)} รายการ)`,
+      };
     }
 
     if (intent === "nip_top_isp_this_month") {
-      const now = new Date();
-      const yr = now.getFullYear();
-      const mo = now.getMonth() + 1;
-      const monthLabel = `${yr}-${String(mo).padStart(2,"0")}`;
-      const nipCols = await getColumns("nip");
-      const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]) || "isp_name";
-      // Phase 17: Respect ispFilter when present — return ISP-specific month data
-      const ispFilter = args.ispFilter ? String(args.ispFilter).trim() : null;
-      let sql = `SELECT \`${ispCol}\`, COUNT(*) as c FROM nip WHERE YEAR(create_date)=? AND MONTH(create_date)=?`;
-      const params: any[] = [yr, mo];
-      if (ispFilter) {
-        sql += ` AND LOWER(\`${ispCol}\`) LIKE LOWER(?)`;
-        params.push(`%${ispFilter}%`);
-      }
-      sql += ` GROUP BY \`${ispCol}\` ORDER BY c DESC LIMIT 10`;
-      const rows = await queryEvidence<any>(sql, params);
-      const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r[ispCol]||"ไม่ระบุ").trim()||"ไม่ระบุ", count: Number(r.c||0) })) : [];
+      const month = bkkMonth();
+      const ispQs = ispFilter ? `&isp=${encodeURIComponent(ispFilter)}` : "";
+      const data = await callDetectAPI<any>(`/nip/stats/top-isp/month?month=${month}&limit=10${ispQs}`);
+      const byIsp = data.byIsp || [];
       const top = byIsp[0] || null;
-      const total = byIsp.reduce((acc: number, r: any) => acc + (Number(r.count) || 0), 0);
+      const total = Number(data.total || 0);
       return {
-        ok: true, intent, month: monthLabel, ispFilter: ispFilter || undefined, byIsp, topIsp: top, meta: metaFor("detectdb"),
-        kpis: buildKpis(total, top ? top.isp : null, top ? top.count : null),
+        ok: true, intent, month, ispFilter: ispFilter || undefined, byIsp, topIsp: top, meta,
+        kpis: buildKpis(total, top?.isp ?? null, top?.count ?? null),
         table: { rows: byIsp },
         summary: ispFilter
-          ? `เดือนนี้ (${monthLabel}) ${ispFilter.toUpperCase()}: ${total} รายการ`
-          : (top ? `เดือนนี้ (${monthLabel}) ISP มากสุด: ${top.isp} (${top.count} รายการ)` : `เดือนนี้ยังไม่มีข้อมูล`),
+          ? `เดือนนี้ (${month}) ${ispFilter.toUpperCase()}: ${total} รายการ`
+          : (top ? `เดือนนี้ (${month}) ISP มากสุด: ${top.isp} (${top.count} รายการ)` : `เดือนนี้ยังไม่มีข้อมูล`),
       };
     }
 
     if (intent === "nip_top_isp_all") {
       const topN = Math.min(Math.max(1, Number(args.limit)||10), 10);
-      const nipCols = await getColumns("nip");
-      const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]) || "isp_name";
-      const rows = await queryEvidence<any>(
-        `SELECT \`${ispCol}\`, COUNT(*) as c FROM nip GROUP BY \`${ispCol}\` ORDER BY c DESC LIMIT ${topN}`
-      );
-      const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r[ispCol]||"ไม่ระบุ").trim()||"ไม่ระบุ", count: Number(r.c||0) })) : [];
+      const data = await callDetectAPI<any>(`/nip/stats/top-isp/all-time?limit=${topN}`);
+      const byIsp = data.byIsp || [];
       const top = byIsp[0] || null;
-      const total = byIsp.reduce((acc: number, r: any) => acc + (Number(r.count) || 0), 0);
+      const total = Number(data.total || 0);
       return {
-        ok: true, intent, topN, byIsp, topIsp: top, meta: metaFor("detectdb"),
-        kpis: buildKpis(total, top ? top.isp : null, top ? top.count : null),
+        ok: true, intent, topN, byIsp, topIsp: top, meta,
+        kpis: buildKpis(total, top?.isp ?? null, top?.count ?? null),
         table: { rows: byIsp },
         summary: top ? `Top ISP ทั้งหมด: ${top.isp} (${top.count.toLocaleString()} รายการ)` : "ยังไม่มีข้อมูล",
       };
     }
 
-    if (intent === "machine_last_scan") {
-      const machCols = await getColumns("machines");
-      const machIspCol = pickFirstColumn(machCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]) || "isp_name";
-      const machDateCol = pickFirstColumn(machCols, ["last_check_in", "last_checkin", "last_check", "last_seen", "updated_at", "update_date"]) || "last_check_in";
-      const machOnlineCol = pickFirstColumn(machCols, ["is_online", "online", "isOnline"]) || "is_online";
-      const rows = await queryEvidence<any>(
-        `SELECT pc_name, \`${machIspCol}\` as isp_name, ip_address, \`${machDateCol}\` as last_check_in, \`${machOnlineCol}\` as is_online FROM machines ORDER BY \`${machDateCol}\` DESC LIMIT 5`
-      );
-      const machines = Array.isArray(rows) ? rows.map((r:any) => ({
-        pc_name: String(r.pc_name||"(ไม่ระบุ)"),
-        isp_name: String(r.isp_name||"(ไม่ระบุ)"),
-        ip_address: String(r.ip_address||""),
-        last_check_in: r.last_check_in ? new Date(r.last_check_in).toISOString() : null,
-        is_online: Number(r.is_online||0) === 1,
-      })) : [];
-      const latest = machines[0] || null;
-      return {
-        ok: true, intent, machines, latest, meta: metaFor("detectdb"),
-        kpis: buildKpis(machines.length, latest ? latest.isp_name : null, null),
-        summary: latest ? `เครื่องสแกนล่าสุด: ${latest.pc_name} (${latest.isp_name}) ตรวจสอบล่าสุด ${latest.last_check_in?.slice(0,10)||"-"}` : "ไม่พบข้อมูล",
-      };
-    }
-
     if (intent === "nip_latest") {
-      const topN = Math.min(Math.max(1, Number(args.limit)||5), 10);
-      const nipCols2 = await getColumns("nip");
-      const nipIspCol = pickFirstColumn(nipCols2, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]) || "isp_name";
-      const nipNoCol = pickFirstColumn(nipCols2, ["no", "nip_no", "nipNo", "nip_id", "id"]) || "no";
-      const rows = await queryEvidence<any>(
-        `SELECT \`${nipNoCol}\` as no, url, \`${nipIspCol}\` as isp_name, create_date FROM nip ORDER BY create_date DESC LIMIT ${topN}`
-      );
-      const items = Array.isArray(rows) ? rows.map((r:any) => ({
-        no: Number(r.no||0),
-        url: String(r.url||""),
-        isp_name: String(r.isp_name||""),
-        create_date: r.create_date ? new Date(r.create_date).toISOString() : null,
-      })) : [];
+      const data = await callDetectAPI<any>(`/nip/latest?limit=${Math.min(limit, 10)}`);
+      const items = data.items || [];
       const latest = items[0] || null;
       return {
-        ok: true, intent, items, latest, meta: metaFor("detectdb"),
-        kpis: buildKpis(items.length, latest ? latest.isp_name : null, null),
+        ok: true, intent, items, latest, meta,
+        kpis: buildKpis(items.length, latest?.isp_name ?? null, null),
         summary: latest ? `URL ผิดกฎหมายล่าสุด: ${latest.url} (${latest.isp_name})` : "ไม่พบข้อมูล",
       };
     }
 
     if (intent === "nip_by_record_top") {
-      const topN = Math.min(Math.max(1, Number(args.limit)||10), 10);
-      const rows = await queryEvidence<any>(
-        `SELECT nip_no, COUNT(*) as c FROM record GROUP BY nip_no ORDER BY c DESC LIMIT ${topN}`
-      );
-      const items = Array.isArray(rows) ? rows.map((r:any) => ({ nip_no: Number(r.nip_no||0), count: Number(r.c||0) })) : [];
+      const data = await callDetectAPI<any>(`/records/top-nip-by-record?limit=${Math.min(limit, 10)}`);
+      const items = data.items || [];
       const top = items[0] || null;
-      const total = items.reduce((acc: number, r: any) => acc + (Number(r.count) || 0), 0);
+      const total = items.reduce((s: number, r: any) => s + Number(r.count || 0), 0);
       return {
-        ok: true, intent, items, top, meta: metaFor("detectdb"),
-        kpis: buildKpis(total, top ? `nip_no=${top.nip_no}` : null, top ? top.count : null),
+        ok: true, intent, items, top, meta,
+        kpis: buildKpis(total, top ? `nip_no=${top.nip_no}` : null, top?.count ?? null),
         summary: top ? `NIP ที่มี record มากสุด: nip_no=${top.nip_no} (${top.count.toLocaleString()} รายการ)` : "ไม่พบข้อมูล",
       };
     }
 
-    // Phase 15: CONTRACT 1 — unique NIP (distinct URL) this month, optional multi-ISP filter
     if (intent === "nip_unique_this_month") {
-      const now = new Date();
-      const yr = now.getFullYear();
-      const mo = now.getMonth() + 1;
-      const monthLabel = `${yr}-${String(mo).padStart(2, "0")}`;
-      const nipCols = await getColumns("nip");
-      const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]) || "isp_name";
-      const ispFilter = args.ispFilter ? String(args.ispFilter).trim() : null;
-      // Support multi-ISP: "nt,true" → ['nt','true']
-      const ispList = ispFilter ? ispFilter.split(",").map((s: string) => s.trim().toLowerCase()).filter(Boolean) : [];
-      let sql = `SELECT \`${ispCol}\` as isp, COUNT(DISTINCT url) as c FROM nip WHERE YEAR(create_date)=? AND MONTH(create_date)=?`;
-      const params: any[] = [yr, mo];
-      if (ispList.length === 1) {
-        sql += ` AND LOWER(\`${ispCol}\`) = LOWER(?)`;
-        params.push(ispList[0]);
-      } else if (ispList.length > 1) {
-        sql += ` AND LOWER(\`${ispCol}\`) IN (${ispList.map(() => "LOWER(?)").join(",")})`;
-        params.push(...ispList);
-      }
-      sql += ` GROUP BY \`${ispCol}\` ORDER BY c DESC`;
-      const rows = await queryEvidence<any>(sql, params);
-      const byIsp = Array.isArray(rows) ? rows.map((r: any) => ({ isp: String(r.isp || "ไม่ระบุ").trim() || "ไม่ระบุ", count: Number(r.c || 0) })) : [];
-      const total = byIsp.reduce((s, r) => s + r.count, 0);
+      const month = bkkMonth();
+      const ispQs = ispFilter ? `&isp=${encodeURIComponent(ispFilter)}` : "";
+      const data = await callDetectAPI<any>(`/nip/distinct/month?month=${month}${ispQs}`);
+      const byIsp = data.byIsp || [];
+      const total = Number(data.total || 0);
       return {
-        ok: true, intent, month: monthLabel, ispFilter: ispFilter || undefined, byIsp, meta: metaFor("detectdb"),
-        kpis: buildKpis(total, byIsp[0]?.isp || null, byIsp[0]?.count || null),
+        ok: true, intent, month, ispFilter: ispFilter || undefined, byIsp, meta,
+        kpis: buildKpis(total, byIsp[0]?.isp ?? null, byIsp[0]?.count ?? null),
         metric: "COUNT(DISTINCT url)",
-        summary: `เดือนนี้ (${monthLabel}) URL ไม่ซ้ำ: ${total} รายการ${ispFilter ? ` (${ispFilter.toUpperCase()})` : ""}`,
+        summary: `เดือนนี้ (${month}) URL ไม่ซ้ำ: ${total} รายการ${ispFilter ? ` (${ispFilter.toUpperCase()})` : ""}`,
       };
     }
 
-    // Phase 15: CONTRACT 2 — detected URLs this week, optional ISP filter
-    if (intent === "detected_urls_this_week") {
-      const today = getBangkokDate(0);
-      const bkkNow = new Date(new Date().getTime() + 7 * 60 * 60 * 1000);
-      const dow = bkkNow.getUTCDay(); // 0=Sun
-      const mondayOffset = dow === 0 ? -6 : -(dow - 1);
-      const weekStart = getBangkokDate(mondayOffset);
-      const ispFilter = args.ispFilter ? String(args.ispFilter).trim() : null;
-      let sql = `SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) BETWEEN ? AND ?`;
-      const params: any[] = [weekStart, today];
-      if (ispFilter) {
-        const nipCols = await getColumns("nip");
-        const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]);
-        if (ispCol) {
-          sql += ` AND LOWER(\`${ispCol}\`) = LOWER(?)`;
-          params.push(ispFilter);
-        }
-      }
-      const n = await countQuery(sql, params);
-      const label = ispFilter
-        ? `สัปดาห์นี้ (${weekStart} ถึง ${today}) ตรวจพบ URL/NIP จาก ${ispFilter.toUpperCase()}: ${n} รายการ`
-        : `สัปดาห์นี้ (${weekStart} ถึง ${today}) ตรวจพบ URL/NIP: ${n} รายการ`;
-      return { ok: true, intent, ispFilter: ispFilter || undefined, weekStart, weekEnd: today, meta: metaFor("detectdb"), count: n, kpis: buildKpis(n, null, null), summary: label };
-    }
-
-    // Phase 15: CONTRACT 3 — latest N NIP URLs by ISP, this month, with limit up to 50
     if (intent === "nip_latest_by_isp_month") {
-      const topN = Math.min(Math.max(1, Number(args.limit) || 20), 50);
-      const now = new Date();
-      const yr = now.getFullYear();
-      const mo = now.getMonth() + 1;
-      const monthLabel = `${yr}-${String(mo).padStart(2, "0")}`;
-      const nipCols = await getColumns("nip");
-      const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]) || "isp_name";
-      const nipNoCol = pickFirstColumn(nipCols, ["no", "nip_no", "nipNo", "nip_id", "id"]) || "no";
-      const ispFilter = args.ispFilter ? String(args.ispFilter).trim() : null;
-      let sql = `SELECT \`${nipNoCol}\` as no, url, \`${ispCol}\` as isp_name, create_date FROM nip WHERE YEAR(create_date)=? AND MONTH(create_date)=?`;
-      const params: any[] = [yr, mo];
-      if (ispFilter) {
-        sql += ` AND LOWER(\`${ispCol}\`) = LOWER(?)`;
-        params.push(ispFilter);
-      }
-      sql += ` ORDER BY create_date DESC LIMIT ${topN}`;
-      const rows = await queryEvidence<any>(sql, params);
-      const items = Array.isArray(rows) ? rows.map((r: any) => ({
-        no: Number(r.no || 0),
-        url: String(r.url || ""),
-        isp_name: String(r.isp_name || ""),
-        create_date: r.create_date ? new Date(r.create_date).toISOString() : null,
-      })) : [];
+      const month = bkkMonth();
+      const ispQs = ispFilter ? `&isp=${encodeURIComponent(ispFilter)}` : "";
+      const data = await callDetectAPI<any>(`/nip/latest?month=${month}&limit=${limit}${ispQs}`);
+      const items = data.items || [];
       return {
-        ok: true, intent, month: monthLabel, ispFilter: ispFilter || undefined, requestedLimit: topN, actualCount: items.length, items, meta: metaFor("detectdb"),
-        kpis: buildKpis(items.length, ispFilter || null, null),
-        summary: `${monthLabel} URL ผิดกฎหมายล่าสุด${ispFilter ? ` ของ ${ispFilter.toUpperCase()}` : ""}: ${items.length} รายการ (ขอ ${topN})`,
-      };
-    }
-
-    // Phase 15: CONTRACT 4 — delta today vs yesterday by ISP
-    if (intent === "detected_urls_delta") {
-      const today = getBangkokDate(0);
-      const yesterday = getBangkokDate(-1);
-      const ispFilter = args.ispFilter ? String(args.ispFilter).trim() : null;
-      const nipCols = await getColumns("nip");
-      const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]);
-
-      let sqlToday = `SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) = ?`;
-      let sqlYesterday = `SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) = ?`;
-      const paramsToday: any[] = [today];
-      const paramsYesterday: any[] = [yesterday];
-      if (ispFilter && ispCol) {
-        sqlToday += ` AND LOWER(\`${ispCol}\`) = LOWER(?)`;
-        sqlYesterday += ` AND LOWER(\`${ispCol}\`) = LOWER(?)`;
-        paramsToday.push(ispFilter);
-        paramsYesterday.push(ispFilter);
-      }
-      const todayCount = await countQuery(sqlToday, paramsToday);
-      const yesterdayCount = await countQuery(sqlYesterday, paramsYesterday);
-      const delta = todayCount - yesterdayCount;
-      const direction = delta > 0 ? "มากกว่า" : delta < 0 ? "น้อยกว่า" : "เท่ากัน";
-      const ispLabel = ispFilter ? ispFilter.toUpperCase() : "ทั้งหมด";
-      return {
-        ok: true, intent, ispFilter: ispFilter || undefined, todayCount, yesterdayCount, delta, direction, today, yesterday, meta: metaFor("detectdb"),
-        kpis: buildKpis(todayCount, ispLabel, delta),
-        summary: `${ispLabel}: วันนี้ ${todayCount} / เมื่อวาน ${yesterdayCount} (${direction} ${Math.abs(delta)} รายการ)`,
+        ok: true, intent, month, ispFilter: ispFilter || undefined, requestedLimit: limit, actualCount: items.length, items, meta,
+        kpis: buildKpis(items.length, ispFilter ?? null, null),
+        summary: `${month} URL ผิดกฎหมายล่าสุด${ispFilter ? ` ของ ${ispFilter.toUpperCase()}` : ""}: ${items.length} รายการ (ขอ ${limit})`,
       };
     }
 
     return { ok: false, code: "UNKNOWN_INTENT", meta: metaFor("placeholder"), message: `Unknown intent: ${String(intent)}` };
   } catch (error: any) {
     const code = String(error?.code || "").toUpperCase();
-    if (code === "MISSING_DETECT_DB_CREDS") {
+    if (code === "DETECT_API_UNAVAILABLE" || code === "MISSING_DETECT_DB_CREDS") {
       return buildMissingCreds(String(intent || "unknown"));
     }
-
-    // Keep schema deterministic even on failures (no raw error details).
     return buildErrorShell(String(intent || "unknown"), "EVIDENCE_QUERY_FAILED");
   }
 }

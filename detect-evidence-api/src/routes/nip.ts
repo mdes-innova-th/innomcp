@@ -178,4 +178,11 @@ router.get("/by-url", async (req: Request, res: Response) => {
   res.json({ ok: true, domain: "detect", metric: "nip_by_url", url, count: items.length, hasCourtOrder, hasEvidence, items });
 });
 
+// ---- RECENT THREATS (NIP CREATED TODAY) ----
+router.get("/recent-threats", async (_req: Request, res: Response) => {
+  const today = bkkDate(0);
+  const rows = await query("SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) = ?", [today]);
+  res.json({ ok: true, domain: "detect", metric: "recent_threats", date: today, count: Number((rows as any[])[0]?.c || 0) });
+});
+
 export default router;

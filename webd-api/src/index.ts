@@ -1,8 +1,9 @@
 /**
- * Web-D Domain API Server (Scaffold)
+ * Web-D Domain API Server (Dual-Mode: live / scaffold)
  *
- * This service is the future owner of court-order and blocking-management logic.
- * Currently a scaffold because the db_aces database is not yet accessible.
+ * This service owns court-order and blocking-management logic.
+ * When WEBD_DB_HOST/USER/PASSWORD are set → "live" mode (real SQL against db_aces).
+ * Otherwise → "scaffold" mode (503 responses with honest explanation).
  *
  * Required database: db_aces (separate from detect DB)
  * Expected tables: case_order, courtorder, case_data, case_listdata,
@@ -12,6 +13,10 @@
  */
 import express from "express";
 import cors from "cors";
+import { healthCheck, getMode } from "./db";
+import courtOrdersRouter from "./routes/courtOrders";
+import urlsRouter from "./routes/urls";
+import ispRouter from "./routes/isp";
 
 const app = express();
 const PORT = Number(process.env.WEBD_API_PORT || 3014);
@@ -19,34 +24,39 @@ const PORT = Number(process.env.WEBD_API_PORT || 3014);
 app.use(cors());
 app.use(express.json());
 
-// Health
+// Health — reflects actual mode
 app.get("/health", (_req, res) => {
+  const mode = getMode();
   res.json({
     service: "webd-api",
-    ok: false,
-    status: "scaffold",
-    note: "Web-D API is a scaffold — db_aces connection not yet configured. Court-order and blocking-management endpoints require the real db_aces database.",
+    ok: mode === "live",
+    status: mode,
+    note: mode === "live"
+      ? "Web-D API running in live mode — connected to db_aces."
+      : "Web-D API running in scaffold mode — db_aces connection not yet configured.",
     requiredEnv: ["WEBD_DB_HOST", "WEBD_DB_PORT", "WEBD_DB_USER", "WEBD_DB_PASSWORD", "WEBD_DB_NAME"],
   });
 });
 
-// Contract map — documents what WILL be available
+// Contract map
 app.get("/admin/contract-map", (_req, res) => {
+  const mode = getMode();
   res.json({
     domain: "webd",
-    version: "0.1.0-scaffold",
-    status: "NOT_CONNECTED",
+    version: "0.2.0",
+    status: mode === "live" ? "CONNECTED" : "NOT_CONNECTED",
+    mode,
     description: "Web-D domain — court orders, blocking obligations, URL source-of-truth management",
     requiredDatabase: "db_aces",
-    plannedEndpoints: [
-      { path: "GET /court-orders/:orderId/url-count", meaning: "How many URLs does this court order contain?", status: "scaffold" },
-      { path: "GET /court-orders/by-order-no/:orderNo/url-count", meaning: "URL count by order number", status: "scaffold" },
-      { path: "GET /urls/has-court-order?url=...", meaning: "Does this URL already have a court order?", status: "scaffold" },
-      { path: "GET /urls/:caselistId", meaning: "URL details by caselist ID", status: "scaffold" },
-      { path: "GET /court-orders/top-by-open-url", meaning: "Court orders ranked by open URL count", status: "scaffold" },
-      { path: "GET /isp/top-backlog", meaning: "ISPs ranked by total backlog of unblocked URLs", status: "scaffold" },
+    endpoints: [
+      { path: "GET /court-orders/:orderId/url-count", meaning: "How many URLs does this court order contain?", status: mode },
+      { path: "GET /court-orders/by-order-no/:orderNo/url-count", meaning: "URL count by order number", status: mode },
+      { path: "GET /court-orders/top-by-url-count", meaning: "Court orders ranked by URL count", status: mode },
+      { path: "GET /urls/has-court-order?url=...", meaning: "Does this URL already have a court order?", status: mode },
+      { path: "GET /urls/by-caselist/:caseId", meaning: "URLs paginated by case ID", status: mode },
+      { path: "GET /urls/has-evidence?url=...", meaning: "Does this URL have blocking evidence?", status: mode },
+      { path: "GET /isp/top-backlog", meaning: "ISPs ranked by total backlog of unblocked URLs", status: "not_supported" },
       { path: "GET /isp/reduction-rate", meaning: "ISP reduction rate (requires monthly snapshots)", status: "not_supported" },
-      { path: "GET /isp/reduction-rate?period=last_month", meaning: "Last month reduction rate", status: "not_supported" },
     ],
     unsupported: [
       { id: "isp_reduction_rate", reason: "Requires historical monthly snapshot table that does not exist. Cannot compute reduction rate without archived monthly totals per ISP." },
@@ -55,30 +65,28 @@ app.get("/admin/contract-map", (_req, res) => {
   });
 });
 
-// Scaffold endpoints — return honest "not yet connected" responses
-app.get("/court-orders/:orderId/url-count", (_req, res) => {
-  res.status(503).json({ ok: false, status: "scaffold", message: "Web-D court-order database not yet connected" });
-});
+// Mount routes
+app.use("/court-orders", courtOrdersRouter);
+app.use("/urls", urlsRouter);
+app.use("/isp", ispRouter);
 
-app.get("/urls/has-court-order", (_req, res) => {
-  res.status(503).json({ ok: false, status: "scaffold", message: "Web-D court-order database not yet connected" });
-});
+// Boot
+async function boot() {
+  await healthCheck();
+  const mode = getMode();
+  const modeIcon = mode === "live" ? "✅" : "⚠️";
+  const server = app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[WebdAPI] ${modeIcon} Web-D API listening on :${PORT} (mode: ${mode})`);
+  });
+  server.on("error", (err: any) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(`[WebdAPI] ❌ Port ${PORT} already in use.`);
+    }
+    process.exit(1);
+  });
+}
 
-app.get("/isp/top-backlog", (_req, res) => {
-  res.status(503).json({ ok: false, status: "scaffold", message: "Web-D court-order database not yet connected" });
-});
-
-app.get("/isp/reduction-rate", (_req, res) => {
-  res.status(501).json({ ok: false, status: "not_supported", message: "Reduction rate requires historical monthly snapshots that do not exist in current schema" });
-});
-
-const server = app.listen(PORT, "0.0.0.0", () => {
-  console.log(`[WebdAPI] ⚠️ Web-D API scaffold listening on :${PORT} (NOT connected to db_aces)`);
-});
-
-server.on("error", (err: any) => {
-  if (err.code === "EADDRINUSE") {
-    console.error(`[WebdAPI] ❌ Port ${PORT} already in use.`);
-  }
+boot().catch((err) => {
+  console.error("[WebdAPI] ❌ Boot failed:", err);
   process.exit(1);
 });

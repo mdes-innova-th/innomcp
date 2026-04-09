@@ -458,4 +458,92 @@ export function registerWebdTools(mcpserver: McpServer) {
       }
     }
   );
+
+  // ---- Web-D API (webd-api:3014) tools — court-order / URL domain ----
+
+  const WEBD_API_BASE = `http://${process.env.WEBD_API_HOST || "localhost"}:${process.env.WEBD_API_PORT || "3014"}`;
+
+  async function callWebdAPI<T = any>(path: string): Promise<T> {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 15_000);
+    try {
+      const res = await fetch(`${WEBD_API_BASE}${path}`, { signal: ctrl.signal });
+      const body = await res.json() as any;
+      if (!res.ok) throw new Error(body?.message || `HTTP ${res.status}`);
+      return body as T;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  mcpserver.registerTool(
+    "webdTool_court_order_url_count",
+    {
+      title: "นับจำนวน URL ในคำสั่งศาล (court order) ระบุ — ใช้เมื่อมีคำว่า 'webd' + 'คำสั่งศาล' หรือ 'court order'",
+      description: `หน้าที่: คืนจำนวน URL ที่อยู่ภายใต้คำสั่งศาลระบุ (by orderId or orderNo)
+ใช้เมื่อ: ผู้ใช้ถามเกี่ยวกับจำนวน URL ในคำสั่งศาล
+พารามิเตอร์: { orderId?: number, orderNo?: string }`,
+    },
+    async (args: any) => {
+      const { orderId, orderNo } = args as { orderId?: number; orderNo?: string };
+      mcpLog("INFO", `[webdTool_court_order_url_count] orderId=${orderId} orderNo=${orderNo}`);
+      try {
+        let data: any;
+        if (orderNo) {
+          data = await callWebdAPI(`/court-orders/by-order-no/${encodeURIComponent(orderNo)}/url-count`);
+        } else if (orderId) {
+          data = await callWebdAPI(`/court-orders/${orderId}/url-count`);
+        } else {
+          return { content: [{ type: "text" as const, text: "❌ ต้องระบุ orderId หรือ orderNo" }] };
+        }
+        return { content: [{ type: "text" as const, text: JSON.stringify(data) }], structuredContent: data };
+      } catch (e: any) {
+        logBoth("ERROR", `[webdTool_court_order_url_count] ${e.message}`);
+        return { content: [{ type: "text" as const, text: `❌ ${e.message}` }] };
+      }
+    }
+  );
+
+  mcpserver.registerTool(
+    "webdTool_top_court_orders",
+    {
+      title: "คำสั่งศาลที่มี URL มากที่สุด — ใช้เมื่อมี 'webd' + 'คำสั่งศาล' + 'มากที่สุด/อันดับ/top'",
+      description: `หน้าที่: คืนรายการคำสั่งศาล เรียงตามจำนวน URL มากไปน้อย
+ใช้เมื่อ: ผู้ใช้ต้องการทราบคำสั่งศาลที่มี URL มากที่สุด
+พารามิเตอร์: { limit?: number } — จำนวนรายการ (default 10, max 20)`,
+    },
+    async (args: any) => {
+      const { limit } = args as { limit?: number };
+      mcpLog("INFO", `[webdTool_top_court_orders] limit=${limit || 10}`);
+      try {
+        const data = await callWebdAPI(`/court-orders/top-by-url-count?limit=${limit || 10}`);
+        return { content: [{ type: "text" as const, text: JSON.stringify(data) }], structuredContent: data };
+      } catch (e: any) {
+        logBoth("ERROR", `[webdTool_top_court_orders] ${e.message}`);
+        return { content: [{ type: "text" as const, text: `❌ ${e.message}` }] };
+      }
+    }
+  );
+
+  mcpserver.registerTool(
+    "webdTool_url_has_court_order",
+    {
+      title: "ตรวจสอบว่า URL มีคำสั่งศาลหรือไม่ — ใช้เมื่อมี 'webd' + URL + 'คำสั่งศาล'",
+      description: `หน้าที่: ตรวจว่า URL ที่ระบุมีคำสั่งศาลครอบคลุมหรือไม่
+ใช้เมื่อ: ผู้ใช้ต้องการตรวจสอบว่า URL เฉพาะถูกบล็อกหรือมีคำสั่งศาลแล้วหรือยัง
+พารามิเตอร์: { url: string }`,
+    },
+    async (args: any) => {
+      const { url } = args as { url: string };
+      if (!url) return { content: [{ type: "text" as const, text: "❌ ต้องระบุ URL" }] };
+      mcpLog("INFO", `[webdTool_url_has_court_order] url=${url}`);
+      try {
+        const data = await callWebdAPI(`/urls/has-court-order?url=${encodeURIComponent(url)}`);
+        return { content: [{ type: "text" as const, text: JSON.stringify(data) }], structuredContent: data };
+      } catch (e: any) {
+        logBoth("ERROR", `[webdTool_url_has_court_order] ${e.message}`);
+        return { content: [{ type: "text" as const, text: `❌ ${e.message}` }] };
+      }
+    }
+  );
 }

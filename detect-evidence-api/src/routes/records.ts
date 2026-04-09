@@ -78,4 +78,38 @@ router.get("/has-evidence", async (req: Request, res: Response) => {
   res.json({ ok: true, domain: "detect", metric: "url_has_evidence", url, hasEvidence: count > 0, evidenceCount: count });
 });
 
+// ---- TOP NIP BY RECORD COUNT ----
+router.get("/top-nip-by-record", async (req: Request, res: Response) => {
+  const limit = Math.min(Math.max(1, Number(req.query.limit) || 10), 20);
+  const rows = await query("SELECT nip_no, COUNT(*) as c FROM record GROUP BY nip_no ORDER BY c DESC LIMIT ?", [limit]);
+  const items = (rows as any[]).map((r: any) => ({ nip_no: Number(r.nip_no || 0), count: Number(r.c || 0) }));
+  const total = items.reduce((s, r) => s + r.count, 0);
+  res.json({ ok: true, domain: "detect", metric: "top_nip_by_record", total, items });
+});
+
+// ---- PENDING EVIDENCE (NIP created today with no record) ----
+router.get("/pending", async (_req: Request, res: Response) => {
+  const today = bkkDate(0);
+  const rows = await query(
+    "SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) = ? AND (status_rec IS NULL OR no NOT IN (SELECT nip_no FROM record))",
+    [today]
+  );
+  res.json({ ok: true, domain: "detect", metric: "pending_evidence", date: today, count: Number((rows as any[])[0]?.c || 0) });
+});
+
+// ---- OFFICER SUMMARY ----
+router.get("/officer-summary", async (_req: Request, res: Response) => {
+  const today = bkkDate(0);
+  const [onlineR] = await query("SELECT COUNT(*) as c FROM machines WHERE is_online = 1") as any[];
+  const [offlineR] = await query("SELECT COUNT(*) as c FROM machines WHERE is_online = 0") as any[];
+  const [recordsR] = await query("SELECT COUNT(*) as c FROM record WHERE DATE(create_date) = ?", [today]) as any[];
+  const [nipR] = await query("SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) = ?", [today]) as any[];
+  res.json({
+    ok: true, domain: "detect", metric: "officer_summary", date: today,
+    machines: { online: Number(onlineR?.c || 0), offline: Number(offlineR?.c || 0) },
+    records: { today: Number(recordsR?.c || 0) },
+    nip: { today: Number(nipR?.c || 0) },
+  });
+});
+
 export default router;

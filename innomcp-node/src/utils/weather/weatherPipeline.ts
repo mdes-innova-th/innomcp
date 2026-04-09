@@ -208,6 +208,19 @@ export class WeatherPipeline {
         const budgetRemainingMs = () => Math.max(0, BUDGET_MS - budgetUsedMs());
         const signal = opts?.signal;
 
+        // ─── Monthly query guard ───
+        // TMD APIs provide daily forecasts and current observations only.
+        // Monthly aggregation (เดือนที่ผ่านมา, เดือนนี้, ฝนเดือนนี้) is not supported.
+        const monthlyPattern = /เดือนที่ผ่านมา|เดือนก่อน|เดือนนี้|ฝน(?:เดือน|ประจำเดือน)|รายเดือน|monthly/i;
+        if (monthlyPattern.test(target.originalText || "")) {
+            const prov = target.provinces.length > 0 ? target.provinces[0] : "ทั่วประเทศ";
+            return [{
+                province: prov,
+                type: "error",
+                error: "MONTHLY_NOT_SUPPORTED",
+            }];
+        }
+
         const mode = target.intent.mode;
         const nat = detectNationwideParams(target.originalText || "");
         const isNational = Boolean(target.intent.national) || nat.national;

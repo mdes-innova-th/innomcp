@@ -62,6 +62,7 @@ function thaiDigitsToArabic(raw: string): string {
 
 function parseDayOffset(text: string): number {
   const t = String(text || "");
+  if (/เมื่อวาน(?:นี้)?/i.test(t)) return -1;
   if (/วันนี้|ตอนนี้|ขณะนี้/i.test(t)) return 0;
   if (/พรุ่งนี้/i.test(t)) return 1;
   if (/มะรืน/i.test(t)) return 2;
@@ -119,7 +120,7 @@ function timeWindowLabel(userText: string): { label: string; date: string; offse
     return { label: "พยากรณ์ 7 วัน", date: bkkDateStr(0), offset: 0, daypart };
   }
   const offset = parseDayOffset(userText);
-  const dayLabel = offset === 0 ? "วันนี้" : offset === 1 ? "พรุ่งนี้" : offset === 2 ? "มะรืน" : `อีก ${offset} วัน`;
+  const dayLabel = offset === -1 ? "เมื่อวาน" : offset === 0 ? "วันนี้" : offset === 1 ? "พรุ่งนี้" : offset === 2 ? "มะรืน" : `อีก ${offset} วัน`;
   const label = daypart ? `${dayLabel} (${daypart})` : dayLabel;
   return { label, date: bkkDateStr(offset), offset, daypart };
 }
@@ -276,8 +277,9 @@ function groupByProvince(results: WeatherResult[]): Map<string, WeatherResult[]>
   return map;
 }
 
-function classifyErrorCode(err: string): "TIMEOUT" | "UPSTREAM" | "NO_DATA" | "PROVINCE_MISSING" {
+function classifyErrorCode(err: string): "TIMEOUT" | "UPSTREAM" | "NO_DATA" | "PROVINCE_MISSING" | "MONTHLY_NOT_SUPPORTED" {
   const e = String(err || "");
+  if (e === "MONTHLY_NOT_SUPPORTED") return "MONTHLY_NOT_SUPPORTED";
   if (e === "PROVINCE_MISSING") return "PROVINCE_MISSING";
   if (e === "TIMEOUT" || e === "BUDGET_EXCEEDED") return "TIMEOUT";
 
@@ -301,7 +303,8 @@ function renderErrorOnlyProvince(province: string, items: WeatherResult[]): stri
   const errs = (items || []).filter((r) => r && r.type === "error").map((r) => String(r.error || ""));
   const priority = errs.map(classifyErrorCode);
 
-  const kind: "TIMEOUT" | "UPSTREAM" | "NO_DATA" | "PROVINCE_MISSING" =
+  const kind: "TIMEOUT" | "UPSTREAM" | "NO_DATA" | "PROVINCE_MISSING" | "MONTHLY_NOT_SUPPORTED" =
+    priority.includes("MONTHLY_NOT_SUPPORTED") ? "MONTHLY_NOT_SUPPORTED" :
     priority.includes("TIMEOUT") ? "TIMEOUT" :
     priority.includes("PROVINCE_MISSING") ? "PROVINCE_MISSING" :
     priority.includes("UPSTREAM") ? "UPSTREAM" :
@@ -309,6 +312,8 @@ function renderErrorOnlyProvince(province: string, items: WeatherResult[]): stri
 
   const msg = (() => {
     switch (kind) {
+      case "MONTHLY_NOT_SUPPORTED":
+        return `ขออภัย ระบบพยากรณ์อากาศรองรับเฉพาะข้อมูลรายวัน (วันนี้/พรุ่งนี้/7 วัน) — ยังไม่รองรับข้อมูลรายเดือนหรือสรุปย้อนหลังเป็นเดือนครับ`;
       case "TIMEOUT":
         return `ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา กรุณาลองถามใหม่อีกครั้งครับ`;
       case "PROVINCE_MISSING":

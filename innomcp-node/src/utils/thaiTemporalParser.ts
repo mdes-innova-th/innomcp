@@ -9,6 +9,7 @@
  */
 
 export type TemporalType =
+  | "yesterday"
   | "today"
   | "tomorrow"
   | "day_after_tomorrow"
@@ -43,6 +44,7 @@ const THAI_WEEKDAYS = [
 
 // Absolute day patterns
 const ABSOLUTE_PATTERNS = [
+  { regex: /เมื่อวาน(?:นี้)?/, type: "yesterday" as TemporalType, offset: -1, label: "เมื่อวาน" },
   { regex: /วันนี้|ตอนนี้|ขณะนี้/, type: "today" as TemporalType, offset: 0, label: "วันนี้" },
   { regex: /คืนนี้/, type: "tonight" as TemporalType, offset: 0, label: "คืนนี้" },
   { regex: /พรุ่งนี้/, type: "tomorrow" as TemporalType, offset: 1, label: "พรุ่งนี้" },

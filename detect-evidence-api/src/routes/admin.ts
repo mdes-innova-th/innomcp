@@ -2,6 +2,7 @@
  * Admin/contract-map routes — exposes the domain contract map
  */
 import { Router, Request, Response } from "express";
+import { query } from "../db";
 
 const router = Router();
 
@@ -54,6 +55,25 @@ const CONTRACT_MAP = {
 
 router.get("/contract-map", (_req: Request, res: Response) => {
   res.json(CONTRACT_MAP);
+});
+
+// ---- SCHEMA DISCOVERY ----
+const ALLOWED_TABLES = ["machines", "nip", "record", "entries", "sip"];
+
+router.get("/tables", async (_req: Request, res: Response) => {
+  const rows = await query("SHOW TABLES");
+  const names = (rows as any[]).map((r: any) => String(Object.values(r)[0] || "")).filter(Boolean);
+  res.json({ ok: true, domain: "detect", tables: names });
+});
+
+router.get("/describe/:table", async (req: Request, res: Response) => {
+  const table = String(req.params.table || "");
+  if (!ALLOWED_TABLES.includes(table)) {
+    return res.status(400).json({ ok: false, error: `Table '${table}' not in whitelist` });
+  }
+  const rows = await query(`SHOW COLUMNS FROM \`${table}\``);
+  const columns = (rows as any[]).map((r: any) => String(r.Field || r.field || "")).filter(Boolean);
+  res.json({ ok: true, domain: "detect", table, columns });
 });
 
 export default router;
