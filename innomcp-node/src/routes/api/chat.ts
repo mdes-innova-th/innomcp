@@ -470,6 +470,13 @@ function buildHistoryAwareFollowUpQuery(currentText: string, sessionHistory: Cha
   }
 
   if (recentWeatherContext) {
+    // Phase 16: If user explicitly requests domain switch away from weather, do NOT apply weather carry-forward
+    if (/(เปลี่ยนเรื่อง|กลับมาเรื่อง)\s*(evidence|หลักฐาน|calculator|คำนวณ|math)/i.test(cur)) {
+      // Strip the domain-switch prefix and return the rest as-is for proper routing
+      const stripped = cur.replace(/^.*?(เปลี่ยนเรื่อง|กลับมาเรื่อง)\s*(evidence|หลักฐาน|calculator|คำนวณ|math)\s*/i, '').trim();
+      return stripped || cur;
+    }
+
     // Phase 15: "เปลี่ยนกลับไปกรุงเทพ" / "กลับมาเรื่องอากาศ ขอXXX" — switch to explicit province
     if (/(เปลี่ยน|กลับ)/i.test(cur)) {
       const switchTarget = explicitLocation || previousProvince || lastProvince;
@@ -491,6 +498,11 @@ function buildHistoryAwareFollowUpQuery(currentText: string, sessionHistory: Cha
 
     if (/พรุ่งนี้/i.test(cur) && lastProvince && !hasExplicitWeatherIntentKeywords(cur)) {
       return `${lastProvince} พรุ่งนี้ฝนตกไหม`;
+    }
+
+    // Phase 16: "เมื่อวาน" in weather context carry-forward
+    if (/เมื่อวาน|วานนี้|yesterday/i.test(cur) && lastProvince && !hasExplicitWeatherIntentKeywords(cur)) {
+      return `อากาศ${lastProvince}เมื่อวาน`;
     }
 
     if (/สัปดาห์หน้า|7\s*วัน|รายสัปดาห์/i.test(cur) && lastProvince && !hasExplicitWeatherIntentKeywords(cur)) {
@@ -802,6 +814,11 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   if (/(วันนี้)/i.test(t) && /\burl\b/i.test(t) && /(detected|ตรวจพบ|กี่|ทั้งหมด|รวม|พบ|เจอ)/i.test(t)) {
     return "detected_urls_today";
   }
+  // Phase 16: ISP name + เดือนนี้ + url/NIP → per-ISP monthly count (not all-time or today)
+  // Covers: "DTAC เดือนนี้เจอ NIP กี่รายการ", "สรุป AIS เดือนนี้ url ผิดกฎหมายทั้งหมด"
+  if (hasTelecomName && /(เดือนนี้|this\s*month)/i.test(tNorm15) && hasUrlOrNip15) {
+    return "nip_top_isp_this_month";
+  }
   // Catch-all: "สรุป url ผิดกฎหมาย" / "url ผิดกฎหมายทั้งหมด" / "สถานการณ์ url" (no temporal qualifier)
   if (/\burl\b/i.test(t) && /(ผิดกฎหมาย|illegal)/i.test(t) && /(สรุป|ทั้งหมด|รวม|สถานการณ์|ภาพรวม)/i.test(t)) {
     return "nip_top_isp_all";
@@ -950,7 +967,7 @@ function looksLikeHasTimeKeyword(text: string): boolean {
 function looksLikeMathLikeQuery(text: string): boolean {
   const t = String(text || "");
   return /\d\s*[\+\-\*\/\^×÷]/.test(t) || /(แฟกทอเรียล|factorial|คำนวณ|calculate|บวก|ลบ|คูณ|หาร|อนุพันธ์|ปริพันธ์|อินทิเกรต|derivative|integral|integrate)/i.test(t)
-    || /\b(mean|sum|min|max|median|avg|average|sqrt|abs|log|round|ceil|floor|sin|cos|tan|asin|acos|atan|mod|gcd|lcm|std|variance)\s*\(/i.test(t)
+    || /\b(mean|sum|min|max|median|avg|average|sqrt|abs|log|round|ceil|floor|sin|cos|tan|asin|acos|atan|mod|gcd|lcm|std|stdev|variance)\s*\(/i.test(t)
     || /\d+\s*(องศา)?\s*(ฟาเรนไฮต์|fahrenheit|°F)\s*(เป็น|to|แปลง|convert)\s*(เซลเซียส|celsius|°C)/i.test(t)
     || /\d+\s*(องศา)?\s*(เซลเซียส|celsius|°C)\s*(เป็น|to|แปลง|convert)\s*(ฟาเรนไฮต์|fahrenheit|°F)/i.test(t)
     || /\d+(\.\d+)?\s*%\s*(ของ|of)\s*\d/i.test(t);
@@ -4778,14 +4795,17 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     logBoth("info", `[Chat API] Received POST chat message (len=${String(message || "").length})`);
 
     // Get full message history from client or initialize empty
-    // Also accept `history` field (array of {role,content}) as alias for messages
-    const normalizedIncomingHistory: ChatMessage[] = Array.isArray(incomingHistory)
-      ? incomingHistory.map((h: any) => ({
-          sender: String(h.role || "").toLowerCase() === "user" ? "user" : "ai",
-          text: String(h.content || h.text || ""),
-        }))
-      : [];
-    let sessionHistory: ChatMessage[] = messages || (normalizedIncomingHistory.length > 0 ? normalizedIncomingHistory : []);
+    // Accept both {sender,text} (ChatMessage) and {role,content} (OpenAI) formats
+    const normalizeToChatMessages = (arr: any[]): ChatMessage[] =>
+      arr.map((m: any) => ({
+        sender: (m.sender === 'user' ? 'user'
+          : m.sender === 'ai' ? 'ai'
+          : String(m.role || '').toLowerCase() === 'user' ? 'user' : 'ai') as 'user' | 'ai',
+        text: String(m.text || m.content || ''),
+      }));
+    const normalizedMessages: ChatMessage[] = Array.isArray(messages) ? normalizeToChatMessages(messages) : [];
+    const normalizedIncomingHistory: ChatMessage[] = Array.isArray(incomingHistory) ? normalizeToChatMessages(incomingHistory) : [];
+    let sessionHistory: ChatMessage[] = normalizedMessages.length > 0 ? normalizedMessages : (normalizedIncomingHistory.length > 0 ? normalizedIncomingHistory : []);
 
     // 📎 Handle file attachment (HTTP parity with WS)
     let fileContext = "";
@@ -4814,6 +4834,70 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     const enrichedMessage = buildHistoryAwareFollowUpQuery(messageWithFile, sessionHistory);
     if (enrichedMessage !== messageWithFile) {
       logBoth("info", `[CarryForward] http enriched "${messageWithFile}" -> "${enrichedMessage}"`);
+    }
+
+    // ─── Phase 16: Standalone ambiguous-pronoun early detection ───
+    // If the query matches ambiguous follow-up patterns but history is empty/short
+    // and enrichment could NOT resolve context, return a polite clarification immediately
+    // instead of letting it fall through to LLM (which would timeout or hallucinate).
+    const isAmbiguousPattern = /^(แล้ว|ถ้า|ถ้าเทียบ|เทียบ|สรุป|ขอเหตุผล|ขอสรุป|แล้วล่ะ|งั้น|เปลี่ยน|กลับมา)/i.test(messageWithFile)
+      || /จังหวัดนี้|ที่นี่|ที่นั่น|ภาคนี้|ล่ะ$|ค่ายนี้|ของค่ายนี้|อันนั้น|อันเดิม/i.test(messageWithFile);
+    const wasNotEnriched = enrichedMessage === messageWithFile;
+    const historyTooShort = sessionHistory.length < 2;
+    const hasNoDomainKeyword = !/(อากาศ|ฝน|weather|url|nip|evidence|หลักฐาน|ISP|mean|sum|sqrt|คำนวณ|calculator|กราฟ|chart|แผนที่|map)/i.test(messageWithFile);
+    if (isAmbiguousPattern && wasNotEnriched && historyTooShort && hasNoDomainKeyword) {
+      const clarifyText = 'ขอโทษครับ ผมยังไม่แน่ใจว่าคุณหมายถึงเรื่องอะไร กรุณาระบุบริบทเพิ่มเติมด้วยครับ เช่น ต้องการข้อมูลอากาศ, หลักฐานดิจิทัล, หรือการคำนวณ';
+      return res.json({
+        text: clarifyText,
+        structuredContent: { fastPath: true, type: 'ambiguous_pronoun_clarify', noContext: true },
+        messages: sessionHistory,
+        mcpUsed: false,
+      });
+    }
+
+    // ─── Phase 16: Multi-intent detection ───
+    // Detect when a single query contains 2+ distinct domain intents.
+    // If found, the system answers the dominant intent and explicitly tells the user
+    // to ask the other intent separately (option B from product spec).
+    const detectMultiIntentDomains = (text: string): string[] => {
+      const domains: string[] = [];
+      const hasWeatherKw = /(อากาศ|ฝน|อุณหภูมิ|weather|forecast|ร้อน|หนาว|พยากรณ์)/i.test(text);
+      const hasChartKw = /(กราฟ|chart|แผนภูมิ)/i.test(text);
+      // Chart about weather (e.g. กราฟฝน, กราฟอากาศ) is a single intent — don't double-count
+      if (hasWeatherKw && hasChartKw) {
+        domains.push('chart');
+      } else {
+        if (hasWeatherKw) domains.push('weather');
+        if (hasChartKw) domains.push('chart');
+      }
+      if (/(url.*ผิดกฎหมาย|nip|evidence|หลักฐาน|ISP.*เจอ|เจอ.*url|ตรวจพบ|top\s*ISP)/i.test(text)) domains.push('evidence');
+      if (/(mean|sum|sqrt|median|variance|stdev|คำนวณ|calculate|factorial|\d\s*[\+\-\*\/\^]\s*\d)/i.test(text)) domains.push('calculator');
+      if (/(สร้างรูป|วาดรูป|generate.*image)/i.test(text)) domains.push('image');
+      if (/(อยู่จังหวัดอะไร|อยู่ภาคอะไร|ภูมิศาสตร์)/i.test(text)) domains.push('geo');
+      return domains;
+    };
+    const detectedDomains = detectMultiIntentDomains(messageWithFile);
+    let multiIntentNote = '';
+    if (detectedDomains.length >= 2) {
+      const domainLabels: Record<string, string> = {
+        weather: 'พยากรณ์อากาศ', evidence: 'หลักฐานดิจิทัล', calculator: 'การคำนวณ',
+        chart: 'กราฟ/แผนภูมิ', image: 'สร้างรูปภาพ', geo: 'ข้อมูลภูมิศาสตร์',
+      };
+      // The system will naturally answer one domain. Note that others need separate questions.
+      const allDomainLabels = detectedDomains.map(d => domainLabels[d] || d).join(', ');
+      multiIntentNote = `\n\n💡 คำถามนี้มีหลายหัวข้อ (${allDomainLabels}) ผมตอบได้ทีละหัวข้อครับ กรุณาถามหัวข้อที่เหลือแยกอีกทีได้เลยครับ`;
+      logBoth('info', `[MultiIntent] detected=${detectedDomains.join(',')} note='${multiIntentNote.trim()}'`);
+    }
+
+    // Wrap res.json to append multi-intent note if applicable
+    if (multiIntentNote) {
+      const _origJson = res.json.bind(res);
+      (res as any).json = function(body: any) {
+        if (body && typeof body.text === 'string') {
+          body.text = body.text + multiIntentNote;
+        }
+        return _origJson(body);
+      };
     }
 
     const traceStartMs = Date.now();

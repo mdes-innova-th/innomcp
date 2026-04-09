@@ -267,18 +267,20 @@ export async function handleFastPathMessage(
   // 1. Math (Strict Regex)
   // Only allow numbers, operators, parentheses, and math functions common in mathjs
   // (sin|cos|tan|sqrt|log|exp|pow|abs|pi|e)
-  if (/^[\d+\-*/().\s%^]+$|^(sin|cos|tan|sqrt|log|exp|pow|abs|pi|e|gcd|lcm|std|mean|median|sum|min|max|mod|variance)[\d\W]+$/i.test(q)) {
+  if (/^[\d+\-*/().\s%^]+$|^(sin|cos|tan|sqrt|log|exp|pow|abs|pi|e|gcd|lcm|std|stdev|mean|median|sum|min|max|mod|variance)[\d\W]+$/i.test(q)) {
       try {
           // Dynamic import to avoid load time if not needed (or require if CommonJS)
           // We can use the installed 'mathjs'
-          const { evaluate } = require('mathjs'); 
-          const result = evaluate(trigToDeg(q));
+          const { evaluate } = require('mathjs');
+          // Phase 16: normalize stdev -> std for mathjs compatibility
+          const normalizedQ = q.replace(/\bstdev\b/gi, 'std');
+          const result = evaluate(trigToDeg(normalizedQ));
           
           if (typeof result === 'number' || (result && result.type === 'Complex')) {
               const latencyMs = Math.round(performance.now() - start);
               const rawResult = typeof result === 'number' ? cleanFloat(result) : `${result}`;
               // Phase 15: Format function-style math with "expression = result" for readability
-              const hasMathFn = /^(sin|cos|tan|sqrt|log|exp|pow|abs|gcd|lcm|std|mean|median|sum|min|max|mod|variance)\s*[\(\[]/i.test(q);
+              const hasMathFn = /^(sin|cos|tan|sqrt|log|exp|pow|abs|gcd|lcm|std|stdev|mean|median|sum|min|max|mod|variance)\s*[\(\[]/i.test(q);
               const responseText = hasMathFn ? `ผลลัพธ์: ${q} = ${rawResult}` : rawResult;
               
               await respond({
@@ -722,7 +724,7 @@ export async function tryFastPathWebSocket(
 
   // ===== STD DEV / VARIANCE (deterministic, stats) =====
   // Example: "หา std([10,20,30,40,50])" -> ~15.8114
-  if (/\bstd\b/i.test(text) && /\d/.test(text) && text.length <= 220) {
+  if (/\b(std|stdev)\b/i.test(text) && /\d/.test(text) && text.length <= 220) {
     const nums = (text.match(/-?\d+(?:\.\d+)?/g) || []).map(Number).filter(Number.isFinite);
     if (nums.length >= 2) {
       const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
