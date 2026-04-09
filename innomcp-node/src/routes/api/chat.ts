@@ -866,10 +866,10 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
     return "nip_top_isp_all";
   }
 
-  // ISP-specific period query: "รายการ url ผิดกฎหมาย เดือนนี้ของ DTAC"
+  // Phase 17: ISP-specific period query — when a SPECIFIC ISP is named, use ISP-filtered intent
+  // "รายการ url ผิดกฎหมาย เดือนนี้ของ DTAC" → must return DTAC-only data, not all-ISP ranking
   if (hasUrlOrNip && hasTimePeriod && hasTelecomName) {
-    if (/(เดือนนี้|this\s*month)/i.test(tNorm)) return "nip_top_isp_this_month";
-    // Phase 15 CONTRACT 2: week scope — must use detected_urls_this_week, NOT today fallback
+    if (/(เดือนนี้|this\s*month)/i.test(tNorm)) return "nip_latest_by_isp_month"; // ISP-filtered month list
     if (/(สัปดาห์นี้|this\s*week|อาทิตย์นี้)/i.test(tNorm)) return "detected_urls_this_week";
     return "detected_urls_today"; // default to today scope
   }

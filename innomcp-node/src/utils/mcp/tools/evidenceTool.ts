@@ -493,18 +493,26 @@ export async function handleEvidenceTool(args: any): Promise<any> {
       const monthLabel = `${yr}-${String(mo).padStart(2,"0")}`;
       const nipCols = await getColumns("nip");
       const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]) || "isp_name";
-      const rows = await queryEvidence<any>(
-        `SELECT \`${ispCol}\`, COUNT(*) as c FROM nip WHERE YEAR(create_date)=? AND MONTH(create_date)=? GROUP BY \`${ispCol}\` ORDER BY c DESC LIMIT 10`,
-        [yr, mo]
-      );
+      // Phase 17: Respect ispFilter when present — return ISP-specific month data
+      const ispFilter = args.ispFilter ? String(args.ispFilter).trim() : null;
+      let sql = `SELECT \`${ispCol}\`, COUNT(*) as c FROM nip WHERE YEAR(create_date)=? AND MONTH(create_date)=?`;
+      const params: any[] = [yr, mo];
+      if (ispFilter) {
+        sql += ` AND LOWER(\`${ispCol}\`) LIKE LOWER(?)`;
+        params.push(`%${ispFilter}%`);
+      }
+      sql += ` GROUP BY \`${ispCol}\` ORDER BY c DESC LIMIT 10`;
+      const rows = await queryEvidence<any>(sql, params);
       const byIsp = Array.isArray(rows) ? rows.map((r:any) => ({ isp: String(r[ispCol]||"ไม่ระบุ").trim()||"ไม่ระบุ", count: Number(r.c||0) })) : [];
       const top = byIsp[0] || null;
       const total = byIsp.reduce((acc: number, r: any) => acc + (Number(r.count) || 0), 0);
       return {
-        ok: true, intent, month: monthLabel, byIsp, topIsp: top, meta: metaFor("detectdb"),
+        ok: true, intent, month: monthLabel, ispFilter: ispFilter || undefined, byIsp, topIsp: top, meta: metaFor("detectdb"),
         kpis: buildKpis(total, top ? top.isp : null, top ? top.count : null),
         table: { rows: byIsp },
-        summary: top ? `เดือนนี้ (${monthLabel}) ISP มากสุด: ${top.isp} (${top.count} รายการ)` : `เดือนนี้ยังไม่มีข้อมูล`,
+        summary: ispFilter
+          ? `เดือนนี้ (${monthLabel}) ${ispFilter.toUpperCase()}: ${total} รายการ`
+          : (top ? `เดือนนี้ (${monthLabel}) ISP มากสุด: ${top.isp} (${top.count} รายการ)` : `เดือนนี้ยังไม่มีข้อมูล`),
       };
     }
 
