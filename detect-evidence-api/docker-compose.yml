@@ -1,0 +1,21 @@
+version: "3.8"
+services:
+  detect-evidence-api:
+    build: .
+    container_name: detect-evidence-api
+    restart: unless-stopped
+    ports:
+      - "3013:3013"
+    environment:
+      - DETECT_DB_HOST=${DETECT_DB_HOST:-209.15.105.27}
+      - DETECT_DB_PORT=${DETECT_DB_PORT:-3306}
+      - DETECT_DB_USER=${DETECT_DB_USER:-root}
+      - DETECT_DB_PASSWORD=${DETECT_DB_PASSWORD}
+      - DETECT_DB_NAME=${DETECT_DB_NAME:-detect}
+      - DETECT_API_PORT=3013
+    networks:
+      - innomcp_network
+
+networks:
+  innomcp_network:
+    external: true

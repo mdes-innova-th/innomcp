@@ -17,6 +17,20 @@ const port = parseInt(process.env.SERVER_PORT || "3011", 10);
 
 const server = http.createServer(app);
 
+// Phase 18: EADDRINUSE protection — fail fast with clear message
+server.on("error", (err: any) => {
+  if (err.code === "EADDRINUSE") {
+    const msg = `❌ Port ${port} is already in use. Stop the existing process or set SERVER_PORT env var.`;
+    logger.error(msg);
+    console.error(msg);
+    console.error(`   Hint: netstat -ano | grep ":${port}" to find the process, then taskkill /F /PID <pid>`);
+  } else {
+    logger.error(`Server error: ${err.message}`);
+    console.error(`Server error:`, err);
+  }
+  process.exit(1);
+});
+
 server.listen(port, host, () => {
   logger.info(`🚀 Backend Server running on http://${host}:${port}`);
   logger.info(`🔌 WebSocket server listening on ws://${host}:${port}/chat`);
