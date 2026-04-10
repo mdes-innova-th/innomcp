@@ -277,9 +277,10 @@ function groupByProvince(results: WeatherResult[]): Map<string, WeatherResult[]>
   return map;
 }
 
-function classifyErrorCode(err: string): "TIMEOUT" | "UPSTREAM" | "NO_DATA" | "PROVINCE_MISSING" | "MONTHLY_NOT_SUPPORTED" {
+function classifyErrorCode(err: string): "TIMEOUT" | "UPSTREAM" | "NO_DATA" | "PROVINCE_MISSING" | "MONTHLY_NOT_SUPPORTED" | "YESTERDAY_NOT_SUPPORTED" {
   const e = String(err || "");
   if (e === "MONTHLY_NOT_SUPPORTED") return "MONTHLY_NOT_SUPPORTED";
+  if (e === "YESTERDAY_NOT_SUPPORTED") return "YESTERDAY_NOT_SUPPORTED";
   if (e === "PROVINCE_MISSING") return "PROVINCE_MISSING";
   if (e === "TIMEOUT" || e === "BUDGET_EXCEEDED") return "TIMEOUT";
 
@@ -303,7 +304,8 @@ function renderErrorOnlyProvince(province: string, items: WeatherResult[]): stri
   const errs = (items || []).filter((r) => r && r.type === "error").map((r) => String(r.error || ""));
   const priority = errs.map(classifyErrorCode);
 
-  const kind: "TIMEOUT" | "UPSTREAM" | "NO_DATA" | "PROVINCE_MISSING" | "MONTHLY_NOT_SUPPORTED" =
+  const kind: "TIMEOUT" | "UPSTREAM" | "NO_DATA" | "PROVINCE_MISSING" | "MONTHLY_NOT_SUPPORTED" | "YESTERDAY_NOT_SUPPORTED" =
+    priority.includes("YESTERDAY_NOT_SUPPORTED") ? "YESTERDAY_NOT_SUPPORTED" :
     priority.includes("MONTHLY_NOT_SUPPORTED") ? "MONTHLY_NOT_SUPPORTED" :
     priority.includes("TIMEOUT") ? "TIMEOUT" :
     priority.includes("PROVINCE_MISSING") ? "PROVINCE_MISSING" :
@@ -312,6 +314,8 @@ function renderErrorOnlyProvince(province: string, items: WeatherResult[]): stri
 
   const msg = (() => {
     switch (kind) {
+      case "YESTERDAY_NOT_SUPPORTED":
+        return `ขออภัย ระบบพยากรณ์อากาศรองรับเฉพาะข้อมูลปัจจุบันและพยากรณ์ล่วงหน้า (วันนี้/พรุ่งนี้/7 วัน) — ยังไม่รองรับข้อมูลย้อนหลัง (เมื่อวาน) ครับ`;
       case "MONTHLY_NOT_SUPPORTED":
         return `ขออภัย ระบบพยากรณ์อากาศรองรับเฉพาะข้อมูลรายวัน (วันนี้/พรุ่งนี้/7 วัน) — ยังไม่รองรับข้อมูลรายเดือนหรือสรุปย้อนหลังเป็นเดือนครับ`;
       case "TIMEOUT":
@@ -659,9 +663,13 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
       // Classify the dominant error
       const allErrs = shaped.filter((r) => r && r.type === "error").map((r) => String(r.error || ""));
       const allKinds = allErrs.map(classifyErrorCode);
-      const dominantKind = allKinds.includes("TIMEOUT") ? "TIMEOUT" : allKinds.includes("UPSTREAM") ? "UPSTREAM" : "NO_DATA";
+      const dominantKind = allKinds.includes("YESTERDAY_NOT_SUPPORTED") ? "YESTERDAY_NOT_SUPPORTED" : allKinds.includes("MONTHLY_NOT_SUPPORTED") ? "MONTHLY_NOT_SUPPORTED" : allKinds.includes("TIMEOUT") ? "TIMEOUT" : allKinds.includes("UPSTREAM") ? "UPSTREAM" : "NO_DATA";
       const provList = provinces.join(", ");
-      const msg = dominantKind === "TIMEOUT"
+      const msg = dominantKind === "YESTERDAY_NOT_SUPPORTED"
+        ? `ขออภัย ระบบพยากรณ์อากาศรองรับเฉพาะข้อมูลปัจจุบันและพยากรณ์ล่วงหน้า (วันนี้/พรุ่งนี้/7 วัน) — ยังไม่รองรับข้อมูลย้อนหลัง (เมื่อวาน) ครับ`
+        : dominantKind === "MONTHLY_NOT_SUPPORTED"
+        ? `ขออภัย ระบบพยากรณ์อากาศรองรับเฉพาะข้อมูลรายวัน (วันนี้/พรุ่งนี้/7 วัน) — ยังไม่รองรับข้อมูลรายเดือนหรือสรุปย้อนหลังเป็นเดือนครับ`
+        : dominantKind === "TIMEOUT"
         ? `ขออภัย ระบบดึงข้อมูลอากาศไม่ทันเวลา (${provList}) กรุณาลองถามใหม่อีกครั้งครับ`
         : dominantKind === "UPSTREAM"
         ? `ขออภัย ระบบดึงข้อมูลอากาศขัดข้อง (${provList}) กรุณาลองถามใหม่อีกครั้งครับ`

@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { mcpLog } from "../../utils/mcpLogger";
 import { logBoth } from "../../utils/mcpLogger";
+import { z } from "zod";
 
 // Webd Tools - Web Domain Statistics from WEBDDSB Backend
 type WebdInput = {
@@ -483,6 +484,10 @@ export function registerWebdTools(mcpserver: McpServer) {
       description: `หน้าที่: คืนจำนวน URL ที่อยู่ภายใต้คำสั่งศาลระบุ (by orderId or orderNo)
 ใช้เมื่อ: ผู้ใช้ถามเกี่ยวกับจำนวน URL ในคำสั่งศาล
 พารามิเตอร์: { orderId?: number, orderNo?: string }`,
+      inputSchema: z.object({
+        orderId: z.number().optional().describe("Court order ID"),
+        orderNo: z.string().optional().describe("Court order number e.g. พ.001/2566"),
+      }),
     },
     async (args: any) => {
       const { orderId, orderNo } = args as { orderId?: number; orderNo?: string };
@@ -511,6 +516,9 @@ export function registerWebdTools(mcpserver: McpServer) {
       description: `หน้าที่: คืนรายการคำสั่งศาล เรียงตามจำนวน URL มากไปน้อย
 ใช้เมื่อ: ผู้ใช้ต้องการทราบคำสั่งศาลที่มี URL มากที่สุด
 พารามิเตอร์: { limit?: number } — จำนวนรายการ (default 10, max 20)`,
+      inputSchema: z.object({
+        limit: z.number().optional().describe("Number of results (default 10, max 20)"),
+      }),
     },
     async (args: any) => {
       const { limit } = args as { limit?: number };
@@ -532,6 +540,9 @@ export function registerWebdTools(mcpserver: McpServer) {
       description: `หน้าที่: ตรวจว่า URL ที่ระบุมีคำสั่งศาลครอบคลุมหรือไม่
 ใช้เมื่อ: ผู้ใช้ต้องการตรวจสอบว่า URL เฉพาะถูกบล็อกหรือมีคำสั่งศาลแล้วหรือยัง
 พารามิเตอร์: { url: string }`,
+      inputSchema: z.object({
+        url: z.string().describe("The URL to check for court order coverage"),
+      }),
     },
     async (args: any) => {
       const { url } = args as { url: string };

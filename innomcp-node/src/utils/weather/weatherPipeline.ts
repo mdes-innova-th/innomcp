@@ -208,6 +208,19 @@ export class WeatherPipeline {
         const budgetRemainingMs = () => Math.max(0, BUDGET_MS - budgetUsedMs());
         const signal = opts?.signal;
 
+        // ─── Yesterday/past query guard ───
+        // TMD APIs provide only current observations and future forecasts.
+        // Historical/yesterday queries have no data source — must not silently fall through to forecast.
+        const yesterdayPattern = /เมื่อวาน(?:นี้)?|วานนี้|yesterday|เมื่อวานซืน/i;
+        if (yesterdayPattern.test(target.originalText || "")) {
+            const prov = target.provinces.length > 0 ? target.provinces[0] : "ทั่วประเทศ";
+            return [{
+                province: prov,
+                type: "error",
+                error: "YESTERDAY_NOT_SUPPORTED",
+            }];
+        }
+
         // ─── Monthly query guard ───
         // TMD APIs provide daily forecasts and current observations only.
         // Monthly aggregation (เดือนที่ผ่านมา, เดือนนี้, ฝนเดือนนี้) is not supported.

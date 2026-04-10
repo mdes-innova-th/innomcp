@@ -2676,7 +2676,8 @@ function chatTraceOut(params: {
     | "tmd_rainfall"
     | "tmd_rain_regions"
     | "rainfall_chart"
-    | "image_generation";
+    | "image_generation"
+    | "webdCourtOrder";
   tool?: string;
   code: number;
   durMs: number;
@@ -3079,6 +3080,95 @@ wss.on("connection", (ws, req) => {
           });
           return;
 
+        }
+
+        // =====================================
+        // Phase 22: Webd Court-Order Deterministic Gate WS (NO LLM)
+        // =====================================
+        const webdCourtOrderGateWs = (() => {
+          const m = routingMessage.toLowerCase();
+          const hasWebd = /webd|เว็บผิดกฎหมาย|web.?domain|เว็บ.*บล็อก/.test(m);
+          const hasCourtOrder = /คำสั่งศาล|court.?order|คำร้อง/.test(m);
+          const hasUrl = /url|ยูอาร์แอล|ลิงก์|link/.test(m);
+          const hasTop = /มากที่สุด|อันดับ|top|ranking|สูงสุด/.test(m);
+          const hasCheck = /ตรวจ|เช็ค|check|มี.*หรือ|แล้ว.*ยัง/.test(m);
+          const hasCount = /กี่|จำนวน|count|เท่าไ/.test(m);
+          if (!hasWebd && !hasCourtOrder) return null;
+          const urlMatch = routingMessage.match(/https?:\/\/[^\s"'<>]+/i);
+          const orderIdMatch = routingMessage.match(/(?:คำสั่งศาล|court\s*order)\s*(?:เลขที่|ที่|no\.?|id)?\s*(\d+)/i);
+          const orderNoMatch = routingMessage.match(/([ก-๙a-zA-Z]+\.\d+\/\d{4})/i);
+          if (hasUrl && hasCheck && urlMatch) return { tool: "webdTool_url_has_court_order", args: { url: urlMatch[0] } };
+          if (hasCourtOrder && hasTop) return { tool: "webdTool_top_court_orders", args: { limit: 10 } };
+          if (hasCourtOrder && (hasCount || orderIdMatch || orderNoMatch)) {
+            const args: any = {};
+            if (orderIdMatch) args.orderId = Number(orderIdMatch[1]);
+            else if (orderNoMatch) args.orderNo = orderNoMatch[1];
+            else return { tool: "webdTool_top_court_orders", args: { limit: 10 } };
+            return { tool: "webdTool_court_order_url_count", args };
+          }
+          if (hasCourtOrder || hasWebd) return { tool: "webdTool_top_court_orders", args: { limit: 10 } };
+          return null;
+        })();
+
+        if (mcpClient && webdCourtOrderGateWs) {
+          const toolName = `innomcp-server:${webdCourtOrderGateWs.tool}`;
+          logBoth("info", `[WebdCourtOrderGate] deterministic=true transport=ws tool=${toolName}`);
+          try {
+            const toolResults = await mcpClient.executeTools([toolName], messageWithFile, {
+              [toolName]: webdCourtOrderGateWs.args,
+            });
+            const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+            const sc = first?.structuredContent ?? first?.result;
+            let parsed: any = null;
+            try { parsed = typeof sc === "string" ? JSON.parse(sc) : sc; } catch { parsed = sc; }
+            if (!parsed?.ok && first?.content) {
+              try {
+                const txt = Array.isArray(first.content) ? first.content[0]?.text : first.content;
+                if (typeof txt === "string") parsed = JSON.parse(txt);
+              } catch {}
+            }
+            let textOut = "";
+            if (parsed?.ok && parsed?.items) {
+              textOut = `📋 **คำสั่งศาลที่มี URL มากที่สุด** (${parsed.metric || "webd"})\n\n`;
+              for (const item of parsed.items) {
+                textOut += `• คำสั่งศาล ${item.orderNo || item.orderId}: ${item.urlCount} URL\n`;
+              }
+            } else if (parsed?.ok && (typeof parsed?.urlCount === "number" || typeof parsed?.count === "number")) {
+              const cnt = parsed.urlCount ?? parsed.count;
+              textOut = `📋 คำสั่งศาล ${parsed.orderNo || parsed.orderId || ""}: มี ${cnt} URL`;
+            } else if (parsed?.ok && (typeof parsed?.hasCourt === "boolean" || typeof parsed?.found === "boolean")) {
+              const has = parsed.hasCourt ?? parsed.found;
+              textOut = has
+                ? `✅ URL นี้มีคำสั่งศาลครอบคลุมแล้ว (${parsed.orderNo || ""})`
+                : `❌ URL นี้ยังไม่มีคำสั่งศาลครอบคลุม`;
+            } else {
+              textOut = `📋 ผลลัพธ์จาก webd-api:\n\`\`\`json\n${JSON.stringify(parsed, null, 2)}\n\`\`\``;
+            }
+            const scOut = withRenderMeta(
+              parsed || {},
+              { route: "webd", llmUsed: false, routeDecider: "deterministic", version: "phase22" },
+              [toolName]
+            );
+            sessionHistory.push({ sender: "user", text: messageWithFile });
+            sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+            sessionManager.startResponse(currentSessionId);
+            const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [toolName] };
+            sessionHistory.push(aiMessage);
+            sessionManager.addMessage(currentSessionId, "assistant", textOut, [toolName]);
+            sessionManager.completeResponse(currentSessionId);
+            sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [toolName] });
+            sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [toolName] });
+            sendDoneOnce();
+            chatTraceOut({
+              transport: "ws", sid: currentSessionId, cid, uiMode,
+              route: "webdCourtOrder", tool: toolName, code: 200,
+              durMs: Date.now() - traceStartMs, q: messageWithFile,
+              ans: textOut.slice(0, 200),
+            });
+            return;
+          } catch (webdErr: any) {
+            logBoth("error", `[WebdCourtOrderGate] WS Error: ${webdErr?.message || webdErr}`);
+          }
         }
 
         // ─── History-aware direct answer (carry-forward follow-up that needs no tool) ───
@@ -5091,6 +5181,101 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         mcpUsed: true,
         mcpResults: toolResults,
       });
+    }
+
+    // =====================================
+    // Phase 22: Webd Court-Order Deterministic Gate (NO LLM)
+    // Routes webd + court-order queries directly to webd-api MCP tools
+    // =====================================
+    const webdCourtOrderGate = (() => {
+      const m = routingMessage.toLowerCase();
+      const hasWebd = /webd|เว็บผิดกฎหมาย|web.?domain|เว็บ.*บล็อก/.test(m);
+      const hasCourtOrder = /คำสั่งศาล|court.?order|คำร้อง/.test(m);
+      const hasUrl = /url|ยูอาร์แอล|ลิงก์|link/.test(m);
+      const hasTop = /มากที่สุด|อันดับ|top|ranking|สูงสุด/.test(m);
+      const hasCheck = /ตรวจ|เช็ค|check|มี.*หรือ|แล้ว.*ยัง/.test(m);
+      const hasCount = /กี่|จำนวน|count|เท่าไ/.test(m);
+      if (!hasWebd && !hasCourtOrder) return null;
+      // Extract URL for has-court-order check
+      const urlMatch = routingMessage.match(/https?:\/\/[^\s"'<>]+/i);
+      // Extract orderId (numeric) — priority over orderNo
+      const orderIdMatch = routingMessage.match(/(?:คำสั่งศาล|court\s*order)\s*(?:เลขที่|ที่|no\.?|id)?\s*(\d+)/i);
+      // Extract orderNo (pattern like พ.001/2566)
+      const orderNoMatch = routingMessage.match(/([ก-๙a-zA-Z]+\.\d+\/\d{4})/i);
+      if (hasUrl && hasCheck && urlMatch) return { tool: "webdTool_url_has_court_order", args: { url: urlMatch[0] } };
+      if (hasCourtOrder && hasTop) return { tool: "webdTool_top_court_orders", args: { limit: 10 } };
+      if (hasCourtOrder && (hasCount || orderIdMatch || orderNoMatch)) {
+        const args: any = {};
+        if (orderIdMatch) args.orderId = Number(orderIdMatch[1]);
+        else if (orderNoMatch) args.orderNo = orderNoMatch[1];
+        else return { tool: "webdTool_top_court_orders", args: { limit: 10 } };
+        return { tool: "webdTool_court_order_url_count", args };
+      }
+      // Default: top court orders if webd + court-order mentioned
+      if (hasCourtOrder || hasWebd) return { tool: "webdTool_top_court_orders", args: { limit: 10 } };
+      return null;
+    })();
+
+    if (mcpClient && webdCourtOrderGate) {
+      const toolName = `innomcp-server:${webdCourtOrderGate.tool}`;
+      logBoth("info", `[WebdCourtOrderGate] deterministic=true transport=http tool=${toolName} args=${JSON.stringify(webdCourtOrderGate.args)}`);
+      try {
+        const toolResults = await mcpClient.executeTools([toolName], messageWithFile, {
+          [toolName]: webdCourtOrderGate.args,
+        });
+        const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+        const sc = first?.structuredContent ?? first?.result;
+        let parsed: any = null;
+        try { parsed = typeof sc === "string" ? JSON.parse(sc) : sc; } catch { parsed = sc; }
+        // Also try to parse text content
+        if (!parsed?.ok && first?.content) {
+          try {
+            const txt = Array.isArray(first.content) ? first.content[0]?.text : first.content;
+            if (typeof txt === "string") parsed = JSON.parse(txt);
+          } catch {}
+        }
+        let textOut = "";
+        if (parsed?.ok && parsed?.items) {
+          // top court orders
+          textOut = `📋 **คำสั่งศาลที่มี URL มากที่สุด** (${parsed.metric || "webd"})\n\n`;
+          for (const item of parsed.items) {
+            textOut += `• คำสั่งศาล ${item.orderNo || item.orderId}: ${item.urlCount} URL\n`;
+          }
+        } else if (parsed?.ok && (typeof parsed?.urlCount === "number" || typeof parsed?.count === "number")) {
+          const cnt = parsed.urlCount ?? parsed.count;
+          textOut = `📋 คำสั่งศาล ${parsed.orderNo || parsed.orderId || ""}: มี ${cnt} URL`;
+        } else if (parsed?.ok && (typeof parsed?.hasCourt === "boolean" || typeof parsed?.found === "boolean")) {
+          const has = parsed.hasCourt ?? parsed.found;
+          textOut = has
+            ? `✅ URL นี้มีคำสั่งศาลครอบคลุมแล้ว (${parsed.orderNo || ""})`
+            : `❌ URL นี้ยังไม่มีคำสั่งศาลครอบคลุม`;
+        } else {
+          // Fallback: dump JSON
+          textOut = `📋 ผลลัพธ์จาก webd-api:\n\`\`\`json\n${JSON.stringify(parsed, null, 2)}\n\`\`\``;
+        }
+        sessionHistory.push({ sender: "ai", text: textOut } as any);
+        const scOut = withRenderMeta(
+          parsed || {},
+          { route: "webd", llmUsed: false, routeDecider: "deterministic", version: "phase22" },
+          [toolName]
+        );
+        chatTraceOut({
+          transport: "http", sid: httpSessionId, cid: httpCid, uiMode,
+          route: "webdCourtOrder", tool: toolName, code: 200,
+          durMs: Date.now() - traceStartMs, q: messageWithFile,
+          ans: textOut.slice(0, 200),
+        });
+        return res.json({
+          text: textOut,
+          structuredContent: scOut,
+          messages: sessionHistory,
+          mcpUsed: true,
+          mcpResults: toolResults,
+        });
+      } catch (webdErr: any) {
+        logBoth("error", `[WebdCourtOrderGate] Error: ${webdErr?.message || webdErr}`);
+        // Fall through to other gates
+      }
     }
 
     // =====================================
