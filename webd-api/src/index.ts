@@ -16,7 +16,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 import express from "express";
 import cors from "cors";
-import { healthCheck, getMode } from "./db";
+import { healthCheck, getMode, isDetectBridge } from "./db";
 import courtOrdersRouter from "./routes/courtOrders";
 import urlsRouter from "./routes/urls";
 import ispRouter from "./routes/isp";
@@ -31,19 +31,22 @@ app.use(express.json());
 app.get("/health", (_req, res) => {
   const mode = getMode();
   const dbName = process.env.WEBD_DB_NAME || "db_aces";
-  const isMock = process.env.WEBD_API_MODE === "mock" || dbName !== "db_aces";
-  const dataTier = isMock ? "MOCK" : "REAL";
+  const bridge = isDetectBridge();
+  const isMock = !bridge && (process.env.WEBD_API_MODE === "mock" || dbName !== "db_aces");
+  const dataTier = bridge ? "DETECT_BRIDGE" : (isMock ? "MOCK" : "REAL");
   res.json({
     service: "webd-api",
     ok: mode === "live",
     status: mode,
     dataTier,
     dbName,
-    note: mode === "live"
-      ? (isMock
-        ? `Web-D API running in live mode — connected to ${dbName} (MOCK data, NOT real db_aces).`
-        : "Web-D API running in live mode — connected to real db_aces.")
-      : "Web-D API running in scaffold mode — db_aces connection not yet configured.",
+    note: bridge
+      ? `Web-D API running in detect_bridge mode — court-order data derived from detect.nip (${dbName}).`
+      : mode === "live"
+        ? (isMock
+          ? `Web-D API running in live mode — connected to ${dbName} (MOCK data, NOT real db_aces).`
+          : "Web-D API running in live mode — connected to real db_aces.")
+        : "Web-D API running in scaffold mode — db_aces connection not yet configured.",
     requiredEnv: ["WEBD_DB_HOST", "WEBD_DB_PORT", "WEBD_DB_USER", "WEBD_DB_PASSWORD", "WEBD_DB_NAME"],
   });
 });
@@ -51,13 +54,16 @@ app.get("/health", (_req, res) => {
 // Contract map
 app.get("/admin/contract-map", (_req, res) => {
   const mode = getMode();
+  const bridge = isDetectBridge();
+  const ispStatus = bridge ? mode : "not_supported";
   res.json({
     domain: "webd",
-    version: "0.2.0",
+    version: "0.3.0",
     status: mode === "live" ? "CONNECTED" : "NOT_CONNECTED",
     mode,
+    dataSource: bridge ? "detect_bridge (detect.nip/record)" : "db_aces",
     description: "Web-D domain — court orders, blocking obligations, URL source-of-truth management",
-    requiredDatabase: "db_aces",
+    requiredDatabase: bridge ? "detect (bridge mode)" : "db_aces",
     endpoints: [
       { path: "GET /court-orders/:orderId/url-count", meaning: "How many URLs does this court order contain?", status: mode },
       { path: "GET /court-orders/by-order-no/:orderNo/url-count", meaning: "URL count by order number", status: mode },
@@ -65,10 +71,10 @@ app.get("/admin/contract-map", (_req, res) => {
       { path: "GET /urls/has-court-order?url=...", meaning: "Does this URL already have a court order?", status: mode },
       { path: "GET /urls/by-caselist/:caseId", meaning: "URLs paginated by case ID", status: mode },
       { path: "GET /urls/has-evidence?url=...", meaning: "Does this URL have blocking evidence?", status: mode },
-      { path: "GET /isp/top-backlog", meaning: "ISPs ranked by total backlog of unblocked URLs", status: "not_supported" },
-      { path: "GET /isp/reduction-rate", meaning: "ISP reduction rate (requires monthly snapshots)", status: "not_supported" },
+      { path: "GET /isp/top-backlog", meaning: "ISPs ranked by total backlog of unblocked URLs", status: ispStatus },
+      { path: "GET /isp/reduction-rate", meaning: "ISP blocking reduction rate per ISP", status: ispStatus },
     ],
-    unsupported: [
+    unsupported: bridge ? [] : [
       { id: "isp_reduction_rate", reason: "Requires historical monthly snapshot table that does not exist. Cannot compute reduction rate without archived monthly totals per ISP." },
       { id: "month_over_month_comparison", reason: "No temporal archival mechanism exists in current schema." },
     ],

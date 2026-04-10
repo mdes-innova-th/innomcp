@@ -26,7 +26,11 @@ app.use(express.json());
 // Health check
 app.get("/health", async (_req, res) => {
   const db = await healthCheck();
-  res.json({ service: "detect-evidence-api", ok: db.ok, db });
+  const dbName = process.env.DETECT_DB_NAME || "detect";
+  const dbHost = process.env.DETECT_DB_HOST || "209.15.105.27";
+  const isLocal = dbHost === "127.0.0.1" || dbHost === "localhost";
+  const dataTier = isLocal ? (dbName === "detect" ? "REAL" : "STAGING") : "REAL";
+  res.json({ service: "detect-evidence-api", ok: db.ok, dataTier, dbName, db });
 });
 
 // Domain routes

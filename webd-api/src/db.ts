@@ -1,13 +1,18 @@
 /**
- * Web-D DB connection layer (db_aces)
+ * Web-D DB connection layer (db_aces / detect_bridge)
  *
  * Mode detection:
- * - If WEBD_DB_HOST is set and reachable → "live" mode (real db_aces)
- * - If not → "scaffold" mode (503 responses)
+ * - WEBD_API_MODE=detect_bridge → bridge mode (queries detect.nip/record for court-order data)
+ * - WEBD_DB_HOST set and reachable → "live" mode (real SQL against db_aces or detect bridge)
+ * - Otherwise → "scaffold" mode (503 responses)
  *
- * Expected db_aces tables:
+ * Expected db_aces tables (normal mode):
  *   case_order, courtorder, case_data, case_listdata,
  *   case_record, isp, outdoc, sent, case_listdata_check
+ *
+ * Detect bridge tables (detect_bridge mode):
+ *   nip → court_order, url, isp_name, status_open
+ *   record → evidence linked via nip_no
  */
 import mysql from "mysql2/promise";
 
@@ -16,6 +21,10 @@ let _mode: "live" | "scaffold" = "scaffold";
 
 export function getMode(): "live" | "scaffold" {
   return _mode;
+}
+
+export function isDetectBridge(): boolean {
+  return process.env.WEBD_API_MODE === "detect_bridge";
 }
 
 export function getPool(): mysql.Pool | null {
