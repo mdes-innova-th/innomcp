@@ -11,6 +11,9 @@
  *
  * Default port: 3014
  */
+import path from "path";
+import dotenv from "dotenv";
+dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 import express from "express";
 import cors from "cors";
 import { healthCheck, getMode } from "./db";
@@ -24,15 +27,22 @@ const PORT = Number(process.env.WEBD_API_PORT || 3014);
 app.use(cors());
 app.use(express.json());
 
-// Health — reflects actual mode
+// Health — reflects actual mode and data tier honestly
 app.get("/health", (_req, res) => {
   const mode = getMode();
+  const dbName = process.env.WEBD_DB_NAME || "db_aces";
+  const isMock = process.env.WEBD_API_MODE === "mock" || dbName !== "db_aces";
+  const dataTier = isMock ? "MOCK" : "REAL";
   res.json({
     service: "webd-api",
     ok: mode === "live",
     status: mode,
+    dataTier,
+    dbName,
     note: mode === "live"
-      ? "Web-D API running in live mode — connected to db_aces."
+      ? (isMock
+        ? `Web-D API running in live mode — connected to ${dbName} (MOCK data, NOT real db_aces).`
+        : "Web-D API running in live mode — connected to real db_aces.")
       : "Web-D API running in scaffold mode — db_aces connection not yet configured.",
     requiredEnv: ["WEBD_DB_HOST", "WEBD_DB_PORT", "WEBD_DB_USER", "WEBD_DB_PASSWORD", "WEBD_DB_NAME"],
   });
@@ -72,7 +82,7 @@ app.use("/isp", ispRouter);
 
 // Boot
 async function boot() {
-  await healthCheck();
+  const hc = await healthCheck();
   const mode = getMode();
   const modeIcon = mode === "live" ? "✅" : "⚠️";
   const server = app.listen(PORT, "0.0.0.0", () => {

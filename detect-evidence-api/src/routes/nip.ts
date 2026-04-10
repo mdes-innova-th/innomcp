@@ -126,9 +126,13 @@ router.get("/distinct/month", async (req: Request, res: Response) => {
   let sql = "SELECT isp_name as isp, COUNT(DISTINCT url) as c FROM nip WHERE YEAR(create_date)=? AND MONTH(create_date)=?";
   const params: any[] = [yr, mo];
   if (ispParam) {
-    const isps = ispParam.split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+    const isps = ispParam.split(",").map(s => s.trim()).filter(Boolean);
     if (isps.length === 1) { sql += " AND LOWER(isp_name) LIKE LOWER(?)"; params.push(ispLike(isps[0])); }
-    else if (isps.length > 1) { sql += ` AND LOWER(isp_name) IN (${isps.map(() => "LOWER(?)").join(",")})`; params.push(...isps.map(ispLike)); }
+    else if (isps.length > 1) {
+      const orClauses = isps.map(() => "LOWER(isp_name) LIKE LOWER(?)").join(" OR ");
+      sql += ` AND (${orClauses})`;
+      params.push(...isps.map(ispLike));
+    }
   }
   sql += " GROUP BY isp_name ORDER BY c DESC";
   const rows = await query(sql, params);

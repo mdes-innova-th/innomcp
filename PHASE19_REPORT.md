@@ -140,7 +140,10 @@ innomcp-node/src/utils/mcp/tools/evidenceTool.ts   → SELECT|INSERT|UPDATE|DELE
 
 ## 11. Commit Hash
 
-*Pending — requires `git add` + `git commit`*
+```
+e5fad4c Phase 19: MCP adapter rewrite — zero SQL in tool files, webd-api dual-mode, weather W1-W6 repair
+```
+17 files changed, 1066 insertions(+), 1179 deletions(-)
 
 ---
 

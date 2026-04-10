@@ -6,6 +6,9 @@
  * Default port: 3013
  * Health: GET /health
  */
+import path from "path";
+import dotenv from "dotenv";
+dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 import express from "express";
 import cors from "cors";
 import { healthCheck } from "./db";
@@ -51,4 +54,9 @@ server.on("error", (err: any) => {
     console.error(`[DetectAPI] ❌ Server error:`, err.message);
   }
   process.exit(1);
+});
+
+// Prevent unhandled async errors from crashing the process
+process.on("unhandledRejection", (err: any) => {
+  console.error("[DetectAPI] Unhandled rejection:", err?.message || err);
 });
