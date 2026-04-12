@@ -224,7 +224,7 @@ export class WeatherPipeline {
         // ─── Monthly query guard ───
         // TMD APIs provide daily forecasts and current observations only.
         // Monthly aggregation (เดือนที่ผ่านมา, เดือนนี้, ฝนเดือนนี้) is not supported.
-        const monthlyPattern = /เดือนที่ผ่านมา|เดือนก่อน|เดือนนี้|ฝน(?:เดือน|ประจำเดือน)|รายเดือน|monthly/i;
+        const monthlyPattern = /เดือนที่ผ่านมา|เดือนก่อน|เดือนนี้|ฝน(?:เดือน|ประจำเดือน)|รายเดือน|monthly|past\s*month|last\s*month|this\s*month/i;
         if (monthlyPattern.test(target.originalText || "")) {
             const prov = target.provinces.length > 0 ? target.provinces[0] : "ทั่วประเทศ";
             return [{
