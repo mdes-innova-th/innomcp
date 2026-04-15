@@ -221,10 +221,25 @@ export class WeatherPipeline {
             }];
         }
 
+        // ─── Past-week / past-year guard ───
+        // Same honest-unsupported policy as yesterday: no historical data source available.
+        // Patterns include common Thai forms ("สัปดาห์ที่แล้ว", "อาทิตย์ที่แล้ว", "ปีที่แล้ว", "ปีก่อน")
+        // and English ("last week", "past week", "last year", "past year"). Note: "สัปดาห์นี้",
+        // "สัปดาห์หน้า", "this week" remain handled by the future/week mode (forecast supports them).
+        const pastWeekYearPattern = /สัปดาห์ที่แล้ว|สัปดาห์ก่อน|อาทิตย์ที่แล้ว|อาทิตย์ก่อน|ปีที่แล้ว|ปีก่อน|past\s*week|last\s*week|past\s*year|last\s*year/i;
+        if (pastWeekYearPattern.test(target.originalText || "")) {
+            const prov = target.provinces.length > 0 ? target.provinces[0] : "ทั่วประเทศ";
+            return [{
+                province: prov,
+                type: "error",
+                error: "YESTERDAY_NOT_SUPPORTED",
+            }];
+        }
+
         // ─── Monthly query guard ───
         // TMD APIs provide daily forecasts and current observations only.
-        // Monthly aggregation (เดือนที่ผ่านมา, เดือนนี้, ฝนเดือนนี้) is not supported.
-        const monthlyPattern = /เดือนที่ผ่านมา|เดือนก่อน|เดือนนี้|ฝน(?:เดือน|ประจำเดือน)|รายเดือน|monthly|past\s*month|last\s*month|this\s*month/i;
+        // Monthly aggregation (เดือนที่ผ่านมา, เดือนที่แล้ว, เดือนนี้, ฝนเดือนนี้) is not supported.
+        const monthlyPattern = /เดือนที่ผ่านมา|เดือนที่แล้ว|เดือนก่อน|เดือนนี้|ฝน(?:เดือน|ประจำเดือน)|รายเดือน|monthly|past\s*month|last\s*month|this\s*month/i;
         if (monthlyPattern.test(target.originalText || "")) {
             const prov = target.provinces.length > 0 ? target.provinces[0] : "ทั่วประเทศ";
             return [{

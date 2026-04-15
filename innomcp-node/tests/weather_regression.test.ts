@@ -214,4 +214,77 @@ describe("Weather Architecture Regression (Phase 6.5)", () => {
             expect(nationalResult.error).toBe("NATIONAL_DATA_UNAVAILABLE");
         });
     });
+
+    /**
+     * Group: Honest-Unsupported Past-Time Guards
+     * TMD APIs only expose current observations + future forecasts.
+     * Yesterday / past-week / past-year / monthly questions must return
+     * an honest error, not silently fall through to today/forecast data.
+     */
+    describe("Honest-Unsupported Past-Time Guards", () => {
+        const expectGuard = async (text: string, expectedError: "YESTERDAY_NOT_SUPPORTED" | "MONTHLY_NOT_SUPPORTED") => {
+            const target = pipeline.resolveTarget(text);
+            const results = await pipeline.execute(target);
+            expect(results.length).toBeGreaterThan(0);
+            const r = results[0];
+            expect(r.type).toBe("error");
+            expect(r.error).toBe(expectedError);
+            // Tools must not be called when guard fires
+            expect(mockCallTool).not.toHaveBeenCalled();
+        };
+
+        // Yesterday
+        test("เมื่อวานฝนตกที่กรุงเทพไหม → YESTERDAY_NOT_SUPPORTED", async () => {
+            await expectGuard("เมื่อวานฝนตกที่กรุงเทพไหม", "YESTERDAY_NOT_SUPPORTED");
+        });
+        test("yesterday rain in Bangkok → YESTERDAY_NOT_SUPPORTED", async () => {
+            await expectGuard("yesterday did it rain in Bangkok", "YESTERDAY_NOT_SUPPORTED");
+        });
+
+        // Past week (new)
+        test("สัปดาห์ที่แล้วฝนตกที่เชียงใหม่ไหม → YESTERDAY_NOT_SUPPORTED", async () => {
+            await expectGuard("สัปดาห์ที่แล้วฝนตกที่เชียงใหม่ไหม", "YESTERDAY_NOT_SUPPORTED");
+        });
+        test("อาทิตย์ที่แล้วอากาศภูเก็ต → YESTERDAY_NOT_SUPPORTED", async () => {
+            await expectGuard("อาทิตย์ที่แล้วอากาศภูเก็ต", "YESTERDAY_NOT_SUPPORTED");
+        });
+        test("last week weather in Bangkok → YESTERDAY_NOT_SUPPORTED", async () => {
+            await expectGuard("last week weather in Bangkok", "YESTERDAY_NOT_SUPPORTED");
+        });
+
+        // Past year (new)
+        test("ปีที่แล้วฝนตกหนักที่ไหน → YESTERDAY_NOT_SUPPORTED", async () => {
+            await expectGuard("ปีที่แล้วฝนตกหนักที่ไหน", "YESTERDAY_NOT_SUPPORTED");
+        });
+        test("last year heaviest rain → YESTERDAY_NOT_SUPPORTED", async () => {
+            await expectGuard("last year heaviest rain in Thailand", "YESTERDAY_NOT_SUPPORTED");
+        });
+
+        // Monthly — existing patterns still pass
+        test("ในเดือนที่ผ่านมาฝนตกหนักสุดที่ใด → MONTHLY_NOT_SUPPORTED", async () => {
+            await expectGuard("ในเดือนที่ผ่านมาฝนตกหนักสุดที่ใด", "MONTHLY_NOT_SUPPORTED");
+        });
+        test("ปทุมธานีฝนตกไหม เดือนนี้ → MONTHLY_NOT_SUPPORTED", async () => {
+            await expectGuard("ปทุมธานีฝนตกไหม เดือนนี้", "MONTHLY_NOT_SUPPORTED");
+        });
+
+        // Monthly — new pattern (was missing before this change)
+        test("เดือนที่แล้วฝนตกที่กรุงเทพไหม → MONTHLY_NOT_SUPPORTED", async () => {
+            await expectGuard("เดือนที่แล้วฝนตกที่กรุงเทพไหม", "MONTHLY_NOT_SUPPORTED");
+        });
+
+        // Negative control: future/current must NOT trigger guard
+        test("พรุ่งนี้ฝนตกไหม → not guarded (mode=future)", async () => {
+            const target = pipeline.resolveTarget("พรุ่งนี้กรุงเทพฝนตกไหม");
+            // Mock forecast tool so chain can resolve without hitting real network
+            mockCallTool.mockResolvedValue({ Provinces: { Province: [{ ProvinceNameThai: "กรุงเทพมหานคร", ForecastDaily: [] }] } });
+            const results = await pipeline.execute(target);
+            // Must not be a guard error; may be other errors but not the past-time guards
+            for (const r of results) {
+                if (r.type === "error") {
+                    expect(["YESTERDAY_NOT_SUPPORTED", "MONTHLY_NOT_SUPPORTED"]).not.toContain(r.error);
+                }
+            }
+        });
+    });
 });

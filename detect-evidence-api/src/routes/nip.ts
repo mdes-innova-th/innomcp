@@ -23,9 +23,29 @@ function bkkMonday(): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Helper: normalize ISP filter for LIKE */
-function ispLike(isp: string): string {
-  return `%${isp.trim()}%`;
+/**
+ * Helper: normalize user-supplied ISP token to the canonical lowercase value
+ * stored in `nip.isp_name`. Returns null if the token does not map to a known ISP.
+ *
+ * Canonical values observed in detect.nip: true, ais, tot, 3bb, nt, dtac.
+ *
+ * The previous implementation wrapped the input in `%...%` for LIKE, which caused
+ * substring contamination — e.g. ?isp=ot returned all "tot" rows; ?isp=t returned
+ * counts from true/tot/nt/dtac. Filtering must be exact.
+ */
+const ISP_CANONICAL: Record<string, string> = {
+  ais: "ais", เอไอเอส: "ais",
+  dtac: "dtac", ดีแทค: "dtac",
+  true: "true", ทรู: "true", trueonline: "true", truemove: "true",
+  tot: "tot", ทีโอที: "tot",
+  nt: "nt", cat: "nt", "tot/nt": "nt",
+  "3bb": "3bb",
+};
+
+function canonicalIsp(isp: string): string | null {
+  const key = String(isp || "").trim().toLowerCase();
+  if (!key) return null;
+  return ISP_CANONICAL[key] || null;
 }
 
 // ---- ISP MONTH COUNT ----
@@ -38,8 +58,12 @@ router.get("/stats/isp/month", async (req: Request, res: Response) => {
   let sql = "SELECT isp_name, COUNT(*) as c FROM nip WHERE YEAR(create_date)=? AND MONTH(create_date)=?";
   const params: any[] = [yr, mo];
   if (isp) {
-    sql += " AND LOWER(isp_name) LIKE LOWER(?)";
-    params.push(ispLike(isp));
+    const canon = canonicalIsp(isp);
+    if (!canon) {
+      return res.json({ ok: true, domain: "detect", metric: "nip_count_by_isp", month, ispFilter: isp, total: 0, byIsp: [], note: "ISP filter not recognized — known: ais, dtac, true, tot, nt, 3bb" });
+    }
+    sql += " AND isp_name = ?";
+    params.push(canon);
   }
   sql += " GROUP BY isp_name ORDER BY c DESC LIMIT 20";
 
@@ -56,7 +80,13 @@ router.get("/stats/isp/today", async (req: Request, res: Response) => {
   const today = bkkDate(0);
   let sql = "SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) = ?";
   const params: any[] = [today];
-  if (isp) { sql += " AND LOWER(isp_name) LIKE LOWER(?)"; params.push(ispLike(isp)); }
+  if (isp) {
+    const canon = canonicalIsp(isp);
+    if (!canon) {
+      return res.json({ ok: true, domain: "detect", metric: "nip_count_today", date: today, ispFilter: isp, count: 0, note: "ISP filter not recognized — known: ais, dtac, true, tot, nt, 3bb" });
+    }
+    sql += " AND isp_name = ?"; params.push(canon);
+  }
   const rows = await query(sql, params);
   res.json({ ok: true, domain: "detect", metric: "nip_count_today", date: today, ispFilter: isp || null, count: Number((rows as any[])[0]?.c || 0) });
 });
@@ -69,7 +99,13 @@ router.get("/stats/isp/week", async (req: Request, res: Response) => {
   const weekEnd = bkkDate(0);
   let sql = "SELECT COUNT(*) as c FROM nip WHERE DATE(create_date) BETWEEN ? AND ?";
   const params: any[] = [weekStart, weekEnd];
-  if (isp) { sql += " AND LOWER(isp_name) LIKE LOWER(?)"; params.push(ispLike(isp)); }
+  if (isp) {
+    const canon = canonicalIsp(isp);
+    if (!canon) {
+      return res.json({ ok: true, domain: "detect", metric: "nip_count_week", weekStart, weekEnd, ispFilter: isp, count: 0, note: "ISP filter not recognized — known: ais, dtac, true, tot, nt, 3bb" });
+    }
+    sql += " AND isp_name = ?"; params.push(canon);
+  }
   const rows = await query(sql, params);
   res.json({ ok: true, domain: "detect", metric: "nip_count_week", weekStart, weekEnd, ispFilter: isp || null, count: Number((rows as any[])[0]?.c || 0) });
 });
@@ -85,8 +121,12 @@ router.get("/stats/isp/delta/today-vs-yesterday", async (req: Request, res: Resp
   const paramsT: any[] = [today];
   const paramsY: any[] = [yesterday];
   if (isp) {
-    sqlT += " AND LOWER(isp_name) LIKE LOWER(?)"; paramsT.push(ispLike(isp));
-    sqlY += " AND LOWER(isp_name) LIKE LOWER(?)"; paramsY.push(ispLike(isp));
+    const canon = canonicalIsp(isp);
+    if (!canon) {
+      return res.json({ ok: true, domain: "detect", metric: "nip_delta_today_vs_yesterday", ispFilter: isp, todayCount: 0, yesterdayCount: 0, delta: 0, direction: "equal", note: "ISP filter not recognized — known: ais, dtac, true, tot, nt, 3bb" });
+    }
+    sqlT += " AND isp_name = ?"; paramsT.push(canon);
+    sqlY += " AND isp_name = ?"; paramsY.push(canon);
   }
   const [rT, rY] = await Promise.all([query(sqlT, paramsT), query(sqlY, paramsY)]);
   const todayCount = Number((rT as any[])[0]?.c || 0);
@@ -126,12 +166,16 @@ router.get("/distinct/month", async (req: Request, res: Response) => {
   let sql = "SELECT isp_name as isp, COUNT(DISTINCT url) as c FROM nip WHERE YEAR(create_date)=? AND MONTH(create_date)=?";
   const params: any[] = [yr, mo];
   if (ispParam) {
-    const isps = ispParam.split(",").map(s => s.trim()).filter(Boolean);
-    if (isps.length === 1) { sql += " AND LOWER(isp_name) LIKE LOWER(?)"; params.push(ispLike(isps[0])); }
-    else if (isps.length > 1) {
-      const orClauses = isps.map(() => "LOWER(isp_name) LIKE LOWER(?)").join(" OR ");
+    const requested = ispParam.split(",").map(s => s.trim()).filter(Boolean);
+    const canons = Array.from(new Set(requested.map(canonicalIsp).filter((v): v is string => v !== null)));
+    if (canons.length === 0) {
+      return res.json({ ok: true, domain: "detect", metric: "nip_distinct_url_month", month, ispFilter: ispParam, total: 0, byIsp: [], note: "No ISP filter recognized — known: ais, dtac, true, tot, nt, 3bb" });
+    }
+    if (canons.length === 1) { sql += " AND isp_name = ?"; params.push(canons[0]); }
+    else {
+      const orClauses = canons.map(() => "isp_name = ?").join(" OR ");
       sql += ` AND (${orClauses})`;
-      params.push(...isps.map(ispLike));
+      params.push(...canons);
     }
   }
   sql += " GROUP BY isp_name ORDER BY c DESC";
@@ -154,7 +198,13 @@ router.get("/latest", async (req: Request, res: Response) => {
     sql += " AND YEAR(create_date)=? AND MONTH(create_date)=?";
     params.push(yr, mo);
   }
-  if (isp) { sql += " AND LOWER(isp_name) LIKE LOWER(?)"; params.push(ispLike(isp)); }
+  if (isp) {
+    const canon = canonicalIsp(isp);
+    if (!canon) {
+      return res.json({ ok: true, domain: "detect", metric: "nip_latest", ispFilter: isp, count: 0, items: [], note: "ISP filter not recognized — known: ais, dtac, true, tot, nt, 3bb" });
+    }
+    sql += " AND isp_name = ?"; params.push(canon);
+  }
   sql += " ORDER BY create_date DESC LIMIT ?";
   params.push(limit);
   const rows = await query(sql, params);
