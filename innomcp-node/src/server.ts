@@ -35,6 +35,31 @@ server.listen(port, host, () => {
   logger.info(`🚀 Backend Server running on http://${host}:${port}`);
   logger.info(`🔌 WebSocket server listening on ws://${host}:${port}/chat`);
   logBoth("info", `Server is running on http://${host}:${port}`);
+
+  // Phase 24: Preflight dependency check — warn engineers about missing services
+  const preflightCheck = async () => {
+    const deps = [
+      { name: "MCP Server", port: parseInt(process.env.MCP_SERVER_PORT || "3012", 10), critical: true },
+      { name: "Detect-Evidence-API", port: parseInt(process.env.EVIDENCE_API_PORT || "3013", 10), critical: false },
+      { name: "Webd-API", port: parseInt(process.env.WEBD_API_PORT || "3014", 10), critical: false },
+    ];
+    for (const dep of deps) {
+      try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3000);
+        await fetch(`http://localhost:${dep.port}/health`, { signal: controller.signal }).catch(() =>
+          fetch(`http://localhost:${dep.port}/`, { signal: controller.signal })
+        );
+        clearTimeout(timer);
+        logBoth("info", `✅ Preflight: ${dep.name} (port ${dep.port}) — reachable`);
+      } catch {
+        const level = dep.critical ? "error" : "warn";
+        const icon = dep.critical ? "❌" : "⚠️";
+        logBoth(level, `${icon} Preflight: ${dep.name} (port ${dep.port}) — NOT reachable${dep.critical ? " (CRITICAL — MCP-dependent routes will fail)" : ""}`);
+      }
+    }
+  };
+  preflightCheck().catch(() => {});
 });
 
 server.on("upgrade", (request: http.IncomingMessage, socket: net.Socket, head: Buffer) => {

@@ -133,7 +133,7 @@ function isTodayRainQuestion(text: string): boolean {
 
 function isTemperatureQuestion(text: string): boolean {
   const t = String(text || "");
-  return /อุณหภูมิ|สูงสุด.*ต่ำสุด|ต่ำสุด.*สูงสุด|ร้อนสุด|หนาวสุด|กี่องศา|temp.*max|temp.*min|max.*temp|min.*temp/i.test(t);
+  return /อุณหภูมิ|สูงสุด.*ต่ำสุด|ต่ำสุด.*สูงสุด|ร้อนสุด|หนาวสุด|กี่องศา|temp.*max|temp.*min|max.*temp|min.*temp|ร้อนเท่าไ|ร้อน.*เท่าไ|ร้อนแค่ไหน|หนาวเท่าไ|หนาว.*แค่ไหน/i.test(t);
 }
 
 function pickStationUpdateTime(stationItems: any[]): string {
@@ -798,6 +798,7 @@ function buildRegionalSummary(userText: string, grouped: Map<string, WeatherResu
   const tempStr = (minTemp < Infinity && maxTemp > -Infinity) ? ` อุณหภูมิ ${minTemp}–${maxTemp}°C` : "";
   const label = regionName || `${provinces.length} จังหวัด`;
   const rainDesc = avgRain >= 60 ? "มีฝนตกหนัก" : avgRain >= 30 ? "มีโอกาสฝนตก" : "โอกาสฝนน้อย";
+  const coverageNote = regionName ? ` (ข้อมูลจาก ${provinces.length} จังหวัดตัวอย่างใน${regionName})` : "";
 
-  return `📊 สรุป${label}: ${rainDesc} เฉลี่ย ${avgRain}%${tempStr}\nจังหวัดที่ฝนมากสุด: ${maxRainProv}`;
+  return `📊 สรุป${label}: ${rainDesc} เฉลี่ย ${avgRain}%${tempStr}\nจังหวัดที่ฝนมากสุด: ${maxRainProv}${coverageNote}`;
 }

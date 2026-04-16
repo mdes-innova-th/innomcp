@@ -204,7 +204,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
       const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
       const note = d.note ? `\n\nหมายเหตุ: ${d.note}` : "";
       const table = d.tableMarkdown ? `\n\n${d.tableMarkdown}` : `\n\n${renderWeatherMarkdownTable(weatherResults)}`;
-      return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${table}${note}`, structuredContent };
+      return { text: `🌏 ทั้งประเทศ — จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${table}${note}`, structuredContent };
     }
 
     // If all results are errors, fall through to contract renderer for clean error handling
@@ -224,6 +224,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
     const label = d.dateLabel || "พรุ่งนี้";
     const topN = d.topN ?? (Array.isArray(d.rows) ? d.rows.length : 0);
     const topRows = Array.isArray(d.rows) ? d.rows : [];
+    const totalRainy = d.totalRainyProvinces ?? topRows.length;
     const topSummary = topRows
       .slice(0, topN > 0 ? Math.min(topN, 10) : 10)
       .map((r: any) => `${String(r?.province || "-")} (${Number(r?.percentRain ?? 0)}%)`)
@@ -231,7 +232,24 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
     const suffix = topSummary ? `: ${topSummary}` : "";
     const isWeek = /7\s*วัน|๗\s*วัน|สัปดาห์|อาทิตย์นี้|อาทิตย์หน้า|weekly|week/i.test(userText || "");
     const weekNote = isWeek ? `\n\n💡 หมายเหตุ: ข้อมูลระดับประเทศแสดงภาพรวม${label} สำหรับพยากรณ์ 7 วันรายจังหวัด ลองระบุชื่อจังหวัดเพิ่มครับ` : "";
-    return { text: `จังหวัดที่ฝนตกมากสุดในไทย (${label}) Top ${topN}${suffix}${weekNote}`, structuredContent };
+
+    // B1+B5: For yes/no rain questions without explicit location, provide a short nationwide summary
+    // BEFORE the leaderboard so the answer feels like a direct response.
+    const isYesNoRainQ = /ฝน.*ตก.*ไหม|ฝน.*ไหม|ฝนจะตก|rain\?|will.*rain/i.test(userText || "");
+    const hasExplicitLocation = /(จังหวัด|กรุงเทพ|กทม|เชียงใหม่|ภูเก็ต|ภาค)/i.test(userText || "");
+    let yesNoPrefix = "";
+    if (isYesNoRainQ && !hasExplicitLocation) {
+      const avgRain = topRows.length > 0
+        ? Math.round(topRows.reduce((sum: number, r: any) => sum + (Number(r?.percentRain) || 0), 0) / topRows.length)
+        : 0;
+      const verdict = totalRainy >= 30 ? "มีฝนตกหลายพื้นที่ทั่วประเทศ"
+        : totalRainy >= 15 ? "มีโอกาสฝนตกในหลายจังหวัด"
+        : totalRainy >= 5 ? "มีฝนตกเฉพาะบางพื้นที่"
+        : "โอกาสฝนน้อยทั่วประเทศ";
+      yesNoPrefix = `🌏 ภาพรวมทั้งประเทศ (${label}): ${verdict} — ${totalRainy} จังหวัดมีโอกาสฝน\n\n`;
+    }
+
+    return { text: `${yesNoPrefix}🌏 ทั้งประเทศ — จังหวัดที่ฝนตกมากสุด (${label}) Top ${topN}${suffix}${weekNote}`, structuredContent };
   }
 
   // Phase W1: strict deterministic contract renderer
@@ -2705,7 +2723,8 @@ function chatTraceOut(params: {
     | "tmd_rain_regions"
     | "rainfall_chart"
     | "image_generation"
-    | "webdCourtOrder";
+    | "webdCourtOrder"
+    | "multi_intent";
   tool?: string;
   code: number;
   durMs: number;
@@ -4910,6 +4929,19 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       return res.status(400).json({ error: "Message is required" });
     }
 
+    // Phase 24 C2/C3: Check MCP client availability — fail clearly when MCP-dependent tools are needed
+    if (!mcpClient) {
+      const isMcpDependent = /(อากาศ|ฝน|weather|evidence|หลักฐาน|nip|url.*ผิดกฎหมาย|ISP|scanner|เครื่องสแกน|calculator|mean|worldbank|nasa|qr)/i.test(message);
+      if (isMcpDependent) {
+        logBoth("error", "[Chat API] MCP client unavailable — routing will be degraded");
+        return res.status(503).json({
+          text: "ขออภัย ขณะนี้ระบบ MCP Server (port 3012) ไม่พร้อมใช้งาน กรุณาตรวจสอบว่า MCP Server ทำงานอยู่แล้วลองใหม่อีกครั้ง",
+          error: "MCP_UNAVAILABLE",
+          mcpUsed: false,
+        });
+      }
+    }
+
     logBoth("info", `[Chat API] Received POST chat message (len=${String(message || "").length})`);
 
     // Get full message history from client or initialize empty
@@ -4973,10 +5005,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       });
     }
 
-    // ─── Phase 16: Multi-intent detection ───
+    // ─── Phase 24: Multi-intent detection & parallel dispatch ───
     // Detect when a single query contains 2+ distinct domain intents.
-    // If found, the system answers the dominant intent and explicitly tells the user
-    // to ask the other intent separately (option B from product spec).
+    // Instead of answering only one and telling the user to "ask separately",
+    // dispatch each intent independently and combine results into one response.
     const detectMultiIntentDomains = (text: string): string[] => {
       const domains: string[] = [];
       const hasWeatherKw = /(อากาศ|ฝน|อุณหภูมิ|weather|forecast|ร้อน|หนาว|พยากรณ์)/i.test(text);
@@ -4988,34 +5020,139 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         if (hasWeatherKw) domains.push('weather');
         if (hasChartKw) domains.push('chart');
       }
-      if (/(url.*ผิดกฎหมาย|nip|evidence|หลักฐาน|ISP.*เจอ|เจอ.*url|ตรวจพบ|top\s*ISP)/i.test(text)) domains.push('evidence');
+      if (/(url.*ผิดกฎหมาย|nip|evidence|หลักฐาน|ISP.*เจอ|เจอ.*url|ตรวจพบ|top\s*ISP|NIP.*DTAC|DTAC.*NIP|NIP.*AIS|AIS.*NIP|จำนวน\s*NIP)/i.test(text)) domains.push('evidence');
       if (/(mean|sum|sqrt|median|variance|stdev|คำนวณ|calculate|factorial|\d\s*[\+\-\*\/\^]\s*\d)/i.test(text)) domains.push('calculator');
       if (/(สร้างรูป|วาดรูป|generate.*image)/i.test(text)) domains.push('image');
       if (/(อยู่จังหวัดอะไร|อยู่ภาคอะไร|ภูมิศาสตร์)/i.test(text)) domains.push('geo');
       return domains;
     };
-    const detectedDomains = detectMultiIntentDomains(messageWithFile);
-    let multiIntentNote = '';
-    if (detectedDomains.length >= 2) {
-      const domainLabels: Record<string, string> = {
-        weather: 'พยากรณ์อากาศ', evidence: 'หลักฐานดิจิทัล', calculator: 'การคำนวณ',
-        chart: 'กราฟ/แผนภูมิ', image: 'สร้างรูปภาพ', geo: 'ข้อมูลภูมิศาสตร์',
-      };
-      // The system will naturally answer one domain. Note that others need separate questions.
-      const allDomainLabels = detectedDomains.map(d => domainLabels[d] || d).join(', ');
-      multiIntentNote = `\n\n💡 คำถามนี้มีหลายหัวข้อ (${allDomainLabels}) ผมตอบได้ทีละหัวข้อครับ กรุณาถามหัวข้อที่เหลือแยกอีกทีได้เลยครับ`;
-      logBoth('info', `[MultiIntent] detected=${detectedDomains.join(',')} note='${multiIntentNote.trim()}'`);
-    }
 
-    // Wrap res.json to append multi-intent note if applicable
-    if (multiIntentNote) {
-      const _origJson = res.json.bind(res);
-      (res as any).json = function(body: any) {
-        if (body && typeof body.text === 'string') {
-          body.text = body.text + multiIntentNote;
+    /** Lightweight single-domain dispatcher for multi-intent composition */
+    const dispatchSingleDomain = async (domain: string, fullText: string): Promise<string | null> => {
+      try {
+        if (domain === 'weather' && mcpClient) {
+          const wxQuery = normalizeForWeatherPipeline(fullText);
+          const wxResult = await mcpClient.runDeterministicWeatherPipeline(wxQuery, { signal: AbortSignal.timeout(25_000) });
+          const sc = wxResult?.structuredContent || wxResult;
+          const direct = renderStructuredDirect("weatherPipeline", wxResult?.structuredContent, fullText)
+            || renderWeatherDirectAnswer(fullText, sc?.weatherPipeline ?? sc);
+          return direct?.text || null;
         }
-        return _origJson(body);
+        if (domain === 'evidence' && mcpClient) {
+          const evAction = inferOfficerEvidenceAction(fullText) || "evidence_records_today";
+          const ispFilter = extractIspName(fullText);
+          const allIsps = extractAllIspNames(fullText);
+          const effectiveIsp = allIsps.length > 1 ? allIsps.join(",") : ispFilter;
+          const requestedLimit = extractRequestedLimit(fullText);
+          const evArgs: any = { action: evAction };
+          if (effectiveIsp) evArgs.ispFilter = effectiveIsp;
+          if (requestedLimit) evArgs.limit = requestedLimit;
+          const primaryTool = "innomcp-server:evidenceTool";
+          let toolResults = await mcpClient.executeTools([primaryTool], fullText, { [primaryTool]: evArgs });
+          let first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+          let sc = first?.structuredContent ?? first?.result;
+          let direct = renderStructuredDirect(first?.toolName || primaryTool, sc, fullText);
+          // If MCP tool failed, try local fallback
+          if (!direct?.text || first?.success !== true) {
+            const localIntent = mapOfficerEvidenceActionToLocalIntent(evAction);
+            if (localIntent) {
+              const localTool = "local-tools:detect_evidence_stats";
+              const localArgs: any = { intent: localIntent };
+              if (effectiveIsp) localArgs.ispFilter = effectiveIsp;
+              if (requestedLimit) localArgs.limit = requestedLimit;
+              const localResults = await mcpClient.executeTools([localTool], fullText, { [localTool]: localArgs });
+              const localFirst = Array.isArray(localResults) ? localResults[0] : undefined;
+              const localSc = localFirst?.structuredContent ?? localFirst?.result;
+              const localDirect = renderStructuredDirect(localFirst?.toolName || localTool, localSc, fullText);
+              if (localDirect?.text) return localDirect.text;
+            }
+          }
+          return direct?.text || null;
+        }
+        if (domain === 'calculator') {
+          const mathFns = ["mean","sum","min","max","median","avg","average","sqrt","abs","log","round","ceil","floor","sin","cos","tan","mod","gcd","lcm","std","stdev","variance"];
+          let exprRaw = fullText
+            .replace(/(คำนวณ|calculate|compute|คิดเลข|เท่าไร|เท่าไหร่|ผลลัพธ์|ผลคือ|result|equals|แล้ว.*อากาศ.*|แล้ว.*บอก.*)/gi, "")
+            .replace(/บวก(?:เพิ่ม)?/g, "+").replace(/ลบ(?:ออก)?/g, "-").replace(/คูณ/g, "*").replace(/หาร/g, "/")
+            .replace(/×/g, "*").replace(/÷/g, "/").replace(/\baverage\b/gi, "mean").replace(/\bavg\b/gi, "mean").trim();
+          exprRaw = exprRaw.replace(/(\w)\(\[/g, "$1(").replace(/\]\)/g, ")").replace(/\[/g, "(").replace(/\]/g, ")");
+          const fnPattern = new RegExp(`\\b(${mathFns.join("|")})\\s*\\(`, "gi");
+          const hasFn = fnPattern.test(exprRaw);
+          const expr = hasFn
+            ? exprRaw.replace(/[^\w+\-*/().^%\s,eE]/g, "").trim()
+            : exprRaw.replace(/[^\d+\-*/().^%\s,eE]/g, "").trim();
+          if (expr && /\d/.test(expr)) {
+            const { evaluate } = require("mathjs");
+            const result = evaluate(trigToDeg(expr));
+            if (typeof result === "number" || (result && typeof result.toString === "function")) {
+              return `ผลลัพธ์: ${expr.trim()} = ${typeof result === 'number' ? cleanFloat(result) : result}`;
+            }
+          }
+          return null;
+        }
+        if (domain === 'geo') {
+          const localResolve = resolveThaiGeoLocal(fullText);
+          if (localResolve) return localResolve.text;
+          if (mcpClient) {
+            const thaiToolName = "local-tools:thaiKnowledgeTool";
+            const tkResults = await mcpClient.executeTools([thaiToolName], fullText, {
+              [thaiToolName]: { query: fullText, context: { domain: "geo", language: "th", confidence_required: 0.6 } },
+            });
+            const tkFirst = Array.isArray(tkResults) ? tkResults[0] : tkResults;
+            const tkSc = tkFirst?.structuredContent ?? tkFirst?.result;
+            if (tkSc) {
+              try {
+                const textContent = Array.isArray(tkSc.content) && tkSc.content.length > 0 ? String(tkSc.content[0]?.text || "") : "";
+                const parsed = textContent ? JSON.parse(textContent) : null;
+                if (parsed?.success && Array.isArray(parsed.data) && parsed.data.length > 0) {
+                  const item = parsed.data[0];
+                  if (item.domain === "geo" && item.attributes?.region) return `${item.name_th} อยู่ในภาค${item.attributes.region}ของประเทศไทย`;
+                  if (item.description) return item.description;
+                }
+              } catch {}
+            }
+          }
+          return null;
+        }
+        return null;
+      } catch (err: any) {
+        logBoth('warn', `[MultiIntent] dispatch ${domain} failed: ${err?.message || err}`);
+        return null;
+      }
+    };
+
+    const detectedDomains = detectMultiIntentDomains(messageWithFile);
+
+    // ─── Multi-intent combined dispatch ───
+    if (detectedDomains.length >= 2) {
+      const multiStartMs = Date.now();
+      const domainLabels: Record<string, string> = {
+        weather: '🌤️ พยากรณ์อากาศ', evidence: '🔍 หลักฐานดิจิทัล', calculator: '🧮 การคำนวณ',
+        chart: '📊 กราฟ/แผนภูมิ', image: '🎨 สร้างรูปภาพ', geo: '📍 ข้อมูลภูมิศาสตร์',
       };
+      logBoth('info', `[MultiIntent] detected=${detectedDomains.join(',')} — dispatching ALL domains`);
+
+      const parts: Array<{ domain: string; text: string }> = [];
+      for (const domain of detectedDomains) {
+        const result = await dispatchSingleDomain(domain, messageWithFile);
+        if (result) parts.push({ domain, text: result });
+      }
+
+      if (parts.length >= 2) {
+        const combined = parts.map(p => `${domainLabels[p.domain] || p.domain}\n${p.text}`).join('\n\n---\n\n');
+        sessionHistory.push({ sender: 'ai', text: combined } as any);
+        const scOut = withRenderMeta(
+          { multiIntent: true, domains: detectedDomains, resolvedCount: parts.length },
+          { route: 'multi_intent' as any, llmUsed: false, routeDecider: 'deterministic', version: 'phase24' },
+          parts.map(p => p.domain)
+        );
+        chatTraceOut({ transport: 'http', sid: undefined, cid: httpCid, uiMode, route: 'multi_intent', tool: detectedDomains.join('+'), code: 200, durMs: Date.now() - multiStartMs, q: messageWithFile, ans: combined.slice(0, 300) });
+        return res.json({ text: combined, structuredContent: scOut, messages: sessionHistory, mcpUsed: true, route: 'multi_intent' });
+      }
+      // If only 1 or 0 parts resolved, fall through to normal single-intent routing
+      if (parts.length === 1) {
+        logBoth('info', `[MultiIntent] only ${parts[0].domain} resolved — falling through to single-intent`);
+      }
     }
 
     const traceStartMs = Date.now();
