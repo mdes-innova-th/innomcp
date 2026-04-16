@@ -273,6 +273,48 @@ describe("Weather Architecture Regression (Phase 6.5)", () => {
             await expectGuard("เดือนที่แล้วฝนตกที่กรุงเทพไหม", "MONTHLY_NOT_SUPPORTED");
         });
 
+        // B2 fix: nationwide top-rain renderer must honor the user-specified day.
+        // Previously "มะรืนนี้สภาพอากาศ" was labelled "(พรุ่งนี้)" and used offset=1 data.
+        test("nationwide มะรืน carries offsetDays=2 + label=มะรืน", async () => {
+            // Prime ToolCache directly (bypasses MCP mock chain issues with cache contamination)
+            const { ToolCache: TC } = require("../src/utils/cache/toolCache");
+            TC.clear();
+            const { clearWeatherToolCallCache: clearWTC } = require("../src/utils/weather/toolCall");
+            clearWTC();
+
+            const dates: string[] = [];
+            const today = new Date(Date.now() + 7*3600_000);
+            for (let i=0; i<7; i++) {
+                const d = new Date(today);
+                d.setUTCDate(d.getUTCDate()+i);
+                dates.push(`${String(d.getUTCDate()).padStart(2,"0")}/${String(d.getUTCMonth()+1).padStart(2,"0")}/${d.getUTCFullYear()}`);
+            }
+            const mkProv = (name: string, baseRain: number) => ({
+                ProvinceNameThai: name,
+                SevenDaysForecast: {
+                    ForecastDate: dates,
+                    PercentRainCover: dates.map((_, i) => baseRain + i*5),
+                    DescriptionThai: dates.map(() => "มีฝนบางแห่ง"),
+                    MaximumTemperature: dates.map(() => 33),
+                    MinimumTemperature: dates.map(() => 25),
+                    WindDirection: dates.map(() => 90),
+                    WindSpeed: dates.map(() => 10),
+                },
+            });
+            const forecastPayload = { Provinces: { Province: [mkProv("กรุงเทพมหานคร", 30), mkProv("ภูเก็ต", 50)] } };
+            const cacheKey = TC.generateKey("tmd_weather_forecast_7days_by_province", { scope: "national" });
+            TC.set(cacheKey, forecastPayload, 60_000);
+
+            const target = pipeline.resolveTarget("มะรืนนี้สภาพอากาศทั่วประเทศเป็นอย่างไร");
+            const results = await pipeline.execute(target);
+            const nat = results.find((r: any) => r.type === "national");
+            expect(nat).toBeDefined();
+            expect(nat.data.dateLabel).toBe("มะรืน");
+            // Day-2 rain for กรุงเทพ should be 30 + 2*5 = 40 (offset=2), not 35 (offset=1)
+            const bkkRow = nat.data.rows.find((r: any) => r.province === "กรุงเทพมหานคร");
+            expect(bkkRow.percentRain).toBe(40);
+        });
+
         // Negative control: future/current must NOT trigger guard
         test("พรุ่งนี้ฝนตกไหม → not guarded (mode=future)", async () => {
             const target = pipeline.resolveTarget("พรุ่งนี้กรุงเทพฝนตกไหม");

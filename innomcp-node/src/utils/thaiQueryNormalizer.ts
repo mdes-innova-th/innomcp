@@ -161,8 +161,18 @@ export function normalizeThaiQuery(text: string): NormalizationResult {
   for (const [particle, replacement] of sortedParticles) {
     // Match particle at word boundaries or end of string
     // [\u0E00-\u0E5B] covers all Thai chars incl. vowel marks and tone marks
+    //
+    // B2 root-cause fix: the bare 2-char particle "มะ" used to also match the
+    // first syllable of real Thai words (มะรืน, มะม่วง, มะลิ, มะนาว, มะพร้าว...)
+    // because the lookahead permitted any Thai char. Restrict short bare-syllable
+    // particles to word-final position (whitespace / punctuation / end of string)
+    // so word-initial occurrences are left alone.
+    const SHORT_SYLLABLE_FINAL_ONLY = new Set(["มะ"]);
+    const lookahead = SHORT_SYLLABLE_FINAL_ONLY.has(particle)
+      ? `(?=\\s|$|[\\?\\!\\.\\,])`
+      : `(?=(?:\\s|$|[\u0E00-\u0E5B]))`;
     const regex = new RegExp(
-      `(?<=(?:\\s|^|[\u0E00-\u0E5B]))${particle}(?=(?:\\s|$|[\u0E00-\u0E5B]))`,
+      `(?<=(?:\\s|^|[\u0E00-\u0E5B]))${particle}${lookahead}`,
       "gi"
     );
     if (regex.test(normalized)) {

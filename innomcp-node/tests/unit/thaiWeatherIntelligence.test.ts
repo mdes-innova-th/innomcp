@@ -109,6 +109,21 @@ assertContains("Q17: weekนี้ → สัปดาห์นี้", quickNor
 assertContains("Q15: เชียงใม่ → เชียงใหม่", quickNormalize("เชียงใม่อากาศดีไหม"), "เชียงใหม่");
 
 // ---------------------------------------------------------------------------
+// Phase: B2 root-cause guard — bare "มะ" particle must NOT eat the first
+// syllable of real Thai words. Previously "มะรืน" (day after tomorrow) was
+// being normalized to "ไหมรืน", which silently broke the nationwide forecast
+// path (it fell back to default offset=1 and labelled it "(พรุ่งนี้)").
+// ---------------------------------------------------------------------------
+assertContains("B2-1: มะรืน preserved", quickNormalize("มะรืนนี้สภาพอากาศเป็นอย่างไร"), "มะรืน");
+assertNotContains("B2-1: ไหมรืน NOT produced", quickNormalize("มะรืนนี้สภาพอากาศเป็นอย่างไร"), "ไหมรืน");
+assertContains("B2-2: มะม่วง preserved (word-initial มะ)", quickNormalize("มะม่วงราคาเท่าไหร่"), "มะม่วง");
+assertContains("B2-3: มะลิ preserved", quickNormalize("ดอกมะลิกับดอกอะไร"), "มะลิ");
+// Colloquial usage at end-of-string must STILL convert (regression guard for the
+// original colloquial behavior we deliberately keep)
+assertContains("B2-4: trailing มะ → ไหม preserved", quickNormalize("ฝนตกมะ"), "ไหม");
+assertNotContains("B2-4: ไม่มี 'มะ' ค้างท้าย", quickNormalize("ฝนตกมะ"), "ตกมะ");
+
+// ---------------------------------------------------------------------------
 // Section 3: Temporal indicator detection
 // ---------------------------------------------------------------------------
 

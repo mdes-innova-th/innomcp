@@ -866,6 +866,15 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
     return "nip_top_isp_all";
   }
 
+  // B1 fix: explicit "N รายการล่าสุด" + telecom + เดือนนี้ → ISP-filtered latest list,
+  // even when the user omits the literal "url"/"nip" keyword.
+  // Example failure (E5): "20 รายการล่าสุดของเดือนนี้ของ DTAC" was being routed to
+  // detected_urls_today (count for today) because hasUrlOrNip=false suppressed CONTRACT 3
+  // and the catch-all at the bottom defaulted to today scope.
+  if (hasTelecomName && /\d+\s*รายการ/i.test(tNorm) && /(ล่าสุด|latest|ใหม่สุด)/i.test(tNorm) && /(เดือนนี้|this\s*month)/i.test(tNorm)) {
+    return "nip_latest_by_isp_month";
+  }
+
   // Phase 17: ISP-specific period query — when a SPECIFIC ISP is named, use ISP-filtered intent
   // "รายการ url ผิดกฎหมาย เดือนนี้ของ DTAC" → must return DTAC-only data, not all-ISP ranking
   if (hasUrlOrNip && hasTimePeriod && hasTelecomName) {

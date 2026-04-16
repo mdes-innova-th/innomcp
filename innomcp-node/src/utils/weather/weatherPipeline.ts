@@ -104,11 +104,32 @@ function detectNationwideParams(text: string): {
     wantTable: boolean;
     topN: number;
     sort: "percentRain_desc" | "percentRain_asc" | "tempMax_desc" | "tempMin_asc";
+    offsetDays: number;
+    dateLabel: string;
 } {
     const t = text || "";
     const national = NATIONWIDE_KEYWORDS.test(t);
     const wantToday = /วันนี้|ตอนนี้|ขณะนี้/i.test(t);
     const wantTable = /ตารางแสดง|ตาราง/i.test(t);
+
+    // B2 fix: derive offsetDays from the user query so the nationwide top-rain label
+    // and target date match what the user actually asked. Previously the path only
+    // distinguished today vs "default tomorrow", silently labelling มะรืน/อีก N วัน
+    // as "(พรุ่งนี้)" and pulling the wrong day's data.
+    let offsetDays = wantToday ? 0 : 1;
+    if (!wantToday) {
+        if (/มะรืน/i.test(t)) offsetDays = 2;
+        else {
+            const thaiDigitMap: Record<string, string> = { "๐":"0","๑":"1","๒":"2","๓":"3","๔":"4","๕":"5","๖":"6","๗":"7","๘":"8","๙":"9" };
+            const tArab = t.replace(/[๐-๙]/g, (d) => thaiDigitMap[d] || d);
+            const m = tArab.match(/อีก\s*(\d{1,2})\s*วัน/i);
+            if (m?.[1]) offsetDays = Math.max(1, Math.min(7, Number(m[1])));
+        }
+    }
+    const dateLabel = offsetDays === 0 ? "วันนี้"
+        : offsetDays === 1 ? "พรุ่งนี้"
+        : offsetDays === 2 ? "มะรืน"
+        : `อีก ${offsetDays} วัน`;
 
     let topN = NATIONWIDE_TOP_N_DEFAULT;
     const m = t.match(/(\d{1,2})\s*(อันดับ|จังหวัด)/);
@@ -121,7 +142,7 @@ function detectNationwideParams(text: string): {
     if (/เรียงตาม\s*อุณหภูมิ\s*สูงสุด|ร้อนสุด/i.test(t)) sort = "tempMax_desc";
     if (/เรียงตาม\s*อุณหภูมิ\s*ต่ำสุด|หนาวสุด/i.test(t)) sort = "tempMin_asc";
 
-    return { national, wantToday, wantTable, topN, sort };
+    return { national, wantToday, wantTable, topN, sort, offsetDays, dateLabel };
 }
 
 function buildNationwideMarkdownTable(rows: Array<{ province: string; percentRain: number; tempMax: number | null; tempMin: number | null; windSpeed: number | null; windDir: string | null; desc: string | null; }>): string {
@@ -450,11 +471,12 @@ export class WeatherPipeline {
 
         const nat = detectNationwideParams(target.originalText || "");
 
-        // Pick target day: "พรุ่งนี้" → tomorrow, "วันนี้"/"ตอนนี้" → today, default tomorrow
-        const offsetDays = nat.wantToday ? 0 : 1;
+        // B2 fix: honor user-specified day (today / พรุ่งนี้ / มะรืน / อีก N วัน) so
+        // both the data scope AND the rendered label match the question.
+        const offsetDays = nat.offsetDays;
         const targetDate = bkkDateStr(offsetDays);
         const targetIsoDate = bkkIsoDateStr(offsetDays);
-        const dateLabel = nat.wantToday ? "วันนี้" : "พรุ่งนี้";
+        const dateLabel = nat.dateLabel;
 
         // Weather truth contract: when upstream fails, return an honest error — NOT fake confident data.
         // NEVER return hardcoded province rankings as if they are real forecasts.
