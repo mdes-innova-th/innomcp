@@ -112,6 +112,7 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
           "detected_urls_this_week",
           "nip_latest_by_isp_month",
           "detected_urls_delta",
+          "url_has_evidence",
         ],
         description: "The specific query intent to execute."
       },
@@ -203,6 +204,19 @@ export async function handleEvidenceTool(args: any): Promise<any> {
         series: { label: "หลักฐานต่อวัน", points },
         summary: `แนวโน้ม 7 วันล่าสุด: รวม ${total} รายการ`,
       };
+    }
+
+    // E8 fix: URL-specific evidence lookup — calls detect-evidence-api /records/has-evidence
+    if (intent === "url_has_evidence") {
+      const url = String(args?.url || "").trim();
+      if (!url) return { ok: false, code: "MISSING_URL", meta, message: "ต้องระบุ URL ที่ต้องการตรวจสอบ" };
+      const data = await callDetectAPI<any>(`/records/has-evidence?url=${encodeURIComponent(url)}`);
+      const has = Boolean(data.hasEvidence);
+      const count = Number(data.evidenceCount || 0);
+      const summary = has
+        ? `URL นี้มีหลักฐานวิดีโอแล้ว ${count} รายการ`
+        : `ยังไม่พบหลักฐานวิดีโอสำหรับ URL นี้ในระบบ`;
+      return { ok: true, intent, meta, url, hasEvidence: has, evidenceCount: count, kpis: buildKpis(count, null, null), summary };
     }
 
     if (intent === "pending_evidence") {

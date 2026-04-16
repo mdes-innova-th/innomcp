@@ -62,9 +62,10 @@ function thaiDigitsToArabic(raw: string): string {
 
 function parseDayOffset(text: string): number {
   const t = String(text || "");
-  if (/เมื่อวาน(?:นี้)?/i.test(t)) return -1;
-  if (/วันนี้|ตอนนี้|ขณะนี้/i.test(t)) return 0;
-  if (/พรุ่งนี้/i.test(t)) return 1;
+  // C1 fix: recognize English temporal in mixed-language queries (bkk weather tmrw)
+  if (/เมื่อวาน(?:นี้)?|\byesterday\b/i.test(t)) return -1;
+  if (/วันนี้|ตอนนี้|ขณะนี้|\btoday\b/i.test(t)) return 0;
+  if (/พรุ่งนี้|\btomorrow\b|\btmrw\b|\btmr\b/i.test(t)) return 1;
   if (/มะรืน/i.test(t)) return 2;
 
   const m = t.match(/อีก\s*(\d+|[๐-๙]+)\s*วัน/i);

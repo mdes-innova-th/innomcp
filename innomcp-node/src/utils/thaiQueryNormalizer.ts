@@ -55,6 +55,15 @@ const MIXED_TEMPORAL: Record<string, string> = {
   "weekหน้": "สัปดาห์หน้า",
 };
 
+// C1 fix: English temporal words (commonly appear in mixed Thai-English queries)
+const ENGLISH_TEMPORAL: Record<string, string> = {
+  "tmrw": "พรุ่งนี้",
+  "tmr": "พรุ่งนี้",
+  "tomorrow": "พรุ่งนี้",
+  "today": "วันนี้",
+  "yesterday": "เมื่อวาน",
+};
+
 // Spelling corrections
 const SPELLING_FIXES: Record<string, string> = {
   "อากาส": "อากาศ",
@@ -149,6 +158,15 @@ export function normalizeThaiQuery(text: string): NormalizationResult {
     if (regex.test(normalized)) {
       normalized = normalized.replace(regex, fix);
       substitutionsApplied.push(`mixed:${mixed}→${fix}`);
+    }
+  }
+
+  // Step 4.5: C1 fix — English temporal words (word-boundary aware)
+  for (const [eng, thai] of Object.entries(ENGLISH_TEMPORAL)) {
+    const regex = new RegExp(`\\b${eng}\\b`, "gi");
+    if (regex.test(normalized)) {
+      normalized = normalized.replace(regex, thai);
+      substitutionsApplied.push(`eng-temporal:${eng}→${thai}`);
     }
   }
 

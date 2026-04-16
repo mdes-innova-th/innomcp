@@ -827,6 +827,13 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
   if (/(เดือนนี้|this\s*month)/i.test(t) && /(record|หลักฐาน|nip|url)/i.test(t) && /(จำนวน|เท่าไหร่|กี่|ทั้งหมด|รวม)/i.test(t)) {
     return "evidence_records_today";
   }
+  // E8 fix: URL-specific evidence lookup — "URL X มีหลักฐาน/วิดีโอแล้วหรือยัง"
+  // Must fire BEFORE generic "evidence_records_today" to prevent wrong-metric fallback.
+  const urlInQuery = t.match(/https?:\/\/[^\s"'<>]+/i);
+  if (urlInQuery && /(หลักฐาน|evidence|วิดีโอ|record|บันทึก)/i.test(t) && /(มี|แล้ว.*ยัง|หรือยัง|ตรวจ|เช็ค|check)/i.test(t)) {
+    return "url_has_evidence";
+  }
+
   if (/(เก็บหลักฐาน|วิดีโอ|record.*วันนี้|บันทึก.*วันนี้|evidence\s*records?\s*today|video\s*evidence\s*today)/i.test(t)) {
     return "evidence_records_today";
   }
@@ -2180,6 +2187,18 @@ function renderStructuredDirect(
         if (machines.length === 0) lines.push("(ยังไม่มีข้อมูล)");
         return { text: lines.join("\n"), structuredContent };
       }
+      // E8 fix: URL-specific evidence renderer
+      if (intent === "url_has_evidence") {
+        const has = Boolean((sc as any).hasEvidence);
+        const cnt = Number((sc as any).evidenceCount || 0);
+        const url = String((sc as any).url || "").trim();
+        const urlLabel = url ? ` (${url.slice(0, 60)}${url.length > 60 ? "..." : ""})` : "";
+        const text = has
+          ? `✅ พบหลักฐานวิดีโอสำหรับ URL นี้แล้ว${urlLabel}\nจำนวนหลักฐาน: ${cnt} รายการ\nเกณฑ์: URL-specific evidence (record joined by nip_no)`
+          : `❌ ยังไม่พบหลักฐานวิดีโอสำหรับ URL นี้ในระบบ${urlLabel}\nเกณฑ์: URL-specific evidence (record joined by nip_no)`;
+        return { text, structuredContent };
+      }
+
       if (intent === "nip_latest") {
         const items: Array<any> = Array.isArray((sc as any).items) ? (sc as any).items : [];
         const lines: string[] = [`URL ผิดกฎหมายล่าสุด (${items.length} รายการ):`];
@@ -3155,7 +3174,7 @@ wss.on("connection", (ws, req) => {
             }
             const scOut = withRenderMeta(
               parsed || {},
-              { route: "webd", llmUsed: false, routeDecider: "deterministic", version: "phase22" },
+              { route: "webdCourtOrder", llmUsed: false, routeDecider: "deterministic", version: "phase22" },
               [toolName]
             );
             sessionHistory.push({ sender: "user", text: messageWithFile });
@@ -5065,8 +5084,17 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
     // =====================================
     // Phase 7.2.5: Deterministic Evidence Fastpath (NO LLM classify/tool-select)
+    // D3 fix: skip evidence fast-path when query is an ISP webd-analytics question
+    // (backlog, reduction) — those must reach the ISP analytics gate below instead.
     // =====================================
-    if (mcpClient && (evidenceAction || answerPlan.intent === "evidence")) {
+    const isIspWebdAnalytics = (() => {
+      const m = routingMessage.toLowerCase();
+      const hasIsp = /\bisp\b|ผู้ให้บริการ|ค่าย|isp_name/i.test(m);
+      const hasBacklog = /backlog|แบ็คล็อก|ค้าง|ยังไม่.*บล็อก/i.test(m);
+      const hasReduction = /อัตรา.*ลดลง|reduction|ลดลง.*มากที่สุด|ลดลง.*อัตรา/i.test(m);
+      return hasIsp && (hasBacklog || hasReduction);
+    })();
+    if (mcpClient && (evidenceAction || answerPlan.intent === "evidence") && !isIspWebdAnalytics) {
       logBoth("info", `[EvidenceFastPath] deterministicEvidence=true transport=http action=${evidenceAction} uiMode=${uiMode}`);
 
       if (!evidenceAction) {
@@ -5109,6 +5137,11 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       const evidenceToolArgs: any = { action: evidenceAction };
       if (effectiveIspFilter) evidenceToolArgs.ispFilter = effectiveIspFilter;
       if (requestedLimit) evidenceToolArgs.limit = requestedLimit;
+      // E8 fix: pass URL for url_has_evidence intent
+      if (evidenceAction === "url_has_evidence") {
+        const urlInMsg = routingMessage.match(/https?:\/\/[^\s"'<>]+/i);
+        if (urlInMsg) evidenceToolArgs.url = urlInMsg[0];
+      }
       let toolResults = await mcpClient.executeTools([primaryToolName], messageWithFile, {
         [primaryToolName]: evidenceToolArgs,
       });
@@ -5217,13 +5250,24 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         const args: any = {};
         if (orderIdMatch) args.orderId = Number(orderIdMatch[1]);
         else if (orderNoMatch) args.orderNo = orderNoMatch[1];
-        else return { tool: "webdTool_top_court_orders", args: { limit: 10 } };
+        // D2 fix: if user asks "คำสั่งศาลนี้มี URL กี่รายการ" without specifying an ID,
+        // ask for clarification instead of silently switching to top-N list.
+        else return { tool: "__clarify_order_id__", args: {} };
         return { tool: "webdTool_court_order_url_count", args };
       }
       // Default: top court orders if webd + court-order mentioned
       if (hasCourtOrder || hasWebd) return { tool: "webdTool_top_court_orders", args: { limit: 10 } };
       return null;
     })();
+
+    // D2 fix: clarification response for missing court order ID
+    if (webdCourtOrderGate?.tool === "__clarify_order_id__") {
+      const textOut = "กรุณาระบุหมายเลขคำสั่งศาล เช่น:\n• \"คำสั่งศาล 1107 มี URL กี่รายการ\"\n• \"คำสั่งศาล พ.001/2566 มี URL กี่รายการ\"\nหรือถาม \"คำสั่งศาลใดมี URL มากที่สุด\" เพื่อดูอันดับครับ";
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+      const scOut = withRenderMeta({}, { route: "webdCourtOrder" as any, llmUsed: false, routeDecider: "deterministic", version: "phase22" }, []);
+      chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "webdCourtOrder", tool: "clarify", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 200) });
+      return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: false, route: "webdCourtOrder" });
+    }
 
     if (mcpClient && webdCourtOrderGate) {
       const toolName = `innomcp-server:${webdCourtOrderGate.tool}`;
@@ -5265,7 +5309,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         sessionHistory.push({ sender: "ai", text: textOut } as any);
         const scOut = withRenderMeta(
           parsed || {},
-          { route: "webd", llmUsed: false, routeDecider: "deterministic", version: "phase22" },
+          { route: "webdCourtOrder", llmUsed: false, routeDecider: "deterministic", version: "phase22" },
           [toolName]
         );
         chatTraceOut({
@@ -5284,6 +5328,67 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       } catch (webdErr: any) {
         logBoth("error", `[WebdCourtOrderGate] Error: ${webdErr?.message || webdErr}`);
         // Fall through to other gates
+      }
+    }
+
+    // =====================================
+    // D3/D4/D5 fix: ISP Backlog + Reduction-Rate Deterministic Gate
+    // Routes ISP analytics queries to webd-api HTTP endpoints directly.
+    // Must fire BEFORE geo/evidence gates to prevent misrouting.
+    // Architecture: chat → HTTP → webd-api (SQL stays in webd-api)
+    // =====================================
+    const webdIspAnalyticsGate = (() => {
+      const m = routingMessage.toLowerCase();
+      const hasIsp = /\bisp\b|ผู้ให้บริการ|ค่าย|isp_name/i.test(m);
+      const hasBacklog = /backlog|แบ็คล็อก|ค้าง|ยังไม่.*บล็อก/i.test(m);
+      const hasReduction = /อัตรา.*ลดลง|reduction|ลดลง.*มากที่สุด|ลดลง.*อัตรา/i.test(m);
+      const hasPastMonth = /เดือนที่ผ่านมา|เดือนที่แล้ว|เดือนก่อน|last\s*month|past\s*month/i.test(m);
+      if (hasIsp && hasBacklog) return "backlog";
+      if (hasIsp && hasReduction && hasPastMonth) return "reduction_past_month";
+      if (hasIsp && hasReduction) return "reduction_current";
+      return null;
+    })();
+
+    if (webdIspAnalyticsGate) {
+      const WEBD_API = `http://${process.env.WEBD_API_HOST || "localhost"}:${process.env.WEBD_API_PORT || "3014"}`;
+      let textOut = "";
+      try {
+        if (webdIspAnalyticsGate === "backlog") {
+          const resp = await fetch(`${WEBD_API}/isp/top-backlog`, { signal: AbortSignal.timeout(10_000) });
+          const data = await resp.json() as any;
+          if (data.ok && data.items?.length > 0) {
+            const lines = [`ISP ที่มี backlog (URL ยังไม่ถูกบล็อก) มากที่สุด:`];
+            lines.push(`แหล่งข้อมูล: ${data.source === "detect_bridge" ? "DETECT_BRIDGE" : "webd"} | รวม ${data.total?.toLocaleString() || 0} URL`);
+            data.items.forEach((item: any, i: number) => {
+              lines.push(`${i + 1}) ${item.isp}: ${Number(item.backlog).toLocaleString()} URL`);
+            });
+            textOut = lines.join("\n");
+          } else { textOut = "ขณะนี้ไม่มีข้อมูล backlog จาก webd-api (อาจไม่มี URL ที่ status_open='Y')"; }
+        } else if (webdIspAnalyticsGate === "reduction_past_month") {
+          // HONEST_UNSUPPORTED: no historical snapshots exist
+          textOut = "ขออภัย ข้อมูลอัตราการลดลง (reduction rate) รายเดือนย้อนหลังยังไม่รองรับ — ระบบมีเฉพาะ snapshot ปัจจุบัน ไม่มีข้อมูลเปรียบเทียบเดือนต่อเดือนครับ\n\nหากต้องการอัตราการลดลง ณ ปัจจุบัน (CURRENT_SNAPSHOT_ONLY) ลองถาม: \"ISP ใดมีอัตราการลดลงมากที่สุด\"";
+        } else if (webdIspAnalyticsGate === "reduction_current") {
+          const resp = await fetch(`${WEBD_API}/isp/reduction-rate`, { signal: AbortSignal.timeout(10_000) });
+          const data = await resp.json() as any;
+          if (data.ok && data.items?.length > 0) {
+            const sorted = [...data.items].sort((a: any, b: any) => (b.reductionPct || 0) - (a.reductionPct || 0));
+            const lines = [`อัตราการบล็อก URL ผิดกฎหมาย (CURRENT_SNAPSHOT_ONLY — ไม่ใช่แนวโน้มรายเดือน):`];
+            lines.push(`แหล่งข้อมูล: ${data.source === "detect_bridge" ? "DETECT_BRIDGE" : "webd"}`);
+            sorted.forEach((item: any, i: number) => {
+              lines.push(`${i + 1}) ${item.isp}: บล็อกแล้ว ${item.blocked?.toLocaleString()}/${item.total?.toLocaleString()} (${item.reductionPct}%) — เหลือ ${item.open?.toLocaleString()} URL`);
+            });
+            lines.push(`\n💡 หมายเหตุ: นี่คือสัดส่วน blocked/total ณ ปัจจุบัน ไม่ใช่ "อัตราการลดลง" เมื่อเทียบเดือนต่อเดือน`);
+            textOut = lines.join("\n");
+          } else { textOut = "ขณะนี้ไม่มีข้อมูล reduction rate จาก webd-api"; }
+        }
+      } catch (err: any) {
+        textOut = `ขออภัย ดึงข้อมูล ISP analytics จาก webd-api ไม่สำเร็จ: ${err.message || "CONNECTION_ERROR"}`;
+      }
+      if (textOut) {
+        sessionHistory.push({ sender: "ai", text: textOut } as any);
+        const scOut = withRenderMeta({}, { route: "webdCourtOrder" as any, llmUsed: false, routeDecider: "deterministic", version: "isp-analytics" }, []);
+        chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "webdCourtOrder", tool: "isp-analytics", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 200) });
+        return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: false, route: "webdCourtOrder" });
       }
     }
 
