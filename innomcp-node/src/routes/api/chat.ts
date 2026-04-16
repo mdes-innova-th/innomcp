@@ -396,7 +396,7 @@ function buildHistoryAwareFollowUpQuery(currentText: string, sessionHistory: Cha
   if (sessionHistory.length < 2) return cur;
 
   const isAmbiguousFollowUp = /^(แล้ว|ถ้า|ถ้าเทียบ|เทียบ|สรุป|ขอเหตุผล|ขอสรุป|ขอ|แล้วล่ะ|แปลงเป็นข้อความ|จังหวัดไหนเด่น|สรุปต่างจาก|งั้น|เปลี่ยน|กลับมา)/i.test(cur)
-    || /จังหวัดนี้|ที่นี่|ที่นั่น|ภาคนี้|ล่ะ$|อ่านว่า|เขียนเป็นคำ|ค่ายนี้|ของค่ายนี้/i.test(cur);
+    || /จังหวัดนี้|ที่นี่|ที่นั่น|ภาคนี้|ล่ะ$|อ่านว่า|เขียนเป็นคำ|ค่ายนี้|ของค่ายนี้|เมื่อกี้|อันเดิม|ตัวเดิม/i.test(cur);
   if (!isAmbiguousFollowUp) return cur;
 
   const historyText = sessionHistory
@@ -413,7 +413,8 @@ function buildHistoryAwareFollowUpQuery(currentText: string, sessionHistory: Cha
   const recentWeatherContext = /(ฝน|อากาศ|พยากรณ์|อุณหภูมิ|ความชื้น|ลม|weather|forecast|temperature|humidity|แนวโน้มฝน|น้ำเสี่ยง|น้ำท่วม|ระดับน้ำ)/i.test(historyText);
   const recentEvidenceMachineContext = /(เครื่องออนไลน์|เครื่องออฟไลน์|ออนไลน์.*เครื่อง|เครื่อง.*ออนไลน์|machine.*online|online.*machine)/i.test(historyText);
   // Phase 15: Detect evidence URL/NIP context in recent history
-  const recentEvidenceUrlContext = /(url\s*ผิดกฎหมาย|url\s*ผิดกฏหมาย|nip.*ผิด|ตรวจพบ\s*url|url\/nip|illegal\s*url|url.*เจอ|เจอ.*url)/i.test(historyText);
+  // Phase 25: Also match "evidence" keyword and ISP-month summary patterns for domain-switch carry-forward
+  const recentEvidenceUrlContext = /(url\s*ผิดกฎหมาย|url\s*ผิดกฏหมาย|nip.*ผิด|ตรวจพบ\s*url|url\/nip|illegal\s*url|url.*เจอ|เจอ.*url|กลับมาเรื่อง\s*evidence|เปลี่ยนเรื่อง\s*evidence|evidence\s*ของ|evidence.*ISP|\d+\s*รายการ.*ISP|ISP.*\d+\s*รายการ)/i.test(historyText);
   // Phase 15: Extract last ISP name mentioned in history for carry-forward
   const lastHistoryIsp = (() => {
     const ispPattern = /\b(ais|dtac|ดีแทค|true|ทรู|trueonline|truemove|nt\b|cat\b|tot\b|3bb|เอไอเอส|ทีโอที)\b/gi;
@@ -492,6 +493,17 @@ function buildHistoryAwareFollowUpQuery(currentText: string, sessionHistory: Cha
     if (/(เปลี่ยนเรื่อง|กลับมาเรื่อง)\s*(evidence|หลักฐาน|calculator|คำนวณ|math)/i.test(cur)) {
       // Strip the domain-switch prefix and return the rest as-is for proper routing
       const stripped = cur.replace(/^.*?(เปลี่ยนเรื่อง|กลับมาเรื่อง)\s*(evidence|หลักฐาน|calculator|คำนวณ|math)\s*/i, '').trim();
+      // Phase 25: If switching to evidence and remainder mentions ISP but lacks evidence keywords, inject context
+      if (/(evidence|หลักฐาน)/i.test(cur) && stripped) {
+        const hasEvidenceKeywords = /(url|nip|ผิดกฎหมาย|ผิดกฏหมาย|หลักฐาน|evidence|backlog)/i.test(stripped);
+        if (!hasEvidenceKeywords) {
+          const ispInStrip = stripped.match(/\b(ais|dtac|ดีแทค|true|ทรู|trueonline|truemove|nt\b|cat\b|tot\b|3bb)\b/i);
+          if (ispInStrip) {
+            const timeScope = /(เดือนนี้|this\s*month)/i.test(stripped) ? "เดือนนี้" : "วันนี้";
+            return `url ผิดกฎหมายของ ${ispInStrip[1].toUpperCase()} ${timeScope}`;
+          }
+        }
+      }
       return stripped || cur;
     }
 

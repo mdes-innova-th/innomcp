@@ -1,65 +1,69 @@
 
-import { describe, expect, test, jest, beforeEach } from '@jest/globals';
+import { describe, expect, test, jest, beforeEach, afterEach } from '@jest/globals';
 import { handleEvidenceTool, EVIDENCE_TOOL_NAME } from '../src/utils/mcp/tools/evidenceTool';
-import * as db from '../src/utils/db/evidenceConnection';
 
-// Mock the DB connection module
-jest.mock('../src/utils/db/evidenceConnection');
+/**
+ * evidenceTool is a THIN HTTP ADAPTER (Phase 19).
+ * It calls detect-evidence-api via fetch(), not DB directly.
+ * Tests mock global.fetch to isolate from the network.
+ */
 
-const queryEvidenceMock = db.queryEvidence as unknown as jest.MockedFunction<(...args: any[]) => Promise<any[]>>;
+const originalFetch = global.fetch;
 
-describe('Evidence Tool (detect_evidence_stats)', () => {
-    
-    beforeEach(() => {
-        jest.clearAllMocks();
+function mockFetchOnce(body: any, status = 200) {
+    (global as any).fetch = jest.fn<any>().mockResolvedValueOnce({
+        ok: status >= 200 && status < 300,
+        status,
+        json: async () => body,
+        text: async () => JSON.stringify(body),
+    });
+}
+
+function mockFetchError(errorMessage: string) {
+    (global as any).fetch = jest.fn<any>().mockRejectedValueOnce(new Error(errorMessage));
+}
+
+describe('Evidence Tool (detect_evidence_stats) — HTTP adapter', () => {
+
+    afterEach(() => {
+        global.fetch = originalFetch;
     });
 
-    test('should handle "machine_status" intent', async () => {
-        queryEvidenceMock.mockResolvedValueOnce([{ c: 1 }] as never);
+    test('should export correct tool name', () => {
+        expect(EVIDENCE_TOOL_NAME).toBe('detect_evidence_stats');
+    });
+
+    test('should handle "machine_status" intent via HTTP', async () => {
+        mockFetchOnce({ count: 4 });
 
         const result = await handleEvidenceTool({ intent: 'machine_status' });
 
-        expect(db.queryEvidence).toHaveBeenCalled();
+        expect(global.fetch).toHaveBeenCalled();
         expect(result.ok).toBe(true);
         expect(result.intent).toBe('active_evidence_machines');
-        expect(result.count).toBe(1);
+        expect(result.count).toBe(4);
     });
 
-    test('should handle "pending_evidence" intent', async () => {
-        queryEvidenceMock
-            .mockResolvedValueOnce([{ Field: 'create_date' }, { Field: 'nip_no' }] as never)
-            .mockResolvedValueOnce([{ c: 3 }] as never);
+    test('should handle "pending_evidence" intent via HTTP', async () => {
+        mockFetchOnce({ count: 3 });
 
         const result = await handleEvidenceTool({ intent: 'pending_evidence' });
 
-        expect(db.queryEvidence).toHaveBeenCalled();
+        expect(global.fetch).toHaveBeenCalled();
         expect(result.ok).toBe(true);
         expect(result.intent).toBe('pending_evidence');
         expect(result.count).toBe(3);
     });
 
-    test('should handle "recent_threats" intent with default limit', async () => {
-        queryEvidenceMock
-            .mockResolvedValueOnce([{ Field: 'create_date' }] as never)
-            .mockResolvedValueOnce([{ c: 10 }] as never);
+    test('should handle "recent_threats" intent via HTTP', async () => {
+        mockFetchOnce({ count: 10 });
 
         const result = await handleEvidenceTool({ intent: 'recent_threats' });
 
-        expect(db.queryEvidence).toHaveBeenCalled();
+        expect(global.fetch).toHaveBeenCalled();
         expect(result.ok).toBe(true);
         expect(result.intent).toBe('recent_threats');
         expect(result.count).toBe(10);
-    });
-
-    test('should handle "recent_threats" intent with custom limit', async () => {
-        queryEvidenceMock
-            .mockResolvedValueOnce([{ Field: 'create_date' }] as never)
-            .mockResolvedValueOnce([{ c: 5 }] as never);
-
-        const result = await handleEvidenceTool({ intent: 'recent_threats', limit: 5 });
-
-        expect(result.ok).toBe(true);
-        expect(result.count).toBe(5);
     });
 
     test('should return error for unknown intent', async () => {
@@ -69,15 +73,19 @@ describe('Evidence Tool (detect_evidence_stats)', () => {
         expect(result.message).toContain('Unknown intent');
     });
 
-    test('should handle DB errors gracefully', async () => {
-        queryEvidenceMock.mockImplementationOnce(async () => {
-            throw new Error('Connection failed');
-        });
+    test('should handle HTTP errors gracefully', async () => {
+        mockFetchError('Connection refused');
 
         const result = await handleEvidenceTool({ intent: 'machine_status' });
 
         expect(result.ok).toBe(false);
         expect(result.code).toBe('EVIDENCE_QUERY_FAILED');
+    });
+
+    test('should return MISSING_INTENT when no intent provided', async () => {
+        const result = await handleEvidenceTool({});
+        expect(result.ok).toBe(false);
+        expect(result.code).toBe('MISSING_INTENT');
     });
 
 });
