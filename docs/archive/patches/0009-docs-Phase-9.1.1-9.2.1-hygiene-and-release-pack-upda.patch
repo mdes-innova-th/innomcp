@@ -1,0 +1,165 @@
+From 91a4985cec0af3e8a499221209c60418b3962468 Mon Sep 17 00:00:00 2001
+From: mdes-innova <mdes.innovation@gmail.com>
+Date: Fri, 27 Feb 2026 13:40:26 +0700
+Subject: [PATCH 9/9] docs: Phase 9.1.1/9.2.1 hygiene and release pack updates
+
+---
+ .../patch-pack.md                             | 44 ++++++++++++++
+ docs/reports/phase9_ops_and_repo_hygiene.md   | 57 ++++++++++++-------
+ 2 files changed, 81 insertions(+), 20 deletions(-)
+ create mode 100644 docs/phases/phase9.2-evidence-dashboard-ui/patch-pack.md
+
+diff --git a/docs/phases/phase9.2-evidence-dashboard-ui/patch-pack.md b/docs/phases/phase9.2-evidence-dashboard-ui/patch-pack.md
+new file mode 100644
+index 0000000..15bdf09
+--- /dev/null
++++ b/docs/phases/phase9.2-evidence-dashboard-ui/patch-pack.md
+@@ -0,0 +1,44 @@
++# Phase 9.2: Patch-Pack
++
++_This document outlines the explicit locations VIT must modify during frontend implementation._
++
++## 1. Target Files for Implementation (VIT)
++
++- `innomcp-next/src/app/components/evidence/EvidenceDashboard.tsx` (NEW)
++  - _Action:_ Main container component accepting `structuredContent`.
++- `innomcp-next/src/app/components/evidence/KpiCard.tsx` (NEW)
++- `innomcp-next/src/app/components/evidence/EvidenceChart.tsx` (NEW)
++- `innomcp-next/src/app/components/evidence/EvidenceTable.tsx` (NEW)
++- `innomcp-next/src/app/components/chat/ChatToolRenderer.tsx` (or equivalent)
++  - _Action:_ Wire the new `EvidenceDashboard` to render when the evidence tool returns `structuredContent`.
++
++## 2. Risk Matrix
++
++| Risk Element   | Description & Mitigation                                                                                                                     |
++| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
++| **Theme Bug**  | Hardcoding colors causes invisible text. _Mitigation:_ Exclusively use Tailwind `dark:` variants and CSS variables.                          |
++| **A11y Crash** | Green accent fails contrast checker. _Mitigation:_ Use verified emerald shades (e.g., `text-emerald-700` light / `text-emerald-400` dark).   |
++| **Data Fault** | Payload missing nodes breaks React tree. _Mitigation:_ Implement strict Optional Chaining (`?.`) and fallback UI placeholders.               |
++| **Logic Leak** | UI recalculates values. _Mitigation:_ Strict Code Review ban on `reduce`, `map` for math, and formatting manipulations inside the component. |
++
++## 3. UI Smoke Runner Specification (Phase 9.2.1)
++
++**File:** `innomcp-next/scripts/run_smoke.ps1` (NEW)
++**Description:** A deterministic E2E runner for the UI that does not hang on Windows.
++**Requirements:**
++
++1. Start background services (Next.js, Node) explicitly injecting `SMOKE_MODE=true`.
++2. Wait for services to become responsive (e.g. `Invoke-WebRequest -UseBasicParsing` or localhost health).
++3. Run `npx playwright test tests/e2e/smoke.spec.ts`.
++4. Gracefully and aggressively tear down processes (`taskkill /F /IM node.exe /T` or capturing background PIDs and `Stop-Process`).
++5. Final stdout MUST be either strictly `PASS` or `BLOCKED` in **1 line** at the bottom of the log (using `cmd /c exitcode` or similar).
++
++## 4. Operator Notes
++
++**Fast checking commands:**
++
++1. Boot Frontend UI:
++   `cd innomcp-next && npm run dev`
++2. Toggle OS Dark/Light mode to verify Theme switch.
++3. Run standard linter against UI components:
++   `npm run lint -- src/app/components/evidence/`
+diff --git a/docs/reports/phase9_ops_and_repo_hygiene.md b/docs/reports/phase9_ops_and_repo_hygiene.md
+index 0625a3b..60106d1 100644
+--- a/docs/reports/phase9_ops_and_repo_hygiene.md
++++ b/docs/reports/phase9_ops_and_repo_hygiene.md
+@@ -6,45 +6,49 @@ _This document consolidates operational best practices, verified commands, tool
+ 
+ Run these commands from the repository root to verify system integrity before or after major changes.
+ 
+-| Command Purpose                   | Command                                                                                          |
+-| --------------------------------- | ------------------------------------------------------------------------------------------------ |
+-| **Minimal CI**                    | `npm run minimal-ci`                                                                           |
+-| **RC Gate**                       | `npm run rc-gate`                                                                              |
+-| **DetectDB Verifier** (Phase 9.1) | `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase91_detectdb_e2e.ts` |
++| Command Purpose                   | Command                                                                                                    |
++| --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
++| **Minimal CI**                    | `npm run minimal-ci`                                                                                       |
++| **RC Gate**                       | `npm run rc-gate`                                                                                          |
++| **DetectDB Verifier** (Phase 9.1) | `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase91_detectdb_e2e.ts`          |
+ | **UI Smoke Runner** (Phase 9.2+)  | `powershell -ExecutionPolicy Bypass -File scripts\run_ui_smoke_evidence_dashboard.ps1 -TimeoutSeconds 420` |
+ 
+ ## 2. Tool Inventory
+ 
+-| Tool Name                 | Route Gate        | Required Env                        | Deterministic Fixture?    | Verifier Script                 |
+-| ------------------------- | ----------------- | ----------------------------------- | ------------------------- | ------------------------------- |
+-| `evidenceTool` (DetectDB) | `EVIDENCE_ROUTER` | `DETECT_DB_*`                       | Yes (seeded MariaDB)      | `innomcp-node/scripts/verify_phase91_detectdb_e2e.ts` |
+-| Evidence Dashboard (UI)   | N/A (UI renderer) | N/A                                 | Yes (smoke runner)        | `scripts/run_ui_smoke_evidence_dashboard.ps1` |
++| Tool Name                 | Route Gate        | Required Env  | Deterministic Fixture? | Verifier Script                                       |
++| ------------------------- | ----------------- | ------------- | ---------------------- | ----------------------------------------------------- |
++| `evidenceTool` (DetectDB) | `EVIDENCE_ROUTER` | `DETECT_DB_*` | Yes (seeded MariaDB)   | `innomcp-node/scripts/verify_phase91_detectdb_e2e.ts` |
++| Evidence Dashboard (UI)   | N/A (UI renderer) | N/A           | Yes (smoke runner)     | `scripts/run_ui_smoke_evidence_dashboard.ps1`         |
+ 
+ Notes:
++
+ - `mariadb/docker-compose.yml` does not contain passwords. Provide them at runtime:
+-	- PowerShell example: `$env:MARIADB_ROOT_PASSWORD='<set>'; $env:MARIADB_PASSWORD='<set>'`
++  - PowerShell example: `$env:MARIADB_ROOT_PASSWORD='<set>'; $env:MARIADB_PASSWORD='<set>'`
+ - Phase 9.1.1 requires provenance tagging: `structuredContent.meta.dataSource = detectdb | placeholder`.
+ - For environment variables, prefer example templates: `innomcp-*/.env.example`.
+ 
+ ## 3. Repo Junk Map (Hygiene Guardrails)
+ 
+-**Safe to Clean (`git clean -fd <path>`)**:
++**Safe cleanup commands**:
+ 
+-- `innomcp-node/evidence/` (Trace logs, test evidence logs)
+-- `playwright-report/`
+-- `test-results/`
+-- `innomcp-node/logs/`
++- `git clean -fd -e innomcp-node/evidence/`
++- Safe paths to explicitly clear if not using `-e`: `playwright-report/`, `test-results/`, `innomcp-node/logs/`
+ 
+-**NEVER Commit**:
++**"Never commit" list (untracked)**:
+ 
++- `.vscode/mcp.json`
++- `docs/ADDON_CODE/**`
++- `docs/architecture/**`
++- `playwright-report/**`
++- `test-results/**`
++- `innomcp-next/.next/**`
++- `**/dist/**`
+ - `.env`, `.env.local`, `.env.*`
+-- `mcp.json` / `.vscode/mcp.json`
+-- `node_modules/`
+-- `dist/`, `.next/`, `build/`
+ - `.turbo/`, `.cache/`
+ - Database credential files or explicit token dumps.
+ 
+ If a secret-like file is already tracked, fix it immediately:
++
+ - Untrack but keep locally: `git rm --cached path/to/.env`
+ - Ensure it is ignored going forward (root `.gitignore` already ignores `.env`)
+ - Assume credentials are compromised and rotate them.
+@@ -55,9 +59,10 @@ If a secret-like file is already tracked, fix it immediately:
+ 
+ 1. Run `git status` to view all modified and untracked files.
+ 2. Run `git diff` to ensure no embedded secrets or `console.log(process.env)` exist in the changes.
+-3. Explicitly stage files: `git add path/to/specific/file.ts`. Never use `git add .` or `git commit -a`.
++3. Explicitly stage files: `git add <file1> <file2> ...` (no dot). Never use `git add .` or `git commit -a`.
+ 
+ Pre-push safety sweep (Windows-friendly):
++
+ - `git status --porcelain=v1`
+ - `git diff --name-status`
+ - `git diff --cached --name-status`
+@@ -75,3 +80,15 @@ Pre-push safety sweep (Windows-friendly):
+ 2. **Windows Process Zombies:** The UI smoke runner spins up Node/Next.js processes in the background. If the script aborts unexpectedly, the processes hang holding ports. _Mitigation:_ Explicitly ensure `taskkill /F /IM node.exe /T` (or PowerShell equivalent) is bound to script exit hooks.
+ 3. **Playwright `networkidle` Stability:** Avoid `waitUntil: 'networkidle'` as it frequently times out on slower local dev environments. Use stable DOM selectors (e.g. `page.waitForSelector('[data-testid="kpi-card"]')`).
+ 4. **Doc hygiene:** Never commit real passwords/tokens in docs (including TODO). Use `<REDACTED>` placeholders.
++
++## 6. When origin push is blocked (404/Repo not found)
++
++If origin push fails due to network or repository permissions:
++
++- **Do NOT change remote**
++- **Create bundle:**
++  `git bundle create innomcp_local_ahead.bundle origin/main..HEAD`
++- **Or format-patch:**
++  `git format-patch origin/main..HEAD -o patches_phase9`
++- **How to handoff the file:**
++  Provide the resulting `.bundle` or patch directory to the SA/VIT lead via explicit secure file transfer. They can clone or apply it on their side directly.
+-- 
+2.52.0.windows.1
+

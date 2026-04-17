@@ -1,0 +1,886 @@
+From 66008b7f04111a4e84c93a010adb444610ac8f73 Mon Sep 17 00:00:00 2001
+From: mdes-innova <mdes.innovation@gmail.com>
+Date: Thu, 26 Feb 2026 23:35:47 +0700
+Subject: [PATCH 1/9] PHASE9.1 deterministic DetectDB E2E verifier
+
+---
+ TODO.md                                       |  29 ++
+ .../evidence/phase91-20260226-233415.log      |   6 +
+ .../scripts/verify_phase91_detectdb_e2e.ts    | 249 ++++++++++++++++++
+ innomcp-node/src/routes/api/chat.ts           | 126 +++++++--
+ .../src/utils/db/evidenceConnection.ts        |  42 ++-
+ .../src/utils/mcp/tools/evidenceTool.ts       | 210 ++++++++++-----
+ 6 files changed, 545 insertions(+), 117 deletions(-)
+ create mode 100644 innomcp-node/evidence/phase91-20260226-233415.log
+ create mode 100644 innomcp-node/scripts/verify_phase91_detectdb_e2e.ts
+
+diff --git a/TODO.md b/TODO.md
+index d058d01..bcd3899 100644
+--- a/TODO.md
++++ b/TODO.md
+@@ -245,6 +245,35 @@
+ 
+ - *********Note: Snapshot keywords are deterministic and stored in `innomcp-node/src/utils/mcp/keywordSnapshot.ts`.*********
+ 
++\***\*\*\*\*\*\*\*\*PHASE9.1: DetectDB E2E (Deterministic host/container) (2026-02-26)\***\*\*\*\*\*\*\*\*
++
++- Scope lock:
++  - Deterministic evidence routing + renderer-only text (NO JSON blocks)
++  - DetectDB connectivity deterministic:
++    - Host mode: `127.0.0.1:3308`
++    - Container mode: `mariadb:3306`
++  - Aggregation-only + parameterized SQL (no raw rows/PII)
++
++- Result: PASS
++
++- Evidence:
++  - `innomcp-node/evidence/phase91-20260226-233415.log`
++
++- Work (DONE):
++  - Backend DetectDB resolver: `innomcp-node/src/utils/db/evidenceConnection.ts` (remove `EVIDENCE_DB_*` fallback)
++  - Evidence tool schema: `structuredContent.kpis/table/series` + new intent `evidence_records_last_7_days_trend`
++    - `innomcp-node/src/utils/mcp/tools/evidenceTool.ts`
++  - Deterministic routing + renderer:
++    - `innomcp-node/src/routes/api/chat.ts`
++  - Verifier:
++    - `innomcp-node/scripts/verify_phase91_detectdb_e2e.ts`
++
++- Runtime:
++  - PowerShell:
++    - `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase91_detectdb_e2e.ts`
++  - CMD:
++    - `cd /d innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phase91_detectdb_e2e.ts`
++
+ \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
+ 
+ - Result: PASS
+diff --git a/innomcp-node/evidence/phase91-20260226-233415.log b/innomcp-node/evidence/phase91-20260226-233415.log
+new file mode 100644
+index 0000000..f35710d
+--- /dev/null
++++ b/innomcp-node/evidence/phase91-20260226-233415.log
+@@ -0,0 +1,6 @@
++phase91 verifier start: port=63589
++Q0 (missing-db) text: สรุปหลักฐานเมื่อวานนี้ (ยังไม่พร้อมเชื่อมต่อฐานข้อมูล): รวมทั้งหมด: 0 รายการ Top ISP 1-3: 1) (ยังไม่มีข้อมูล) 2) (ยังไม่มีข้อมูล) 3) (ยังไม่มีข้อมูล) มากที่สุด: ไม่มีข้อมูล ขั้นถัดไป: ติดต่อผู้ดูแลระบบให้เชื่อมต่อฐานข้อมูลหลักฐาน แล้วลองใหม
++Q1 text: สรุปหลักฐานเมื่อวานนี้ (ระบบสืบค้นขัดข้องชั่วคราว): รวมทั้งหมด: 0 รายการ Top ISP 1-3: 1) (ยังไม่มีข้อมูล) 2) (ยังไม่มีข้อมูล) 3) (ยังไม่มีข้อมูล) มากที่สุด: ไม่มีข้อมูล ขั้นถัดไป: ตรวจสอบฐานข้อมูลหลักฐาน/ตาราง record,nip แล้วลองใหม่อีกครั้งครับ
++Q2 text: เมื่อวานนี้จัดเก็บหลักฐานวิดีโอได้: 0 รายการ
++Q3 text: แนวโน้มหลักฐาน 7 วันล่าสุด: 2026-02-20: 0 รายการ 2026-02-21: 0 รายการ 2026-02-22: 0 รายการ 2026-02-23: 0 รายการ 2026-02-24: 0 รายการ 2026-02-25: 0 รายการ 2026-02-26: 0 รายการ รวม 7 วัน: 0 รายการ
++RESULT: PASS
+diff --git a/innomcp-node/scripts/verify_phase91_detectdb_e2e.ts b/innomcp-node/scripts/verify_phase91_detectdb_e2e.ts
+new file mode 100644
+index 0000000..800c1f8
+--- /dev/null
++++ b/innomcp-node/scripts/verify_phase91_detectdb_e2e.ts
+@@ -0,0 +1,249 @@
++import http from "http";
++import fs from "fs";
++import path from "path";
++
++type ChatResponse = {
++  text?: string;
++  structuredContent?: any;
++  error?: string;
++};
++
++function nowStamp(): string {
++  const d = new Date();
++  const pad = (n: number) => String(n).padStart(2, "0");
++  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
++}
++
++function postJson(
++  port: number,
++  urlPath: string,
++  body: any,
++  headers: Record<string, string> = {}
++): Promise<{ status: number; json: any; raw: string }> {
++  const payload = Buffer.from(JSON.stringify(body));
++  return new Promise((resolve, reject) => {
++    const req = http.request(
++      {
++        host: "127.0.0.1",
++        port,
++        path: urlPath,
++        method: "POST",
++        headers: {
++          "Content-Type": "application/json",
++          "Content-Length": String(payload.length),
++          ...headers,
++        },
++      },
++      (res) => {
++        const chunks: Buffer[] = [];
++        res.on("data", (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(String(c))));
++        res.on("end", () => {
++          const raw = Buffer.concat(chunks).toString("utf8");
++          let json: any = null;
++          try {
++            json = raw ? JSON.parse(raw) : null;
++          } catch {
++            json = null;
++          }
++          resolve({ status: res.statusCode || 0, json, raw });
++        });
++      }
++    );
++    req.on("error", reject);
++    req.write(payload);
++    req.end();
++  });
++}
++
++function assertOk(cond: any, message: string, failures: string[]) {
++  if (!cond) failures.push(message);
++}
++
++function assertNotContainsAny(haystack: string, needles: string[], label: string, failures: string[]) {
++  for (const needle of needles) {
++    if (haystack.includes(needle)) failures.push(`${label}: must not include "${needle}"`);
++  }
++}
++
++function getScRoute(sc: any): string {
++  return String(sc?.__render?.route || "");
++}
++
++function looksLikeBadLeak(text: string): boolean {
++  return /(process\.env|DETECT_DB_PASSWORD|EVIDENCE_DB_PASSWORD|Authorization|Bearer\s+)/i.test(text);
++}
++
++async function startEphemeralServer() {
++  process.env.NODE_ENV = process.env.NODE_ENV || "test";
++  process.env.SMOKE_MODE = "1";
++  process.env.SERVER_HOST = "127.0.0.1";
++
++  const { default: app } = await import("../src/app");
++  const server = http.createServer(app as any);
++  const port = await new Promise<number>((resolve, reject) => {
++    server.listen(0, "127.0.0.1", () => {
++      const addr = server.address();
++      if (!addr || typeof addr === "string") return reject(new Error("Failed to bind ephemeral port"));
++      resolve(addr.port);
++    });
++  });
++
++  const stop = async () => {
++    try {
++      const chatMod: any = await import("../src/routes/api/chat");
++      const toolHealthChecker = chatMod?.toolHealthChecker;
++      const mcpClient = chatMod?.mcpClient;
++      if (toolHealthChecker && typeof toolHealthChecker.stopHealthChecks === "function") {
++        toolHealthChecker.stopHealthChecks();
++      }
++      if (mcpClient && typeof mcpClient.shutdown === "function") {
++        await mcpClient.shutdown();
++      } else if (mcpClient && typeof mcpClient.stopHealthCheck === "function") {
++        mcpClient.stopHealthCheck();
++      }
++    } catch {
++      // ignore
++    }
++
++    await new Promise<void>((resolve) => server.close(() => resolve()));
++  };
++
++  return { port, stop };
++}
++
++async function main() {
++  const stamp = nowStamp();
++  const evidenceDir = path.resolve(__dirname, "..", "evidence");
++  fs.mkdirSync(evidenceDir, { recursive: true });
++  const evidenceLog = path.join(evidenceDir, `phase91-${stamp}.log`);
++
++  const logLines: string[] = [];
++  const failures: string[] = [];
++
++  // Ensure we start from a clean Evidence pool between cases.
++  const evConnMod: any = await import("../src/utils/db/evidenceConnection");
++  const closeEvidencePool: undefined | (() => Promise<void>) = evConnMod?.closeEvidencePool;
++
++  const { port, stop } = await startEphemeralServer();
++  logLines.push(`phase91 verifier start: port=${port}`);
++
++  try {
++    // ------------------------------------------------------------
++    // Case 0: Forced missing DetectDB (must be operator-grade, no env leaks, no ERR: prefix)
++    // ------------------------------------------------------------
++    process.env.DETECT_DB_DISABLED = "1";
++    if (closeEvidencePool) await closeEvidencePool();
++
++    const q0 = "เมื่อวาน evidence แยกตาม ISP และใครมากสุด";
++    const r0 = await postJson(
++      port,
++      "/api/chat",
++      { message: q0, messages: [] },
++      { "X-Smoke-Run": "1", "X-Correlation-Id": `phase91-${stamp}-missing` }
++    );
++    const t0 = String((r0.json as ChatResponse)?.text || r0.raw || "");
++    const sc0 = (r0.json as ChatResponse)?.structuredContent;
++
++    logLines.push("Q0 (missing-db) text: " + t0.replace(/\s+/g, " ").slice(0, 240));
++    assertOk(getScRoute(sc0) === "evidence", "Q0: structuredContent.__render.route must be evidence", failures);
++    assertOk(!/^ERR:/i.test(t0.trim()), "Q0: user-visible text must not start with ERR:", failures);
++    assertOk(!looksLikeBadLeak(t0), "Q0: must not leak env/secrets into text", failures);
++    assertNotContainsAny(JSON.stringify(r0.json || {}), ["process.env", "DETECT_DB_PASSWORD", "Authorization", "Bearer"], "Q0", failures);
++
++    // Reset for subsequent cases.
++    delete process.env.DETECT_DB_DISABLED;
++    if (closeEvidencePool) await closeEvidencePool();
++
++    // ------------------------------------------------------------
++    // Case 1: Yesterday ISP top (must include kpis + table.rows)
++    // ------------------------------------------------------------
++    const q1 = "เมื่อวาน evidence แยกตาม ISP และใครมากสุด";
++    const r1 = await postJson(
++      port,
++      "/api/chat",
++      { message: q1, messages: [] },
++      { "X-Smoke-Run": "1", "X-Correlation-Id": `phase91-${stamp}-isp` }
++    );
++
++    const t1 = String((r1.json as ChatResponse)?.text || r1.raw || "");
++    const sc1 = (r1.json as ChatResponse)?.structuredContent;
++
++    logLines.push("Q1 text: " + t1.replace(/\s+/g, " ").slice(0, 260));
++
++    assertOk(getScRoute(sc1) === "evidence", "Q1: structuredContent.__render.route must be evidence", failures);
++    assertOk(typeof sc1?.kpis?.total === "number", "Q1: structuredContent.kpis.total must be number", failures);
++    assertOk(typeof sc1?.kpis?.topIspName === "string" || sc1?.kpis?.topIspName === null, "Q1: structuredContent.kpis.topIspName must be string|null", failures);
++    assertOk(typeof sc1?.kpis?.topIspCount === "number" || sc1?.kpis?.topIspCount === null, "Q1: structuredContent.kpis.topIspCount must be number|null", failures);
++    assertOk(Array.isArray(sc1?.table?.rows), "Q1: structuredContent.table.rows must be array", failures);
++    assertOk(sc1?.table?.rows?.length >= 3, "Q1: structuredContent.table.rows must have >= 3 rows", failures);
++    assertOk(/ISP/i.test(t1) || /ผู้ให้บริการ|ค่าย/i.test(t1), "Q1: text must mention ISP intent", failures);
++    assertOk(!looksLikeBadLeak(t1), "Q1: must not leak env/secrets into text", failures);
++
++    // ------------------------------------------------------------
++    // Case 2: Yesterday total
++    // ------------------------------------------------------------
++    const q2 = "เมื่อวานหลักฐานรวมกี่รายการ";
++    const r2 = await postJson(
++      port,
++      "/api/chat",
++      { message: q2, messages: [] },
++      { "X-Smoke-Run": "1", "X-Correlation-Id": `phase91-${stamp}-total` }
++    );
++    const t2 = String((r2.json as ChatResponse)?.text || r2.raw || "");
++    const sc2 = (r2.json as ChatResponse)?.structuredContent;
++
++    logLines.push("Q2 text: " + t2.replace(/\s+/g, " ").slice(0, 220));
++
++    assertOk(getScRoute(sc2) === "evidence", "Q2: structuredContent.__render.route must be evidence", failures);
++    assertOk(typeof sc2?.kpis?.total === "number" || typeof sc2?.count === "number", "Q2: must include count or kpis.total", failures);
++    assertOk(!looksLikeBadLeak(t2), "Q2: must not leak env/secrets into text", failures);
++
++    // ------------------------------------------------------------
++    // Case 3: 7-day trend
++    // ------------------------------------------------------------
++    const q3 = "แนวโน้มหลักฐาน 7 วันล่าสุด";
++    const r3 = await postJson(
++      port,
++      "/api/chat",
++      { message: q3, messages: [] },
++      { "X-Smoke-Run": "1", "X-Correlation-Id": `phase91-${stamp}-trend` }
++    );
++    const t3 = String((r3.json as ChatResponse)?.text || r3.raw || "");
++    const sc3 = (r3.json as ChatResponse)?.structuredContent;
++
++    logLines.push("Q3 text: " + t3.replace(/\s+/g, " ").slice(0, 260));
++
++    assertOk(getScRoute(sc3) === "evidence", "Q3: structuredContent.__render.route must be evidence", failures);
++    assertOk(Array.isArray(sc3?.series?.points), "Q3: structuredContent.series.points must be array", failures);
++    assertOk((sc3?.series?.points?.length || 0) === 7, "Q3: structuredContent.series.points must have 7 points", failures);
++    assertOk(/แนวโน้ม|7\s*วัน/i.test(t3), "Q3: text must mention trend/7 days", failures);
++    assertOk(!looksLikeBadLeak(t3), "Q3: must not leak env/secrets into text", failures);
++
++    // Global negative checks
++    const rawAll = JSON.stringify({ r0: r0.json, r1: r1.json, r2: r2.json, r3: r3.json });
++    assertNotContainsAny(rawAll, ["process.env", "DETECT_DB_PASSWORD", "EVIDENCE_DB_PASSWORD", "Authorization", "Bearer"], "GLOBAL", failures);
++  } finally {
++    await stop();
++  }
++
++  const ok = failures.length === 0;
++  logLines.push(ok ? "RESULT: PASS" : "RESULT: FAIL");
++  if (!ok) {
++    logLines.push("FAILURES:");
++    for (const f of failures) logLines.push("- " + f);
++  }
++
++  fs.writeFileSync(evidenceLog, logLines.join("\n") + "\n", "utf8");
++  console.log(`evidence: ${evidenceLog}`);
++  if (!ok) console.error(logLines.join("\n"));
++  process.exitCode = ok ? 0 : 1;
++
++  const t = setTimeout(() => process.exit(process.exitCode || 0), 300);
++  // @ts-ignore
++  if (typeof (t as any).unref === "function") (t as any).unref();
++}
++
++main().catch((err) => {
++  console.error("verify_phase91_detectdb_e2e failed:", err);
++  process.exitCode = 1;
++});
+diff --git a/innomcp-node/src/routes/api/chat.ts b/innomcp-node/src/routes/api/chat.ts
+index b9699dc..e13aee6 100644
+--- a/innomcp-node/src/routes/api/chat.ts
++++ b/innomcp-node/src/routes/api/chat.ts
+@@ -230,8 +230,13 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
+   const isYesterday = /(เมื่อวาน|วานนี้|yesterday)/i.test(t);
+   const hasIsp = /\bisp\b/i.test(t) || /ผู้ให้บริการ|ค่าย/i.test(t);
+   const hasEvidenceTerms = /(evidence|หลักฐาน|record|วิดีโอ)/i.test(t);
++  const wants7dTrend = /(แนวโน้ม|เทรนด์|trend|7\s*วัน|เจ็ด\s*วัน|7\s*days?)/i.test(t);
+   const wantsBreakdownOrTop = /(แยกตาม|breakdown|top\b|most\b|highest\b|max\b|มากที่สุด|มากสุด|สูงสุด)/i.test(t);
+ 
++  if (wants7dTrend && hasEvidenceTerms) {
++    return "evidence_records_last_7_days_trend";
++  }
++
+   // Accept real Thai variants even if the user omits the word "หลักฐาน".
+   if (isYesterday && hasIsp && (hasEvidenceTerms || wantsBreakdownOrTop)) {
+     return "evidence_records_yesterday_by_isp_top";
+@@ -532,6 +537,7 @@ function mapOfficerEvidenceActionToLocalIntent(action: string): string | undefin
+   if (action === "evidence_records_today") return "evidence_records_today";
+   if (action === "evidence_records_yesterday_total") return "evidence_records_yesterday_total";
+   if (action === "evidence_records_yesterday_by_isp_top") return "evidence_records_yesterday_by_isp_top";
++  if (action === "evidence_records_last_7_days_trend") return "evidence_records_last_7_days_trend";
+   return undefined;
+ }
+ 
+@@ -696,50 +702,88 @@ function renderStructuredDirect(
+           structuredContent,
+         };
+       }
++
++      // If the intent is still evidence/ISP/trend, keep a deterministic template even on other DB failures.
++      const inferred = inferIntentFromQuery();
++      if (inferred === "evidence_records_yesterday_by_isp_top" || inferred === "evidence_records_yesterday_by_isp") {
++        const lines: string[] = [];
++        lines.push("สรุปหลักฐานเมื่อวานนี้ (ระบบสืบค้นขัดข้องชั่วคราว):");
++        lines.push("รวมทั้งหมด: 0 รายการ");
++        lines.push("Top ISP 1-3:");
++        lines.push("1) (ยังไม่มีข้อมูล)");
++        lines.push("2) (ยังไม่มีข้อมูล)");
++        lines.push("3) (ยังไม่มีข้อมูล)");
++        lines.push("มากที่สุด: ไม่มีข้อมูล");
++        lines.push("ขั้นถัดไป: ตรวจสอบฐานข้อมูลหลักฐาน/ตาราง record,nip แล้วลองใหม่อีกครั้งครับ");
++        return { text: lines.join("\n"), structuredContent };
++      }
++      if (inferred === "evidence_records_last_7_days_trend") {
++        const lines: string[] = [];
++        lines.push("แนวโน้มหลักฐาน 7 วันล่าสุด (ระบบสืบค้นขัดข้องชั่วคราว):");
++        lines.push("(ยังไม่มีข้อมูล)");
++        lines.push("รวม 7 วัน: 0 รายการ");
++        return { text: lines.join("\n"), structuredContent };
++      }
+       return { text: "ขออภัย ยังไม่สามารถสรุปข้อมูลหลักฐานได้ในขณะนี้ กรุณาลองใหม่อีกครั้งครับ", structuredContent };
+     }
+ 
+-    // Phase 7.3: ISP breakdown must mention ISP/ผู้ให้บริการ (even if totals are 0 / mock)
++    if (intent === "evidence_records_last_7_days_trend") {
++      const series = (sc as any).series;
++      const pts: Array<{ date: string; count: number }> = Array.isArray(series?.points)
++        ? series.points
++            .map((p: any) => ({ date: String(p?.date || "").slice(0, 10), count: Number(p?.count || 0) || 0 }))
++            .filter((p: any) => p.date)
++        : [];
++      const total = Number((sc as any)?.kpis?.total);
++      const totalOut = Number.isFinite(total) ? total : pts.reduce((acc, p) => acc + (Number(p.count) || 0), 0);
++
++      const lines: string[] = [];
++      lines.push("แนวโน้มหลักฐาน 7 วันล่าสุด:");
++      for (const p of pts.slice(0, 7)) {
++        lines.push(`${p.date}: ${p.count} รายการ`);
++      }
++      lines.push(`รวม 7 วัน: ${totalOut} รายการ`);
++      return { text: lines.join("\n"), structuredContent };
++    }
++
++    // Phase 7.3+: ISP breakdown must mention ISP/ผู้ให้บริการ (even if totals are 0)
+     if (intent === "evidence_records_yesterday_by_isp_top" || intent === "evidence_records_yesterday_by_isp") {
+-      const total = Number((sc as any).total ?? (sc as any).count ?? (sc as any).c);
++      const total = Number((sc as any)?.kpis?.total ?? (sc as any).total ?? (sc as any).count ?? (sc as any).c);
++      const totalOut = Number.isFinite(total) ? total : 0;
++
++      const tableRowsRaw = (sc as any)?.table?.rows;
+       const byIsp = (sc as any).byIsp || (sc as any).breakdownByIsp || (sc as any).ispBreakdown;
+-      const rows: Array<{ isp: string; count: number }> = Array.isArray(byIsp)
+-        ? byIsp
++      const rowsSrc = Array.isArray(tableRowsRaw) ? tableRowsRaw : byIsp;
++
++      const rows: Array<{ isp: string; count: number }> = Array.isArray(rowsSrc)
++        ? rowsSrc
+             .map((x: any) => ({ isp: String(x?.isp || x?.name || "").trim(), count: Number(x?.count ?? x?.c) }))
+             .filter((x: any) => x.isp && Number.isFinite(x.count))
+         : [];
+ 
+-      const top3Rows: Array<{ isp: string; count: number } | { isp: null; count: null }> = (() => {
+-        const out: Array<{ isp: string; count: number } | { isp: null; count: null }> = rows.slice(0, 3);
+-        while (out.length < 3) out.push({ isp: null, count: null });
++      const kpis = (sc as any).kpis;
++      const topName = kpis && typeof kpis.topIspName === "string" ? String(kpis.topIspName).trim() : "";
++      const topCount = kpis && Number.isFinite(Number(kpis.topIspCount)) ? Number(kpis.topIspCount) : NaN;
++
++      const top3 = (() => {
++        const out: Array<{ isp: string; count: number } | null> = rows.slice(0, 3);
++        while (out.length < 3) out.push(null);
+         return out;
+       })();
+ 
+-      const top = (sc as any).topIsp;
+-      const topName = top && typeof top.isp === "string" ? String(top.isp).trim() : "";
+-      const topCount = top && Number.isFinite(Number(top.count)) ? Number(top.count) : NaN;
+-
+-      const effectiveTop = (() => {
+-        if (topName && Number.isFinite(topCount)) return { isp: topName, count: topCount };
+-        if (rows.length > 0) return { isp: rows[0].isp, count: rows[0].count };
+-        return null;
+-      })();
++      const othersRow = rows.find((r) => r.isp === "อื่นๆ") || null;
+ 
+       const lines: string[] = [];
+       lines.push("สรุปหลักฐานเมื่อวานนี้:");
+-
+-      const totalOut = Number.isFinite(total) ? total : 0;
+       lines.push(`รวมทั้งหมด: ${totalOut} รายการ`);
+       lines.push("Top ISP 1-3:");
+-      for (const [i, r] of top3Rows.entries()) {
+-        if (r && (r as any).isp) {
+-          const rr = r as { isp: string; count: number };
+-          lines.push(`${i + 1}) ${rr.isp}: ${rr.count}`);
+-        } else {
+-          lines.push(`${i + 1}) (ยังไม่มีข้อมูล)`);
+-        }
++      for (const [i, r] of top3.entries()) {
++        if (r) lines.push(`${i + 1}) ${r.isp}: ${r.count}`);
++        else lines.push(`${i + 1}) (ยังไม่มีข้อมูล)`);
+       }
+-      lines.push(`มากที่สุด: ${effectiveTop ? effectiveTop.isp : "ไม่มีข้อมูล"}`);
++      if (othersRow) lines.push(`อื่นๆ: ${othersRow.count}`);
++      if (topName && Number.isFinite(topCount)) lines.push(`มากที่สุด: ${topName} (${topCount})`);
++      else lines.push(`มากที่สุด: ${rows.length > 0 ? rows[0].isp : "ไม่มีข้อมูล"}`);
+ 
+       return { text: lines.join("\n"), structuredContent };
+     }
+@@ -1404,12 +1448,25 @@ wss.on("connection", (ws, req) => {
+           let traceAns = formatOfficerEvidenceTraceAnswer(sc);
+ 
+           // Fallback: if remote EvidenceTool fails (e.g., Detect DB creds missing), use local aggregation tool.
++          const hasIspRows = (() => {
++            const rows = sc && typeof sc === "object" ? (sc as any)?.table?.rows : null;
++            return Array.isArray(rows) && rows.length >= 3;
++          })();
++          const hasTrendPoints = (() => {
++            const pts = sc && typeof sc === "object" ? (sc as any)?.series?.points : null;
++            return Array.isArray(pts) && pts.length >= 7;
++          })();
++          const schemaMissingForAction =
++            (evidenceAction === "evidence_records_yesterday_by_isp_top" && !hasIspRows) ||
++            (evidenceAction === "evidence_records_last_7_days_trend" && !hasTrendPoints);
++
+           const shouldLocalFallback =
+             first?.success !== true ||
+             (typeof sc === "object" && sc && (sc as any).ok === false) ||
+             /ไม่พบค่าจำนวนในผลลัพธ์/i.test(String(textOut || "")) ||
+             /^ERR:/i.test(traceAns) ||
+-            traceAns === "ERR:COUNT_MISSING";
++            traceAns === "ERR:COUNT_MISSING" ||
++            schemaMissingForAction;
+ 
+           if (shouldLocalFallback) {
+             const localIntent = mapOfficerEvidenceActionToLocalIntent(evidenceAction);
+@@ -2338,12 +2395,25 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
+ 
+       let traceAns = formatOfficerEvidenceTraceAnswer(sc);
+ 
++      const hasIspRows = (() => {
++        const rows = sc && typeof sc === "object" ? (sc as any)?.table?.rows : null;
++        return Array.isArray(rows) && rows.length >= 3;
++      })();
++      const hasTrendPoints = (() => {
++        const pts = sc && typeof sc === "object" ? (sc as any)?.series?.points : null;
++        return Array.isArray(pts) && pts.length >= 7;
++      })();
++      const schemaMissingForAction =
++        (evidenceAction === "evidence_records_yesterday_by_isp_top" && !hasIspRows) ||
++        (evidenceAction === "evidence_records_last_7_days_trend" && !hasTrendPoints);
++
+       const shouldLocalFallback =
+         first?.success !== true ||
+         (typeof sc === "object" && sc && (sc as any).ok === false) ||
+         /ไม่พบค่าจำนวนในผลลัพธ์/i.test(String(textOut || "")) ||
+         /^ERR:/i.test(traceAns) ||
+-        traceAns === "ERR:COUNT_MISSING";
++        traceAns === "ERR:COUNT_MISSING" ||
++        schemaMissingForAction;
+ 
+       if (shouldLocalFallback) {
+         const localIntent = mapOfficerEvidenceActionToLocalIntent(evidenceAction);
+diff --git a/innomcp-node/src/utils/db/evidenceConnection.ts b/innomcp-node/src/utils/db/evidenceConnection.ts
+index ec41176..13811f1 100644
+--- a/innomcp-node/src/utils/db/evidenceConnection.ts
++++ b/innomcp-node/src/utils/db/evidenceConnection.ts
+@@ -20,35 +20,29 @@ type DetectDbConfig = {
+ };
+ 
+ function resolveDetectDbConfig(): DetectDbConfig {
+-    const host =
+-        process.env.DETECT_DB_HOST ||
+-        process.env.EVIDENCE_DB_HOST ||
+-        process.env.DB_HOST ||
+-        "localhost";
+-
+-    const port =
+-        Number(process.env.DETECT_DB_PORT || process.env.EVIDENCE_DB_PORT || process.env.DB_PORT || "3306") ||
+-        3306;
++    if (process.env.DETECT_DB_DISABLED === "1") {
++        const e: any = new Error("Detect DB disabled");
++        e.code = "MISSING_DETECT_DB_CREDS";
++        throw e;
++    }
+ 
+-    const user =
+-        process.env.DETECT_DB_USER ||
+-        process.env.EVIDENCE_DB_USER ||
+-        process.env.DB_USER ||
+-        "root";
++    // Deterministic defaults:
++    // - Host mode (Node on host, MariaDB in Docker): 127.0.0.1:3308
++    // - Container mode (Node in Docker): mariadb:3306 (DB_HOST is overridden in compose)
++    // NOTE: avoid falling back to EVIDENCE_DB_* to prevent accidental remote connections.
++    const appDbHost = String(process.env.DB_HOST || "").trim();
++    const isContainerMode = /^mariadb$/i.test(appDbHost);
+ 
+-    const password =
+-        process.env.DETECT_DB_PASSWORD ||
+-        process.env.EVIDENCE_DB_PASSWORD ||
+-        process.env.DB_PASSWORD ||
+-        "";
++    const host = String(process.env.DETECT_DB_HOST || (isContainerMode ? "mariadb" : "127.0.0.1")).trim();
++    const portRaw = process.env.DETECT_DB_PORT || (isContainerMode ? "3306" : "3308");
++    const port = Number(portRaw) || (isContainerMode ? 3306 : 3308);
+ 
+-    const database =
+-        process.env.DETECT_DB_NAME ||
+-        process.env.EVIDENCE_DB_NAME ||
+-        "detect";
++    const user = String(process.env.DETECT_DB_USER || process.env.DB_USER || "").trim();
++    const password = String(process.env.DETECT_DB_PASSWORD || process.env.DB_PASSWORD || "");
++    const database = String(process.env.DETECT_DB_NAME || "innomcp-db").trim();
+ 
+     if (!host || !user || !database || !password) {
+-        const e: any = new Error("Detect DB is not configured (missing DETECT_DB_* credentials)");
++        const e: any = new Error("Detect DB is not configured");
+         e.code = "MISSING_DETECT_DB_CREDS";
+         throw e;
+     }
+diff --git a/innomcp-node/src/utils/mcp/tools/evidenceTool.ts b/innomcp-node/src/utils/mcp/tools/evidenceTool.ts
+index c0bc4ba..a4f2c8f 100644
+--- a/innomcp-node/src/utils/mcp/tools/evidenceTool.ts
++++ b/innomcp-node/src/utils/mcp/tools/evidenceTool.ts
+@@ -28,6 +28,7 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
+           "evidence_records_today",
+           "evidence_records_yesterday_total",
+           "evidence_records_yesterday_by_isp_top",
++          "evidence_records_last_7_days_trend",
+           "pending_evidence",
+           "recent_threats",
+         ],
+@@ -45,68 +46,85 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
+ export async function handleEvidenceTool(args: any): Promise<any> {
+   const { intent } = args || {};
+ 
+-  const assertDetectDbCreds = (currentIntent?: string): { ok: true } | { ok: false; code: string; message: string } => {
+-    const host = process.env.DETECT_DB_HOST;
+-    const user = process.env.DETECT_DB_USER;
+-    const password = process.env.DETECT_DB_PASSWORD;
+-    const db = process.env.DETECT_DB_NAME;
++  const placeholderIspTable = () => ({
++    rows: [
++      { isp: "(ยังไม่มีข้อมูล)", count: 0 },
++      { isp: "(ยังไม่มีข้อมูล)", count: 0 },
++      { isp: "(ยังไม่มีข้อมูล)", count: 0 },
++      { isp: "อื่นๆ", count: 0 },
++    ],
++  });
++
++  const buildKpis = (total: number, topIspName?: string | null, topIspCount?: number | null) => {
++    const t = Number(total);
++    return {
++      total: Number.isFinite(t) ? t : 0,
++      topIspName: topIspName ?? null,
++      topIspCount: typeof topIspCount === "number" && Number.isFinite(topIspCount) ? topIspCount : null,
++    };
++  };
+ 
+-    if (!host || !user || !password || !db) {
+-      return {
+-        ok: false,
+-        code: "MISSING_DETECT_DB_CREDS",
+-        message: "ยังไม่ได้ตั้งค่าการเชื่อมต่อฐานข้อมูล Detect จึงยังไม่สามารถดึงสถิติหลักฐานจริงได้ในตอนนี้",
++  const buildMissingCreds = (currentIntent: string) => {
++    const base: any = {
++      ok: false,
++      code: "MISSING_DETECT_DB_CREDS",
++      intent: currentIntent,
++      message: "ขออภัย ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน กรุณาติดต่อผู้ดูแลระบบหรือลองใหม่ภายหลังครับ",
++      kpis: buildKpis(0, null, null),
++      table: {
++        rows: [
++          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
++          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
++          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
++          { isp: "อื่นๆ", count: 0 },
++        ],
++      },
++    };
++
++    if (currentIntent === "evidence_records_last_7_days_trend") {
++      const end = getBangkokDate(0);
++      const start = getBangkokDate(-6);
++      base.range = { start, end };
++      base.series = {
++        label: "หลักฐานต่อวัน",
++        points: Array.from({ length: 7 }).map((_, idx) => ({ date: getBangkokDate(-6 + idx), count: 0 })),
+       };
+     }
+-    return { ok: true };
++
++    return base;
+   };
+ 
+-  const mockNoDb = (currentIntent: string) => {
+-    const base = {
+-      ok: true,
++  const buildErrorShell = (currentIntent: string, code: string) => {
++    const base: any = {
++      ok: false,
++      code,
+       intent: currentIntent,
+-      mock: true,
+-      code: "MOCK_NO_DB",
+-      note: "ยังไม่ได้ตั้งค่าการเชื่อมต่อฐานข้อมูล Detect (แสดงผลแบบจำลอง/0 ชั่วคราว)",
+-    } as any;
+-
+-    const today = getBangkokDate(0);
+-    const yesterday = getBangkokDate(-1);
++      message: "ขออภัย ระบบสืบค้นฐานข้อมูลหลักฐานขัดข้อง กรุณาลองใหม่อีกครั้งครับ",
++      kpis: buildKpis(0, null, null),
++    };
+ 
+-    if (currentIntent === "active_evidence_machines" || currentIntent === "machine_status") {
+-      return { ...base, intent: "active_evidence_machines", count: 0, summary: "ตอนนี้เครื่องออนไลน์: 0 เครื่อง (ยังไม่เชื่อมต่อฐานข้อมูล)" };
+-    }
+-    if (currentIntent === "active_evidence_machines_offline") {
+-      return { ...base, count: 0, summary: "ตอนนี้เครื่องออฟไลน์: 0 เครื่อง (ยังไม่เชื่อมต่อฐานข้อมูล)" };
+-    }
+-    if (currentIntent === "machines_evidence_active_today") {
+-      return { ...base, date: today, count: 0, summary: "วันนี้ machine evidence ทำงาน: 0 เครื่อง (ยังไม่เชื่อมต่อฐานข้อมูล)" };
+-    }
+-    if (currentIntent === "evidence_records_today") {
+-      return { ...base, date: today, count: 0, summary: "วันนี้จัดเก็บหลักฐานวิดีโอได้: 0 รายการ (ยังไม่เชื่อมต่อฐานข้อมูล)" };
+-    }
+-    if (currentIntent === "evidence_records_yesterday_total") {
+-      return { ...base, date: yesterday, count: 0, summary: "เมื่อวานนี้จัดเก็บหลักฐานวิดีโอได้: 0 รายการ (ยังไม่เชื่อมต่อฐานข้อมูล)" };
+-    }
+     if (currentIntent === "evidence_records_yesterday_by_isp_top") {
+-      const byIsp = [{ isp: "(ไม่สามารถระบุได้)", count: 0 }];
+-      return {
+-        ...base,
+-        date: yesterday,
+-        total: 0,
+-        byIsp,
+-        topIsp: byIsp[0],
+-        summary: "เมื่อวานนี้รวม 0 รายการ | ISP มากที่สุด: (ไม่สามารถระบุได้) (0) | หมายเหตุ: ยังไม่เชื่อมต่อฐานข้อมูล",
++      base.table = {
++        rows: [
++          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
++          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
++          { isp: "(ยังไม่มีข้อมูล)", count: 0 },
++          { isp: "อื่นๆ", count: 0 },
++        ],
+       };
+     }
+-    if (currentIntent === "pending_evidence") {
+-      return { ...base, date: today, count: 0, summary: "หลักฐานค้างดำเนินการวันนี้: 0 รายการ (ยังไม่เชื่อมต่อฐานข้อมูล)" };
+-    }
+-    if (currentIntent === "recent_threats") {
+-      return { ...base, date: today, count: 0, summary: "เหตุการณ์ (NIP) วันนี้: 0 รายการ (ยังไม่เชื่อมต่อฐานข้อมูล)" };
++
++    if (currentIntent === "evidence_records_last_7_days_trend") {
++      const end = getBangkokDate(0);
++      const start = getBangkokDate(-6);
++      base.range = { start, end };
++      base.series = {
++        label: "หลักฐานต่อวัน",
++        points: Array.from({ length: 7 }).map((_, idx) => ({ date: getBangkokDate(-6 + idx), count: 0 })),
++      };
+     }
+ 
+-    return { ...base, summary: "ยังไม่เชื่อมต่อฐานข้อมูล Detect" };
++    return base;
+   };
+ 
+   const getBangkokDate = (offsetDays: number): string => {
+@@ -147,11 +165,6 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+       return { ok: false, code: "MISSING_INTENT", message: "intent is required" };
+     }
+ 
+-    const creds = assertDetectDbCreds(intent);
+-    if (!creds.ok) {
+-      return mockNoDb(intent);
+-    }
+-
+     const today = getBangkokDate(0);
+     const yesterday = getBangkokDate(-1);
+ 
+@@ -238,6 +251,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+         intent,
+         date: yesterday,
+         count: n,
++        kpis: buildKpis(n, null, null),
+         dateColumn: createdCol,
+         summary: `เมื่อวานนี้จัดเก็บหลักฐานวิดีโอได้: ${n} รายการ`,
+       };
+@@ -254,7 +268,17 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+       const ispCol = pickFirstColumn(nipCols, ["isp", "isp_name", "ispName", "provider", "provider_name", "operator", "operator_name"]);
+ 
+       if (!createdCol) {
+-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", table: "record", columns: recordCols };
++        return {
++          ok: false,
++          intent,
++          code: "MISSING_DATE_COLUMN",
++          dbTable: "record",
++          columns: recordCols,
++          kpis: buildKpis(0, null, null),
++          tableShape: "isp_top3_plus_others",
++          table: placeholderIspTable(),
++          summary: "ยังไม่สามารถสรุปแยกตาม ISP ได้ เพราะไม่พบคอลัมน์วันที่ในตาราง record",
++        };
+       }
+ 
+       // Always compute total (even if we cannot join)
+@@ -267,6 +291,9 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+           code: "MISSING_REQUIRED_COLUMNS",
+           date: yesterday,
+           total,
++          kpis: buildKpis(total, null, null),
++          tableShape: "isp_top3_plus_others",
++          table: placeholderIspTable(),
+           missing: {
+             recordNipCol: recordNipCol || null,
+             nipNoCol: nipNoCol || null,
+@@ -277,7 +304,6 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+         };
+       }
+ 
+-      const limit = Number(args?.limit || 10);
+       const rows = await queryEvidence<any>(
+         `SELECT n.\`${ispCol}\` as isp, COUNT(*) as c\n` +
+           `FROM record r\n` +
+@@ -285,8 +311,8 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+           `WHERE DATE(r.\`${createdCol}\`) = ?\n` +
+           `GROUP BY n.\`${ispCol}\`\n` +
+           `ORDER BY c DESC\n` +
+-          `LIMIT ?`,
+-        [yesterday, limit]
++          `LIMIT 3`,
++        [yesterday]
+       );
+ 
+       const byIsp = Array.isArray(rows)
+@@ -297,19 +323,71 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+ 
+       const top = byIsp.length > 0 ? byIsp[0] : null;
+ 
++      const sumTop = byIsp.reduce((acc: number, r: any) => acc + (Number(r.count) || 0), 0);
++      const others = Math.max(0, total - sumTop);
++
++      const tableRows: Array<{ isp: string; count: number }> = (() => {
++        const out = byIsp.slice(0, 3);
++        while (out.length < 3) out.push({ isp: "(ยังไม่มีข้อมูล)", count: 0 });
++        out.push({ isp: "อื่นๆ", count: others });
++        return out;
++      })();
++
+       return {
+         ok: true,
+         intent,
+         date: yesterday,
+         total,
+-        byIsp,
++        byIsp: tableRows,
+         topIsp: top,
++        kpis: buildKpis(total, top ? top.isp : null, top ? top.count : null),
++        table: { rows: tableRows },
+         summary: top
+           ? `เมื่อวานนี้รวม ${total} รายการ | ISP มากสุด: ${top.isp} (${top.count})`
+           : `เมื่อวานนี้รวม ${total} รายการ`,
+       };
+     }
+ 
++    if (intent === "evidence_records_last_7_days_trend") {
++      const cols = await getColumns("record");
++      const createdCol = pickFirstColumn(cols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
++      if (!createdCol) {
++        return { ok: false, intent, code: "MISSING_DATE_COLUMN", table: "record", columns: cols };
++      }
++
++      const end = getBangkokDate(0);
++      const start = getBangkokDate(-6);
++      const rows = await queryEvidence<any>(
++        `SELECT DATE(\`${createdCol}\`) as d, COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) BETWEEN ? AND ? GROUP BY DATE(\`${createdCol}\`) ORDER BY d ASC`,
++        [start, end]
++      );
++
++      const byDate = new Map<string, number>();
++      if (Array.isArray(rows)) {
++        for (const r of rows) {
++          const d = String(r?.d || "").slice(0, 10);
++          const c = Number(r?.c || 0) || 0;
++          if (d) byDate.set(d, c);
++        }
++      }
++
++      const points = Array.from({ length: 7 }).map((_, idx) => {
++        const date = getBangkokDate(-6 + idx);
++        return { date, count: byDate.get(date) ?? 0 };
++      });
++      const total = points.reduce((acc, p) => acc + (Number(p.count) || 0), 0);
++
++      return {
++        ok: true,
++        intent,
++        range: { start, end },
++        kpis: buildKpis(total, null, null),
++        series: { label: "หลักฐานต่อวัน", points },
++        dateColumn: createdCol,
++        summary: `แนวโน้ม 7 วันล่าสุด: รวม ${total} รายการ`,
++      };
++    }
++
+     // Legacy intents (aggregation only; no raw rows)
+     if (intent === "pending_evidence") {
+       const nipCols = await getColumns("nip");
+@@ -340,10 +418,12 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+ 
+     return { ok: false, code: "UNKNOWN_INTENT", message: `Unknown intent: ${String(intent)}` };
+   } catch (error: any) {
+-    return {
+-      ok: false,
+-      code: "EVIDENCE_QUERY_FAILED",
+-      message: String(error?.message || error),
+-    };
++    const code = String(error?.code || "").toUpperCase();
++    if (code === "MISSING_DETECT_DB_CREDS") {
++      return buildMissingCreds(String(intent || "unknown"));
++    }
++
++    // Keep schema deterministic even on failures (no raw error details).
++    return buildErrorShell(String(intent || "unknown"), "EVIDENCE_QUERY_FAILED");
+   }
+ }
+-- 
+2.52.0.windows.1
+

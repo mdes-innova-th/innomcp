@@ -162,3 +162,10 @@ wx_uni.json
 
 # AI session memory (personal, not source)
 .claude/
+
+# Runtime dev logs
+dev-log.txt
+dev-log.err.txt
+dev-log-findings.txt
+playwright-report/
+test-results/

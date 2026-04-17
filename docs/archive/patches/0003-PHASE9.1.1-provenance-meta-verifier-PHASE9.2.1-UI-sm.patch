@@ -1,0 +1,779 @@
+From 6f64bf17f3559b75758813d94fcdf9bca138cfbc Mon Sep 17 00:00:00 2001
+From: mdes-innova <mdes.innovation@gmail.com>
+Date: Fri, 27 Feb 2026 02:17:09 +0700
+Subject: [PATCH 3/9] PHASE9.1.1 provenance meta + verifier; PHASE9.2.1 UI
+ smoke runner
+
+---
+ .gitignore                                    |   6 +
+ TODO.md                                       |  47 +++-
+ innomcp-node/.gitignore                       |   3 +
+ .../scripts/verify_phase91_detectdb_e2e.ts    | 154 +++++++++++-
+ .../src/utils/mcp/tools/evidenceTool.ts       |  45 +++-
+ scripts/run_ui_smoke_evidence_dashboard.ps1   | 221 ++++++++++++++++++
+ tests/e2e/tests/evidence-dashboard.spec.ts    |   4 +-
+ 7 files changed, 462 insertions(+), 18 deletions(-)
+ create mode 100644 scripts/run_ui_smoke_evidence_dashboard.ps1
+
+diff --git a/.gitignore b/.gitignore
+index ec0e31d..3380a02 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -52,11 +52,17 @@ package-lock.json
+ !/scripts/install-hooks.ps1
+ !/scripts/run_rc_gate.ps1
+ !/scripts/audit_db_ports.js
++!/scripts/run_ui_smoke_evidence_dashboard.ps1
+ /docs/
+ /tests/
+ */.env
+ /CHANGELOG/
+ 
++# Allowlist: single deterministic UI spec (evidence dashboard)
++!/tests/e2e/
++!/tests/e2e/tests/
++!/tests/e2e/tests/evidence-dashboard.spec.ts
++
+ # Allowlist: DB port audit report + evidence
+ !/docs/
+ !/docs/reports/
+diff --git a/TODO.md b/TODO.md
+index 9b8ab86..319bc99 100644
+--- a/TODO.md
++++ b/TODO.md
+@@ -274,19 +274,64 @@
+   - CMD:
+     - `cd /d innomcp-node && set TS_NODE_CACHE=false && npx ts-node scripts\verify_phase91_detectdb_e2e.ts`
+ 
++\***\*\*\*\*\*\*\*\*PHASE9.1.1: DetectDB Provenance + Placeholder Contract (2026-02-27)\***\*\*\*\*\*\*\*\*
++
++- Scope lock:
++  - Tool-layer provenance tagging only (no new UX beyond placeholder note)
++  - Always return contract shape (kpis/table/series), but set:
++    - `structuredContent.meta.dataSource = detectdb | placeholder`
++    - `structuredContent.meta.note` (polite, no env/secret leakage) when placeholder
++  - Verifier must prove:
++    - A) placeholder path via unset creds
++    - B) real DetectDB path via seeded MariaDB
++
++- Result: PASS
++
++- Evidence:
++  - `innomcp-node/evidence/phase91-20260227-015410.log`
++
++- Work (DONE):
++  - Evidence tool meta: `innomcp-node/src/utils/mcp/tools/evidenceTool.ts`
++  - Verifier upgrade (placeholder + seeded real): `innomcp-node/scripts/verify_phase91_detectdb_e2e.ts`
++
+ \***\*\*\*\*\*\*\*\*PHASE9.2: Evidence Dashboard UI (structuredContent-only) (2026-02-26)\***\*\*\*\*\*\*\*\*
+ 
+ - Scope lock:
+   - Render ONLY `structuredContent` for evidence (no LLM-generated numbers)
+   - KPI chips + line chart + table; light/dark; green accent
+ 
+-- Work (WIP):
++- Result: PASS
++
++- Work (DONE):
+   - Frontend renderer:
+     - `innomcp-next/src/app/components/chat/EvidenceDashboard.tsx`
+     - wired in `innomcp-next/src/app/components/chat/ChatMessage.tsx`
+   - UI test:
+     - `tests/e2e/tests/evidence-dashboard.spec.ts`
+ 
++\***\*\*\*\*\*\*\*\*PHASE9.2.1: Windows UI Smoke Runner (Evidence Dashboard) (2026-02-27)\***\*\*\*\*\*\*\*\*
++
++- Scope lock:
++  - Windows-safe runner that:
++    - kills Node process tree
++    - starts MCP + backend + frontend in `SMOKE_MODE=1`
++    - runs exactly one Playwright spec with a hard timeout
++    - writes evidence logs and prints `PASS` or `BLOCKED:<reason>`
++  - Minimal gitignore allowlisting for exactly the runner + single spec
++
++- Result: PASS
++
++- Evidence:
++  - `innomcp-node/evidence/ui-smoke-evidence-dashboard-20260227-021224.log`
++
++- Runtime:
++  - PowerShell (repo root):
++    - `powershell -ExecutionPolicy Bypass -File scripts\run_ui_smoke_evidence_dashboard.ps1`
++
++- Work (DONE):
++  - Runner script: `scripts/run_ui_smoke_evidence_dashboard.ps1`
++  - Spec stabilized for dev (avoid `networkidle`): `tests/e2e/tests/evidence-dashboard.spec.ts`
++
+ \***\*\*\*\***DB Port Audit: 3306 vs 3308 (DetectDB / AppDB) (2026-02-25)\***\*\*\*\***
+ 
+ - Result: PASS
+diff --git a/innomcp-node/.gitignore b/innomcp-node/.gitignore
+index 1582cac..976b98a 100644
+--- a/innomcp-node/.gitignore
++++ b/innomcp-node/.gitignore
+@@ -97,4 +97,7 @@ yarn-error.log*
+ # Phase 8.10B: Router resilience verifier
+ !/scripts/verify_phase810b_router_resilience.ts
+ 
++# Phase 9.1: DetectDB deterministic E2E verifier
++!/scripts/verify_phase91_detectdb_e2e.ts
++
+ 
+diff --git a/innomcp-node/scripts/verify_phase91_detectdb_e2e.ts b/innomcp-node/scripts/verify_phase91_detectdb_e2e.ts
+index 800c1f8..8c4a90f 100644
+--- a/innomcp-node/scripts/verify_phase91_detectdb_e2e.ts
++++ b/innomcp-node/scripts/verify_phase91_detectdb_e2e.ts
+@@ -1,6 +1,8 @@
+ import http from "http";
+ import fs from "fs";
+ import path from "path";
++import { spawnSync } from "child_process";
++import mysql from "mysql2/promise";
+ 
+ type ChatResponse = {
+   text?: string;
+@@ -73,6 +75,137 @@ function looksLikeBadLeak(text: string): boolean {
+   return /(process\.env|DETECT_DB_PASSWORD|EVIDENCE_DB_PASSWORD|Authorization|Bearer\s+)/i.test(text);
+ }
+ 
++function setEnvForMissingDetectDbCreds() {
++  // Force the EvidenceDB resolver to throw MISSING_DETECT_DB_CREDS via missing env.
++  // Do NOT use DETECT_DB_DISABLED here (Phase 9.1.1 requirement).
++  delete process.env.DETECT_DB_USER;
++  delete process.env.DETECT_DB_PASSWORD;
++  delete process.env.DETECT_DB_HOST;
++  delete process.env.DETECT_DB_PORT;
++  delete process.env.DETECT_DB_NAME;
++  delete process.env.DB_USER;
++  delete process.env.DB_PASSWORD;
++}
++
++function setEnvForRealDetectDb() {
++  process.env.DETECT_DB_HOST = "127.0.0.1";
++  process.env.DETECT_DB_PORT = "3308";
++  process.env.DETECT_DB_USER = "root";
++  process.env.DETECT_DB_PASSWORD = "rockbottom";
++  process.env.DETECT_DB_NAME = "phase91_detectdb";
++}
++
++function tryDockerComposeUp(composeFile: string, cwd: string): { ok: boolean; cmd: string; out: string } {
++  const attempts: Array<{ cmd: string; args: string[] }> = [
++    { cmd: "docker", args: ["compose", "-f", composeFile, "up", "-d"] },
++    { cmd: "docker-compose", args: ["-f", composeFile, "up", "-d"] },
++  ];
++
++  for (const a of attempts) {
++    const r = spawnSync(a.cmd, a.args, { cwd, encoding: "utf8" });
++    const out = String(r.stdout || "") + String(r.stderr || "");
++    if (r.error && (r.error as any).code === "ENOENT") continue;
++    if (r.status === 0) return { ok: true, cmd: `${a.cmd} ${a.args.join(" ")}`, out };
++  }
++
++  const last = attempts[0];
++  return { ok: false, cmd: `${last.cmd} ${last.args.join(" ")}`, out: "docker compose failed or not available" };
++}
++
++async function ensureDetectDbSeeded(logLines: string[], failures: string[]) {
++  const repoRoot = path.resolve(__dirname, "..", "..");
++  const composeFile = path.resolve(repoRoot, "mariadb", "docker-compose.yml");
++
++  const up = tryDockerComposeUp(composeFile, path.dirname(composeFile));
++  logLines.push(`detectdb docker up: ok=${up.ok} cmd=${up.cmd}`);
++  if (!up.ok) {
++    failures.push("BLOCKED:DOCKER_NOT_AVAILABLE");
++    return;
++  }
++
++  // Wait for DB readiness (simple connect retry)
++  const connectDeadline = Date.now() + 60_000;
++  let conn: mysql.Connection | null = null;
++  let lastErr: any = null;
++  while (Date.now() < connectDeadline) {
++    try {
++      conn = await mysql.createConnection({ host: "127.0.0.1", port: 3308, user: "root", password: "rockbottom" });
++      await conn.ping();
++      break;
++    } catch (e: any) {
++      lastErr = e;
++      await new Promise((r) => setTimeout(r, 1500));
++    }
++  }
++
++  if (!conn) {
++    failures.push(`BLOCKED:DETECTDB_CONNECT_FAILED:${String(lastErr?.message || lastErr || "unknown")}`);
++    return;
++  }
++
++  try {
++    await conn.execute("CREATE DATABASE IF NOT EXISTS `phase91_detectdb` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
++    await conn.execute("USE `phase91_detectdb`");
++
++    await conn.execute(
++      "CREATE TABLE IF NOT EXISTS machines (id INT AUTO_INCREMENT PRIMARY KEY, is_online TINYINT NOT NULL, last_check_in DATETIME NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
++    );
++    await conn.execute(
++      "CREATE TABLE IF NOT EXISTS nip (nip_no VARCHAR(64) PRIMARY KEY, isp VARCHAR(64) NOT NULL, create_date DATETIME NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
++    );
++    await conn.execute(
++      "CREATE TABLE IF NOT EXISTS record (id INT AUTO_INCREMENT PRIMARY KEY, nip_no VARCHAR(64) NOT NULL, create_date DATETIME NOT NULL, INDEX idx_create_date (create_date), INDEX idx_nip_no (nip_no)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
++    );
++
++    // Clear prior fixture rows (idempotent)
++    await conn.execute("DELETE FROM record WHERE nip_no LIKE 'phase91-%'");
++    await conn.execute("DELETE FROM nip WHERE nip_no LIKE 'phase91-%'");
++
++    // Seed ISPs
++    const isps = [
++      { isp: "AIS", nip: "phase91-ais" },
++      { isp: "TRUE", nip: "phase91-true" },
++      { isp: "DTAC", nip: "phase91-dtac" },
++      { isp: "3BB", nip: "phase91-3bb" },
++    ];
++    for (const x of isps) {
++      await conn.execute("INSERT INTO nip (nip_no, isp, create_date) VALUES (?, ?, NOW())", [x.nip, x.isp]);
++    }
++
++    // Seed records for last 7 days (make yesterday non-zero and AIS top)
++    const now = new Date();
++    const mkDate = (offsetDays: number, hour: number) => {
++      const d = new Date(now.getTime() + (offsetDays * 24 * 60 * 60 * 1000));
++      // Use Bangkok-ish time by pinning hour; DB stores as local container time.
++      d.setHours(hour, 0, 0, 0);
++      const pad = (n: number) => String(n).padStart(2, "0");
++      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:00:00`;
++    };
++
++    // Yesterday: AIS 12, TRUE 5, DTAC 3, 3BB 2 => total 22
++    const y = -1;
++    const insertMany = async (nipNo: string, dateStr: string, count: number) => {
++      for (let i = 0; i < count; i++) {
++        await conn!.execute("INSERT INTO record (nip_no, create_date) VALUES (?, ?)", [nipNo, dateStr]);
++      }
++    };
++
++    await insertMany("phase91-ais", mkDate(y, 10), 12);
++    await insertMany("phase91-true", mkDate(y, 11), 5);
++    await insertMany("phase91-dtac", mkDate(y, 12), 3);
++    await insertMany("phase91-3bb", mkDate(y, 13), 2);
++
++    // Spread some records across other days so 7-day trend isn't all-zero.
++    await insertMany("phase91-ais", mkDate(-6, 9), 2);
++    await insertMany("phase91-true", mkDate(-5, 9), 1);
++    await insertMany("phase91-dtac", mkDate(-4, 9), 1);
++    await insertMany("phase91-ais", mkDate(-3, 9), 2);
++    await insertMany("phase91-3bb", mkDate(-2, 9), 1);
++  } finally {
++    await conn.end();
++  }
++}
++
+ async function startEphemeralServer() {
+   process.env.NODE_ENV = process.env.NODE_ENV || "test";
+   process.env.SMOKE_MODE = "1";
+@@ -129,9 +262,9 @@ async function main() {
+ 
+   try {
+     // ------------------------------------------------------------
+-    // Case 0: Forced missing DetectDB (must be operator-grade, no env leaks, no ERR: prefix)
++    // Case A: Forced placeholder via UNSET creds (no DETECT_DB_DISABLED)
+     // ------------------------------------------------------------
+-    process.env.DETECT_DB_DISABLED = "1";
++    setEnvForMissingDetectDbCreds();
+     if (closeEvidencePool) await closeEvidencePool();
+ 
+     const q0 = "เมื่อวาน evidence แยกตาม ISP และใครมากสุด";
+@@ -146,16 +279,21 @@ async function main() {
+ 
+     logLines.push("Q0 (missing-db) text: " + t0.replace(/\s+/g, " ").slice(0, 240));
+     assertOk(getScRoute(sc0) === "evidence", "Q0: structuredContent.__render.route must be evidence", failures);
++    assertOk(sc0?.meta?.dataSource === "placeholder", "Q0: structuredContent.meta.dataSource must be placeholder", failures);
++    assertOk(typeof sc0?.meta?.note === "string" && sc0.meta.note.length > 0, "Q0: structuredContent.meta.note must be present for placeholder", failures);
+     assertOk(!/^ERR:/i.test(t0.trim()), "Q0: user-visible text must not start with ERR:", failures);
+     assertOk(!looksLikeBadLeak(t0), "Q0: must not leak env/secrets into text", failures);
+     assertNotContainsAny(JSON.stringify(r0.json || {}), ["process.env", "DETECT_DB_PASSWORD", "Authorization", "Bearer"], "Q0", failures);
+ 
+-    // Reset for subsequent cases.
+-    delete process.env.DETECT_DB_DISABLED;
++    // ------------------------------------------------------------
++    // Case B: Real DetectDB (Docker MariaDB + seeded schema)
++    // ------------------------------------------------------------
++    await ensureDetectDbSeeded(logLines, failures);
++    setEnvForRealDetectDb();
+     if (closeEvidencePool) await closeEvidencePool();
+ 
+     // ------------------------------------------------------------
+-    // Case 1: Yesterday ISP top (must include kpis + table.rows)
++    // Case 1: Yesterday ISP top (must be detectdb + include real top ISP)
+     // ------------------------------------------------------------
+     const q1 = "เมื่อวาน evidence แยกตาม ISP และใครมากสุด";
+     const r1 = await postJson(
+@@ -171,11 +309,15 @@ async function main() {
+     logLines.push("Q1 text: " + t1.replace(/\s+/g, " ").slice(0, 260));
+ 
+     assertOk(getScRoute(sc1) === "evidence", "Q1: structuredContent.__render.route must be evidence", failures);
++    assertOk(sc1?.meta?.dataSource === "detectdb", "Q1: structuredContent.meta.dataSource must be detectdb", failures);
+     assertOk(typeof sc1?.kpis?.total === "number", "Q1: structuredContent.kpis.total must be number", failures);
+     assertOk(typeof sc1?.kpis?.topIspName === "string" || sc1?.kpis?.topIspName === null, "Q1: structuredContent.kpis.topIspName must be string|null", failures);
+     assertOk(typeof sc1?.kpis?.topIspCount === "number" || sc1?.kpis?.topIspCount === null, "Q1: structuredContent.kpis.topIspCount must be number|null", failures);
+     assertOk(Array.isArray(sc1?.table?.rows), "Q1: structuredContent.table.rows must be array", failures);
+     assertOk(sc1?.table?.rows?.length >= 3, "Q1: structuredContent.table.rows must have >= 3 rows", failures);
++    assertOk(typeof sc1?.kpis?.topIspName === "string" && sc1.kpis.topIspName !== "(ยังไม่มีข้อมูล)", "Q1: top ISP must be real (non-placeholder)", failures);
++    assertOk(typeof sc1?.kpis?.topIspCount === "number" && sc1.kpis.topIspCount > 0, "Q1: top ISP count must be > 0", failures);
++    assertOk(typeof sc1?.kpis?.total === "number" && sc1.kpis.total > 0, "Q1: total must be > 0 for real detectdb", failures);
+     assertOk(/ISP/i.test(t1) || /ผู้ให้บริการ|ค่าย/i.test(t1), "Q1: text must mention ISP intent", failures);
+     assertOk(!looksLikeBadLeak(t1), "Q1: must not leak env/secrets into text", failures);
+ 
+@@ -195,6 +337,7 @@ async function main() {
+     logLines.push("Q2 text: " + t2.replace(/\s+/g, " ").slice(0, 220));
+ 
+     assertOk(getScRoute(sc2) === "evidence", "Q2: structuredContent.__render.route must be evidence", failures);
++    assertOk(sc2?.meta?.dataSource === "detectdb", "Q2: structuredContent.meta.dataSource must be detectdb", failures);
+     assertOk(typeof sc2?.kpis?.total === "number" || typeof sc2?.count === "number", "Q2: must include count or kpis.total", failures);
+     assertOk(!looksLikeBadLeak(t2), "Q2: must not leak env/secrets into text", failures);
+ 
+@@ -214,6 +357,7 @@ async function main() {
+     logLines.push("Q3 text: " + t3.replace(/\s+/g, " ").slice(0, 260));
+ 
+     assertOk(getScRoute(sc3) === "evidence", "Q3: structuredContent.__render.route must be evidence", failures);
++    assertOk(sc3?.meta?.dataSource === "detectdb", "Q3: structuredContent.meta.dataSource must be detectdb", failures);
+     assertOk(Array.isArray(sc3?.series?.points), "Q3: structuredContent.series.points must be array", failures);
+     assertOk((sc3?.series?.points?.length || 0) === 7, "Q3: structuredContent.series.points must have 7 points", failures);
+     assertOk(/แนวโน้ม|7\s*วัน/i.test(t3), "Q3: text must mention trend/7 days", failures);
+diff --git a/innomcp-node/src/utils/mcp/tools/evidenceTool.ts b/innomcp-node/src/utils/mcp/tools/evidenceTool.ts
+index a4f2c8f..ceb103f 100644
+--- a/innomcp-node/src/utils/mcp/tools/evidenceTool.ts
++++ b/innomcp-node/src/utils/mcp/tools/evidenceTool.ts
+@@ -46,6 +46,19 @@ export const EVIDENCE_TOOL_DEF: MCPTool = {
+ export async function handleEvidenceTool(args: any): Promise<any> {
+   const { intent } = args || {};
+ 
++  type EvidenceDataSource = "detectdb" | "placeholder";
++
++  const PLACEHOLDER_NOTE =
++    "หมายเหตุ: ข้อมูลชุดนี้เป็นค่าตัวอย่าง (placeholder) เนื่องจากระบบฐานข้อมูลหลักฐานยังไม่พร้อมใช้งานครับ";
++
++  const metaFor = (dataSource: EvidenceDataSource, note?: string) => {
++    const meta: any = { dataSource };
++    if (dataSource === "placeholder") {
++      meta.note = String(note || PLACEHOLDER_NOTE);
++    }
++    return meta;
++  };
++
+   const placeholderIspTable = () => ({
+     rows: [
+       { isp: "(ยังไม่มีข้อมูล)", count: 0 },
+@@ -69,6 +82,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+       ok: false,
+       code: "MISSING_DETECT_DB_CREDS",
+       intent: currentIntent,
++      meta: metaFor("placeholder"),
+       message: "ขออภัย ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน กรุณาติดต่อผู้ดูแลระบบหรือลองใหม่ภายหลังครับ",
+       kpis: buildKpis(0, null, null),
+       table: {
+@@ -99,6 +113,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+       ok: false,
+       code,
+       intent: currentIntent,
++      meta: metaFor("placeholder"),
+       message: "ขออภัย ระบบสืบค้นฐานข้อมูลหลักฐานขัดข้อง กรุณาลองใหม่อีกครั้งครับ",
+       kpis: buildKpis(0, null, null),
+     };
+@@ -162,7 +177,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+ 
+   try {
+     if (!intent) {
+-      return { ok: false, code: "MISSING_INTENT", message: "intent is required" };
++      return { ok: false, code: "MISSING_INTENT", meta: metaFor("placeholder"), message: "intent is required" };
+     }
+ 
+     const today = getBangkokDate(0);
+@@ -174,6 +189,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+       return {
+         ok: true,
+         intent: intent === "machine_status" ? "active_evidence_machines" : intent,
++        meta: metaFor("detectdb"),
+         count: online,
+         summary: `ตอนนี้เครื่องออนไลน์: ${online} เครื่อง`,
+       };
+@@ -185,6 +201,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+       return {
+         ok: true,
+         intent,
++        meta: metaFor("detectdb"),
+         count: offline,
+         summary: `ตอนนี้เครื่องออฟไลน์: ${offline} เครื่อง`,
+       };
+@@ -201,6 +218,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+           ok: false,
+           intent,
+           code: "MISSING_DATE_COLUMN",
++          meta: metaFor("placeholder"),
+           table: "machines",
+           columns: cols,
+         };
+@@ -215,6 +233,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+       return {
+         ok: true,
+         intent,
++        meta: metaFor("detectdb"),
+         count: n,
+         dateColumn: dateCol,
+         summary: `วันนี้ machine evidence ทำงาน: ${n} เครื่อง`,
+@@ -226,12 +245,13 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+       const cols = await getColumns("record");
+       const createdCol = pickFirstColumn(cols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
+       if (!createdCol) {
+-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", table: "record", columns: cols };
++        return { ok: false, intent, code: "MISSING_DATE_COLUMN", meta: metaFor("placeholder"), table: "record", columns: cols };
+       }
+       const n = await countQuery(`SELECT COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) = ?`, [today]);
+       return {
+         ok: true,
+         intent,
++        meta: metaFor("detectdb"),
+         count: n,
+         dateColumn: createdCol,
+         summary: `วันนี้จัดเก็บหลักฐานวิดีโอได้: ${n} รายการ`,
+@@ -243,12 +263,13 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+       const cols = await getColumns("record");
+       const createdCol = pickFirstColumn(cols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
+       if (!createdCol) {
+-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", table: "record", columns: cols };
++        return { ok: false, intent, code: "MISSING_DATE_COLUMN", meta: metaFor("placeholder"), table: "record", columns: cols };
+       }
+       const n = await countQuery(`SELECT COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) = ?`, [yesterday]);
+       return {
+         ok: true,
+         intent,
++        meta: metaFor("detectdb"),
+         date: yesterday,
+         count: n,
+         kpis: buildKpis(n, null, null),
+@@ -272,6 +293,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+           ok: false,
+           intent,
+           code: "MISSING_DATE_COLUMN",
++          meta: metaFor("placeholder"),
+           dbTable: "record",
+           columns: recordCols,
+           kpis: buildKpis(0, null, null),
+@@ -289,6 +311,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+           ok: false,
+           intent,
+           code: "MISSING_REQUIRED_COLUMNS",
++          meta: metaFor("placeholder"),
+           date: yesterday,
+           total,
+           kpis: buildKpis(total, null, null),
+@@ -336,6 +359,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+       return {
+         ok: true,
+         intent,
++        meta: metaFor("detectdb"),
+         date: yesterday,
+         total,
+         byIsp: tableRows,
+@@ -352,13 +376,13 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+       const cols = await getColumns("record");
+       const createdCol = pickFirstColumn(cols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
+       if (!createdCol) {
+-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", table: "record", columns: cols };
++        return { ok: false, intent, code: "MISSING_DATE_COLUMN", meta: metaFor("placeholder"), table: "record", columns: cols };
+       }
+ 
+       const end = getBangkokDate(0);
+       const start = getBangkokDate(-6);
+       const rows = await queryEvidence<any>(
+-        `SELECT DATE(\`${createdCol}\`) as d, COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) BETWEEN ? AND ? GROUP BY DATE(\`${createdCol}\`) ORDER BY d ASC`,
++        `SELECT DATE_FORMAT(\`${createdCol}\`, '%Y-%m-%d') as d, COUNT(*) as c FROM record WHERE DATE(\`${createdCol}\`) BETWEEN ? AND ? GROUP BY DATE(\`${createdCol}\`) ORDER BY d ASC`,
+         [start, end]
+       );
+ 
+@@ -380,6 +404,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+       return {
+         ok: true,
+         intent,
++        meta: metaFor("detectdb"),
+         range: { start, end },
+         kpis: buildKpis(total, null, null),
+         series: { label: "หลักฐานต่อวัน", points },
+@@ -394,7 +419,7 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+       const nipCreatedCol = pickFirstColumn(nipCols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
+       const nipNoCol = pickFirstColumn(nipCols, ["nip_no", "nipNo", "nip_id", "id"]);
+       if (!nipCreatedCol || !nipNoCol) {
+-        return { ok: false, intent, code: "MISSING_REQUIRED_COLUMNS", table: "nip", columns: nipCols };
++        return { ok: false, intent, code: "MISSING_REQUIRED_COLUMNS", meta: metaFor("placeholder"), table: "nip", columns: nipCols };
+       }
+ 
+       // Best-effort: count NIP created today where status_rec is NULL OR not in record.
+@@ -403,20 +428,20 @@ export async function handleEvidenceTool(args: any): Promise<any> {
+         `SELECT COUNT(*) as c FROM nip WHERE DATE(\`${nipCreatedCol}\`) = ? AND (status_rec IS NULL OR \`${nipNoCol}\` NOT IN (SELECT \`${nipNoCol}\` FROM record))`,
+         [today]
+       );
+-      return { ok: true, intent, count: n, summary: `หลักฐานค้างดำเนินการวันนี้: ${n} รายการ` };
++      return { ok: true, intent, meta: metaFor("detectdb"), count: n, summary: `หลักฐานค้างดำเนินการวันนี้: ${n} รายการ` };
+     }
+ 
+     if (intent === "recent_threats") {
+       const nipCols = await getColumns("nip");
+       const nipCreatedCol = pickFirstColumn(nipCols, ["create_date", "created_at", "created_date", "created_on", "timestamp"]);
+       if (!nipCreatedCol) {
+-        return { ok: false, intent, code: "MISSING_DATE_COLUMN", table: "nip", columns: nipCols };
++        return { ok: false, intent, code: "MISSING_DATE_COLUMN", meta: metaFor("placeholder"), table: "nip", columns: nipCols };
+       }
+       const n = await countQuery(`SELECT COUNT(*) as c FROM nip WHERE DATE(\`${nipCreatedCol}\`) = ?`, [today]);
+-      return { ok: true, intent, count: n, summary: `เหตุการณ์ (NIP) วันนี้: ${n} รายการ` };
++      return { ok: true, intent, meta: metaFor("detectdb"), count: n, summary: `เหตุการณ์ (NIP) วันนี้: ${n} รายการ` };
+     }
+ 
+-    return { ok: false, code: "UNKNOWN_INTENT", message: `Unknown intent: ${String(intent)}` };
++    return { ok: false, code: "UNKNOWN_INTENT", meta: metaFor("placeholder"), message: `Unknown intent: ${String(intent)}` };
+   } catch (error: any) {
+     const code = String(error?.code || "").toUpperCase();
+     if (code === "MISSING_DETECT_DB_CREDS") {
+diff --git a/scripts/run_ui_smoke_evidence_dashboard.ps1 b/scripts/run_ui_smoke_evidence_dashboard.ps1
+new file mode 100644
+index 0000000..10535c0
+--- /dev/null
++++ b/scripts/run_ui_smoke_evidence_dashboard.ps1
+@@ -0,0 +1,221 @@
++Param(
++  [int]$TimeoutSeconds = 420
++)
++
++$ErrorActionPreference = 'Stop'
++
++function Write-LogLine {
++  Param([string]$Line)
++  $ts = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
++  "$ts  $Line" | Out-File -FilePath $script:EvidenceLog -Encoding utf8 -Append
++}
++
++function Kill-NodeTrees {
++  try {
++    $procs = Get-CimInstance Win32_Process | Where-Object {
++      $_.Name -in @('node.exe','npm.exe','npx.exe')
++    }
++
++    foreach ($p in $procs) {
++      try {
++        Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
++      } catch {
++        # ignore
++      }
++    }
++  } catch {
++    # ignore
++  }
++}
++
++function Wait-HttpOk {
++  Param(
++    [string]$Url,
++    [int]$WaitSeconds = 60
++  )
++
++  $deadline = (Get-Date).AddSeconds($WaitSeconds)
++  while ((Get-Date) -lt $deadline) {
++    try {
++      $r = Invoke-WebRequest -UseBasicParsing -TimeoutSec 4 -Uri $Url
++      if ($r.StatusCode -ge 200 -and $r.StatusCode -lt 500) {
++        return $true
++      }
++    } catch {
++      Start-Sleep -Milliseconds 800
++    }
++  }
++  return $false
++}
++
++function Resolve-McpHealthUrl {
++  $candidates = @(
++    'http://localhost:3012/health',
++    'http://127.0.0.1:3012/health',
++    'http://localhost:3013/health',
++    'http://127.0.0.1:3013/health'
++  )
++
++  foreach ($u in $candidates) {
++    if (Wait-HttpOk -Url $u -WaitSeconds 2) { return $u }
++  }
++  return $candidates[0]
++}
++
++function Tail-TextFile {
++  Param(
++    [string]$Path,
++    [int]$Lines = 30
++  )
++  if (-not (Test-Path $Path)) { return "(no log file)" }
++  try {
++    return (Get-Content -Path $Path -Tail $Lines -ErrorAction Stop) -join "`n"
++  } catch {
++    return "(failed to read log file)"
++  }
++}
++
++$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
++$stamp = (Get-Date).ToString('yyyyMMdd-HHmmss')
++$evidenceDir = Join-Path $repoRoot 'innomcp-node\evidence'
++New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
++$script:EvidenceLog = Join-Path $evidenceDir ("ui-smoke-evidence-dashboard-$stamp.log")
++
++Write-LogLine "ui-smoke start"
++Write-LogLine "repoRoot=$repoRoot"
++Write-LogLine "timeoutSeconds=$TimeoutSeconds"
++
++$pass = $false
++$blockedReason = ''
++
++$env:SMOKE_MODE = '1'
++$env:NODE_ENV = 'test'
++$env:WEATHER_FIXTURE_W1 = '1'
++
++$mcpProc = $null
++$backendProc = $null
++$frontendProc = $null
++$pwProc = $null
++
++$mcpOut = Join-Path $evidenceDir ("ui-smoke-mcp-$stamp.out.log")
++$mcpErr = Join-Path $evidenceDir ("ui-smoke-mcp-$stamp.err.log")
++$beOut  = Join-Path $evidenceDir ("ui-smoke-backend-$stamp.out.log")
++$beErr  = Join-Path $evidenceDir ("ui-smoke-backend-$stamp.err.log")
++$feOut  = Join-Path $evidenceDir ("ui-smoke-frontend-$stamp.out.log")
++$feErr  = Join-Path $evidenceDir ("ui-smoke-frontend-$stamp.err.log")
++$pwOut  = Join-Path $evidenceDir ("ui-smoke-playwright-$stamp.out.log")
++$pwErr  = Join-Path $evidenceDir ("ui-smoke-playwright-$stamp.err.log")
++
++try {
++  Write-LogLine "cleanup: kill node trees"
++  Kill-NodeTrees
++
++  Write-LogLine "start: MCP server (innomcp-server-node)"
++  Write-LogLine "mcp logs: out=$mcpOut err=$mcpErr"
++  $mcpProc = Start-Process -FilePath 'cmd' -ArgumentList @('/d','/c','npm run dev') -WorkingDirectory (Join-Path $repoRoot 'innomcp-server-node') -WindowStyle Hidden -RedirectStandardOutput $mcpOut -RedirectStandardError $mcpErr -PassThru
++  Start-Sleep -Seconds 2
++  if ($mcpProc.HasExited) {
++    $blockedReason = 'MCP_EXITED_EARLY'
++    Write-LogLine "mcp exited early: exitCode=$($mcpProc.ExitCode)"
++    Write-LogLine ("mcp stderr tail:`n" + (Tail-TextFile -Path $mcpErr -Lines 40))
++    throw "BLOCKED:$blockedReason"
++  }
++
++  $mcpHealth = Resolve-McpHealthUrl
++  Write-LogLine "wait: MCP health $mcpHealth"
++  if (-not (Wait-HttpOk -Url $mcpHealth -WaitSeconds 120)) {
++    $blockedReason = 'MCP_NOT_READY'
++    throw "BLOCKED:$blockedReason"
++  }
++
++  Write-LogLine "start: Backend (innomcp-node)"
++  Write-LogLine "backend logs: out=$beOut err=$beErr"
++  $backendProc = Start-Process -FilePath 'cmd' -ArgumentList @('/d','/c','npm run dev') -WorkingDirectory (Join-Path $repoRoot 'innomcp-node') -WindowStyle Hidden -RedirectStandardOutput $beOut -RedirectStandardError $beErr -PassThru
++  Start-Sleep -Seconds 2
++  if ($backendProc.HasExited) {
++    $blockedReason = 'BACKEND_EXITED_EARLY'
++    Write-LogLine "backend exited early: exitCode=$($backendProc.ExitCode)"
++    Write-LogLine ("backend stderr tail:`n" + (Tail-TextFile -Path $beErr -Lines 40))
++    throw "BLOCKED:$blockedReason"
++  }
++
++  Write-LogLine "wait: Backend health http://127.0.0.1:3011/health"
++  if (-not (Wait-HttpOk -Url 'http://localhost:3011/health' -WaitSeconds 120)) {
++    $blockedReason = 'BACKEND_NOT_READY'
++    throw "BLOCKED:$blockedReason"
++  }
++
++  Write-LogLine "start: Frontend (innomcp-next)"
++  Write-LogLine "frontend logs: out=$feOut err=$feErr"
++  $frontendProc = Start-Process -FilePath 'cmd' -ArgumentList @('/d','/c','npm run dev') -WorkingDirectory (Join-Path $repoRoot 'innomcp-next') -WindowStyle Hidden -RedirectStandardOutput $feOut -RedirectStandardError $feErr -PassThru
++  Start-Sleep -Seconds 2
++  if ($frontendProc.HasExited) {
++    $blockedReason = 'FRONTEND_EXITED_EARLY'
++    Write-LogLine "frontend exited early: exitCode=$($frontendProc.ExitCode)"
++    Write-LogLine ("frontend stderr tail:`n" + (Tail-TextFile -Path $feErr -Lines 40))
++    throw "BLOCKED:$blockedReason"
++  }
++
++  Write-LogLine "wait: Frontend http://127.0.0.1:3000"
++  if (-not (Wait-HttpOk -Url 'http://localhost:3000' -WaitSeconds 120)) {
++    $blockedReason = 'FRONTEND_NOT_READY'
++    throw "BLOCKED:$blockedReason"
++  }
++
++  $pwCmd = Join-Path $repoRoot 'node_modules\\.bin\\playwright.cmd'
++  $spec = 'tests/e2e/tests/evidence-dashboard.spec.ts'
++  $cfg = 'playwright.config.ts'
++  Write-LogLine "run: Playwright cmd=$pwCmd cfg=$cfg spec=$spec"
++  Write-LogLine "playwright logs: out=$pwOut err=$pwErr"
++
++  $pwCmdLine = "`"$pwCmd`" test $spec --config $cfg --reporter=line"
++  $pwProc = Start-Process -FilePath 'cmd' -ArgumentList @('/d','/c',$pwCmdLine) -WorkingDirectory $repoRoot -WindowStyle Hidden -RedirectStandardOutput $pwOut -RedirectStandardError $pwErr -PassThru
++
++  $waitOk = $pwProc.WaitForExit($TimeoutSeconds * 1000)
++  if (-not $waitOk) {
++    $blockedReason = 'PLAYWRIGHT_TIMEOUT'
++    throw "BLOCKED:$blockedReason"
++  }
++
++  if (($pwProc.ExitCode -as [int]) -ne 0) {
++    $blockedReason = "PLAYWRIGHT_FAILED(exit=$($pwProc.ExitCode))"
++    throw "BLOCKED:$blockedReason"
++  }
++
++  $pass = $true
++} catch {
++  $msg = $_.Exception.Message
++  if ($msg -like 'BLOCKED:*') {
++    $blockedReason = $msg.Substring(8)
++  } elseif (-not $blockedReason) {
++    $blockedReason = 'UNKNOWN_ERROR'
++  }
++  Write-LogLine "error: $msg"
++} finally {
++  Write-LogLine "cleanup: stop Playwright"
++  if ($pwProc -and -not $pwProc.HasExited) {
++    try { Stop-Process -Id $pwProc.Id -Force -ErrorAction SilentlyContinue } catch {}
++  }
++
++  Write-LogLine "cleanup: kill node trees"
++  Kill-NodeTrees
++
++  Write-LogLine "cleanup: stop service procs"
++  foreach ($p in @($frontendProc,$backendProc,$mcpProc)) {
++    if ($p -and -not $p.HasExited) {
++      try { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue } catch {}
++    }
++  }
++}
++
++if ($pass) {
++  Write-LogLine "RESULT: PASS"
++  Write-Output "PASS"
++  Write-Output ("evidence:{0}" -f $script:EvidenceLog)
++  exit 0
++}
++
++Write-LogLine ("RESULT: BLOCKED:{0}" -f $blockedReason)
++Write-Output ("BLOCKED:{0}" -f $blockedReason)
++Write-Output ("evidence:{0}" -f $script:EvidenceLog)
++exit 2
+diff --git a/tests/e2e/tests/evidence-dashboard.spec.ts b/tests/e2e/tests/evidence-dashboard.spec.ts
+index 2db6f86..8c9e829 100644
+--- a/tests/e2e/tests/evidence-dashboard.spec.ts
++++ b/tests/e2e/tests/evidence-dashboard.spec.ts
+@@ -34,8 +34,8 @@ test.describe("Evidence Dashboard", () => {
+       }
+     });
+ 
+-    await page.goto("http://localhost:3000");
+-    await page.waitForLoadState("networkidle");
++    await page.goto("http://localhost:3000", { waitUntil: "domcontentloaded" });
++    await expect(page.locator('[data-testid="chat-input"]')).toBeVisible({ timeout: 20000 });
+   });
+ 
+   test("renders KPI/table for ISP evidence", async ({ page }) => {
+-- 
+2.52.0.windows.1
+

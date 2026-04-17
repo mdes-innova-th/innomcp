@@ -1,0 +1,537 @@
+From 9721be9f063fc080e64c19a07bb2e1e6f6065177 Mon Sep 17 00:00:00 2001
+From: mdes-innova <mdes.innovation@gmail.com>
+Date: Fri, 27 Feb 2026 03:13:42 +0700
+Subject: [PATCH 5/9] repo hygiene: untrack env, remove hardcoded db passwords
+
+---
+ TODO.md                                       | 24 +++---
+ docs/reports/phase9_ops_and_repo_hygiene.md   | 39 +++++++---
+ innomcp-next/.env                             | 59 ---------------
+ innomcp-next/.env.example                     | 17 +++++
+ innomcp-node/.env                             | 53 -------------
+ innomcp-node/.env.example                     | 27 +++++++
+ .../scripts/verify_phase91_detectdb_e2e.ts    | 22 +++++-
+ innomcp-server-node/.env                      | 75 -------------------
+ innomcp-server-node/.env.example              | 24 ++++++
+ mariadb/docker-compose.yml                    |  4 +-
+ 10 files changed, 130 insertions(+), 214 deletions(-)
+ delete mode 100644 innomcp-next/.env
+ create mode 100644 innomcp-next/.env.example
+ delete mode 100644 innomcp-node/.env
+ create mode 100644 innomcp-node/.env.example
+ delete mode 100644 innomcp-server-node/.env
+ create mode 100644 innomcp-server-node/.env.example
+
+diff --git a/TODO.md b/TODO.md
+index 319bc99..473be83 100644
+--- a/TODO.md
++++ b/TODO.md
+@@ -1396,7 +1396,7 @@ Evidence (Trace v3, 12 lines)
+     - $env:NODE_OPTIONS="";
+     - node -e "require('./dist/mcp/tools/evidenceTool').evidenceTool.execute({action: 'list_tables'}).then(console.log).catch(console.error)"
+   - Result:
+-    - Error: Access denied for user 'root'@'node-ulg.pool-182-53.dynamic.nt-isp.net' (using password: YES)
++    - Error: Access denied for user 'root'@'<REDACTED_HOST>' (using password: YES)
+   - Action needed (infra/config):
+     - grant remote access for DETECT_DB_USER หรือเปลี่ยนเป็น user ที่อนุญาต remote read
+ 
+@@ -1841,7 +1841,7 @@ Evidence (Trace v3, 12 lines)
+       - `Push-Location innomcp-server-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase72_officer_evidenceTool_v1.ts; Pop-Location`
+     - Result:
+       - ok=false
+-      - error=`Access denied for user 'root'@'182.53.154.233' (using password: NO)`
++      - error=`Access denied for user 'root'@'<REDACTED_IP>' (using password: NO)`
+       - exit code=2
+     - \***\*\*\*\***Issue: Verify script blocked by Detect DB credentials (DETECT_DB_PASSWORD missing). ต้องตั้งค่า DETECT_DB_PASSWORD (และ host allowlist) เพื่อใช้งานกับ DB จริง\***\*\*\*\***
+ 
+@@ -1865,10 +1865,10 @@ Evidence (Trace v3, 12 lines)
+     - DB start:
+       - `docker compose -f mariadb/docker-compose.yml up -d`
+     - Seed (minimal tables for machines/nip/record):
+-      - `docker exec -i mariadb-innomcp mariadb -uroot -prockbottom -D "innomcp-db" -e "CREATE TABLE IF NOT EXISTS machines (id INT AUTO_INCREMENT PRIMARY KEY, is_online TINYINT NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS record (id INT AUTO_INCREMENT PRIMARY KEY, create_date DATETIME NOT NULL); CREATE TABLE IF NOT EXISTS nip (id INT AUTO_INCREMENT PRIMARY KEY, create_date DATETIME NOT NULL);"`
+-      - `docker exec -i mariadb-innomcp mariadb -uroot -prockbottom -D "innomcp-db" -e "TRUNCATE TABLE machines; TRUNCATE TABLE record; TRUNCATE TABLE nip; INSERT INTO machines (is_online) VALUES (1),(1),(1),(0),(0); INSERT INTO record (create_date) VALUES (NOW()),(NOW()),(NOW()),(NOW() - INTERVAL 1 DAY); INSERT INTO nip (create_date) VALUES (NOW()),(NOW()),(NOW()),(NOW()),(NOW() - INTERVAL 1 DAY);"`
++      - `docker exec -i mariadb-innomcp mariadb -uroot -p<REDACTED> -D "innomcp-db" -e "CREATE TABLE IF NOT EXISTS machines (id INT AUTO_INCREMENT PRIMARY KEY, is_online TINYINT NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS record (id INT AUTO_INCREMENT PRIMARY KEY, create_date DATETIME NOT NULL); CREATE TABLE IF NOT EXISTS nip (id INT AUTO_INCREMENT PRIMARY KEY, create_date DATETIME NOT NULL);"`
++      - `docker exec -i mariadb-innomcp mariadb -uroot -p<REDACTED> -D "innomcp-db" -e "TRUNCATE TABLE machines; TRUNCATE TABLE record; TRUNCATE TABLE nip; INSERT INTO machines (is_online) VALUES (1),(1),(1),(0),(0); INSERT INTO record (create_date) VALUES (NOW()),(NOW()),(NOW()),(NOW() - INTERVAL 1 DAY); INSERT INTO nip (create_date) VALUES (NOW()),(NOW()),(NOW()),(NOW()),(NOW() - INTERVAL 1 DAY);"`
+     - Run command:
+-      - `Push-Location innomcp-server-node; $env:TS_NODE_CACHE='false'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npx ts-node scripts/verify_phase72_officer_evidenceTool_v1.ts; Pop-Location`
++      - `Push-Location innomcp-server-node; $env:TS_NODE_CACHE='false'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='<REDACTED>'; $env:DETECT_DB_NAME='innomcp-db'; npx ts-node scripts/verify_phase72_officer_evidenceTool_v1.ts; Pop-Location`
+     - Stdout excerpt:
+       - `[Q] ตอนนี้เครื่องออนไลน์กี่เครื่อง` => `ตอนนี้เครื่องออนไลน์: 3 เครื่อง`
+       - `[Q] วันนี้จัดเก็บหลักฐานวิดีโอแล้วได้ทั้งหมดเท่าไหร่` => `วันนี้จัดเก็บหลักฐานวิดีโอแล้ว: 3 รายการ`
+@@ -2029,15 +2029,15 @@ Evidence (Trace v3, 12 lines)
+     - Verify (repro commands)
+       - DB (repo root):
+         - `docker compose -f mariadb/docker-compose.yml up -d`
+-        - `docker exec -i mariadb-innomcp mariadb -uroot -prockbottom -D "innomcp-db" -e "CREATE TABLE IF NOT EXISTS machines (id INT AUTO_INCREMENT PRIMARY KEY, is_online TINYINT NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS record (id INT AUTO_INCREMENT PRIMARY KEY, create_date DATETIME NOT NULL);"`
+-        - `docker exec -i mariadb-innomcp mariadb -uroot -prockbottom -D "innomcp-db" -e "ALTER TABLE machines ADD COLUMN last_check_in DATETIME NULL; ALTER TABLE machines ADD COLUMN create_datetime DATETIME NULL;"`
+-        - `docker exec -i mariadb-innomcp mariadb -uroot -prockbottom -D "innomcp-db" -e "TRUNCATE TABLE machines; TRUNCATE TABLE record; INSERT INTO machines (is_online, last_check_in, create_datetime) VALUES (1, NOW(), NOW()),(1, NOW(), NOW()),(1, NOW(), NOW()),(0, NOW(), NOW()),(0, NOW(), NOW()),(1, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 1 DAY); INSERT INTO record (create_date) VALUES (NOW()),(NOW()),(NOW()),(NOW() - INTERVAL 1 DAY);"`
++        - `docker exec -i mariadb-innomcp mariadb -uroot -p<REDACTED> -D "innomcp-db" -e "CREATE TABLE IF NOT EXISTS machines (id INT AUTO_INCREMENT PRIMARY KEY, is_online TINYINT NOT NULL DEFAULT 0); CREATE TABLE IF NOT EXISTS record (id INT AUTO_INCREMENT PRIMARY KEY, create_date DATETIME NOT NULL);"`
++        - `docker exec -i mariadb-innomcp mariadb -uroot -p<REDACTED> -D "innomcp-db" -e "ALTER TABLE machines ADD COLUMN last_check_in DATETIME NULL; ALTER TABLE machines ADD COLUMN create_datetime DATETIME NULL;"`
++        - `docker exec -i mariadb-innomcp mariadb -uroot -p<REDACTED> -D "innomcp-db" -e "TRUNCATE TABLE machines; TRUNCATE TABLE record; INSERT INTO machines (is_online, last_check_in, create_datetime) VALUES (1, NOW(), NOW()),(1, NOW(), NOW()),(1, NOW(), NOW()),(0, NOW(), NOW()),(0, NOW(), NOW()),(1, NOW() - INTERVAL 1 DAY, NOW() - INTERVAL 1 DAY); INSERT INTO record (create_date) VALUES (NOW()),(NOW()),(NOW()),(NOW() - INTERVAL 1 DAY);"`
+ 
+       - Terminal A (MCP server):
+-        - `cd innomcp-server-node; $env:SERVER_PORT='3014'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
++        - `cd innomcp-server-node; $env:SERVER_PORT='3014'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='<REDACTED>'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
+ 
+       - Terminal B (backend):
+-        - `cd innomcp-node; $env:CHAT_TRACE_QA='1'; $env:SERVER_PORT='3030'; $env:MCPSERVER_URL='http://localhost:3014/mcp'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
++        - `cd innomcp-node; $env:CHAT_TRACE_QA='1'; $env:SERVER_PORT='3030'; $env:MCPSERVER_URL='http://localhost:3014/mcp'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='<REDACTED>'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
+ 
+       - Terminal C (verifier):
+         - `npx ts-node scripts/verify_phase724_officer_evidence_v1.ts --port 3030`
+@@ -2091,9 +2091,9 @@ Evidence (Trace v3, 12 lines)
+ 
+     - Verify (repro commands)
+       - Terminal A (MCP server):
+-        - `cd innomcp-server-node; $env:SERVER_PORT='3015'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
++        - `cd innomcp-server-node; $env:SERVER_PORT='3015'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='<REDACTED>'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
+       - Terminal B (backend):
+-        - `cd innomcp-node; $env:CHAT_TRACE_QA='1'; $env:SERVER_PORT='3035'; $env:MCPSERVER_URL='http://localhost:3015/mcp'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='rockbottom'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
++        - `cd innomcp-node; $env:CHAT_TRACE_QA='1'; $env:SERVER_PORT='3035'; $env:MCPSERVER_URL='http://localhost:3015/mcp'; $env:DETECT_DB_HOST='127.0.0.1'; $env:DETECT_DB_PORT='3308'; $env:DETECT_DB_USER='root'; $env:DETECT_DB_PASSWORD='<REDACTED>'; $env:DETECT_DB_NAME='innomcp-db'; npm run dev`
+       - Terminal C (verifier):
+         - `npx ts-node scripts/verify_phase725_trace_v3.ts --port 3035`
+ 
+diff --git a/docs/reports/phase9_ops_and_repo_hygiene.md b/docs/reports/phase9_ops_and_repo_hygiene.md
+index 60f35d2..0625a3b 100644
+--- a/docs/reports/phase9_ops_and_repo_hygiene.md
++++ b/docs/reports/phase9_ops_and_repo_hygiene.md
+@@ -6,21 +6,25 @@ _This document consolidates operational best practices, verified commands, tool
+ 
+ Run these commands from the repository root to verify system integrity before or after major changes.
+ 
+-| Command Purpose                   | Command                                                          |
+-| --------------------------------- | ---------------------------------------------------------------- |
+-| **Minimal CI**                    | `npm run minimal-ci`                                             |
+-| **RC Gate**                       | `npm run rc-gate`                                                |
+-| **DetectDB Verifier** (Phase 9.1) | `npx ts-node innomcp-node/scripts/verify_phase91_detectdb_v1.ts` |
+-| **UI Smoke Runner** (Phase 9.2+)  | `pwsh innomcp-next/scripts/run_smoke.ps1`                        |
++| Command Purpose                   | Command                                                                                          |
++| --------------------------------- | ------------------------------------------------------------------------------------------------ |
++| **Minimal CI**                    | `npm run minimal-ci`                                                                           |
++| **RC Gate**                       | `npm run rc-gate`                                                                              |
++| **DetectDB Verifier** (Phase 9.1) | `cd innomcp-node; $env:TS_NODE_CACHE='false'; npx ts-node scripts/verify_phase91_detectdb_e2e.ts` |
++| **UI Smoke Runner** (Phase 9.2+)  | `powershell -ExecutionPolicy Bypass -File scripts\run_ui_smoke_evidence_dashboard.ps1 -TimeoutSeconds 420` |
+ 
+ ## 2. Tool Inventory
+ 
+ | Tool Name                 | Route Gate        | Required Env                        | Deterministic Fixture?    | Verifier Script                 |
+ | ------------------------- | ----------------- | ----------------------------------- | ------------------------- | ------------------------------- |
+-| `get_weather_forecast`    | `WEATHER_ROUTER`  | `WHEATHER_API_KEY`                  | Yes (Mocks available)     | `verify_weather_v2.ts`          |
+-| `get_hourly_forecast`     | `WEATHER_ROUTER`  | `WHEATHER_API_KEY`                  | Yes                       | `verify_weather_v2.ts`          |
+-| `evidenceTool` (DetectDB) | `EVIDENCE_ROUTER` | `DETECT_DB_PASSWORD` (and variants) | Yes (via 2-mode DB mocks) | `verify_phase91_detectdb_v1.ts` |
+-| `thai_geo_tool`           | `GEO_ROUTER`      | N/A                                 | Yes                       | `verify_phase1_geo_roundB.ts`   |
++| `evidenceTool` (DetectDB) | `EVIDENCE_ROUTER` | `DETECT_DB_*`                       | Yes (seeded MariaDB)      | `innomcp-node/scripts/verify_phase91_detectdb_e2e.ts` |
++| Evidence Dashboard (UI)   | N/A (UI renderer) | N/A                                 | Yes (smoke runner)        | `scripts/run_ui_smoke_evidence_dashboard.ps1` |
++
++Notes:
++- `mariadb/docker-compose.yml` does not contain passwords. Provide them at runtime:
++	- PowerShell example: `$env:MARIADB_ROOT_PASSWORD='<set>'; $env:MARIADB_PASSWORD='<set>'`
++- Phase 9.1.1 requires provenance tagging: `structuredContent.meta.dataSource = detectdb | placeholder`.
++- For environment variables, prefer example templates: `innomcp-*/.env.example`.
+ 
+ ## 3. Repo Junk Map (Hygiene Guardrails)
+ 
+@@ -40,6 +44,11 @@ Run these commands from the repository root to verify system integrity before or
+ - `.turbo/`, `.cache/`
+ - Database credential files or explicit token dumps.
+ 
++If a secret-like file is already tracked, fix it immediately:
++- Untrack but keep locally: `git rm --cached path/to/.env`
++- Ensure it is ignored going forward (root `.gitignore` already ignores `.env`)
++- Assume credentials are compromised and rotate them.
++
+ ## 4. Contribution Guardrails
+ 
+ **Explicit Staging Checklist:**
+@@ -48,6 +57,13 @@ Run these commands from the repository root to verify system integrity before or
+ 2. Run `git diff` to ensure no embedded secrets or `console.log(process.env)` exist in the changes.
+ 3. Explicitly stage files: `git add path/to/specific/file.ts`. Never use `git add .` or `git commit -a`.
+ 
++Pre-push safety sweep (Windows-friendly):
++- `git status --porcelain=v1`
++- `git diff --name-status`
++- `git diff --cached --name-status`
++- `git clean -nd`
++- `git ls-files | findstr /i ".env"` (should be empty)
++
+ **Evidence Policy:**
+ 
+ - Routine evidence and trace logs should remain **untracked** locally.
+@@ -55,6 +71,7 @@ Run these commands from the repository root to verify system integrity before or
+ 
+ ## 5. Upcoming Risks (Phase 9+)
+ 
+-1. **CROSS `REQUEST_CHANGES` Conditions:** The CROSS gate for Phase 9.1.1 dictates that if `meta.dataSource` does not strictly equal `"detectdb"`, the review MUST fail. Proof of live DB connection is required over placeholder data.
++1. **CROSS `REQUEST_CHANGES` Conditions:** Phase 9.1.1 requires `meta.dataSource` to be strictly `"detectdb"` when real DB is available, and explicitly `"placeholder"` with a polite note when it is not. Proof must include a seeded/real DB run.
+ 2. **Windows Process Zombies:** The UI smoke runner spins up Node/Next.js processes in the background. If the script aborts unexpectedly, the processes hang holding ports. _Mitigation:_ Explicitly ensure `taskkill /F /IM node.exe /T` (or PowerShell equivalent) is bound to script exit hooks.
+ 3. **Playwright `networkidle` Stability:** Avoid `waitUntil: 'networkidle'` as it frequently times out on slower local dev environments. Use stable DOM selectors (e.g. `page.waitForSelector('[data-testid="kpi-card"]')`).
++4. **Doc hygiene:** Never commit real passwords/tokens in docs (including TODO). Use `<REDACTED>` placeholders.
+diff --git a/innomcp-next/.env b/innomcp-next/.env
+deleted file mode 100644
+index e82e9b1..0000000
+--- a/innomcp-next/.env
++++ /dev/null
+@@ -1,59 +0,0 @@
+-HOST=localhost
+-PORT=3000
+-# HOST=innomcp-next
+-# PORT=3000
+-
+-DB_HOST=localhost
+-# DB_HOST=mariadb-innomcp
+-# Host mode (run Next.js on host, DB in Docker): connect via published host port.
+-DB_PORT=3308
+-DB_USER=jlapps
+-DB_PASSWORD=rockbottom
+-DB_NAME=innomcp-db
+-
+-API_KEY_SECRET=yaHoo.com
+-JWT_SECRET=gMail.com
+-TOKEN_NAME=innomcp_token
+-
+-NODE_BACKEND_HOST=http://localhost:3011
+-# NODE_BACKEND_HOST=http://innomcp-node:3010
+-
+-NODE_WS_BACKEND_HOST=ws://localhost:3011
+-# NODE_WS_BACKEND_HOST=ws://innomcp-node:3010
+-
+-BASE_API_KEY=innomcp_d5acd09cc0103b16293181020cba0bace9b426f41ffb685c
+-REDIS_HOST=localhost
+-# REDIS_HOST=redis
+-REDIS_PORT=6379
+-REDIS_PASSWORD=rockbottom
+-
+-THAID_AUTH_URL=https://imauth.bora.dopa.go.th/api/v2/oauth2/auth/
+-THAID_TOKEN_URL=https://imauth.bora.dopa.go.th/api/v2/oauth2/token/
+-THAID_API_KEY=thaid_api_key
+-THAID_CLIENT_ID=thaid_client_id
+-THAID_CLIENT_SECRET=thaid_client_secret
+-NEXT_AUTH_URL=https://innomcp.dataxo.info
+-COOKIE_DOMAIN=.dataxo.info
+-
+-UPLOAD_DIR=assets/uploads
+-
+-NEXT_PUBLIC_APPNAME=InnoMCP
+-NEXT_PUBLIC_APPTITLE=InnoMCP - Intelligent Model Context Protocol
+-NEXT_PUBLIC_HOST=http://localhost:3000
+-# NEXT_PUBLIC_HOST=https://innomcp.dataxo.info
+-
+-NEXT_PUBLIC_DEFAULT_DATA_DAYS=30
+-NEXT_PUBLIC_DEFAULT_DATA_MONTHS=6
+-NEXT_PUBLIC_DEFAULT_DATA_YEARS=2
+-
+-NEXT_PUBLIC_LOGIN_THAID=true
+-NEXT_PUBLIC_LOGIN_FORM=true
+-NEXT_PUBLIC_LOGIN_FORM_NAME=false
+-NEXT_PUBLIC_REGISTRATION_BUTTON=false
+-NEXT_PUBLIC_RESETPASSWORD_BUTTON=false
+-
+-NEXT_PUBLIC_NODE_HOST=http://localhost:3011
+-# NEXT_PUBLIC_NODE_HOST=http://innomcp-node:3010
+-
+-NEXT_PUBLIC_NODE_WS_HOST=ws://localhost:3011
+-# NEXT_PUBLIC_NODE_WS_HOST=wss://innomcp.dataxo.info/ws
+diff --git a/innomcp-next/.env.example b/innomcp-next/.env.example
+new file mode 100644
+index 0000000..e453e1e
+--- /dev/null
++++ b/innomcp-next/.env.example
+@@ -0,0 +1,17 @@
++# Example environment file (DO NOT put secrets in git)
++
++# Next.js
++NODE_ENV=development
++
++# App
++HOST=localhost
++PORT=3000
++
++# Auth / cookies
++JWT_SECRET=
++TOKEN_NAME=token
++COOKIE_DOMAIN=
++
++# Backend/MCP wiring (adjust per environment)
++NEXT_PUBLIC_BACKEND_URL=http://localhost:3011
++NEXT_PUBLIC_WS_URL=ws://localhost:3011
+diff --git a/innomcp-node/.env b/innomcp-node/.env
+deleted file mode 100644
+index a4b467b..0000000
+--- a/innomcp-node/.env
++++ /dev/null
+@@ -1,53 +0,0 @@
+-SERVER_HOST=localhost
+-# SERVER_HOST=innomcp-node
+-SERVER_PORT=3011
+-
+-DB_HOST=localhost
+-# DB_HOST=mariadb-innomcp
+-# Host mode (run Node on host, DB in Docker): connect via published host port.
+-DB_PORT=3308
+-
+-DB_USER=jlapps
+-DB_PASSWORD=rockbottom
+-DB_NAME=innomcp
+-
+-# --- EVIDENCE DB (Remote) ---
+-EVIDENCE_DB_HOST=209.15.105.27
+-EVIDENCE_DB_USER=jlapps
+-EVIDENCE_DB_PASSWORD=rockbottom
+-EVIDENCE_DB_NAME=detect
+-
+-
+-JWT_SECRET=gMail.com
+-API_KEY_SECRET=yaHoo.com
+-
+-ALLOWED_ORIGIN=http://localhost:3000,http://innomcp-next:3000,http://innomcp.dataxo.info
+-
+-NODE_ENV=development
+-# NODE_ENV=production
+-
+-REDIS_HOST=localhost
+-# REDIS_HOST=redis
+-REDIS_PORT=6379
+-REDIS_PASSWORD=rockbottom
+-
+-APPNAME=MDES Innovation MCP Backend
+-APPTITLE=MDES Innovation MCP Backend
+-
+-# OLLAMA_HOST=localhost
+-# OLLAMA_HOST=192.168.1.201
+-# OLLAMA_HOST=https://ollama.mdes-innova.online
+-OLLAMA_HOST=http://127.0.0.1:11434
+-LOCAL_OLLAMA_BASE_URL=http://127.0.0.1:11434
+-REMOTE_OLLAMA_BASE_URL=https://ollama.mdes-innova.online
+-
+-# OLLAMA_HOST=ollama
+-# OLLAMA_PORT=11434
+-# OLLAMA_MODEL=qwen2.5:0.5b
+-# OLLAMA_MODEL=gemma3:1b
+-OLLAMA_MODEL=gemma3:4b
+-# OLLAMA_MODEL=gemma3:12b
+-# OLLAMA_MODEL=deepseek-r1:32b
+-
+-MCPSERVER_URL=http://localhost:3012/mcp
+-# MCPSERVER_URL=http://innomcp-server-node:3012/mcp
+\ No newline at end of file
+diff --git a/innomcp-node/.env.example b/innomcp-node/.env.example
+new file mode 100644
+index 0000000..49e37e7
+--- /dev/null
++++ b/innomcp-node/.env.example
+@@ -0,0 +1,27 @@
++# Example environment file (DO NOT put secrets in git)
++
++# Server
++SERVER_HOST=127.0.0.1
++SERVER_PORT=3011
++LOG_MODE=dev
++
++# MCP server
++MCPSERVER_URL=http://localhost:3012/mcp
++
++# App DB (MariaDB)
++DB_HOST=127.0.0.1
++DB_PORT=3308
++DB_USER=root
++DB_PASSWORD=
++DB_NAME=innomcp
++
++# Docker MariaDB (used by local compose/seed scripts)
++MARIADB_ROOT_PASSWORD=
++MARIADB_PASSWORD=
++
++# DetectDB (Evidence) DB
++DETECT_DB_HOST=127.0.0.1
++DETECT_DB_PORT=3308
++DETECT_DB_USER=root
++DETECT_DB_PASSWORD=
++DETECT_DB_NAME=phase91_detectdb
+diff --git a/innomcp-node/scripts/verify_phase91_detectdb_e2e.ts b/innomcp-node/scripts/verify_phase91_detectdb_e2e.ts
+index 8c4a90f..bc21867 100644
+--- a/innomcp-node/scripts/verify_phase91_detectdb_e2e.ts
++++ b/innomcp-node/scripts/verify_phase91_detectdb_e2e.ts
+@@ -75,6 +75,15 @@ function looksLikeBadLeak(text: string): boolean {
+   return /(process\.env|DETECT_DB_PASSWORD|EVIDENCE_DB_PASSWORD|Authorization|Bearer\s+)/i.test(text);
+ }
+ 
++function getMariadbPasswordOrEmpty(): string {
++  return (
++    process.env.MARIADB_ROOT_PASSWORD ||
++    process.env.MARIADB_PASSWORD ||
++    process.env.INNOMCP_MARIADB_PASSWORD ||
++    ""
++  );
++}
++
+ function setEnvForMissingDetectDbCreds() {
+   // Force the EvidenceDB resolver to throw MISSING_DETECT_DB_CREDS via missing env.
+   // Do NOT use DETECT_DB_DISABLED here (Phase 9.1.1 requirement).
+@@ -88,10 +97,12 @@ function setEnvForMissingDetectDbCreds() {
+ }
+ 
+ function setEnvForRealDetectDb() {
++  const password = getMariadbPasswordOrEmpty();
++  if (!password) throw new Error("MISSING_MARIADB_PASSWORD_ENV");
+   process.env.DETECT_DB_HOST = "127.0.0.1";
+   process.env.DETECT_DB_PORT = "3308";
+   process.env.DETECT_DB_USER = "root";
+-  process.env.DETECT_DB_PASSWORD = "rockbottom";
++  process.env.DETECT_DB_PASSWORD = password;
+   process.env.DETECT_DB_NAME = "phase91_detectdb";
+ }
+ 
+@@ -116,6 +127,13 @@ async function ensureDetectDbSeeded(logLines: string[], failures: string[]) {
+   const repoRoot = path.resolve(__dirname, "..", "..");
+   const composeFile = path.resolve(repoRoot, "mariadb", "docker-compose.yml");
+ 
++  const password = getMariadbPasswordOrEmpty();
++  if (!password) {
++    failures.push("BLOCKED:MISSING_MARIADB_PASSWORD_ENV");
++    logLines.push("detectdb seed blocked: missing env MARIADB_ROOT_PASSWORD/MARIADB_PASSWORD");
++    return;
++  }
++
+   const up = tryDockerComposeUp(composeFile, path.dirname(composeFile));
+   logLines.push(`detectdb docker up: ok=${up.ok} cmd=${up.cmd}`);
+   if (!up.ok) {
+@@ -129,7 +147,7 @@ async function ensureDetectDbSeeded(logLines: string[], failures: string[]) {
+   let lastErr: any = null;
+   while (Date.now() < connectDeadline) {
+     try {
+-      conn = await mysql.createConnection({ host: "127.0.0.1", port: 3308, user: "root", password: "rockbottom" });
++      conn = await mysql.createConnection({ host: "127.0.0.1", port: 3308, user: "root", password });
+       await conn.ping();
+       break;
+     } catch (e: any) {
+diff --git a/innomcp-server-node/.env b/innomcp-server-node/.env
+deleted file mode 100644
+index 2abff4c..0000000
+--- a/innomcp-server-node/.env
++++ /dev/null
+@@ -1,75 +0,0 @@
+-SERVER_HOST=localhost
+-# SERVER_HOST=innomcp-node
+-SERVER_PORT=3012
+-
+-ALLOWED_ORIGIN=http://innomcp-node:3011,http://innomcp.dataxo.info
+-
+-NODE_ENV=development
+-# NODE_ENV=production
+-
+-APPNAME=MDES Innovation MCP Server
+-APPTITLE=MDES Innovation MCP Server
+-
+-WEBDDSB_HOST=localhost
+-# WEBDDSB_HOST=webddsb-node
+-WEBDDSB_PORT=3010
+-WEBDDSB_APIKEY=webd_e7a1711874b41f9f0bc49766e1b74302d18b96620e6067a4
+-
+-$2a$12$0dL3q45luKsRgzAPsSccxOSB4qpd7m9DgytOhbOvAQ3v7KNE0sXBG
+-
+-# Database Configuration (Copied from innomcp-node)
+-DB_HOST=localhost
+-# Host mode (run Node on host, DB in Docker): connect via published host port.
+-DB_PORT=3308
+-DB_USER=jlapps
+-DB_PASSWORD=rockbottom
+-DB_NAME=innomcp
+-
+-
+-# =========================
+-# WEATHER: NWP / TMD
+-# =========================
+-NWP_API_KEY=eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImp0aSI6ImVlM2IxNzc3YTI0YTFmZDBiODRjMzhkOTdkYjA5MzNjYmM3M2FjNzFmNzc2MzY4YzM5NDhkZGM1YzZmNTczYWQ0NDlmNWU2YjliNGFlYzdlIn0.eyJhdWQiOiIyIiwianRpIjoiZWUzYjE3NzdhMjRhMWZkMGI4NGMzOGQ5N2RiMDkzM2NiYzczYWM3MWY3NzYzNjhjMzk0OGRkYzVjNmY1NzNhZDQ0OWY1ZTZiOWI0YWVjN2UiLCJpYXQiOjE3NzA2NTM0NzgsIm5iZiI6MTc3MDY1MzQ3OCwiZXhwIjoxODAyMTg5NDc4LCJzdWIiOiI0ODIzIiwic2NvcGVzIjpbXX0.i-w80bFJHZCn27sjzsUuILq1JUUTkEtg-AY5maO2MsSIy39en3YbMi2gmFpZp7MZfSXmI4HCOza17seJJL8bVK_S9G8WoTK4jym7E11XqLoAy6ZZTeU22R8A2TskP_-pzl2Q65WBc4n74NHK9qAX1LxvwWqoavNCBRym84sidiQIsdJopM7owFS2_5FY8vBj7iRgnE_OKbYqfHLRqVG5IZCIcQAw2e195gpvcYJA8Jt9S1I6-Bc870d5gMdZZDja9YWqdrlx9eBfpGnqfyhkMaUCXtGGCfi_nPbdhS3vncXPj1_MC0MN_0tFMHTWx8idaO1bxaI27MUy7VedZdx0rr9LNTXnUHHpTY8FqQDhE0mtpP5f2q_I0B8lVJPy2FvE-LOVgGVpcWyck65-N6TiTpEXxS3dOu8ik0n7mGlp-O3gcj08kyBZfVxzhPiOu4jo8w87yi4RWay0Y3nvTDOJOr9bxdS3s7_MTNXWUc8XYoRuel5PwCz8aTOKYctnMIi0Kdryrav5OnBoc81THg8JoH5arKkDCikyAN6cAj2BTBNVGYiNXmgJ8kTFqkpZCOB2a1w3q_v71dOQjJ21_qn3hPpQkuG7stBosisp5XmfQL_3GsXsO_S30LPfDVqO-VCgUejAukQIb9k3fd2kcnhr-VmeeZp51TfyuPrbE3hOOjc
+-TMD_API_KEY=
+-# =========================
+-# =========================
+-# 🌤️ Weather & Climate APIs
+-OPENWEATHER_API_KEY=your_openweather_api_key_here     # สมัครฟรี https://openweathermap.org/api
+-WEATHERAPI_API_KEY=your_weatherapi_key_here           # สมัครฟรี https://www.weatherapi.com/
+-WEATHERBIT_API_KEY=                                   # มี free tier https://www.weatherbit.io/
+-WORLDWEATHERONLINE_API_KEY=                           # มี free tier https://www.worldweatheronline.com/
+-WEATHERSTACK_API_KEY=                                 # มี free tier https://weatherstack.com/
+-CLIMATEAPI_API_KEY=                                   # มี free tier https://www.climateapi.com/
+-BIGDATACLIMATE_API_KEY=                               # free tier (ต้องสมัคร)
+-AIRVISUAL_API_KEY=                                    # free tier https://www.iqair.com/world-air-quality
+-AIRQUALITYAPI_API_KEY=                                # free tier https://www.airqualityapi.com/
+-AIRNOW_API_KEY=DEMO_KEY                               # free DEMO_KEY https://docs.airnowapi.org/
+-POLLUTIONAPI_API_KEY=                                 # free tier (ต้องสมัคร)
+-WAQI_API_KEY=                                         # สมัครฟรี https://aqicn.org/data-platform/token/
+-WAQICN_API_KEY=                                       # alias ของ WAQI
+-AQICN_API_KEY=                                        # alias ของ WAQI
+-
+-# 🔍 Search & Knowledge APIs
+-GOOGLE_SEARCH_API_KEY=                                # สมัครฟรี https://programmablesearchengine.google.com/
+-SERPAPI_API_KEY=                                      # free tier https://serpapi.com/
+-BRAVE_SEARCH_API_KEY=                                 # free tier https://brave.com/search/api/
+-BING_SEARCH_API_KEY=                                  # free tier https://www.microsoft.com/en-us/bing/apis/
+-GOOGLE_API_KEY=                                       # สมัครฟรี https://console.cloud.google.com/
+-OPENAI_API_KEY=                                       # สมัครฟรี https://platform.openai.com/ (มี free credits)
+-OPENSEARCH_API_KEYS=                                  # free สำหรับ self-hosted
+-API_LAYERX_KEY=                                       # free tier https://apilayer.com/
+-NASA_API_KEY=DEMO_KEY                                 # DEMO_KEY ใช้ได้ฟรี https://api.nasa.gov/
+-
+-# 🗺️ Maps & Geolocation APIs
+-MAPBOX_TOKEN=                                         # free tier https://www.mapbox.com/
+-OPENCAGE_API_KEY=                                     # free tier https://opencagedata.com/
+-TIMEZONEDB_API_KEY=                                  # free tier https://timezonedb.com/
+-GEONAMES_USERNAME=your_geonames_username_here         # สมัครฟรี https://www.geonames.org/login
+-
+-# 🌐 IP & Network Geolocation APIs
+-IPSTACK_API_KEY=                                      # free tier https://ipstack.com/
+-IPINFO_API_KEY=                                       # free tier https://ipinfo.io/
+-IPDATA_API_KEY=                                       # free tier https://ipdata.co/
+-
+-# Phase 4
+-USE_INTELLIGENCE_PIPELINE=true
+\ No newline at end of file
+diff --git a/innomcp-server-node/.env.example b/innomcp-server-node/.env.example
+new file mode 100644
+index 0000000..9204663
+--- /dev/null
++++ b/innomcp-server-node/.env.example
+@@ -0,0 +1,24 @@
++# Example environment file (DO NOT put secrets in git)
++
++# MCP server
++SERVER_HOST=127.0.0.1
++SERVER_PORT=3012
++LOG_MODE=dev
++
++# App DB (MariaDB)
++DB_HOST=127.0.0.1
++DB_PORT=3308
++DB_USER=root
++DB_PASSWORD=
++DB_NAME=innomcp
++
++# Docker MariaDB (used by local compose/seed scripts)
++MARIADB_ROOT_PASSWORD=
++MARIADB_PASSWORD=
++
++# DetectDB (Evidence) DB
++DETECT_DB_HOST=127.0.0.1
++DETECT_DB_PORT=3308
++DETECT_DB_USER=root
++DETECT_DB_PASSWORD=
++DETECT_DB_NAME=phase91_detectdb
+diff --git a/mariadb/docker-compose.yml b/mariadb/docker-compose.yml
+index fbf9438..a8980e8 100644
+--- a/mariadb/docker-compose.yml
++++ b/mariadb/docker-compose.yml
+@@ -11,9 +11,9 @@ services:
+     volumes:
+       - innomcp-db_volume:/var/lib/mysql
+     environment:
+-      - MARIADB_ROOT_PASSWORD=rockbottom
++      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+       - MARIADB_USER=jlapps
+-      - MARIADB_PASSWORD=rockbottom
++      - MARIADB_PASSWORD=${MARIADB_PASSWORD}
+       - MARIADB_DATABASE=innomcp-db
+     networks:
+       - innomcp_network
+-- 
+2.52.0.windows.1
+

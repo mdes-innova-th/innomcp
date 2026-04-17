@@ -65,7 +65,7 @@ export default function EvidenceDashboard({ structuredContent }: Props) {
   const topIspCount = topIspCountRaw === null ? null : Number.isFinite(Number(topIspCountRaw)) ? Number(topIspCountRaw) : null;
   const hasIspData = !!(topIspName && topIspCount !== null && topIspCount > 0);
   const dataSource = safeStr(sc?.meta?.dataSource).toLowerCase();
-  const dataSourceLabel = dataSource === "detectdb" ? "detectdb" : "placeholder";
+  const dataSourceLabel = (dataSource === "detectdb" || dataSource === "detect-api" || dataSource.includes("detect")) ? "REAL" : dataSource || "—";
 
   const rowsRaw = sc && typeof sc === "object" ? sc?.table?.rows : null;
   const rows: Array<{ isp: string; count: number }> = Array.isArray(rowsRaw)
@@ -121,7 +121,7 @@ export default function EvidenceDashboard({ structuredContent }: Props) {
           >
             {dataSourceLabel}
           </span>
-          <div className="text-xs text-green-800/70 dark:text-green-200/70">StructuredContent-only</div>
+          {/* Debug label hidden for production */}
         </div>
       </div>
 
