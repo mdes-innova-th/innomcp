@@ -104,6 +104,9 @@ package-lock.json
 !/tests/e2e/testlist/
 !/tests/e2e/testlist/tool-selection.spec.ts
 
+# Allowlist: phase8 public-perfect screenshot spec
+!/tests/e2e/phase8-public-perfect.spec.ts
+
 # Allowlist: DB port audit report + evidence
 !/docs/
 !/docs/reports/
@@ -146,6 +149,10 @@ test_*.js
 test_*.ts
 tmp/
 screenshots/
+!/docs/screenshots/
+!/docs/screenshots/preprod/
+!/docs/screenshots/preprod/public-perfect/
+!/docs/screenshots/preprod/public-perfect/*.png
 data/
 playwright-todos.json
 playwright-weather-results.json
