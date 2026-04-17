@@ -270,9 +270,39 @@ export function resolveProvinces(text: string): string[] {
     return resolved;
   }
 
+  // ─── Phase 0.5: Thai Colloquial Particle Safety ───
+  // Short province names that are also common Thai particles/words must be
+  // disambiguated BEFORE substring scanning. Without this, "ร้อนมากเลย"
+  // falsely resolves "เลย" as จังหวัดเลย (Loei).
+  //
+  // Rule: "เลย" is a PROVINCE only when:
+  //   - preceded by "จังหวัด" or "จ."
+  //   - at sentence start followed by a weather/location verb/keyword
+  //   - NOT preceded by an adjective/intensifier (มาก, จัง, สุด, โคตร, etc.)
+  //   - NOT preceded by a verb that makes it an adverb ("ไม่...เลย", "ดี...เลย")
+  //
+  // Same logic applies to other ambiguous short names but "เลย" is by far
+  // the most frequent colloquial false-positive.
+  const PARTICLE_AFTER_PATTERNS = /(?:มาก|จัง|สุด|โคตร|แรง|หนัก|ดี|เยอะ|น้อย|เย็น|ร้อน|หนาว|ไม่|จริง|เก่ง|สวย|แย่|โหด|เร็ว|ช้า|แดด|ฝน|ลม)เลย/;
+  const EXPLICIT_LOEI = /จังหวัดเลย|จ\.\s*เลย/;
+  const SENTENCE_START_LOEI = /^เลย(?:ฝน|อากาศ|วันนี้|พรุ่งนี้|ร้อน|หนาว|มะรืน)/;
+
+  let cleanedForScan = original;
+  if (!EXPLICIT_LOEI.test(original) && !SENTENCE_START_LOEI.test(original)) {
+    // Strip particle-"เลย" (after adjective/intensifier) by replacing with placeholder
+    cleanedForScan = cleanedForScan.replace(PARTICLE_AFTER_PATTERNS, (m) => m.slice(0, -2) + "░░");
+    // Also strip bare sentence-final "เลย" after common colloquial suffixes
+    cleanedForScan = cleanedForScan.replace(/เลย(?:\s*$|(?=[ครับคะค่ะนะสิดิหน่อย]))/g, "░░");
+  }
+
+  // Also strip other common colloquial particles that should never be province-matched
+  cleanedForScan = cleanedForScan
+    .replace(/(?:มาก|จัง|สุด|โคตร)(?=\s|$|[ครับคะค่ะนะสิดิ])/g, (m) => "░".repeat(m.length))
+    .replace(/(?:อะ|นะ|สิ|ดิ|ครับ|คะ|ค่ะ|หน่อย)(?=\s|$)/g, (m) => "░".repeat(m.length));
+
   // ─── Phase 1: Substring Scan (handles unsegmented Thai) ───
-  let remaining = original;
-  let remainingLower = lowerText;
+  let remaining = cleanedForScan;
+  let remainingLower = cleanedForScan.toLowerCase();
 
   const replaceAll = (haystack: string, needle: string) => haystack.split(needle).join("░");
 
