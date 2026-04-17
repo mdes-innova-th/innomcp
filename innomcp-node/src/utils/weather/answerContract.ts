@@ -677,11 +677,23 @@ export function renderWeatherContractAnswer(userText: string, weatherResults: We
         : tw.daypart
         ? `ขออภัย ยังไม่มีข้อมูลอากาศรายช่วงเวลา (${tw.daypart}) สำหรับ ${provList} — ระบบมีเฉพาะพยากรณ์รายวัน ลองถามแบบ "${tw.label.replace(/ *\(.*\)/, "")} ${provList} อากาศเป็นอย่างไร" ครับ`
         : `ขออภัย ยังไม่มีข้อมูลอากาศสำหรับ ${provList} ในขณะนี้ กรุณาลองถามใหม่ภายหลังครับ`;
-      return { text: [header, msg].join("\n\n"), structuredContent };
+      // Skip the date header for unsupported historical queries — it's misleading to show "วันนี้" when
+      // the user asked about yesterday or last month.
+      const showHeader = dominantKind !== "YESTERDAY_NOT_SUPPORTED" && dominantKind !== "MONTHLY_NOT_SUPPORTED";
+      return { text: showHeader ? [header, msg].join("\n\n") : msg, structuredContent };
     }
 
     const errs = shaped.filter((r) => r && r.type === "error").map((r) => String(r.error || ""));
     const kinds = errs.map(classifyErrorCode);
+
+    // Handle unsupported historical queries without misleading date header
+    if (kinds.includes("YESTERDAY_NOT_SUPPORTED")) {
+      return { text: "ขออภัย ระบบพยากรณ์อากาศรองรับเฉพาะข้อมูลปัจจุบันและพยากรณ์ล่วงหน้า (วันนี้/พรุ่งนี้/7 วัน) — ยังไม่รองรับข้อมูลย้อนหลัง (เมื่อวาน) ครับ", structuredContent };
+    }
+    if (kinds.includes("MONTHLY_NOT_SUPPORTED")) {
+      return { text: "ขออภัย ระบบพยากรณ์อากาศรองรับเฉพาะข้อมูลรายวัน (วันนี้/พรุ่งนี้/7 วัน) — ยังไม่รองรับข้อมูลรายเดือนหรือสรุปย้อนหลังเป็นเดือนครับ", structuredContent };
+    }
+
     const kind: "TIMEOUT" | "UPSTREAM" | "NO_DATA" | "PROVINCE_MISSING" =
       kinds.includes("TIMEOUT") ? "TIMEOUT" :
       kinds.includes("PROVINCE_MISSING") ? "PROVINCE_MISSING" :

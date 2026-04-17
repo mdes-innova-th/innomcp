@@ -81,6 +81,8 @@ package-lock.json
 !/scripts/run_rc_gate.ps1
 !/scripts/audit_db_ports.js
 !/scripts/run_ui_smoke_evidence_dashboard.ps1
+!/scripts/smoke_weather.ps1
+!/scripts/generate-seed.js
 /docs/
 /tests/
 */.env
