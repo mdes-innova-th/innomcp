@@ -5514,8 +5514,28 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
             textOut = lines.join("\n");
           } else { textOut = "ขณะนี้ไม่มีข้อมูล backlog จาก webd-api (อาจไม่มี URL ที่ status_open='Y')"; }
         } else if (webdIspAnalyticsGate === "reduction_past_month") {
-          // HONEST_UNSUPPORTED: no historical snapshots exist
-          textOut = "ขออภัย ข้อมูลอัตราการลดลง (reduction rate) รายเดือนย้อนหลังยังไม่รองรับ — ระบบมีเฉพาะ snapshot ปัจจุบัน ไม่มีข้อมูลเปรียบเทียบเดือนต่อเดือนครับ\n\nหากต้องการอัตราการลดลง ณ ปัจจุบัน (CURRENT_SNAPSHOT_ONLY) ลองถาม: \"ISP ใดมีอัตราการลดลงมากที่สุด\"";
+          // REAL HISTORICAL: month-over-month new URL count comparison via nip.create_date
+          const resp = await fetch(`${WEBD_API}/isp/month-over-month`, { signal: AbortSignal.timeout(10_000) });
+          const data = await resp.json() as any;
+          if (data.ok && data.items?.length > 0) {
+            const decreased = data.items.filter((i: any) => i.changePct !== null && i.changePct < 0)
+              .sort((a: any, b: any) => a.changePct - b.changePct);
+            const lines = [`อัตราการเปลี่ยนแปลงจำนวน URL ผิดกฎหมายใหม่ เดือนนี้ vs เดือนที่แล้ว (REAL_HISTORICAL):`];
+            lines.push(`แหล่งข้อมูล: ${data.source === "detect_bridge" ? "DETECT_BRIDGE" : "webd"} | ${data.dataOrigin || "REAL_HISTORICAL"}`);
+            if (decreased.length > 0) {
+              lines.push(`\nISP ที่มีอัตราการลดลงมากที่สุด:`);
+              decreased.forEach((item: any, i: number) => {
+                lines.push(`${i + 1}) ${item.isp}: เดือนที่แล้ว ${item.lastMonth?.toLocaleString()} → เดือนนี้ ${item.thisMonth?.toLocaleString()} (${item.changePct}%)`);
+              });
+            } else {
+              lines.push(`\nไม่พบ ISP ที่มีจำนวน URL ลดลงในเดือนนี้เมื่อเทียบกับเดือนที่แล้ว`);
+              data.items.slice(0, 5).forEach((item: any, i: number) => {
+                lines.push(`${i + 1}) ${item.isp}: เดือนที่แล้ว ${item.lastMonth?.toLocaleString()} → เดือนนี้ ${item.thisMonth?.toLocaleString()} (${item.changePct !== null ? item.changePct + "%" : "N/A"})`);
+              });
+            }
+            lines.push(`\n💡 หมายเหตุ: ข้อมูลจริงจาก nip.create_date — เปรียบเทียบจำนวน URL ใหม่ที่ตรวจพบในแต่ละเดือน`);
+            textOut = lines.join("\n");
+          } else { textOut = "ขณะนี้ไม่มีข้อมูลเปรียบเทียบรายเดือนจาก webd-api"; }
         } else if (webdIspAnalyticsGate === "reduction_current") {
           const resp = await fetch(`${WEBD_API}/isp/reduction-rate`, { signal: AbortSignal.timeout(10_000) });
           const data = await resp.json() as any;
