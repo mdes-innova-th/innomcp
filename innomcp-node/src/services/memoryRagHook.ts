@@ -111,6 +111,7 @@ export interface MemoryRagMeta {
   retrievalMode: RetrievalMode;
   retrievalReason: string;
   coldDocHits: number;
+  coldContext: string;
   hotFactCount: number;
   sessionTurnCount: number;
   activeDomain: MemoryDomain | null;
@@ -146,9 +147,15 @@ export function recordTurnAndGetMeta(
 
   // 4. If cold retrieval needed and ready, execute
   let coldDocHits = 0;
+  let coldContext = "";
   if (plan.decision === "cold" || plan.decision === "hot+cold") {
     const coldResults = executeColdRetrieval(plan);
     coldDocHits = coldResults.length;
+    if (coldResults.length > 0) {
+      coldContext = coldResults
+        .map((r) => `[${r.document.title}] ${r.chunk.content}`)
+        .join("\n\n---\n\n");
+    }
   }
 
   return {
@@ -157,6 +164,7 @@ export function recordTurnAndGetMeta(
     retrievalMode: plan.decision === "hot+cold" ? "both" : plan.decision === "none" ? "none" : plan.decision as RetrievalMode,
     retrievalReason: plan.reason,
     coldDocHits,
+    coldContext,
     hotFactCount: toolsUsed.length > 0 ? 1 : 0,
     sessionTurnCount: snapshot.turnCount,
     activeDomain: snapshot.activeDomain,
@@ -178,6 +186,7 @@ export function enrichGroundedContract(structuredContent: any, ragMeta: MemoryRa
     retrievalMode: ragMeta.retrievalMode,
     retrievalReason: ragMeta.retrievalReason,
     coldDocHits: ragMeta.coldDocHits,
+    coldContextInjected: (ragMeta.coldContext || "").length > 0,
     hotFactCount: ragMeta.hotFactCount,
     sessionTurnCount: ragMeta.sessionTurnCount,
     activeDomain: ragMeta.activeDomain,
@@ -223,4 +232,73 @@ export function getMemoryDebugData(sessionId: string) {
     },
     initialized,
   };
+}
+
+// ---- Session-Aware Route Disambiguation ----
+
+/**
+ * Consult session memory to disambiguate ambiguous routing decisions.
+ * When the God-Tier Router is unsure (low confidence or ambiguous),
+ * use session memory entities and active domain to infer the correct route.
+ * Returns null if no disambiguation possible.
+ */
+export function disambiguateWithSessionMemory(
+  sessionId: string,
+  query: string,
+  currentCategory: string | null,
+  confidence: number,
+  isAmbiguous: boolean
+): { category: string; reason: string } | null {
+  // Only intervene when routing is uncertain
+  if (confidence > 0.8 && !isAmbiguous) return null;
+
+  const snapshot = sessionMemory.getSnapshot(sessionId);
+  if (snapshot.turnCount === 0) return null;
+
+  const activeDomain = snapshot.activeDomain;
+  const entities = snapshot.entities;
+  const liveEntities = entities.filter((e) => e.freshness === "live" || e.freshness === "recent");
+
+  // Follow-up patterns that indicate continuation
+  const isFollowUp = /^(แล้ว|ถ้า|งั้น|ส่วน|ของ|เปรียบเทียบ|เทียบ|สรุป)/i.test(query);
+  if (!isFollowUp && confidence > 0.6) return null;
+
+  // Case 1: ISP follow-up → evidence domain
+  const hasIspEntity = liveEntities.some((e) => e.type === "isp");
+  const mentionsIsp = /\b(ais|dtac|ดีแทค|true|ทรู|trueonline|nt|3bb|เอไอเอส)\b/i.test(query);
+  if ((hasIspEntity || mentionsIsp) && activeDomain === "evidence") {
+    return { category: "evidence", reason: `session-memory: active=evidence, isp-entity=${hasIspEntity}` };
+  }
+
+  // Case 2: Province follow-up → keep domain (geo or weather)  
+  const hasProvinceEntity = liveEntities.some((e) => e.type === "province");
+  const mentionsProvince = /(?:กรุงเทพ|เชียงใหม่|เชียงราย|ขอนแก่น|ภูเก็ต|นครราชสีมา|สงขลา|อุบลราชธานี|พิษณุโลก|อุดรธานี|ลำปาง|น่าน|ตราด|ระยอง|ชลบุรี|นนทบุรี)/i.test(query);
+  if ((hasProvinceEntity || mentionsProvince) && activeDomain && isFollowUp) {
+    const domainCategoryMap: Record<string, string> = {
+      weather: "weather",
+      geo: "geo",
+      evidence: "evidence",
+      knowledge: "knowledge",
+    };
+    const category = domainCategoryMap[activeDomain];
+    if (category) {
+      return { category, reason: `session-memory: active=${activeDomain}, province-carry-forward` };
+    }
+  }
+
+  // Case 3: Generic follow-up with clear active domain
+  if (isFollowUp && activeDomain && activeDomain !== "general") {
+    const domainCategoryMap: Record<string, string> = {
+      weather: "weather",
+      geo: "geo",
+      evidence: "evidence",
+      knowledge: "knowledge",
+    };
+    const category = domainCategoryMap[activeDomain];
+    if (category) {
+      return { category, reason: `session-memory: follow-up continuation domain=${activeDomain}` };
+    }
+  }
+
+  return null;
 }

@@ -34,7 +34,7 @@ import { retrieveRecordsPayload } from "../../utils/chat/recordsRetrieval";
 import { quickNormalize } from "../../utils/thaiQueryNormalizer";
 import { hasTemporalIndicators } from "../../utils/thaiTemporalParser";
 import { resolveProvinces } from "../../utils/locationResolver";
-import { recordTurnAndGetMeta, enrichGroundedContract, getMemoryDebugData, queryColdRag } from "../../services/memoryRagHook";
+import { recordTurnAndGetMeta, enrichGroundedContract, getMemoryDebugData, queryColdRag, disambiguateWithSessionMemory } from "../../services/memoryRagHook";
 
 dotenv.config();
 
@@ -1431,7 +1431,7 @@ function renderGeneralSmokeAnswer(userText: string): string {
   return "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ";
 }
 
-async function answerGeneralWithFastModel(userText: string, budgetMs: number): Promise<{ text: string; fallback: boolean; reason: string; durMs: number; model: string }> {
+async function answerGeneralWithFastModel(userText: string, budgetMs: number, ragContext?: string): Promise<{ text: string; fallback: boolean; reason: string; durMs: number; model: string }> {
   const start = Date.now();
   const model = String(ollamaFastModel || "");
 
@@ -1466,20 +1466,27 @@ async function answerGeneralWithFastModel(userText: string, budgetMs: number): P
   });
 
   try {
-    const prompt = [
+    const promptLines = [
       "ตอบเป็นภาษาไทย สุภาพ กระชับ 2-5 ประโยค",
       "ถ้าไม่แน่ใจหรือคำถามกว้าง ให้ถามกลับ 1 คำถามเพื่อขอรายละเอียด",
       "ห้ามเดาตัวเลข/สถิติ/เหตุการณ์ปัจจุบันที่ไม่ชัวร์",
       "ห้ามเอ่ยถึง tool/MCP/ระบบภายใน",
-      "",
-      `คำถาม: ${String(userText || "").trim()}`,
-    ].join("\n");
+    ];
+    if (ragContext) {
+      promptLines.push("", "ข้อมูลอ้างอิงจากฐานความรู้:", ragContext, "---", "ให้ใช้ข้อมูลอ้างอิงข้างต้นเป็นหลักในการตอบ ห้ามแต่งเติมสิ่งที่ไม่มีในข้อมูล");
+    }
+    promptLines.push("", `คำถาม: ${String(userText || "").trim()}`);
+    const prompt = promptLines.join("\n");
+
+    const systemContent = ragContext
+      ? "คุณเป็นผู้ช่วยภาษาไทยที่ตอบเร็วและแม่นยำ ใช้ข้อมูลอ้างอิงที่ให้มาเป็นหลักในการตอบ"
+      : "คุณเป็นผู้ช่วยภาษาไทยที่ตอบเร็วและแม่นยำ";
 
     const resp = await Promise.race([
       ollama.chat({
         model: ollamaFastModel,
         messages: [
-          { role: "system", content: "คุณเป็นผู้ช่วยภาษาไทยที่ตอบเร็วและแม่นยำ" },
+          { role: "system", content: systemContent },
           { role: "user", content: prompt },
         ],
         stream: false,
@@ -4267,8 +4274,15 @@ wss.on("connection", (ws, req) => {
           sessionManager.addMessage(currentSessionId, "user", messageWithFile);
           sessionManager.startResponse(currentSessionId);
 
-          const result = await answerGeneralWithFastModel(messageWithFile, budgetMs);
-          const sc = {
+          // Cold RAG: retrieve corpus context to ground the LLM answer
+          const coldRag = queryColdRag(messageWithFile);
+          const ragContext = coldRag.context || undefined;
+          if (coldRag.docCount > 0) {
+            logBoth("info", `[GeneralGate] coldRAG injected: ${coldRag.docCount} docs, ${coldRag.sources.length} sources`);
+          }
+
+          const result = await answerGeneralWithFastModel(messageWithFile, budgetMs, ragContext);
+          const sc: any = {
             generalGate: {
               route: "general",
               usedTools: false,
@@ -4278,6 +4292,8 @@ wss.on("connection", (ws, req) => {
               fallback: result.fallback,
               reason: result.reason,
               totalDurMs: Date.now() - generalStart,
+              coldRagDocs: coldRag.docCount,
+              coldRagSources: coldRag.sources,
             },
           };
 
@@ -4348,6 +4364,20 @@ wss.on("connection", (ws, req) => {
 
           if (routingResult.isAmbiguous) {
             logBoth('info', `[God-Tier Router] ⚠️  Ambiguous query - used reasoning: ${routingResult.reasoning}`);
+
+            // Session-aware disambiguation: consult memory to resolve ambiguous routes
+            const memDisambig = disambiguateWithSessionMemory(
+              currentSessionId,
+              routingMessage,
+              semanticCategory,
+              godTierConfidence,
+              true
+            );
+            if (memDisambig) {
+              semanticCategory = memDisambig.category;
+              godTierConfidence = Math.max(godTierConfidence, 0.75);
+              logBoth('info', `[God-Tier Router] 🧠 Session memory override: category="${memDisambig.category}" reason="${memDisambig.reason}"`);
+            }
           }
 
           // Log matched keywords and scores
@@ -4363,10 +4393,23 @@ wss.on("connection", (ws, req) => {
         }
 
         if (godTierFallbackUsed || godTierConfidence < 0.6) {
-          // Low confidence: do NOT short-circuit. Clear the category hint and let MCP tool selection
-          // handle it via its own pattern matching (calc, nasa, etc. have regex fast-paths in mcpclient).
-          logBoth('info', `[God-Tier Router] ⚠️  Low confidence (${godTierConfidence.toFixed(2)}) — clearing category, proceeding to MCP`);
-          semanticCategory = null;
+          // Session-aware disambiguation before clearing category
+          const memDisambigLow = disambiguateWithSessionMemory(
+            currentSessionId,
+            routingMessage,
+            semanticCategory,
+            godTierConfidence,
+            godTierFallbackUsed
+          );
+          if (memDisambigLow) {
+            semanticCategory = memDisambigLow.category;
+            logBoth('info', `[God-Tier Router] 🧠 Session memory rescued low-confidence route: category="${memDisambigLow.category}" reason="${memDisambigLow.reason}"`);
+          } else {
+            // Low confidence: do NOT short-circuit. Clear the category hint and let MCP tool selection
+            // handle it via its own pattern matching (calc, nasa, etc. have regex fast-paths in mcpclient).
+            logBoth('info', `[God-Tier Router] ⚠️  Low confidence (${godTierConfidence.toFixed(2)}) — clearing category, proceeding to MCP`);
+            semanticCategory = null;
+          }
         }
 
       // 🎯 Intent-based handling: DISABLED FOR WEATHER (use MCP tools instead)
@@ -6046,9 +6089,18 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     }
 
     if (godTierFallbackUsed || godTierConfidence < 0.6) {
-      // Low confidence: clear category hint and proceed to MCP tool selection instead of short-circuiting
-      logBoth('info', `[God-Tier Router] HTTP ⚠️  Low confidence (${godTierConfidence.toFixed(2)}) — clearing category, proceeding to MCP`);
-      semanticCategory = undefined;
+      // Session-aware disambiguation before clearing category (HTTP path)
+      const httpMemDisambig = httpSessionId
+        ? disambiguateWithSessionMemory(httpSessionId, messageWithFile, semanticCategory || null, godTierConfidence, godTierFallbackUsed)
+        : null;
+      if (httpMemDisambig) {
+        semanticCategory = httpMemDisambig.category;
+        logBoth('info', `[God-Tier Router] HTTP 🧠 Session memory rescued: category="${httpMemDisambig.category}" reason="${httpMemDisambig.reason}"`);
+      } else {
+        // Low confidence: clear category hint and proceed to MCP tool selection instead of short-circuiting
+        logBoth('info', `[God-Tier Router] HTTP ⚠️  Low confidence (${godTierConfidence.toFixed(2)}) — clearing category, proceeding to MCP`);
+        semanticCategory = undefined;
+      }
     }
 
     // =====================================
@@ -6594,11 +6646,18 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
       logBoth("info", `[GeneralGate] bypass=true transport=http budgetMs=${budgetMs} smoke=${isSmokeRun}`);
 
+      // Cold RAG: retrieve corpus context to ground the LLM answer
+      const httpColdRag = queryColdRag(routingMessage);
+      const httpRagContext = httpColdRag.context || undefined;
+      if (httpColdRag.docCount > 0) {
+        logBoth("info", `[GeneralGate] coldRAG injected (http): ${httpColdRag.docCount} docs, ${httpColdRag.sources.length} sources`);
+      }
+
       const result = isForcedTimeoutTest
-        ? await answerGeneralWithFastModel(routingMessage, budgetMs)
+        ? await answerGeneralWithFastModel(routingMessage, budgetMs, httpRagContext)
         : isSmokeRun
           ? { text: renderGeneralSmokeAnswer(routingMessage), fallback: false, reason: "SMOKE_DETERMINISTIC", durMs: 0, model: String(ollamaFastModel || "") }
-          : await answerGeneralWithFastModel(routingMessage, budgetMs);
+          : await answerGeneralWithFastModel(routingMessage, budgetMs, httpRagContext);
 
       const sc: any = {
         generalGate: {
@@ -6610,6 +6669,8 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           fallback: result.fallback,
           reason: result.reason,
           totalDurMs: Date.now() - generalStart,
+          coldRagDocs: httpColdRag.docCount,
+          coldRagSources: httpColdRag.sources,
         },
       };
 
