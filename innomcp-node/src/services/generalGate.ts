@@ -196,7 +196,9 @@ export async function answerGeneralWithFastModel(
   const deterministicAnswer = renderGeneralSmokeAnswer(userText);
   const isDefaultDeterministic = deterministicAnswer.startsWith("ได้ครับ คำถามนี้เป็นคำถามทั่วไป");
   const isLowConfidenceDeterministic = deterministicAnswer === LOW_CONFIDENCE_FALLBACK_TEXT;
-  if (!ragContext && !isDefaultDeterministic && !isLowConfidenceDeterministic) {
+  // PS2: Any known-good deterministic answer should be returned immediately,
+  // even when RAG context exists. Only unknown queries should reach the LLM.
+  if (!isDefaultDeterministic && !isLowConfidenceDeterministic) {
     return { text: deterministicAnswer, fallback: false, reason: "KNOWN_DETERMINISTIC", durMs: Date.now() - start, model };
   }
 

@@ -137,10 +137,10 @@ export function hasWorkKeyword(text: string): boolean {
 export function isIdentityQuestion(text: string): boolean {
   const t = normalizeText(text);
   const identityPatterns = [
-    /คุณคือใคร|นายคือใคร|เธอคือใคร/,
+    /คุณคือใคร|นายคือใคร|เธอคือใคร|เป็นใคร/,
     /who are you|what are you/,
     /你是谁|你是誰/,
-    /คุณชื่ออะไร|นายชื่ออะไร/,
+    /คุณชื่ออะไร|นายชื่ออะไร|ชื่ออะไร/,
     /what.*your name|what's your name/
   ];
   

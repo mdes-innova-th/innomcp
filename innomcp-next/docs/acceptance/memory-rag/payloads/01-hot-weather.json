@@ -1,0 +1,158 @@
+{
+  "query": "อากาศเชียงใหม่วันนี้เป็นอย่างไร",
+  "route": "weather",
+  "tools": "weatherPipeline",
+  "text": "ช่วงเวลา: วันนี้ (18/04/2026)\n\nพื้นที่: เชียงใหม่\n📍 เชียงใหม่ — มีโอกาสฝนตก อุณหภูมิ 20–34°C\nเวลาอัปเดตข้อมูล: 2026-04-18 19:53\nโอกาสฝน: 40%\nช่วงเวลาเสี่ยง: พยากรณ์รายวัน\nอุณหภูมิ: 20–34°C\nลม: 7km/h\nข้อควรระวัง: อาจมีฝนประปราย\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย",
+  "memoryRag": null,
+  "groundedContract": {
+    "selectedRoute": "weather",
+    "selectedTools": [
+      "weatherPipeline"
+    ],
+    "llmUsed": false,
+    "routeDecider": "deterministic",
+    "sourceType": "tool-only",
+    "version": "phase8",
+    "timestamp": "2026-04-18T12:55:30.132Z"
+  },
+  "fullSc": {
+    "weatherPipeline": [
+      {
+        "province": "เชียงใหม่",
+        "type": "forecast7d",
+        "data": {
+          "province": "เชียงใหม่",
+          "forecast": {
+            "ForecastDate": [
+              "18/04/2026",
+              "19/04/2026",
+              "20/04/2026",
+              "21/04/2026",
+              "22/04/2026",
+              "23/04/2026",
+              "24/04/2026"
+            ],
+            "PercentRainCover": [
+              40,
+              27,
+              29,
+              46,
+              33,
+              35,
+              52
+            ],
+            "MinimumTemperature": [
+              20,
+              19,
+              20,
+              19,
+              20,
+              19,
+              20
+            ],
+            "MaximumTemperature": [
+              34,
+              35,
+              34,
+              35,
+              34,
+              35,
+              34
+            ],
+            "WindDirection": [
+              60,
+              75,
+              90,
+              105,
+              120,
+              135,
+              150
+            ],
+            "WindSpeed": [
+              7,
+              8,
+              9,
+              7,
+              8,
+              9,
+              7
+            ],
+            "DescriptionThai": [
+              "ฟ้าหลัวในตอนเช้า",
+              "มีฝนบางแห่งในตอนบ่าย",
+              "ฟ้าหลัวในตอนเช้า",
+              "มีฝนบางแห่งในตอนบ่าย",
+              "ฟ้าหลัวในตอนเช้า",
+              "มีฝนบางแห่งในตอนบ่าย",
+              "ฟ้าหลัวในตอนเช้า"
+            ]
+          },
+          "lastBuildDate": "2026-04-18 19:53"
+        },
+        "sourceTool": "tmd_weather_forecast_7days_by_province"
+      }
+    ],
+    "weatherPayload": {
+      "version": "10.1",
+      "generatedAt": "2026-04-18T12:55:30.131Z",
+      "sourcesUsed": [
+        "forecast"
+      ],
+      "confidence": 0.7,
+      "errTaxonomy": {
+        "timeout": 0,
+        "noData": 0,
+        "upstream": 0,
+        "provinceMissing": 0
+      },
+      "areas": [
+        {
+          "area": "เชียงใหม่",
+          "rainChancePct": 40,
+          "temperature": "20–34°C",
+          "wind": "7 60",
+          "updateTime": "2026-04-18 19:53",
+          "summary": "ฟ้าหลัวในตอนเช้า",
+          "sourcesUsed": [
+            "forecast"
+          ],
+          "confidence": 0.7
+        }
+      ],
+      "mapTiles": [
+        {
+          "area": "เชียงใหม่",
+          "label": "แผนที่อากาศ เชียงใหม่",
+          "url": "/weather-tiles/default.svg?area=%E0%B9%80%E0%B8%8A%E0%B8%B5%E0%B8%A2%E0%B8%87%E0%B9%83%E0%B8%AB%E0%B8%A1%E0%B9%88"
+        }
+      ]
+    },
+    "__render": {
+      "route": "weather",
+      "llmUsed": false,
+      "routeDecider": "deterministic",
+      "version": "phase8"
+    },
+    "chatMeta": {
+      "mode": "online",
+      "route": "weather",
+      "toolsUsed": [
+        {
+          "name": "weatherPipeline"
+        }
+      ],
+      "reason_code": "TOOL_OK"
+    },
+    "__groundedContract": {
+      "selectedRoute": "weather",
+      "selectedTools": [
+        "weatherPipeline"
+      ],
+      "llmUsed": false,
+      "routeDecider": "deterministic",
+      "sourceType": "tool-only",
+      "version": "phase8",
+      "timestamp": "2026-04-18T12:55:30.132Z"
+    }
+  }
+}

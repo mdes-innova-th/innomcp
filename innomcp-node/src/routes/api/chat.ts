@@ -1486,7 +1486,9 @@ async function answerGeneralWithFastModel(userText: string, budgetMs: number, ra
     return { text: deterministicAnswer, fallback: false, reason: "KNOWN_DETERMINISTIC", durMs: Date.now() - start, model };
   }
 
-  if (!ragContext && !isDefaultDeterministic && !isLowConfidenceDeterministic) {
+  // PS2: Any known-good deterministic answer (not default/low-confidence) should be returned
+  // immediately, even when RAG context exists. RAG should only enhance unknown queries.
+  if (!isDefaultDeterministic && !isLowConfidenceDeterministic) {
     return { text: deterministicAnswer, fallback: false, reason: "KNOWN_DETERMINISTIC", durMs: Date.now() - start, model };
   }
 

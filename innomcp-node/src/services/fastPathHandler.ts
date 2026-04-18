@@ -577,16 +577,16 @@ export async function tryFastPathWebSocket(
   }
 
   // ===== IDENTITY / CAPABILITY =====
-  if (/(คุณคือใคร|นายคือใคร|เธอคือใคร|who are you|what are you)/i.test(text)) {
+  if (/(คุณคือใคร|นายคือใคร|เธอคือใคร|เป็นใคร|คุณชื่ออะไร|ชื่ออะไร|who are you|what are you|what is your name|what's your name)/i.test(text)) {
     return sendAiText(
       "identity",
-      "ผมคือผู้ช่วย InnoMCP สำหรับตอบคำถามและเรียกใช้เครื่องมือ (Tools) เพื่อช่วยงานต่างๆ ครับ"
+      "สวัสดีครับ ผมชื่อ Innova-bot เป็น AI ผู้ช่วยสำหรับระบบ InnoMCP ยินดีให้บริการครับ"
     );
   }
-  if (/(ทำอะไรได้บ้าง|ช่วยอะไรได้|what can you do|capable)/i.test(text)) {
+  if (/(ทำอะไรได้บ้าง|ทำอะไรได้|ช่วยอะไรได้บ้าง|ช่วยอะไรได้|what can you do|how can you help|capable)/i.test(text)) {
     return sendAiText(
       "capability",
-      "ผมช่วยตอบคำถามทั่วไป คำนวณ ตรวจเวลา และเรียกใช้เครื่องมือข้อมูล/อากาศ/แผนที่/เอกสารได้ครับ บอกสิ่งที่ต้องการได้เลย"
+      "ระบบนี้ช่วยได้หลายเรื่องครับ เช่น พยากรณ์อากาศ (weather), สถิติหลักฐานดิจิทัล (evidence), คำนวณ (calculator), ข้อมูล WorldBank (GDP/ประชากร), ภาพดาราศาสตร์ NASA, ค้นหา Internet Archive, ข้อมูลภูมิศาสตร์ไทย และอื่นๆ ลองถามได้เลยครับ"
     );
   }
 

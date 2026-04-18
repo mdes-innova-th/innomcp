@@ -6,6 +6,7 @@ import crypto from "crypto";
 export type FastPathHit =
   | "greeting"
   | "identity"
+  | "capability"
   | "thanks"
   | "ok"
   | "emoji"
@@ -92,6 +93,7 @@ const DEFAULT_DICT: GreetingDict = {
     "นายคือใคร",
     "คุณคือใคร",
     "แกคือใคร",
+    "เป็นใคร",
     "คุณชื่ออะไร",
     "ชื่ออะไร",
     "who are you",
@@ -279,8 +281,10 @@ export function detectFastPath(text: string): FastPathHit | null {
     return null; // Questions with substantial content → AI
   }
 
-  // Priority order (IMPORTANT: identity/questions BEFORE greeting)
+  // Priority order (IMPORTANT: identity/capability BEFORE greeting)
   if (containsAny(normalized, dict.identity)) return "identity";
+  // Capability detection (regex-based, no dict entry needed)
+  if (/(ทำอะไรได้บ้าง|ทำอะไรได้|ช่วยอะไรได้บ้าง|ช่วยอะไรได้|what can you do|how can you help|capable)/i.test(original)) return "capability";
   if (containsAny(normalized, dict.thanks)) return "thanks";
   if (containsAny(normalized, dict.ping)) return "ping";
   if (containsAny(normalized, dict.ok)) return "ok";
@@ -370,6 +374,18 @@ export function buildFastPathResponse(hit: FastPathHit): FastPathResponse {
           },
         ],
         structuredContent: { fastPath: true, type: "identity" },
+      };
+    case "capability":
+      return {
+        hit,
+        latencyTargetMs: 900,
+        content: [
+          {
+            type: "text",
+            text: `ระบบนี้ช่วยได้หลายเรื่องครับ เช่น พยากรณ์อากาศ (weather), สถิติหลักฐานดิจิทัล (evidence), คำนวณ (calculator), ข้อมูล WorldBank (GDP/ประชากร), ภาพดาราศาสตร์ NASA, ค้นหา Internet Archive, ข้อมูลภูมิศาสตร์ไทย และอื่นๆ ลองถามได้เลยครับ`,
+          },
+        ],
+        structuredContent: { fastPath: true, type: "capability" },
       };
     case "thanks":
       return {
