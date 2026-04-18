@@ -3,7 +3,7 @@
     "query": "อากาศเชียงใหม่วันนี้เป็นอย่างไร",
     "route": "weather",
     "tools": "weatherPipeline",
-    "text": "ช่วงเวลา: วันนี้ (18/04/2026)\n\nพื้นที่: เชียงใหม่\n📍 เชียงใหม่ — มีโอกาสฝนตก อุณหภูมิ 20–34°C\nเวลาอัปเดตข้อมูล: 2026-04-18 12:34\nโอกาสฝน: 40%\nช่วงเวลาเสี่ยง: พยากรณ์รายวัน\nอุณหภูมิ: 20–34°C\nลม: 7km/h\nข้อควรระวัง: อาจมีฝนประปราย\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย",
+    "text": "ช่วงเวลา: วันนี้ (18/04/2026)\n\nพื้นที่: เชียงใหม่\n📍 เชียงใหม่ — มีโอกาสฝนตก อุณหภูมิ 20–34°C\nเวลาอัปเดตข้อมูล: 2026-04-18 19:53\nโอกาสฝน: 40%\nช่วงเวลาเสี่ยง: พยากรณ์รายวัน\nอุณหภูมิ: 20–34°C\nลม: 7km/h\nข้อควรระวัง: อาจมีฝนประปราย\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย",
     "memoryRag": null,
     "groundedContract": {
       "selectedRoute": "weather",
@@ -14,7 +14,7 @@
       "routeDecider": "deterministic",
       "sourceType": "tool-only",
       "version": "phase8",
-      "timestamp": "2026-04-18T05:35:32.337Z"
+      "timestamp": "2026-04-18T12:55:49.523Z"
     },
     "fullSc": {
       "weatherPipeline": [
@@ -88,14 +88,14 @@
                 "ฟ้าหลัวในตอนเช้า"
               ]
             },
-            "lastBuildDate": "2026-04-18 12:34"
+            "lastBuildDate": "2026-04-18 19:53"
           },
           "sourceTool": "tmd_weather_forecast_7days_by_province"
         }
       ],
       "weatherPayload": {
         "version": "10.1",
-        "generatedAt": "2026-04-18T05:35:32.336Z",
+        "generatedAt": "2026-04-18T12:55:49.523Z",
         "sourcesUsed": [
           "forecast"
         ],
@@ -112,7 +112,7 @@
             "rainChancePct": 40,
             "temperature": "20–34°C",
             "wind": "7 60",
-            "updateTime": "2026-04-18 12:34",
+            "updateTime": "2026-04-18 19:53",
             "summary": "ฟ้าหลัวในตอนเช้า",
             "sourcesUsed": [
               "forecast"
@@ -153,7 +153,7 @@
         "routeDecider": "deterministic",
         "sourceType": "tool-only",
         "version": "phase8",
-        "timestamp": "2026-04-18T05:35:32.337Z"
+        "timestamp": "2026-04-18T12:55:49.523Z"
       }
     }
   },

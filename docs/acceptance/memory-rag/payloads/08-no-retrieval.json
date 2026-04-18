@@ -2,7 +2,7 @@
   "query": "สวัสดีครับ",
   "route": "general",
   "tools": "none",
-  "text": "สวัสดีค่ะ! มีอะไรฉันสามารถช่วยคุณได้บ้างคะ?",
+  "text": "สวัสดีค่ะ! มีอะไรที่ฉันสามารถช่วยคุณได้บ้าง?",
   "memoryRag": null,
   "groundedContract": {
     "selectedRoute": "general",
@@ -11,18 +11,20 @@
     "routeDecider": "deterministic",
     "sourceType": "llm-only",
     "version": "phase8",
-    "timestamp": "2026-04-18T05:36:26.236Z"
+    "timestamp": "2026-04-18T12:57:52.989Z"
   },
   "fullSc": {
     "generalGate": {
       "route": "general",
       "usedTools": false,
       "budgetMs": 60000,
-      "durMs": 4072,
+      "durMs": 4410,
       "model": "qwen2.5-coder:7b",
       "fallback": false,
       "reason": "OK",
-      "totalDurMs": 4072
+      "totalDurMs": 4411,
+      "coldRagDocs": 0,
+      "coldRagSources": []
     },
     "__render": {
       "route": "general",
@@ -43,7 +45,7 @@
       "routeDecider": "deterministic",
       "sourceType": "llm-only",
       "version": "phase8",
-      "timestamp": "2026-04-18T05:36:26.236Z"
+      "timestamp": "2026-04-18T12:57:52.989Z"
     }
   }
 }

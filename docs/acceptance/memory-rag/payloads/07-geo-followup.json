@@ -14,7 +14,7 @@
       "routeDecider": "deterministic",
       "sourceType": "tool-only",
       "version": "phase10.7",
-      "timestamp": "2026-04-18T05:36:22.004Z",
+      "timestamp": "2026-04-18T12:57:48.368Z",
       "canonicalQuery": "เหนือ",
       "geoIntent": "region_to_provinces"
     },
@@ -47,7 +47,7 @@
         "routeDecider": "deterministic",
         "sourceType": "tool-only",
         "version": "phase10.7",
-        "timestamp": "2026-04-18T05:36:22.004Z",
+        "timestamp": "2026-04-18T12:57:48.368Z",
         "canonicalQuery": "เหนือ",
         "geoIntent": "region_to_provinces"
       }

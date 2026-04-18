@@ -12,7 +12,7 @@
       "routeDecider": "deterministic",
       "sourceType": "deterministic",
       "version": "phase8",
-      "timestamp": "2026-04-18T05:36:06.171Z"
+      "timestamp": "2026-04-18T12:57:23.678Z"
     },
     "fullSc": {
       "ok": false,
@@ -47,7 +47,7 @@
         "routeDecider": "deterministic",
         "sourceType": "deterministic",
         "version": "phase8",
-        "timestamp": "2026-04-18T05:36:06.171Z"
+        "timestamp": "2026-04-18T12:57:23.678Z"
       }
     }
   },
@@ -66,7 +66,7 @@
       "routeDecider": "deterministic",
       "sourceType": "tool-only",
       "version": "phase10.7",
-      "timestamp": "2026-04-18T05:36:06.188Z",
+      "timestamp": "2026-04-18T12:57:23.712Z",
       "canonicalQuery": "เชียงใหม่",
       "geoIntent": "province_to_region"
     },
@@ -99,7 +99,7 @@
         "routeDecider": "deterministic",
         "sourceType": "tool-only",
         "version": "phase10.7",
-        "timestamp": "2026-04-18T05:36:06.188Z",
+        "timestamp": "2026-04-18T12:57:23.712Z",
         "canonicalQuery": "เชียงใหม่",
         "geoIntent": "province_to_region"
       }
