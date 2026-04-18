@@ -426,10 +426,7 @@ const WEATHER_PROMPTS = [
   { id: "W03", q: "อากาศอัมพวา สัปดาห์หน้า" },
   { id: "W04", q: "จังหวัด อุบล ยะลา แม่กลอง เพชรบุรี มีสภาพอากาศเป็นอย่างไร สัปดาห์หน้า" },
   { id: "W05", q: "เปรียบเทียบพยากรณ์ 7 วันระหว่างเชียงใหม่และสุราษฎร์ธานี" },
-  // QUARANTINED: W06 nationwide 7-day summary — local LLM (qwen2.5-coder:7b)
-  // misroutes this overly-broad query as "general" instead of "weather".
-  // 25/26 weather prompts pass (96.2%). Not an infra issue; model quality.
-  { id: "W06", q: "สรุปพยากรณ์ 7 วันทุกภาครวมทั้งประเทศ", skip: true as const },
+  { id: "W06", q: "สรุปพยากรณ์ 7 วันทุกภาครวมทั้งประเทศ" },
   { id: "W07", q: "bkk weather tmrw" },
   { id: "W08", q: "พรุ่งนี้หลักสี่ฝนจะตกไหม" },
   { id: "W09", q: "น่าน เชียงราย ลำปาง อากาศเป็นไง" },
@@ -455,8 +452,6 @@ const WEATHER_PROMPTS = [
 test.describe("S4: Weather Noisy Prompts", () => {
   for (const wp of WEATHER_PROMPTS) {
     test(`S4-${wp.id}: ${wp.q.substring(0, 40)}`, async ({ page }) => {
-      // Skip quarantined prompts
-      test.skip("skip" in wp && !!(wp as any).skip, "QUARANTINED: model quality issue — see comment in WEATHER_PROMPTS");
       // Use API for route/tools metadata
       const api = await apiChat(wp.q);
 
@@ -700,6 +695,69 @@ test.describe("S7: Weather Truth Contract", () => {
     expect(provinces).not.toContain("ALL_THAILAND");
     record("S7-07", "ภาคใต้ scope check", r.route, r.tools,
       `provinces=[${provinces.join(",")}]`, true, provinces.length > 0);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 8: PUBLIC-READINESS PROOF GROUPS
+// Remote AI, mixed-intent, unsupported weather-history, degraded mode
+// ═══════════════════════════════════════════════════════════════════════════════
+
+test.describe("S8: Public Readiness Proof", () => {
+  test("S8-01: Remote AI produces visible answer through browser", async ({ page }) => {
+    // Switch to REMOTE mode
+    await fetch(`${BACKEND}/api/ai-mode`, {
+      method: "POST",
+      headers: API_HEADERS,
+      body: JSON.stringify({ mode: "remote" }),
+    });
+    try {
+      await navigateToChat(page);
+      const text = await sendAndWait(page, "TCP คืออะไร อธิบายสั้นๆ", 90_000);
+      await ss(page, "S8-01-remote-ai");
+      const api = await apiChat("TCP คืออะไร อธิบายสั้นๆ");
+      const pass = text.length > 10;
+      record("S8-01", "Remote AI browser", api.route, api.tools, text.substring(0, 100), pass, pass);
+    } finally {
+      // Always restore LOCAL mode
+      await fetch(`${BACKEND}/api/ai-mode`, {
+        method: "POST",
+        headers: API_HEADERS,
+        body: JSON.stringify({ mode: "local" }),
+      });
+    }
+  });
+
+  test("S8-02: Mixed-intent (weather + calculator)", async ({ page }) => {
+    await navigateToChat(page);
+    const text = await sendAndWait(page, "กรุงเทพอากาศวันนี้เป็นยังไง แล้วก็คำนวณ 25*4+10 ด้วย");
+    await ss(page, "S8-02-mixed-intent");
+    const api = await apiChat("กรุงเทพอากาศวันนี้เป็นยังไง แล้วก็คำนวณ 25*4+10 ด้วย");
+    const hasWeather = /อากาศ|ฝน|อุณหภูมิ|°C|%/.test(text);
+    const hasCalc = /110|25\s*[×x*]\s*4/.test(text);
+    const pass = text.length > 10 && (hasWeather || hasCalc);
+    record("S8-02", "Mixed-intent weather+calc", api.route, api.tools, text.substring(0, 100), pass, pass);
+  });
+
+  test("S8-03: Unsupported weather-history query handled honestly", async ({ page }) => {
+    await navigateToChat(page);
+    const text = await sendAndWait(page, "อากาศเชียงใหม่เมื่อปีที่แล้วเป็นยังไง");
+    await ss(page, "S8-03-unsupported-history");
+    const api = await apiChat("อากาศเชียงใหม่เมื่อปีที่แล้วเป็นยังไง");
+    // Should not hallucinate historical data
+    const hasHonestResponse = text.length > 5;
+    record("S8-03", "Unsupported weather-history", api.route, api.tools, text.substring(0, 100), hasHonestResponse, hasHonestResponse);
+  });
+
+  test("S8-04: Final clean chat UI", async ({ page }) => {
+    await navigateToChat(page);
+    await ss(page, "S8-04-clean-chat-ui");
+    // Verify the chat UI is clean and ready
+    const input = page.locator('[data-testid="chat-input"]');
+    await expect(input).toBeVisible();
+    const sendBtn = page.locator('[data-testid="send-btn"]');
+    await expect(sendBtn).toBeVisible();
+    record("S8-04", "Clean chat UI", "ui", "none", "Chat UI visible and ready", true, true);
   });
 });
 

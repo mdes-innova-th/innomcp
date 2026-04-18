@@ -5006,7 +5006,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       || /จังหวัดนี้|ที่นี่|ที่นั่น|ภาคนี้|ล่ะ$|ค่ายนี้|ของค่ายนี้|อันนั้น|อันเดิม/i.test(messageWithFile);
     const wasNotEnriched = enrichedMessage === messageWithFile;
     const historyTooShort = sessionHistory.length < 2;
-    const hasNoDomainKeyword = !/(อากาศ|ฝน|weather|url|nip|evidence|หลักฐาน|ISP|mean|sum|sqrt|คำนวณ|calculator|กราฟ|chart|แผนที่|map)/i.test(messageWithFile);
+    const hasNoDomainKeyword = !/(อากาศ|ฝน|พยากรณ์|อุณหภูมิ|forecast|weather|url|nip|evidence|หลักฐาน|ISP|mean|sum|sqrt|คำนวณ|calculator|กราฟ|chart|แผนที่|map)/i.test(messageWithFile);
     if (isAmbiguousPattern && wasNotEnriched && historyTooShort && hasNoDomainKeyword) {
       const clarifyText = 'ขอโทษครับ ผมยังไม่แน่ใจว่าคุณหมายถึงเรื่องอะไร กรุณาระบุบริบทเพิ่มเติมด้วยครับ เช่น ต้องการข้อมูลอากาศ, หลักฐานดิจิทัล, หรือการคำนวณ';
       return res.json({
