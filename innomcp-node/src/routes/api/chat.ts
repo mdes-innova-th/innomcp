@@ -945,7 +945,7 @@ function inferOfficerEvidenceAction(text: string): string | undefined {
 // =====================================
 
 function getGeneralBudgetMs(): number {
-  const maxBudget = (AI_MODE === 'remote' || AI_MODE === 'hybrid') ? 60000 : 30000;
+  const maxBudget = 60000; // unified cap — env controls actual budget
   const raw = Number(process.env.GENERAL_LLM_BUDGET_MS || "5000");
   if (!Number.isFinite(raw)) return 5000;
   return Math.min(Math.max(Math.floor(raw), 250), maxBudget);

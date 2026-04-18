@@ -1,0 +1,10 @@
+{
+  "id": "04-evidence-degrade",
+  "label": "Evidence degraded (DB down)",
+  "query": "วันนี้ AIS เจอ url ผิดกฎหมายเท่าไหร่",
+  "answer": "ขออภัย ยังไม่สามารถสรุปข้อมูลหลักฐานได้ในขณะนี้ กรุณาลองใหม่อีกครั้งครับ",
+  "route": "N/A",
+  "model": "deterministic",
+  "tools": [],
+  "timestamp": "2026-04-18T01:18:28.099Z"
+}

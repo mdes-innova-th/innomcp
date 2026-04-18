@@ -113,6 +113,11 @@ package-lock.json
 !/docs/reports/DB_PORT_AUDIT_3306_vs_3308.md
 !/docs/reports/evidence/
 !/docs/reports/evidence/db-port-audit-20260225.log
+
+# Allowlist: public-prod verification proof artifacts
+!/docs/screenshots/
+!/docs/screenshots/public-prod/
+!/docs/screenshots/public-prod/**
 # innomcp-next/.env
 # logs/backend/
 # workspace-storage/data/
@@ -123,6 +128,11 @@ package-lock.json
 # AI archive / phase lock
 .ai/_archive/
 .ai/PHASE_LOCK.json
+.ai/ghost_coder/
+
+# Agent / skills lock (local IDE)
+.agents/
+skills-lock.json
 
 # Historical patch packs (may contain legacy literals)
 patches_phase9/
