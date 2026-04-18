@@ -366,7 +366,7 @@ export function buildFastPathResponse(hit: FastPathHit): FastPathResponse {
         content: [
           {
             type: "text",
-            text: `ผมคือผู้ช่วย AI ในระบบ INNOMCP ครับ ช่วยได้ทั้งงาน IT/โค้ด/ข้อมูล/เครื่องมือ MCP — บอกโจทย์มาได้เลย 😊`,
+            text: `สวัสดีครับ ผมชื่อ Innova-bot เป็น AI ผู้ช่วยสำหรับระบบ InnoMCP ยินดีให้บริการครับ`,
           },
         ],
         structuredContent: { fastPath: true, type: "identity" },

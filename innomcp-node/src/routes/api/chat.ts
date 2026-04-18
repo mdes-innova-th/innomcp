@@ -111,7 +111,18 @@ let ollama = AI_MODE === 'local' ? localOllama : (remoteOllama || localOllama);
 let ollamaModel = AI_MODE === 'local' ? localModel : (remoteModel || localModel);
 let ollamaFastModel = AI_MODE === 'local' ? fastModel : (remoteFastModel || fastModel);
 
+// PS1: Explicit AI selector truth — tracks whether fallback occurred at init
+let aiSelectorTruth: { requestedMode: string; actualMode: string; fallbackOccurred: boolean; reason?: string } = {
+  requestedMode: AI_MODE,
+  actualMode: AI_MODE === 'local' ? 'local' : (remoteOllama ? 'remote' : 'local'),
+  fallbackOccurred: AI_MODE !== 'local' && !remoteOllama,
+  reason: AI_MODE !== 'local' && !remoteOllama ? 'REMOTE_UNAVAILABLE_AT_INIT' : undefined,
+};
+
 logBoth("info", `\n✨ Primary AI: ${AI_MODE === 'local' ? 'Local' : (remoteOllama ? 'Remote' : 'Local (fallback)')}\n`);
+if (aiSelectorTruth.fallbackOccurred) {
+  logBoth("warn", `⚠️  AI selector fallback: requested=${aiSelectorTruth.requestedMode} actual=${aiSelectorTruth.actualMode} reason=${aiSelectorTruth.reason}`);
+}
 
 function syncChatAIModeIfChanged() {
   const latestMode = getCurrentAIMode();
@@ -1428,6 +1439,34 @@ function renderGeneralSmokeAnswer(userText: string): string {
   if (/python/i.test(t) && /คืออะไร|อธิบาย/i.test(t)) {
     return "Python คือภาษาโปรแกรมที่อ่านง่าย เน้นความเรียบง่าย นิยมใช้ใน Data Science, AI/ML, Web Development และ Automation โดยมีไลบรารีเช่น NumPy, Pandas, TensorFlow, Django ครับ";
   }
+  // Phase PS1: Common tech knowledge — grounded deterministic answers
+  if (/(cyber\s*security|ความปลอดภัยไซเบอร์|ไซเบอร์ซิเคียวริตี้)/i.test(t) && /สรุป|อธิบาย|คืออะไร|แบบง่าย|bullet/i.test(t)) {
+    return "Cyber Security คือการปกป้องระบบคอมพิวเตอร์ เครือข่าย และข้อมูลจากการโจมตีทางดิจิทัล หลักสำคัญ: (1) Confidentiality — จำกัดการเข้าถึงข้อมูลเฉพาะผู้มีสิทธิ์ (2) Integrity — ป้องกันการแก้ไขข้อมูลโดยไม่ได้รับอนุญาต (3) Availability — ระบบพร้อมใช้งานเมื่อต้องการ ภัยคุกคามหลัก ได้แก่ malware, phishing, ransomware และ DDoS ครับ";
+  }
+  if (/(blockchain|บล็อกเชน)/i.test(t) && /สรุป|อธิบาย|คืออะไร|แบบง่าย|หน่อย/i.test(t)) {
+    return "Blockchain คือเทคโนโลยีบันทึกข้อมูลแบบกระจายศูนย์ (distributed ledger) ที่เก็บธุรกรรมเป็นบล็อกต่อเนื่องกัน แต่ละบล็อกมี hash เชื่อมโยงกับบล็อกก่อนหน้า ทำให้แก้ไขย้อนหลังได้ยาก จุดเด่น: โปร่งใส ตรวจสอบได้ ไม่ต้องมีตัวกลาง ใช้กันใน cryptocurrency, supply chain tracking และ smart contracts ครับ";
+  }
+  if (/(TCP|UDP)/i.test(t) && /(แตกต่าง|ต่างกัน|เปรียบเทียบ|vs|กับ|อะไรคือ)/i.test(t)) {
+    return "TCP (Transmission Control Protocol) เป็นโปรโตคอลที่รับประกันการส่งข้อมูลถึงปลายทางครบถ้วนตามลำดับ เหมาะกับ web, email, file transfer ส่วน UDP (User Datagram Protocol) ส่งข้อมูลเร็วกว่าแต่ไม่รับประกันว่าจะถึงหรือเรียงลำดับ เหมาะกับ video streaming, gaming, VoIP สรุปคือ TCP เน้นความถูกต้อง UDP เน้นความเร็วครับ";
+  }
+  if (/(cloud\s*computing|คลาวด์\s*คอมพิวติ้ง|ระบบคลาวด์)/i.test(t) && /อธิบาย|คืออะไร|แบบง่าย|คนทั่วไป|สรุป/i.test(t)) {
+    return "Cloud Computing คือการใช้ทรัพยากรคอมพิวเตอร์ (เซิร์ฟเวอร์ พื้นที่เก็บข้อมูล ซอฟต์แวร์) ผ่านอินเทอร์เน็ตแทนที่จะติดตั้งเองในออฟฟิศ แบ่งเป็น 3 ระดับ: IaaS (เช่า server) PaaS (เช่า platform พัฒนาแอป) SaaS (ใช้ซอฟต์แวร์สำเร็จรูป เช่น Gmail, Office 365) ข้อดีคือยืดหยุ่น จ่ายตามใช้จริง ไม่ต้องดูแลฮาร์ดแวร์เองครับ";
+  }
+  if (/(phishing|ฟิชชิ่ง|ฟิชชิง)/i.test(t) && /สรุป|อธิบาย|คืออะไร|bullet|แบบง่าย|วิธี/i.test(t)) {
+    return "Phishing คือการหลอกลวงทางออนไลน์โดยปลอมตัวเป็นแหล่งที่น่าเชื่อถือ เพื่อขโมยข้อมูลส่วนตัว เช่น รหัสผ่าน เลขบัตรเครดิต วิธีป้องกัน: (1) ตรวจ URL ก่อนคลิก — ระวังโดเมนที่คล้ายแต่สะกดต่าง (2) ไม่กรอกข้อมูลสำคัญผ่านลิงก์ในอีเมล (3) เปิด 2FA (Two-Factor Authentication) (4) อัปเดตซอฟต์แวร์ให้ล่าสุดเสมอครับ";
+  }
+  if (/(API|เอพีไอ)/i.test(t) && /คืออะไร|อธิบาย|แบบง่าย/i.test(t)) {
+    return "API (Application Programming Interface) คือตัวกลางที่ให้โปรแกรมต่างๆ สื่อสารกันได้ เปรียบเหมือนพนักงานเสิร์ฟที่รับออเดอร์จากลูกค้า (แอป) ส่งไปที่ครัว (เซิร์ฟเวอร์) แล้วนำอาหาร (ข้อมูล) กลับมา ตัวอย่างเช่น แอปสภาพอากาศดึงข้อมูลจาก API ของกรมอุตุนิยมวิทยาครับ";
+  }
+  if (/(javascript|js)/i.test(t) && /คืออะไร|อธิบาย/i.test(t)) {
+    return "JavaScript เป็นภาษาโปรแกรมหลักของเว็บ ทำให้หน้าเว็บมีการโต้ตอบได้ (interactive) ปัจจุบันใช้ได้ทั้งฝั่ง frontend (React, Vue) และ backend (Node.js) รวมถึง mobile app (React Native) เป็นภาษาที่ได้รับความนิยมสูงสุดภาษาหนึ่งของโลกครับ";
+  }
+  if (/devops/i.test(t) && /คืออะไร|อธิบาย|สรุป/i.test(t)) {
+    return "DevOps คือแนวคิดที่รวมทีม Development กับ Operations เข้าด้วยกัน เน้นทำให้กระบวนการพัฒนา ทดสอบ และ deploy ซอฟต์แวร์เป็นอัตโนมัติและต่อเนื่อง เครื่องมือหลัก ได้แก่ Git, Docker, Kubernetes, CI/CD pipelines (Jenkins, GitHub Actions) เป้าหมายคือส่งมอบซอฟต์แวร์เร็วขึ้นและเชื่อถือได้มากขึ้นครับ";
+  }
+  if (/(big\s*data|บิ๊กดาต้า)/i.test(t) && /คืออะไร|อธิบาย|สรุป/i.test(t)) {
+    return "Big Data คือชุดข้อมูลขนาดใหญ่ที่เครื่องมือทั่วไปจัดการไม่ไหว มีลักษณะ 3V: Volume (ปริมาณมาก) Velocity (เกิดขึ้นเร็ว) Variety (หลากหลายรูปแบบ) ใช้ประโยชน์ได้ เช่น วิเคราะห์พฤติกรรมลูกค้า พยากรณ์แนวโน้ม ปรับปรุงกระบวนการ โดยอาศัยเครื่องมือเช่น Hadoop, Spark, data warehouse ครับ";
+  }
   return "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ";
 }
 
@@ -1438,6 +1477,15 @@ async function answerGeneralWithFastModel(userText: string, budgetMs: number, ra
   const deterministicAnswer = renderGeneralSmokeAnswer(userText);
   const isDefaultDeterministic = deterministicAnswer.startsWith("ได้ครับ คำถามนี้เป็นคำถามทั่วไป");
   const isLowConfidenceDeterministic = deterministicAnswer === LOW_CONFIDENCE_FALLBACK_TEXT;
+
+  // PS1: Identity/capability queries are ALWAYS deterministic regardless of RAG context
+  const tCheck = String(userText || "").trim();
+  const isCriticalDeterministic = /(ชื่ออะไร|คือใคร|เป็นใคร|who are you|what is your name)/i.test(tCheck)
+    || /(ทำอะไรได้|ช่วยอะไรได้|ความสามารถ|what can you do)/i.test(tCheck);
+  if (isCriticalDeterministic && !isDefaultDeterministic && !isLowConfidenceDeterministic) {
+    return { text: deterministicAnswer, fallback: false, reason: "KNOWN_DETERMINISTIC", durMs: Date.now() - start, model };
+  }
+
   if (!ragContext && !isDefaultDeterministic && !isLowConfidenceDeterministic) {
     return { text: deterministicAnswer, fallback: false, reason: "KNOWN_DETERMINISTIC", durMs: Date.now() - start, model };
   }
@@ -1467,10 +1515,13 @@ async function answerGeneralWithFastModel(userText: string, budgetMs: number, ra
 
   try {
     const promptLines = [
-      "ตอบเป็นภาษาไทย สุภาพ กระชับ 2-5 ประโยค",
-      "ถ้าไม่แน่ใจหรือคำถามกว้าง ให้ถามกลับ 1 คำถามเพื่อขอรายละเอียด",
+      "ตอบเป็นภาษาไทยที่เป็นธรรมชาติ สุภาพ กระชับ 2-5 ประโยค",
+      "ให้เนื้อหาที่เป็นประโยชน์จริง ไม่ตอบกว้างเกินไป",
+      "ถ้ามีข้อมูลอ้างอิง ให้สรุปจากข้อมูลนั้นเป็นหลัก",
+      "ถ้าไม่มีข้อมูลอ้างอิง ให้ตอบจากความรู้ทั่วไปที่ถูกต้อง",
       "ห้ามเดาตัวเลข/สถิติ/เหตุการณ์ปัจจุบันที่ไม่ชัวร์",
       "ห้ามเอ่ยถึง tool/MCP/ระบบภายใน",
+      "ถ้าคำถามกว้างเกินไปจริงๆ เท่านั้น ให้ถามกลับ 1 คำถามสั้นๆ",
     ];
     if (ragContext) {
       promptLines.push("", "ข้อมูลอ้างอิงจากฐานความรู้:", ragContext, "---", "ให้ใช้ข้อมูลอ้างอิงข้างต้นเป็นหลักในการตอบ ห้ามแต่งเติมสิ่งที่ไม่มีในข้อมูล");
@@ -1479,8 +1530,8 @@ async function answerGeneralWithFastModel(userText: string, budgetMs: number, ra
     const prompt = promptLines.join("\n");
 
     const systemContent = ragContext
-      ? "คุณเป็นผู้ช่วยภาษาไทยที่ตอบเร็วและแม่นยำ ใช้ข้อมูลอ้างอิงที่ให้มาเป็นหลักในการตอบ"
-      : "คุณเป็นผู้ช่วยภาษาไทยที่ตอบเร็วและแม่นยำ";
+      ? "คุณเป็นผู้ช่วยภาษาไทยที่ตอบเร็วและแม่นยำ ใช้ข้อมูลอ้างอิงที่ให้มาเป็นหลักในการตอบ สรุปให้กระชับและเป็นประโยชน์"
+      : "คุณเป็นผู้ช่วยภาษาไทยที่ตอบเร็วและแม่นยำ ให้ข้อมูลที่เป็นประโยชน์จริง ตอบตรงประเด็น";
 
     const resp = await Promise.race([
       ollama.chat({
@@ -1723,7 +1774,21 @@ function structuredKeysSummary(structuredContent: any): string {
   return typeof structuredContent;
 }
 
-function withRenderMeta(structuredContent: any, meta: { route: string; llmUsed: boolean; routeDecider: "deterministic"; version: string }, toolsUsed?: string[]): any {
+function withRenderMeta(
+  structuredContent: any,
+  meta: {
+    route: string;
+    llmUsed: boolean;
+    routeDecider: "deterministic";
+    version: string;
+    modelUsed?: string;
+    answerMode?: string;
+    fallbackReason?: string;
+    degraded?: boolean;
+    degradedReasons?: string[];
+  },
+  toolsUsed?: string[]
+): any {
   const base = structuredContent && typeof structuredContent === "object" && !Array.isArray(structuredContent) ? structuredContent : {};
   const existingChatMeta = (base as any).chatMeta && typeof (base as any).chatMeta === "object" ? (base as any).chatMeta : {};
   const resolvedTools = Array.isArray(toolsUsed) ? toolsUsed : [];
@@ -1734,15 +1799,25 @@ function withRenderMeta(structuredContent: any, meta: { route: string; llmUsed: 
     toolsUsed: resolvedTools.map((t) => ({ name: t })),
     reason_code: existingChatMeta.reason_code || (resolvedTools.length > 0 ? "TOOL_OK" : (meta.route.toUpperCase() + "_GATE")),
   };
+  // Source type classification
+  const sourceType = resolvedTools.length > 0
+    ? (meta.llmUsed ? "tool+rewrite" : "tool-only")
+    : (meta.llmUsed ? "llm-only" : "deterministic");
   // Grounded Answer Contract: debug metadata for provenance tracking
   const groundedContract = {
     selectedRoute: meta.route,
     selectedTools: resolvedTools,
     llmUsed: meta.llmUsed,
     routeDecider: meta.routeDecider,
-    sourceType: resolvedTools.length > 0 ? (meta.llmUsed ? "tool+rewrite" : "tool-only") : (meta.llmUsed ? "llm-only" : "deterministic"),
+    sourceType,
     version: meta.version,
     timestamp: new Date().toISOString(),
+    // PS1: answer truth fields
+    modelUsed: meta.modelUsed || null,
+    answerMode: meta.answerMode || sourceType,
+    fallbackReason: meta.fallbackReason || null,
+    degraded: meta.degraded ?? false,
+    degradedReasons: meta.degradedReasons || [],
   };
   return { ...(base as any), __render: meta, chatMeta, __groundedContract: groundedContract };
 }
@@ -2398,7 +2473,15 @@ export function updateChatAIMode() {
   ollama = AI_MODE === 'local' ? localOllama : (remoteOllama || localOllama);
   ollamaModel = AI_MODE === 'local' ? localModel : (remoteModel || localModel);
   ollamaFastModel = AI_MODE === 'local' ? fastModel : (remoteFastModel || fastModel);
-  
+
+  // PS1: Update AI selector truth on mode change
+  aiSelectorTruth = {
+    requestedMode: AI_MODE,
+    actualMode: AI_MODE === 'local' ? 'local' : (remoteOllama ? 'remote' : 'local'),
+    fallbackOccurred: AI_MODE !== 'local' && !remoteOllama,
+    reason: AI_MODE !== 'local' && !remoteOllama ? 'REMOTE_UNAVAILABLE_AT_SWITCH' : undefined,
+  };
+
   logBoth('info', `[Chat AI] 🤖 Using Ollama: ${AI_MODE === 'local' ? 'Local' : (remoteOllama ? 'Remote' : 'Local (fallback)')}`);
   logBoth('info', `[Chat AI] 📝 Model: ${ollamaModel}`);
   
@@ -4297,7 +4380,23 @@ wss.on("connection", (ws, req) => {
             },
           };
 
-          const scOut = withRenderMeta(sc, { route: "general", llmUsed: true, routeDecider: "deterministic", version: "phase8" });
+          // PS1: Compute answer mode for contract truth
+          const wsAnswerMode = result.reason === "KNOWN_DETERMINISTIC" || result.reason === "SMOKE_DETERMINISTIC"
+            ? "deterministic"
+            : result.fallback ? "deterministic" : (coldRag.docCount > 0 ? "hybrid" : "llm-only");
+          const wsDegraded = result.fallback && result.reason !== "KNOWN_DETERMINISTIC" && result.reason !== "SMOKE_DETERMINISTIC";
+
+          const scOut = withRenderMeta(sc, {
+            route: "general",
+            llmUsed: !result.reason.includes("DETERMINISTIC"),
+            routeDecider: "deterministic",
+            version: "phase8",
+            modelUsed: result.model,
+            answerMode: wsAnswerMode,
+            fallbackReason: result.fallback ? result.reason : undefined,
+            degraded: wsDegraded,
+            degradedReasons: wsDegraded ? [`GeneralGate: ${result.reason}`] : [],
+          });
 
           // Memory + RAG hook
           {
@@ -6686,7 +6785,23 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         };
       }
 
-      const scOut = withRenderMeta(sc, { route: "general", llmUsed: !isSmokeRun, routeDecider: "deterministic", version: "phase8" });
+      // PS1: Compute answer mode for contract truth
+      const httpAnswerMode = result.reason === "KNOWN_DETERMINISTIC" || result.reason === "SMOKE_DETERMINISTIC"
+        ? "deterministic"
+        : result.fallback ? "deterministic" : (httpColdRag.docCount > 0 ? "hybrid" : "llm-only");
+      const httpDegraded = result.fallback && result.reason !== "KNOWN_DETERMINISTIC" && result.reason !== "SMOKE_DETERMINISTIC";
+
+      const scOut = withRenderMeta(sc, {
+        route: "general",
+        llmUsed: !isSmokeRun && !result.reason.includes("DETERMINISTIC"),
+        routeDecider: "deterministic",
+        version: "phase8",
+        modelUsed: result.model,
+        answerMode: httpAnswerMode,
+        fallbackReason: result.fallback ? result.reason : undefined,
+        degraded: httpDegraded,
+        degradedReasons: httpDegraded ? [`GeneralGate: ${result.reason}`] : [],
+      });
 
       // Memory + RAG hook
       if (httpSessionId) {

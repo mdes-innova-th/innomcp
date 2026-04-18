@@ -673,6 +673,15 @@ export function MessageView({
   const ragTurn = memoryRag?.sessionTurnCount ?? 0;
   const ragColdHits = memoryRag?.coldDocHits ?? 0;
 
+  // PS1: Answer truth from grounded contract
+  const groundedContract = (message as any)?.structuredContent?.__groundedContract;
+  const sourceType = groundedContract?.sourceType || null;
+  const answerMode = groundedContract?.answerMode || null;
+  const isDegraded = groundedContract?.degraded === true;
+  const degradedReasons = Array.isArray(groundedContract?.degradedReasons) ? groundedContract.degradedReasons : [];
+  const modelUsed = groundedContract?.modelUsed || null;
+  const fallbackReason = groundedContract?.fallbackReason || null;
+
   return (
     <div
       className={`relative group p-3 rounded-lg ${
@@ -1004,6 +1013,20 @@ export function MessageView({
               <span className="inline-flex items-center rounded px-2 py-0.5 font-semibold bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                 MODE {modeBadge}
               </span>
+              {sourceType && (
+                <span data-testid="source-type-badge" className={`inline-flex items-center rounded px-2 py-0.5 font-medium ${
+                  sourceType === "deterministic" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" :
+                  sourceType === "tool-only" || sourceType === "tool+rewrite" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" :
+                  "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+                }`}>
+                  {sourceType === "deterministic" ? "ข้อมูลตรง" : sourceType === "tool-only" ? "เครื่องมือ" : sourceType === "tool+rewrite" ? "เครื่องมือ+AI" : "AI"}
+                </span>
+              )}
+              {isDegraded && (
+                <span data-testid="degraded-badge" className="inline-flex items-center rounded px-2 py-0.5 font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                  ⚠ จำกัด
+                </span>
+              )}
               <span data-testid="tools-used-meta" className="text-gray-500 dark:text-gray-400">Used tools: {metaTools.length > 0 ? metaTools.map((t: any) => String(t?.name || "")).filter(Boolean).join(", ") : "none"}</span>
               <span className="text-gray-500 dark:text-gray-400">Confidence: {confidenceLabel}</span>
               {reasonCode ? <span className="text-gray-400">{reasonCode}</span> : null}
