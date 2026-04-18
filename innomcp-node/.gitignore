@@ -139,4 +139,7 @@ yarn-error.log*
 # E2E weather chat smoke test (10-query auto suite)
 !/scripts/verify_e2e_weather_chat.ts
 
+# Memory + RAG foundation verifier
+!/scripts/verify_memory_rag.ts
+
 

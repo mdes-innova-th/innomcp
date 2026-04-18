@@ -82,9 +82,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div
-      className={`w-full max-w-3xl mx-auto relative ${
-        theme === "light" ? "bg-white" : "dark:bg-gray-800"
-      } rounded-2xl shadow-lg px-6 py-4`}
+      className="w-full max-w-3xl mx-auto relative bg-card border border-border/60 rounded-2xl shadow-[0_2px_16px_oklch(0_0_0/0.05)] px-6 py-4"
     >
       <div
         className="absolute top-2 right-2 text-sm"
@@ -120,7 +118,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           }}
           rows={1}
           placeholder="ถามอากาศวันนี้หรือเรื่องใดก็ได้... (Enter เพื่อส่ง, Shift+Enter เพื่อเว้นบรรทัด)"
-          className="w-full resize-none focus:outline-none transition-all max-h-60 overflow-y-auto"
+          className="w-full resize-none bg-transparent focus:outline-none transition-all max-h-60 overflow-y-auto placeholder:text-muted-foreground/60"
           data-testid="chat-input"
         />
         {selectedImage && (

@@ -878,11 +878,43 @@ const ChatPage: React.FC = () => {
       }`}>
         <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
           <div
-            className={`mx-auto ${hasMessages ? "pb-40" : "pb-6"}`}
+            className={`mx-auto ${hasMessages ? "pb-40" : "pb-44"}`}
             ref={messagesRef}
           >
-            <div className="flex flex-col gap-2 pb-6"
-            >
+            <div className="flex flex-col gap-2 pb-6">
+              {/* Empty state — shown when no conversation has started */}
+              {!hasMessages && !isWaitingForResponse && (
+                <div className="flex flex-col items-center justify-center gap-10 min-h-[70vh] py-10">
+                  <div className="text-center space-y-2 max-w-sm">
+                    <h2 className="text-[1.65rem] font-semibold text-foreground tracking-tight leading-snug">
+                      สวัสดี, มีอะไรให้ช่วย?
+                    </h2>
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      ถามอะไรก็ได้ — อากาศ, กฎหมาย, ข้อมูลจังหวัด หรือคำนวณ
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 w-full max-w-xl px-2">
+                    {([
+                      { icon: "🌤️", title: "อากาศวันนี้", q: "อากาศในกรุงเทพฯ วันนี้เป็นอย่างไร?" },
+                      { icon: "📜", title: "กฎหมายและระเบียบ", q: "สาระสำคัญของกฎหมายแรงงานไทยมีอะไรบ้าง?" },
+                      { icon: "🗺️", title: "ข้อมูลจังหวัด", q: "จังหวัดในภาคเหนือของไทยมีกี่จังหวัด?" },
+                      { icon: "🔢", title: "คำนวณข้อมูล", q: "ช่วยคำนวณและวิเคราะห์ข้อมูลเบื้องต้น" },
+                    ] as const).map((p) => (
+                      <button
+                        key={p.q}
+                        onClick={() => setInput(p.q)}
+                        className="flex items-start gap-3 p-4 rounded-xl border border-border/80 bg-card hover:bg-primary/5 hover:border-primary/30 text-left transition-all duration-200 hover:shadow-sm group"
+                      >
+                        <span className="text-xl mt-0.5 shrink-0">{p.icon}</span>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-foreground group-hover:text-primary transition-colors duration-200">{p.title}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{p.q}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {messages
                 .filter(Boolean)
                 .filter(m => m.sender)
@@ -945,14 +977,10 @@ const ChatPage: React.FC = () => {
             </button>
           )}
 
-          {/* Chat Input - with bottom margin */}
+          {/* Chat Input - fixed at bottom */}
           <div
-            className={`${
-              hasMessages
-                ? `fixed z-40 w-full left-0 right-0 bottom-2 flex justify-center transition-all duration-300 ${
-                    isSidebarCollapsed ? 'pl-14' : 'pl-72'
-                  }`
-                : "absolute z-40 w-full mx-auto top-0 bottom-0 left-0 right-0 justify-center items-center flex"
+            className={`fixed z-40 w-full left-0 right-0 bottom-2 flex justify-center transition-all duration-300 ${
+              isSidebarCollapsed ? 'pl-14' : 'pl-72'
             }`}
           >
             <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 pb-2">

@@ -34,6 +34,7 @@ import { retrieveRecordsPayload } from "../../utils/chat/recordsRetrieval";
 import { quickNormalize } from "../../utils/thaiQueryNormalizer";
 import { hasTemporalIndicators } from "../../utils/thaiTemporalParser";
 import { resolveProvinces } from "../../utils/locationResolver";
+import { recordTurnAndGetMeta, enrichGroundedContract, getMemoryDebugData, queryColdRag } from "../../services/memoryRagHook";
 
 dotenv.config();
 
@@ -2427,6 +2428,26 @@ const chatRouter = Router();
 // Report message endpoint
 chatRouter.use("/report", reportRouter);
 
+// --- Memory + RAG Debug Endpoint ---
+chatRouter.get("/memory", (req, res) => {
+  const sessionId = (req.query.sessionId as string) || (req.headers["x-session-id"] as string) || "";
+  if (!sessionId) {
+    return res.json({ error: "sessionId required (query param or x-session-id header)" });
+  }
+  const data = getMemoryDebugData(sessionId);
+  return res.json(data);
+});
+
+chatRouter.get("/memory/cold-search", (req, res) => {
+  const query = req.query.q as string || "";
+  const domain = req.query.domain as string || undefined;
+  if (!query) {
+    return res.json({ error: "q query param required" });
+  }
+  const result = queryColdRag(query, domain);
+  return res.json(result);
+});
+
 // --- 2. MCP Client ---
 let mcpClient: IntelligentMCPClient | null = null;
 let toolHealthChecker: ToolHealthCheckSystem | null = null;
@@ -3116,6 +3137,12 @@ wss.on("connection", (ws, req) => {
 
           const scOut = withRenderMeta(sc, { route: "evidence", llmUsed: false, routeDecider: "deterministic", version: "phase8" }, [toolNameUsed]);
 
+          // Memory + RAG hook
+          {
+            const ragMeta = recordTurnAndGetMeta(currentSessionId, messageWithFile, "evidence", [toolNameUsed], sc);
+            enrichGroundedContract(scOut, ragMeta);
+          }
+
           const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [toolNameUsed] };
           sessionHistory.push(aiMessage);
           sessionManager.addMessage(currentSessionId, "assistant", textOut, [toolNameUsed]);
@@ -3496,6 +3523,11 @@ wss.on("connection", (ws, req) => {
                 scOut.__groundedContract.factCount = (rawFacts.match(/\d+/g) || []).length;
                 scOut.__groundedContract.totalLatencyMs = Date.now() - traceStartMs;
               }
+              // Memory + RAG hook
+              {
+                const ragMeta = recordTurnAndGetMeta(currentSessionId, messageWithFile, "weather", ["weatherPipeline"], sc);
+                enrichGroundedContract(scOut, ragMeta);
+              }
               const textOut = `📊 ${analyticalMode === "trend" ? "แนวโน้ม" : "วิเคราะห์"}สภาพอากาศ:\n\n${rawFacts}`;
               logBoth("info", `[WeatherGate] deep=true SHORT-CIRCUIT (factLen=${rawFacts.length} mode=${analyticalMode})`);
               const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["weatherPipeline"] };
@@ -3510,6 +3542,11 @@ wss.on("connection", (ws, req) => {
             }
 
             const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: true, routeDecider: "deterministic", version: "phase8" }, ["weatherPipeline"]);
+            // Memory + RAG hook (LLM-rewrite weather path)
+            {
+              const ragMeta = recordTurnAndGetMeta(currentSessionId, messageWithFile, "weather", ["weatherPipeline"], sc);
+              enrichGroundedContract(scOut, ragMeta);
+            }
             // Compress facts: keep only first 800 chars to reduce LLM context and speed up synthesis
             const factCompressStart = Date.now();
             const weatherFacts = rawFacts.length > 800 ? rawFacts.slice(0, 800) + "\n...(ข้อมูลบางส่วนถูกย่อ)" : rawFacts;
@@ -3565,6 +3602,12 @@ wss.on("connection", (ws, req) => {
             const direct = renderStructuredDirect("weatherPipeline", sc, routingMessage) || renderWeatherDirectAnswer(routingMessage, payload);
             const textOut = direct.text;
             const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase8" }, ["weatherPipeline"]);
+
+            // Memory + RAG hook (WS weather non-deep path)
+            {
+              const ragMeta = recordTurnAndGetMeta(currentSessionId, messageWithFile, "weather", ["weatherPipeline"], sc);
+              enrichGroundedContract(scOut, ragMeta);
+            }
 
             // Send response + history update
             const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["weatherPipeline"] };
@@ -5634,6 +5677,11 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       const direct = renderStructuredDirect(toolName, sc, routingMessage) || { text: "ขออภัย ไม่สามารถดึงข้อมูลแผ่นดินไหวได้ในขณะนี้" };
       const textOut = direct.text;
       const scOut = withRenderMeta(sc, { route: "seismic", llmUsed: false, routeDecider: "deterministic", version: "phase11.2" }, [toolName]);
+      // Memory + RAG hook
+      if (httpSessionId) {
+        const ragMeta = recordTurnAndGetMeta(httpSessionId, messageWithFile, "seismic", [toolName], sc);
+        enrichGroundedContract(scOut, ragMeta);
+      }
       sessionHistory.push({ sender: "ai", text: textOut } as any);
       chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "seismicGate", tool: toolName, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
       return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: true, mcpResults: toolResults, toolsUsed: [toolName], route: "seismic" });
@@ -5792,6 +5840,12 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           : directOne(primaryToolResult, messageWithFile);
 
       const scOut = withRenderMeta(direct.structuredContent ?? sc, { route: "weather", llmUsed: false, routeDecider: "deterministic", version: "phase8" }, ["weatherPipeline"]);
+
+      // Memory + RAG hook
+      if (httpSessionId) {
+        const ragMeta = recordTurnAndGetMeta(httpSessionId, messageWithFile, "weather", ["weatherPipeline"], sc);
+        enrichGroundedContract(scOut, ragMeta);
+      }
 
       sessionHistory.push({ sender: "ai", text: direct.text } as any);
 

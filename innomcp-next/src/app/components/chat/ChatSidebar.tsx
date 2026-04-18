@@ -59,50 +59,81 @@ const ChatSidebar: React.FC<Props> = ({
   return (
     <aside
       // className="fixed left-0 top-24 z-[50] flex flex-col transition-all duration-300"
-      className="fixed left-0 top-16 z-40 flex flex-col transition-all duration-300"
+      className="fixed left-0 top-16 z-40 flex flex-col transition-all duration-300 bg-muted border-r border-border"
       style={{ width: isCollapsed ? 56 : 288, height: "calc(100vh - 4rem)" }}
       data-testid="chat-sidebar"
     >
-      {/* Toggle Button - Modern 2025-2026 Design */}
-      <div className="absolute -right-12 top-4 z-[37]">
+      {/* Sidebar Header — toggle button lives here (no more floating outside sidebar) */}
+      <div className={`flex items-center h-12 shrink-0 border-b ${
+        safeTheme === "light" ? "border-gray-200" : "border-gray-700"
+      } ${isCollapsed ? "justify-center px-1" : "justify-between px-3"}`}>
+        {!isCollapsed && (
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground select-none">
+            การสนทนา
+          </span>
+        )}
         <button
           title={isCollapsed ? "ขยาย Sidebar" : "ย่อ Sidebar"}
           onClick={onToggle}
           className="group relative w-10 h-10 rounded-xl transition-all duration-300 bg-gradient-to-br from-primary/90 to-primary hover:from-primary hover:to-primary/80 text-primary-foreground shadow-lg hover:shadow-xl hover:scale-110 backdrop-blur-sm border border-primary/20"
           data-testid="toggle-sidebar-btn"
         >
-          {/* Animated Hamburger Icon */}
+          {/* Animated Hamburger / X Icon */}
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-2">
-            <span 
+            <span
               className={`block h-0.5 bg-current transition-all duration-300 ${
-                !isCollapsed 
-                  ? 'w-4 rotate-0 translate-y-0' 
+                isCollapsed
+                  ? 'w-4 rotate-0 translate-y-0'
                   : 'w-3 rotate-45 translate-y-1.5'
               }`}
             />
-            <span 
+            <span
               className={`block h-0.5 bg-current transition-all duration-300 ${
-                !isCollapsed ? 'w-4 opacity-100' : 'w-0 opacity-0'
+                isCollapsed ? 'w-4 opacity-100' : 'w-0 opacity-0'
               }`}
             />
-            <span 
+            <span
               className={`block h-0.5 bg-current transition-all duration-300 ${
-                !isCollapsed 
-                  ? 'w-4 rotate-0 translate-y-0' 
+                isCollapsed
+                  ? 'w-4 rotate-0 translate-y-0'
                   : 'w-3 -rotate-45 -translate-y-1.5'
               }`}
             />
           </div>
-          
           {/* Glow effect on hover */}
           <div className="absolute inset-0 rounded-xl bg-primary/20 opacity-0 group-hover:opacity-100 blur-md transition-opacity duration-300 -z-10" />
         </button>
       </div>
 
+      {/* Collapsed icon strip — useful affordances when sidebar is narrow */}
+      {isCollapsed && (
+        <div className="flex flex-col items-center gap-3 pt-3">
+          <button
+            onClick={onNewChat}
+            title="เริ่มการสนทนาใหม่"
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#C35F5C] hover:bg-[#B35150] text-white shadow-sm transition-all duration-200 hover:scale-105"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 5v14M5 12h14"/>
+            </svg>
+          </button>
+          {summaries.length > 0 && (
+            <div
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-muted-foreground/60"
+              title={`${summaries.length} การสนทนา`}
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Content: hidden when collapsed */}
       {!isCollapsed && (
         <div
-          className="flex-1 flex flex-col overflow-hidden bg-muted rounded-br-lg"
+          className="flex-1 flex flex-col overflow-hidden"
         >
           {/* New Chat Button - Simple button without dropdown */}
           <div className={`p-3 border-b ${

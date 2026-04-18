@@ -165,6 +165,10 @@ screenshots/
 !/docs/screenshots/preprod/public-perfect/
 !/docs/screenshots/preprod/public-perfect/*.png
 data/
+# But track the knowledge-base corpus (Memory + RAG seed documents)
+!innomcp-node/data/
+!innomcp-node/data/knowledge-base/
+!innomcp-node/data/knowledge-base/**
 playwright-todos.json
 playwright-weather-results.json
 weather_resp.json
