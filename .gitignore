@@ -111,6 +111,7 @@ package-lock.json
 !/docs/
 !/docs/reports/
 !/docs/reports/DB_PORT_AUDIT_3306_vs_3308.md
+!/docs/reports/SIGNOFF_EVIDENCE_*.md
 !/docs/reports/evidence/
 !/docs/reports/evidence/db-port-audit-20260225.log
 
