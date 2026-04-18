@@ -1,0 +1,69 @@
+{
+  "turn1": {
+    "query": "จังหวัดในภาคเหนือมีอะไรบ้าง",
+    "route": "geo",
+    "tools": "none",
+    "text": "ภาคเหนือของประเทศไทยประกอบด้วย 17 จังหวัด ได้แก่ เชียงใหม่ เชียงราย ลำพูน ลำปาง แพร่ น่าน พะเยา แม่ฮ่องสอน อุตรดิตถ์ สุโขทัย พิษณุโลก พิจิตร กำแพงเพชร ตาก นครสวรรค์ อุทัยธานี เพชรบูรณ์",
+    "memoryRag": null,
+    "groundedContract": {
+      "selectedRoute": "geo",
+      "selectedTools": [
+        "local:thaiGeoResolver"
+      ],
+      "llmUsed": false,
+      "routeDecider": "deterministic",
+      "sourceType": "tool-only",
+      "version": "phase10.7",
+      "timestamp": "2026-04-18T05:36:22.004Z",
+      "canonicalQuery": "เหนือ",
+      "geoIntent": "region_to_provinces"
+    },
+    "fullSc": {
+      "geoIntent": "region_to_provinces",
+      "canonicalQuery": "เหนือ",
+      "resolvedLocally": true,
+      "__render": {
+        "route": "geo",
+        "llmUsed": false,
+        "routeDecider": "deterministic",
+        "version": "phase10.7"
+      },
+      "chatMeta": {
+        "mode": "online",
+        "route": "geo",
+        "toolsUsed": [
+          {
+            "name": "local:thaiGeoResolver"
+          }
+        ],
+        "reason_code": "TOOL_OK"
+      },
+      "__groundedContract": {
+        "selectedRoute": "geo",
+        "selectedTools": [
+          "local:thaiGeoResolver"
+        ],
+        "llmUsed": false,
+        "routeDecider": "deterministic",
+        "sourceType": "tool-only",
+        "version": "phase10.7",
+        "timestamp": "2026-04-18T05:36:22.004Z",
+        "canonicalQuery": "เหนือ",
+        "geoIntent": "region_to_provinces"
+      }
+    }
+  },
+  "turn2": {
+    "query": "แล้วเชียงรายล่ะ",
+    "route": "unknown",
+    "tools": "none",
+    "text": "ขอโทษครับ ผมยังไม่แน่ใจว่าคุณหมายถึงเรื่องอะไร กรุณาระบุบริบทเพิ่มเติมด้วยครับ เช่น ต้องการข้อมูลอากาศ, หลักฐานดิจิทัล, หรือการคำนวณ",
+    "memoryRag": null,
+    "groundedContract": {},
+    "fullSc": {
+      "fastPath": true,
+      "type": "ambiguous_pronoun_clarify",
+      "noContext": true
+    }
+  }
+}

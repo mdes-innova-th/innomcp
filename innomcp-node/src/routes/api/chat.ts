@@ -3660,6 +3660,12 @@ wss.on("connection", (ws, req) => {
           const textOut = rendered.text;
           const scOut = withRenderMeta(sc, { route: "geo", llmUsed: false, routeDecider: "deterministic", version: "phase8" }, [geoToolName]);
 
+          // Memory + RAG hook
+          {
+            const ragMeta = recordTurnAndGetMeta(currentSessionId, messageWithFile, "geo", [geoToolName], sc);
+            enrichGroundedContract(scOut, ragMeta);
+          }
+
           const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [geoToolName] };
           sessionHistory.push(aiMessage);
           sessionManager.addMessage(currentSessionId, "assistant", textOut, [geoToolName]);
@@ -3749,6 +3755,12 @@ wss.on("connection", (ws, req) => {
 
             // Save resolved entity for context carry-forward
             sessionManager.setLastResolvedEntities(currentSessionId, [{ name: canonicalQuery, type: geoIntent.split("_")[0], province: canonicalQuery }]);
+
+            // Memory + RAG hook
+            {
+              const ragMeta = recordTurnAndGetMeta(currentSessionId, messageWithFile, "geo", [toolName], scOut);
+              enrichGroundedContract(scOut, ragMeta);
+            }
 
             const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [toolName] };
             sessionHistory.push(aiMessage);
@@ -4270,6 +4282,12 @@ wss.on("connection", (ws, req) => {
           };
 
           const scOut = withRenderMeta(sc, { route: "general", llmUsed: true, routeDecider: "deterministic", version: "phase8" });
+
+          // Memory + RAG hook
+          {
+            const ragMeta = recordTurnAndGetMeta(currentSessionId, messageWithFile, "general", [], scOut);
+            enrichGroundedContract(scOut, ragMeta);
+          }
 
           const textOut = result.text;
           const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [] };
@@ -5408,6 +5426,12 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
       const scOut = withRenderMeta(sc, { route: "evidence", llmUsed: false, routeDecider: "deterministic", version: "phase8" });
 
+      // Memory + RAG hook
+      if (httpSessionId) {
+        const ragMeta = recordTurnAndGetMeta(httpSessionId, messageWithFile, "evidence", [toolNameUsed], sc);
+        enrichGroundedContract(scOut, ragMeta);
+      }
+
       return res.json({
         text: textOut,
         structuredContent: scOut,
@@ -5890,6 +5914,11 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           scOut.__groundedContract.canonicalQuery = localResolve.canonicalQuery;
           scOut.__groundedContract.geoIntent = localResolve.geoIntent;
         }
+        // Memory + RAG hook
+        if (httpSessionId) {
+          const ragMeta = recordTurnAndGetMeta(httpSessionId, messageWithFile, "geo", ["local:thaiGeoResolver"], scOut);
+          enrichGroundedContract(scOut, ragMeta);
+        }
         sessionHistory.push({ sender: "ai", text: localResolve.text } as any);
         return res.json({ text: localResolve.text, structuredContent: scOut, messages: sessionHistory, mcpUsed: false });
       }
@@ -5912,6 +5941,12 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       const rendered = renderThaiGeoAnswerShort(sc);
       const textOut = rendered.text;
       const scOut = withRenderMeta(sc, { route: "geo", llmUsed: false, routeDecider: "deterministic", version: "phase8" }, [geoToolName]);
+
+      // Memory + RAG hook
+      if (httpSessionId) {
+        const ragMeta = recordTurnAndGetMeta(httpSessionId, messageWithFile, "geo", [geoToolName], sc);
+        enrichGroundedContract(scOut, ragMeta);
+      }
 
       sessionHistory.push({ sender: "ai", text: textOut } as any);
 
@@ -6591,6 +6626,12 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       }
 
       const scOut = withRenderMeta(sc, { route: "general", llmUsed: !isSmokeRun, routeDecider: "deterministic", version: "phase8" });
+
+      // Memory + RAG hook
+      if (httpSessionId) {
+        const ragMeta = recordTurnAndGetMeta(httpSessionId, messageWithFile, "general", [], scOut);
+        enrichGroundedContract(scOut, ragMeta);
+      }
 
       const textOut = result.text;
       sessionHistory.push({ sender: "ai", text: textOut } as any);

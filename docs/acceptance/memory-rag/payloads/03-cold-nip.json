@@ -1,0 +1,52 @@
+{
+  "query": "NIP คืออะไร",
+  "route": "evidence",
+  "tools": "none",
+  "text": "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)",
+  "memoryRag": null,
+  "groundedContract": {
+    "selectedRoute": "evidence",
+    "selectedTools": [],
+    "llmUsed": false,
+    "routeDecider": "deterministic",
+    "sourceType": "deterministic",
+    "version": "phase10.2",
+    "timestamp": "2026-04-18T05:35:32.501Z"
+  },
+  "fullSc": {
+    "ok": false,
+    "code": "EVIDENCE_PLACEHOLDER",
+    "message": "fallback placeholder",
+    "meta": {
+      "dataSource": "placeholder",
+      "note": "operator-grade fallback"
+    },
+    "table": {
+      "rows": []
+    },
+    "stats": {
+      "total": 0
+    },
+    "__render": {
+      "route": "evidence",
+      "llmUsed": false,
+      "routeDecider": "deterministic",
+      "version": "phase10.2"
+    },
+    "chatMeta": {
+      "mode": "online",
+      "route": "evidence",
+      "toolsUsed": [],
+      "reason_code": "EVIDENCE_GATE"
+    },
+    "__groundedContract": {
+      "selectedRoute": "evidence",
+      "selectedTools": [],
+      "llmUsed": false,
+      "routeDecider": "deterministic",
+      "sourceType": "deterministic",
+      "version": "phase10.2",
+      "timestamp": "2026-04-18T05:35:32.501Z"
+    }
+  }
+}

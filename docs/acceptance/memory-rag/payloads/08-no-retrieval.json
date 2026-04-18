@@ -1,0 +1,49 @@
+{
+  "query": "สวัสดีครับ",
+  "route": "general",
+  "tools": "none",
+  "text": "สวัสดีค่ะ! มีอะไรฉันสามารถช่วยคุณได้บ้างคะ?",
+  "memoryRag": null,
+  "groundedContract": {
+    "selectedRoute": "general",
+    "selectedTools": [],
+    "llmUsed": true,
+    "routeDecider": "deterministic",
+    "sourceType": "llm-only",
+    "version": "phase8",
+    "timestamp": "2026-04-18T05:36:26.236Z"
+  },
+  "fullSc": {
+    "generalGate": {
+      "route": "general",
+      "usedTools": false,
+      "budgetMs": 60000,
+      "durMs": 4072,
+      "model": "qwen2.5-coder:7b",
+      "fallback": false,
+      "reason": "OK",
+      "totalDurMs": 4072
+    },
+    "__render": {
+      "route": "general",
+      "llmUsed": true,
+      "routeDecider": "deterministic",
+      "version": "phase8"
+    },
+    "chatMeta": {
+      "mode": "online",
+      "route": "general",
+      "toolsUsed": [],
+      "reason_code": "GENERAL_GATE"
+    },
+    "__groundedContract": {
+      "selectedRoute": "general",
+      "selectedTools": [],
+      "llmUsed": true,
+      "routeDecider": "deterministic",
+      "sourceType": "llm-only",
+      "version": "phase8",
+      "timestamp": "2026-04-18T05:36:26.236Z"
+    }
+  }
+}

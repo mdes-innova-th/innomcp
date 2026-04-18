@@ -666,6 +666,13 @@ export function MessageView({
   const reasonCode = String(chatMeta?.reason_code || "");
   const guidance = Array.isArray(chatMeta?.userGuidance) ? chatMeta.userGuidance.slice(0, 2) : [];
 
+  // Memory + RAG metadata from __groundedContract
+  const memoryRag = (message as any)?.structuredContent?.__groundedContract?.memoryRag;
+  const ragMode = memoryRag?.retrievalMode || null;
+  const ragEntities = Array.isArray(memoryRag?.memoryEntities) ? memoryRag.memoryEntities : [];
+  const ragTurn = memoryRag?.sessionTurnCount ?? 0;
+  const ragColdHits = memoryRag?.coldDocHits ?? 0;
+
   return (
     <div
       className={`relative group p-3 rounded-lg ${
@@ -1000,6 +1007,27 @@ export function MessageView({
               <span data-testid="tools-used-meta" className="text-gray-500 dark:text-gray-400">Used tools: {metaTools.length > 0 ? metaTools.map((t: any) => String(t?.name || "")).filter(Boolean).join(", ") : "none"}</span>
               <span className="text-gray-500 dark:text-gray-400">Confidence: {confidenceLabel}</span>
               {reasonCode ? <span className="text-gray-400">{reasonCode}</span> : null}
+            </div>
+          )}
+
+          {/* Memory + RAG metadata badge */}
+          {message.sender === "ai" && ragMode && ragMode !== "none" && (
+            <div data-testid="memory-rag-badge" className="mb-2 flex flex-wrap items-center gap-2 text-xs">
+              <span className={`inline-flex items-center rounded px-2 py-0.5 font-semibold ${
+                ragMode === "hot" ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" :
+                ragMode === "cold" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" :
+                ragMode === "both" ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" :
+                "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+              }`}>
+                {ragMode === "hot" ? "🔥" : ragMode === "cold" ? "📚" : ragMode === "both" ? "🔥📚" : "—"} RAG {ragMode}
+              </span>
+              {ragEntities.length > 0 && (
+                <span className="text-gray-500 dark:text-gray-400">entities: {ragEntities.slice(0, 3).join(", ")}</span>
+              )}
+              {ragColdHits > 0 && (
+                <span className="text-gray-500 dark:text-gray-400">cold hits: {ragColdHits}</span>
+              )}
+              <span className="text-gray-400 dark:text-gray-500">turn #{ragTurn}</span>
             </div>
           )}
 
