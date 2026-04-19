@@ -8,7 +8,8 @@
  */
 import path from "path";
 import dotenv from "dotenv";
-dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
+// __dirname = dist/src when compiled; go up 2 levels to reach project root
+dotenv.config({ path: path.resolve(__dirname, "..", "..", ".env") });
 import express from "express";
 import cors from "cors";
 import { healthCheck } from "./db";

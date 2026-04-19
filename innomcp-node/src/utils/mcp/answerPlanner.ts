@@ -22,6 +22,8 @@ function hasEvidenceIntent(text: string): boolean {
   // to prevent "กราฟ" from falsely triggering evidence intent on data visualization queries.
   const isDataSourceChart = /worldbank|world\s*bank|\bgdp\b|ธนาคารโลก|govdata|data\.gov|nasa|apod|\barchive\b|archive\.org/i.test(text);
   if (isDataSourceChart) return false;
+  // Phase 27: Definitional queries about NIP/evidence → knowledge/cold RAG, not evidence DB
+  if (/\bNIP\b.*คืออะไร|คืออะไร.*\bNIP\b|\bNIP\b.*หมายความ|\bNIP\b.*แปลว่า|evidence.*คืออะไร/i.test(text)) return false;
   return /(หลักฐาน|พยาน|คดี|custody|chain\s+of\s+custody|forensic|evidence|สถิติ|กราฟ|\bISP\b|traffic|detect|\bnip\b)/i.test(text);
 }
 

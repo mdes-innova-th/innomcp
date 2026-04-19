@@ -426,7 +426,7 @@ function buildHistoryAwareFollowUpQuery(currentText: string, sessionHistory: Cha
   const recentEvidenceMachineContext = /(เครื่องออนไลน์|เครื่องออฟไลน์|ออนไลน์.*เครื่อง|เครื่อง.*ออนไลน์|machine.*online|online.*machine)/i.test(historyText);
   // Phase 15: Detect evidence URL/NIP context in recent history
   // Phase 25: Also match "evidence" keyword and ISP-month summary patterns for domain-switch carry-forward
-  const recentEvidenceUrlContext = /(url\s*ผิดกฎหมาย|url\s*ผิดกฏหมาย|nip.*ผิด|ตรวจพบ\s*url|url\/nip|illegal\s*url|url.*เจอ|เจอ.*url|กลับมาเรื่อง\s*evidence|เปลี่ยนเรื่อง\s*evidence|evidence\s*ของ|evidence.*ISP|\d+\s*รายการ.*ISP|ISP.*\d+\s*รายการ)/i.test(historyText);
+  const recentEvidenceUrlContext = /(url\s*ผิดกฎหมาย|url\s*ผิดกฏหมาย|nip.*ผิด|ตรวจพบ\s*url|url\/nip|illegal\s*url|url.*เจอ|เจอ.*url|กลับมาเรื่อง\s*evidence|เปลี่ยนเรื่อง\s*evidence|evidence\s*ของ|evidence.*ISP|\d+\s*รายการ.*ISP|ISP.*\d+\s*รายการ|\bNIP\b|รายการ\s*NIP|NIP\s*วันนี้|NIP\s*ล่าสุด|NIP\s*ของ)/i.test(historyText);
   // Phase 15: Extract last ISP name mentioned in history for carry-forward
   const lastHistoryIsp = (() => {
     const ispPattern = /\b(ais|dtac|ดีแทค|true|ทรู|trueonline|truemove|nt\b|cat\b|tot\b|3bb|เอไอเอส|ทีโอที)\b/gi;
@@ -583,6 +583,24 @@ function buildHistoryAwareFollowUpQuery(currentText: string, sessionHistory: Cha
   let carryEntity = lastProvince || lastRegion;
   if (isAskingAboutRegion && lastRegion) carryEntity = lastRegion;
   if (isAskingAboutProvince && lastProvince) carryEntity = lastProvince;
+
+  // Phase 27: Geo carry-forward — when history contains a geo query (region/province listing)
+  // and the current ambiguous follow-up mentions a province/region from history, rewrite to an
+  // explicit geo lookup so looksLikeDeterministicGeoQuery triggers correctly.
+  if (!recentWeatherContext && !recentEvidenceUrlContext && !recentEvidenceMachineContext) {
+    const recentGeoContext = /(จังหวัดใน|จังหวัดในภาค|ภาคเหนือ|ภาคใต้|ภาคอีสาน|ภาคกลาง|ภาคตะวันออก|ภาคตะวันตก|มีจังหวัดอะไรบ้าง|จังหวัดอะไรบ้าง)/i.test(historyText);
+    if (recentGeoContext) {
+      // Find any recently-mentioned province that appears in the current query
+      const provinceInCur = recentProvinces.find(p => cur.includes(p));
+      if (provinceInCur) {
+        return `จังหวัด${provinceInCur} อยู่ภาคอะไร`;
+      }
+      // No explicit province in cur, but we have carryEntity → use it
+      if (carryEntity && !cur.includes("อากาศ") && !cur.includes("ฝน")) {
+        return `จังหวัด${carryEntity} อยู่ภาคอะไร`;
+      }
+    }
+  }
 
   return cur.includes(carryEntity) ? cur : `${carryEntity} ${cur}`;
 }
@@ -965,6 +983,8 @@ function getGeneralBudgetMs(): number {
 
 function looksLikeEvidenceKeywordQuery(text: string): boolean {
   const t = String(text || "");
+  // Phase 27: Definitional queries about NIP/evidence → knowledge/cold RAG, not evidence DB
+  if (/\bNIP\b.*คืออะไร|คืออะไร.*\bNIP\b|\bNIP\b.*หมายความ|\bNIP\b.*แปลว่า|evidence.*คืออะไร/i.test(t)) return false;
   const hasThaiMachine = /เครื่อง/i.test(t);
   // Phase 14: Normalize ผิดกฏหมาย→ผิดกฎหมาย typo for detection
   const tFixed = t.replace(/ผิดกฏหมาย/g, "ผิดกฎหมาย");
