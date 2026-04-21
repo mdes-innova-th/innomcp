@@ -1,17 +1,19 @@
 # Query Coverage Test — Progress Report
 **File:** `innomcp-node/tests/query_coverage.test.ts`  
 **Runner:** Jest (`npx jest --runInBand`)  
-**Last Updated:** 2026-04-21
+**Last Updated:** 2026-04-21 (R4 — v2 added)
 
 ---
 
 ## Round Summary Table
 
-| Round | Date | Total | Pass | Fail | Pass % | Action Taken |
-|-------|------|-------|------|------|--------|--------------|
-| R1 (initial) | 2026-04-21 | 100 | 82 | 18 | 82% | Created file, first run revealed 18 failures |
-| R2 (fix-1) | 2026-04-21 | 95 | 95 | 0 | **100%** | Fixed all 18 cases + restructured to 95 total |
-| R3 (verify post-commit) | 2026-04-21 | 95 | 95 | 0 | **100%** | Confirmed stable after commit `28cfd34` |
+| Round | File | Date | Total | Pass | Fail | Pass % | Action Taken |
+|-------|------|-------|------|------|--------|--------------|-----|
+| R1 (initial) | query_coverage.test.ts | 2026-04-21 | 100 | 82 | 18 | 82% | Created file, first run revealed 18 failures |
+| R2 (fix-1) | query_coverage.test.ts | 2026-04-21 | 95 | 95 | 0 | **100%** | Fixed all 18 cases + restructured to 95 total |
+| R3 (verify post-commit) | query_coverage.test.ts | 2026-04-21 | 95 | 95 | 0 | **100%** | Confirmed stable after commit `28cfd34` |
+| R4 (v2 new 100 cases) | query_coverage_v2.test.ts | 2026-04-21 | 100 | 100 | 0 | **100%** | 100 new unique cases, pass on first run |
+| **COMBINED** | both files | 2026-04-21 | **195** | **195** | **0** | **100%** | All intents covered across 2 files |
 
 ---
 
@@ -33,6 +35,24 @@
 
 ---
 
+## R4 (v2): Final Verification — 100 New Cases First Run
+
+```
+Tests: 100 passed, 100 total
+Time:  3.149s
+PASS  tests/query_coverage_v2.test.ts
+```
+
+### Combined Both Files
+
+```
+Test Suites: 2 passed, 2 total
+Tests:       195 passed, 195 total
+Time:        2.067s
+```
+
+---
+
 ## R3: Final Verification (Post-Commit)
 
 ```
@@ -43,15 +63,19 @@ PASS  tests/query_coverage.test.ts
 
 ---
 
-## Test Distribution (Final)
+## Test Distribution (Final — Both Files)
 
-| Intent | Count | Pass | Pass % |
-|--------|-------|------|--------|
-| weather | 25 | 25 | 100% |
-| evidence | 25 | 25 | 100% |
-| web-record | 20 | 20 | 100% |
-| general | 25 | 25 | 100% |
-| **Total** | **95** | **95** | **100%** |
+| File | Intent | Count | Pass | Pass % |
+|------|--------|-------|------|--------|
+| query_coverage.test.ts | weather | 25 | 25 | 100% |
+| query_coverage.test.ts | evidence | 25 | 25 | 100% |
+| query_coverage.test.ts | web-record | 20 | 20 | 100% |
+| query_coverage.test.ts | general | 25 | 25 | 100% |
+| query_coverage_v2.test.ts | weather | 25 | 25 | 100% |
+| query_coverage_v2.test.ts | evidence | 25 | 25 | 100% |
+| query_coverage_v2.test.ts | web-record | 25 | 25 | 100% |
+| query_coverage_v2.test.ts | general | 25 | 25 | 100% |
+| **TOTAL** | **all** | **195** | **195** | **100%** |
 
 ---
 
@@ -80,7 +104,9 @@ Priority order: weather → evidence → web-record → general
 | Commit | Message |
 |--------|---------|
 | `28cfd34` | `test(coverage): add query intent routing tests (95 cases, 100% pass)` |
+| `e1c6e62` | `docs(reports): add query_coverage test progress report (95/95 100%)` |
+| pending | `test(coverage): add query_coverage_v2 — 100 new unique cases (100% pass)` |
 
 ---
 
-## Status: ✅ COMPLETE — 95/95 (100%)
+## Status: ✅ COMPLETE — 195/195 (100%) across 2 files
