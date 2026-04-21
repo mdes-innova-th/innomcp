@@ -105,7 +105,7 @@ Priority order: weather → evidence → web-record → general
 |--------|---------|
 | `28cfd34` | `test(coverage): add query intent routing tests (95 cases, 100% pass)` |
 | `e1c6e62` | `docs(reports): add query_coverage test progress report (95/95 100%)` |
-| pending | `test(coverage): add query_coverage_v2 — 100 new unique cases (100% pass)` |
+| `c9fa96c` | `test(coverage): add query_coverage_v2 — 100 new unique cases (100% pass)` |
 
 ---
 
