@@ -70,6 +70,7 @@ package-lock.json
 
 !TODO.md
 !ENV_SETUP.md
+!docs/reports/query_coverage_test_progress.md
 
 # Folders
 /config/
