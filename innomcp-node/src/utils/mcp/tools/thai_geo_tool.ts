@@ -395,6 +395,13 @@ const SEED: SeedEntity[] = [
     aliases: [],
     attributes: { province: "อุบลราชธานี", region: "อีสาน" },
   },
+  {
+    id: "geo:prachuap-khiri-khan",
+    type: "province",
+    name_th: "ประจวบคีรีขันธ์",
+    aliases: ["ประจวบ"],
+    attributes: { province: "ประจวบคีรีขันธ์", region: "ตะวันตก", lat: 11.8124, lon: 99.7973 },
+  },
 
   // Phase 12.3: Additional provinces/districts for coordinate lookup
   {
@@ -417,6 +424,27 @@ const SEED: SeedEntity[] = [
     name_th: "หาดใหญ่",
     aliases: [],
     attributes: { province: "สงขลา", district: "หาดใหญ่", region: "ใต้", lat: 7.0061, lon: 100.4722 },
+  },
+  {
+    id: "geo:pak-chong-district",
+    type: "district",
+    name_th: "ปากช่อง",
+    aliases: ["อ.ปากช่อง"],
+    attributes: { province: "นครราชสีมา", district: "ปากช่อง", region: "อีสาน", lat: 14.7080, lon: 101.4161 },
+  },
+  {
+    id: "geo:hua-hin-district",
+    type: "district",
+    name_th: "หัวหิน",
+    aliases: ["อ.หัวหิน"],
+    attributes: { province: "ประจวบคีรีขันธ์", district: "หัวหิน", region: "ตะวันตก", lat: 12.5684, lon: 99.9577 },
+  },
+  {
+    id: "geo:mae-sai-district",
+    type: "district",
+    name_th: "แม่สาย",
+    aliases: ["อ.แม่สาย"],
+    attributes: { province: "เชียงราย", district: "แม่สาย", region: "เหนือ", lat: 20.4335, lon: 99.8762 },
   },
   {
     id: "geo:amphawa-district",
@@ -505,6 +533,8 @@ const REGION_MAPPING: Record<string, string> = {
   "east": "ภาคตะวันออก",
   "west": "ภาคตะวันตก"
 };
+
+const GEO_QUESTION_PHRASE_RE = /(?:อยู่ใน|อยู่|คือ)?(?:จังหวัด|อำเภอ|เขต|ตำบล|แขวง|ภาค)(?:ไหน|อะไร)/gi;
 
 export async function handleThaiGeoTool(args: any): Promise<any> {
   try {
@@ -699,6 +729,7 @@ function parseLookupQueryV2(queryText: string): { core_query: string; constraint
   const raw = String(queryText || "").trim();
   const normalizedRaw = canonicalizeThaiTextV2(raw);
   const cleaned = normalizedRaw
+    .replace(GEO_QUESTION_PHRASE_RE, " ")
     .replace(/อยู่ภาคไหน|อยู่ภาคอะไร|ภาคไหน|ภาคอะไร/gi, " ")
     .replace(/\s+/g, " ")
     .trim();

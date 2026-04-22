@@ -43,6 +43,36 @@ test("thai_geo_tool: alias match (โคราช) returns นครราชส
   assert.equal(body.source[0].name, "DOPA");
 });
 
+test("thai_geo_tool: natural-language query ปากช่องอยู่จังหวัดอะไร resolves to นครราชสีมา", async () => {
+  const result = await thaiGeoTool.execute({ query: "ปากช่องอยู่จังหวัดอะไร" });
+  const body = parseToolText(result);
+
+  assert.equal(body.success, true);
+  assert.ok(body.data.length >= 1);
+  assert.equal(body.data[0].name_th, "ปากช่อง");
+  assert.equal(body.data[0].attributes.province, "นครราชสีมา");
+});
+
+test("thai_geo_tool: natural-language query หัวหินอยู่จังหวัดอะไร resolves to ประจวบคีรีขันธ์", async () => {
+  const result = await thaiGeoTool.execute({ query: "หัวหินอยู่จังหวัดอะไร" });
+  const body = parseToolText(result);
+
+  assert.equal(body.success, true);
+  assert.ok(body.data.length >= 1);
+  assert.equal(body.data[0].name_th, "หัวหิน");
+  assert.equal(body.data[0].attributes.province, "ประจวบคีรีขันธ์");
+});
+
+test("thai_geo_tool: natural-language query แม่สายอยู่จังหวัดอะไร resolves to เชียงราย", async () => {
+  const result = await thaiGeoTool.execute({ query: "แม่สายอยู่จังหวัดอะไร" });
+  const body = parseToolText(result);
+
+  assert.equal(body.success, true);
+  assert.ok(body.data.length >= 1);
+  assert.equal(body.data[0].name_th, "แม่สาย");
+  assert.equal(body.data[0].attributes.province, "เชียงราย");
+});
+
 test("thai_geo_tool: filter_region match returns only requested region", async () => {
   const result = await thaiGeoTool.execute({ query: "จังหวัด", filter_region: "เหนือ" });
   const body = parseToolText(result);

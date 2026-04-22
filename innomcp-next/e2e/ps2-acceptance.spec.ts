@@ -17,7 +17,7 @@ const BACKEND = process.env.BACKEND_URL || "http://localhost:3011";
 const SS_DIR = path.join(__dirname, "..", "docs", "acceptance");
 if (!fs.existsSync(SS_DIR)) fs.mkdirSync(SS_DIR, { recursive: true });
 
-const JWT_SECRET = process.env.JWT_SECRET || "gMail.com";
+const JWT_SECRET = process.env.JWT_SECRET || "innomcp-secret-key-change-in-production";
 const API_KEY = "innomcp_d5acd09cc0103b16293181020cba0bace9b426f41ffb685c";
 const CSRF_SECRET = "testcsrf123";
 const CSRF_HASH = crypto.createHash("sha256").update(CSRF_SECRET).digest("hex");

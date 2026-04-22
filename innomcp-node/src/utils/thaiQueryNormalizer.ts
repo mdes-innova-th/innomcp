@@ -104,6 +104,7 @@ const LOCATION_ALIASES: Record<string, string> = {
   "สป": "สมุทรปราการ",
   "พัทยา": "ชลบุรี",
   "ศรีราชา": "ชลบุรี",
+  "ปากช่อง": "นครราชสีมา",
 };
 
 // Intention patterns (preserve these)

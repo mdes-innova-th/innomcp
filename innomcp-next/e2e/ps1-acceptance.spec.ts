@@ -20,7 +20,7 @@ if (!fs.existsSync(SS_DIR)) fs.mkdirSync(SS_DIR, { recursive: true });
 const API_KEY = "innomcp_d5acd09cc0103b16293181020cba0bace9b426f41ffb685c";
 const CSRF_SECRET = "testcsrf123";
 const CSRF_HASH = crypto.createHash("sha256").update(CSRF_SECRET).digest("hex");
-const JWT_SECRET = process.env.JWT_SECRET || "gMail.com";
+const JWT_SECRET = process.env.JWT_SECRET || "innomcp-secret-key-change-in-production";
 const JWT_TOKEN = jwt.sign(
   { userId: 999, userEmail: "test@innomcp.local", userRoleId: 0, userDispName: "PS1 E2E" },
   JWT_SECRET,

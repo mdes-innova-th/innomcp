@@ -125,6 +125,27 @@ test("render: NOT_FOUND stays fence-free and safe", () => {
   assert.match(rendered.trace, /^ERR:/);
 });
 
+const naturalAliasQuestionCases = [
+  { q: "ปากช่องอยู่จังหวัดอะไร", district: "ปากช่อง", province: "นครราชสีมา" },
+  { q: "หัวหินอยู่จังหวัดอะไร", district: "หัวหิน", province: "ประจวบคีรีขันธ์" },
+  { q: "แม่สายอยู่จังหวัดอะไร", district: "แม่สาย", province: "เชียงราย" },
+];
+
+for (const tc of naturalAliasQuestionCases) {
+  test(`geo_lookup natural alias question: ${tc.q}`, async () => {
+    const out = await handleThaiGeoTool({ action: "geo_lookup", query: tc.q, topN: 5 });
+    assert.equal(out.ok, true);
+    assert.equal(out.code, "OK");
+    assert.equal(out.data.best.type, "district");
+    assert.equal(out.data.best.name_th, tc.district);
+    assert.equal(out.data.best.attributes.province, tc.province);
+
+    const rendered = renderThaiGeoAnswerShort(out);
+    noForbiddenChars(rendered.text);
+    assert.match(rendered.text, new RegExp(`จังหวัด[:\\s]*${tc.province}`));
+  });
+}
+
 // Additional Thai-real lookups (seed-backed, deterministic)
 const lookupCases = [
   { q: "กรุงเทพมหานคร", expect: /(จังหวัด[:\s]*)?กรุงเทพมหานคร/ },

@@ -94,6 +94,7 @@ export const THAI_GEO_SEED: ThaiGeoEntity[] = [
   // ─── West provinces ───────────────────────────────────────
   prov("PROV-71", "กาญจนบุรี", [], "ตะวันตก", 14.0043, 99.5484),
   prov("PROV-70", "ราชบุรี", [], "ตะวันตก", 13.5283, 99.8134),
+  prov("PROV-77", "ประจวบคีรีขันธ์", ["ประจวบ"], "ตะวันตก", 11.8124, 99.7973),
 
   // ─── Key districts ────────────────────────────────────────
   { id: "DIST-5001", domain: "geo", type: "district", name_th: "เมืองเชียงใหม่", aliases: [], description: "อำเภอเมืองเชียงใหม่ จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "เมืองเชียงใหม่", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
@@ -104,8 +105,11 @@ export const THAI_GEO_SEED: ThaiGeoEntity[] = [
   { id: "DIST-5006", domain: "geo", type: "district", name_th: "แม่ริม", aliases: [], description: "อำเภอแม่ริม จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "แม่ริม", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
   { id: "DIST-5007", domain: "geo", type: "district", name_th: "ฝาง", aliases: [], description: "อำเภอฝาง จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "ฝาง", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
   { id: "DIST-5008", domain: "geo", type: "district", name_th: "แม่แตง", aliases: [], description: "อำเภอแม่แตง จังหวัดเชียงใหม่", attributes: { province: "เชียงใหม่", district: "แม่แตง", region: "เหนือ" }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
+  { id: "DIST-5701", domain: "geo", type: "district", name_th: "แม่สาย", aliases: ["อ.แม่สาย"], description: "อำเภอแม่สาย จังหวัดเชียงราย", attributes: { province: "เชียงราย", district: "แม่สาย", region: "เหนือ", lat: 20.4335, lon: 99.8762 }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
   { id: "DIST-9001", domain: "geo", type: "district", name_th: "หาดใหญ่", aliases: [], description: "อำเภอหาดใหญ่ จังหวัดสงขลา", attributes: { province: "สงขลา", district: "หาดใหญ่", region: "ใต้", lat: 7.0061, lon: 100.4722 }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
+  { id: "DIST-7701", domain: "geo", type: "district", name_th: "หัวหิน", aliases: ["อ.หัวหิน"], description: "อำเภอหัวหิน จังหวัดประจวบคีรีขันธ์", attributes: { province: "ประจวบคีรีขันธ์", district: "หัวหิน", region: "ตะวันตก", lat: 12.5684, lon: 99.9577 }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
   { id: "DIST-7502", domain: "geo", type: "district", name_th: "อัมพวา", aliases: [], description: "อำเภออัมพวา จังหวัดสมุทรสงคราม", attributes: { province: "สมุทรสงคราม", district: "อัมพวา", region: "กลาง", lat: 13.4268, lon: 99.9573 }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
+  { id: "DIST-3001", domain: "geo", type: "district", name_th: "ปากช่อง", aliases: ["อ.ปากช่อง"], description: "อำเภอปากช่อง จังหวัดนครราชสีมา", attributes: { province: "นครราชสีมา", district: "ปากช่อง", region: "อีสาน", lat: 14.7080, lon: 101.4161 }, relations: [], source: [DOPA_SOURCE], confidence: 0.90, version: "1.0.0", updated_at: now },
 ];
 
 export interface GeoDbAdapter {
@@ -190,6 +194,8 @@ function sortMatches(entities: ThaiGeoEntity[], queryText: string): ThaiGeoEntit
     const aliases = entity.aliases ?? [];
     if (name === q) return 100;
     if (aliases.some((alias) => alias.toLowerCase() === q)) return 95;
+    if (q.includes(name)) return 92;
+    if (aliases.some((alias) => q.includes(alias.toLowerCase()))) return 91;
     if (name.includes(q)) return 90;
     if (aliases.some((alias) => alias.toLowerCase().includes(q))) return 85;
     if ((entity.description ?? "").toLowerCase().includes(q)) return 80;
@@ -268,7 +274,9 @@ export class InMemoryGeoDb implements GeoDbAdapter {
       const aliases = entity.aliases ?? [];
       return (
         entity.name_th.toLowerCase().includes(queryText) ||
+        queryText.includes(entity.name_th.toLowerCase()) ||
         aliases.some((alias) => alias.toLowerCase().includes(queryText)) ||
+        aliases.some((alias) => queryText.includes(alias.toLowerCase())) ||
         (entity.description ?? "").toLowerCase().includes(queryText)
       );
     });

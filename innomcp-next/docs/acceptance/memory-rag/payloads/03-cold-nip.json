@@ -1,52 +1,76 @@
 {
   "query": "NIP คืออะไร",
-  "route": "evidence",
+  "route": "general",
   "tools": "none",
-  "text": "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)",
+  "text": "ขออภัย ตอนนี้ตอบได้ไม่ทันเวลา ลองระบุคำถามให้แคบลงอีกนิด (เช่น เป้าหมาย/บริบท/ตัวอย่าง) แล้วผมจะสรุปให้สั้นๆ ได้ครับ",
   "memoryRag": null,
   "groundedContract": {
-    "selectedRoute": "evidence",
+    "selectedRoute": "general",
     "selectedTools": [],
-    "llmUsed": false,
+    "llmUsed": true,
     "routeDecider": "deterministic",
-    "sourceType": "deterministic",
-    "version": "phase10.2",
-    "timestamp": "2026-04-18T12:55:49.719Z"
+    "sourceType": "llm-only",
+    "version": "phase8",
+    "timestamp": "2026-04-22T20:25:10.802Z",
+    "modelUsed": "qwen2.5:0.5b",
+    "answerMode": "deterministic",
+    "fallbackReason": "ERROR",
+    "degraded": true,
+    "degradedReasons": [
+      "GeneralGate: ERROR"
+    ]
   },
   "fullSc": {
-    "ok": false,
-    "code": "EVIDENCE_PLACEHOLDER",
-    "message": "fallback placeholder",
-    "meta": {
-      "dataSource": "placeholder",
-      "note": "operator-grade fallback"
-    },
-    "table": {
-      "rows": []
-    },
-    "stats": {
-      "total": 0
+    "generalGate": {
+      "route": "general",
+      "usedTools": false,
+      "budgetMs": 5000,
+      "durMs": 5,
+      "model": "qwen2.5:0.5b",
+      "fallback": true,
+      "reason": "ERROR",
+      "totalDurMs": 7,
+      "coldRagDocs": 3,
+      "coldRagSources": [
+        "evidence-nip-guide.md",
+        "evidence-nip-guide.md",
+        "system-overview.md"
+      ]
     },
     "__render": {
-      "route": "evidence",
-      "llmUsed": false,
+      "route": "general",
+      "llmUsed": true,
       "routeDecider": "deterministic",
-      "version": "phase10.2"
+      "version": "phase8",
+      "modelUsed": "qwen2.5:0.5b",
+      "answerMode": "deterministic",
+      "fallbackReason": "ERROR",
+      "degraded": true,
+      "degradedReasons": [
+        "GeneralGate: ERROR"
+      ]
     },
     "chatMeta": {
       "mode": "online",
-      "route": "evidence",
+      "route": "general",
       "toolsUsed": [],
-      "reason_code": "EVIDENCE_GATE"
+      "reason_code": "GENERAL_GATE"
     },
     "__groundedContract": {
-      "selectedRoute": "evidence",
+      "selectedRoute": "general",
       "selectedTools": [],
-      "llmUsed": false,
+      "llmUsed": true,
       "routeDecider": "deterministic",
-      "sourceType": "deterministic",
-      "version": "phase10.2",
-      "timestamp": "2026-04-18T12:55:49.719Z"
+      "sourceType": "llm-only",
+      "version": "phase8",
+      "timestamp": "2026-04-22T20:25:10.802Z",
+      "modelUsed": "qwen2.5:0.5b",
+      "answerMode": "deterministic",
+      "fallbackReason": "ERROR",
+      "degraded": true,
+      "degradedReasons": [
+        "GeneralGate: ERROR"
+      ]
     }
   }
 }
