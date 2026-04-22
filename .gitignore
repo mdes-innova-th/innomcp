@@ -73,6 +73,7 @@ package-lock.json
 !ENV_SETUP.md
 !docs/reports/query_coverage_test_progress.md
 !docs/reports/alias_geo_lookup_test_summary.md
+!docs/reports/tester_fix_bug_handoff.md
 
 # Folders
 /config/
