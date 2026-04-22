@@ -72,6 +72,7 @@ package-lock.json
 !TODO.md
 !ENV_SETUP.md
 !docs/reports/query_coverage_test_progress.md
+!docs/reports/alias_geo_lookup_test_summary.md
 
 # Folders
 /config/
