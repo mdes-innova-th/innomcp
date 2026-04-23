@@ -361,6 +361,21 @@ const ChatSidebar: React.FC<Props> = ({
                           <FontAwesomeIcon icon={faUser} className="w-4" />
                           <span className="text-sm">จัดการผู้ใช้</span>
                         </button>
+
+                        <button
+                          onClick={() => {
+                            router.push("/admin");
+                            setShowUserMenu(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
+                            safeTheme === "light"
+                              ? "hover:bg-amber-50 text-amber-700"
+                              : "hover:bg-amber-900/30 text-amber-400"
+                          }`}
+                        >
+                          <span className="w-4 text-center text-xs">👑</span>
+                          <span className="text-sm">Admin Panel</span>
+                        </button>
                         
                         <div className={`border-t ${
                           safeTheme === "light" ? "border-gray-200" : "border-gray-700"
