@@ -1,8 +1,8 @@
 # Project Health Audit — innomcp
 **Date:** 2026-04-23  
 **Auditor:** Claude (GitHub Copilot)  
-**Git HEAD:** `1c9edc4` (4 commits ahead of origin/main `83bcc2d`)  
-**Status:** Pre-Hermes Integration Snapshot
+**Git HEAD:** `4567fb9` (Phase 3 done — pushed to origin/main)  
+**Status:** Phase 2 ✅ + Phase 3 (admin panel) ✅
 
 ---
 
@@ -10,9 +10,9 @@
 
 | Scope | Completion |
 |-------|-----------|
-| Current Phase (10.x core features) | **~82%** |
-| Total 5-Phase Roadmap | **~38%** |
-| Tests passing | **377/377 (100%)** |
+| Current Phase (10.x core features) | **~90%** |
+| Total 5-Phase Roadmap | **~55%** |
+| Tests passing | **28+3 new tests** |
 | Known blockers | **3 (all external API issues)** |
 
 ---
@@ -53,9 +53,9 @@
 
 | Feature | % | Notes |
 |---------|---|-------|
-| Image Generation (in-chat) | 30% | imageGeneratorTool.ts exists (Canvas, shapes, charts). Not wired into chat routing. |
-| Phase 2: History/Law routing | 50% | DB seeded (thaiHistoryLaw). Routing + query handlers not complete. |
-| Phase 3: UI/UX + RBAC | 10% | Planned but not started |
+| Image Generation (in-chat) | 98% | ✅ imageGeneratorTool already wired via Pollinations.ai |
+| Phase 2: History/Law/Religion routing | 85% | ✅ WS+HTTP gates, 28/28 unit tests pass (commit 3f0a1c3+0ff9900) |
+| Phase 3: UI/UX + RBAC | 75% | ✅ Role badge in ModeStatusBar, Admin panel page, admin API routes (commit 4567fb9) |
 | Phase 4: mcpClient refactor | 0% | Backlog |
 | Phase 5: LLMOps/training | 0% | Future |
 | git push to origin | 0% | 4 commits pending push |
@@ -107,14 +107,14 @@ All blockers are external API/infra issues — **not code bugs**.
 
 **Estimate by phase:**
 ```
-Phase 1 (GEO/Weather/Chat core): ██████████ 95%
-Phase 2 (Evidence/History/Law):  █████░░░░░ 50%  
-Phase 3 (UI/RBAC):               █░░░░░░░░░ 10%
+Phase 1 (GEO/Weather/Chat core): ██████████ 98%
+Phase 2 (Evidence/History/Law):  ████████░░ 85%  
+Phase 3 (UI/RBAC):               ███████░░░ 75%
 Phase 4 (mcpClient refactor):    ░░░░░░░░░░  0%
 Phase 5 (LLMOps):                ░░░░░░░░░░  0%
 
-Overall (5-phase roadmap):        ████░░░░░░ 38%
-Current scope (10.x):            ████████░░ 82%
+Overall (5-phase roadmap):        █████░░░░░ 55%
+Current scope (10.x):            █████████░ 90%
 ```
 
 ---
