@@ -44,7 +44,8 @@ const TEMPORAL_TYPOS: Record<string, string> = {
   "สัปดาหน้า": "สัปดาห์หน้า",
   "สัปดาห์น่า": "สัปดาห์หน้า",
   "สปดาห์หน้า": "สัปดาห์หน้า",
-  "สัปดาห์หน้": "สัปดาห์หน้า",
+  // NOTE: "สัปดาห์หน้" (without final า) removed — it is a sub-prefix of its own
+  // replacement causing double-application. The common typo "สัปดาหน้า" above covers this.
 };
 
 // Mixed Thai-English temporal patterns
@@ -230,6 +231,11 @@ export function normalizeThaiQuery(text: string): NormalizationResult {
   normalized = normalized.replace(/วัน\s+อังคาร/g, "วันอังคาร");
   normalized = normalized.replace(/วัน\s+พุธ/g, "วันพุธ");
   normalized = normalized.replace(/วัน\s+พฤหัส/g, "วันพฤหัส");
+  // Also fix day-name + space + modifier (นี้/หน้า/ที่แล้ว) — e.g. "วันศุกร์ นี้"
+  normalized = normalized.replace(
+    /(ศุกร์|เสาร์|อาทิตย์|จันทร์|อังคาร|พุธ|พฤหัส(?:บดี)?)\s+(นี้|หน้า|ที่\s*แล้ว)/g,
+    "$1$2"
+  );
 
   // Calculate confidence based on substitutions
   const confidence = Math.max(0.5, 1.0 - substitutionsApplied.length * 0.05);

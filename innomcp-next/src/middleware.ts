@@ -3,6 +3,24 @@ import { NextRequest } from "next/server";
 import { cookies } from "next/headers";
 import { generateNonce } from "@/utils/nonce";
 
+/**
+ * Decode JWT payload without signature verification (Edge-runtime compatible).
+ * Used only for routing decisions — actual data access always requires full
+ * server-side JWT verification via jwtMiddleware in API routes.
+ */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const decoded = atob(padded);
+    return JSON.parse(decoded) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const requestStartTime = Date.now(); // ⏱️ Track request start time
   const method = request.method;
@@ -84,6 +102,19 @@ export async function middleware(request: NextRequest) {
     "upgrade-insecure-requests",
     "block-all-mixed-content",
   ].join("; ");
+
+  // ── RBAC Guard: /admin/* requires admin role (userrole_id === 0) ──────────
+  if (request.nextUrl.pathname.startsWith("/admin")) {
+    const tokenName = process.env.TOKEN_NAME || "token";
+    const token = request.cookies.get(tokenName)?.value;
+    const payload = token ? decodeJwtPayload(token) : null;
+    // Redirect to root if no token or not admin (userrole_id !== 0)
+    if (!payload || payload.userrole_id !== 0) {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/";
+      return NextResponse.redirect(redirectUrl);
+    }
+  }
 
   // Strictly apply CORS only for API routes (CSRF protection removed)
   if (request.nextUrl.pathname.startsWith("/api/")) {

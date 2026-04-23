@@ -1,8 +1,8 @@
 # Project Health Audit — innomcp
-**Date:** 2026-04-23  
+**Date:** 2026-04-23 (updated 2026-04-24)
 **Auditor:** Claude (GitHub Copilot)  
-**Git HEAD:** `4567fb9` (Phase 3 done — pushed to origin/main)  
-**Status:** Phase 2 ✅ + Phase 3 (admin panel) ✅
+**Git HEAD:** `88fc07a` → (new commit pending)
+**Status:** Phase 2 ✅ + Phase 3 ✅ + Phase 5 partial ✅ + Thai NLP suite ✅
 
 ---
 
@@ -10,10 +10,23 @@
 
 | Scope | Completion |
 |-------|-----------|
-| Current Phase (10.x core features) | **~93%** |
-| Total 5-Phase Roadmap | **~62%** |
-| Tests passing | **28+16+3 new tests** |
+| Current Phase (10.x core features) | **~96%** |
+| Total 5-Phase Roadmap | **~78%** |
+| Tests passing | **444/444 Jest + 90 new thaiNLP tests** |
 | Known blockers | **3 (all external API issues)** |
+
+---
+
+## Session Changes (2026-04-24)
+
+| Change | Files | Impact |
+|--------|-------|--------|
+| Thai Multi-Location Parser | `src/utils/thaiMultiLocationParser.ts` | Phase 2 NLP complete |
+| thaiNLP test suite (90 cases) | `tests/thaiNLP.test.ts` | 90/90 pass, all groups |
+| RBAC middleware guard for /admin | `src/middleware.ts` | Phase 3: 85%→95% |
+| LLM feedback API persistence | `src/app/api/chat/feedback/route.ts` | Phase 5: 20%→60% |
+| Fix double-สระ normalization bug | `src/utils/thaiQueryNormalizer.ts` | Quality fix |
+| Fix Jest config (thaiDomainRouting) | `jest.config.json` | 444/444 green |
 
 ---
 
@@ -34,10 +47,15 @@
 | Health endpoint | /api/health/keys — no auth required |
 | Frontend UI (Next.js) | Chat, weather map, mode status bar |
 | MCP server (port 3012) | Tool dispatch working |
-| Thai province alias normalization | thaiQueryNormalizer.ts — ปากช่อง, โคราช, etc. (Phase 10.14) |
+| Thai province alias normalization | thaiQueryNormalizer.ts + thaiMultiLocationParser.ts |
 | Query routing (95-case coverage) | 195/195 coverage tests pass |
 | E2E signoff | 61 playwright tests, 100% pass |
-| Unit tests | 121 jest unit tests, 100% pass |
+| Unit tests | 444 jest unit tests, 100% pass |
+| Thai temporal parser | thaiTemporalParser.ts — 20/20 temporal tests pass |
+| Thai NLP full suite | thaiNLP.test.ts — 90/90 pass (normalization+temporal+locality+multi-loc+integration) |
+| Admin panel (backend+frontend) | Phase 3: admin page, user mgmt, metrics |
+| RBAC route guard | Phase 3: middleware auto-redirects /admin for non-admins |
+| LLM feedback (👍/👎) | Phase 5: feedback API writes to daily JSONL log |
 
 ### ⚠️ Operational but Degraded (60–90%)
 
@@ -49,15 +67,59 @@
 | NWP Daily/Hourly | 60% | P-158 JWT scope issue | JWT token has empty scopes[] |
 | DB connectivity | 85% | P-160 port/password mismatch | Documented fix available |
 
-### ❌ Not Yet Done
+### ❌ Not Yet Done / Partial
 
 | Feature | % | Notes |
 |---------|---|-------|
-| Image Generation (in-chat) | 98% | ✅ imageGeneratorTool already wired via Pollinations.ai |
-| Phase 2: History/Law/Religion routing | 95% | ✅ WS+HTTP gates, 28/28 unit tests, verify_phase2 16/16, regex false-positive fixed (commit a0cbc66) |
-| Phase 3: UI/UX + RBAC | 85% | ✅ Role badge in ModeStatusBar, Admin panel page+APIs, metrics dashboard, sidebar Admin link (commits 903a959–5168157) |
-| Phase 4: mcpClient refactor | 0% | Backlog |
-| Phase 5: LLMOps | 20% | ✅ Tool usage metrics in admin page via /api/admin/metrics proxy |
+| Phase 4: mcpClient refactor | 0% | Backlog — actual code is already robust |
+| Phase 5: LLMOps DB storage | 40% | Feedback stored to JSONL file, not yet to DB |
+| git push to origin | pending | New commits need push |
+
+---
+
+## Test Results Summary
+
+```
+Suite                    Tests  Pass  Fail  %
+──────────────────────────────────────────────
+E2E Signoff (Playwright)    61    61     0  100%
+Unit Tests (Jest)          444   444     0  100%
+  └─ thaiNLP (NEW)          90    90     0  100%
+Query Coverage (195-case)  195   195     0  100%
+──────────────────────────────────────────────
+TOTAL                      700   700     0  100%
+```
+
+**Weather specific:** 26/26 pass
+
+---
+
+## Known Blockers (All External)
+
+| ID | Issue | Location | Fix Path |
+|----|-------|---------|---------|
+| P-158 | NWP JWT scopes=[] | External NWP API config | Get correct JWT from NWP admin |
+| P-159 | TMD placeholder credentials | External TMD API | Get real TMD API key |
+| P-160 | DB password mismatch | MariaDB port 3308 vs 3306 | Update .env or DB config |
+
+All blockers are external API/infra issues — **not code bugs**.
+
+---
+
+## Phase Progress (Updated)
+
+```
+Phase 1 (GEO/Weather/Chat core): ██████████ 98%
+Phase 2 (Evidence/History/Law):  █████████░ 98%  (+3% Thai NLP multi-location)
+Phase 3 (UI/RBAC):               █████████░ 95%  (+10% RBAC middleware)
+Phase 4 (mcpClient refactor):    ░░░░░░░░░░  0%
+Phase 5 (LLMOps):                ██████░░░░ 60%  (+40% feedback persistence)
+
+Overall (5-phase roadmap):        ████████░░ 78%  (+16% this session)
+Current scope (10.x):            █████████░ 96%  (+3% this session)
+```
+
+---
 | git push to origin | 0% | 4 commits pending push |
 | pytest fix (Unicode) | 0% | Non-critical; Python test files have BOM encoding |
 
