@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
+import { AuthContext } from "../context/AuthContext";
 
 type HealthPayload = {
   mode?: "offline" | "online";
@@ -16,6 +17,9 @@ type HealthPayload = {
 export default function ModeStatusBar() {
   const [data, setData] = useState<HealthPayload | null>(null);
   const [loading, setLoading] = useState(true);
+  const auth = useContext(AuthContext);
+  const isGuestMode = auth ? auth.isGuestMode : true;
+  const userRoleId = auth ? auth.userRoleId : null;
 
   useEffect(() => {
     let active = true;
@@ -83,6 +87,27 @@ export default function ModeStatusBar() {
     );
   }, [aiMode]);
 
+  // ── User role badge ──
+  const roleBadge = useMemo(() => {
+    if (isGuestMode || userRoleId === null)
+      return (
+        <span title="Guest — ล็อกอินเพื่อใช้งานเต็ม" className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+          👤 Guest
+        </span>
+      );
+    if (userRoleId === 1)
+      return (
+        <span title="Admin" className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-amber-200 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+          👑 Admin
+        </span>
+      );
+    return (
+      <span title="Logged in user" className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
+        ✅ User
+      </span>
+    );
+  }, [isGuestMode, userRoleId]);
+
   // ── MCP server status badge ──
   const mcpBadge = useMemo(() => {
     if (!mcpStatus) return null;
@@ -126,8 +151,10 @@ export default function ModeStatusBar() {
           {mode === "online" ? "Online" : "Offline"}
         </span>
 
-        {/* AI mode + MCP status badges */}
+        {/* AI mode + MCP status + Role badges */}
         {aiBadge}
+        {mcpBadge}
+        {roleBadge}
         {mcpBadge}
 
         {/* Status summary text */}
