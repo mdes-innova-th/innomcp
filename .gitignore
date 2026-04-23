@@ -189,3 +189,4 @@ dev-log.err.txt
 dev-log-findings.txt
 playwright-report/
 test-results/
+# .ai/silent/*.json

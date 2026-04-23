@@ -11,6 +11,7 @@ import metricsRouter from "./routes/api/metrics";
 import { healthRouter } from "./routes/api/health";
 import authRouter from "./routes/api/auth";
 import workspaceRouter from "./routes/api/workspace";
+import adminRouter from "./routes/api/admin";
 import { apiKeyMiddleware } from "./utils/apikey";
 import csrfMiddleware from "./utils/csrf";
 import { chatRouter } from "./routes/api/chat";
@@ -129,6 +130,9 @@ app.use("/api/auth", authRouter);
 
 // Router สำหรับ Workspace (requires authentication)
 app.use("/api/workspace", workspaceRouter);
+
+// Router สำหรับ Admin (requires authentication + admin role)
+app.use("/api/admin", adminRouter);
 
 // Router สำหรับ API endpoint ทั้งหมดที่ต้องการ API key
 app.use("/api", apiKeyMiddleware, csrfMiddleware, apiRouter);

@@ -95,7 +95,7 @@ export default function ModeStatusBar() {
           👤 Guest
         </span>
       );
-    if (userRoleId === 1)
+    if (userRoleId === 0)
       return (
         <span title="Admin" className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-amber-200 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
           👑 Admin
