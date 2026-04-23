@@ -10,9 +10,9 @@
 
 | Scope | Completion |
 |-------|-----------|
-| Current Phase (10.x core features) | **~90%** |
-| Total 5-Phase Roadmap | **~55%** |
-| Tests passing | **28+3 new tests** |
+| Current Phase (10.x core features) | **~93%** |
+| Total 5-Phase Roadmap | **~62%** |
+| Tests passing | **28+16+3 new tests** |
 | Known blockers | **3 (all external API issues)** |
 
 ---
@@ -54,10 +54,10 @@
 | Feature | % | Notes |
 |---------|---|-------|
 | Image Generation (in-chat) | 98% | ✅ imageGeneratorTool already wired via Pollinations.ai |
-| Phase 2: History/Law/Religion routing | 85% | ✅ WS+HTTP gates, 28/28 unit tests pass (commit 3f0a1c3+0ff9900) |
-| Phase 3: UI/UX + RBAC | 75% | ✅ Role badge in ModeStatusBar, Admin panel page, admin API routes (commit 4567fb9) |
+| Phase 2: History/Law/Religion routing | 95% | ✅ WS+HTTP gates, 28/28 unit tests, verify_phase2 16/16, regex false-positive fixed (commit a0cbc66) |
+| Phase 3: UI/UX + RBAC | 85% | ✅ Role badge in ModeStatusBar, Admin panel page+APIs, metrics dashboard, sidebar Admin link (commits 903a959–5168157) |
 | Phase 4: mcpClient refactor | 0% | Backlog |
-| Phase 5: LLMOps/training | 0% | Future |
+| Phase 5: LLMOps | 20% | ✅ Tool usage metrics in admin page via /api/admin/metrics proxy |
 | git push to origin | 0% | 4 commits pending push |
 | pytest fix (Unicode) | 0% | Non-critical; Python test files have BOM encoding |
 
@@ -108,13 +108,13 @@ All blockers are external API/infra issues — **not code bugs**.
 **Estimate by phase:**
 ```
 Phase 1 (GEO/Weather/Chat core): ██████████ 98%
-Phase 2 (Evidence/History/Law):  ████████░░ 85%  
-Phase 3 (UI/RBAC):               ███████░░░ 75%
+Phase 2 (Evidence/History/Law):  █████████░ 95%  
+Phase 3 (UI/RBAC):               ████████░░ 85%
 Phase 4 (mcpClient refactor):    ░░░░░░░░░░  0%
-Phase 5 (LLMOps):                ░░░░░░░░░░  0%
+Phase 5 (LLMOps):                ██░░░░░░░░ 20%
 
-Overall (5-phase roadmap):        █████░░░░░ 55%
-Current scope (10.x):            █████████░ 90%
+Overall (5-phase roadmap):        ██████░░░░ 62%
+Current scope (10.x):            █████████░ 93%
 ```
 
 ---
