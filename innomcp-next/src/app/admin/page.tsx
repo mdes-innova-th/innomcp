@@ -14,6 +14,12 @@ interface UserRow {
   created_at: string;
 }
 
+interface MetricsData {
+  timestamp: string;
+  tools: Record<string, { count: number; p50?: number; p95?: number }>;
+  endpoints: Record<string, { count: number; p50?: number; p95?: number }>;
+}
+
 const ROLE_LABELS: Record<number, string> = { 0: 'Admin', 1: 'Moderator', 2: 'User' };
 
 export default function AdminPage() {
@@ -23,6 +29,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [metrics, setMetrics] = useState<MetricsData | null>(null);
 
   // Redirect if not admin
   useEffect(() => {
@@ -44,6 +51,15 @@ export default function AdminPage() {
       })
       .catch(() => setError('Network error'))
       .finally(() => setLoading(false));
+  }, [isLoggedIn, userRoleId]);
+
+  // Fetch metrics
+  useEffect(() => {
+    if (!isLoggedIn || userRoleId !== 0) return;
+    fetch('/api/admin/metrics', { credentials: 'include' })
+      .then(r => r.json())
+      .then(d => { if (d.success) setMetrics(d.data); })
+      .catch(() => null);
   }, [isLoggedIn, userRoleId]);
 
   async function changeRole(userId: number, roleId: number) {
@@ -191,6 +207,33 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+
+        {/* Tool Usage Metrics */}
+        {metrics && (
+          <div className="mt-6 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="font-semibold text-gray-800 dark:text-gray-100">📊 Tool Usage Metrics</h2>
+              <span className="text-xs text-gray-400 dark:text-gray-500">as of {new Date(metrics.timestamp).toLocaleTimeString()}</span>
+            </div>
+            <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {Object.entries(metrics.tools).length === 0 ? (
+                <p className="col-span-4 text-sm text-gray-400 dark:text-gray-500 text-center py-4">No tool metrics yet</p>
+              ) : (
+                Object.entries(metrics.tools)
+                  .sort(([, a], [, b]) => (b.count || 0) - (a.count || 0))
+                  .map(([tool, stats]) => (
+                    <div key={tool} className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3 border border-gray-100 dark:border-gray-600">
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 truncate mb-1">{tool}</p>
+                      <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{stats.count ?? 0}</p>
+                      {stats.p50 !== undefined && (
+                        <p className="text-xs text-gray-400 mt-1">p50: {Math.round(stats.p50)}ms</p>
+                      )}
+                    </div>
+                  ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
