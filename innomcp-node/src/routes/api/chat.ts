@@ -1036,7 +1036,7 @@ function looksLikeThaiLawQuery(text: string): boolean {
 function looksLikeThaiReligionQuery(text: string): boolean {
   const t = String(text || "");
   if (/(อากาศ|ฝน|weather)/i.test(t)) return false;
-  return /(วัด[^ๆ]|พระพุทธ|ศาสนา|นมัสการ|วิสาขบูชา|บวช|พุทธศาสนา|อิสลาม|คริสต์|สวดมนต์|ทำบุญ|พระสงฆ์|โบสถ์|มัสยิด|ศาลเจ้า|เทพ|พระเจ้า|พระธาตุ|พระวิหาร|เจดีย์|หลวงพ่อ)/i.test(t);
+  return /((?<!ห)วัด[^ๆ]|พระพุทธ|ศาสนา|นมัสการ|วิสาขบูชา|บวช|พุทธศาสนา|อิสลาม|คริสต์|สวดมนต์|ทำบุญ|พระสงฆ์|โบสถ์|มัสยิด|ศาลเจ้า|เทพ|พระเจ้า|พระธาตุ|พระวิหาร|เจดีย์|หลวงพ่อ)/i.test(t);
 }
 
 function getThaiKnowledgeDomainTool(text: string): { toolName: string; domain: string; label: string } | null {
