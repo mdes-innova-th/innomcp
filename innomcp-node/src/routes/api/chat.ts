@@ -1021,6 +1021,31 @@ function prefersThaiKnowledgeRoute(text: string): boolean {
   return hasGeoEntity && hasKnowledgeIntent;
 }
 
+// Phase 2: Thai Knowledge Domain detectors — History / Law / Religion
+function looksLikeThaiHistoryQuery(text: string): boolean {
+  const t = String(text || "");
+  if (/(อากาศ|ฝน|พยากรณ์|weather|forecast|อุณหภูมิ)/i.test(t)) return false;
+  return /(ประวัติศาสตร์|กษัตริย์|สมัย|ราชวงศ์|รัชกาล|อยุธยา|สุโขทัย|พระนเรศวร|ยุทธหัตถี|ล้านนา|ธนบุรี|รัตนโกสินทร์|พ่อขุน|เจ้าเมือง|วีรบุรุษ|วีรสตรี|ประวัติ.*ไทย|ไทยสมัย|เหตุการณ์สำคัญ|ประวัติบุคคล)/i.test(t);
+}
+
+function looksLikeThaiLawQuery(text: string): boolean {
+  const t = String(text || "");
+  return /(กฎหมาย|มาตรา|พ\.ร\.บ\.|พระราชบัญญัติ|ประมวลกฎหมาย|โทษ|จำคุก|ปรับ|คดี|กระทำผิด|ผิดกฎหมาย|ลงโทษ|อาญา|แพ่ง|อาชญากรรม|บทลงโทษ|ข้อกฎหมาย|กฎหมายไทย)/i.test(t);
+}
+
+function looksLikeThaiReligionQuery(text: string): boolean {
+  const t = String(text || "");
+  if (/(อากาศ|ฝน|weather)/i.test(t)) return false;
+  return /(วัด[^ๆ]|พระพุทธ|ศาสนา|นมัสการ|วิสาขบูชา|บวช|พุทธศาสนา|อิสลาม|คริสต์|สวดมนต์|ทำบุญ|พระสงฆ์|โบสถ์|มัสยิด|ศาลเจ้า|เทพ|พระเจ้า|พระธาตุ|พระวิหาร|เจดีย์|หลวงพ่อ)/i.test(t);
+}
+
+function getThaiKnowledgeDomainTool(text: string): { toolName: string; domain: string; label: string } | null {
+  if (looksLikeThaiHistoryQuery(text)) return { toolName: "thai_history_tool", domain: "history", label: "ประวัติศาสตร์ไทย" };
+  if (looksLikeThaiLawQuery(text)) return { toolName: "thai_law_tool", domain: "law", label: "กฎหมายไทย" };
+  if (looksLikeThaiReligionQuery(text)) return { toolName: "thai_religion_tool", domain: "religion", label: "ศาสนาและวัด" };
+  return null;
+}
+
 function looksLikeDateTimeLikeQuery(text: string): boolean {
   // Keep narrow: avoid hijacking weather queries containing "วันนี้".
   const t = String(text || "");
@@ -2869,6 +2894,9 @@ function chatTraceOut(params: {
     | "rainfall_chart"
     | "image_generation"
     | "webdCourtOrder"
+    | "thai_history"
+    | "thai_law"
+    | "thai_religion"
     | "multi_intent";
   tool?: string;
   code: number;
@@ -3887,6 +3915,70 @@ wss.on("connection", (ws, req) => {
             return;
           }
           // If resolveThaiGeoLocal returned null, fall through to next gate
+        }
+
+        // =====================================
+        // Phase 2: Thai Knowledge Domain Gate — History / Law / Religion (WS path)
+        // Route to dedicated MCP tools: thai_history_tool, thai_law_tool, thai_religion_tool
+        // =====================================
+        const thaiDomainMatch = mcpClient ? getThaiKnowledgeDomainTool(routingMessage) : null;
+        if (mcpClient && thaiDomainMatch && !looksLikeToolBypassAttempt(routingMessage) && !looksLikeDeterministicWeatherQuery(routingMessage)) {
+          logBoth("info", `[ThaiKnowledgeDomainGate] bypass=true transport=ws tool=${thaiDomainMatch.toolName} domain=${thaiDomainMatch.domain}`);
+
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+
+          try {
+            sendSafe(ws, { type: "mcp-status", text: `กำลังค้นหาข้อมูล${thaiDomainMatch.label}...`, tools: [thaiDomainMatch.toolName] });
+
+            const domainResults = await mcpClient.executeTools([thaiDomainMatch.toolName], routingMessage, {
+              [thaiDomainMatch.toolName]: { query: routingMessage },
+            });
+
+            const domainFirst = Array.isArray(domainResults) ? domainResults[0] : undefined;
+            const domainSc = domainFirst?.structuredContent ?? domainFirst?.result ?? {};
+            let domainText = "ขออภัย ไม่พบข้อมูลที่เกี่ยวข้องในขณะนี้";
+
+            const domainContentText = (() => {
+              if (Array.isArray(domainSc?.content) && domainSc.content.length > 0) return String(domainSc.content[0]?.text || "");
+              if (typeof domainSc === "string") return domainSc;
+              return null;
+            })();
+
+            if (domainContentText) {
+              try {
+                const parsed = JSON.parse(domainContentText);
+                if (parsed?.success && Array.isArray(parsed.data) && parsed.data.length > 0) {
+                  domainText = parsed.data.map((item: any) => `**${item.name_th}**: ${item.description || ""}`).join("\n\n");
+                } else if (!parsed?.success && parsed?.message) {
+                  domainText = `ไม่พบข้อมูล${thaiDomainMatch.label}: ${parsed.message}`;
+                }
+              } catch { domainText = domainContentText.slice(0, 500); }
+            }
+
+            const domainRouteLabel = thaiDomainMatch.domain === "history" ? "thai_history" : thaiDomainMatch.domain === "law" ? "thai_law" : "thai_religion";
+            const scOut = withRenderMeta(
+              { domain: thaiDomainMatch.domain, answer: domainText },
+              { route: domainRouteLabel as any, llmUsed: false, routeDecider: "deterministic", version: "phase2" },
+              [thaiDomainMatch.toolName]
+            );
+
+            const aiMsg: any = { sender: "ai", text: domainText, structuredContent: scOut, toolsUsed: [thaiDomainMatch.toolName] };
+            sessionHistory.push(aiMsg);
+            sessionManager.addMessage(currentSessionId, "assistant", domainText, [thaiDomainMatch.toolName]);
+            sessionManager.completeResponse(currentSessionId);
+
+            sendSafe(ws, { type: "message", sender: "ai", text: domainText, structuredContent: scOut, toolsUsed: [thaiDomainMatch.toolName] });
+            sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [thaiDomainMatch.toolName] });
+            sendDoneOnce();
+
+            chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: domainRouteLabel as any, tool: thaiDomainMatch.toolName, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: domainText.slice(0, 120) });
+            return;
+          } catch (domainErr: any) {
+            logBoth("error", `[ThaiKnowledgeDomainGate] tool ${thaiDomainMatch.toolName} failed: ${domainErr?.message || domainErr}`);
+            // Fall through to LLM on error
+          }
         }
 
         // =====================================
@@ -6303,6 +6395,52 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
           mcpUsed: !!mcpResults,
           mcpResults,
         });
+      }
+    }
+
+    // =====================================
+    // Phase 2: Thai Knowledge Domain Gate — History / Law / Religion (HTTP path)
+    // =====================================
+    const thaiDomainMatchHttp = mcpClient ? getThaiKnowledgeDomainTool(messageWithFile) : null;
+    if (mcpClient && thaiDomainMatchHttp && !looksLikeToolBypassAttempt(messageWithFile) && !looksLikeDeterministicWeatherQuery(messageWithFile)) {
+      logBoth("info", `[ThaiKnowledgeDomainGate] bypass=true transport=http tool=${thaiDomainMatchHttp.toolName} domain=${thaiDomainMatchHttp.domain}`);
+      try {
+        const domainResultsHttp = await mcpClient.executeTools([thaiDomainMatchHttp.toolName], messageWithFile, {
+          [thaiDomainMatchHttp.toolName]: { query: messageWithFile },
+        });
+        const domainFirstHttp = Array.isArray(domainResultsHttp) ? domainResultsHttp[0] : undefined;
+        const domainScHttp = domainFirstHttp?.structuredContent ?? domainFirstHttp?.result ?? {};
+        let domainTextHttp = "ขออภัย ไม่พบข้อมูลที่เกี่ยวข้องในขณะนี้";
+
+        const domainContentHttp = (() => {
+          if (Array.isArray(domainScHttp?.content) && domainScHttp.content.length > 0) return String(domainScHttp.content[0]?.text || "");
+          if (typeof domainScHttp === "string") return domainScHttp;
+          return null;
+        })();
+
+        if (domainContentHttp) {
+          try {
+            const parsedHttp = JSON.parse(domainContentHttp);
+            if (parsedHttp?.success && Array.isArray(parsedHttp.data) && parsedHttp.data.length > 0) {
+              domainTextHttp = parsedHttp.data.map((item: any) => `**${item.name_th}**: ${item.description || ""}`).join("\n\n");
+            } else if (!parsedHttp?.success && parsedHttp?.message) {
+              domainTextHttp = `ไม่พบข้อมูล${thaiDomainMatchHttp.label}: ${parsedHttp.message}`;
+            }
+          } catch { domainTextHttp = domainContentHttp.slice(0, 500); }
+        }
+
+        const httpRouteLabel = thaiDomainMatchHttp.domain === "history" ? "thai_history" : thaiDomainMatchHttp.domain === "law" ? "thai_law" : "thai_religion";
+        const scOutHttp = withRenderMeta(
+          { domain: thaiDomainMatchHttp.domain, answer: domainTextHttp },
+          { route: httpRouteLabel as any, llmUsed: false, routeDecider: "deterministic", version: "phase2" },
+          [thaiDomainMatchHttp.toolName]
+        );
+        sessionHistory.push({ sender: "ai", text: domainTextHttp } as any);
+        chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: httpRouteLabel as any, tool: thaiDomainMatchHttp.toolName, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: domainTextHttp.slice(0, 120) });
+        return res.json({ text: domainTextHttp, structuredContent: scOutHttp, messages: sessionHistory, mcpUsed: true, mcpResults: domainResultsHttp, toolsUsed: [thaiDomainMatchHttp.toolName], route: httpRouteLabel });
+      } catch (domainErrHttp: any) {
+        logBoth("error", `[ThaiKnowledgeDomainGate] tool ${thaiDomainMatchHttp.toolName} failed: ${domainErrHttp?.message || domainErrHttp}`);
+        // Fall through to LLM on error
       }
     }
 
