@@ -87,7 +87,7 @@ export async function middleware(request: NextRequest) {
     `script-src ${scriptSrc.join(" ")}`,
     `style-src ${styleSrc.join(" ")}`,
     `style-src-elem ${styleSrcElem.join(" ")}`,
-    "img-src 'self' data: https://innomcp.dataxo.info http://localhost:3001 http://127.0.0.1:3001 blob:",
+    "img-src 'self' data: https://innomcp.dataxo.info http://localhost:3001 http://127.0.0.1:3001 blob: https://image.pollinations.ai https://imgen.mdes-innova.online",
     "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com",
     "connect-src 'self' https://innomcp.dataxo.info wss://innomcp.dataxo.info http://localhost:3000 ws://localhost:3000 http://127.0.0.1:3000 ws://127.0.0.1:3000 http://localhost:3011 ws://localhost:3011 http://127.0.0.1:3011 ws://127.0.0.1:3011 http://localhost:3012 ws://localhost:3012 http://127.0.0.1:3012 ws://127.0.0.1:3012 blob:",
     "object-src blob:",
@@ -164,7 +164,7 @@ export async function middleware(request: NextRequest) {
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Referrer-Policy", "no-referrer");
   response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
-  response.headers.set("Cross-Origin-Embedder-Policy", "require-corp");
+  response.headers.set("Cross-Origin-Embedder-Policy", "credentialless");
   response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
   response.headers.set(
     "Permissions-Policy",

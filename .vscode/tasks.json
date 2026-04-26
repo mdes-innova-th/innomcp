@@ -585,6 +585,113 @@
 				"/c",
 				"cd /d innomcp-next && npx playwright test --reporter=list"
 			]
+		},
+		{
+			"label": "start-hermes-gemma",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NoExit",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				". '${workspaceFolder}\\scripts\\start-hermes-agent.ps1' -Mode gemma"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "start-hermes-kimi",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-NoExit",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				". '${workspaceFolder}\\scripts\\start-hermes-agent.ps1' -Mode kimi"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "benchmark-hermes-eff",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; . '${workspaceFolder}\\scripts\\hermes-eff-benchmark.ps1' -Iterations 2"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "run-hermes-bugfix-workflow",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; . '${workspaceFolder}\\scripts\\hermes-bugfix-workflow.ps1' -Mode gemma"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "dedicated"
+			}
+		},
+		{
+			"label": "run-hermes-bugfix-workflow-kimi",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-NoProfile",
+				"-ExecutionPolicy",
+				"Bypass",
+				"-Command",
+				"Set-Location '${workspaceFolder}'; . '${workspaceFolder}\\scripts\\hermes-bugfix-workflow.ps1' -Mode kimi"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": true,
+				"panel": "dedicated"
+			}
 		}
 	]
 }

@@ -55,6 +55,10 @@ test-results/
 .vscode/mcp.json
 .claude/settings.local.json
 .claude/settings.local_json_bak
+.ai/silent/
+
+# Python and runtime caches
+**/__pycache__/
 
 # Workspace-storage accidental artifacts
 workspace-storage/$null

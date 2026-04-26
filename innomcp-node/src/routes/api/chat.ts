@@ -21,7 +21,7 @@ import { getGodTierRouter } from "../../utils/mcp/godTierRouter"; // 🎯 God-Ti
 import { getABTester } from "../../utils/mcp/abTester"; // 🧪 A/B Testing: Remote vs Hybrid mode comparison
 import { requestQueue } from "../../utils/requestQueue";
 import reportRouter from "./chat/report";
-import { optionalAuth } from "../../utils/jwt";
+import { optionalAuth, verifyToken } from "../../utils/jwt";
 import { guestLimiterMiddleware, getLimitsForUser, checkToolAccess, limitResponseLength } from "../../middleware/guestLimiter";
 import { tryFastPathWebSocket } from "../../services/fastPathHandler";
 import { trigToDeg, cleanFloat } from "../../services/fastPathHandler";
@@ -35,6 +35,7 @@ import { quickNormalize } from "../../utils/thaiQueryNormalizer";
 import { hasTemporalIndicators } from "../../utils/thaiTemporalParser";
 import { resolveProvinces } from "../../utils/locationResolver";
 import { recordTurnAndGetMeta, enrichGroundedContract, getMemoryDebugData, queryColdRag, disambiguateWithSessionMemory } from "../../services/memoryRagHook";
+import { callImageGen, buildImageGenText } from "../../services/imageGenService";
 
 dotenv.config();
 
@@ -3565,6 +3566,65 @@ wss.on("connection", (ws, req) => {
         }
 
         // =====================================
+        // Phase 13.2 (WS): AI Image Generation — Authenticated Only (IMAGE-01)
+        // Primary: MDES Agency Gateway (IMAGE_GEN_GATEWAY_URL)
+        // Fallback: Pollinations.ai (free, no key)
+        // =====================================
+        const imageGenLikeWs = /^(?:สร้าง|วาด|generate|draw|create)\s*(?:รูป|ภาพ|รูปภาพ|image|picture|img)|(?:รูป|ภาพ|image)\s*(?:สร้าง|วาด)/i.test(routingMessage);
+        if (imageGenLikeWs) {
+          logBoth("info", `[ImageGenGate] bypass=true transport=ws query=${routingMessage.slice(0, 80)}`);
+          // Verify JWT from cookie (WS upgrade sends cookies automatically)
+          const wsCookies = req.headers.cookie?.split(';').reduce((acc: Record<string,string>, c) => { const [k,v] = c.trim().split('='); acc[k] = v; return acc; }, {}) || {};
+          const wsTokenStr = wsCookies['token'];
+          const wsUser = wsTokenStr ? verifyToken(wsTokenStr) : null;
+          if (!wsUser) {
+            const errText = "🔒 ฟีเจอร์สร้างรูปภาพ AI สำหรับผู้ใช้ที่เข้าสู่ระบบแล้วเท่านั้น กรุณาเข้าสู่ระบบก่อนใช้งาน";
+            sessionHistory.push({ sender: "user", text: messageWithFile });
+            sessionHistory.push({ sender: "ai", text: errText } as any);
+            sendSafe(ws, { type: "message", sender: "ai", text: errText, structuredContent: { __authRequired: true } });
+            sendSafe(ws, { type: "history-update", messages: sessionHistory });
+            sendDoneOnce();
+            chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "image_generation", tool: "auth_required", code: 403, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: "AUTH_REQUIRED" });
+            return;
+          }
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+          const genResult = await callImageGen(routingMessage);
+          if (!genResult.ok) {
+            const errText = `🎨 ขออภัย ไม่สามารถสร้างรูปภาพได้ในขณะนี้ (${genResult.error}) — กรุณาลองใหม่อีกครั้ง`;
+            sessionHistory.push({ sender: "ai", text: errText } as any);
+            sessionManager.addMessage(currentSessionId, "assistant", errText);
+            sessionManager.completeResponse(currentSessionId);
+            sendSafe(ws, { type: "message", sender: "ai", text: errText, structuredContent: {} });
+            sendSafe(ws, { type: "history-update", messages: sessionHistory });
+            sendDoneOnce();
+            chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "image_generation", tool: genResult.code, code: 500, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: "GEN_FAILED" });
+            return;
+          }
+          const textOut = buildImageGenText(genResult);
+          const toolKey = genResult.source === "gateway" ? "mdes-genimg-gateway" : "pollinations-ai";
+          const sc: any = {
+            generatedImageUrl: genResult.url,
+            generatedImageBase64: genResult.base64,
+            imagePrompt: genResult.prompt,
+            imageProvider: genResult.provider,
+            imageModel: genResult.model,
+            imageSource: genResult.source,
+          };
+          const scOut = withRenderMeta(sc, { route: "image_generation", llmUsed: false, routeDecider: "deterministic", version: "phase13.2" }, [toolKey]);
+          const aiMsgImg: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [toolKey] };
+          sessionHistory.push(aiMsgImg);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, [toolKey]);
+          sessionManager.completeResponse(currentSessionId);
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [toolKey] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [toolKey] });
+          sendDoneOnce();
+          chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "image_generation", tool: toolKey, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+          return;
+        }
+
+        // =====================================
         // Phase 7.1a: Deterministic Seismic Router (no weather fallback for earthquake queries)
         // =====================================
         const seismicLike = /แผ่นดินไหว|seismic|earthquake|ริกเตอร์|richter/i.test(routingMessage);
@@ -5916,7 +5976,8 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
     // =====================================
     // Phase 13.2: AI Image Generation — Authenticated Only (IMAGE-01)
-    // Uses Pollinations.ai (free, no API key, Flux model)
+    // Primary: MDES Agency Gateway (IMAGE_GEN_GATEWAY_URL)
+    // Fallback: Pollinations.ai (free, no key)
     // =====================================
     const imageGenLike = /^(?:สร้าง|วาด|generate|draw|create)\s*(?:รูป|ภาพ|รูปภาพ|image|picture|img)|(?:รูป|ภาพ|image)\s*(?:สร้าง|วาด)/i.test(routingMessage);
     if (imageGenLike) {
@@ -5929,19 +5990,27 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "image_generation", tool: "auth_required", code: 403, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: "AUTH_REQUIRED" });
         return res.json({ text: textOut, structuredContent: { __authRequired: true }, messages: sessionHistory, mcpUsed: false, route: "image_generation" });
       }
-      const imagePrompt = extractImagePrompt(routingMessage);
-      const imageUrl = buildImageGenerationUrl(imagePrompt);
-      const textOut = `🎨 **สร้างรูปภาพ AI ให้แล้วครับ**\n\n📝 คำสั่ง: "${imagePrompt}"\n🖼️ ดูภาพด้านล่าง\n\n⚙️ สร้างโดย: Pollinations.ai (Flux model — ฟรี, ไม่ต้อง API key)`;
+      const genResult = await callImageGen(routingMessage);
+      if (!genResult.ok) {
+        const errText = `🎨 ขออภัย ไม่สามารถสร้างรูปภาพได้ในขณะนี้ (${genResult.error}) — กรุณาลองใหม่อีกครั้ง`;
+        sessionHistory.push({ sender: "ai", text: errText } as any);
+        chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "image_generation", tool: genResult.code, code: 500, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: "GEN_FAILED" });
+        return res.json({ text: errText, structuredContent: {}, messages: sessionHistory, mcpUsed: false, route: "image_generation" });
+      }
+      const textOut = buildImageGenText(genResult);
+      const toolKey = genResult.source === "gateway" ? "mdes-genimg-gateway" : "pollinations-ai";
       const sc: any = {
-        generatedImageUrl: imageUrl,
-        imagePrompt,
-        imageProvider: "Pollinations.ai",
-        imageModel: "flux",
+        generatedImageUrl: genResult.url,
+        generatedImageBase64: genResult.base64,
+        imagePrompt: genResult.prompt,
+        imageProvider: genResult.provider,
+        imageModel: genResult.model,
+        imageSource: genResult.source,
       };
-      const scOut = withRenderMeta(sc, { route: "image_generation", llmUsed: false, routeDecider: "deterministic", version: "phase13" }, ["pollinations-ai"]);
+      const scOut = withRenderMeta(sc, { route: "image_generation", llmUsed: false, routeDecider: "deterministic", version: "phase13.2" }, [toolKey]);
       sessionHistory.push({ sender: "ai", text: textOut } as any);
-      chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "image_generation", tool: "pollinations-ai", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
-      return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: false, mcpResults: null, toolsUsed: ["pollinations-ai"], route: "image_generation" });
+      chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "image_generation", tool: toolKey, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+      return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: false, mcpResults: null, toolsUsed: [toolKey], route: "image_generation" });
     }
 
     // =====================================

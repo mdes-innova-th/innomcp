@@ -8,6 +8,7 @@ import { useTheme } from "@/app/context/ThemeContext";
 import { useAuth } from "@/app/context/AuthContext";
 import ToolTypeBadge from "./ToolTypeBadge";
 import EvidenceDashboard from "./EvidenceDashboard";
+import GeneratedImageCard from "./GeneratedImageCard";
 
 type Props = {
   html: string;
@@ -188,25 +189,17 @@ export default function ChatMessage({
           </div>
         )}
 
-        {/* AI Generated Image: render from Pollinations.ai URL for authenticated users */}
+        {/* AI Generated Image: render via GeneratedImageCard (MDES Gateway or Pollinations.ai) */}
         {structuredContent?.generatedImageUrl && (
-          <div className="mb-4" data-testid="generated-image">
-            <div className="flex justify-center">
-              <img
-                src={structuredContent.generatedImageUrl}
-                alt={structuredContent.imagePrompt || 'AI Generated Image'}
-                className="max-w-[512px] h-auto rounded-lg shadow-md"
-                loading="lazy"
-              />
-            </div>
-            {structuredContent.imagePrompt && (
-              <div className="flex justify-center mt-2">
-                <span className="text-xs text-gray-400 dark:text-gray-500">
-                  🎨 {structuredContent.imageProvider || 'AI'} — &quot;{structuredContent.imagePrompt}&quot;
-                </span>
-              </div>
-            )}
-          </div>
+          <GeneratedImageCard
+            imageUrl={structuredContent.generatedImageUrl}
+            imageBase64={structuredContent.generatedImageBase64}
+            imagePrompt={structuredContent.imagePrompt}
+            imageProvider={structuredContent.imageProvider}
+            imageModel={structuredContent.imageModel}
+            imageSource={structuredContent.imageSource}
+            theme={theme}
+          />
         )}
 
         {/* Weather unavailable notice: shown when weather was attempted but no real data */}
