@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { correlationIdMiddleware } from "./middleware/correlationId";
 import { performanceTrackingMiddleware } from "./middleware/performanceTracking";
+import { generalRateLimit, authRateLimit } from "./middleware/rateLimiter";
 import apiRouter from "./routes/api";
 import apiCsrfRouter from "./routes/api/csrf";
 import aiModeRouter from "./routes/api/aiMode";
@@ -125,8 +126,8 @@ app.use("/api/debug", debugRouter);
 // FastPath middleware อยู่ใน chatRouter แล้ว
 app.use("/api/chat", chatRouter);
 
-// Router สำหรับ Authentication (public endpoints)
-app.use("/api/auth", authRouter);
+// Router สำหรับ Authentication (public endpoints) — tighter limit (10 rpm) to slow brute force
+app.use("/api/auth", authRateLimit, authRouter);
 
 // Router สำหรับ Workspace (requires authentication)
 app.use("/api/workspace", workspaceRouter);
@@ -134,7 +135,7 @@ app.use("/api/workspace", workspaceRouter);
 // Router สำหรับ Admin (requires authentication + admin role)
 app.use("/api/admin", adminRouter);
 
-// Router สำหรับ API endpoint ทั้งหมดที่ต้องการ API key
-app.use("/api", apiKeyMiddleware, csrfMiddleware, apiRouter);
+// Router สำหรับ API endpoint ทั้งหมดที่ต้องการ API key — 60 rpm general rate limit
+app.use("/api", generalRateLimit, apiKeyMiddleware, csrfMiddleware, apiRouter);
 
 export default app;
