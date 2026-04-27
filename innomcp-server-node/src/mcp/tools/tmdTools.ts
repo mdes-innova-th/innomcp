@@ -11,7 +11,7 @@ import { logBoth } from "../../utils/mcpLogger";
  */
 
 // ========== Config ==========
-const DEFAULT_TIMEOUT_MS = 30000; // ✅ เพิ่มจาก 15s เป็น 30s สำหรับ API ที่ช้า
+const DEFAULT_TIMEOUT_MS = 60000; // ✅ เพิ่มเป็น 60s: TMD observation endpoints (WeatherToday, Weather3HoursBySynop, WeatherTodayByX) ใช้เวลา 20-31s
 
 // Zod schema: tools เหล่านี้ "ไม่ต้องรับพารามิเตอร์"
 const EmptyArgsSchema = z.object({}).passthrough();
@@ -156,7 +156,8 @@ function requireTmdAuthForTier(tier: TmdKeyTier): { uid: string; ukey: string } 
   const isFixture = process.env.WEATHER_FIXTURE_W1 === "1" || process.env.CHAT_TRACE_QA === "1";
   const isLiveMode = getInnomcpMode() === "online" && !isSmoke && !isFixture;
   const strictBlock = process.env.TMD_STRICT_DEMO_BLOCK === "1";
-  const isDemoLike = uid === "demo" || ukey === "demo" || uid === "api" || ukey.includes("api12345");
+  // Only flag as demo-like if truly generic demo credentials — "api"/"api12345" are valid public TMD credentials per TMD staff
+  const isDemoLike = uid === "demo" || ukey === "demo" || ukey === "demokey";
   if (isLiveMode && tier === "api" && isDemoLike) {
     if (strictBlock) {
       throw new Error(`TMD_API_LIVE_MODE_DEMO_KEY_BLOCKED [tier=${tier}]: Credential blocked by TMD_STRICT_DEMO_BLOCK=1. Set real TMD_UID_API + TMD_UKEY_API.`);
@@ -463,7 +464,7 @@ const TMD_ENDPOINTS = {
   weatherToday: "https://data.tmd.go.th/api/WeatherToday/V2/",
 
   // 4
-  weather3Hours: "http://data.tmd.go.th/api/Weather3Hours/V2/",
+  weather3Hours: "https://data.tmd.go.th/api/Weather3Hours/V2/",
 
   // 5
   thailandMonthlyRainfall: "http://data.tmd.go.th/api/ThailandMonthlyRainfall/v1/index.php",

@@ -10,7 +10,6 @@ import axios from "axios";
  */
 
 const NWP_API_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/daily";
-const NWP_AREA_REGION_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/area/region";
 const DEFAULT_TIMEOUT = 15000;
 
 function getNwpApiKey(): string {
@@ -430,14 +429,17 @@ export const nwpDailyByRegionTool = {
     try {
       const apiKey = getNwpApiKey();
 
-      // Use /forecast/area/region with domain=2 (6km, 72hrs) — only domain=2 is active in area/region
-      // starttime must be >= current Thai time (UTC+7)
-      const nowTH = new Date(Date.now() + 7 * 3600 * 1000);
-      const today = nowTH.toISOString().slice(0, 10);
-      const currentHour = String(nowTH.getUTCHours()).padStart(2, "0");
-      const starttime = `${today}T${currentHour}:00:00`;
+      // Use /forecast/location/daily/region — official docs endpoint with proper date/duration params
+      const today = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+      const date = input.date || today;
       const fields = (input.fields || ["tc_max", "tc_min", "rain", "cond"]).join(",");
-      const url = `${NWP_AREA_REGION_BASE}?domain=2&region=${input.region}&starttime=${starttime}&fields=${fields}`;
+      const regionParams = new URLSearchParams({
+        region: input.region,
+        date: date,
+        duration: String(input.duration || 7),
+        fields: fields,
+      });
+      const url = `${NWP_API_BASE}/region?${regionParams.toString()}`;
 
       console.log(`[NWP Daily Region] GET ${url}`);
 
