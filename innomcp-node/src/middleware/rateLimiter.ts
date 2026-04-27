@@ -11,6 +11,7 @@
  *
  * Disabled when:
  *   - process.env.NODE_ENV === "test"
+ *   - process.env.NODE_ENV === "development"  (local dev + Playwright E2E never burst-limit themselves)
  *   - process.env.SMOKE_MODE === "1"
  *   - process.env.RATE_LIMIT_DISABLED === "1"
  *
@@ -34,6 +35,7 @@ const buckets = new Map<string, Bucket>();
 function isDisabled(): boolean {
   return (
     process.env.NODE_ENV === "test" ||
+    process.env.NODE_ENV === "development" ||
     process.env.SMOKE_MODE === "1" ||
     process.env.RATE_LIMIT_DISABLED === "1"
   );

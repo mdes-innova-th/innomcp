@@ -37,6 +37,8 @@ innomcp-node/tests/*
 !innomcp-node/tests/weather_regression_phase65_final.test.ts
 !innomcp-node/tests/query_coverage.test.ts
 !innomcp-node/tests/query_coverage_v2.test.ts
+!innomcp-node/tests/jest.setup.ts
+!innomcp-node/tests/jest.preload.cjs
 
 # Database files
 mariadb/data/

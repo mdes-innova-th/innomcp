@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "test": "jest",
-    "test:all": "jest && npm run test:geo",
+    "test:all": "npm test && npm run test:geo",
     "test:geo": "npm run build && node --test tests/geo/thai-geo-roundC.test.js",
     "test:weather65": "jest --testPathPatterns=phase65",
     "test:basic": "echo 'No tests yet' && exit 0",

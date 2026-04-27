@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { logBoth } from "../../utils/mcpLogger";
+import { tmdCacheGet, tmdCacheSet, getTmdCacheTtlMs } from "../../utils/tmdCache";
 
 /**
  * TMD Tools (Production-ish)
@@ -248,6 +249,24 @@ async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) 
   const authParamsPresent = hasAuthParams(rawUrl);
   const start = nowMs();
 
+  // TTL cache for the 5 slow observation endpoints (28-52s upstream).
+  // Cache key uses safeUrl (uid/ukey stripped) so creds rotation doesn't fragment.
+  const cacheTtlMs = getTmdCacheTtlMs(toolName);
+  const cacheKey = cacheTtlMs ? `tmd:${toolName}:${safeUrl}` : null;
+  if (cacheKey) {
+    const cached = tmdCacheGet(cacheKey) as
+      | { ok: true; meta: Record<string, unknown>; data: unknown }
+      | null;
+    if (cached) {
+      const durationMs = nowMs() - start;
+      logBoth("INFO", `[TMD:${toolName}] cache HIT time=${durationMs}ms`);
+      return {
+        ...cached,
+        meta: { ...cached.meta, cacheHit: true, durationMs, fetchedAt: new Date().toISOString() },
+      };
+    }
+  }
+
   logBoth("INFO", `[TMD:${toolName}] GET ${safeUrl} authParamsPresent=${authParamsPresent ? "true" : "false"}`);
 
   try {
@@ -303,8 +322,8 @@ async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) 
       throw new Error("TMD_API_AUTH_FAIL: Authentication fail payload (Check TMD_UID_API/TMD_UKEY_API or TMD_UID_DEMO/TMD_UKEY_DEMO in .env — see ENV_SETUP.md)");
     }
 
-    return {
-      ok: true,
+    const successResult = {
+      ok: true as const,
       meta: {
         tool: toolName,
         url: safeUrl,
@@ -315,6 +334,12 @@ async function callTmdJson(toolName: string, url: string, signal?: AbortSignal) 
       },
       data,
     };
+
+    if (cacheKey && cacheTtlMs) {
+      tmdCacheSet(cacheKey, successResult, cacheTtlMs);
+    }
+
+    return successResult;
   } catch (err: any) {
     const durationMs = nowMs() - start;
     const aborted = signal?.aborted || isAbortError(err);

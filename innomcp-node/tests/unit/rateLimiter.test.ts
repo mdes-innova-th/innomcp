@@ -81,6 +81,16 @@ describe("Rate Limiter middleware", () => {
       expect(res.statusCode).toBe(200);
     });
 
+    it("calls next() when NODE_ENV=development", () => {
+      process.env.NODE_ENV = "development";
+      const req = makeMockReq("1.2.3.4");
+      const res = makeMockRes();
+      const next = jest.fn();
+      generalRateLimit(req, res, next);
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(res.statusCode).toBe(200);
+    });
+
     it("calls next() when SMOKE_MODE=1", () => {
       enableLimiter();
       process.env.SMOKE_MODE = "1";
