@@ -20,6 +20,14 @@ interface MetricsData {
   endpoints: Record<string, { count: number; p50?: number; p95?: number }>;
 }
 
+interface FeedbackStats {
+  total: number;
+  up: number;
+  down: number;
+  last7Days: { date: string; rating: 'up' | 'down'; count: number }[];
+  error?: string;
+}
+
 const ROLE_LABELS: Record<number, string> = { 0: 'Admin', 1: 'Moderator', 2: 'User' };
 
 export default function AdminPage() {
@@ -30,6 +38,7 @@ export default function AdminPage() {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
+  const [feedbackStats, setFeedbackStats] = useState<FeedbackStats | null>(null);
 
   // Redirect if not admin
   useEffect(() => {
@@ -59,6 +68,15 @@ export default function AdminPage() {
     fetch('/api/admin/metrics', { credentials: 'include' })
       .then(r => r.json())
       .then(d => { if (d.success) setMetrics(d.data); })
+      .catch(() => null);
+  }, [isLoggedIn, userRoleId]);
+
+  // Fetch feedback stats
+  useEffect(() => {
+    if (!isLoggedIn || userRoleId !== 0) return;
+    fetch('/api/admin/feedback/stats', { credentials: 'include', cache: 'no-store' })
+      .then(r => r.json())
+      .then((d: FeedbackStats) => setFeedbackStats(d))
       .catch(() => null);
   }, [isLoggedIn, userRoleId]);
 
@@ -207,6 +225,66 @@ export default function AdminPage() {
             </div>
           )}
         </div>
+
+        {/* Feedback Insights */}
+        {feedbackStats && (
+          <div className="mt-6 rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+              <h2 className="font-semibold text-gray-800 dark:text-gray-100">💬 Feedback Insights</h2>
+            </div>
+            <div className="p-4">
+              {feedbackStats.error ? (
+                <p className="text-sm text-amber-600 dark:text-amber-400">
+                  Stats unavailable ({feedbackStats.error})
+                </p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3 border border-gray-100 dark:border-gray-600">
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total</p>
+                      <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">{feedbackStats.total}</p>
+                    </div>
+                    <div className="rounded-lg bg-green-50 dark:bg-green-900/20 p-3 border border-green-100 dark:border-green-800">
+                      <p className="text-xs font-medium text-green-600 dark:text-green-400 mb-1">👍 Up</p>
+                      <p className="text-2xl font-bold text-green-700 dark:text-green-300">{feedbackStats.up}</p>
+                    </div>
+                    <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-3 border border-red-100 dark:border-red-800">
+                      <p className="text-xs font-medium text-red-600 dark:text-red-400 mb-1">👎 Down</p>
+                      <p className="text-2xl font-bold text-red-700 dark:text-red-300">{feedbackStats.down}</p>
+                    </div>
+                  </div>
+                  {feedbackStats.last7Days.length > 0 && (
+                    <div>
+                      <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+                        Last 7 Days
+                      </h3>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-left text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-700">
+                            <th className="px-2 py-2">Date</th>
+                            <th className="px-2 py-2">Rating</th>
+                            <th className="px-2 py-2 text-right">Count</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                          {feedbackStats.last7Days.map((row, i) => (
+                            <tr key={`${row.date}-${row.rating}-${i}`}>
+                              <td className="px-2 py-2 text-gray-600 dark:text-gray-300 font-mono text-xs">{row.date}</td>
+                              <td className="px-2 py-2">
+                                {row.rating === 'up' ? '👍 up' : '👎 down'}
+                              </td>
+                              <td className="px-2 py-2 text-right font-medium text-gray-800 dark:text-gray-200">{row.count}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Tool Usage Metrics */}
         {metrics && (

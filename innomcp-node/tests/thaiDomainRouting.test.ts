@@ -1,7 +1,5 @@
 // FILE: innomcp-node/tests/thaiDomainRouting.test.ts
 // Phase 2: Unit tests for Thai History / Law / Religion routing detectors
-import { describe, it } from "node:test";
-import { strict as assert } from "node:assert";
 
 // Inline copies of the detector functions from chat.ts (additive, no import needed)
 function looksLikeThaiHistoryQuery(text: string): boolean {
@@ -33,60 +31,60 @@ function getThaiKnowledgeDomainTool(text: string): { toolName: string; domain: s
 // ================================
 
 describe("looksLikeThaiHistoryQuery", () => {
-  it("detects: พระนเรศวร", () => assert.equal(looksLikeThaiHistoryQuery("พระนเรศวรมหาราชเป็นใคร"), true));
-  it("detects: อยุธยา", () => assert.equal(looksLikeThaiHistoryQuery("อยุธยาเป็นเมืองหลวงสมัยใด"), true));
-  it("detects: ประวัติศาสตร์ไทย", () => assert.equal(looksLikeThaiHistoryQuery("ประวัติศาสตร์ไทยสมัยอยุธยา"), true));
-  it("detects: ราชวงศ์จักรี", () => assert.equal(looksLikeThaiHistoryQuery("ราชวงศ์จักรีเริ่มต้นเมื่อไหร่"), true));
-  it("detects: รัชกาลที่ 5", () => assert.equal(looksLikeThaiHistoryQuery("รัชกาลที่ 5 ทรงทำอะไรบ้าง"), true));
-  it("negative: อากาศ", () => assert.equal(looksLikeThaiHistoryQuery("อากาศวันนี้เป็นไง"), false));
-  it("negative: geo", () => assert.equal(looksLikeThaiHistoryQuery("กรุงเทพอยู่ภาคไหน"), false));
-  it("negative: empty", () => assert.equal(looksLikeThaiHistoryQuery(""), false));
+  it("detects: พระนเรศวร", () => expect(looksLikeThaiHistoryQuery("พระนเรศวรมหาราชเป็นใคร")).toBe(true));
+  it("detects: อยุธยา", () => expect(looksLikeThaiHistoryQuery("อยุธยาเป็นเมืองหลวงสมัยใด")).toBe(true));
+  it("detects: ประวัติศาสตร์ไทย", () => expect(looksLikeThaiHistoryQuery("ประวัติศาสตร์ไทยสมัยอยุธยา")).toBe(true));
+  it("detects: ราชวงศ์จักรี", () => expect(looksLikeThaiHistoryQuery("ราชวงศ์จักรีเริ่มต้นเมื่อไหร่")).toBe(true));
+  it("detects: รัชกาลที่ 5", () => expect(looksLikeThaiHistoryQuery("รัชกาลที่ 5 ทรงทำอะไรบ้าง")).toBe(true));
+  it("negative: อากาศ", () => expect(looksLikeThaiHistoryQuery("อากาศวันนี้เป็นไง")).toBe(false));
+  it("negative: geo", () => expect(looksLikeThaiHistoryQuery("กรุงเทพอยู่ภาคไหน")).toBe(false));
+  it("negative: empty", () => expect(looksLikeThaiHistoryQuery("")).toBe(false));
 });
 
 describe("looksLikeThaiLawQuery", () => {
-  it("detects: มาตรา 112", () => assert.equal(looksLikeThaiLawQuery("มาตรา 112 คืออะไร"), true));
-  it("detects: กฎหมายอาญา", () => assert.equal(looksLikeThaiLawQuery("กฎหมายอาญามาตรา 288"), true));
-  it("detects: พ.ร.บ.คอมฯ", () => assert.equal(looksLikeThaiLawQuery("พ.ร.บ.คอมพิวเตอร์มาตราไหนบ้าง"), true));
-  it("detects: จำคุก", () => assert.equal(looksLikeThaiLawQuery("โทษจำคุกสูงสุดคือเท่าไหร่"), true));
-  it("detects: ผิดกฎหมาย", () => assert.equal(looksLikeThaiLawQuery("สิ่งนี้ผิดกฎหมายไหม"), true));
-  it("negative: วัด", () => assert.equal(looksLikeThaiLawQuery("วัดพระแก้วอยู่ที่ไหน"), false));
-  it("negative: อากาศ", () => assert.equal(looksLikeThaiLawQuery("อากาศพรุ่งนี้"), false));
-  it("negative: empty", () => assert.equal(looksLikeThaiLawQuery(""), false));
+  it("detects: มาตรา 112", () => expect(looksLikeThaiLawQuery("มาตรา 112 คืออะไร")).toBe(true));
+  it("detects: กฎหมายอาญา", () => expect(looksLikeThaiLawQuery("กฎหมายอาญามาตรา 288")).toBe(true));
+  it("detects: พ.ร.บ.คอมฯ", () => expect(looksLikeThaiLawQuery("พ.ร.บ.คอมพิวเตอร์มาตราไหนบ้าง")).toBe(true));
+  it("detects: จำคุก", () => expect(looksLikeThaiLawQuery("โทษจำคุกสูงสุดคือเท่าไหร่")).toBe(true));
+  it("detects: ผิดกฎหมาย", () => expect(looksLikeThaiLawQuery("สิ่งนี้ผิดกฎหมายไหม")).toBe(true));
+  it("negative: วัด", () => expect(looksLikeThaiLawQuery("วัดพระแก้วอยู่ที่ไหน")).toBe(false));
+  it("negative: อากาศ", () => expect(looksLikeThaiLawQuery("อากาศพรุ่งนี้")).toBe(false));
+  it("negative: empty", () => expect(looksLikeThaiLawQuery("")).toBe(false));
 });
 
 describe("looksLikeThaiReligionQuery", () => {
-  it("detects: วัดพระแก้ว", () => assert.equal(looksLikeThaiReligionQuery("วัดพระแก้วอยู่ที่ไหน"), true));
-  it("detects: วิสาขบูชา", () => assert.equal(looksLikeThaiReligionQuery("วิสาขบูชาคืออะไร"), true));
-  it("detects: พระพุทธ", () => assert.equal(looksLikeThaiReligionQuery("พระพุทธรูปองค์ใหญ่ที่สุด"), true));
-  it("detects: บวช", () => assert.equal(looksLikeThaiReligionQuery("การบวชในพุทธศาสนา"), true));
-  it("negative: กฎหมาย", () => assert.equal(looksLikeThaiReligionQuery("กฎหมายอาญา"), false));
-  it("negative: อากาศภูเก็ต", () => assert.equal(looksLikeThaiReligionQuery("อากาศภูเก็ต"), false));
-  it("negative: empty", () => assert.equal(looksLikeThaiReligionQuery(""), false));
+  it("detects: วัดพระแก้ว", () => expect(looksLikeThaiReligionQuery("วัดพระแก้วอยู่ที่ไหน")).toBe(true));
+  it("detects: วิสาขบูชา", () => expect(looksLikeThaiReligionQuery("วิสาขบูชาคืออะไร")).toBe(true));
+  it("detects: พระพุทธ", () => expect(looksLikeThaiReligionQuery("พระพุทธรูปองค์ใหญ่ที่สุด")).toBe(true));
+  it("detects: บวช", () => expect(looksLikeThaiReligionQuery("การบวชในพุทธศาสนา")).toBe(true));
+  it("negative: กฎหมาย", () => expect(looksLikeThaiReligionQuery("กฎหมายอาญา")).toBe(false));
+  it("negative: อากาศภูเก็ต", () => expect(looksLikeThaiReligionQuery("อากาศภูเก็ต")).toBe(false));
+  it("negative: empty", () => expect(looksLikeThaiReligionQuery("")).toBe(false));
 });
 
 describe("getThaiKnowledgeDomainTool", () => {
   it("routes law: มาตรา 288", () => {
     const r = getThaiKnowledgeDomainTool("มาตรา 288 โทษฆ่าคนคือเท่าไหร่");
-    assert.ok(r);
-    assert.equal(r!.toolName, "thai_law_tool");
-    assert.equal(r!.domain, "law");
+    expect(r).not.toBeNull();
+    expect(r!.toolName).toBe("thai_law_tool");
+    expect(r!.domain).toBe("law");
   });
   it("routes religion: วัดอรุณ", () => {
     const r = getThaiKnowledgeDomainTool("วัดอรุณอยู่ที่ไหน");
-    assert.ok(r);
-    assert.equal(r!.toolName, "thai_religion_tool");
-    assert.equal(r!.domain, "religion");
+    expect(r).not.toBeNull();
+    expect(r!.toolName).toBe("thai_religion_tool");
+    expect(r!.domain).toBe("religion");
   });
   it("routes history: อยุธยา", () => {
     const r = getThaiKnowledgeDomainTool("อยุธยาสมัยใด");
-    assert.ok(r);
-    assert.equal(r!.toolName, "thai_history_tool");
-    assert.equal(r!.domain, "history");
+    expect(r).not.toBeNull();
+    expect(r!.toolName).toBe("thai_history_tool");
+    expect(r!.domain).toBe("history");
   });
   it("returns null for: อากาศวันนี้", () => {
-    assert.equal(getThaiKnowledgeDomainTool("อากาศวันนี้เป็นไง"), null);
+    expect(getThaiKnowledgeDomainTool("อากาศวันนี้เป็นไง")).toBeNull();
   });
   it("returns null for: 2+2", () => {
-    assert.equal(getThaiKnowledgeDomainTool("2+2 เท่ากับเท่าไหร่"), null);
+    expect(getThaiKnowledgeDomainTool("2+2 เท่ากับเท่าไหร่")).toBeNull();
   });
 });

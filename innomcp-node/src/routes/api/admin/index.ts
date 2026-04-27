@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { authenticateToken, requireRole, AuthRequest } from '../../../utils/jwt';
 import { withDbConnection } from '../../../utils/db';
+import { logAdminAction } from '../../../utils/adminAuditLog';
 
 const adminRouter = Router();
 
@@ -63,6 +64,15 @@ adminRouter.patch('/users/:id/role', async (req: AuthRequest, res: Response) => 
       return;
     }
 
+    if (req.user) {
+      await logAdminAction({
+        adminUserId: req.user.userId,
+        action: 'user_role_change',
+        targetUserId: targetId,
+        meta: { roleId },
+      });
+    }
+
     res.json({ success: true, message: `User ${targetId} role updated to ${roleId}` });
   } catch (error) {
     console.error('[Admin] PATCH /users/:id/role error:', error);
@@ -102,6 +112,15 @@ adminRouter.patch('/users/:id/active', async (req: AuthRequest, res: Response) =
     if (result.affectedRows === 0) {
       res.status(404).json({ success: false, error: 'User not found' });
       return;
+    }
+
+    if (req.user) {
+      await logAdminAction({
+        adminUserId: req.user.userId,
+        action: 'user_active_change',
+        targetUserId: targetId,
+        meta: { active },
+      });
     }
 
     res.json({ success: true, message: `User ${targetId} active set to ${active}` });

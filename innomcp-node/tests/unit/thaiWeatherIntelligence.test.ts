@@ -1,348 +1,356 @@
 /**
- * Unit tests for Thai Weather Intelligence utilities
+ * Unit tests for Thai Weather Intelligence utilities.
  * Tests all 20 target queries from the Thai intelligence gap closure mission.
- * Run with: npx ts-node tests/unit/thaiWeatherIntelligence.test.ts
  */
 
-import { quickNormalize, normalizeThaiQuery, hasWeatherIntent } from "../../src/utils/thaiQueryNormalizer";
+import { quickNormalize, hasWeatherIntent } from "../../src/utils/thaiQueryNormalizer";
 import { hasTemporalIndicators, parseThaiTemporal } from "../../src/utils/thaiTemporalParser";
 import { resolveProvinces } from "../../src/utils/locationResolver";
-
-// ---------------------------------------------------------------------------
-// Minimal assertion helper (no jest dep)
-// ---------------------------------------------------------------------------
-
-let passed = 0;
-let failed = 0;
-const failures: string[] = [];
-
-function assert(label: string, actual: unknown, expected: unknown): void {
-  const ok =
-    typeof expected === "boolean"
-      ? actual === expected
-      : JSON.stringify(actual) === JSON.stringify(expected);
-
-  if (ok) {
-    console.log(`  ✅ ${label}`);
-    passed++;
-  } else {
-    const msg = `  ❌ ${label}\n       expected: ${JSON.stringify(expected)}\n       actual:   ${JSON.stringify(actual)}`;
-    console.log(msg);
-    failures.push(msg);
-    failed++;
-  }
-}
-
-function assertContains(label: string, actual: string, substring: string): void {
-  if (actual.includes(substring)) {
-    console.log(`  ✅ ${label}`);
-    passed++;
-  } else {
-    const msg = `  ❌ ${label}\n       expected to contain: "${substring}"\n       actual: "${actual}"`;
-    console.log(msg);
-    failures.push(msg);
-    failed++;
-  }
-}
-
-function assertNotTrue(label: string, actual: boolean): void {
-  if (!actual) { passed++; console.log(`  ✅ ${label}`); }
-  else { failed++; failures.push(label); console.log(`  ❌ ${label}: expected false, got true`); }
-}
-
-function assertNotContains(label: string, actual: string, substring: string): void {
-  if (!actual.includes(substring)) {
-    console.log(`  ✅ ${label}`);
-    passed++;
-  } else {
-    const msg = `  ❌ ${label}\n       expected NOT to contain: "${substring}"\n       actual: "${actual}"`;
-    console.log(msg);
-    failures.push(msg);
-    failed++;
-  }
-}
-
-function section(name: string): void {
-  console.log(`\n── ${name}`);
-}
 
 // ---------------------------------------------------------------------------
 // Section 1: Colloquial particle normalization
 // ---------------------------------------------------------------------------
 
-section("1. Colloquial particle normalization");
-
-// Q1: มีมะ → มีไหม
-assertContains("Q1: ฝนตกมีมะที่กรุงเทพ → มีไหม", quickNormalize("ฝนตกมีมะที่กรุงเทพ"), "มีไหม");
-assertNotContains("Q1: มีมะ removed", quickNormalize("ฝนตกมีมะที่กรุงเทพ"), "มีมะ");
-
-// Q2: ปะ → ไหม
-assertContains("Q2: อากาศเชียงใหม่พรุ่งนี้ปะ → ไหม", quickNormalize("อากาศเชียงใหม่พรุ่งนี้ปะ"), "ไหม");
-
-// Q4: ล่ะ removed
-assertNotContains("Q4: กทม อุณหภูมิวันนี้ล่ะ → ล่ะ removed", quickNormalize("กทม อุณหภูมิวันนี้ล่ะ"), "ล่ะ");
-
-// Q8: มั้ย → ไหม
-assertContains("Q8: ภูเก็จฝนตกมั้ย → ไหม", quickNormalize("ภูเก็จฝนตกมั้ย"), "ไหม");
-assertNotContains("Q8: มั้ย removed", quickNormalize("ภูเก็จฝนตกมั้ย"), "มั้ย");
-
-// Q20: มีมะ + ล่ะ both removed
-const q20norm = quickNormalize("ฝนตกมีมะที่แปดริ้วช่วงนี้ล่ะ");
-assertContains("Q20: มีมะ → มีไหม", q20norm, "มีไหม");
-assertNotContains("Q20: ล่ะ removed", q20norm, "ล่ะ");
+describe("1. Colloquial particle normalization", () => {
+  it("Q1: ฝนตกมีมะที่กรุงเทพ → contains มีไหม", () => {
+    expect(quickNormalize("ฝนตกมีมะที่กรุงเทพ")).toContain("มีไหม");
+  });
+  it("Q1: มีมะ removed", () => {
+    expect(quickNormalize("ฝนตกมีมะที่กรุงเทพ")).not.toContain("มีมะ");
+  });
+  it("Q2: อากาศเชียงใหม่พรุ่งนี้ปะ → ไหม", () => {
+    expect(quickNormalize("อากาศเชียงใหม่พรุ่งนี้ปะ")).toContain("ไหม");
+  });
+  it("Q4: กทม อุณหภูมิวันนี้ล่ะ → ล่ะ removed", () => {
+    expect(quickNormalize("กทม อุณหภูมิวันนี้ล่ะ")).not.toContain("ล่ะ");
+  });
+  it("Q8: ภูเก็จฝนตกมั้ย → ไหม", () => {
+    expect(quickNormalize("ภูเก็จฝนตกมั้ย")).toContain("ไหม");
+  });
+  it("Q8: มั้ย removed", () => {
+    expect(quickNormalize("ภูเก็จฝนตกมั้ย")).not.toContain("มั้ย");
+  });
+  it("Q20: มีมะ → มีไหม", () => {
+    expect(quickNormalize("ฝนตกมีมะที่แปดริ้วช่วงนี้ล่ะ")).toContain("มีไหม");
+  });
+  it("Q20: ล่ะ removed", () => {
+    expect(quickNormalize("ฝนตกมีมะที่แปดริ้วช่วงนี้ล่ะ")).not.toContain("ล่ะ");
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Section 2: Temporal typo corrections
 // ---------------------------------------------------------------------------
 
-section("2. Temporal typo corrections");
-
-// Q9: ศกนี้ → ศุกร์นี้
-assertContains("Q9: ศกนี้ → ศุกร์นี้", quickNormalize("ศกนี้ที่เชียงรายฝน"), "ศุกร์นี้");
-assertNotContains("Q9: ศกนี้ removed", quickNormalize("ศกนี้ที่เชียงรายฝน"), "ศกนี้");
-
-// Q11: สัปดาหน้า → สัปดาห์หน้า
-assertContains("Q11: สัปดาหน้า → สัปดาห์หน้า", quickNormalize("ฝนตกไหมอยุธยาสัปดาหน้า"), "สัปดาห์หน้า");
-
-// Q7: weekหน้า → สัปดาห์หน้า
-assertContains("Q7: weekหน้า → สัปดาห์หน้า", quickNormalize("หัวหินweekหน้าฝนตกไหม"), "สัปดาห์หน้า");
-
-// Q17: weekนี้ → สัปดาห์นี้
-assertContains("Q17: weekนี้ → สัปดาห์นี้", quickNormalize("สมุยweekนี้ร้อนไหม"), "สัปดาห์นี้");
-
-// Q15: เชียงใม่ → เชียงใหม่
-assertContains("Q15: เชียงใม่ → เชียงใหม่", quickNormalize("เชียงใม่อากาศดีไหม"), "เชียงใหม่");
+describe("2. Temporal typo corrections", () => {
+  it("Q9: ศกนี้ → ศุกร์นี้", () => {
+    expect(quickNormalize("ศกนี้ที่เชียงรายฝน")).toContain("ศุกร์นี้");
+  });
+  it("Q9: ศกนี้ removed", () => {
+    expect(quickNormalize("ศกนี้ที่เชียงรายฝน")).not.toContain("ศกนี้");
+  });
+  it("Q11: สัปดาหน้า → สัปดาห์หน้า", () => {
+    expect(quickNormalize("ฝนตกไหมอยุธยาสัปดาหน้า")).toContain("สัปดาห์หน้า");
+  });
+  it("Q7: weekหน้า → สัปดาห์หน้า", () => {
+    expect(quickNormalize("หัวหินweekหน้าฝนตกไหม")).toContain("สัปดาห์หน้า");
+  });
+  it("Q17: weekนี้ → สัปดาห์นี้", () => {
+    expect(quickNormalize("สมุยweekนี้ร้อนไหม")).toContain("สัปดาห์นี้");
+  });
+  it("Q15: เชียงใม่ → เชียงใหม่", () => {
+    expect(quickNormalize("เชียงใม่อากาศดีไหม")).toContain("เชียงใหม่");
+  });
+});
 
 // ---------------------------------------------------------------------------
-// Phase: B2 root-cause guard — bare "มะ" particle must NOT eat the first
-// syllable of real Thai words. Previously "มะรืน" (day after tomorrow) was
-// being normalized to "ไหมรืน", which silently broke the nationwide forecast
-// path (it fell back to default offset=1 and labelled it "(พรุ่งนี้)").
+// Phase B2: bare "มะ" particle must NOT eat first syllable of real Thai words
 // ---------------------------------------------------------------------------
-assertContains("B2-1: มะรืน preserved", quickNormalize("มะรืนนี้สภาพอากาศเป็นอย่างไร"), "มะรืน");
-assertNotContains("B2-1: ไหมรืน NOT produced", quickNormalize("มะรืนนี้สภาพอากาศเป็นอย่างไร"), "ไหมรืน");
-assertContains("B2-2: มะม่วง preserved (word-initial มะ)", quickNormalize("มะม่วงราคาเท่าไหร่"), "มะม่วง");
-assertContains("B2-3: มะลิ preserved", quickNormalize("ดอกมะลิกับดอกอะไร"), "มะลิ");
-// Colloquial usage at end-of-string must STILL convert (regression guard for the
-// original colloquial behavior we deliberately keep)
-assertContains("B2-4: trailing มะ → ไหม preserved", quickNormalize("ฝนตกมะ"), "ไหม");
-assertNotContains("B2-4: ไม่มี 'มะ' ค้างท้าย", quickNormalize("ฝนตกมะ"), "ตกมะ");
+
+describe("B2: bare มะ particle root-cause guard", () => {
+  it("B2-1: มะรืน preserved", () => {
+    expect(quickNormalize("มะรืนนี้สภาพอากาศเป็นอย่างไร")).toContain("มะรืน");
+  });
+  it("B2-1: ไหมรืน NOT produced", () => {
+    expect(quickNormalize("มะรืนนี้สภาพอากาศเป็นอย่างไร")).not.toContain("ไหมรืน");
+  });
+  it("B2-2: มะม่วง preserved", () => {
+    expect(quickNormalize("มะม่วงราคาเท่าไหร่")).toContain("มะม่วง");
+  });
+  it("B2-3: มะลิ preserved", () => {
+    expect(quickNormalize("ดอกมะลิกับดอกอะไร")).toContain("มะลิ");
+  });
+  it("B2-4: trailing มะ → ไหม preserved", () => {
+    expect(quickNormalize("ฝนตกมะ")).toContain("ไหม");
+  });
+  it("B2-4: no 'ตกมะ' left at end", () => {
+    expect(quickNormalize("ฝนตกมะ")).not.toContain("ตกมะ");
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Section 3: Temporal indicator detection
 // ---------------------------------------------------------------------------
 
-section("3. Temporal indicator detection (hasTemporalIndicators)");
-
-assert("Q2: พรุ่งนี้ detected", hasTemporalIndicators("อากาศเชียงใหม่พรุ่งนี้ไหม"), true);
-assert("Q3: วันศุกร์นี้ detected", hasTemporalIndicators("โคราชฝนตกไหมวันศุกร์นี้"), true);
-assert("Q5: วันศุกร์ detected", hasTemporalIndicators("แม่สายวันศุกร์อากาศเป็นไง"), true);
-assert("Q6: อาทิตย์นี้ detected", hasTemporalIndicators("อุบลอาทิตย์นี้เป็นไง"), true);
-assert("Q9: ศุกร์นี้ (after normalize) detected", hasTemporalIndicators("ศุกร์นี้ที่เชียงรายฝน"), true);
-assert("Q11: สัปดาห์หน้า detected", hasTemporalIndicators("ฝนตกไหมอยุธยาสัปดาห์หน้า"), true);
-assert("Q12: อาทิตย์หน้า detected", hasTemporalIndicators("หาดใหญ่อาทิตย์หน้าเป็นยังไง"), true);
-assert("Q13: พรุ่งนี้ detected", hasTemporalIndicators("นราธิวาสพรุ่งนี้อากาศเป็นไง"), true);
-assert("Q14: มะรืน detected", hasTemporalIndicators("ประจวบฝนตกไหมมะรืน"), true);
-assert("Q16: คืนนี้ detected", hasTemporalIndicators("กรุงเทพฝนมั้ยคืนนี้"), true);
-assert("Q18: วันเสาร์ detected", hasTemporalIndicators("แม่กลองอุณหภูมิวันเสาร์"), true);
-assert("Q19: สัปดาห์หน้า detected", hasTemporalIndicators("ภาคเหนือสัปดาห์หน้าอากาศเป็นไง"), true);
+describe("3. Temporal indicator detection (hasTemporalIndicators)", () => {
+  it("Q2: พรุ่งนี้ detected", () => {
+    expect(hasTemporalIndicators("อากาศเชียงใหม่พรุ่งนี้ไหม")).toBe(true);
+  });
+  it("Q3: วันศุกร์นี้ detected", () => {
+    expect(hasTemporalIndicators("โคราชฝนตกไหมวันศุกร์นี้")).toBe(true);
+  });
+  it("Q5: วันศุกร์ detected", () => {
+    expect(hasTemporalIndicators("แม่สายวันศุกร์อากาศเป็นไง")).toBe(true);
+  });
+  it("Q6: อาทิตย์นี้ detected", () => {
+    expect(hasTemporalIndicators("อุบลอาทิตย์นี้เป็นไง")).toBe(true);
+  });
+  it("Q9: ศุกร์นี้ (after normalize) detected", () => {
+    expect(hasTemporalIndicators("ศุกร์นี้ที่เชียงรายฝน")).toBe(true);
+  });
+  it("Q11: สัปดาห์หน้า detected", () => {
+    expect(hasTemporalIndicators("ฝนตกไหมอยุธยาสัปดาห์หน้า")).toBe(true);
+  });
+  it("Q12: อาทิตย์หน้า detected", () => {
+    expect(hasTemporalIndicators("หาดใหญ่อาทิตย์หน้าเป็นยังไง")).toBe(true);
+  });
+  it("Q13: พรุ่งนี้ detected", () => {
+    expect(hasTemporalIndicators("นราธิวาสพรุ่งนี้อากาศเป็นไง")).toBe(true);
+  });
+  it("Q14: มะรืน detected", () => {
+    expect(hasTemporalIndicators("ประจวบฝนตกไหมมะรืน")).toBe(true);
+  });
+  it("Q16: คืนนี้ detected", () => {
+    expect(hasTemporalIndicators("กรุงเทพฝนมั้ยคืนนี้")).toBe(true);
+  });
+  it("Q18: วันเสาร์ detected", () => {
+    expect(hasTemporalIndicators("แม่กลองอุณหภูมิวันเสาร์")).toBe(true);
+  });
+  it("Q19: สัปดาห์หน้า detected", () => {
+    expect(hasTemporalIndicators("ภาคเหนือสัปดาห์หน้าอากาศเป็นไง")).toBe(true);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Section 4: Province alias resolution
 // ---------------------------------------------------------------------------
 
-section("4. Province alias resolution (resolveProvinces)");
-
-// Direct aliases via resolveProvinces
-assert("Q3: โคราช → นครราชสีมา", resolveProvinces("โคราชฝนตกไหมวันศุกร์นี้").includes("นครราชสีมา"), true);
-assert("Q4: กทม → กรุงเทพมหานคร", resolveProvinces("กทม อุณหภูมิวันนี้").includes("กรุงเทพมหานคร"), true);
-assert("Q5: แม่สาย → เชียงราย", resolveProvinces("แม่สายวันศุกร์อากาศเป็นไง").includes("เชียงราย"), true);
-assert("Q6: อุบล → อุบลราชธานี", resolveProvinces("อุบลอาทิตย์นี้เป็นไง").includes("อุบลราชธานี"), true);
-assert("Q7: หัวหิน → ประจวบคีรีขันธ์", resolveProvinces("หัวหินweekหน้าฝนตกไหม").includes("ประจวบคีรีขันธ์"), true);
-assert("Q11: อยุธยา → พระนครศรีอยุธยา", resolveProvinces("ฝนตกไหมอยุธยาสัปดาห์หน้า").includes("พระนครศรีอยุธยา"), true);
-assert("Q12: หาดใหญ่ → สงขลา", resolveProvinces("หาดใหญ่อาทิตย์หน้าเป็นยังไง").includes("สงขลา"), true);
-assert("Q17: สมุย → สุราษฎร์ธานี", resolveProvinces("สมุยweekนี้ร้อนไหม").includes("สุราษฎร์ธานี"), true);
-assert("Q18: แม่กลอง → สมุทรสงคราม", resolveProvinces("แม่กลองอุณหภูมิวันเสาร์").includes("สมุทรสงคราม"), true);
-assert("Q20: แปดริ้ว → ฉะเชิงเทรา", resolveProvinces("ฝนตกมีมะที่แปดริ้วช่วงนี้").includes("ฉะเชิงเทรา"), true);
-
-// Direct provinces (should resolve to themselves)
-assert("Q1: กรุงเทพ resolved", resolveProvinces("ฝนตกที่กรุงเทพวันนี้").includes("กรุงเทพมหานคร"), true);
-assert("Q13: นราธิวาส resolved", resolveProvinces("นราธิวาสพรุ่งนี้อากาศเป็นไง").includes("นราธิวาส"), true);
-
-// Multi-province (Q10)
-const q10provinces = resolveProvinces("ยะลากับปัตตานีอากาศเทียบกันหน่อย");
-assert("Q10: ยะลา resolved", q10provinces.includes("ยะลา"), true);
-assert("Q10: ปัตตานี resolved", q10provinces.includes("ปัตตานี"), true);
-assert("Q10: 2 provinces found", q10provinces.length >= 2, true);
+describe("4. Province alias resolution (resolveProvinces)", () => {
+  it("Q3: โคราช → นครราชสีมา", () => {
+    expect(resolveProvinces("โคราชฝนตกไหมวันศุกร์นี้")).toContain("นครราชสีมา");
+  });
+  it("Q4: กทม → กรุงเทพมหานคร", () => {
+    expect(resolveProvinces("กทม อุณหภูมิวันนี้")).toContain("กรุงเทพมหานคร");
+  });
+  it("Q5: แม่สาย → เชียงราย", () => {
+    expect(resolveProvinces("แม่สายวันศุกร์อากาศเป็นไง")).toContain("เชียงราย");
+  });
+  it("Q6: อุบล → อุบลราชธานี", () => {
+    expect(resolveProvinces("อุบลอาทิตย์นี้เป็นไง")).toContain("อุบลราชธานี");
+  });
+  it("Q7: หัวหิน → ประจวบคีรีขันธ์", () => {
+    expect(resolveProvinces("หัวหินweekหน้าฝนตกไหม")).toContain("ประจวบคีรีขันธ์");
+  });
+  it("Q11: อยุธยา → พระนครศรีอยุธยา", () => {
+    expect(resolveProvinces("ฝนตกไหมอยุธยาสัปดาห์หน้า")).toContain("พระนครศรีอยุธยา");
+  });
+  it("Q12: หาดใหญ่ → สงขลา", () => {
+    expect(resolveProvinces("หาดใหญ่อาทิตย์หน้าเป็นยังไง")).toContain("สงขลา");
+  });
+  it("Q17: สมุย → สุราษฎร์ธานี", () => {
+    expect(resolveProvinces("สมุยweekนี้ร้อนไหม")).toContain("สุราษฎร์ธานี");
+  });
+  it("Q18: แม่กลอง → สมุทรสงคราม", () => {
+    expect(resolveProvinces("แม่กลองอุณหภูมิวันเสาร์")).toContain("สมุทรสงคราม");
+  });
+  it("Q20: แปดริ้ว → ฉะเชิงเทรา", () => {
+    expect(resolveProvinces("ฝนตกมีมะที่แปดริ้วช่วงนี้")).toContain("ฉะเชิงเทรา");
+  });
+  it("Q1: กรุงเทพ resolved", () => {
+    expect(resolveProvinces("ฝนตกที่กรุงเทพวันนี้")).toContain("กรุงเทพมหานคร");
+  });
+  it("Q13: นราธิวาส resolved", () => {
+    expect(resolveProvinces("นราธิวาสพรุ่งนี้อากาศเป็นไง")).toContain("นราธิวาส");
+  });
+  it("Q10: ยะลา resolved", () => {
+    expect(resolveProvinces("ยะลากับปัตตานีอากาศเทียบกันหน่อย")).toContain("ยะลา");
+  });
+  it("Q10: ปัตตานี resolved", () => {
+    expect(resolveProvinces("ยะลากับปัตตานีอากาศเทียบกันหน่อย")).toContain("ปัตตานี");
+  });
+  it("Q10: 2 provinces found", () => {
+    expect(resolveProvinces("ยะลากับปัตตานีอากาศเทียบกันหน่อย").length).toBeGreaterThanOrEqual(2);
+  });
+});
 
 // ---------------------------------------------------------------------------
-// Section 4.5: Colloquial Thai particle safety (เลย disambiguation)
-// "เลย" after adjective/intensifier is a PARTICLE, not จังหวัดเลย.
-// "เลย" at sentence-start or after "จังหวัด" IS Loei province.
+// Section 4.5: Colloquial particle safety (เลย disambiguation)
 // ---------------------------------------------------------------------------
 
-section("4.5. Colloquial particle safety (เลย disambiguation)");
-
-// Particle "เลย" — must NOT produce เลย province
-const q_particle1 = resolveProvinces("เชียงใหม่ร้อนมากเลย");
-assert("PARTICLE-1: เชียงใหม่ร้อนมากเลย → only เชียงใหม่", q_particle1.length, 1);
-assert("PARTICLE-1: contains เชียงใหม่", q_particle1.includes("เชียงใหม่"), true);
-
-const q_particle2 = resolveProvinces("พรุ่งนี้ฝนตกไหม เชียงใหม่ร้อนมากเลย");
-assert("PARTICLE-2: ร้อนมากเลย in sentence → 1 province", q_particle2.length, 1);
-assert("PARTICLE-2: contains เชียงใหม่", q_particle2.includes("เชียงใหม่"), true);
-
-const q_particle3 = resolveProvinces("กทม ร้อนมากเลย ตอนนี้กี่องศา");
-assert("PARTICLE-3: กทม ร้อนมากเลย → only กรุงเทพ", q_particle3.includes("กรุงเทพมหานคร"), true);
-assertNotTrue("PARTICLE-3: no เลย province", q_particle3.includes("เลย"));
-
-const q_particle4 = resolveProvinces("ตอนนี้เชียงใหม่กี่องศา ร้อนมากเลย");
-assert("PARTICLE-4: trailing ร้อนมากเลย → no เลย province", q_particle4.length, 1);
-
-// Real Loei province — MUST resolve to เลย
-const q_loei1 = resolveProvinces("เลยฝนตกไหมพรุ่งนี้");
-assert("LOEI-1: เลยฝนตก → province เลย", q_loei1.includes("เลย"), true);
-
-const q_loei2 = resolveProvinces("จังหวัดเลยฝนตกไหมพรุ่งนี้");
-assert("LOEI-2: จังหวัดเลย → province เลย", q_loei2.includes("เลย"), true);
-
-// Other colloquial particles
-const q_particle5 = resolveProvinces("วันนี้โคราชร้อนมากอะ ฝนจะตกไหม");
-assert("PARTICLE-5: โคราชร้อนมากอะ → only นครราชสีมา", q_particle5.includes("นครราชสีมา"), true);
-assert("PARTICLE-5: only 1 province", q_particle5.length, 1);
-
-const q_particle6 = resolveProvinces("เชียงรายฝนตกไหมครับ พรุ่งนี้");
-assert("PARTICLE-6: ครับ stripped → only เชียงราย", q_particle6.includes("เชียงราย"), true);
-
-const q_particle7 = resolveProvinces("พรุ่งนี้ฝนตกไหม กรุงเทพอะ");
-assert("PARTICLE-7: กรุงเทพอะ → only กรุงเทพ", q_particle7.includes("กรุงเทพมหานคร"), true);
-
-const q_particle8 = resolveProvinces("พรุ่งนี้ฝนตกไหม ลำพูนหนาวจัง");
-assert("PARTICLE-8: หนาวจัง → only ลำพูน", q_particle8.some(p => p.includes("พ") && p.includes("น")), true); // NFKC: ลำ→ลํา
-assert("PARTICLE-8: only 1 province", q_particle8.length, 1);
+describe("4.5. Colloquial particle safety (เลย disambiguation)", () => {
+  it("PARTICLE-1: เชียงใหม่ร้อนมากเลย → only 1 province", () => {
+    expect(resolveProvinces("เชียงใหม่ร้อนมากเลย").length).toBe(1);
+  });
+  it("PARTICLE-1: contains เชียงใหม่", () => {
+    expect(resolveProvinces("เชียงใหม่ร้อนมากเลย")).toContain("เชียงใหม่");
+  });
+  it("PARTICLE-2: ร้อนมากเลย in sentence → 1 province", () => {
+    expect(resolveProvinces("พรุ่งนี้ฝนตกไหม เชียงใหม่ร้อนมากเลย").length).toBe(1);
+  });
+  it("PARTICLE-2: contains เชียงใหม่", () => {
+    expect(resolveProvinces("พรุ่งนี้ฝนตกไหม เชียงใหม่ร้อนมากเลย")).toContain("เชียงใหม่");
+  });
+  it("PARTICLE-3: กทม ร้อนมากเลย → contains กรุงเทพ", () => {
+    expect(resolveProvinces("กทม ร้อนมากเลย ตอนนี้กี่องศา")).toContain("กรุงเทพมหานคร");
+  });
+  it("PARTICLE-3: no เลย province", () => {
+    expect(resolveProvinces("กทม ร้อนมากเลย ตอนนี้กี่องศา")).not.toContain("เลย");
+  });
+  it("PARTICLE-4: trailing ร้อนมากเลย → 1 province", () => {
+    expect(resolveProvinces("ตอนนี้เชียงใหม่กี่องศา ร้อนมากเลย").length).toBe(1);
+  });
+  it("LOEI-1: เลยฝนตก → province เลย", () => {
+    expect(resolveProvinces("เลยฝนตกไหมพรุ่งนี้")).toContain("เลย");
+  });
+  it("LOEI-2: จังหวัดเลย → province เลย", () => {
+    expect(resolveProvinces("จังหวัดเลยฝนตกไหมพรุ่งนี้")).toContain("เลย");
+  });
+  it("PARTICLE-5: โคราชร้อนมากอะ → contains นครราชสีมา", () => {
+    expect(resolveProvinces("วันนี้โคราชร้อนมากอะ ฝนจะตกไหม")).toContain("นครราชสีมา");
+  });
+  it("PARTICLE-5: only 1 province", () => {
+    expect(resolveProvinces("วันนี้โคราชร้อนมากอะ ฝนจะตกไหม").length).toBe(1);
+  });
+  it("PARTICLE-6: ครับ stripped → only เชียงราย", () => {
+    expect(resolveProvinces("เชียงรายฝนตกไหมครับ พรุ่งนี้")).toContain("เชียงราย");
+  });
+  it("PARTICLE-7: กรุงเทพอะ → only กรุงเทพ", () => {
+    expect(resolveProvinces("พรุ่งนี้ฝนตกไหม กรุงเทพอะ")).toContain("กรุงเทพมหานคร");
+  });
+  it("PARTICLE-8: หนาวจัง → ลำพูน core matches", () => {
+    const r = resolveProvinces("พรุ่งนี้ฝนตกไหม ลำพูนหนาวจัง");
+    // NFKC may transform ลำ→ลํา; check for token containing พ + น (ลำพูน core)
+    expect(r.some((p) => p.includes("พ") && p.includes("น"))).toBe(true);
+  });
+  it("PARTICLE-8: only 1 province", () => {
+    expect(resolveProvinces("พรุ่งนี้ฝนตกไหม ลำพูนหนาวจัง").length).toBe(1);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Section 5: Temporal parsing
 // ---------------------------------------------------------------------------
 
-section("5. Temporal parsing (parseThaiTemporal)");
+describe("5. Temporal parsing (parseThaiTemporal)", () => {
+  const ref = new Date("2026-03-31T09:00:00"); // Tuesday
 
-const ref = new Date("2026-03-31T09:00:00"); // Tuesday
-
-const todayResult = parseThaiTemporal("อากาศวันนี้เป็นอย่างไร", ref);
-assert("วันนี้ → today type", todayResult?.temporalType, "today");
-assert("วันนี้ → offset 0", todayResult?.offsetDays[0], 0);
-
-const tomorrowResult = parseThaiTemporal("พรุ่งนี้ฝนตกไหม", ref);
-assert("พรุ่งนี้ → tomorrow type", tomorrowResult?.temporalType, "tomorrow");
-assert("พรุ่งนี้ → offset 1", tomorrowResult?.offsetDays[0], 1);
-
-const maruenResult = parseThaiTemporal("มะรืนอากาศเป็นยังไง", ref);
-assert("มะรืน → day_after_tomorrow", maruenResult?.temporalType, "day_after_tomorrow");
-assert("มะรืน → offset 2", maruenResult?.offsetDays[0], 2);
-
-const tonightResult = parseThaiTemporal("คืนนี้ฝนตกไหม", ref);
-assert("คืนนี้ → tonight", tonightResult?.temporalType, "tonight");
-
-const nextWeekResult = parseThaiTemporal("สัปดาห์หน้าอากาศเป็นไง", ref);
-assert("สัปดาห์หน้า → next_week", nextWeekResult?.temporalType, "next_week");
-
-const thisWeekResult = parseThaiTemporal("สัปดาห์นี้ฝน", ref);
-assert("สัปดาห์นี้ → this_week", thisWeekResult?.temporalType, "this_week");
-
-// Weekday: Friday (day=5). ref is Tuesday (day=2). Next Friday = 3 days ahead
-const fridayResult = parseThaiTemporal("ศุกร์นี้อากาศเป็นไง", ref);
-assert("ศุกร์นี้ → specific_day", fridayResult?.temporalType, "specific_day");
-assert("ศุกร์นี้ → positive offset", (fridayResult?.offsetDays?.[0] ?? -1) >= 0, true);
+  it("วันนี้ → today type", () => {
+    expect(parseThaiTemporal("อากาศวันนี้เป็นอย่างไร", ref)?.temporalType).toBe("today");
+  });
+  it("วันนี้ → offset 0", () => {
+    expect(parseThaiTemporal("อากาศวันนี้เป็นอย่างไร", ref)?.offsetDays[0]).toBe(0);
+  });
+  it("พรุ่งนี้ → tomorrow type", () => {
+    expect(parseThaiTemporal("พรุ่งนี้ฝนตกไหม", ref)?.temporalType).toBe("tomorrow");
+  });
+  it("พรุ่งนี้ → offset 1", () => {
+    expect(parseThaiTemporal("พรุ่งนี้ฝนตกไหม", ref)?.offsetDays[0]).toBe(1);
+  });
+  it("มะรืน → day_after_tomorrow", () => {
+    expect(parseThaiTemporal("มะรืนอากาศเป็นยังไง", ref)?.temporalType).toBe("day_after_tomorrow");
+  });
+  it("มะรืน → offset 2", () => {
+    expect(parseThaiTemporal("มะรืนอากาศเป็นยังไง", ref)?.offsetDays[0]).toBe(2);
+  });
+  it("คืนนี้ → tonight", () => {
+    expect(parseThaiTemporal("คืนนี้ฝนตกไหม", ref)?.temporalType).toBe("tonight");
+  });
+  it("สัปดาห์หน้า → next_week", () => {
+    expect(parseThaiTemporal("สัปดาห์หน้าอากาศเป็นไง", ref)?.temporalType).toBe("next_week");
+  });
+  it("สัปดาห์นี้ → this_week", () => {
+    expect(parseThaiTemporal("สัปดาห์นี้ฝน", ref)?.temporalType).toBe("this_week");
+  });
+  it("ศุกร์นี้ → specific_day", () => {
+    expect(parseThaiTemporal("ศุกร์นี้อากาศเป็นไง", ref)?.temporalType).toBe("specific_day");
+  });
+  it("ศุกร์นี้ → positive offset", () => {
+    const r = parseThaiTemporal("ศุกร์นี้อากาศเป็นไง", ref);
+    expect((r?.offsetDays?.[0] ?? -1) >= 0).toBe(true);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Section 6: Weather intent detection
 // ---------------------------------------------------------------------------
 
-section("6. Weather intent (hasWeatherIntent)");
-
-assert("weather: อากาศ", hasWeatherIntent("อากาศเชียงใหม่วันนี้"), true);
-assert("weather: ฝนตก", hasWeatherIntent("ฝนตกมั้ยที่กรุงเทพ"), true);
-assert("weather: พยากรณ์", hasWeatherIntent("พยากรณ์อากาศพรุ่งนี้"), true);
-assert("non-weather: สวัสดี", hasWeatherIntent("สวัสดีครับ"), false);
-assert("non-weather: คำนวณ", hasWeatherIntent("2+2 เท่ากับเท่าไหร่"), false);
+describe("6. Weather intent (hasWeatherIntent)", () => {
+  it("weather: อากาศ", () => expect(hasWeatherIntent("อากาศเชียงใหม่วันนี้")).toBe(true));
+  it("weather: ฝนตก", () => expect(hasWeatherIntent("ฝนตกมั้ยที่กรุงเทพ")).toBe(true));
+  it("weather: พยากรณ์", () => expect(hasWeatherIntent("พยากรณ์อากาศพรุ่งนี้")).toBe(true));
+  it("non-weather: สวัสดี", () => expect(hasWeatherIntent("สวัสดีครับ")).toBe(false));
+  it("non-weather: คำนวณ", () => expect(hasWeatherIntent("2+2 เท่ากับเท่าไหร่")).toBe(false));
+});
 
 // ---------------------------------------------------------------------------
 // Section 7: End-to-end normalization pipeline (20 queries)
 // ---------------------------------------------------------------------------
 
-section("7. End-to-end: normalizeForWeatherPipeline equivalent (20 queries)");
-
-/** Replicate normalizeForWeatherPipeline logic here for isolated testing */
-function normalizePipeline(text: string): string {
-  const normalized = quickNormalize(text);
-  const ALIAS_EXPAND: Record<string, string> = {
-    "กทม": "กรุงเทพมหานคร",
-    "โคราช": "นครราชสีมา",
-    "อุบล": "อุบลราชธานี",
-    "อุดร": "อุดรธานี",
-    "อยุธยา": "พระนครศรีอยุธยา",
-    "แม่กลอง": "สมุทรสงคราม",
-    "อัมพวา": "สมุทรสงคราม",
-    "หาดใหญ่": "สงขลา",
-    "แม่สาย": "เชียงราย",
-    "หัวหิน": "ประจวบคีรีขันธ์",
-    "สมุย": "สุราษฎร์ธานี",
-    "เกาะสมุย": "สุราษฎร์ธานี",
-    "แปดริ้ว": "ฉะเชิงเทรา",
-    "เมืองกาญ": "กาญจนบุรี",
-    "เมืองคอน": "นครศรีธรรมราช",
-    "นครสี": "นครศรีธรรมราช",
-  };
-  let result = normalized;
-  for (const [alias, canonical] of Object.entries(ALIAS_EXPAND)) {
-    const re = new RegExp(alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
-    result = result.replace(re, canonical);
+describe("7. End-to-end: normalizeForWeatherPipeline equivalent (20 queries)", () => {
+  function normalizePipeline(text: string): string {
+    const normalized = quickNormalize(text);
+    const ALIAS_EXPAND: Record<string, string> = {
+      "กทม": "กรุงเทพมหานคร",
+      "โคราช": "นครราชสีมา",
+      "อุบล": "อุบลราชธานี",
+      "อุดร": "อุดรธานี",
+      "อยุธยา": "พระนครศรีอยุธยา",
+      "แม่กลอง": "สมุทรสงคราม",
+      "อัมพวา": "สมุทรสงคราม",
+      "หาดใหญ่": "สงขลา",
+      "แม่สาย": "เชียงราย",
+      "หัวหิน": "ประจวบคีรีขันธ์",
+      "สมุย": "สุราษฎร์ธานี",
+      "เกาะสมุย": "สุราษฎร์ธานี",
+      "แปดริ้ว": "ฉะเชิงเทรา",
+      "เมืองกาญ": "กาญจนบุรี",
+      "เมืองคอน": "นครศรีธรรมราช",
+      "นครสี": "นครศรีธรรมราช",
+    };
+    let result = normalized;
+    for (const [alias, canonical] of Object.entries(ALIAS_EXPAND)) {
+      const re = new RegExp(alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
+      result = result.replace(re, canonical);
+    }
+    return result.trim();
   }
-  return result.trim();
-}
 
-const Q: [string, string, string][] = [
-  // [id, raw, expected_fragment_in_normalized]
-  ["Q1",  "ฝนตกมีมะที่กรุงเทพ",               "มีไหม"],
-  ["Q2",  "อากาศเชียงใหม่พรุ่งนี้ปะ",           "ไหม"],
-  ["Q3",  "โคราชฝนตกไหมวันศุกร์นี้",           "นครราชสีมา"],
-  ["Q4",  "กทม อุณหภูมิวันนี้ล่ะ",             "กรุงเทพมหานคร"],
-  ["Q5",  "แม่สายวันศุกร์อากาศเป็นไง",          "เชียงราย"],
-  ["Q6",  "อุบลอาทิตย์นี้เป็นไง",              "อุบลราชธานี"],
-  ["Q7",  "หัวหินweekหน้าฝนตกไหม",            "สัปดาห์หน้า"],
-  ["Q8",  "ภูเก็จฝนตกมั้ย",                   "ภูเก็ต"],
-  ["Q9",  "ศกนี้ที่เชียงรายฝน",               "ศุกร์นี้"],
-  ["Q10", "ยะลากับปัตตานีอากาศเทียบกันหน่อย", "ยะลา"],
-  ["Q11", "ฝนตกไหมอยุธยาสัปดาหน้า",           "สัปดาห์หน้า"],
-  ["Q12", "หาดใหญ่อาทิตย์หน้าเป็นยังไง",       "สงขลา"],
-  ["Q13", "นราธิวาสพรุ่งนี้อากาศเป็นไง",        "นราธิวาส"],
-  ["Q14", "ประจวบฝนตกไหมมะรืน",              "ประจวบ"],
-  ["Q15", "เชียงใม่อากาศดีไหม",               "เชียงใหม่"],
-  ["Q16", "กรุงเทพฝนมั้ยคืนนี้",              "ไหม"],
-  ["Q17", "สมุยweekนี้ร้อนไหม",               "สัปดาห์นี้"],
-  ["Q18", "แม่กลองอุณหภูมิวันเสาร์",           "สมุทรสงคราม"],
-  ["Q19", "ภาคเหนือสัปดาห์หน้าอากาศเป็นไง",   "สัปดาห์หน้า"],
-  ["Q20", "ฝนตกมีมะที่แปดริ้วช่วงนี้ล่ะ",      "ฉะเชิงเทรา"],
-];
+  const Q: [string, string, string][] = [
+    ["Q1", "ฝนตกมีมะที่กรุงเทพ", "มีไหม"],
+    ["Q2", "อากาศเชียงใหม่พรุ่งนี้ปะ", "ไหม"],
+    ["Q3", "โคราชฝนตกไหมวันศุกร์นี้", "นครราชสีมา"],
+    ["Q4", "กทม อุณหภูมิวันนี้ล่ะ", "กรุงเทพมหานคร"],
+    ["Q5", "แม่สายวันศุกร์อากาศเป็นไง", "เชียงราย"],
+    ["Q6", "อุบลอาทิตย์นี้เป็นไง", "อุบลราชธานี"],
+    ["Q7", "หัวหินweekหน้าฝนตกไหม", "สัปดาห์หน้า"],
+    ["Q8", "ภูเก็จฝนตกมั้ย", "ภูเก็ต"],
+    ["Q9", "ศกนี้ที่เชียงรายฝน", "ศุกร์นี้"],
+    ["Q10", "ยะลากับปัตตานีอากาศเทียบกันหน่อย", "ยะลา"],
+    ["Q11", "ฝนตกไหมอยุธยาสัปดาหน้า", "สัปดาห์หน้า"],
+    ["Q12", "หาดใหญ่อาทิตย์หน้าเป็นยังไง", "สงขลา"],
+    ["Q13", "นราธิวาสพรุ่งนี้อากาศเป็นไง", "นราธิวาส"],
+    ["Q14", "ประจวบฝนตกไหมมะรืน", "ประจวบ"],
+    ["Q15", "เชียงใม่อากาศดีไหม", "เชียงใหม่"],
+    ["Q16", "กรุงเทพฝนมั้ยคืนนี้", "ไหม"],
+    ["Q17", "สมุยweekนี้ร้อนไหม", "สัปดาห์นี้"],
+    ["Q18", "แม่กลองอุณหภูมิวันเสาร์", "สมุทรสงคราม"],
+    ["Q19", "ภาคเหนือสัปดาห์หน้าอากาศเป็นไง", "สัปดาห์หน้า"],
+    ["Q20", "ฝนตกมีมะที่แปดริ้วช่วงนี้ล่ะ", "ฉะเชิงเทรา"],
+  ];
 
-for (const [id, raw, expected] of Q) {
-  const norm = normalizePipeline(raw);
-  assertContains(`${id}: "${raw}" → contains "${expected}"`, norm, expected);
-}
-
-// ---------------------------------------------------------------------------
-// Summary
-// ---------------------------------------------------------------------------
-
-console.log(`\n${"─".repeat(60)}`);
-console.log(`Total: ${passed + failed} | ✅ Passed: ${passed} | ❌ Failed: ${failed}`);
-
-if (failures.length > 0) {
-  console.log("\nFailures:");
-  failures.forEach((f) => console.log(f));
-  // Use throw instead of process.exit for Jest compatibility
-  throw new Error(`${failures.length} test(s) failed`);
-} else {
-  console.log("\nAll tests passed.");
-}
+  for (const [id, raw, expected] of Q) {
+    it(`${id}: "${raw}" → contains "${expected}"`, () => {
+      expect(normalizePipeline(raw)).toContain(expected);
+    });
+  }
+});
