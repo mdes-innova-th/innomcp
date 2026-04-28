@@ -348,7 +348,21 @@ export async function handleEvidenceTool(args: any): Promise<any> {
     return { ok: false, code: "UNKNOWN_INTENT", meta: metaFor("placeholder"), message: `Unknown intent: ${String(intent)}` };
   } catch (error: any) {
     const code = String(error?.code || "").toUpperCase();
-    if (code === "DETECT_API_UNAVAILABLE" || code === "MISSING_DETECT_DB_CREDS") {
+    const msg = String(error?.message || error || "");
+    // Network / fetch failure (detect-evidence-api on port 3013 is down or unreachable):
+    // surface as DETECT_API_UNAVAILABLE so the chat renderer can show the friendly
+    // "ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน" message and trigger web fallback.
+    const isNetworkFailure =
+      code === "DETECT_API_UNAVAILABLE" ||
+      code === "MISSING_DETECT_DB_CREDS" ||
+      code === "ECONNREFUSED" ||
+      code === "ENOTFOUND" ||
+      code === "ETIMEDOUT" ||
+      code === "ECONNRESET" ||
+      code === "UND_ERR_SOCKET" ||
+      code === "UND_ERR_CONNECT_TIMEOUT" ||
+      /econnrefused|enotfound|etimedout|fetch failed|aborted|network error|connection (refused|reset)/i.test(msg);
+    if (isNetworkFailure) {
       return buildMissingCreds(String(intent || "unknown"));
     }
     return buildErrorShell(String(intent || "unknown"), "EVIDENCE_QUERY_FAILED");

@@ -20,18 +20,46 @@ healthRouter.get('/', async (req: Request, res: Response) => {
   try {
     const detailed = req.query.detailed === 'true';
     const health = await createHealthResponse(detailed);
-    
+
     // Set appropriate status code
-    const statusCode = health.status === 'healthy' ? 200 : 
+    const statusCode = health.status === 'healthy' ? 200 :
                        health.status === 'degraded' ? 200 : 503;
-    
-    res.status(statusCode).json(health);
+
+    // Enrich the response with mode fields expected by ModeStatusBar.tsx
+    const isOnline = health.status === 'healthy' || health.status === 'degraded';
+
+    // Lazy-require to avoid circular imports
+    let aiMode: 'local' | 'remote' = 'local';
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const aiModeModule = require('./aiMode');
+      const raw: string = aiModeModule?.getCurrentAIMode?.() ?? 'local';
+      aiMode = raw === 'remote' || raw === 'hybrid' ? 'remote' : 'local';
+    } catch { /* keep default */ }
+
+    let mcpStatus: 'connected' | 'disconnected' = 'disconnected';
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const chatModule = require('./chat');
+      const tools: number = chatModule?.mcpClient?.getAvailableTools?.()?.length ?? 0;
+      mcpStatus = tools > 0 ? 'connected' : 'disconnected';
+    } catch { /* keep default */ }
+
+    res.status(statusCode).json({
+      ...health,
+      mode: isOnline ? 'online' : 'offline',
+      mode_ready: isOnline,
+      ai_mode: aiMode,
+      mcp_status: mcpStatus,
+    });
   } catch (error) {
     console.error('[Health] Error checking health:', error);
     res.status(500).json({
       status: 'error',
       message: 'Failed to check system health',
       timestamp: new Date().toISOString(),
+      mode: 'offline',
+      mode_ready: false,
     });
   }
 });

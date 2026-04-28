@@ -73,11 +73,21 @@ describe('Evidence Tool (detect_evidence_stats) — HTTP adapter', () => {
         expect(result.message).toContain('Unknown intent');
     });
 
-    test('should handle HTTP errors gracefully', async () => {
+    test('should classify network failures as DETECT_API_UNAVAILABLE', async () => {
+        // Connection refused, ENOTFOUND, ETIMEDOUT, "fetch failed", etc. mean the
+        // detect-evidence-api on :3013 is down — surface as DETECT_API_UNAVAILABLE
+        // so the chat renderer shows the friendly placeholder + triggers web fallback.
         mockFetchError('Connection refused');
-
         const result = await handleEvidenceTool({ intent: 'machine_status' });
+        expect(result.ok).toBe(false);
+        expect(result.code).toBe('DETECT_API_UNAVAILABLE');
+    });
 
+    test('should classify non-network errors as EVIDENCE_QUERY_FAILED', async () => {
+        // Schema/parse failures or unrelated bugs surface as the generic code so
+        // we can distinguish them from "API down" in the renderer.
+        mockFetchError('Unexpected token in JSON at position 0');
+        const result = await handleEvidenceTool({ intent: 'machine_status' });
         expect(result.ok).toBe(false);
         expect(result.code).toBe('EVIDENCE_QUERY_FAILED');
     });

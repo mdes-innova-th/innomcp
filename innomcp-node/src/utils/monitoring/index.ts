@@ -92,7 +92,10 @@ const HEALTH_CHECKS: HealthCheckConfig[] = [
     url: 'redis://localhost:6379',
     method: 'GET',
     timeout: 2000,
-    critical: true,
+    // Optional: caching falls back to in-memory in src/utils/cache.ts when Redis
+    // is unreachable. Marking critical=true caused mode=offline even though
+    // chat/MCP work fine. Demote to optional → DEGRADED at worst.
+    critical: false,
   },
   {
     name: 'Database',

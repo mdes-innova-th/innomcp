@@ -1,0 +1,17 @@
+{
+  "watch": ["src", "tsconfig.json"],
+  "ignore": [
+    "logs/**",
+    "tests/**",
+    "scripts/**",
+    "data/**",
+    "coverage/**",
+    "dist/**",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/*.log",
+    "**/*.json"
+  ],
+  "ext": "ts,js,cjs,mjs",
+  "delay": "1000"
+}
