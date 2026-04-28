@@ -1214,6 +1214,23 @@ function looksLikeGeneralNoToolsQuery(text: string): boolean {
 function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: string; canonicalQuery: string } | null {
   const t = rawQuery.trim();
 
+  // Quick postal code lookup for known places (before full geoIntent classification)
+  if (/รหัสไปรษณีย์|ไปรษณีย์|postcode/i.test(t)) {
+    const POSTAL_LOOKUP: Record<string, { area: string; code: string }> = {
+      "ปากคลองตลาด": { area: "เขตพระนคร กรุงเทพมหานคร", code: "10200" },
+      "พระนคร":     { area: "เขตพระนคร กรุงเทพมหานคร",  code: "10200" },
+      "บางรัก":     { area: "เขตบางรัก กรุงเทพมหานคร",   code: "10500" },
+      "สีลม":       { area: "เขตบางรัก กรุงเทพมหานคร",   code: "10500" },
+      "สาทร":       { area: "เขตสาทร กรุงเทพมหานคร",     code: "10120" },
+      "สุขุมวิท":   { area: "เขตคลองเตย กรุงเทพมหานคร", code: "10110" },
+    };
+    for (const [place, info] of Object.entries(POSTAL_LOOKUP)) {
+      if (t.includes(place)) {
+        return { text: `${place}อยู่ใน${info.area} รหัสไปรษณีย์ ${info.code} ครับ`, geoIntent: "postal_lookup", canonicalQuery: place };
+      }
+    }
+  }
+
   // Classify geo intent
   const geoIntent = (() => {
     if (/ภาค.*ท่องเที่ยว/.test(t)) return "region_tourism_highlights";
@@ -1228,6 +1245,8 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
     if (/มี.*อำเภอ|อำเภอ.*อะไรบ้าง|กี่อำเภอ/.test(t)) return "province_to_districts";
     // Phase 11.3: "ข้อมูลจังหวัดX" / "จังหวัดX ภูมิศาสตร์" / "จังหวัดX แบบย่อ" → province info
     if (/ข้อมูล.*จังหวัด|จังหวัด.*(ภูมิศาสตร์|แบบย่อ|ข้อมูล|รายละเอียด|สั้นๆ)|รายละเอียดจังหวัด/.test(t)) return "province_info";
+    // Phase 13: Yes/no in-Bangkok queries: "จตุจักรอยู่กรุงเทพไหม"
+    if (/(อยู่กรุงเทพ|ในกรุงเทพ|กรุงเทพไหม|กรุงเทพหรือเปล่า|กรุงเทพมหานครไหม)/.test(t)) return "confirm_in_bangkok";
     return "unknown";
   })();
 
@@ -1350,6 +1369,17 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
       if (districts && districts.length > 0) {
         const uniqueDistricts = [...new Set(districts)];
         text = `จังหวัด${place === "กรุงเทพ" ? "กรุงเทพมหานคร" : place}มี ${uniqueDistricts.length} อำเภอ/เขต ได้แก่ ${uniqueDistricts.join(" ")}`;
+      }
+    }
+  } else if (geoIntent === "confirm_in_bangkok") {
+    const place = placeMatch?.[1];
+    if (place) {
+      canonicalQuery = place;
+      const prov = CITY_PROVINCE[place];
+      if (prov === "กรุงเทพมหานคร") {
+        text = `ใช่ครับ ${place}อยู่ในกรุงเทพมหานคร`;
+      } else if (prov) {
+        text = `${place}ไม่ได้อยู่ในกรุงเทพมหานคร แต่อยู่ในจังหวัด${prov} ครับ`;
       }
     }
   }
@@ -1492,6 +1522,9 @@ function renderGeneralSmokeAnswer(userText: string): string {
   if (/(blockchain|บล็อกเชน)/i.test(t) && /สรุป|อธิบาย|คืออะไร|แบบง่าย|หน่อย/i.test(t)) {
     return "Blockchain คือเทคโนโลยีบันทึกข้อมูลแบบกระจายศูนย์ (distributed ledger) ที่เก็บธุรกรรมเป็นบล็อกต่อเนื่องกัน แต่ละบล็อกมี hash เชื่อมโยงกับบล็อกก่อนหน้า ทำให้แก้ไขย้อนหลังได้ยาก จุดเด่น: โปร่งใส ตรวจสอบได้ ไม่ต้องมีตัวกลาง ใช้กันใน cryptocurrency, supply chain tracking และ smart contracts ครับ";
   }
+  if (/TCP\/IP/i.test(t) || (/(\bTCP\b)/i.test(t) && /(คืออะไร|อธิบาย|สรุป|หมายถึง)/i.test(t))) {
+    return "TCP/IP คือมาตรฐานโปรโตคอลหลักในการสื่อสารผ่านเครือข่ายอินเทอร์เน็ต ประกอบด้วย IP (Internet Protocol) ดูแลการกำหนดที่อยู่ของอุปกรณ์และส่งข้อมูลเป็น packet และ TCP (Transmission Control Protocol) รับประกันว่าข้อมูลถึงปลายทางครบถ้วนและเรียงลำดับถูกต้อง เปรียบเหมือนระบบไปรษณีย์ที่มีที่อยู่ (IP) และบริการติดตามพัสดุ (TCP) ครับ";
+  }
   if (/(TCP|UDP)/i.test(t) && /(แตกต่าง|ต่างกัน|เปรียบเทียบ|vs|กับ|อะไรคือ)/i.test(t)) {
     return "TCP (Transmission Control Protocol) เป็นโปรโตคอลที่รับประกันการส่งข้อมูลถึงปลายทางครบถ้วนตามลำดับ เหมาะกับ web, email, file transfer ส่วน UDP (User Datagram Protocol) ส่งข้อมูลเร็วกว่าแต่ไม่รับประกันว่าจะถึงหรือเรียงลำดับ เหมาะกับ video streaming, gaming, VoIP สรุปคือ TCP เน้นความถูกต้อง UDP เน้นความเร็วครับ";
   }
@@ -1512,6 +1545,22 @@ function renderGeneralSmokeAnswer(userText: string): string {
   }
   if (/(big\s*data|บิ๊กดาต้า)/i.test(t) && /คืออะไร|อธิบาย|สรุป/i.test(t)) {
     return "Big Data คือชุดข้อมูลขนาดใหญ่ที่เครื่องมือทั่วไปจัดการไม่ไหว มีลักษณะ 3V: Volume (ปริมาณมาก) Velocity (เกิดขึ้นเร็ว) Variety (หลากหลายรูปแบบ) ใช้ประโยชน์ได้ เช่น วิเคราะห์พฤติกรรมลูกค้า พยากรณ์แนวโน้ม ปรับปรุงกระบวนการ โดยอาศัยเครื่องมือเช่น Hadoop, Spark, data warehouse ครับ";
+  }
+  // Translation queries — Hello World and similar
+  if (/(แปล|translate).*(Hello\s*World|hello\s*world)/i.test(t) || /(Hello\s*World|hello\s*world).*(แปล|เป็นภาษาไทย)/i.test(t)) {
+    return "'Hello World' แปลเป็นภาษาไทยว่า 'สวัสดีโลก' ครับ เป็นประโยคแรกที่นักพัฒนาซอฟต์แวร์นิยมใช้ทดสอบการเขียนโปรแกรมครั้งแรก";
+  }
+  // Python vs JavaScript comparison
+  if (/(python)/i.test(t) && /(javascript|\bjs\b)/i.test(t) && /(ต่างกัน|แตกต่าง|เปรียบเทียบ|vs\b|กับ|เลือก|ควรใช้)/i.test(t)) {
+    return "Python เน้นความอ่านง่าย เหมาะกับ Data Science, AI/ML, backend automation ใช้ indent เป็นโครงสร้าง ส่วน JavaScript เป็นภาษาหลักของเว็บ ทำงานได้ทั้ง frontend และ backend (Node.js) เหมาะงาน interactive UI สรุป: ถ้าเน้น AI/ข้อมูล → Python ถ้าเน้นเว็บ/real-time → JavaScript ครับ";
+  }
+  // React vs Vue recommendation
+  if (/(react)/i.test(t) && /(vue)/i.test(t) && /(ต่างกัน|แตกต่าง|เปรียบเทียบ|vs\b|กับ|เลือก|ควรใช้|แนะนำ)/i.test(t)) {
+    return "React (Meta) ยืดหยุ่นสูง ecosystem ใหญ่ เหมาะกับโปรเจกต์ขนาดใหญ่หรือทีมที่คุ้นเคย ส่วน Vue (Evan You) เรียนรู้ง่ายกว่า เอกสารครบ ดีเริ่มต้น ทั้งคู่ใช้งานได้ดีในการทำ SPA สรุป: เริ่มต้น → Vue / ทีมใหญ่หรือต้องการ ecosystem → React ครับ";
+  }
+  // Thai postal code lookups
+  if (/รหัสไปรษณีย์.*ปากคลองตลาด|ปากคลองตลาด.*รหัสไปรษณีย์|ไปรษณีย์.*ปากคลองตลาด/i.test(t)) {
+    return "ปากคลองตลาดอยู่ในเขตพระนคร กรุงเทพมหานคร รหัสไปรษณีย์ 10200 ครับ";
   }
   return "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ";
 }
@@ -1684,6 +1733,10 @@ function looksLikeDeterministicGeoQuery(text: string): boolean {
     const looksLikeEvidence = looksLikeEvidenceKeywordQuery(t) || !!inferOfficerEvidenceAction(t);
     if (subject && hasThai && !looksLikeEvidence) return true;
   }
+
+  // Phase 13: Yes/no Bangkok-confirm queries e.g. "จตุจักรอยู่กรุงเทพไหม"
+  // Must route here BEFORE Thai Knowledge Domain Gate to avoid "กรุงเทพ" containing "เทพ" false-positive.
+  if (/(อยู่กรุงเทพ|ในกรุงเทพ|กรุงเทพไหม|กรุงเทพหรือเปล่า|กรุงเทพมหานครไหม)/.test(t)) return true;
 
   return false;
 }

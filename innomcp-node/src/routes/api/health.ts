@@ -98,4 +98,21 @@ healthRouter.get('/live', (req: Request, res: Response) => {
   });
 });
 
+/**
+ * GET /api/health/keys
+ * MCP tools registration count — no auth required (public health check)
+ */
+healthRouter.get('/keys', (req: Request, res: Response) => {
+  try {
+    // Lazy require to avoid circular import (chat.ts initialises at startup)
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const chatModule = require('./chat');
+    const mcpClientRef = chatModule?.mcpClient;
+    const tools: number = mcpClientRef?.getAvailableTools?.()?.length ?? 0;
+    res.status(200).json({ data: { mcpTools: tools }, mcpTools: tools, timestamp: new Date().toISOString() });
+  } catch {
+    res.status(200).json({ data: { mcpTools: 0 }, mcpTools: 0, timestamp: new Date().toISOString() });
+  }
+});
+
 export { healthRouter };
