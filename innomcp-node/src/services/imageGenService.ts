@@ -56,6 +56,7 @@ function buildPollinationsUrl(prompt: string): string {
 
 async function callGateway(
   gatewayUrl: string,
+  gatewayToken: string | undefined,
   prompt: string,
   timeoutMs: number
 ): Promise<ImageGenResult> {
@@ -63,12 +64,22 @@ async function callGateway(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  const body = JSON.stringify({ prompt, width: 768, height: 768 });
+  const body = JSON.stringify({
+    prompt,
+    width: 1024,
+    height: 1024,
+    num_inference_steps: 30,
+    guidance_scale: 7.5,
+    response_format: "png",
+  });
+
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (gatewayToken) headers["Authorization"] = `Bearer ${gatewayToken}`;
 
   try {
     const res = await fetch(gatewayUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body,
       signal: controller.signal,
     });
@@ -159,13 +170,14 @@ export async function callImageGen(rawPrompt: string): Promise<ImageGenResponse>
   const prompt = cleanPrompt(rawPrompt) || rawPrompt.slice(0, 500).trim();
 
   const gatewayUrl = process.env.IMAGE_GEN_GATEWAY_URL?.trim();
+  const gatewayToken = process.env.IMAGE_GEN_GATEWAY_TOKEN?.trim();
   const timeoutMs = parseInt(process.env.IMAGE_GEN_TIMEOUT_MS || "60000", 10);
 
   // ─ Try MDES Gateway ─
   if (gatewayUrl) {
     try {
       logBoth("info", `[ImageGen] Trying MDES gateway: ${gatewayUrl.replace(/\/\/[^/]*/, "//***")}`);
-      const result = await callGateway(gatewayUrl, prompt, timeoutMs);
+      const result = await callGateway(gatewayUrl, gatewayToken, prompt, timeoutMs);
       logBoth("info", `[ImageGen] Gateway OK in ${result.durationMs}ms`);
       return { ok: true, ...result };
     } catch (err: any) {
