@@ -1072,8 +1072,8 @@ function looksLikeMathLikeQuery(text: string): boolean {
   const t = String(text || "");
   return /\d\s*[\+\-\*\/\^×÷]/.test(t) || /(แฟกทอเรียล|factorial|คำนวณ|calculate|บวก|ลบ|คูณ|หาร|อนุพันธ์|ปริพันธ์|อินทิเกรต|derivative|integral|integrate)/i.test(t)
     || /\b(mean|sum|min|max|median|avg|average|sqrt|abs|log|round|ceil|floor|sin|cos|tan|asin|acos|atan|mod|gcd|lcm|std|stdev|variance)\s*\(/i.test(t)
-    || /\d+\s*(องศา)?\s*(ฟาเรนไฮต์|fahrenheit|°F)\s*(เป็น|to|แปลง|convert)\s*(เซลเซียส|celsius|°C)/i.test(t)
-    || /\d+\s*(องศา)?\s*(เซลเซียส|celsius|°C)\s*(เป็น|to|แปลง|convert)\s*(ฟาเรนไฮต์|fahrenheit|°F)/i.test(t)
+    || /\d+\s*(องศา)?\s*(ฟาเรนไฮต์|fahrenheit|°F).*?(เซลเซียส|celsius|°C)/i.test(t)
+    || /\d+\s*(องศา)?\s*(เซลเซียส|celsius|°C).*?(ฟาเรนไฮต์|fahrenheit|°F)/i.test(t)
     || /\d+(\.\d+)?\s*%\s*(ของ|of)\s*\d/i.test(t);
 }
 
@@ -1101,6 +1101,13 @@ function extractNewtonParams(text: string): { operation: string; expression: str
     .replace(/\s+/g, "");
   if (!expr || !/[a-zA-Z]/.test(expr)) return null;
   return { operation, expression: expr };
+}
+
+function looksLikeAlgebraicQuery(text: string): boolean {
+  const t = String(text || "");
+  // Detect algebraic expressions with variable coefficients (4x, 3y, 2z) — NOT pure arithmetic
+  // This prevents calculator gate from firing on algebra/linear-equation analysis queries
+  return /\b\d+\.?\d*\s*[a-zA-Z]\b/.test(t) && /[=+\-]/.test(t) && !/==|=>|<=/.test(t);
 }
 
 function looksLikeGovDataQuery(text: string): boolean {
@@ -1561,6 +1568,29 @@ function renderGeneralSmokeAnswer(userText: string): string {
   // Thai postal code lookups
   if (/รหัสไปรษณีย์.*ปากคลองตลาด|ปากคลองตลาด.*รหัสไปรษณีย์|ไปรษณีย์.*ปากคลองตลาด/i.test(t)) {
     return "ปากคลองตลาดอยู่ในเขตพระนคร กรุงเทพมหานคร รหัสไปรษณีย์ 10200 ครับ";
+  }
+  // Linear equation analysis: "4x+3y=12", "2x-5y=10 วิเคราะห์"
+  if (/\d[xX]|\d[yY]/.test(t) && /[=]/.test(t) && !/==/.test(t)) {
+    const m = t.match(/([+-]?\s*\d*\.?\d*)\s*[xX]\s*([+-]\s*\d*\.?\d*)\s*[yY]\s*=\s*([+-]?\s*\d+\.?\d*)/);
+    if (m) {
+      const aRaw = m[1].replace(/\s/g, ""); const bRaw = m[2].replace(/\s/g, "");
+      const a = parseFloat(aRaw === "" || aRaw === "+" ? "1" : aRaw === "-" ? "-1" : aRaw);
+      const b = parseFloat(bRaw === "" || bRaw === "+" ? "1" : bRaw === "-" ? "-1" : bRaw);
+      const c = parseFloat(m[3].replace(/\s/g, ""));
+      if (isFinite(a) && isFinite(b) && isFinite(c) && a !== 0 && b !== 0) {
+        const xInt = (c / a).toFixed(2);
+        const yInt = (c / b).toFixed(2);
+        const slope = (-(a / b)).toFixed(4);
+        const slopeStr = slope === "-0.0000" ? "0" : slope;
+        const aStr = a === 1 ? "" : a === -1 ? "-" : String(a);
+        const bStr = b > 0 ? `+${b === 1 ? "" : b}` : b === -1 ? "-" : String(b);
+        return `สมการ ${aStr}x${bStr}y = ${c} เป็นสมการเชิงเส้นสองตัวแปร (Linear Equation) ครับ มีคำตอบเป็นเส้นตรงไม่จำกัดจุด\n\n📐 วิเคราะห์เบื้องต้น:\n• จุดตัดแกน X (แทน y=0): x = ${xInt} → จุด (${xInt}, 0)\n• จุดตัดแกน Y (แทน x=0): y = ${yInt} → จุด (0, ${yInt})\n• ความชัน (slope): m = ${slopeStr}\n• รูป slope-intercept: y = ${slopeStr}x + ${yInt}\n\n💡 หมายเหตุ: สมการเดียวมี 2 ตัวแปร จึงมีคำตอบเป็นเส้นตรง ไม่ใช่จุดเดียว — หากต้องการจุดเดียวต้องมีสมการคู่อีก 1 ข้อ (ระบบ 2 สมการ 2 ตัวแปร) ครับ`;
+      }
+    }
+    // Fallback for algebraic expression without parseable coefficients
+    if (/วิเคราะห์|อธิบาย|คำนวณ|เบื้องต้น/i.test(t)) {
+      return "สมการนี้เป็นสมการเชิงเส้นหลายตัวแปรครับ การวิเคราะห์เบื้องต้น: (1) หาจุดตัดแกน x โดยแทน y=0 (2) หาจุดตัดแกน y โดยแทน x=0 (3) คำนวณความชัน slope = -a/b กรุณาระบุรูปแบบสมการชัดเจน เช่น 4x+3y=12 เพื่อให้คำนวณค่าได้ครับ";
+    }
   }
   return "ได้ครับ คำถามนี้เป็นคำถามทั่วไป ถ้าคุณระบุบริบทเพิ่มอีกนิด (เช่น ต้องการคำตอบแบบสั้น/ยาว, สำหรับงานอะไร) ผมจะตอบให้ตรงจุดมากขึ้นครับ";
 }
@@ -2164,6 +2194,34 @@ function renderStructuredDirect(
       return { text, structuredContent: sc };
     }
     return null; // fall through to default handling
+  }
+
+  // Seismic tool: render earthquake events
+  if (/tmd_seismic/i.test(toolName)) {
+    const sc = structuredContent && typeof structuredContent === "object" ? structuredContent as any : {};
+    const events: any[] = Array.isArray(sc.DailySeismicEvent) ? sc.DailySeismicEvent
+      : Array.isArray(sc.seismicEvents) ? sc.seismicEvents
+      : Array.isArray(sc.data) ? sc.data : [];
+    if (events.length > 0) {
+      const topN = events.slice(0, 10);
+      const lines: string[] = [`🌍 รายงานแผ่นดินไหว (${events.length} ครั้ง):`];
+      topN.forEach((ev: any, i: number) => {
+        const dt = ev.originDateTime || ev.dateTime || ev.date || "";
+        const mag = ev.magnitude || ev.magnitudeVal || "?";
+        const depth = ev.depth || ev.depthKm || "?";
+        const place = ev.place || ev.placeName || ev.region || "ไม่ระบุ";
+        const lat = ev.epiLat || ev.latitude || "";
+        const lon = ev.epiLong || ev.longitude || "";
+        const coord = lat && lon ? ` (${parseFloat(lat).toFixed(2)}N, ${parseFloat(lon).toFixed(2)}E)` : "";
+        lines.push(`${i + 1}. แมกนิจูด ${mag} | ความลึก ${depth} กม. | ${place}${coord} | ${dt ? new Date(dt).toLocaleString("th-TH") : ""}`);
+      });
+      if (events.length > 10) lines.push(`... และอีก ${events.length - 10} รายการ`);
+      return { text: lines.join("\n"), structuredContent };
+    }
+    // Fallback: try any text content
+    const tryText = (sc as any).text || (sc as any).message;
+    if (tryText && typeof tryText === "string" && tryText.length > 5) return { text: tryText, structuredContent };
+    return { text: "ไม่พบข้อมูลแผ่นดินไหวในขณะนี้ครับ", structuredContent };
   }
 
   // NASA tool: render APOD data directly
@@ -3527,7 +3585,7 @@ wss.on("connection", (ws, req) => {
         // Must be BEFORE CalculatorGate so calculator doesn't return only 1 tool.
         // =====================================
         const looksLikeNasaApodQuery = /nasa|apod|นาซ่า|ภาพดาราศาสตร์|ภาพอวกาศ/i.test(routingMessage);
-        if (!looksLikeNasaApodQuery && looksLikeMathLikeQuery(routingMessage) && looksLikeHasTimeKeyword(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage)) {
+        if (!looksLikeNasaApodQuery && looksLikeMathLikeQuery(routingMessage) && looksLikeHasTimeKeyword(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage) && !looksLikeAlgebraicQuery(routingMessage)) {
           try {
             const { evaluate } = require("mathjs");
             let calcExprRaw = routingMessage
@@ -4294,12 +4352,13 @@ wss.on("connection", (ws, req) => {
         // Phase 11.1: CalculatorGate WS — Deterministic math eval (NO LLM)
         // Mirrors the HTTP calculator gate. Must be AFTER geo/worldbank gates.
         // Newton-symbolic queries (อนุพันธ์/อินทิเกรต) bypass calculator — handled by NewtonGate.
+        // Algebraic queries (4x+3y=12 variables) bypass calculator — handled via general/smoke path.
         // =====================================
-        if (looksLikeMathLikeQuery(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage)) {
+        if (looksLikeMathLikeQuery(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage) && !looksLikeAlgebraicQuery(routingMessage)) {
           try {
             // Phase 11.4: Temperature conversion — intercept before general math (WS)
-            const tempF2C = routingMessage.match(/(\d+(?:\.\d+)?)\s*(?:องศา)?\s*(?:ฟาเรนไฮต์|fahrenheit|°F)\s*(?:เป็น|to|แปลง|convert)\s*(?:เซลเซียส|celsius|°C)/i);
-            const tempC2F = routingMessage.match(/(\d+(?:\.\d+)?)\s*(?:องศา)?\s*(?:เซลเซียส|celsius|°C)\s*(?:เป็น|to|แปลง|convert)\s*(?:ฟาเรนไฮต์|fahrenheit|°F)/i);
+            const tempF2C = routingMessage.match(/(\d+(?:\.\d+)?)\s*(?:องศา)?\s*(?:ฟาเรนไฮต์|fahrenheit|°F).*?(?:เซลเซียส|celsius|°C)/i);
+            const tempC2F = routingMessage.match(/(\d+(?:\.\d+)?)\s*(?:องศา)?\s*(?:เซลเซียส|celsius|°C).*?(?:ฟาเรนไฮต์|fahrenheit|°F)/i);
             if (tempF2C || tempC2F) {
               const inputVal = parseFloat((tempF2C || tempC2F)![1]);
               const converted = tempF2C ? ((inputVal - 32) * 5 / 9) : (inputVal * 9 / 5 + 32);
@@ -6714,12 +6773,13 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Phase 11.1: CalculatorGate — Deterministic math eval (NO LLM)
     // Handles "คำนวณ 365 × 24", "2+2", "123 * 456", "mean([10,20,30])" etc.
     // Newton-symbolic queries bypass calculator — handled by NewtonGate.
+    // Algebraic queries (4x+3y=12 variables) bypass calculator — handled via general/smoke path.
     // =====================================
-    if (looksLikeMathLikeQuery(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage)) {
+    if (looksLikeMathLikeQuery(routingMessage) && !looksLikeNewtonSymbolicQuery(routingMessage) && !looksLikeAlgebraicQuery(routingMessage)) {
       try {
         // Phase 11.4: Temperature conversion — intercept before general math
-        const tempF2C = routingMessage.match(/(\d+(?:\.\d+)?)\s*(?:องศา)?\s*(?:ฟาเรนไฮต์|fahrenheit|°F)\s*(?:เป็น|to|แปลง|convert)\s*(?:เซลเซียส|celsius|°C)/i);
-        const tempC2F = routingMessage.match(/(\d+(?:\.\d+)?)\s*(?:องศา)?\s*(?:เซลเซียส|celsius|°C)\s*(?:เป็น|to|แปลง|convert)\s*(?:ฟาเรนไฮต์|fahrenheit|°F)/i);
+        const tempF2C = routingMessage.match(/(\d+(?:\.\d+)?)\s*(?:องศา)?\s*(?:ฟาเรนไฮต์|fahrenheit|°F).*?(?:เซลเซียส|celsius|°C)/i);
+        const tempC2F = routingMessage.match(/(\d+(?:\.\d+)?)\s*(?:องศา)?\s*(?:เซลเซียส|celsius|°C).*?(?:ฟาเรนไฮต์|fahrenheit|°F)/i);
         if (tempF2C || tempC2F) {
           const inputVal = parseFloat((tempF2C || tempC2F)![1]);
           const converted = tempF2C
@@ -6836,7 +6896,13 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
             { [newtonToolName]: newtonParams }
           );
           const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
-          const rawText = first?.content?.[0]?.text || first?.result?.text || String(first?.result || "");
+          const rawText = first?.content?.[0]?.text
+            || first?.result?.text
+            || (typeof first?.result === 'string' ? first.result : '')
+            || (first?.result?.result ? String(first.result.result) : '')
+            || (first?.result?.message ? String(first.result.message) : '')
+            || (first?.result && typeof first.result === 'object' ? JSON.stringify(first.result).slice(0, 500) : '')
+            || "";
           if (rawText && !rawText.includes('"success":false') && !rawText.includes('"error"')) {
             const textOut = rawText;
             const scOut = withRenderMeta(
@@ -7007,6 +7073,26 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         toolsUsed: ["dateTimeTool"],
         route: "datetime",
       });
+    }
+
+    // =====================================
+    // Phase 11.1c: AlgebraicGate HTTP — Intercept algebraic/equation analysis queries
+    // Catches queries like "4x+3y=12 วิเคราะห์" BEFORE MCP tool planning so the LLM
+    // cannot route them to calculatorTool (which can't handle variables).  
+    // =====================================
+    if (looksLikeAlgebraicQuery(routingMessage)) {
+      const smokeAns = renderGeneralSmokeAnswer(routingMessage);
+      const isDefaultSmokeAns = smokeAns.startsWith("ได้ครับ คำถามนี้เป็นคำถามทั่วไป");
+      if (!isDefaultSmokeAns) {
+        const scOut = withRenderMeta(
+          { algebraicGate: { query: routingMessage } },
+          { route: "general" as any, llmUsed: false, routeDecider: "deterministic", version: "phase11.1c" },
+          ["algebraicAnalysis"]
+        );
+        sessionHistory.push({ sender: "ai", text: smokeAns } as any);
+        chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "general", tool: "algebraicAnalysis", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: smokeAns });
+        return res.json({ text: smokeAns, structuredContent: scOut, messages: sessionHistory, mcpUsed: false, mcpResults: null, toolsUsed: ["algebraicAnalysis"], route: "algebraic" });
+      }
     }
 
     // =====================================

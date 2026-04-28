@@ -66,13 +66,20 @@ async function fetchJson(url: string, method = "GET", body?: any, timeout = TIME
   }
 }
 
-async function chat(message: string): Promise<{ route: string; text: string; tools: string; ok: boolean }> {
+// Detect incomplete tool responses (tool ran but result never properly rendered)
+function isIncompleteToolResponse(text: string): boolean {
+  return /ได้รับข้อมูลจากเครื่องมือ|ผมได้รับข้อมูลจาก|ได้ใช้เครื่องมือ .* แล้วครับ$/.test(text);
+}
+
+async function chat(message: string): Promise<{ route: string; text: string; tools: string; ok: boolean; incomplete: boolean }> {
   const r = await fetchJson(`${BACKEND}/api/chat`, "POST", { message });
+  const text = r?.text || r?.message || "";
   return {
     route: r?.route || r?.meta?.route || "unknown",
-    text: r?.text || r?.message || "",
+    text,
     tools: (r?.toolsUsed || []).join(","),
-    ok: !!r?.text,
+    ok: !!text,
+    incomplete: isIncompleteToolResponse(text),
   };
 }
 
@@ -160,6 +167,64 @@ async function suiteAiChatThai() {
         pass,
         notes: !r.ok ? "no response" : !hasThai ? "no Thai in response" : !longEnough ? "response too short" : missedPhrase || "OK",
         preview: r.text.slice(0, 200),
+      };
+    });
+  }
+}
+
+async function suiteMathQuality() {
+  console.log("\n🔢 Math & Equation Quality");
+
+  const mathCases: Array<{ q: string; expects: string[]; noExpect?: string[] }> = [
+    {
+      q: "คำนวณ 365 × 24 × 60 เท่ากับเท่าไหร่",
+      expects: ["525600", "525,600"],
+    },
+    {
+      q: "25% ของ 3200 คือเท่าไหร่",
+      expects: ["800"],
+    },
+    {
+      q: "100 ฟาเรนไฮต์เป็นกี่องศาเซลเซียส",
+      expects: ["37", "37.78"],
+    },
+    {
+      q: "mean([10, 20, 30, 40, 50]) เท่าไหร่",
+      expects: ["30", "ค่าเฉลี่ย"],
+    },
+    {
+      // THE SCREENSHOT BUG — algebraic equation analysis
+      q: "ช่วยคำนวณและวิเคราะห์ข้อมูลเบื้องต้น ของ 4x+3y = 12",
+      expects: ["สมการ", "ตัดแกน", "slope", "x =", "y =", "เชิงเส้น", "จุด"],
+      noExpect: ["ได้รับข้อมูลจากเครื่องมือ"],
+    },
+    {
+      q: "สมการ 2x+5y=20 วิเคราะห์เบื้องต้นให้หน่อย",
+      expects: ["x", "y", "สมการ", "จุด"],
+      noExpect: ["ได้รับข้อมูลจากเครื่องมือ"],
+    },
+    {
+      q: "หาอนุพันธ์ของ x^2 + 3x + 5",
+      expects: ["2x", "derivative", "อนุพันธ์"],
+    },
+  ];
+
+  for (const c of mathCases) {
+    await test("Math", c.q.slice(0, 45), async () => {
+      const r = await chat(c.q);
+      // Hard fail: incomplete tool response
+      if (r.incomplete) {
+        return { pass: false, notes: `INCOMPLETE TOOL RESPONSE: ${r.text.slice(0, 100)}`, preview: r.text.slice(0, 200) };
+      }
+      if (c.noExpect && c.noExpect.some(p => r.text.includes(p))) {
+        return { pass: false, notes: `Found forbidden phrase: ${c.noExpect.find(p => r.text.includes(p))}`, preview: r.text.slice(0, 200) };
+      }
+      const hasExpected = c.expects.some(p => r.text.includes(p));
+      const hasThai = /[\u0e00-\u0e7f]/.test(r.text);
+      return {
+        pass: r.ok && hasExpected,
+        notes: !hasExpected ? `expected one of [${c.expects.join(",")}], got: ${r.text.slice(0, 80)}` : `route=${r.route}`,
+        preview: r.text.slice(0, 250),
       };
     });
   }
@@ -384,6 +449,55 @@ async function suiteEdgeCases() {
   });
 }
 
+async function suiteSeismicWorldBank() {
+  console.log("\n🌍 Seismic & WorldBank Data");
+
+  await test("Seismic", "แผ่นดินไหวล่าสุดในไทย", async () => {
+    const r = await chat("แผ่นดินไหวล่าสุดในประเทศไทยมีที่ไหนบ้าง");
+    if (r.incomplete) return { pass: false, notes: "INCOMPLETE TOOL RESPONSE", preview: r.text.slice(0, 200) };
+    const hasThai = /[\u0e00-\u0e7f]/.test(r.text);
+    const hasSeismic = /แผ่นดินไหว|ริกเตอร์|แมกนิจูด|magnitude|seismic|earthquake|ศูนย์กลาง|กม\.|จังหวัด/i.test(r.text);
+    return {
+      pass: r.ok && hasThai && (hasSeismic || r.text.length > 30),
+      notes: `route=${r.route} tools=${r.tools} seismic=${hasSeismic}`,
+      preview: r.text.slice(0, 250),
+    };
+  });
+
+  await test("Seismic", "แผ่นดินไหวภาคเหนือ 7 วันที่ผ่านมา", async () => {
+    const r = await chat("แผ่นดินไหวในภาคเหนือ 7 วันที่ผ่านมามีกี่ครั้ง");
+    if (r.incomplete) return { pass: false, notes: "INCOMPLETE TOOL RESPONSE", preview: r.text.slice(0, 200) };
+    const hasThai = /[\u0e00-\u0e7f]/.test(r.text);
+    return {
+      pass: r.ok && hasThai && r.text.length > 20,
+      notes: `route=${r.route} tools=${r.tools} len=${r.text.length}`,
+      preview: r.text.slice(0, 250),
+    };
+  });
+
+  await test("WorldBank", "GDP ประเทศไทยล่าสุด", async () => {
+    const r = await chat("GDP ของประเทศไทยล่าสุดเท่าไหร่");
+    if (r.incomplete) return { pass: false, notes: "INCOMPLETE TOOL RESPONSE", preview: r.text.slice(0, 200) };
+    const hasGDP = /GDP|gdp|\.?\d+.*ล้าน|billion|trillion|ดอลลาร์|USD|เศรษฐกิจ|World Bank|worldbank/i.test(r.text);
+    return {
+      pass: r.ok && (hasGDP || r.text.length > 30),
+      notes: `route=${r.route} tools=${r.tools} GDP=${hasGDP}`,
+      preview: r.text.slice(0, 250),
+    };
+  });
+
+  await test("WorldBank", "อัตราการเติบโต GDP ไทย 5 ปีล่าสุด", async () => {
+    const r = await chat("อัตราการเติบโตทางเศรษฐกิจของไทย 5 ปีที่ผ่านมาเป็นอย่างไร");
+    if (r.incomplete) return { pass: false, notes: "INCOMPLETE TOOL RESPONSE", preview: r.text.slice(0, 200) };
+    const hasThai = /[\u0e00-\u0e7f]/.test(r.text);
+    return {
+      pass: r.ok && hasThai && r.text.length > 30,
+      notes: `route=${r.route} tools=${r.tools}`,
+      preview: r.text.slice(0, 250),
+    };
+  });
+}
+
 // ── Report ────────────────────────────────────────────────────────────────────
 function printReport() {
   const pass = results.filter(r => r.pass).length;
@@ -417,10 +531,28 @@ function printReport() {
     });
   }
 
+  // AI Quality summary — flag incomplete tool responses
+  const incompletes = results.filter(r => r.notes.includes("INCOMPLETE TOOL RESPONSE") || r.notes.includes("ได้รับข้อมูลจากเครื่องมือ"));
+  if (incompletes.length > 0) {
+    console.log(`\n🚨 INCOMPLETE TOOL RESPONSES (${incompletes.length} cases):`);
+    incompletes.forEach(r => console.log(`  [${r.category}] ${r.name}: ${r.preview.slice(0, 120)}`));
+  }
+
   // Save JSON report
   const reportPath = path.join(__dirname, "../logs/full_system_test_report.json");
   fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-  fs.writeFileSync(reportPath, JSON.stringify({ date: new Date().toISOString(), pass, fail, total, pct, results }, null, 2));
+  const report = {
+    date: new Date().toISOString(),
+    pass, fail, total, pct,
+    incompleteToolResponses: incompletes.length,
+    results,
+    opusAnalysisSummary: {
+      criticalIssues: results.filter(r => !r.pass && ["Math","Seismic","NWP","TMD","Evidence"].includes(r.category)),
+      qualityIssues: results.filter(r => r.notes.includes("INCOMPLETE TOOL RESPONSE")),
+      allFailures: results.filter(r => !r.pass),
+    },
+  };
+  fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
   console.log(`\n📁 JSON report saved: ${reportPath}`);
   console.log("=".repeat(80));
 
@@ -434,10 +566,12 @@ async function main() {
 
   await suiteHealthCheck();
   await suiteAiChatThai();
+  await suiteMathQuality();        // ← new: math & equation quality (includes screenshot bug)
   await suiteWeather();
   await suiteNWP();
   await suiteTMD();
   await suiteEvidence();
+  await suiteSeismicWorldBank();   // ← new: seismic & WorldBank
   await suiteThaiGeo();
   await suiteGenImage();
   await suiteFileRead();
