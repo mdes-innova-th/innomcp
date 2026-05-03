@@ -128,6 +128,11 @@ package-lock.json
 # Local-only audit artifacts (safety patches captured during clean-baseline runs)
 docs/reports/evidence/*.patch
 docs/reports/evidence/*-untracked-list.txt
+# Phase C brain / context docs (single source of truth for living-agent work)
+!/docs/brain/
+!/docs/brain/**
+# Phase C evidence reports
+!/docs/reports/PHASE_C_*.md
 
 # Allowlist: public-prod verification proof artifacts
 !/docs/screenshots/
