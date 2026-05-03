@@ -1,5 +1,7 @@
 # Product Sign-Off Evidence — 2026-04-18
 
+> Historical snapshot only. See `docs/reports/SIGNOFF_EVIDENCE_2026-04-28.md` for the latest production verdict after the stricter 2026-04-28 rerun.
+
 ## Verdict: PUBLIC-READY
 
 > Upgraded from "SHIP WITH KNOWN LIMITATIONS" after W06 root-cause fix, S8 public-readiness section, and 61/61 browser E2E pass.

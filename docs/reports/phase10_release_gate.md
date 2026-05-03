@@ -1,8 +1,24 @@
 # Phase 10 Release Gate
 
-Updated: 2026-03-18T02:00:00+07:00
+Updated: 2026-04-28T16:50:00+07:00
 
-## Evidence Summary
+## Current Gate Status (2026-04-28)
+
+| Check | Result | Evidence |
+| :---- | :----- | :------- |
+| Focused regression after P1/P2 fixes | PASS | `innomcp-node/tests/unit/__tests__/fastpathIdentity.test.ts` |
+| Full system strict gate | PASS (59/59) | `logs/full_system_test_20260428-164416.log` |
+| Browser signoff suite | PASS (61/61) | `logs/signoff_suite_20260428-164519.log` |
+| Overall verdict | PUBLIC-READY | `docs/reports/SIGNOFF_EVIDENCE_2026-04-28.md` |
+
+### 2026-04-28 Closure Notes
+
+- MCP readiness now reports true remote readiness separately from local-only fallback (`remote=52`, `local=4`, `total=56`).
+- `ModeStatusBar` and evidence degraded-state UI now communicate limited/unavailable states honestly.
+- Deterministic general-knowledge answers for ML, TCP/IP, and Python vs JavaScript are now Thai-led.
+- Browser signoff now asserts that `S6-03` and `S8-01` do not start with English, closing the previous production-gate blind spot.
+
+## Historical Phase Evidence Summary
 
 | Phase             | Result | Verifier / Log File |
 | :---------------- | :----- | :------------------ |
@@ -52,6 +68,14 @@ Updated: 2026-03-18T02:00:00+07:00
 - [x] **`/api/health` (Next.js):** Proxies to `innomcp-node /api/health/keys` → returns `mode`, `mode_ready`, `missing_keys`
 - [x] **Playwright E2E:** `innomcp-next/e2e/chat.spec.ts` — 5 scenarios (weather, fallback notice, Phuket, Thai knowledge, mode bar)
 - [x] **Phase 10.7 Verifier:** PASS × 3 rounds post-UI changes
+
+### Follow-up Hardening (2026-04-28)
+
+- [x] **Health contract:** `/api/health` and `/api/health/keys` now expose `mcp_status`, `remoteReady`, and local/remote/total tool counts.
+- [x] **ModeStatusBar:** renders truthful limited-online state when only local tools are available.
+- [x] **EvidenceDashboard:** degraded evidence path renders a distinct unavailable panel instead of a healthy-looking zero state.
+- [x] **General knowledge answers:** ML/TCP/IP/Python-vs-JavaScript deterministic responses now lead in Thai and satisfy strict naturalness checks.
+- [x] **Signoff gate:** `innomcp-next/e2e/signoff.spec.ts` now fails `S6-03` and `S8-01` if responses start with English.
 
 ### E2E Test Commands
 
