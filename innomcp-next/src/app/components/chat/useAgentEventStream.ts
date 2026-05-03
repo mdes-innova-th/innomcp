@@ -118,6 +118,33 @@ function extractDataLine(blob: string): string | null {
   return dataLines.join("\n");
 }
 
+/**
+ * Resolve the backend endpoint at call time so the same component works
+ * whether the Next.js dev server is on a different port from the
+ * Express backend. Order of preference:
+ *   1. explicit `endpoint` argument
+ *   2. NEXT_PUBLIC_BACKEND_URL env var (compiled in)
+ *   3. window.location origin if same-port deployment
+ *   4. localhost:3011 fallback for dev
+ */
+function resolveStreamUrl(explicit: string): string {
+  if (explicit && /^https?:\/\//.test(explicit)) return explicit;
+  const envUrl =
+    typeof process !== "undefined" && process.env && process.env.NEXT_PUBLIC_BACKEND_URL
+      ? String(process.env.NEXT_PUBLIC_BACKEND_URL).replace(/\/$/, "")
+      : "";
+  if (envUrl) return `${envUrl}${explicit.startsWith("/") ? "" : "/"}${explicit}`;
+  if (typeof window !== "undefined" && window.location) {
+    const { protocol, hostname, port } = window.location;
+    // Dev convention: Next.js on 3000, Express on 3011.
+    if (hostname === "localhost" && port === "3000") {
+      return `${protocol}//${hostname}:3011${explicit}`;
+    }
+    return `${protocol}//${window.location.host}${explicit}`;
+  }
+  return `http://localhost:3011${explicit}`;
+}
+
 export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
   const [state, setState] = useState<AgentStreamState>(initialState);
   const abortRef = useRef<AbortController | null>(null);
@@ -142,9 +169,10 @@ export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
         warnings: [],
       });
 
+      const fullUrl = resolveStreamUrl(endpoint);
       let response: Response;
       try {
-        response = await fetch(endpoint, {
+        response = await fetch(fullUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
