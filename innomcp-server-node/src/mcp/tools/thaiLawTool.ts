@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ThaiLawToolInputSchema, LawType, LawStatus } from "../knowledge/types/law";
+import { query as dbQuery } from "../../utils/db";
 
 /**
  * Mock Knowledge Base for Thai Laws (Round C - MVP)
@@ -134,7 +135,35 @@ export const thaiLawTool = {
             }
         }
 
+        // ─── DB fallback: search knowledge_entities for workspace-seeded law content ───
         if (results.length === 0) {
+            try {
+                const dbResults = await dbQuery<any[]>(
+                    "SELECT name_th, description, source FROM knowledge_entities " +
+                    "WHERE MATCH(name_th, description) AGAINST(? IN NATURAL LANGUAGE MODE) " +
+                    "AND domain = 'law' LIMIT 5",
+                    [args.query]
+                );
+
+                if (Array.isArray(dbResults) && dbResults.length > 0) {
+                    const dbText = dbResults
+                        .map((row: any) => {
+                            const src = (() => {
+                                try { return typeof row.source === "string" ? JSON.parse(row.source) : row.source; } catch { return {}; }
+                            })();
+                            const srcLabel = src?.name ?? "ฐานข้อมูล";
+                            return `## ${row.name_th} [${srcLabel}]\n${row.description}`;
+                        })
+                        .join("\n\n---\n\n");
+
+                    return {
+                        content: [{ type: "text" as const, text: dbText }],
+                    };
+                }
+            } catch {
+                // DB unavailable — fall through to not-found
+            }
+
             return {
                 content: [{
                     type: "text" as const,
