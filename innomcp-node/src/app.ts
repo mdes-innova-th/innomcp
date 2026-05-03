@@ -8,6 +8,7 @@ import { generalRateLimit, authRateLimit } from "./middleware/rateLimiter";
 import apiRouter from "./routes/api";
 import apiCsrfRouter from "./routes/api/csrf";
 import aiModeRouter from "./routes/api/aiMode";
+import providersRouter from "./routes/api/providers";
 import metricsRouter from "./routes/api/metrics";
 import { healthRouter } from "./routes/api/health";
 import authRouter from "./routes/api/auth";
@@ -121,6 +122,9 @@ app.use("/api/health", healthRouter);
 
 // Router สำหรับ AI Mode (ไม่ต้อง auth เพือ testsuit - ต้องอยู่ก่อน /api middleware)
 app.use("/api/ai-mode", aiModeRouter);
+
+// Phase C: Provider registry CRUD + route-preview (no auth, public)
+app.use("/api/ai/providers", providersRouter);
 
 // Router สำหรับ Debug/Test GUI (ไม่ต้อง auth)
 app.use("/api/debug", debugRouter);
