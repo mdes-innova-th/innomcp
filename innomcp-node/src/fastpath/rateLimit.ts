@@ -3,26 +3,19 @@
  * Anti-spam protection
  */
 
-import Redis from 'ioredis';
 import { logBoth } from '../utils/mcpLogger';
+import { getRedisClient, getReadyRedisClient } from '../utils/redis';
 
-const REDIS_URL = process.env.REDIS_URL || '';
-let redis: Redis | null = null;
+async function getRateLimitRedisClient() {
+  const ready = getReadyRedisClient();
+  if (ready) {
+    return ready;
+  }
 
-// Initialize Redis connection
-if (REDIS_URL) {
   try {
-    redis = new Redis(REDIS_URL);
-    redis.on('error', (err) => {
-      logBoth('error', `[RateLimit] Redis connection error: ${err.message}`);
-      redis = null;
-    });
-    redis.on('connect', () => {
-      logBoth('info', '[RateLimit] Redis connected successfully');
-    });
-  } catch (err) {
-    logBoth('error', `[RateLimit] Failed to initialize Redis: ${err}`);
-    redis = null;
+    return await getRedisClient();
+  } catch {
+    return null;
   }
 }
 
@@ -50,6 +43,7 @@ class InMemoryRateLimiter {
         }
       }
     }, 5 * 60 * 1000);
+    this.cleanupInterval.unref?.();
   }
 
   async check(key: string, windowSec: number, maxRequests: number): Promise<RateLimitResult> {
@@ -103,6 +97,8 @@ export async function checkRateLimit(
   windowSec: number = 5,
   maxRequests: number = 8
 ): Promise<RateLimitResult> {
+  const redis = await getRateLimitRedisClient();
+
   // Use in-memory if Redis unavailable
   if (!redis) {
     return memoryLimiter.check(key, windowSec, maxRequests);
@@ -165,6 +161,8 @@ export function buildRateLimitKey(
  * Clear rate limit for a key (admin/testing)
  */
 export async function clearRateLimit(key: string): Promise<boolean> {
+  const redis = await getRateLimitRedisClient();
+
   if (!redis) {
     memoryLimiter.clear();
     return true;
@@ -187,6 +185,8 @@ export async function getRateLimitStats(): Promise<{
   backend: 'redis' | 'memory';
   connected: boolean;
 }> {
+  const redis = getReadyRedisClient();
+
   return {
     backend: redis ? 'redis' : 'memory',
     connected: redis ? (await redis.ping() === 'PONG') : false

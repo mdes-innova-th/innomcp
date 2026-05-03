@@ -285,6 +285,13 @@ export function detectFastPath(text: string): FastPathHit | null {
   if (containsAny(normalized, dict.identity)) return "identity";
   // Capability detection (regex-based, no dict entry needed)
   if (/(ทำอะไรได้บ้าง|ทำอะไรได้|ช่วยอะไรได้บ้าง|ช่วยอะไรได้|what can you do|how can you help|capable)/i.test(original)) return "capability";
+  if (
+    /^(ping|pong|alive|status)$/i.test(original.trim()) ||
+    (/(ระบบ|backend|back\s*end|server|เซิร์ฟเวอร์|system|online|alive|พร้อมใช้งาน)/i.test(original) &&
+      /(พร้อมใช้งานไหม|พร้อมใช้งานหรือไม่|พร้อมไหม|พร้อมหรือไม่|ใช้งานได้ไหม|ทำงานอยู่ไหม|ยังอยู่ไหม|online\s*ไหม|alive|ping|status)/i.test(original))
+  ) {
+    return "ping";
+  }
   if (containsAny(normalized, dict.thanks)) return "thanks";
   if (containsAny(normalized, dict.ping)) return "ping";
   if (containsAny(normalized, dict.ok)) return "ok";

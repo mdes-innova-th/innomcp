@@ -1,3 +1,5 @@
+import { normalizePlannerQuery } from "../../services/promptAdapter";
+
 export type Intent = "general" | "evidence" | "weather" | "web-record";
 
 export interface ToolStep {
@@ -11,6 +13,10 @@ export interface Plan {
   intent: Intent;
   steps: ToolStep[];
   notes: string[];
+  /** Normalized variant used for intent matching (Phase 6B). */
+  normalizedQuery?: string;
+  /** Original user query, preserved for logs and UI (Phase 6B). */
+  originalQuery?: string;
 }
 
 function hasWeatherIntent(text: string): boolean {
@@ -32,25 +38,39 @@ function hasWebRecordIntent(text: string): boolean {
 }
 
 export function planAnswer(userText: string): Plan {
-  const text = String(userText || "").trim();
+  const original = String(userText || "").trim();
   const notes: string[] = [];
 
+  // Phase 6B: normalize query for intent classification only.
+  // The original text is preserved for tool execution / logs / UI.
+  const normResult = normalizePlannerQuery(original);
+  const text = normResult.normalizedQuery || original;
+  if (normResult.mode === "deterministic" && normResult.normalizedQuery !== original) {
+    notes.push(`planner-normalized:${normResult.reasons.slice(0, 2).join("|")}`);
+  }
+
+  // Match against normalized text first; fall back to original to preserve
+  // existing behavior in case normalization happened to remove a keyword.
+  const matchAny = (fn: (s: string) => boolean) => fn(text) || fn(original);
+
   let intent: Intent = "general";
-  if (hasWeatherIntent(text)) {
+  if (matchAny(hasWeatherIntent)) {
     intent = "weather";
     notes.push("matched:weather-keywords");
-  } else if (hasEvidenceIntent(text)) {
+  } else if (matchAny(hasEvidenceIntent)) {
     intent = "evidence";
     notes.push("matched:evidence-keywords");
-  } else if (hasWebRecordIntent(text)) {
+  } else if (matchAny(hasWebRecordIntent)) {
     intent = "web-record";
     notes.push("matched:web-record-keywords");
   } else {
     notes.push("matched:default-general");
   }
 
+  const meta = { normalizedQuery: text, originalQuery: original };
+
   if (intent === "general") {
-    return { intent, steps: [], notes };
+    return { intent, steps: [], notes, ...meta };
   }
 
   if (intent === "evidence") {
@@ -65,6 +85,7 @@ export function planAnswer(userText: string): Plan {
         },
       ],
       notes,
+      ...meta,
     };
   }
 
@@ -80,6 +101,7 @@ export function planAnswer(userText: string): Plan {
         },
       ],
       notes,
+      ...meta,
     };
   }
 
@@ -94,5 +116,6 @@ export function planAnswer(userText: string): Plan {
       },
     ],
     notes,
+    ...meta,
   };
 }

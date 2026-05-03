@@ -21,8 +21,10 @@ export interface ImageGenResult {
   provider: string;
   /** Model identifier returned by provider */
   model: string;
-  /** Cleaned prompt that was actually sent */
+  /** Cleaned prompt that was actually sent (English when adapted) */
   prompt: string;
+  /** The user's original prompt as received (may be Thai) — for UX display */
+  originalPrompt?: string;
   /** Round-trip duration in milliseconds */
   durationMs: number;
   /** Which provider path was used */
@@ -161,13 +163,34 @@ async function callPollinations(prompt: string): Promise<ImageGenResult> {
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
+ * Options for callImageGen.
+ *
+ * If `adaptedPromptEn` is provided (e.g. produced by promptAdapter), it is
+ * sent to the provider while `rawPrompt` is preserved for UX display.
+ */
+export interface CallImageGenOptions {
+  adaptedPromptEn?: string;
+  originalPrompt?: string;
+}
+
+/**
  * Generate an image from a user prompt.
  * Tries MDES Gateway first; falls back to Pollinations.ai.
  *
  * @param rawPrompt - The user's raw message or extracted prompt
+ * @param opts - Optional pre-adapted prompt to send to providers
  */
-export async function callImageGen(rawPrompt: string): Promise<ImageGenResponse> {
-  const prompt = cleanPrompt(rawPrompt) || rawPrompt.slice(0, 500).trim();
+export async function callImageGen(
+  rawPrompt: string,
+  opts: CallImageGenOptions = {}
+): Promise<ImageGenResponse> {
+  // Prefer caller-supplied adapted prompt; otherwise fall back to deterministic strip.
+  const providerPrompt =
+    (opts.adaptedPromptEn && opts.adaptedPromptEn.trim().slice(0, 500)) ||
+    cleanPrompt(rawPrompt) ||
+    rawPrompt.slice(0, 500).trim();
+
+  const originalPrompt = opts.originalPrompt ?? rawPrompt;
 
   const gatewayUrl = process.env.IMAGE_GEN_GATEWAY_URL?.trim();
   const gatewayToken = process.env.IMAGE_GEN_GATEWAY_TOKEN?.trim();
@@ -177,9 +200,9 @@ export async function callImageGen(rawPrompt: string): Promise<ImageGenResponse>
   if (gatewayUrl) {
     try {
       logBoth("info", `[ImageGen] Trying MDES gateway: ${gatewayUrl.replace(/\/\/[^/]*/, "//***")}`);
-      const result = await callGateway(gatewayUrl, gatewayToken, prompt, timeoutMs);
+      const result = await callGateway(gatewayUrl, gatewayToken, providerPrompt, timeoutMs);
       logBoth("info", `[ImageGen] Gateway OK in ${result.durationMs}ms`);
-      return { ok: true, ...result };
+      return { ok: true, ...result, originalPrompt };
     } catch (err: any) {
       logBoth("warn", `[ImageGen] Gateway failed (${err?.message}), falling back to Pollinations.ai`);
     }
@@ -188,9 +211,9 @@ export async function callImageGen(rawPrompt: string): Promise<ImageGenResponse>
   // ─ Fallback: Pollinations.ai ─
   try {
     logBoth("info", "[ImageGen] Using Pollinations.ai fallback");
-    const result = await callPollinations(prompt);
+    const result = await callPollinations(providerPrompt);
     logBoth("info", `[ImageGen] Pollinations OK in ${result.durationMs}ms`);
-    return { ok: true, ...result };
+    return { ok: true, ...result, originalPrompt };
   } catch (err: any) {
     logBoth("error", `[ImageGen] Both providers failed: ${err?.message}`);
     return {
@@ -203,11 +226,16 @@ export async function callImageGen(rawPrompt: string): Promise<ImageGenResponse>
 
 /**
  * Build the display text for a successful image generation.
+ *
+ * Display priority for the "คำสั่ง" line:
+ *   originalPrompt (user's Thai/raw) > prompt (what was sent to provider)
+ * This keeps the UX in Thai even when the provider received an adapted English prompt.
  */
 export function buildImageGenText(result: ImageGenResult): string {
   const providerLine =
     result.source === "gateway"
       ? `⚙️ สร้างโดย: **${result.provider}** (${result.model})`
       : `⚙️ สร้างโดย: **Pollinations.ai** (Flux model — ฟรี)`;
-  return `🎨 **สร้างรูปภาพ AI ให้แล้วครับ**\n\n📝 คำสั่ง: "${result.prompt}"\n🖼️ ดูภาพด้านล่าง\n\n${providerLine}`;
+  const displayPrompt = result.originalPrompt?.trim() || result.prompt;
+  return `🎨 **สร้างรูปภาพ AI ให้แล้วครับ**\n\n📝 คำสั่ง: "${displayPrompt}"\n🖼️ ดูภาพด้านล่าง\n\n${providerLine}`;
 }

@@ -36,8 +36,9 @@ import { hasTemporalIndicators } from "../../utils/thaiTemporalParser";
 import { resolveProvinces } from "../../utils/locationResolver";
 import { recordTurnAndGetMeta, enrichGroundedContract, getMemoryDebugData, queryColdRag, disambiguateWithSessionMemory } from "../../services/memoryRagHook";
 import { callImageGen, buildImageGenText } from "../../services/imageGenService";
+import { adaptImagePrompt } from "../../services/promptAdapter";
 
-dotenv.config();
+dotenv.config({ override: true });
 
 const LOW_CONFIDENCE_FALLBACK_TEXT = "ขอข้อมูลเพิ่มอีกนิดเพื่อให้ตอบได้แม่นยำขึ้น เช่น ระบุจังหวัดหรือหัวข้อที่ต้องการ";
 
@@ -1031,7 +1032,7 @@ function looksLikeThaiHistoryQuery(text: string): boolean {
 
 function looksLikeThaiLawQuery(text: string): boolean {
   const t = String(text || "");
-  return /(กฎหมาย|มาตรา|พ\.ร\.บ\.|พระราชบัญญัติ|ประมวลกฎหมาย|โทษ|จำคุก|ปรับ|คดี|กระทำผิด|ผิดกฎหมาย|ลงโทษ|อาญา|แพ่ง|อาชญากรรม|บทลงโทษ|ข้อกฎหมาย|กฎหมายไทย)/i.test(t);
+  return /(กฎหมาย|มาตรา|พ\.ร\.บ\.|พระราชบัญญัติ|ประมวลกฎหมาย|โทษ|จำคุก|ปรับ|คดี|กระทำผิด|ผิดกฎหมาย|ลงโทษ|อาญา|แพ่ง|อาชญากรรม|บทลงโทษ|ข้อกฎหมาย|กฎหมายไทย|พรบ\.?|PDPA|pdpa|คุ้มครองข้อมูลส่วนบุคคล|ความเป็นส่วนตัว.*กฎหมาย|กฎหมาย.*ความเป็นส่วนตัว)/i.test(t);
 }
 
 function looksLikeThaiReligionQuery(text: string): boolean {
@@ -1435,6 +1436,17 @@ function renderGeneralFallbackMessage(): string {
 function renderGeneralSmokeAnswer(userText: string): string {
   const t = String(userText || "").trim();
 
+  if (/(ตอบ(?:สั้น|สั้นๆ|สั้น ๆ)?(?:แค่)?คำเดียว(?:ว่า)?\s*(พร้อมใช้งาน|พร้อม|online|ใช้งานได้))/i.test(t)) {
+    return "พร้อมใช้งาน";
+  }
+  if (
+    /^(ping|pong|alive|status)$/i.test(t) ||
+    (/(ระบบ|backend|back\s*end|server|เซิร์ฟเวอร์|system|สถานะ|online|alive|พร้อมใช้งาน)/i.test(t) &&
+      /(พร้อมใช้งานไหม|พร้อมใช้งานหรือไม่|พร้อมไหม|พร้อมหรือไม่|พร้อมหรือยัง|ใช้งานได้ไหม|ทำงานอยู่ไหม|ยังอยู่ไหม|online\s*ไหม|alive|ping|status)/i.test(t))
+  ) {
+    return "อยู่ครับ ระบบพร้อมใช้งาน";
+  }
+
   // Phase 11.4: Identity/greeting combo — "สวัสดี คุณชื่ออะไร", "สวัสดี AI คุณคือใคร"
   if (/(ชื่ออะไร|คือใคร|เป็นใคร|who are you|what is your name|what are you|are you)/i.test(t)) {
     return "สวัสดีครับ ผมชื่อ Innova-bot เป็น AI ผู้ช่วยสำหรับระบบ InnoMCP ยินดีให้บริการครับ";
@@ -1494,7 +1506,7 @@ function renderGeneralSmokeAnswer(userText: string): string {
     return "Docker คือเครื่องมือสร้าง container สำหรับบรรจุแอปพลิเคชันพร้อมไลบรารีที่จำเป็น ทำให้รันได้เหมือนกันทุกเครื่อง ช่วยลดปัญหา works-on-my-machine และทำให้ deploy/scale ง่ายขึ้นมากครับ";
   }
   if (/machine\s*learning|ML/i.test(t) && /คืออะไร|อธิบาย/i.test(t)) {
-    return "Machine Learning (ML) คือสาขาของ AI ที่ให้คอมพิวเตอร์เรียนรู้จากข้อมูลโดยไม่ต้องเขียนกฎตายตัว เช่น จำแนกภาพ พยากรณ์ราคา แนะนำสินค้า โดยใช้โมเดล Decision Tree, Neural Network, Random Forest ตามลักษณะข้อมูลครับ";
+    return "แมชชีนเลิร์นนิง (Machine Learning หรือ ML) คือการเรียนรู้ของคอมพิวเตอร์จากข้อมูล เพื่อจับรูปแบบแล้วนำไปทำนายหรือจำแนกสิ่งต่างๆ แบบเข้าใจง่ายก็คือเราให้ตัวอย่างหลายแบบจนระบบค่อยๆ เรียนรู้เอง โดยเลือกใช้โมเดลให้เหมาะกับลักษณะข้อมูลครับ";
   }
   if (/นับจาก.*ถึง.*อีกกี่วัน|เหลืออีกกี่วัน.*สิ้นปี|สิ้นปีนี้เหลือ/i.test(t)) {
     const remainingDays = countDaysUntilEndOfYear(new Date());
@@ -1504,10 +1516,10 @@ function renderGeneralSmokeAnswer(userText: string): string {
     return "ข้อมูลรังสีดวงอาทิตย์ล่าสุดเป็นข้อมูลเฉพาะสถานีหรือพื้นที่ ถ้าต้องการให้ตรงจุดควรระบุจังหวัดหรือสถานีที่ต้องการ เช่น กรุงเทพมหานคร หรือเชียงใหม่ครับ";
   }
   if (/(machine\s*learning|\bML\b)/i.test(t) && /(พยากรณ์อากาศ|weather)/i.test(t)) {
-    return "Machine learning ใช้กับงานพยากรณ์อากาศได้โดยเรียนรู้รูปแบบจากข้อมูลย้อนหลัง เช่น ฝน อุณหภูมิ ลม และความกดอากาศ เพื่อช่วยคาดการณ์แนวโน้มล่วงหน้า แต่ยังต้องมีข้อมูลคุณภาพดีและตรวจสอบความคลาดเคลื่อนควบคู่กันครับ";
+    return "การใช้แมชชีนเลิร์นนิงกับงานพยากรณ์อากาศ คือให้คอมพิวเตอร์เรียนรู้จากข้อมูลย้อนหลัง เช่น ฝน อุณหภูมิ ลม และความกดอากาศ เพื่อหาแนวโน้มล่วงหน้า ยิ่งข้อมูลดีและมีตัวอย่างครบ ผลทำนายก็ยิ่งใช้ได้มากขึ้นครับ";
   }
   if (/(machine\s*learning|\bML\b)/i.test(t) && /(rule-?based|rule based|กฎตายตัว)/i.test(t)) {
-    return "Machine learning เรียนรู้รูปแบบจากข้อมูลจริงและปรับตัวได้เมื่อข้อมูลเปลี่ยน ส่วน rule-based อาศัยกฎที่มนุษย์กำหนดไว้ล่วงหน้า จึงอธิบายง่ายแต่ยืดหยุ่นน้อยกว่าในโจทย์ที่ข้อมูลซับซ้อนครับ";
+    return "ถ้าอธิบายแบบง่าย แมชชีนเลิร์นนิงเรียนรู้จากข้อมูลและตัวอย่างจริง จึงปรับตัวได้เมื่อรูปแบบเปลี่ยน ส่วนระบบ rule-based ทำงานตามกฎที่คนเขียนไว้ล่วงหน้า จึงอธิบายง่ายแต่ยืดหยุ่นน้อยกว่าเมื่อเจอข้อมูลซับซ้อนครับ";
   }
   if (/ภาคกลาง/.test(t) && /ท่องเที่ยว/.test(t)) {
     return "ถ้าเน้นท่องเที่ยว ภาคกลางมีจังหวัดเด่น เช่น พระนครศรีอยุธยา กาญจนบุรี และสมุทรสงคราม โดยแต่ละจังหวัดมีจุดขายต่างกันทั้งประวัติศาสตร์ ธรรมชาติ และท่องเที่ยวชุมชนครับ";
@@ -1520,7 +1532,7 @@ function renderGeneralSmokeAnswer(userText: string): string {
     }
   }
   if (/python/i.test(t) && /คืออะไร|อธิบาย/i.test(t)) {
-    return "Python คือภาษาโปรแกรมที่อ่านง่าย เน้นความเรียบง่าย นิยมใช้ใน Data Science, AI/ML, Web Development และ Automation โดยมีไลบรารีเช่น NumPy, Pandas, TensorFlow, Django ครับ";
+    return "ไพธอน (Python) คือภาษาโปรแกรมที่อ่านง่ายและเขียนสั้น เหมาะกับงานข้อมูล AI การพัฒนาเว็บ และงานอัตโนมัติ จึงเป็นภาษาที่คนเริ่มต้นเรียนได้ไม่ยากและมีไลบรารีให้ใช้เยอะครับ";
   }
   // Phase PS1: Common tech knowledge — grounded deterministic answers
   if (/(cyber\s*security|ความปลอดภัยไซเบอร์|ไซเบอร์ซิเคียวริตี้)/i.test(t) && /สรุป|อธิบาย|คืออะไร|แบบง่าย|bullet/i.test(t)) {
@@ -1530,7 +1542,7 @@ function renderGeneralSmokeAnswer(userText: string): string {
     return "Blockchain คือเทคโนโลยีบันทึกข้อมูลแบบกระจายศูนย์ (distributed ledger) ที่เก็บธุรกรรมเป็นบล็อกต่อเนื่องกัน แต่ละบล็อกมี hash เชื่อมโยงกับบล็อกก่อนหน้า ทำให้แก้ไขย้อนหลังได้ยาก จุดเด่น: โปร่งใส ตรวจสอบได้ ไม่ต้องมีตัวกลาง ใช้กันใน cryptocurrency, supply chain tracking และ smart contracts ครับ";
   }
   if (/TCP\/IP/i.test(t) || (/(\bTCP\b)/i.test(t) && /(คืออะไร|อธิบาย|สรุป|หมายถึง)/i.test(t))) {
-    return "TCP/IP คือมาตรฐานโปรโตคอลหลักในการสื่อสารผ่านเครือข่ายอินเทอร์เน็ต ประกอบด้วย IP (Internet Protocol) ดูแลการกำหนดที่อยู่ของอุปกรณ์และส่งข้อมูลเป็น packet และ TCP (Transmission Control Protocol) รับประกันว่าข้อมูลถึงปลายทางครบถ้วนและเรียงลำดับถูกต้อง เปรียบเหมือนระบบไปรษณีย์ที่มีที่อยู่ (IP) และบริการติดตามพัสดุ (TCP) ครับ";
+    return "ทีซีพีต่อไอพี (TCP/IP) คือชุดโปรโตคอลสำหรับการสื่อสารบนเครือข่ายอินเทอร์เน็ต โดย IP ดูเรื่องที่อยู่และการส่งแพ็กเก็ต ส่วน TCP ดูให้ข้อมูลไปถึงครบและเรียงลำดับถูกต้อง จึงเป็นพื้นฐานสำคัญของการสื่อสารบนอินเทอร์เน็ตครับ";
   }
   if (/(TCP|UDP)/i.test(t) && /(แตกต่าง|ต่างกัน|เปรียบเทียบ|vs|กับ|อะไรคือ)/i.test(t)) {
     return "TCP (Transmission Control Protocol) เป็นโปรโตคอลที่รับประกันการส่งข้อมูลถึงปลายทางครบถ้วนตามลำดับ เหมาะกับ web, email, file transfer ส่วน UDP (User Datagram Protocol) ส่งข้อมูลเร็วกว่าแต่ไม่รับประกันว่าจะถึงหรือเรียงลำดับ เหมาะกับ video streaming, gaming, VoIP สรุปคือ TCP เน้นความถูกต้อง UDP เน้นความเร็วครับ";
@@ -1545,7 +1557,7 @@ function renderGeneralSmokeAnswer(userText: string): string {
     return "API (Application Programming Interface) คือตัวกลางที่ให้โปรแกรมต่างๆ สื่อสารกันได้ เปรียบเหมือนพนักงานเสิร์ฟที่รับออเดอร์จากลูกค้า (แอป) ส่งไปที่ครัว (เซิร์ฟเวอร์) แล้วนำอาหาร (ข้อมูล) กลับมา ตัวอย่างเช่น แอปสภาพอากาศดึงข้อมูลจาก API ของกรมอุตุนิยมวิทยาครับ";
   }
   if (/(javascript|js)/i.test(t) && /คืออะไร|อธิบาย/i.test(t)) {
-    return "JavaScript เป็นภาษาโปรแกรมหลักของเว็บ ทำให้หน้าเว็บมีการโต้ตอบได้ (interactive) ปัจจุบันใช้ได้ทั้งฝั่ง frontend (React, Vue) และ backend (Node.js) รวมถึง mobile app (React Native) เป็นภาษาที่ได้รับความนิยมสูงสุดภาษาหนึ่งของโลกครับ";
+    return "จาวาสคริปต์ (JavaScript) เป็นภาษาโปรแกรมหลักของเว็บ ทำให้หน้าเว็บโต้ตอบกับผู้ใช้ได้ และปัจจุบันยังใช้ได้ทั้งฝั่ง frontend, backend และ mobile app จึงเป็นภาษาสำคัญสำหรับงานเว็บสมัยใหม่ครับ";
   }
   if (/devops/i.test(t) && /คืออะไร|อธิบาย|สรุป/i.test(t)) {
     return "DevOps คือแนวคิดที่รวมทีม Development กับ Operations เข้าด้วยกัน เน้นทำให้กระบวนการพัฒนา ทดสอบ และ deploy ซอฟต์แวร์เป็นอัตโนมัติและต่อเนื่อง เครื่องมือหลัก ได้แก่ Git, Docker, Kubernetes, CI/CD pipelines (Jenkins, GitHub Actions) เป้าหมายคือส่งมอบซอฟต์แวร์เร็วขึ้นและเชื่อถือได้มากขึ้นครับ";
@@ -1559,7 +1571,7 @@ function renderGeneralSmokeAnswer(userText: string): string {
   }
   // Python vs JavaScript comparison
   if (/(python)/i.test(t) && /(javascript|\bjs\b)/i.test(t) && /(ต่างกัน|แตกต่าง|เปรียบเทียบ|vs\b|กับ|เลือก|ควรใช้)/i.test(t)) {
-    return "Python เน้นความอ่านง่าย เหมาะกับ Data Science, AI/ML, backend automation ใช้ indent เป็นโครงสร้าง ส่วน JavaScript เป็นภาษาหลักของเว็บ ทำงานได้ทั้ง frontend และ backend (Node.js) เหมาะงาน interactive UI สรุป: ถ้าเน้น AI/ข้อมูล → Python ถ้าเน้นเว็บ/real-time → JavaScript ครับ";
+    return "ทั้ง Python และ JavaScript เป็นภาษาโปรแกรม แต่จุดเด่นต่างกันครับ Python ไวยากรณ์อ่านง่าย เหมาะกับงานข้อมูล AI และ automation ส่วน JavaScript เด่นเรื่องเว็บและงานโต้ตอบ ทำได้ทั้ง frontend และ backend สรุปคือถ้าเน้น data หรือ AI มักเริ่มที่ Python แต่ถ้าเน้นเว็บมักเริ่มที่ JavaScript ครับ";
   }
   // React vs Vue recommendation
   if (/(react)/i.test(t) && /(vue)/i.test(t) && /(ต่างกัน|แตกต่าง|เปรียบเทียบ|vs\b|กับ|เลือก|ควรใช้|แนะนำ)/i.test(t)) {
@@ -1983,13 +1995,16 @@ async function trySeismicFallback(query: string, budgetMs: number): Promise<stri
   // Tier 2: web search → AI summarise
   try {
     const { search } = await import("../../utils/search");
+    const { composeThaiAnswer } = await import("../../services/responseComposer");
     const searchQuery = `แผ่นดินไหว earthquake Thailand seismic latest ล่าสุด`;
     const res = await search(searchQuery, 3);
     if (res.results.length > 0) {
-      const snippets = res.results
+      const snippetItems = res.results
         .slice(0, 3)
-        .map((r: any) => `${r.title}: ${r.snippet || ""}`.trim())
-        .filter((s: string) => s.length > 10)
+        .map((r: any) => ({ title: String(r.title || "").trim(), snippet: String(r.snippet || "").trim() }))
+        .filter((r) => r.snippet.length > 10 || r.title.length > 0);
+      const snippets = snippetItems
+        .map((r) => `${r.title}: ${r.snippet}`.trim())
         .join("\n");
       if (snippets) {
         const aiResult = await answerGeneralWithFastModel(
@@ -1997,6 +2012,25 @@ async function trySeismicFallback(query: string, budgetMs: number): Promise<stri
           budgetMs
         );
         if (aiResult.text && aiResult.text.length > 20) return aiResult.text;
+        // Phase 6C: deterministic composer fallback when LLM rewrite is unavailable.
+        const composed = composeThaiAnswer({
+          route: "seismic-fallback",
+          userQuery: query,
+          header: "พบข้อมูลแผ่นดินไหวที่เกี่ยวข้องจากการค้นหาเว็บ ดังนี้:",
+          facts: snippetItems.map((r) => ({
+            source: r.title || "web",
+            summary: r.snippet || r.title,
+            confidence: 0.5,
+          })),
+          footer: "ข้อมูลล่าสุดอย่างเป็นทางการ ตรวจสอบได้ที่ tmd.go.th",
+        });
+        if (composed.text && composed.factCount > 0) {
+          logBoth(
+            "info",
+            `[ResponseComposer] route=seismic-fallback used=true facts=${composed.factCount} latencyMs=${composed.latencyMs}`
+          );
+          return composed.text;
+        }
       }
     }
   } catch {
@@ -2837,9 +2871,12 @@ if (mcpClient) {
     // Silent - tools will be summarized in ready event
   });
 
-  mcpClient.on("ready", () => {
-    const toolCount = mcpClient?.getAvailableTools().length || 0;
-    logBoth("info", `[Chat API] ✅ Ready | ${toolCount} tools loaded`);
+  mcpClient.on("ready", (inventory: any) => {
+    const totalTools = inventory?.totalTools ?? mcpClient?.getAvailableTools().length ?? 0;
+    const localTools = inventory?.localTools ?? 0;
+    const remoteTools = inventory?.remoteTools ?? Math.max(0, totalTools - localTools);
+    const connectedClients = inventory?.connectedClients ?? mcpClient?.getConnectedClients().length ?? 0;
+    logBoth("info", `[Chat API] ✅ MCP ready | remote=${remoteTools} local=${localTools} total=${totalTools} clients=${connectedClients}`);
     
     // Start tool health check system
     if (process.env.SMOKE_MODE === "1") {
@@ -2851,6 +2888,13 @@ if (mcpClient) {
       toolHealthChecker.startHealthChecks(); // Check every 5 minutes
       logBoth("info", "[Chat API] 🏥 Tool Health Check System activated");
     }
+  });
+
+  mcpClient.on("partialReady", (inventory: any) => {
+    const totalTools = inventory?.totalTools ?? mcpClient?.getAvailableTools().length ?? 0;
+    const localTools = inventory?.localTools ?? totalTools;
+    const remoteTools = inventory?.remoteTools ?? 0;
+    logBoth("warn", `[Chat API] ⚠️ MCP partial readiness | remote=${remoteTools} local=${localTools} total=${totalTools} — local tools only`);
   });
 
   // Health check monitoring events
@@ -2865,7 +2909,7 @@ if (mcpClient) {
   });
 
   mcpClient.on("reconnected", (info: any) => {
-    logBoth("info", `[Chat API] ✅ MCP reconnected successfully: ${info.clients} clients, ${info.tools} tools`);
+    logBoth("info", `[Chat API] ✅ MCP reconnected successfully: ${info.connectedClients ?? info.clients} clients, remote=${info.remoteTools ?? info.tools} local=${info.localTools ?? 0}`);
   });
 
   mcpClient.on("reconnectionFailed", (info: any) => {
@@ -3827,7 +3871,16 @@ wss.on("connection", (ws, req) => {
           sessionHistory.push({ sender: "user", text: messageWithFile });
           sessionManager.addMessage(currentSessionId, "user", messageWithFile);
           sessionManager.startResponse(currentSessionId);
-          const genResult = await callImageGen(routingMessage);
+          // Phase 6A: adapt Thai → English visual prompt deterministically.
+          const adapted = adaptImagePrompt(routingMessage);
+          logBoth(
+            "info",
+            `[PromptAdapter] mode=${adapted.mode} conf=${adapted.confidence.toFixed(2)} latencyMs=${adapted.latencyMs} reasons=${adapted.reasons.join(",")}`
+          );
+          const genResult = await callImageGen(routingMessage, {
+            adaptedPromptEn: adapted.adaptedPromptEn,
+            originalPrompt: adapted.normalizedPromptTh || routingMessage,
+          });
           if (!genResult.ok) {
             const errText = `🎨 ขออภัย ไม่สามารถสร้างรูปภาพได้ในขณะนี้ (${genResult.error}) — กรุณาลองใหม่อีกครั้ง`;
             sessionHistory.push({ sender: "ai", text: errText } as any);
@@ -3843,8 +3896,12 @@ wss.on("connection", (ws, req) => {
           const toolKey = genResult.source === "gateway" ? "mdes-genimg-gateway" : "pollinations-ai";
           const sc: any = {
             generatedImageUrl: genResult.url,
-            generatedImageBase64: genResult.base64,
             imagePrompt: genResult.prompt,
+            originalImagePrompt: adapted.originalPrompt,
+            adaptedImagePromptEn: adapted.adaptedPromptEn,
+            promptAdapterMode: adapted.mode,
+            promptAdapterConfidence: adapted.confidence,
+            promptAdapterLatencyMs: adapted.latencyMs,
             imageProvider: genResult.provider,
             imageModel: genResult.model,
             imageSource: genResult.source,
@@ -4257,6 +4314,8 @@ wss.on("connection", (ws, req) => {
 
             const domainContentText = (() => {
               if (Array.isArray(domainSc?.content) && domainSc.content.length > 0) return String(domainSc.content[0]?.text || "");
+              // Handle case where domainSc IS the content array directly (e.g. DB fallback plain-text result)
+              if (Array.isArray(domainSc) && domainSc.length > 0 && domainSc[0]?.text) return String(domainSc[0].text);
               if (typeof domainSc === "string") return domainSc;
               return null;
             })();
@@ -4269,7 +4328,7 @@ wss.on("connection", (ws, req) => {
                 } else if (!parsed?.success && parsed?.message) {
                   domainText = `ไม่พบข้อมูล${thaiDomainMatch.label}: ${parsed.message}`;
                 }
-              } catch { domainText = domainContentText.slice(0, 500); }
+              } catch { domainText = domainContentText.slice(0, 2000); }
             }
 
             const domainRouteLabel = thaiDomainMatch.domain === "history" ? "thai_history" : thaiDomainMatch.domain === "law" ? "thai_law" : "thai_religion";
@@ -6264,7 +6323,16 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "image_generation", tool: "auth_required", code: 403, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: "AUTH_REQUIRED" });
         return res.json({ text: textOut, structuredContent: { __authRequired: true }, messages: sessionHistory, mcpUsed: false, route: "image_generation" });
       }
-      const genResult = await callImageGen(routingMessage);
+      // Phase 6A: adapt Thai → English visual prompt deterministically.
+      const adaptedHttp = adaptImagePrompt(routingMessage);
+      logBoth(
+        "info",
+        `[PromptAdapter] mode=${adaptedHttp.mode} conf=${adaptedHttp.confidence.toFixed(2)} latencyMs=${adaptedHttp.latencyMs} reasons=${adaptedHttp.reasons.join(",")}`
+      );
+      const genResult = await callImageGen(routingMessage, {
+        adaptedPromptEn: adaptedHttp.adaptedPromptEn,
+        originalPrompt: adaptedHttp.normalizedPromptTh || routingMessage,
+      });
       if (!genResult.ok) {
         const errText = `🎨 ขออภัย ไม่สามารถสร้างรูปภาพได้ในขณะนี้ (${genResult.error}) — กรุณาลองใหม่อีกครั้ง`;
         sessionHistory.push({ sender: "ai", text: errText } as any);
@@ -6275,8 +6343,12 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       const toolKey = genResult.source === "gateway" ? "mdes-genimg-gateway" : "pollinations-ai";
       const sc: any = {
         generatedImageUrl: genResult.url,
-        generatedImageBase64: genResult.base64,
         imagePrompt: genResult.prompt,
+        originalImagePrompt: adaptedHttp.originalPrompt,
+        adaptedImagePromptEn: adaptedHttp.adaptedPromptEn,
+        promptAdapterMode: adaptedHttp.mode,
+        promptAdapterConfidence: adaptedHttp.confidence,
+        promptAdapterLatencyMs: adaptedHttp.latencyMs,
         imageProvider: genResult.provider,
         imageModel: genResult.model,
         imageSource: genResult.source,
@@ -6770,6 +6842,8 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
         const domainContentHttp = (() => {
           if (Array.isArray(domainScHttp?.content) && domainScHttp.content.length > 0) return String(domainScHttp.content[0]?.text || "");
+          // Handle case where domainScHttp IS the content array directly (e.g. DB fallback plain-text result)
+          if (Array.isArray(domainScHttp) && domainScHttp.length > 0 && domainScHttp[0]?.text) return String(domainScHttp[0].text);
           if (typeof domainScHttp === "string") return domainScHttp;
           return null;
         })();
@@ -6782,7 +6856,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
             } else if (!parsedHttp?.success && parsedHttp?.message) {
               domainTextHttp = `ไม่พบข้อมูล${thaiDomainMatchHttp.label}: ${parsedHttp.message}`;
             }
-          } catch { domainTextHttp = domainContentHttp.slice(0, 500); }
+          } catch { domainTextHttp = domainContentHttp.slice(0, 2000); }
         }
 
         const httpRouteLabel = thaiDomainMatchHttp.domain === "history" ? "thai_history" : thaiDomainMatchHttp.domain === "law" ? "thai_law" : "thai_religion";

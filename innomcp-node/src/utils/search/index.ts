@@ -6,6 +6,7 @@
  * - Google Custom Search API
  * - SerpAPI
  * - Brave Search API
+ * - DuckDuckGo Instant Answer API (public fallback)
  * 
  * @author MDES Development Team
  * @created 2026-01-10
@@ -29,6 +30,46 @@ export interface SearchResponse {
     name: string;
     url?: string;
   }>;
+}
+
+function flattenDuckDuckGoTopics(topics: any[]): any[] {
+  const flattened: any[] = [];
+
+  for (const topic of topics || []) {
+    if (Array.isArray(topic?.Topics)) {
+      flattened.push(...flattenDuckDuckGoTopics(topic.Topics));
+      continue;
+    }
+
+    if (topic?.FirstURL && topic?.Text) {
+      flattened.push(topic);
+    }
+  }
+
+  return flattened;
+}
+
+function buildDuckDuckGoResult(url: string, rawText: string, fallbackTitle: string): SearchResult | null {
+  const cleanUrl = String(url || '').trim();
+  const cleanText = String(rawText || '').replace(/<[^>]+>/g, '').trim();
+  if (!cleanUrl || !cleanText) {
+    return null;
+  }
+
+  const [titlePart, ...rest] = cleanText.split(' - ');
+  let domain: string | undefined;
+  try {
+    domain = new URL(cleanUrl).hostname;
+  } catch {
+    domain = undefined;
+  }
+
+  return {
+    title: titlePart || fallbackTitle,
+    url: cleanUrl,
+    snippet: rest.length > 0 ? rest.join(' - ') : cleanText,
+    domain,
+  };
 }
 
 /**
@@ -203,6 +244,57 @@ export async function searchWithBrave(
 }
 
 /**
+ * ค้นหาด้วย DuckDuckGo Instant Answer API (ไม่ต้องใช้ key)
+ */
+export async function searchWithDuckDuckGo(
+  query: string,
+  topK: number = 5
+): Promise<SearchResponse> {
+  const startTime = Date.now();
+
+  try {
+    const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_redirect=1&no_html=1`;
+    const response = await fetch(url, { timeout: 5000 } as any);
+
+    if (!response.ok) {
+      throw new Error(`DuckDuckGo error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const abstractResult = buildDuckDuckGoResult(
+      String(data.AbstractURL || ''),
+      String(data.AbstractText || ''),
+      String(data.Heading || query)
+    );
+
+    const relatedResults = flattenDuckDuckGoTopics(data.RelatedTopics || [])
+      .map((item: any) => buildDuckDuckGoResult(item.FirstURL, item.Text, query))
+      .filter(Boolean) as SearchResult[];
+
+    const results = [
+      ...(abstractResult ? [abstractResult] : []),
+      ...relatedResults,
+    ].slice(0, topK);
+
+    return {
+      query,
+      results,
+      totalResults: results.length,
+      searchTime: Date.now() - startTime,
+      sources: [
+        {
+          name: 'DuckDuckGo Instant Answer',
+          url: 'https://duckduckgo.com',
+        },
+      ],
+    };
+  } catch (error: any) {
+    console.error('[OpenSearch] DuckDuckGo error:', error.message);
+    throw new Error('Failed to search with DuckDuckGo');
+  }
+}
+
+/**
  * ค้นหาแบบ fallback (ลองทุก API)
  */
 export async function search(query: string, topK: number = 5): Promise<SearchResponse> {
@@ -233,6 +325,12 @@ export async function search(query: string, topK: number = 5): Promise<SearchRes
     } catch (error: any) {
       errors.push(`Brave: ${error.message}`);
     }
+  }
+
+  try {
+    return await searchWithDuckDuckGo(query, topK);
+  } catch (error: any) {
+    errors.push(`DuckDuckGo: ${error.message}`);
   }
 
   throw new Error(

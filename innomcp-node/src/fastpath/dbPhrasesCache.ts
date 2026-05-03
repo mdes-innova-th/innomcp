@@ -5,7 +5,7 @@
  */
 
 import mysql from 'mysql2/promise';
-import { redisClient } from '../utils/redis';
+import { getReadyRedisClient } from '../utils/redis';
 import logger from '../utils/logger';
 
 const CACHE_KEY = 'fastpath:phrases:v1';
@@ -23,10 +23,11 @@ export interface PhraseDictionary {
  * Get phrases from DB with Redis cache
  */
 export async function getDbBackedPhrases(): Promise<PhraseDictionary> {
+  const redis = getReadyRedisClient();
   // Try Redis first
   try {
-    if (redisClient) {
-      const cached = await redisClient.get(CACHE_KEY);
+    if (redis) {
+      const cached = await redis.get(CACHE_KEY);
       if (cached) {
         logger.debug('[DB Phrases] Cache hit (Redis)');
         return JSON.parse(cached);
@@ -49,8 +50,8 @@ export async function getDbBackedPhrases(): Promise<PhraseDictionary> {
 
   // Cache in Redis
   try {
-    if (redisClient) {
-      await redisClient.set(CACHE_KEY, JSON.stringify(phrases), 'EX', CACHE_TTL);
+    if (redis) {
+      await redis.set(CACHE_KEY, JSON.stringify(phrases), 'EX', CACHE_TTL);
       logger.debug('[DB Phrases] Cached in Redis', { ttl: CACHE_TTL });
     }
   } catch (err) {
@@ -155,9 +156,10 @@ export function mergeDictionaries(
  * Clear cache (for testing or manual refresh)
  */
 export async function clearPhrasesCache(): Promise<void> {
+  const redis = getReadyRedisClient();
   try {
-    if (redisClient) {
-      await redisClient.del(CACHE_KEY);
+    if (redis) {
+      await redis.del(CACHE_KEY);
       logger.info('[DB Phrases] Cache cleared (Redis)');
     }
   } catch (err) {
