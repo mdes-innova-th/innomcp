@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Sarabun } from "next/font/google";
+import { Chakra_Petch, Sarabun } from "next/font/google";
 import "@/app/styles/globals.css";
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { getNonce } from "@/utils/nonce";
@@ -28,6 +28,13 @@ const sarabun = Sarabun({
   display: 'swap',
 });
 
+const chakraPetch = Chakra_Petch({
+  weight: ["400", "500", "600", "700"],
+  subsets: ["latin", "thai"],
+  variable: "--font-chakra-petch",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: title,
 };
@@ -41,13 +48,14 @@ export default async function RootLayout({
   const logMode = process.env.LOG_MODE || 'dev';
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="th" suppressHydrationWarning>
       <head suppressHydrationWarning>
         {/* CSP nonce is available for external scripts if needed */}
         {nonce && <meta name="csp-nonce" content={nonce} />}
         {/* Prevent theme flash (FOUC) - Load theme BEFORE React hydration */}
         <script
-          nonce={nonce}
+          suppressHydrationWarning
+          nonce={nonce || undefined}
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -72,7 +80,8 @@ export default async function RootLayout({
         />
         {/* Inject LOG_MODE for client logger */}
         <script
-          nonce={nonce}
+          suppressHydrationWarning
+          nonce={nonce || undefined}
           dangerouslySetInnerHTML={{
             __html: `window.__INNOMCP_LOG_MODE__ = '${logMode}';`,
           }}
@@ -85,14 +94,14 @@ export default async function RootLayout({
         />
       </head>
       <body
-        className={`${sarabun.variable} ${sarabun.className} antialiased flex flex-col min-h-screen bg-background text-foreground`}
+        className={`${sarabun.variable} ${chakraPetch.variable} ${sarabun.className} antialiased flex flex-col min-h-screen bg-background text-foreground`}
       >
         <AuthProvider>
           <ThemeProvider>
             <Header />
             <ModeStatusBar />
             <GlobalLoadingOverlay />
-            <main className="flex-1 pt-24 pb-8 relative">
+            <main className="relative flex-1 overflow-x-hidden pt-24">
               {children}
             </main>
             <FooterWrapper />

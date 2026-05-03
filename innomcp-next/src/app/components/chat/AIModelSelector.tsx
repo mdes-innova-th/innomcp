@@ -1,191 +1,190 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faRobot, faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import { faChevronDown, faRobot } from "@fortawesome/free-solid-svg-icons";
 
-type AIMode = 'local' | 'remote' | 'hybrid';
+type AIMode = "local" | "remote" | "hybrid";
 
 interface AIModelSelectorProps {
   theme: string;
   onModeChange?: (mode: AIMode) => void;
 }
 
-const AIModelSelector: React.FC<AIModelSelectorProps> = ({ theme, onModeChange }) => {
-  const [currentMode, setCurrentMode] = useState<AIMode>('local');
+interface ModeMeta {
+  id: AIMode;
+  short: string;
+  label: string;
+  helper: string;
+}
+
+const MODES: ModeMeta[] = [
+  {
+    id: "local",
+    short: "ในเครื่อง",
+    label: "ประมวลผลในเครื่อง",
+    helper: "เร็วและควบคุมข้อมูลได้เอง",
+  },
+  {
+    id: "remote",
+    short: "คลาวด์",
+    label: "ประมวลผลบนคลาวด์",
+    helper: "ใช้พลังโมเดลภายนอกเพิ่มความสามารถ",
+  },
+  {
+    id: "hybrid",
+    short: "ผสมผสาน",
+    label: "ผสมผสาน",
+    helper: "บาลานซ์ความเร็วและความสามารถ",
+  },
+];
+
+const AIModelSelector: React.FC<AIModelSelectorProps> = ({ theme: _theme, onModeChange }) => {
+  const [currentMode, setCurrentMode] = useState<AIMode>("local");
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    setMounted(true);
-    // Fetch current AI mode from backend
-    fetchCurrentMode();
+    void fetchCurrentMode();
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isOpen]);
 
   const fetchCurrentMode = async () => {
     try {
-      const backendHost = process.env.NEXT_PUBLIC_NODE_HOST || 'http://localhost:3011';
+      const backendHost = process.env.NEXT_PUBLIC_NODE_HOST || "http://localhost:3011";
       const response = await fetch(`${backendHost}/api/ai-mode`);
       if (response.ok) {
         const data = await response.json();
         setCurrentMode(data.mode);
       }
     } catch (error) {
-      console.error('Failed to fetch AI mode:', error);
+      console.error("Failed to fetch AI mode:", error);
     }
   };
 
   const handleModeChange = async (mode: AIMode) => {
     try {
-      const backendHost = process.env.NEXT_PUBLIC_NODE_HOST || 'http://localhost:3011';
+      const backendHost = process.env.NEXT_PUBLIC_NODE_HOST || "http://localhost:3011";
       const response = await fetch(`${backendHost}/api/ai-mode`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode }),
       });
-
       if (response.ok) {
-        const data = await response.json();
+        await response.json();
         setCurrentMode(mode);
         setIsOpen(false);
-        
-        if (onModeChange) {
-          onModeChange(mode);
-        }
-        
-        // Show success message
-        console.log(`AI Mode changed to: ${mode}`);
+        onModeChange?.(mode);
+        buttonRef.current?.focus();
       } else {
-        console.error('Failed to change AI mode');
+        console.error("Failed to change AI mode");
       }
     } catch (error) {
-      console.error('Error changing AI mode:', error);
+      console.error("Error changing AI mode:", error);
     }
   };
 
-  const getModeLabel = (mode: AIMode) => {
-    switch (mode) {
-      case 'local':
-        return 'Local GPU';
-      case 'remote':
-        return 'Remote AI';
-      case 'hybrid':
-        return 'Hybrid';
-      default:
-        return 'Local';
-    }
-  };
-
-  const getModeColor = (mode: AIMode) => {
-    switch (mode) {
-      case 'local':
-        return 'text-green-600 dark:text-green-400';
-      case 'remote':
-        return 'text-blue-600 dark:text-blue-400';
-      case 'hybrid':
-        return 'text-purple-600 dark:text-purple-400';
-      default:
-        return 'text-gray-600 dark:text-gray-400';
-    }
-  };
-
-  const safeTheme = mounted ? theme : "light";
+  const current = MODES.find((m) => m.id === currentMode) ?? MODES[0];
 
   return (
     <div className="relative">
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
-          safeTheme === "light"
-            ? "bg-gray-100 hover:bg-gray-200 text-gray-700"
-            : "bg-gray-800 hover:bg-gray-700 text-gray-300"
-        }`}
-        title="เปลี่ยน AI Model"
+        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border/70 bg-background px-2.5 text-[13px] font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-primary/8 aria-expanded:border-primary/40 aria-expanded:bg-primary/8"
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        title={`โหมด AI: ${current.label} — ${current.helper}`}
       >
-        <FontAwesomeIcon icon={faRobot} className={getModeColor(currentMode)} />
-        <span className="text-sm font-medium">{getModeLabel(currentMode)}</span>
-        <FontAwesomeIcon 
-          icon={faChevronDown} 
-          className={`text-xs transition-transform ${isOpen ? 'rotate-180' : ''}`}
+        <FontAwesomeIcon icon={faRobot} className="text-muted-foreground" aria-hidden="true" />
+        <span className="hidden truncate sm:inline">{current.short}</span>
+        <FontAwesomeIcon
+          icon={faChevronDown}
+          className={`text-[10px] text-muted-foreground transition-transform ${
+            isOpen ? "rotate-180" : ""
+          }`}
+          aria-hidden="true"
         />
       </button>
 
       {isOpen && (
         <>
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 z-[100]" 
+          <button
+            type="button"
+            aria-label="ปิดเมนูโหมด AI"
+            className="fixed inset-0 z-[100] cursor-default bg-transparent"
             onClick={() => setIsOpen(false)}
           />
-          
-          {/* Dropdown Menu */}
+
           <div
-            className={`absolute bottom-full left-0 mb-2 w-48 rounded-lg shadow-lg z-[101] ${
-              safeTheme === "light"
-                ? "bg-white border border-gray-200"
-                : "bg-gray-800 border border-gray-700"
-            }`}
+            role="listbox"
+            aria-label="เลือกโหมดประมวลผล AI"
+            className="absolute bottom-full right-0 z-[101] mb-2 w-[min(18rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-border/70 bg-card shadow-lg"
           >
-            <div className="py-1">
-              <button
-                onClick={() => handleModeChange('local')}
-                className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${
-                  currentMode === 'local'
-                    ? safeTheme === "light"
-                      ? "bg-green-50 text-green-700"
-                      : "bg-green-900/30 text-green-400"
-                    : safeTheme === "light"
-                    ? "hover:bg-gray-50"
-                    : "hover:bg-gray-700"
-                }`}
-              >
-                <FontAwesomeIcon icon={faRobot} className="text-green-600 dark:text-green-400" />
-                <div>
-                  <div className="font-medium">Local GPU</div>
-                  <div className="text-xs text-gray-500">Fast & Private</div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => handleModeChange('remote')}
-                className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${
-                  currentMode === 'remote'
-                    ? safeTheme === "light"
-                      ? "bg-blue-50 text-blue-700"
-                      : "bg-blue-900/30 text-blue-400"
-                    : safeTheme === "light"
-                    ? "hover:bg-gray-50"
-                    : "hover:bg-gray-700"
-                }`}
-              >
-                <FontAwesomeIcon icon={faRobot} className="text-blue-600 dark:text-blue-400" />
-                <div>
-                  <div className="font-medium">Remote AI</div>
-                  <div className="text-xs text-gray-500">Cloud Power</div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => handleModeChange('hybrid')}
-                className={`w-full text-left px-4 py-2 text-sm flex items-center gap-2 transition-colors ${
-                  currentMode === 'hybrid'
-                    ? safeTheme === "light"
-                      ? "bg-purple-50 text-purple-700"
-                      : "bg-purple-900/30 text-purple-400"
-                    : safeTheme === "light"
-                    ? "hover:bg-gray-50"
-                    : "hover:bg-gray-700"
-                }`}
-              >
-                <FontAwesomeIcon icon={faRobot} className="text-purple-600 dark:text-purple-400" />
-                <div>
-                  <div className="font-medium">Hybrid</div>
-                  <div className="text-xs text-gray-500">Best of Both</div>
-                </div>
-              </button>
+            <div className="border-b border-border/60 px-3 py-2">
+              <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                โหมดประมวลผล AI
+              </div>
+              <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground/85">
+                เลือกแนวทางให้เหมาะกับงาน
+              </div>
             </div>
+
+            <ul className="space-y-0.5 p-1.5">
+              {MODES.map((mode) => {
+                const isSelected = currentMode === mode.id;
+                return (
+                  <li key={mode.id}>
+                    <button
+                      role="option"
+                      aria-selected={isSelected}
+                      onClick={() => handleModeChange(mode.id)}
+                      className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors ${
+                        isSelected
+                          ? "bg-primary/10 text-primary"
+                          : "text-foreground hover:bg-muted/60"
+                      }`}
+                    >
+                      <FontAwesomeIcon
+                        icon={faRobot}
+                        className={isSelected ? "text-primary" : "text-muted-foreground"}
+                        aria-hidden="true"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[14px] font-medium leading-tight">
+                          {mode.label}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[12px] leading-snug text-muted-foreground">
+                          {mode.helper}
+                        </span>
+                      </span>
+                      {isSelected && (
+                        <svg
+                          className="h-4 w-4 shrink-0 text-primary"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                        >
+                          <path d="M5 12l5 5L20 7" />
+                        </svg>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </>
       )}

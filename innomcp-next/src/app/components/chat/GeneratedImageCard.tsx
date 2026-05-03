@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
-import Image from "next/image";
+import React, { useEffect, useState } from "react";
 
 interface GeneratedImageCardProps {
   imageUrl: string;
@@ -13,16 +12,6 @@ interface GeneratedImageCardProps {
   theme?: string;
 }
 
-/**
- * GeneratedImageCard — renders an AI-generated image inline in the chat.
- * Supports:
- *  - Gateway images (base64 data URIs or external URLs)
- *  - Pollinations.ai URLs
- *  - Loading skeleton while image loads
- *  - Error fallback with retry
- *  - Download + open-fullscreen buttons
- *  - Provider attribution badge
- */
 const GeneratedImageCard: React.FC<GeneratedImageCardProps> = ({
   imageUrl,
   imageBase64,
@@ -32,19 +21,24 @@ const GeneratedImageCard: React.FC<GeneratedImageCardProps> = ({
   imageSource,
   theme = "light",
 }) => {
-  const [loading, setLoading] = useState(true);
+  const src = imageUrl || (imageBase64 ? `data:image/png;base64,${imageBase64}` : "");
+  const hasImageSource = Boolean(src);
+  const [loading, setLoading] = useState(hasImageSource);
   const [error, setError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-
-  const src = imageUrl || (imageBase64 ? `data:image/png;base64,${imageBase64}` : "");
   const isGateway = imageSource === "gateway";
   const providerLabel = imageProvider
     ? `${imageProvider}${imageModel ? ` · ${imageModel}` : ""}`
     : "AI Generator";
-
   const isDark = theme === "dark";
 
+  useEffect(() => {
+    setLoading(hasImageSource);
+    setError(false);
+  }, [hasImageSource, src]);
+
   const handleDownload = () => {
+    if (!hasImageSource) return;
     const link = document.createElement("a");
     link.href = src;
     link.download = `generated-${Date.now()}.png`;
@@ -56,34 +50,109 @@ const GeneratedImageCard: React.FC<GeneratedImageCardProps> = ({
   const handleRetry = () => {
     setError(false);
     setLoading(true);
-    setRetryKey((k) => k + 1);
+    setRetryKey((value) => value + 1);
   };
 
   return (
     <div
-      className={`my-3 rounded-xl overflow-hidden border ${
-        isDark
-          ? "border-white/10 bg-white/5"
-          : "border-black/8 bg-black/3"
-      } shadow-sm`}
+      className={`my-4 overflow-hidden rounded-[28px] border shadow-[0_24px_48px_oklch(0_0_0/0.08)] ${
+        isDark ? "border-white/10 bg-white/5" : "border-primary/10 bg-card"
+      }`}
       data-testid="generated-image-card"
     >
-      {/* Image area */}
-      <div className="relative w-full" style={{ aspectRatio: "1 / 1", maxHeight: 512 }}>
-        {/* Loading skeleton */}
-        {loading && !error && (
-          <div
-            className={`absolute inset-0 flex items-center justify-center ${
-              isDark ? "bg-white/5" : "bg-black/4"
-            } animate-pulse`}
-          >
-            <svg
-              className="w-10 h-10 opacity-20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
+      <div className={`border-b px-4 py-3 ${isDark ? "border-white/8 bg-white/4" : "border-border/60 bg-primary/6"}`}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              {isGateway && (
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${
+                    isDark ? "bg-blue-500/16 text-blue-300" : "bg-blue-500/12 text-blue-800"
+                  }`}
+                >
+                  MDES Gateway
+                </span>
+              )}
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.16em] ${
+                  isDark ? "bg-white/8 text-white/70" : "bg-background/80 text-muted-foreground ring-1 ring-border/60"
+                }`}
+              >
+                {providerLabel}
+              </span>
+            </div>
+
+            <div className="font-display mt-3 text-xl leading-tight text-foreground">ภาพที่สร้างจากคำสั่งนี้</div>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+              {imagePrompt || "ระบบเก็บเฉพาะ metadata และ prompt ของภาพไว้ เพื่อไม่ให้ browser history โตเกินจำเป็น"}
+            </p>
+          </div>
+
+          <div className="flex shrink-0 items-center gap-1 self-start">
+            <button
+              onClick={handleDownload}
+              title="ดาวน์โหลดรูปภาพ"
+              disabled={!hasImageSource}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors ${
+                isDark
+                  ? "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
+                  : "bg-background/90 text-muted-foreground ring-1 ring-border/60 hover:bg-muted"
+              } ${!hasImageSource ? "pointer-events-none opacity-40" : ""}`}
             >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              ดาวน์โหลด
+            </button>
+            <a
+              href={src || "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="เปิดภาพขนาดเต็ม"
+              aria-disabled={!hasImageSource}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-medium transition-colors ${
+                isDark
+                  ? "bg-white/8 text-white/70 hover:bg-white/12 hover:text-white"
+                  : "bg-background/90 text-muted-foreground ring-1 ring-border/60 hover:bg-muted"
+              } ${!hasImageSource ? "pointer-events-none opacity-40" : ""}`}
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+              เปิดเต็ม
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div className={`relative aspect-square max-h-[512px] w-full ${isDark ? "bg-black/10" : "bg-muted/40"}`}>
+        {!hasImageSource && (
+          <div
+            className={`absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center ${
+              isDark ? "bg-white/5 text-white/70" : "bg-primary/4 text-black/60"
+            }`}
+          >
+            <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${isDark ? "bg-white/8" : "bg-background/90 ring-1 ring-border/60"}`}>
+              <svg className="h-8 w-8 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h9" />
+                <path d="M16 3h5v5" />
+                <path d="M21 3l-7 7" />
+              </svg>
+            </div>
+            <div className="text-sm font-semibold">ไม่ได้เก็บไฟล์ภาพไว้ใน browser history</div>
+            <div className="max-w-sm text-xs leading-6 opacity-80">
+              เพื่อลดการใช้ localStorage ระบบจะเก็บเฉพาะ prompt และ metadata ของภาพที่สร้างไว้ คุณยังสามารถสร้างภาพใหม่จาก prompt เดิมได้
+            </div>
+          </div>
+        )}
+
+        {hasImageSource && loading && !error && (
+          <div className={`absolute inset-0 flex items-center justify-center ${isDark ? "bg-white/5" : "bg-primary/4"} animate-pulse`}>
+            <svg className="h-12 w-12 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <rect x="3" y="3" width="18" height="18" rx="3" />
               <circle cx="8.5" cy="8.5" r="1.5" />
               <polyline points="21 15 16 10 5 21" />
@@ -91,25 +160,22 @@ const GeneratedImageCard: React.FC<GeneratedImageCardProps> = ({
           </div>
         )}
 
-        {/* Error state */}
         {error && (
           <div
-            className={`absolute inset-0 flex flex-col items-center justify-center gap-2 ${
+            className={`absolute inset-0 flex flex-col items-center justify-center gap-3 ${
               isDark ? "bg-red-900/20 text-red-300" : "bg-red-50 text-red-600"
             }`}
           >
-            <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
-            <span className="text-sm">ไม่สามารถโหลดรูปภาพได้</span>
+            <span className="text-sm font-medium">ไม่สามารถโหลดรูปภาพได้</span>
             <button
               onClick={handleRetry}
-              className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-                isDark
-                  ? "border-red-400/40 hover:bg-red-400/10"
-                  : "border-red-400/40 hover:bg-red-50"
+              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                isDark ? "border-red-400/40 hover:bg-red-400/10" : "border-red-400/40 hover:bg-red-50"
               }`}
             >
               ลองใหม่
@@ -117,17 +183,12 @@ const GeneratedImageCard: React.FC<GeneratedImageCardProps> = ({
           </div>
         )}
 
-        {/* Actual image */}
-        {!error && src && (
-          // eslint-disable-next-line @next/next/no-img-element
+        {!error && hasImageSource && (
           <img
             key={retryKey}
             src={src}
             alt={imagePrompt || "AI Generated Image"}
-            className={`w-full h-auto object-contain transition-opacity duration-300 ${
-              loading ? "opacity-0" : "opacity-100"
-            }`}
-            style={{ maxHeight: 512 }}
+            className={`max-h-[512px] h-auto w-full object-contain transition-opacity duration-300 ${loading ? "opacity-0" : "opacity-100"}`}
             loading="lazy"
             onLoad={() => setLoading(false)}
             onError={() => {
@@ -138,65 +199,13 @@ const GeneratedImageCard: React.FC<GeneratedImageCardProps> = ({
         )}
       </div>
 
-      {/* Footer bar */}
-      <div
-        className={`px-3 py-2 flex items-center justify-between gap-2 text-xs ${
-          isDark ? "bg-white/5 border-t border-white/8" : "bg-black/3 border-t border-black/6"
-        }`}
-      >
-        {/* Provider badge + prompt */}
-        <div className="flex items-center gap-2 min-w-0">
-          {/* Gateway badge */}
-          {isGateway && (
-            <span
-              className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide ${
-                isDark
-                  ? "bg-blue-500/20 text-blue-300 ring-1 ring-blue-400/30"
-                  : "bg-blue-100 text-blue-700 ring-1 ring-blue-200"
-              }`}
-            >
-              MDES
-            </span>
-          )}
-          <span className={`truncate ${isDark ? "text-white/50" : "text-black/45"}`}>
-            🎨 {providerLabel} {imagePrompt ? `· "${imagePrompt.slice(0, 60)}${imagePrompt.length > 60 ? "…" : ""}"` : ""}
-          </span>
+      <div className={`flex items-center justify-between gap-3 border-t px-4 py-3 text-xs ${isDark ? "border-white/8 bg-white/4" : "border-border/60 bg-background/85"}`}>
+        <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
+          <span className="inline-flex items-center rounded-full bg-primary/8 px-2.5 py-1 font-medium text-primary">AI Artwork</span>
+          <span className="truncate">{imageSource === "pollinations" ? "Pollinations fallback" : "Primary image pipeline"}</span>
         </div>
-
-        {/* Action buttons */}
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            onClick={handleDownload}
-            title="ดาวน์โหลดรูปภาพ"
-            className={`p-1 rounded transition-colors ${
-              isDark
-                ? "hover:bg-white/10 text-white/50 hover:text-white/80"
-                : "hover:bg-black/8 text-black/40 hover:text-black/70"
-            }`}
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-          </button>
-          <a
-            href={src}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="เปิดภาพขนาดเต็ม"
-            className={`p-1 rounded transition-colors ${
-              isDark
-                ? "hover:bg-white/10 text-white/50 hover:text-white/80"
-                : "hover:bg-black/8 text-black/40 hover:text-black/70"
-            }`}
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-              <polyline points="15 3 21 3 21 9" />
-              <line x1="10" y1="14" x2="21" y2="3" />
-            </svg>
-          </a>
+        <div className="text-right text-muted-foreground">
+          {imagePrompt ? `prompt: ${imagePrompt.slice(0, 48)}${imagePrompt.length > 48 ? "…" : ""}` : "metadata only"}
         </div>
       </div>
     </div>

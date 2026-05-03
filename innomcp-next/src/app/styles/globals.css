@@ -7,6 +7,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sarabun);
+  --font-display: var(--font-chakra-petch);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -45,6 +46,7 @@
 /* Font variable for Sarabun */
 :root {
   --font-sans: var(--font-sarabun);
+  --font-display: var(--font-chakra-petch);
 }
 
 /* Global styles */
@@ -58,6 +60,51 @@ body {
   max-width: none;
   scrollbar-gutter: stable;
   background-color: var(--background);
+}
+
+.font-display {
+  font-family: var(--font-display), var(--font-sans), sans-serif;
+  letter-spacing: -0.025em;
+}
+
+.chat-workspace-bg {
+  background-color: color-mix(in oklab, var(--background) 98%, var(--accent) 2%);
+}
+
+html.dark .chat-workspace-bg {
+  background-color: color-mix(in oklab, var(--background) 96%, black 4%);
+}
+
+.chat-shell-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--border) 50%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--border) 40%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.4), transparent 78%);
+}
+
+.chat-elevated-panel {
+  background: var(--card);
+  border: 1px solid color-mix(in oklab, var(--border) 88%, var(--primary) 12%);
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.04);
+}
+
+html.dark .chat-elevated-panel {
+  background: var(--card);
+  border-color: color-mix(in oklab, var(--border) 84%, var(--primary) 16%);
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.18);
+}
+
+.chat-workbench-panel {
+  background: var(--card);
+  border: 1px solid color-mix(in oklab, var(--border) 86%, var(--primary) 14%);
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.04);
+}
+
+html.dark .chat-workbench-panel {
+  background: color-mix(in oklab, var(--card) 95%, var(--background) 5%);
+  border-color: color-mix(in oklab, var(--border) 84%, var(--primary) 16%);
+  box-shadow: 0 1px 2px oklch(0 0 0 / 0.18);
 }
 
 html.dark,

@@ -104,6 +104,12 @@ export default function LoadingSpinner({
   const renderAnimation = () => {
     const borderColorClasses = getColorClasses(true);
     const bgColorClasses = getColorClasses(false);
+    const barSizeClasses =
+      size === "sm"
+        ? "h-4 w-[3px]"
+        : size === "lg"
+        ? "h-8 w-[6px]"
+        : "h-6 w-1";
 
     switch (type) {
       case "dots":
@@ -114,16 +120,13 @@ export default function LoadingSpinner({
             aria-label="Loading"
           >
             <div
-              className={`animate-bounce rounded-full ${bgColorClasses} ${dotSizeClasses}`}
-              style={{ animationDelay: "0s" }}
+              className={`animate-bounce rounded-full ${bgColorClasses} ${dotSizeClasses} [animation-delay:0s]`}
             ></div>
             <div
-              className={`animate-bounce rounded-full ${bgColorClasses} ${dotSizeClasses}`}
-              style={{ animationDelay: "0.2s" }}
+              className={`animate-bounce rounded-full ${bgColorClasses} ${dotSizeClasses} [animation-delay:200ms]`}
             ></div>
             <div
-              className={`animate-bounce rounded-full ${bgColorClasses} ${dotSizeClasses}`}
-              style={{ animationDelay: "0.4s" }}
+              className={`animate-bounce rounded-full ${bgColorClasses} ${dotSizeClasses} [animation-delay:400ms]`}
             ></div>
           </div>
         );
@@ -142,36 +145,16 @@ export default function LoadingSpinner({
             aria-label="Loading"
           >
             <div
-              className={`animate-bars ${bgColorClasses} rounded-sm`}
-              style={{ 
-                animationDelay: "0s",
-                width: size === 'sm' ? '3px' : size === 'lg' ? '6px' : '4px',
-                height: size === 'sm' ? '16px' : size === 'lg' ? '32px' : '24px'
-              }}
+              className={`animate-bars rounded-sm ${bgColorClasses} ${barSizeClasses} [animation-delay:0s]`}
             ></div>
             <div
-              className={`animate-bars ${bgColorClasses} rounded-sm`}
-              style={{ 
-                animationDelay: "0.15s",
-                width: size === 'sm' ? '3px' : size === 'lg' ? '6px' : '4px',
-                height: size === 'sm' ? '16px' : size === 'lg' ? '32px' : '24px'
-              }}
+              className={`animate-bars rounded-sm ${bgColorClasses} ${barSizeClasses} [animation-delay:150ms]`}
             ></div>
             <div
-              className={`animate-bars ${bgColorClasses} rounded-sm`}
-              style={{ 
-                animationDelay: "0.3s",
-                width: size === 'sm' ? '3px' : size === 'lg' ? '6px' : '4px',
-                height: size === 'sm' ? '16px' : size === 'lg' ? '32px' : '24px'
-              }}
+              className={`animate-bars rounded-sm ${bgColorClasses} ${barSizeClasses} [animation-delay:300ms]`}
             ></div>
             <div
-              className={`animate-bars ${bgColorClasses} rounded-sm`}
-              style={{ 
-                animationDelay: "0.45s",
-                width: size === 'sm' ? '3px' : size === 'lg' ? '6px' : '4px',
-                height: size === 'sm' ? '16px' : size === 'lg' ? '32px' : '24px'
-              }}
+              className={`animate-bars rounded-sm ${bgColorClasses} ${barSizeClasses} [animation-delay:450ms]`}
             ></div>
           </div>
         );

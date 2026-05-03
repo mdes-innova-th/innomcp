@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faColumns, faPlus, faGear, faPalette, faQuestion, faSignOutAlt, faBriefcase, faUser, faHome, faKey } from "@fortawesome/free-solid-svg-icons";
-import Image from "next/image";
+import { faGear, faPalette, faQuestion, faSignOutAlt, faBriefcase, faUser, faHome, faKey } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
 
@@ -58,259 +57,269 @@ const ChatSidebar: React.FC<Props> = ({
 
   return (
     <aside
-      // className="fixed left-0 top-24 z-[50] flex flex-col transition-all duration-300"
-      className="fixed left-0 top-16 z-40 flex flex-col transition-all duration-300 bg-muted border-r border-border"
-      style={{ width: isCollapsed ? 56 : 288, height: "calc(100vh - 4rem)" }}
+      className="relative flex h-full w-full flex-col overflow-hidden border-r border-border/60 bg-[color-mix(in_oklab,var(--background)_88%,var(--card)_12%)] transition-all duration-300"
       data-testid="chat-sidebar"
     >
-      {/* Sidebar Header — toggle button lives here (no more floating outside sidebar) */}
-      <div className={`flex items-center h-12 shrink-0 border-b ${
-        safeTheme === "light" ? "border-gray-200" : "border-gray-700"
-      } ${isCollapsed ? "justify-center px-1" : "justify-between px-3"}`}>
+      <div className="flex items-center gap-2 border-b border-border/60 px-3 py-3">
         {!isCollapsed && (
-          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground select-none">
-            การสนทนา
-          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display truncate text-base font-semibold leading-tight text-foreground">
+              การสนทนา
+            </h2>
+            <div className="mt-0.5 truncate text-[12px] leading-snug text-muted-foreground">
+              {summaries.length} เซสชัน · {isLoggedIn ? "เข้าสู่ระบบแล้ว" : "ผู้เยี่ยมชม"}
+            </div>
+          </div>
         )}
+
         <button
           title={isCollapsed ? "ขยาย Sidebar" : "ย่อ Sidebar"}
           onClick={onToggle}
-          className="group relative w-10 h-10 rounded-xl transition-all duration-300 bg-gradient-to-br from-primary/90 to-primary hover:from-primary hover:to-primary/80 text-primary-foreground shadow-lg hover:shadow-xl hover:scale-110 backdrop-blur-sm border border-primary/20"
+          className="group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/60 bg-background/95 text-foreground shadow-sm transition-colors hover:border-primary/25 hover:bg-primary/8"
           data-testid="toggle-sidebar-btn"
         >
-          {/* Animated Hamburger / X Icon */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 p-2">
-            <span
-              className={`block h-0.5 bg-current transition-all duration-300 ${
-                isCollapsed
-                  ? 'w-4 rotate-0 translate-y-0'
-                  : 'w-3 rotate-45 translate-y-1.5'
-              }`}
-            />
-            <span
-              className={`block h-0.5 bg-current transition-all duration-300 ${
-                isCollapsed ? 'w-4 opacity-100' : 'w-0 opacity-0'
-              }`}
-            />
-            <span
-              className={`block h-0.5 bg-current transition-all duration-300 ${
-                isCollapsed
-                  ? 'w-4 rotate-0 translate-y-0'
-                  : 'w-3 -rotate-45 -translate-y-1.5'
-              }`}
-            />
-          </div>
-          {/* Glow effect on hover */}
-          <div className="absolute inset-0 rounded-xl bg-primary/20 opacity-0 group-hover:opacity-100 blur-md transition-opacity duration-300 -z-10" />
+          <svg
+            className={`h-4 w-4 transition-transform duration-200 ${isCollapsed ? "" : "rotate-180"}`}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+          >
+            <path d="m9 18 6-6-6-6" />
+          </svg>
         </button>
       </div>
 
-      {/* Collapsed icon strip — useful affordances when sidebar is narrow */}
+      {/* Collapsed icon strip — keeps essential actions reachable when narrow */}
       {isCollapsed && (
-        <div className="flex flex-col items-center gap-3 pt-3">
-          <button
-            onClick={onNewChat}
-            title="เริ่มการสนทนาใหม่"
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-[#C35F5C] hover:bg-[#B35150] text-white shadow-sm transition-all duration-200 hover:scale-105"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M12 5v14M5 12h14"/>
-            </svg>
-          </button>
-          {summaries.length > 0 && (
-            <div
-              className="w-9 h-9 flex items-center justify-center rounded-xl text-muted-foreground/60"
-              title={`${summaries.length} การสนทนา`}
+        <>
+          <div className="flex flex-col items-center gap-2 px-2 pt-3">
+            <button
+              onClick={onNewChat}
+              title="เริ่มการสนทนาใหม่"
+              className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
             >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 5v14M5 12h14"/>
               </svg>
-            </div>
-          )}
-        </div>
+            </button>
+            {summaries.length > 0 && (
+              <div className="relative flex h-9 w-9 items-center justify-center rounded-md border border-border/60 bg-background/95 text-muted-foreground" title={`${summaries.length} การสนทนา`}>
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span className="absolute -right-1 -top-1 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground">
+                  {summaries.length}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-auto px-2 pb-3">
+            {isLoggedIn ? (
+              <button
+                title="ไปที่การตั้งค่า"
+                onClick={() => router.push("/settings")}
+                className="flex h-9 w-full items-center justify-center gap-2 rounded-md border border-border/60 bg-background/95 text-foreground transition-colors hover:bg-primary/8"
+              >
+                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-[13px] font-semibold text-primary-foreground">
+                  {userDispName?.charAt(0) || "U"}
+                </span>
+                <FontAwesomeIcon icon={faGear} className="w-4 text-muted-foreground" />
+              </button>
+            ) : (
+              <button
+                title="เข้าสู่ระบบ"
+                onClick={() => router.push("/login")}
+                className="flex h-9 w-full items-center justify-center gap-2 rounded-md border border-border/60 bg-background/95 text-foreground transition-colors hover:bg-primary/8"
+              >
+                <FontAwesomeIcon icon={faKey} className="w-4" />
+                <span className="text-sm font-medium">เข้าสู่ระบบ</span>
+              </button>
+            )}
+          </div>
+        </>
       )}
 
       {/* Content: hidden when collapsed */}
       {!isCollapsed && (
         <div
-          className="flex-1 flex flex-col overflow-hidden"
+          className="flex flex-1 flex-col overflow-hidden"
         >
-          {/* New Chat Button - Simple button without dropdown */}
-          <div className={`p-3 border-b ${
-            safeTheme === "light" ? "border-gray-200" : "border-gray-700"
-          }`}>
+          {/* New Chat Button — primary action, prominent but not theatrical */}
+          <div className="border-b border-border/60 p-3">
             <button
               onClick={onNewChat}
-              className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-xl font-semibold transition-all duration-200 group bg-[#C35F5C] hover:bg-[#B35150] text-white shadow-md hover:shadow-lg"
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/92"
               title="เริ่มการสนทนาใหม่"
               data-testid="new-chat-btn"
             >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                <path d="M12 8v8m-4-4h8"></path>
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 5v14M5 12h14" />
               </svg>
               <span>เริ่มการสนทนาใหม่</span>
             </button>
           </div>
 
           {/* Chat History Header */}
-          <div className="px-3 pt-3 pb-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="flex items-center justify-between px-3 pt-3 pb-1.5">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               ประวัติการสนทนา
             </h3>
+            {summaries.length > 0 && (
+              <span className="text-[11px] font-medium text-muted-foreground/80">
+                {summaries.length}
+              </span>
+            )}
           </div>
 
           {/* Chat History List */}
-          <div className="flex-1 overflow-y-auto px-2 pb-3">
+          <div className="flex-1 overflow-y-auto px-2 pb-4">
             {summaries.length === 0 ? (
-              <div className={`text-xs text-center py-8 ${
-                safeTheme === "light" ? "text-gray-400" : "text-gray-500"
-              }`}>
-                ยังไม่มีประวัติการสนทนา
+              <div className="mx-1 mt-2 rounded-md border border-dashed border-border/70 bg-background/60 px-3 py-6 text-center">
+                <div className="text-[13px] font-semibold text-foreground">ยังไม่มีประวัติ</div>
+                <div className="mt-1 text-[12px] leading-snug text-muted-foreground">
+                  เริ่มบทสนทนาแรกเพื่อให้ระบบจดจำงานและสลับกลับมาได้
+                </div>
               </div>
             ) : (
-              <div className="flex flex-col gap-1">
-                {summaries.map((s) => (
-                  <div
-                    key={s.id}
-                    className={`w-full relative group text-left px-3 py-1.5 rounded-lg transition-all duration-200 ${
-                      s.id === activeId
-                        ? "bg-accent border-l-4 border-primary"
-                        : "hover:bg-accent/50"
-                    }`}
-                  >
-                    {/* TODO #45: Editable title or clickable history item */}
-                    {editingId === s.id ? (
-                      <input
-                        type="text"
-                        value={editTitle}
-                        onChange={(e) => setEditTitle(e.target.value)}
-                        onBlur={() => {
-                          if (editTitle.trim() && onRename) {
-                            onRename(s.id, editTitle.trim());
-                          }
-                          setEditingId(null);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
+              <ul className="flex flex-col gap-0.5">
+                {summaries.map((s) => {
+                  const isActive = s.id === activeId;
+                  const dateLabel = (() => {
+                    const date = new Date(s.time);
+                    return date.toLocaleString("th-TH", {
+                      timeZone: "Asia/Bangkok",
+                      month: "2-digit",
+                      day: "2-digit",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hour12: false,
+                    });
+                  })();
+
+                  return (
+                    <li
+                      key={s.id}
+                      className={`group relative rounded-md transition-colors ${
+                        isActive
+                          ? "bg-primary/10 ring-1 ring-primary/20"
+                          : "hover:bg-muted/60"
+                      }`}
+                    >
+                      {editingId === s.id ? (
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          onBlur={() => {
                             if (editTitle.trim() && onRename) {
                               onRename(s.id, editTitle.trim());
                             }
                             setEditingId(null);
-                          } else if (e.key === "Escape") {
-                            setEditingId(null);
-                          }
-                        }}
-                        autoFocus
-                        className={`w-full px-2 py-1 rounded border ${
-                          safeTheme === "light"
-                            ? "bg-white text-gray-800 border-gray-300"
-                            : "bg-gray-700 text-gray-200 border-gray-600"
-                        }`}
-                      />
-                    ) : (
-                      <button
-                        onClick={() => onLoad(s)}
-                        className="w-full text-left"
-                        title={s.title}
-                        data-testid="chat-history-item"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1 min-w-0">
-                            <div className={`text-sm font-medium truncate ${
-                              s.id === activeId
-                                ? safeTheme === "light" ? "text-primary" : "text-secondary"
-                                : safeTheme === "light" ? "text-gray-800" : "text-gray-200"
-                            }`}>
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              if (editTitle.trim() && onRename) {
+                                onRename(s.id, editTitle.trim());
+                              }
+                              setEditingId(null);
+                            } else if (e.key === "Escape") {
+                              setEditingId(null);
+                            }
+                          }}
+                          autoFocus
+                          className={`w-full rounded-md border px-2 py-1.5 text-sm ${
+                            safeTheme === "light"
+                              ? "border-border bg-white text-foreground"
+                              : "border-white/15 bg-white/5 text-foreground"
+                          }`}
+                        />
+                      ) : (
+                        <div className="flex items-center gap-1.5 px-2 py-2">
+                          <button
+                            onClick={() => onLoad(s)}
+                            className="flex min-w-0 flex-1 flex-col items-start text-left"
+                            title={s.title}
+                            data-testid="chat-history-item"
+                          >
+                            <span
+                              className={`block w-full truncate text-[13.5px] font-medium leading-tight ${
+                                isActive ? "text-primary" : "text-foreground"
+                              }`}
+                            >
                               {s.title}
-                            </div>
-                            <div className={`text-xs mt-1 ${
-                              safeTheme === "light" ? "text-gray-500" : "text-gray-400"
-                            }`}>
-                              {(() => {
-                                const date = new Date(s.time);
-                                return date.toLocaleString("th-TH", {
-                                  timeZone: "Asia/Bangkok",
-                                  year: "numeric",
-                                  month: "2-digit",
-                                  day: "2-digit",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  hour12: false,
-                                });
-                              })()}
-                            </div>
-                          </div>
-                          {/* Rename icon on hover */}
+                            </span>
+                            <span className="mt-1 block truncate font-mono text-[11px] text-muted-foreground/85">
+                              {dateLabel}
+                            </span>
+                          </button>
+
                           {onRename && (
                             <button
-                              onClick={(e) => {
-                                e.stopPropagation();
+                              onClick={() => {
                                 setEditingId(s.id);
                                 setEditTitle(s.title);
                               }}
-                              className={`ml-2 opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity ${
-                                safeTheme === "light"
-                                  ? "hover:bg-gray-200"
-                                  : "hover:bg-gray-700"
-                              }`}
+                              className="shrink-0 rounded-md p-1.5 text-muted-foreground opacity-0 transition-opacity hover:bg-primary/10 hover:text-primary group-hover:opacity-100 focus:opacity-100"
                               title="เปลี่ยนชื่อ"
+                              aria-label="เปลี่ยนชื่อการสนทนา"
                             >
                               <svg
-                                className="w-4 h-4"
+                                className="h-3.5 w-3.5"
                                 viewBox="0 0 24 24"
                                 fill="none"
                                 stroke="currentColor"
                                 strokeWidth="2"
                               >
-                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                               </svg>
                             </button>
                           )}
                         </div>
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             )}
           </div>
           
           {/* User Menu at Bottom */}
-          {isLoggedIn && (
-            <div className={`mt-auto border-t ${
-              safeTheme === "light" ? "border-gray-200" : "border-gray-700"
-            }`}>
-              <div className="p-3">
+          {isLoggedIn ? (
+            <div className="mt-auto border-t border-border/60">
+              <div className="p-2">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 hover:bg-accent text-foreground"
+                  className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-foreground transition-colors hover:bg-primary/8"
                 >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-semibold">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-[13px] font-semibold text-primary-foreground">
                     {userDispName?.charAt(0) || "U"}
                   </div>
-                  <div className="flex-1 text-left">
-                    <div className={`text-sm font-medium ${
-                      safeTheme === "light" ? "text-gray-800" : "text-gray-200"
-                    }`}>
-                      {userDispName || "User"}
+                  <div className="min-w-0 flex-1 text-left">
+                    <div className="truncate text-[13.5px] font-medium leading-tight text-foreground">
+                      {userDispName || "ผู้ใช้"}
+                    </div>
+                    <div className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                      เมนูและการตั้งค่า
                     </div>
                   </div>
-                  <FontAwesomeIcon 
-                    icon={faGear} 
-                    className={`text-sm transition-transform duration-200 ${
-                      showUserMenu ? 'rotate-90' : ''
+                  <FontAwesomeIcon
+                    icon={faGear}
+                    className={`text-xs text-muted-foreground transition-transform ${
+                      showUserMenu ? "rotate-90" : ""
                     }`}
                   />
                 </button>
-                
+
                 {/* User Menu Popup */}
                 {showUserMenu && (
-                  <div className={`mt-2 rounded-lg overflow-hidden border ${
-                    safeTheme === "light" 
-                      ? "bg-white border-gray-200 shadow-lg" 
-                      : "bg-gray-800 border-gray-700 shadow-xl"
+                  <div className={`mt-1 overflow-hidden rounded-md border ${
+                    safeTheme === "light"
+                      ? "border-border bg-card shadow-md"
+                      : "border-white/10 bg-card shadow-lg"
                   }`}>
                     {/* Home Button */}
                     <button
@@ -318,15 +327,15 @@ const ChatSidebar: React.FC<Props> = ({
                         router.push("/");
                         setShowUserMenu(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
+                      className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13.5px] transition-colors ${
                         safeTheme === "light"
-                          ? "hover:bg-gray-50 text-gray-700"
-                          : "hover:bg-gray-700 text-gray-300"
+                          ? "text-foreground hover:bg-muted/60"
+                          : "text-foreground hover:bg-white/5"
                       }`}
                       aria-label="หน้าแรก"
                     >
                       <FontAwesomeIcon icon={faHome} className="w-4" />
-                      <span className="text-sm">หน้าแรก</span>
+                      <span>หน้าแรก</span>
                     </button>
                     
                     {/* Admin-only buttons */}
@@ -344,7 +353,7 @@ const ChatSidebar: React.FC<Props> = ({
                           }`}
                         >
                           <FontAwesomeIcon icon={faKey} className="w-4" />
-                          <span className="text-sm">API Key</span>
+                          <span>API Key</span>
                         </button>
                         
                         <button
@@ -359,7 +368,7 @@ const ChatSidebar: React.FC<Props> = ({
                           }`}
                         >
                           <FontAwesomeIcon icon={faUser} className="w-4" />
-                          <span className="text-sm">จัดการผู้ใช้</span>
+                          <span>จัดการผู้ใช้</span>
                         </button>
 
                         <button
@@ -367,19 +376,17 @@ const ChatSidebar: React.FC<Props> = ({
                             router.push("/admin");
                             setShowUserMenu(false);
                           }}
-                          className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
+                          className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13.5px] transition-colors ${
                             safeTheme === "light"
-                              ? "hover:bg-amber-50 text-amber-700"
-                              : "hover:bg-amber-900/30 text-amber-400"
+                              ? "text-amber-700 hover:bg-amber-50"
+                              : "text-amber-300 hover:bg-amber-900/25"
                           }`}
                         >
                           <span className="w-4 text-center text-xs">👑</span>
-                          <span className="text-sm">Admin Panel</span>
+                          <span>แผงผู้ดูแล</span>
                         </button>
                         
-                        <div className={`border-t ${
-                          safeTheme === "light" ? "border-gray-200" : "border-gray-700"
-                        }`} />
+                        <div className="my-1 border-t border-border/60" />
                       </>
                     )}
                     
@@ -388,14 +395,14 @@ const ChatSidebar: React.FC<Props> = ({
                         router.push("/workspace-settings");
                         setShowUserMenu(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
+                      className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13.5px] transition-colors ${
                         safeTheme === "light"
-                          ? "hover:bg-gray-50 text-gray-700"
-                          : "hover:bg-gray-700 text-gray-300"
+                          ? "text-foreground hover:bg-muted/60"
+                          : "text-foreground hover:bg-white/5"
                       }`}
                     >
                       <FontAwesomeIcon icon={faBriefcase} className="w-4" />
-                      <span className="text-sm">Workspace Settings</span>
+                      <span>ตั้งค่า workspace</span>
                     </button>
                     
                     <button
@@ -403,14 +410,14 @@ const ChatSidebar: React.FC<Props> = ({
                         router.push("/personalization");
                         setShowUserMenu(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
+                      className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13.5px] transition-colors ${
                         safeTheme === "light"
-                          ? "hover:bg-gray-50 text-gray-700"
-                          : "hover:bg-gray-700 text-gray-300"
+                          ? "text-foreground hover:bg-muted/60"
+                          : "text-foreground hover:bg-white/5"
                       }`}
                     >
                       <FontAwesomeIcon icon={faPalette} className="w-4" />
-                      <span className="text-sm">Personalization</span>
+                      <span>ปรับแต่งส่วนตัว</span>
                     </button>
                     
                     <button
@@ -418,14 +425,14 @@ const ChatSidebar: React.FC<Props> = ({
                         router.push("/settings");
                         setShowUserMenu(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
+                      className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13.5px] transition-colors ${
                         safeTheme === "light"
-                          ? "hover:bg-gray-50 text-gray-700"
-                          : "hover:bg-gray-700 text-gray-300"
+                          ? "text-foreground hover:bg-muted/60"
+                          : "text-foreground hover:bg-white/5"
                       }`}
                     >
                       <FontAwesomeIcon icon={faGear} className="w-4" />
-                      <span className="text-sm">Settings</span>
+                      <span>การตั้งค่า</span>
                     </button>
                     
                     <button
@@ -433,19 +440,17 @@ const ChatSidebar: React.FC<Props> = ({
                         router.push("/help");
                         setShowUserMenu(false);
                       }}
-                      className={`w-full flex items-center gap-3 px-3 py-2 text-left transition-colors ${
+                      className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13.5px] transition-colors ${
                         safeTheme === "light"
-                          ? "hover:bg-gray-50 text-gray-700"
-                          : "hover:bg-gray-700 text-gray-300"
+                          ? "text-foreground hover:bg-muted/60"
+                          : "text-foreground hover:bg-white/5"
                       }`}
                     >
                       <FontAwesomeIcon icon={faQuestion} className="w-4" />
-                      <span className="text-sm">Help</span>
+                      <span>ช่วยเหลือ</span>
                     </button>
                     
-                    <div className={`border-t ${
-                      safeTheme === "light" ? "border-gray-200" : "border-gray-700"
-                    }`} />
+                    <div className="my-1 border-t border-border/60" />
                     
                     <button
                       onClick={async () => {
@@ -453,14 +458,24 @@ const ChatSidebar: React.FC<Props> = ({
                         router.push("/login");
                         setShowUserMenu(false);
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-2 text-left transition-colors text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                      className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-[13.5px] text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-900/20"
                     >
                       <FontAwesomeIcon icon={faSignOutAlt} className="w-4" />
-                      <span className="text-sm">Log out</span>
+                      <span>ออกจากระบบ</span>
                     </button>
                   </div>
                 )}
               </div>
+            </div>
+          ) : (
+            <div className="mt-auto border-t border-border/60 p-3">
+              <button
+                onClick={() => router.push("/login")}
+                className="flex w-full items-center justify-center gap-2 rounded-md border border-border/60 px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted/60"
+              >
+                <FontAwesomeIcon icon={faKey} className="w-4" />
+                <span>เข้าสู่ระบบ</span>
+              </button>
             </div>
           )}
         </div>

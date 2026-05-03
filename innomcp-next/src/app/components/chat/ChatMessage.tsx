@@ -190,7 +190,7 @@ export default function ChatMessage({
         )}
 
         {/* AI Generated Image: render via GeneratedImageCard (MDES Gateway or Pollinations.ai) */}
-        {structuredContent?.generatedImageUrl && (
+        {(structuredContent?.generatedImageUrl || structuredContent?.generatedImageBase64 || structuredContent?.imagePrompt) && (
           <GeneratedImageCard
             imageUrl={structuredContent.generatedImageUrl}
             imageBase64={structuredContent.generatedImageBase64}
@@ -350,7 +350,7 @@ export default function ChatMessage({
             h1: ({ children }) => (
               <h1
                 className={`text-2xl font-bold mb-4 ${
-                  useTheme().theme === "dark" ? "text-gray-100" : "text-black"
+                  theme === "dark" ? "text-gray-100" : "text-black"
                 }`}
               >
                 {children}
@@ -359,7 +359,7 @@ export default function ChatMessage({
             h2: ({ children }) => (
               <h2
                 className={`text-lg font-bold mb-3 ${
-                  useTheme().theme === "dark" ? "text-gray-100" : "text-black"
+                  theme === "dark" ? "text-gray-100" : "text-black"
                 }`}
               >
                 {children}
@@ -368,7 +368,7 @@ export default function ChatMessage({
             h3: ({ children }) => (
               <h3
                 className={`text-lg font-bold mb-2 ${
-                  useTheme().theme === "dark" ? "text-gray-100" : "text-black"
+                  theme === "dark" ? "text-gray-100" : "text-black"
                 }`}
               >
                 {children}
@@ -377,7 +377,7 @@ export default function ChatMessage({
             h4: ({ children }) => (
               <h4
                 className={`text-lg font-bold mb-2 ${
-                  useTheme().theme === "dark" ? "text-gray-100" : "text-black"
+                  theme === "dark" ? "text-gray-100" : "text-black"
                 }`}
               >
                 {children}
@@ -386,7 +386,7 @@ export default function ChatMessage({
             h5: ({ children }) => (
               <h5
                 className={`text-lg font-bold mb-1 ${
-                  useTheme().theme === "dark" ? "text-gray-100" : "text-black"
+                  theme === "dark" ? "text-gray-100" : "text-black"
                 }`}
               >
                 {children}
@@ -395,7 +395,7 @@ export default function ChatMessage({
             h6: ({ children }) => (
               <h6
                 className={`text-base font-bold mb-1 ${
-                  useTheme().theme === "dark" ? "text-gray-100" : "text-black"
+                  theme === "dark" ? "text-gray-100" : "text-black"
                 }`}
               >
                 {children}
@@ -512,16 +512,13 @@ export function MessageView({
   const TypingDots: React.FC = () => (
     <span className="inline-flex items-center gap-1">
       <span
-        className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce"
-        style={{ animationDelay: "0s" }}
+        className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce [animation-delay:0s]"
       />
       <span
-        className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce"
-        style={{ animationDelay: "0.08s" }}
+        className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce [animation-delay:80ms]"
       />
       <span
-        className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce"
-        style={{ animationDelay: "0.16s" }}
+        className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce [animation-delay:160ms]"
       />
     </span>
   );
@@ -674,23 +671,46 @@ export function MessageView({
   const degradedReasons = Array.isArray(groundedContract?.degradedReasons) ? groundedContract.degradedReasons : [];
   const modelUsed = groundedContract?.modelUsed || null;
   const fallbackReason = groundedContract?.fallbackReason || null;
+  const actionRailVisibility = showActions
+    ? "opacity-100 translate-y-0"
+    : "opacity-100 translate-y-0 sm:pointer-events-none sm:opacity-0 sm:translate-y-1";
+  const actionSurfaceClass = message.sender === "user"
+    ? "border border-primary-foreground/15 bg-primary-foreground/10 text-primary-foreground"
+    : "border border-border/70 bg-background/90 text-muted-foreground backdrop-blur";
+  const actionButtonClass = message.sender === "user"
+    ? "text-primary-foreground/85 hover:bg-primary-foreground/12"
+    : theme === "light"
+    ? "text-gray-600 hover:bg-gray-200/80"
+    : "text-gray-300 hover:bg-white/10";
 
   return (
     <div
-      className={`relative group p-3 rounded-lg ${
+      className={`relative group px-4 py-3.5 sm:px-5 ${
         message.sender === "user"
-          ? "max-w-full self-end ml-auto pr-5 bg-blue-500 text-white rounded-br-none"
-          : "max-w-full self-start pr-5 mb-5 text-left border border-white/10 dark:border-gray-700 rounded-lg"
+          ? "ml-auto max-w-[min(78%,46rem)] self-end rounded-2xl rounded-br-sm bg-primary text-primary-foreground shadow-[0_2px_6px_oklch(0_0_0/0.08)]"
+          : "max-w-[min(88%,50rem)] self-start rounded-2xl border border-border/70 bg-background/96 text-left shadow-[0_1px_2px_oklch(0_0_0/0.04)] dark:border-white/10 dark:bg-white/5"
       } ${className || ""}`}
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
       data-testid={message.sender === "user" ? "message-user" : "message-assistant"}
     >
+      <div className={`mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+        message.sender === "user"
+          ? "text-primary-foreground/75"
+          : "text-muted-foreground"
+      }`}>
+        <span>{message.sender === "user" ? "คุณ" : "MDES AI"}</span>
+        {message.sender === "ai" && modelUsed ? (
+          <span className="rounded-full bg-primary/8 px-2 py-0.5 text-[10px] normal-case tracking-normal text-primary dark:bg-white/8 dark:text-white/75">
+            {String(modelUsed)}
+          </span>
+        ) : null}
+      </div>
+
       {/* Action buttons - moved to bottom-right */}
       {!message.isAnimating && (
         <div
-          className={`absolute bottom-1 right-1 flex gap-1 transition-opacity ${
-            showActions ? "opacity-100" : "opacity-0"
+          className={`absolute bottom-2 right-2 flex items-center gap-1 rounded-full px-1.5 py-1 shadow-lg transition-all duration-200 ${actionRailVisibility} ${actionSurfaceClass}
           }`}
         >
           {/* Like/Dislike buttons (AI messages only) - TODO #43 */}
@@ -698,12 +718,10 @@ export function MessageView({
             <>
               <button
                 title="ถูกใจ"
-                className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+                className={`rounded-full p-1.5 transition-colors ${
                   likeStatus === "like"
                     ? "text-green-500"
-                    : theme === "light"
-                    ? "text-gray-600"
-                    : "text-gray-400"
+                    : actionButtonClass
                 }`}
                 onClick={handleLike}
               >
@@ -719,12 +737,10 @@ export function MessageView({
               </button>
               <button
                 title="ไม่ถูกใจ"
-                className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
+                className={`rounded-full p-1.5 transition-colors ${
                   likeStatus === "dislike"
                     ? "text-red-500"
-                    : theme === "light"
-                    ? "text-gray-600"
-                    : "text-gray-400"
+                    : actionButtonClass
                 }`}
                 onClick={handleDislike}
               >
@@ -745,13 +761,7 @@ export function MessageView({
           <div className="relative">
             <button
               title="คัดลอกข้อความ"
-              className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
-                message.sender === "user"
-                  ? "text-white hover:bg-blue-600"
-                  : theme === "light"
-                  ? "text-gray-600"
-                  : "text-gray-400"
-              }`}
+              className={`rounded-full p-1.5 transition-colors ${actionButtonClass}`}
               onClick={(e) => {
                 e.stopPropagation();
                 void doCopy(message.text);
@@ -779,13 +789,7 @@ export function MessageView({
           {message.sender === "user" && (
             <button
               title="แก้ไขข้อความ"
-              className={`p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 ${
-                message.sender === "user"
-                  ? "text-white hover:bg-blue-600"
-                  : theme === "light"
-                  ? "text-gray-600"
-                  : "text-gray-400"
-              }`}
+              className={`rounded-full p-1.5 transition-colors ${actionButtonClass}`}
               onClick={startEdit}
             >
               <svg
@@ -804,12 +808,8 @@ export function MessageView({
           {/* Try Again button (AI messages only) */}
           {message.sender === "ai" && onRetry && (
             <button
-              title="เริ่มใหม่อีกครั้ง"
-              className={`p-1 rounded ${
-                theme === "light"
-                  ? "text-gray-600 hover:bg-gray-200"
-                  : "text-gray-400 hover:bg-gray-700"
-              }`}
+              title="ตอบใหม่อีกครั้ง"
+              className={`rounded-full p-1.5 transition-colors ${actionButtonClass}`}
               onClick={handleRetry}
             >
               <svg
@@ -830,12 +830,8 @@ export function MessageView({
           {message.sender === "ai" && (
             <div className="relative">
               <button
-                title="More Actions"
-                className={`p-1 rounded ${
-                  theme === "light"
-                    ? "text-gray-600 hover:bg-gray-200"
-                    : "text-gray-400 hover:bg-gray-700"
-                }`}
+                title="การทำงานเพิ่มเติม"
+                className={`rounded-full p-1.5 transition-colors ${actionButtonClass}`}
                 onClick={() => setShowMoreActions(!showMoreActions)}
               >
                 <svg
@@ -852,10 +848,10 @@ export function MessageView({
               </button>
               {showMoreActions && (
                 <div
-                  className={`absolute right-0 mt-2 w-56 rounded-lg shadow-lg z-10 ${
+                  className={`chat-elevated-panel absolute bottom-full right-0 z-10 mb-2 w-64 overflow-hidden rounded-[22px] ${
                     theme === "light"
-                      ? "bg-white border border-gray-200"
-                      : "bg-gray-800 border border-gray-700"
+                      ? "border border-gray-200 bg-white"
+                      : "border border-gray-700 bg-gray-800"
                   }`}
                 >
                   <button
@@ -872,7 +868,7 @@ export function MessageView({
                     <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path>
                     </svg>
-                    Branch in new chat
+                    แตกแขนงเป็นแชตใหม่
                   </button>
                   <button
                     onClick={() => {
@@ -889,7 +885,7 @@ export function MessageView({
                       <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
                       <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
                     </svg>
-                    {isReading ? "Stop reading" : "Read aloud"}
+                    {isReading ? "หยุดอ่านออกเสียง" : "อ่านออกเสียง"}
                   </button>
                   <button
                     onClick={() => {
@@ -907,7 +903,7 @@ export function MessageView({
                       <line x1="12" y1="9" x2="12" y2="13"></line>
                       <line x1="12" y1="17" x2="12.01" y2="17"></line>
                     </svg>
-                    Report message
+                    รายงานข้อความนี้
                   </button>
                 </div>
               )}
@@ -980,83 +976,185 @@ export function MessageView({
             />
           )}
           
-          {/* Tool badges for authenticated users only */}
-          {message.sender === "ai" && !isGuestMode && message.structuredContent?.toolsUsed && (
-            <div className="flex flex-wrap gap-1 mb-2">
-              {message.structuredContent.toolsUsed.map((tool: string, idx: number) => (
-                <span
-                  key={idx}
-                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                    theme === "light"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-blue-900/30 text-blue-400"
-                  }`}
-                >
-                  <svg className="w-3 h-3 mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
-                  </svg>
-                  {tool}
-                </span>
-              ))}
-            </div>
-          )}
-          
-          {message.sender === "ai" && (
-            <div data-testid="tool-meta-row" className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-              <span className="inline-flex items-center rounded px-2 py-0.5 font-semibold bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                MODE {modeBadge}
-              </span>
-              {sourceType && (
-                <span data-testid="source-type-badge" className={`inline-flex items-center rounded px-2 py-0.5 font-medium ${
-                  sourceType === "deterministic" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" :
-                  sourceType === "tool-only" || sourceType === "tool+rewrite" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" :
-                  "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
-                }`}>
-                  {sourceType === "deterministic" ? "ข้อมูลตรง" : sourceType === "tool-only" ? "เครื่องมือ" : sourceType === "tool+rewrite" ? "เครื่องมือ+AI" : "AI"}
-                </span>
-              )}
-              {isDegraded && (
-                <span data-testid="degraded-badge" className="inline-flex items-center rounded px-2 py-0.5 font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                  ⚠ จำกัด
-                </span>
-              )}
-              <span data-testid="tools-used-meta" className="text-gray-500 dark:text-gray-400">Used tools: {metaTools.length > 0 ? metaTools.map((t: any) => String(t?.name || "")).filter(Boolean).join(", ") : "none"}</span>
-              <span className="text-gray-500 dark:text-gray-400">Confidence: {confidenceLabel}</span>
-              {reasonCode ? <span className="text-gray-400">{reasonCode}</span> : null}
-            </div>
-          )}
+          {/* AI message technical metadata — collapsed by default to keep the canvas calm */}
+          {message.sender === "ai" && (() => {
+            const summaryToolName = (() => {
+              if (metaTools.length > 0) {
+                const first = String(metaTools[0]?.name || "").trim();
+                return first || (message.structuredContent?.toolsUsed?.[0] ?? "");
+              }
+              return message.structuredContent?.toolsUsed?.[0] ?? "";
+            })();
 
-          {/* Memory + RAG metadata badge */}
-          {message.sender === "ai" && ragMode && ragMode !== "none" && (
-            <div data-testid="memory-rag-badge" className="mb-2 flex flex-wrap items-center gap-2 text-xs">
-              <span className={`inline-flex items-center rounded px-2 py-0.5 font-semibold ${
-                ragMode === "hot" ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300" :
-                ragMode === "cold" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" :
-                ragMode === "both" ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300" :
-                "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
-              }`}>
-                {ragMode === "hot" ? "🔥" : ragMode === "cold" ? "📚" : ragMode === "both" ? "🔥📚" : "—"} RAG {ragMode}
-              </span>
-              {ragEntities.length > 0 && (
-                <span className="text-gray-500 dark:text-gray-400">entities: {ragEntities.slice(0, 3).join(", ")}</span>
-              )}
-              {ragColdHits > 0 && (
-                <span className="text-gray-500 dark:text-gray-400">cold hits: {ragColdHits}</span>
-              )}
-              <span className="text-gray-400 dark:text-gray-500">turn #{ragTurn}</span>
-            </div>
-          )}
+            const sourceTypeLabel =
+              sourceType === "deterministic" ? "ข้อมูลตรง" :
+              sourceType === "tool-only" ? "เครื่องมือ" :
+              sourceType === "tool+rewrite" ? "เครื่องมือ+AI" :
+              sourceType ? "AI" : "";
+
+            return (
+              <details
+                className="group/meta mb-2 -mt-1 rounded-md text-xs text-muted-foreground"
+                data-testid="tool-meta-row"
+              >
+                <summary
+                  className="flex flex-wrap items-center gap-x-2 gap-y-1 list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none rounded-md px-1 py-0.5 transition-colors hover:bg-muted/50"
+                >
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 font-medium ${
+                      modeBadge === "online"
+                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
+                        : "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                    }`}
+                  >
+                    <span className={`h-1.5 w-1.5 rounded-full ${modeBadge === "online" ? "bg-emerald-500" : "bg-slate-400"}`} />
+                    {modeBadge}
+                  </span>
+                  {sourceTypeLabel && <span>{sourceTypeLabel}</span>}
+                  {summaryToolName && (
+                    <>
+                      <span className="text-muted-foreground/50">·</span>
+                      <span className="font-mono text-[11px] text-muted-foreground/85">{summaryToolName}</span>
+                    </>
+                  )}
+                  {isDegraded && (
+                    <span className="inline-flex items-center rounded px-1.5 py-0.5 font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                      ⚠ จำกัด
+                    </span>
+                  )}
+                  {ragMode && ragMode !== "none" && (
+                    <span className="font-mono text-[11px] text-muted-foreground/70">RAG {ragMode}</span>
+                  )}
+                  <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted-foreground/70 transition-colors group-hover/meta:text-foreground">
+                    <span className="hidden sm:inline">รายละเอียด</span>
+                    <svg
+                      className="h-3 w-3 transition-transform group-open/meta:rotate-180"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </span>
+                </summary>
+
+                <div className="mt-2 space-y-1.5 px-1 pb-1.5 text-[11px] leading-5">
+                  <div data-testid="tools-used-meta">
+                    <span className="text-muted-foreground/70">เครื่องมือ:</span>{" "}
+                    <span className="font-mono">
+                      {metaTools.length > 0
+                        ? metaTools.map((t: any) => String(t?.name || "")).filter(Boolean).join(", ")
+                        : "ไม่มี"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground/70">ความมั่นใจ:</span>{" "}
+                    {confidenceLabel}
+                  </div>
+                  {reasonCode && (
+                    <div>
+                      <span className="text-muted-foreground/70">reason:</span>{" "}
+                      <span className="font-mono">{reasonCode}</span>
+                    </div>
+                  )}
+                  {ragMode && ragMode !== "none" && (
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                      <span data-testid="memory-rag-badge">
+                        <span className="text-muted-foreground/70">RAG:</span> {ragMode}
+                      </span>
+                      {ragEntities.length > 0 && (
+                        <span>
+                          <span className="text-muted-foreground/70">เอนทิตี:</span>{" "}
+                          {ragEntities.slice(0, 3).join(", ")}
+                        </span>
+                      )}
+                      {ragColdHits > 0 && (
+                        <span>
+                          <span className="text-muted-foreground/70">cold hits:</span> {ragColdHits}
+                        </span>
+                      )}
+                      <span>
+                        <span className="text-muted-foreground/70">รอบ:</span> {ragTurn}
+                      </span>
+                    </div>
+                  )}
+                  {sourceType && (
+                    <span data-testid="source-type-badge" className="sr-only">{sourceType}</span>
+                  )}
+                </div>
+              </details>
+            );
+          })()}
 
           {message.sender === "ai" && guidance.length > 0 && (
-            <div className="mb-2 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-300">
+            <div className="mb-2 rounded-md bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
               {guidance.map((g: string, idx: number) => (
-                <div key={idx}>- {g}</div>
+                <div key={idx}>{g}</div>
               ))}
             </div>
           )}
 
-          {/* Message content */}
-          <div className="whitespace-pre-wrap wrap-break-word">
+          {/* Source attachments — small chips above the AI body (req 5) */}
+          {message.sender === "ai" && (() => {
+            const sc = message.structuredContent as any;
+            if (!sc || typeof sc !== "object") return null;
+            const candidates: string[] = [];
+            const pushOne = (val: unknown) => {
+              if (typeof val !== "string") return;
+              const trimmed = val.trim();
+              if (trimmed && !candidates.includes(trimmed)) candidates.push(trimmed);
+            };
+            const pushArr = (arr: unknown) => {
+              if (!Array.isArray(arr)) return;
+              for (const item of arr) {
+                if (typeof item === "string") pushOne(item);
+                else if (item && typeof item === "object") {
+                  const obj = item as { name?: unknown; filename?: unknown; title?: unknown; source?: unknown };
+                  pushOne(obj.name);
+                  pushOne(obj.filename);
+                  pushOne(obj.title);
+                  pushOne(obj.source);
+                }
+              }
+            };
+            pushArr(sc.sources);
+            pushArr(sc.attachments);
+            pushArr(sc.documents);
+            pushArr(sc.sourceDocuments);
+            const visible = candidates.slice(0, 4);
+            if (visible.length === 0) return null;
+            const fileIcon = (name: string) => {
+              const ext = name.split(".").pop()?.toLowerCase() ?? "";
+              if (["pdf"].includes(ext)) return "📑";
+              if (["doc", "docx"].includes(ext)) return "📝";
+              if (["xls", "xlsx", "csv"].includes(ext)) return "📊";
+              if (["png", "jpg", "jpeg", "gif", "webp"].includes(ext)) return "🖼️";
+              return "📄";
+            };
+            return (
+              <div className="mb-2 flex flex-wrap gap-1.5" data-testid="ai-source-chips">
+                {visible.map((src, idx) => (
+                  <span
+                    key={`${src}-${idx}`}
+                    className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-background/80 px-2 py-0.5 text-[12px] leading-snug text-muted-foreground"
+                    title={src}
+                  >
+                    <span aria-hidden="true">{fileIcon(src)}</span>
+                    <span className="max-w-[14rem] truncate font-mono text-[11.5px]">{src}</span>
+                  </span>
+                ))}
+                {candidates.length > visible.length && (
+                  <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[11.5px] text-muted-foreground">
+                    +{candidates.length - visible.length}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Message content — Thai-friendly: 16px body, leading-7 for breathing room (req 6) */}
+          <div className="whitespace-pre-wrap wrap-break-word text-[15px] leading-7 sm:text-base sm:leading-[1.75]">
             {/* Progress indicator - แสดงขณะรอ AI พร้อมกรอบและ font เล็ก */}
             {(message as any).isProgress && (
               <div className={`
@@ -1102,10 +1200,10 @@ export function MessageView({
           <div
             className={`mt-2 pt-2 border-t flex flex-wrap gap-3 text-xs ${
               message.sender === "user"
-                ? "border-blue-400 text-blue-100"
+                ? "border-primary-foreground/15 text-primary-foreground/70"
                 : theme === "light"
-                ? "border-gray-200 text-gray-500"
-                : "border-gray-700 text-gray-400"
+                ? "border-border/70 text-gray-500"
+                : "border-white/10 text-gray-400"
             }`}
           >
             {/* Timestamp */}
@@ -1140,7 +1238,7 @@ export function MessageView({
                   <rect x="14" y="14" width="7" height="7"></rect>
                   <rect x="3" y="14" width="7" height="7"></rect>
                 </svg>
-                {message.tokenCount} tokens
+                {message.tokenCount} โทเค็น
               </span>
             )}
 

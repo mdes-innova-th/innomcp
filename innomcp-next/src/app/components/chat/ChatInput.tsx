@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowUp,
   faPaperclip,
-  faRefresh,
   faStop,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import AIModelSelector from "./AIModelSelector";
 import ToolsTypeSelector, { type ToolType } from "./ToolsTypeSelector";
@@ -30,18 +30,30 @@ interface ChatInputProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   adjustTextarea: () => void;
   theme: string;
+  layoutMode?: "empty" | "conversation";
   onToolTypeChange?: (type: ToolType) => void;
   onFocus?: () => void;
   onBlur?: () => void;
+}
+
+function DotsAnimation() {
+  const [dots, setDots] = useState(".");
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setDots((prev) => (prev.length < 3 ? prev + "." : "."));
+    }, 300);
+    return () => clearInterval(interval);
+  }, []);
+  return <span>{dots}</span>;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
   input,
   setInput,
   selectedImage,
-  setSelectedImage,
+  setSelectedImage: _setSelectedImage,
   selectedFile,
-  setSelectedFile,
+  setSelectedFile: _setSelectedFile,
   handleNewChat,
   handleFileUpload,
   handleRemoveImage,
@@ -53,141 +65,199 @@ const ChatInput: React.FC<ChatInputProps> = ({
   fileInputRef,
   adjustTextarea,
   theme,
+  layoutMode: _layoutMode = "conversation",
   onToolTypeChange,
   onFocus,
   onBlur,
 }) => {
-  // Add animation dots when waiting for AI response
-  const DotsAnimation: React.FC = () => {
-    const [dots, setDots] = useState(".");
-
-    useEffect(() => {
-      const interval = setInterval(() => {
-        setDots((prev) => (prev.length < 3 ? prev + "." : "."));
-      }, 300);
-      return () => clearInterval(interval);
-    }, []);
-
-    return <span>{dots}</span>;
-  };
-
   useEffect(() => {
-    // adjust when input changes
     adjustTextarea();
-    // also adjust on window resize in case layout changes
     const handler = () => adjustTextarea();
     window.addEventListener("resize", handler);
     return () => window.removeEventListener("resize", handler);
   }, [input, adjustTextarea]);
 
+  const hasAttachment = Boolean(selectedFile);
+  const attachmentSizeLabel = selectedFile
+    ? selectedFile.size >= 1024 * 1024
+      ? `${(selectedFile.size / 1024 / 1024).toFixed(1)} MB`
+      : `${(selectedFile.size / 1024).toFixed(0)} KB`
+    : null;
+
+  // Connection state — kept compact (req 3: status visible but not space-hungry)
+  const stateDot = isWaitingForResponse
+    ? "bg-amber-500"
+    : isSocketReady
+    ? "bg-emerald-500"
+    : "bg-rose-500";
+  const stateLabel = isWaitingForResponse
+    ? "กำลังประมวลผล"
+    : isSocketReady
+    ? "พร้อมใช้งาน"
+    : "กำลังเชื่อมต่อ";
+
   return (
-    <div
-      className="w-full max-w-3xl mx-auto relative bg-card border border-border/60 rounded-2xl shadow-[0_2px_16px_oklch(0_0_0/0.05)] px-6 py-4"
-    >
-      <div
-        className="absolute top-2 right-2 text-sm"
-        title={isSocketReady ? "เชื่อมต่อ" : "ตัดการเชื่อมต่อ"}
-      >
-        <span
-          className={
-            isSocketReady
-              ? "inline-block w-2.5 h-2.5 rounded-full bg-green-500 animate-[pulse_2s_ease-in-out_infinite]"
-              : "inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-[pulse_0.5s_ease-in-out_infinite]"
-          }
-        />
-      </div>
-      <div className="flex flex-col pt-4 pb-0">
-        <textarea
-          ref={textareaRef}
-          value={input}
-          onChange={(e) => {
-            setInput(e.target.value);
-            adjustTextarea();
-          }}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          onKeyDown={(e) => {
-            // Enter to send message (Shift+Enter for new line)
-            if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.altKey) {
-              e.preventDefault();
-              if (input.trim() && isSocketReady && !isWaitingForResponse) {
-                sendMessage();
-              }
-            }
-            // Shift+Enter allows new line (default textarea behavior)
-          }}
-          rows={1}
-          placeholder="ถามอากาศวันนี้หรือเรื่องใดก็ได้... (Enter เพื่อส่ง, Shift+Enter เพื่อเว้นบรรทัด)"
-          className="w-full resize-none bg-transparent focus:outline-none transition-all max-h-60 overflow-y-auto placeholder:text-muted-foreground/60"
-          data-testid="chat-input"
-        />
-        {selectedImage && (
-          <div className="relative w-fit mt-2">
-            <Image
-              src={selectedImage}
-              alt="preview"
-              width={160}
-              height={96}
-              className="max-w-40 max-h-24 rounded-lg border object-contain"
-            />
-            <button
-              onClick={handleRemoveImage}
-              className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow hover:bg-red-600 cursor-pointer"
-              title="ลบรูป"
-            >
-              &times;
-            </button>
-          </div>
-        )}
-        <div className="flex gap-4 pt-8 pb-0 justify-between">
-          <div className="flex gap-2">
-            {/* Dropdown with New Chat and Tools Type Selector */}
-            <ToolsTypeSelector 
-              onNewChat={handleNewChat}
-              onToolTypeChange={onToolTypeChange}
-              theme={theme}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              title="แนบไฟล์"
-              className="bg-primary/10 dark:bg-primary/20 text-primary dark:text-primary/80 rounded-full p-2 w-9 h-9 font-semibold shadow-sm flex items-center justify-center hover:bg-primary/20 dark:hover:bg-primary/30 hover:scale-105 transition-all duration-200 cursor-pointer"
-            >
+    <div className="mx-auto w-full max-w-[64rem]">
+      {hasAttachment && (
+        <div className="mb-2 flex items-center gap-2 rounded-md border border-border/70 bg-card px-3 py-2 shadow-sm">
+          {selectedImage ? (
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border border-border/70 bg-muted/60">
+              <Image
+                src={selectedImage}
+                alt="preview"
+                fill
+                sizes="40px"
+                className="object-cover"
+              />
+            </div>
+          ) : (
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/70 bg-muted/60 text-muted-foreground">
               <FontAwesomeIcon icon={faPaperclip} />
-            </button>
+            </div>
+          )}
+
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[13.5px] font-medium leading-tight text-foreground">
+              {selectedFile?.name ?? "ไฟล์ที่แนบ"}
+            </div>
+            {attachmentSizeLabel && (
+              <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+                {attachmentSizeLabel}
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+
+          <button
+            onClick={handleRemoveImage}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            title="ลบไฟล์แนบ"
+            aria-label="ลบไฟล์แนบ"
+          >
+            <FontAwesomeIcon icon={faXmark} />
+          </button>
+        </div>
+      )}
+
+      <div className="rounded-xl border border-border/70 bg-card shadow-[0_1px_2px_oklch(0_0_0/0.04)] focus-within:border-primary/40 focus-within:shadow-[0_2px_8px_oklch(0_0_0/0.06)]">
+        {/* Textarea — autosizes via adjustTextarea, capped at max-h-60 */}
+        <div className="px-3.5 pt-3 sm:px-4">
+          <textarea
+            ref={textareaRef}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              adjustTextarea();
+            }}
+            onFocus={onFocus}
+            onBlur={onBlur}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.altKey) {
+                e.preventDefault();
+                if (input.trim() && isSocketReady && !isWaitingForResponse) {
+                  sendMessage();
+                }
+              }
+            }}
+            rows={1}
+            placeholder="ถาม วิเคราะห์ หรือสั่งงาน AI..."
+            className="block max-h-60 w-full resize-none overflow-y-auto bg-transparent text-[15px] leading-7 text-foreground placeholder:text-muted-foreground/65 focus:outline-none sm:text-base"
+            data-testid="chat-input"
+          />
+        </div>
+
+        {/* Single-row toolbar on desktop; wraps on mobile */}
+        <div className="flex flex-wrap items-center gap-2 px-2.5 pb-2.5 pt-2 sm:px-3">
+          <ToolsTypeSelector
+            onNewChat={handleNewChat}
+            onToolTypeChange={onToolTypeChange}
+            theme={theme}
+          />
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            title="แนบไฟล์"
+            aria-label="แนบไฟล์"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border/70 bg-background px-2.5 text-[13px] font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-primary/8"
+          >
+            <FontAwesomeIcon icon={faPaperclip} className="text-muted-foreground" />
+            <span className="hidden sm:inline">แนบไฟล์</span>
+          </button>
+
+          {/* Connection state — single dot+label, hidden on very small viewports */}
+          <span
+            title={
+              isSocketReady
+                ? "ระบบพร้อมส่งคำสั่ง"
+                : "กำลังเชื่อมต่อระบบตอบกลับ"
+            }
+            className="hidden items-center gap-1.5 rounded-md px-2 py-1.5 text-[12px] font-medium text-muted-foreground sm:inline-flex"
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${stateDot}`} aria-hidden="true" />
+            {stateLabel}
+          </span>
+
+          {/* Right-aligned: model selector + send */}
+          <div className="ml-auto flex flex-1 items-center justify-end gap-2 sm:flex-none">
             <AIModelSelector theme={theme} />
+
             <button
               onClick={isWaitingForResponse ? handleStop : sendMessage}
-              disabled={!isSocketReady}
-              className={`bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-6 py-2 font-semibold shadow-md transition-all duration-200 cursor-pointer ${
-                !isSocketReady
-                  ? "opacity-50 cursor-not-allowed"
-                  : "hover:shadow-lg hover:scale-105"
-              }`}
+              disabled={!isSocketReady || (!isWaitingForResponse && !input.trim())}
+              className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-md px-3.5 text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-colors ${
+                isWaitingForResponse
+                  ? "bg-amber-600 hover:bg-amber-700"
+                  : "bg-primary hover:bg-primary/92"
+              } disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground/70 disabled:shadow-none`}
               data-testid="send-btn"
-              title={isWaitingForResponse ? "หยุดการตอบ" : "ส่งข้อความ (Enter)"}
+              title={
+                isWaitingForResponse
+                  ? "หยุดการตอบ"
+                  : isSocketReady
+                  ? "ส่งข้อความ (Enter)"
+                  : "กำลังเชื่อมต่อ AI"
+              }
             >
               {isWaitingForResponse ? (
-                <FontAwesomeIcon icon={faStop} className="font-bold" />
+                <>
+                  <FontAwesomeIcon icon={faStop} />
+                  <span>หยุด</span>
+                </>
               ) : isSocketReady ? (
-                <FontAwesomeIcon icon={faArrowUp} className="font-bold" />
+                <>
+                  <span>ส่ง</span>
+                  <FontAwesomeIcon icon={faArrowUp} />
+                </>
               ) : (
-                <span className="font-bold">
-                  กำลังติดต่อ AI
+                <span>
+                  เชื่อมต่อ
                   <DotsAnimation />
                 </span>
               )}
             </button>
           </div>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            className="hidden"
-          />
         </div>
       </div>
+
+      {/* Helper line — small + accessible, hidden on tiny viewports */}
+      <div className="mt-1.5 hidden items-center justify-end gap-3 px-1 text-[11px] text-muted-foreground/85 sm:flex">
+        <span>
+          <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">Enter</kbd>{" "}
+          ส่ง
+        </span>
+        <span>
+          <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">Shift</kbd>{" "}
+          +{" "}
+          <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">Enter</kbd>{" "}
+          ขึ้นบรรทัดใหม่
+        </span>
+      </div>
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        className="hidden"
+      />
     </div>
   );
 };

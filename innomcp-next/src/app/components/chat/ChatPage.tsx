@@ -12,6 +12,11 @@ import ChatInput from "./ChatInput";
 import FileUploadProgress from "@/app/components/common/FileUploadProgress";
 import ThemeContext from "@/app/context/ThemeContext";
 import type { ToolType } from "./ToolsTypeSelector";
+import {
+  buildChatTransportHistory,
+  compactChatMessagesForStorage,
+  isQuotaExceededError,
+} from "../../../utils/chatStorage";
 // icons are used in ChatInput; not needed here
 
 // Define the type for a chat message
@@ -29,6 +34,152 @@ interface ChatMessage {
   isProgress?: boolean;
   progressStage?: string;
   elapsedTime?: number;
+}
+
+const CHAT_HISTORY_STORAGE_PLANS = [
+  { maxMessages: 20, stripStructuredContent: false },
+  { maxMessages: 12, stripStructuredContent: false },
+  { maxMessages: 10, stripStructuredContent: true },
+  { maxMessages: 5, stripStructuredContent: true },
+] as const;
+
+const CHAT_SUMMARY_STORAGE_PLANS = [
+  { maxSummaries: 10, maxMessages: 12, stripStructuredContent: false },
+  { maxSummaries: 8, maxMessages: 8, stripStructuredContent: true },
+  { maxSummaries: 5, maxMessages: 5, stripStructuredContent: true },
+] as const;
+
+const CHAT_HISTORY_CONTEXT_LIMIT = 20;
+
+const TOOL_TYPE_META: Record<ToolType, {
+  label: string;
+  description: string;
+  icon: string;
+}> = {
+  auto: {
+    label: "อัตโนมัติ",
+    description: "ให้ AI เลือกเครื่องมือที่เหมาะเอง",
+    icon: "🤖",
+  },
+  weather: {
+    label: "สภาพอากาศ",
+    description: "เน้นข้อมูลอุตุนิยมวิทยาและพยากรณ์",
+    icon: "🌤️",
+  },
+  calculation: {
+    label: "คำนวณ",
+    description: "เหมาะกับสูตร ตัวเลข และการวิเคราะห์เชิงตรรกะ",
+    icon: "🔢",
+  },
+  art: {
+    label: "ภาพและกราฟ",
+    description: "สร้างภาพ กราฟ และผลลัพธ์เชิงภาพ",
+    icon: "🎨",
+  },
+  data: {
+    label: "ข้อมูลอ้างอิง",
+    description: "ดึงข้อมูลจากแหล่งความรู้และ APIs ภายนอก",
+    icon: "📊",
+  },
+  datetime: {
+    label: "วันและเวลา",
+    description: "งานที่เกี่ยวกับเวลา ปฏิทิน และช่วงเวลา",
+    icon: "⏰",
+  },
+  officer: {
+    label: "เจ้าหน้าที่",
+    description: "โหมดงานราชการและข้อมูลภายในเจ้าหน้าที่",
+    icon: "🧑‍💼",
+  },
+};
+
+const STARTER_PROMPTS = [
+  {
+    icon: "🌦️",
+    title: "สรุปอากาศเชิงปฏิบัติ",
+    description: "ถามแบบได้คำตอบพร้อมใช้งาน เช่น พกอะไร เดินทางช่วงไหนดี ฝนจะตกไหม",
+    query: "ช่วยสรุปอากาศกรุงเทพฯ วันนี้แบบอ่านเร็ว พร้อมคำแนะนำก่อนออกจากบ้าน",
+    accent: "from-sky-500/16 via-sky-500/8 to-transparent",
+  },
+  {
+    icon: "📚",
+    title: "สรุปหลายแหล่งให้จบในครั้งเดียว",
+    description: "รวมข้อมูลหลายเครื่องมือแล้วเรียบเรียงเป็นคำตอบภาษาไทยที่อ่านง่าย",
+    query: "ช่วยสรุปสาระสำคัญของพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคลแบบเข้าใจง่ายและใช้ได้จริง",
+    accent: "from-emerald-500/16 via-emerald-500/8 to-transparent",
+  },
+  {
+    icon: "🎨",
+    title: "สั่งสร้างภาพเป็นภาษาไทย",
+    description: "พิมพ์ concept, style, บรรยากาศ และอารมณ์ภาพเป็นไทยได้เลย",
+    query: "สร้างภาพนักบินอวกาศยืนกลางทุ่งนาไทยตอนพระอาทิตย์ตก โทนภาพ cinematic สมจริง",
+    accent: "from-pink-500/16 via-pink-500/8 to-transparent",
+  },
+  {
+    icon: "🧭",
+    title: "วิเคราะห์ต่อจากโจทย์คลุมเครือ",
+    description: "เริ่มต้นสั้น ๆ แล้วค่อยให้ระบบช่วยขยายโจทย์ คัด route และถามต่อเมื่อจำเป็น",
+    query: "ช่วยวางแผนค้นหาข้อมูลจังหวัดที่เหมาะจะจัดงานสัมมนาช่วงหน้าฝน โดยดูทั้งอากาศและการเดินทาง",
+    accent: "from-amber-500/16 via-amber-500/8 to-transparent",
+  },
+] as const;
+
+const WORKSPACE_PILLARS = [
+  "โฟลว์สนทนาที่วางภาษาไทยเป็นหลัก",
+  "คำตอบที่รู้จักเลือกเครื่องมือให้เหมาะกับงาน",
+  "รองรับทั้งข้อมูล ภาพ และงานต่อเนื่องในบทสนทนาเดียว",
+] as const;
+
+function shouldForceCollapsedSidebar(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 1279px)").matches;
+}
+
+function persistMessagesToLocalStorage(messages: ChatMessage[]): void {
+  if (messages.length === 0) {
+    localStorage.removeItem("chatMessages");
+    return;
+  }
+
+  for (const plan of CHAT_HISTORY_STORAGE_PLANS) {
+    try {
+      const compacted = compactChatMessagesForStorage(messages as unknown as Array<Record<string, unknown>>, plan.maxMessages, {
+        stripStructuredContent: plan.stripStructuredContent,
+      });
+      localStorage.setItem("chatMessages", JSON.stringify(compacted));
+      return;
+    } catch (error) {
+      if (!isQuotaExceededError(error)) {
+        console.error("Error saving messages to localStorage:", error);
+        return;
+      }
+    }
+  }
+
+  console.warn("[ChatStorage] Could not persist chatMessages within localStorage quota");
+  localStorage.removeItem("chatMessages");
+}
+
+function persistSummariesToLocalStorage(summaries: SidebarSummary[]): void {
+  for (const plan of CHAT_SUMMARY_STORAGE_PLANS) {
+    try {
+      const compacted = summaries.slice(0, plan.maxSummaries).map((summary) => ({
+        ...summary,
+        messages: compactChatMessagesForStorage(summary.messages as unknown as Array<Record<string, unknown>>, plan.maxMessages, {
+          stripStructuredContent: plan.stripStructuredContent,
+        }) as unknown as SidebarSummary["messages"],
+      }));
+      localStorage.setItem("chatSummaries", JSON.stringify(compacted));
+      return;
+    } catch (error) {
+      if (!isQuotaExceededError(error)) {
+        console.error("Error saving chat summaries:", error);
+        return;
+      }
+    }
+  }
+
+  console.warn("[ChatStorage] Could not persist chatSummaries within localStorage quota");
+  localStorage.removeItem("chatSummaries");
 }
 
 const ChatPage: React.FC = () => {
@@ -59,6 +210,29 @@ const ChatPage: React.FC = () => {
   const maxFileSize = 5 * 1024 * 1024; // 5 MB limit
 
   const hasMessages = messages.length > 0;
+  const activeConversationTitle = activeSummaryId
+    ? chatSummaries.find((summary) => summary.id === activeSummaryId)?.title || "บทสนทนาปัจจุบัน"
+    : "การสนทนาใหม่";
+  const workspaceState = !isSocketReady
+    ? {
+        title: "Backend offline",
+        detail: "ยังเชื่อมต่อ websocket ไม่ได้",
+        tone: "bg-rose-500/12 text-rose-800 dark:bg-rose-400/16 dark:text-rose-200",
+        dot: "bg-rose-500",
+      }
+    : isWaitingForResponse
+    ? {
+        title: "กำลังตอบกลับ",
+        detail: "ระบบกำลังประมวลผลคำตอบล่าสุด",
+        tone: "bg-amber-500/12 text-amber-800 dark:bg-amber-400/16 dark:text-amber-200",
+        dot: "bg-amber-500",
+      }
+    : {
+        title: "พร้อมใช้งาน",
+        detail: "เครื่องมือและ AI พร้อมรับคำสั่ง",
+        tone: "bg-emerald-500/12 text-emerald-800 dark:bg-emerald-400/16 dark:text-emerald-200",
+        dot: "bg-emerald-500",
+      };
 
   // Chat input is always visible; removed scroll-hide logic
 
@@ -69,8 +243,9 @@ const ChatPage: React.FC = () => {
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(true);
-  const [isChatActive, setIsChatActive] = useState(false); // Track if user is interacting
+  const [, setIsChatActive] = useState(false); // tracks composer focus for future hooks
   const [selectedToolType, setSelectedToolType] = useState<ToolType>("auto");
+  const activeToolMeta = TOOL_TYPE_META[selectedToolType] || TOOL_TYPE_META.auto;
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -78,12 +253,16 @@ const ChatPage: React.FC = () => {
 
     // Load sidebar collapsed state
     try {
+      const forceCollapsed = shouldForceCollapsedSidebar();
       const savedCollapsed = localStorage.getItem("isSidebarCollapsed");
-      if (savedCollapsed !== null) {
+      if (savedCollapsed !== null && !forceCollapsed) {
         setIsSidebarCollapsed(savedCollapsed === "true");
+      } else {
+        setIsSidebarCollapsed(forceCollapsed || savedCollapsed === "true");
       }
     } catch (e) {
       // ignore localStorage errors
+      setIsSidebarCollapsed(shouldForceCollapsedSidebar());
     }
 
     const savedMessages = localStorage.getItem("chatMessages");
@@ -114,22 +293,32 @@ const ChatPage: React.FC = () => {
     }
   }, []);
 
+  useEffect(() => {
+    if (!mounted || typeof window === "undefined") return;
+
+    const mediaQuery = window.matchMedia("(max-width: 1279px)");
+    const handleChange = (event: MediaQueryListEvent) => {
+      if (event.matches) {
+        setIsSidebarCollapsed(true);
+      }
+    };
+
+    if (mediaQuery.matches) {
+      setIsSidebarCollapsed(true);
+    }
+
+    mediaQuery.addEventListener("change", handleChange);
+    return () => mediaQuery.removeEventListener("change", handleChange);
+  }, [mounted]);
+
   // Save messages to localStorage whenever messages change
   useEffect(() => {
-    if (messages.length > 0) {
-      // Limit to last 50 messages to prevent storage bloat
-      const limitedMessages = messages.slice(-50);
-      localStorage.setItem("chatMessages", JSON.stringify(limitedMessages));
-    }
+    persistMessagesToLocalStorage(messages);
   }, [messages]);
 
   // Persist summaries when changed
   useEffect(() => {
-    try {
-      localStorage.setItem("chatSummaries", JSON.stringify(chatSummaries));
-    } catch (err) {
-      console.error("Error saving chat summaries:", err);
-    }
+    persistSummariesToLocalStorage(chatSummaries);
   }, [chatSummaries]);
 
   // persist sidebar collapsed state
@@ -146,73 +335,47 @@ const ChatPage: React.FC = () => {
     }
   }, [isSidebarCollapsed, mounted]);
 
-  // Scroll the messages container to bottom when messages change
+  // Scroll the page to bottom when messages change (document-level scroll)
   useEffect(() => {
-    if (messagesRef.current && isNearBottom) {
-      // Use setTimeout to ensure DOM is updated
-      setTimeout(() => {
-        if (messagesRef.current) {
-          try {
-            messagesRef.current.scrollTo({
-              top: messagesRef.current.scrollHeight,
-              behavior: "smooth",
-            });
-          } catch (e) {
-            // Fallback for older browsers
-            messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
-          }
-        }
-      }, 100);
-    }
+    if (!isNearBottom) return;
+    setTimeout(() => {
+      try {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+      } catch {
+        window.scrollTo(0, document.documentElement.scrollHeight);
+      }
+    }, 100);
   }, [messages, isNearBottom]);
 
-  // Additional scroll during animation (only if near bottom)
+  // Keep scrolling during animation (only if near bottom)
   useEffect(() => {
     const scrollInterval = setInterval(() => {
-      if (messagesRef.current && isWaitingForResponse && isNearBottom) {
-        messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+      if (isWaitingForResponse && isNearBottom) {
+        window.scrollTo(0, document.documentElement.scrollHeight);
       }
     }, 300);
-
     return () => clearInterval(scrollInterval);
   }, [isWaitingForResponse, isNearBottom]);
 
-  // Detect scroll position to show/hide floating button
+  // Detect scroll position using window scroll (single browser scrollbar)
   useEffect(() => {
     const handleScroll = () => {
-      if (!messagesRef.current) return;
-      
-      const { scrollTop, scrollHeight, clientHeight } = messagesRef.current;
-      const threshold = 100; // pixels from bottom
-      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
-      
+      const distanceFromBottom =
+        document.documentElement.scrollHeight - window.scrollY - window.innerHeight;
+      const threshold = 120;
       const nearBottom = distanceFromBottom < threshold;
       setIsNearBottom(nearBottom);
       setShowScrollButton(!nearBottom && messages.length > 0);
     };
 
-    const messagesEl = messagesRef.current;
-    if (messagesEl) {
-      messagesEl.addEventListener('scroll', handleScroll);
-      // Check initial state
-      handleScroll();
-    }
-
-    return () => {
-      if (messagesEl) {
-        messagesEl.removeEventListener('scroll', handleScroll);
-      }
-    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [messages.length]);
 
   // Function to scroll to bottom (used by floating button)
   const scrollToBottom = () => {
-    if (messagesRef.current) {
-      messagesRef.current.scrollTo({
-        top: messagesRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
-    }
+    window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
   };
 
   // (Previously: scroll detection and hiding input while scrolling.)
@@ -563,15 +726,24 @@ const ChatPage: React.FC = () => {
         });
       }
       
+      const transportHistory = buildChatTransportHistory(
+        messages as unknown as Array<Record<string, unknown>>,
+        CHAT_HISTORY_CONTEXT_LIMIT
+      );
       const message = { 
         text: input, 
-        messages, 
+        messages: transportHistory, 
         messageId,
         file: fileData, // Include file data if available
         uiMode: selectedToolType === "officer" ? "officer" : undefined
       };
       
-      console.log("Sending message to WebSocket:", message); // Debug log
+      console.log("Sending message to WebSocket:", {
+        textLength: input.length,
+        historySize: transportHistory.length,
+        hasFile: Boolean(fileData),
+        uiMode: message.uiMode || "auto",
+      });
       socket.send(JSON.stringify(message));
       
       // Add user message to UI (include file indicator)
@@ -588,7 +760,7 @@ const ChatPage: React.FC = () => {
       };
       setMessages([...messages, userMessage]);
       
-      // 🔥 Jump to bottom when user sends message
+      // Jump to bottom when user sends message
       setTimeout(() => scrollToBottom(), 150);
       
       // Clear input and file selection
@@ -687,7 +859,11 @@ const ChatPage: React.FC = () => {
         id: String(Date.now()),
         time: Date.now(),
         title: makeTitle(messages),
-        messages: messages.slice(-50),
+        messages: compactChatMessagesForStorage(
+          messages as unknown as Array<Record<string, unknown>>,
+          12,
+          { stripStructuredContent: false }
+        ) as unknown as SidebarSummary["messages"],
       };
 
       // prepend and keep max 10
@@ -708,6 +884,10 @@ const ChatPage: React.FC = () => {
     setActiveSummaryId(null);
     console.log("Started new chat, history cleared (and summary saved)");
 
+    if (shouldForceCollapsedSidebar()) {
+      setIsSidebarCollapsed(true);
+    }
+
     // Focus the input so user can type immediately after clearing
     setTimeout(() => {
       try {
@@ -723,10 +903,11 @@ const ChatPage: React.FC = () => {
     setMessages(summary.messages || []);
     setActiveSummaryId(summary.id);
     // persist messages to storage as current active
-    localStorage.setItem(
-      "chatMessages",
-      JSON.stringify(summary.messages || [])
-    );
+    persistMessagesToLocalStorage((summary.messages || []) as unknown as ChatMessage[]);
+
+    if (shouldForceCollapsedSidebar()) {
+      setIsSidebarCollapsed(true);
+    }
   };
 
   // TODO #45: Handle chat rename
@@ -824,13 +1005,20 @@ const ChatPage: React.FC = () => {
     
     // Resend the user message with conversation history
     const messageId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+    const transportHistory = buildChatTransportHistory(
+      messages as unknown as Array<Record<string, unknown>>,
+      CHAT_HISTORY_CONTEXT_LIMIT
+    );
     const message = { 
       text: userMessage.text, 
-      messages: messages.slice(0, userMessageIdx), // Include history up to that point
+      messages: transportHistory.slice(0, Math.max(0, transportHistory.length - 1)),
       messageId 
     };
     
-    console.log("Retrying message:", message);
+    console.log("Retrying message:", {
+      textLength: userMessage.text.length,
+      historySize: message.messages.length,
+    });
     socket.send(JSON.stringify(message));
     setIsStopped(false);
     isStoppedRef.current = false;
@@ -848,17 +1036,46 @@ const ChatPage: React.FC = () => {
   // Hydration guard: prevent SSR/client mismatch when localStorage has messages
   if (!mounted) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-gray-400 animate-pulse">กำลังโหลด...</div>
+      <div className="chat-workspace-bg flex min-h-[calc(100vh-6rem)] items-center justify-center px-6">
+        <div className="chat-elevated-panel max-w-md rounded-2xl px-6 py-6 text-center">
+          <div className="font-display text-2xl text-foreground">กำลังเปิดพื้นที่สนทนา</div>
+          <div className="mt-2 text-sm leading-6 text-muted-foreground">
+            โหลดประวัติการสนทนา โมเดลที่เลือก และสถานะเครื่องมือก่อนเริ่มงาน
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex">
+    <div className="relative flex">
+      <div className="pointer-events-none fixed inset-0 chat-workspace-bg" />
+
+      {!isSidebarCollapsed && (
+        <button
+          className="fixed inset-0 z-[54] bg-black/20 lg:hidden"
+          aria-label="ปิด sidebar"
+          onClick={() => setIsSidebarCollapsed(true)}
+        />
+      )}
+
+      <button
+        className={`fixed left-4 top-[6.75rem] z-[60] flex h-11 w-11 items-center justify-center rounded-xl border border-border/70 bg-background/92 shadow-lg transition-all duration-300 hover:border-primary/25 hover:bg-primary/8 lg:hidden ${
+          isSidebarCollapsed ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
+        onClick={() => setIsSidebarCollapsed(false)}
+        aria-label="เปิด sidebar"
+      >
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M3 12h18M3 6h18M3 18h12" />
+        </svg>
+      </button>
+
       {/* Sidebar - stays above chat content but below nav */}
-      <div className={`fixed left-0 top-16 bottom-0 z-[50] transition-all duration-300 overflow-y-auto ${
-        isSidebarCollapsed ? 'w-14' : 'w-72'
+      <div className={`fixed left-0 top-16 bottom-0 z-[60] transition-all duration-300 ${
+        isSidebarCollapsed
+          ? '-translate-x-full lg:translate-x-0 lg:w-14'
+          : 'translate-x-0 w-[min(20rem,85vw)] lg:w-72'
       }`}>
         <ChatSidebar
           summaries={chatSummaries}
@@ -872,123 +1089,231 @@ const ChatPage: React.FC = () => {
         />
       </div>
 
-      {/* Main content area - adjusts based on sidebar state */}
-      <div className={`flex-1 transition-all duration-300 ${
-        isSidebarCollapsed ? 'ml-14' : 'ml-72'
+      {/* Main content area — natural page flow, no inner scroll */}
+      <div className={`relative flex-1 transition-all duration-300 ${
+        isSidebarCollapsed ? 'ml-0 lg:ml-14' : 'ml-0 lg:ml-72'
       }`}>
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div
-            className={`mx-auto ${hasMessages ? "pb-40" : "pb-44"}`}
-            ref={messagesRef}
-          >
-            <div className="flex flex-col gap-2 pb-6">
-              {/* Empty state — shown when no conversation has started */}
-              {!hasMessages && !isWaitingForResponse && (
-                <div className="flex flex-col items-center justify-center gap-10 min-h-[70vh] py-10">
-                  <div className="text-center space-y-2 max-w-sm">
-                    <h2 className="text-[1.65rem] font-semibold text-foreground tracking-tight leading-snug">
-                      สวัสดี, มีอะไรให้ช่วย?
-                    </h2>
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      ถามอะไรก็ได้ — อากาศ, กฎหมาย, ข้อมูลจังหวัด หรือคำนวณ
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 w-full max-w-xl px-2">
-                    {([
-                      { icon: "🌤️", title: "อากาศวันนี้", q: "อากาศในกรุงเทพฯ วันนี้เป็นอย่างไร?" },
-                      { icon: "📜", title: "กฎหมายและระเบียบ", q: "สาระสำคัญของกฎหมายแรงงานไทยมีอะไรบ้าง?" },
-                      { icon: "🗺️", title: "ข้อมูลจังหวัด", q: "จังหวัดในภาคเหนือของไทยมีกี่จังหวัด?" },
-                      { icon: "🔢", title: "คำนวณข้อมูล", q: "ช่วยคำนวณและวิเคราะห์ข้อมูลเบื้องต้น" },
-                    ] as const).map((p) => (
-                      <button
-                        key={p.q}
-                        onClick={() => setInput(p.q)}
-                        className="flex items-start gap-3 p-4 rounded-xl border border-border/80 bg-card hover:bg-primary/5 hover:border-primary/30 text-left transition-all duration-200 hover:shadow-sm group"
-                      >
-                        <span className="text-xl mt-0.5 shrink-0">{p.icon}</span>
-                        <div className="min-w-0">
-                          <div className="text-sm font-medium text-foreground group-hover:text-primary transition-colors duration-200">{p.title}</div>
-                          <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{p.q}</div>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {messages
-                .filter(Boolean)
-                .filter(m => m.sender)
-                .map((message, index) => (
-                <MessageView
-                  key={index}
-                  message={message as MessageType}
-                  index={index}
-                  onUpdate={updateMessage}
-                  onRetry={handleRetry}
-                />
-              ))}
-              {/* When waiting for AI response (no message yet), show a typing balloon */}
-              {isWaitingForResponse &&
-                (!messages.length ||
-                  messages[messages.length - 1].sender !== "ai" ||
-                  !messages[messages.length - 1].isAnimating) && (() => {
-                  const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
-                  const stage = lastMsg && (lastMsg as any).isProgress ? (lastMsg as any).progressStage as string : undefined;
-                  // Blue = tool/thinking phase, Amber = LLM processing phase, secondary = default
-                  const dotColor = stage === "processing"
-                    ? "bg-amber-400 dark:bg-amber-400/80"
-                    : stage === "thinking"
-                    ? "bg-blue-400 dark:bg-blue-400/80"
-                    : "bg-secondary dark:bg-secondary/80";
-                  return (
-                    <div className="relative p-2 max-w-full self-start pr-5 mb-5 text-left">
-                      <span className="inline-flex items-center gap-1">
-                        <span className={`w-2 h-2 rounded-full ${dotColor} animate-bounce`} style={{ animationDelay: "0s" }} />
-                        <span className={`w-2 h-2 rounded-full ${dotColor} animate-bounce`} style={{ animationDelay: "0.08s" }} />
-                        <span className={`w-2 h-2 rounded-full ${dotColor} animate-bounce`} style={{ animationDelay: "0.16s" }} />
+        <div className="relative z-10 w-full px-3 sm:px-5 lg:px-6 xl:px-8">
+          <div className={`mx-auto w-full max-w-[88rem] pt-3 ${hasMessages ? 'pb-3' : 'pb-6'}`}>
+            {hasMessages ? (
+              <div className="mb-3 flex items-center gap-2 px-1">
+                <span className={`inline-flex h-2 w-2 shrink-0 rounded-full ${workspaceState.dot}`} aria-hidden="true" />
+                <h1 className="font-display min-w-0 flex-1 truncate text-[15px] font-semibold text-foreground sm:text-base">
+                  {activeConversationTitle}
+                </h1>
+                <span
+                  className="hidden shrink-0 items-center gap-2 text-xs text-muted-foreground sm:inline-flex"
+                  title={workspaceState.detail}
+                >
+                  <span>{activeToolMeta.label}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{chatSummaries.length} เซสชัน</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{workspaceState.title}</span>
+                </span>
+              </div>
+            ) : null}
+
+            {!hasMessages && !isWaitingForResponse ? (
+              <div className="flex min-h-0 flex-1 flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(16rem,1fr)] lg:items-start">
+                <section className="flex flex-col gap-4">
+                  {/* Hero — single statement, not two restating ones (req 2: reduce duplicated copy) */}
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-primary/85">
+                        การสนทนาใหม่
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11.5px] font-medium text-muted-foreground">
+                        <span className={`h-1.5 w-1.5 rounded-full ${workspaceState.dot}`} aria-hidden="true" />
+                        {workspaceState.title}
+                      </span>
+                      <span className="text-[11.5px] text-muted-foreground/70">·</span>
+                      <span className="text-[11.5px] text-muted-foreground">
+                        {activeToolMeta.icon} {activeToolMeta.label}
                       </span>
                     </div>
-                  );
-                })()}
-            </div>
+
+                    <h1 className="font-display mt-3 max-w-3xl text-[1.65rem] font-semibold leading-tight text-foreground sm:text-[2rem]">
+                      ถาม วิเคราะห์ หรือสั่งงานเป็นภาษาไทยได้เลย
+                    </h1>
+                  </div>
+
+                  {!isSocketReady && (
+                    <div
+                      className="rounded-md bg-rose-500/8 px-3 py-2 text-[13px] text-rose-800 ring-1 ring-rose-500/15 dark:text-rose-200"
+                      role="status"
+                    >
+                      backend ยังไม่ตอบกลับ — การส่งข้อความจะพร้อมเมื่อ websocket เชื่อมต่อสำเร็จ
+                    </div>
+                  )}
+
+                  <ChatInput
+                    input={input}
+                    setInput={setInput}
+                    selectedImage={selectedImage}
+                    setSelectedImage={setSelectedImage}
+                    selectedFile={selectedFile}
+                    setSelectedFile={setSelectedFile}
+                    handleNewChat={handleNewChat}
+                    handleFileUpload={handleFileUpload}
+                    handleRemoveImage={handleRemoveImage}
+                    sendMessage={sendMessage}
+                    handleStop={handleStop}
+                    isSocketReady={isSocketReady}
+                    isWaitingForResponse={isWaitingForResponse}
+                    textareaRef={textareaRef}
+                    fileInputRef={fileInputRef}
+                    adjustTextarea={adjustTextarea}
+                    theme={theme}
+                    layoutMode="empty"
+                    onToolTypeChange={(t) => setSelectedToolType(t)}
+                    onFocus={() => setIsChatActive(true)}
+                    onBlur={() => setIsChatActive(false)}
+                  />
+
+                  {/* Starter prompts — shorter copy + grid that adapts (req 9) */}
+                  <div className="mt-1">
+                    <div className="mb-2 flex items-center justify-between">
+                      <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        ตัวอย่างคำถาม
+                      </h2>
+                      <span className="text-[11.5px] text-muted-foreground">กดเพื่อใส่ใน input</span>
+                    </div>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {STARTER_PROMPTS.map((prompt) => (
+                        <button
+                          key={prompt.query}
+                          onClick={() => setInput(prompt.query)}
+                          className="group flex min-w-0 items-start gap-2.5 rounded-md border border-border/70 bg-card p-3 text-left transition-colors hover:border-primary/30 hover:bg-primary/4"
+                        >
+                          <span className="text-lg leading-none" aria-hidden="true">
+                            {prompt.icon}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[13.5px] font-semibold text-foreground transition-colors group-hover:text-primary">
+                              {prompt.title}
+                            </span>
+                            <span className="mt-0.5 line-clamp-2 block text-[12.5px] leading-5 text-muted-foreground">
+                              {prompt.query}
+                            </span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+
+                {/* Right rail — single tips card; hidden on small (req 1: hide non-critical) */}
+                <aside className="hidden lg:block">
+                  <div className="rounded-xl border border-border/70 bg-card p-4">
+                    <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      เคล็ดลับการใช้งาน
+                    </h2>
+                    <ul className="mt-3 space-y-2.5 text-[13.5px] leading-6 text-foreground/85">
+                      {WORKSPACE_PILLARS.slice(0, 3).map((pillar, index) => (
+                        <li key={pillar} className="flex gap-2.5">
+                          <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-primary/10 font-mono text-[11px] font-semibold text-primary">
+                            {index + 1}
+                          </span>
+                          <span className="min-w-0">{pillar}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="mt-5 border-t border-border/60 pt-4">
+                      <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        สั่งสร้างภาพให้ดี
+                      </h2>
+                      <ul className="mt-2.5 space-y-1.5 text-[12.5px] leading-5 text-muted-foreground">
+                        <li>· subject — คน สัตว์ สถานที่</li>
+                        <li>· style — cinematic / watercolor / editorial</li>
+                        <li>· ฉาก — เช่น ทุ่งนาไทยตอนเย็น</li>
+                        <li>· จุดเน้น — สี แสง มุมกล้อง</li>
+                      </ul>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+            ) : (
+              /* Messages — natural document flow, no inner scroll container */
+              <div ref={messagesRef} className="mx-auto max-w-[50rem] pb-36 pt-1">
+                <div className="flex flex-col gap-4">
+                  {messages
+                    .filter(Boolean)
+                    .filter((m) => m.sender)
+                    .map((message, index) => (
+                      <MessageView
+                        key={index}
+                        message={message as MessageType}
+                        index={index}
+                        onUpdate={updateMessage}
+                        onRetry={handleRetry}
+                      />
+                    ))}
+
+                  {isWaitingForResponse &&
+                    (!messages.length ||
+                      messages[messages.length - 1].sender !== "ai" ||
+                      !messages[messages.length - 1].isAnimating) && (() => {
+                    const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+                    const stage = lastMsg && (lastMsg as any).isProgress ? (lastMsg as any).progressStage as string : undefined;
+                    const dotColor = stage === "processing"
+                      ? "bg-amber-400 dark:bg-amber-400/80"
+                      : stage === "thinking"
+                      ? "bg-blue-400 dark:bg-blue-400/80"
+                      : "bg-secondary dark:bg-secondary/80";
+
+                    return (
+                      <div className="chat-elevated-panel max-w-sm rounded-lg px-4 py-3 text-left">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">ระบบกำลังทำงาน</div>
+                        <div className="mt-2 flex items-center gap-3">
+                          <span className="inline-flex items-center gap-1">
+                            <span className={`h-2 w-2 rounded-full ${dotColor} animate-bounce [animation-delay:0s]`} />
+                            <span className={`h-2 w-2 rounded-full ${dotColor} animate-bounce [animation-delay:80ms]`} />
+                            <span className={`h-2 w-2 rounded-full ${dotColor} animate-bounce [animation-delay:160ms]`} />
+                          </span>
+                          <div className="text-sm text-foreground">กำลังสรุปและจัดรูปคำตอบให้อ่านง่าย</div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Floating scroll-to-bottom button */}
-          {showScrollButton && (
-            <button
-              onClick={scrollToBottom}
-              className="fixed bottom-32 left-1/2 transform -translate-x-1/2 z-40 bg-card hover:bg-accent text-card-foreground rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 border border-border backdrop-blur-sm"
-              title="กลับไปด้านล่าง"
-              aria-label="Scroll to bottom"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 5v14M19 12l-7 7-7-7"/>
-              </svg>
-            </button>
-          )}
+          {/* Sticky composer — viewport-sticky, single browser scrollbar */}
+          {(hasMessages || isWaitingForResponse) && (
+            <div className="sticky bottom-4 z-30 mx-auto mt-3 w-full max-w-[50rem] rounded-xl bg-background/96 pb-1 pt-1 shadow-[0_-1px_0_0_hsl(var(--border)/.25)] backdrop-blur-sm">
+              {showScrollButton && (
+                <button
+                  onClick={scrollToBottom}
+                  className="absolute -top-12 right-2 z-10 rounded-full border border-border/70 bg-background/92 p-2.5 text-card-foreground shadow-md transition-colors hover:bg-primary/8"
+                  title="กลับไปด้านล่าง"
+                  aria-label="Scroll to bottom"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 5v14M19 12l-7 7-7-7" />
+                  </svg>
+                </button>
+              )}
 
-          {/* Chat Input - fixed at bottom */}
-          <div
-            className={`fixed z-40 w-full left-0 right-0 bottom-2 flex justify-center transition-all duration-300 ${
-              isSidebarCollapsed ? 'pl-14' : 'pl-72'
-            }`}
-          >
-            <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 pb-2">
               {!isSocketReady && (
-                <div className="text-center text-sm text-amber-600 dark:text-amber-400 py-1 animate-pulse mb-1">
-                  กำลังเชื่อมต่อ...
+                <div className="mb-2 rounded-md bg-rose-500/8 px-3 py-1.5 text-center text-xs text-rose-700 ring-1 ring-rose-500/15 dark:bg-rose-400/10 dark:text-rose-200 dark:ring-rose-400/18">
+                  backend ยังไม่ตอบกลับ การส่งข้อความจะพร้อมเมื่อ websocket เชื่อมต่อสำเร็จ
                 </div>
               )}
+
               <ChatInput
                 input={input}
                 setInput={setInput}
@@ -1007,12 +1332,13 @@ const ChatPage: React.FC = () => {
                 fileInputRef={fileInputRef}
                 adjustTextarea={adjustTextarea}
                 theme={theme}
-                  onToolTypeChange={(t) => setSelectedToolType(t)}
+                layoutMode="conversation"
+                onToolTypeChange={(t) => setSelectedToolType(t)}
                 onFocus={() => setIsChatActive(true)}
                 onBlur={() => setIsChatActive(false)}
               />
             </div>
-          </div>
+          )}
           
           {/* File Upload Progress (TODO #40) */}
           {isUploading && (
