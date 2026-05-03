@@ -41,9 +41,13 @@ declare global {
       WHISPER_PORT: string;
 
       // Redis
+      REDIS_URL?: string;
       REDIS_HOST: string;
       REDIS_PORT: string;
       REDIS_PASSWORD: string;
+      REDIS_CONNECT_TIMEOUT_MS?: string;
+      REDIS_RETRY_COOLDOWN_MS?: string;
+      REDIS_MAX_CONNECT_RETRIES?: string;
 
       // Application
       APPNAME: string;

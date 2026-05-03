@@ -9,8 +9,26 @@
 import { Router, Request, Response } from 'express';
 import { createHealthResponse } from '../../utils/monitoring';
 import { getSystemMetrics } from '../../utils/monitoring';
+import { getRedisHealthSnapshot } from '../../utils/redis';
 
 const healthRouter = Router();
+
+function getMcpInventory(chatModule: any) {
+  const inventory = chatModule?.mcpClient?.getToolInventory?.();
+  if (inventory) {
+    return inventory;
+  }
+
+  const totalTools = Number(chatModule?.mcpClient?.getAvailableTools?.()?.length ?? 0);
+  const connectedClients = Number(chatModule?.mcpClient?.getConnectedClients?.()?.length ?? 0);
+  return {
+    totalTools,
+    localTools: totalTools,
+    remoteTools: 0,
+    connectedClients,
+    remoteReady: false,
+  };
+}
 
 /**
  * GET /api/health
@@ -20,6 +38,7 @@ healthRouter.get('/', async (req: Request, res: Response) => {
   try {
     const detailed = req.query.detailed === 'true';
     const health = await createHealthResponse(detailed);
+    const redisHealth = getRedisHealthSnapshot();
 
     // Set appropriate status code
     const statusCode = health.status === 'healthy' ? 200 :
@@ -37,29 +56,60 @@ healthRouter.get('/', async (req: Request, res: Response) => {
       aiMode = raw === 'remote' || raw === 'hybrid' ? 'remote' : 'local';
     } catch { /* keep default */ }
 
-    let mcpStatus: 'connected' | 'disconnected' = 'disconnected';
+    const mcpInventory = (() => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const chatModule = require('./chat');
+        return getMcpInventory(chatModule);
+      } catch {
+        return { totalTools: 0, localTools: 0, remoteTools: 0, connectedClients: 0, remoteReady: false };
+      }
+    })();
+
+    let mcpStatus: 'connected' | 'local-only' | 'disconnected' = 'disconnected';
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const chatModule = require('./chat');
-      const tools: number = chatModule?.mcpClient?.getAvailableTools?.()?.length ?? 0;
-      mcpStatus = tools > 0 ? 'connected' : 'disconnected';
+      if (mcpInventory.remoteReady) {
+        mcpStatus = 'connected';
+      } else if (mcpInventory.localTools > 0) {
+        mcpStatus = 'local-only';
+      }
     } catch { /* keep default */ }
+
+    const modeReady = isOnline && mcpInventory.remoteReady;
+    const notes = !mcpInventory.remoteReady && isOnline
+      ? ['remote_mcp_unavailable']
+      : [];
 
     res.status(statusCode).json({
       ...health,
       mode: isOnline ? 'online' : 'offline',
-      mode_ready: isOnline,
+      mode_ready: modeReady,
       ai_mode: aiMode,
       mcp_status: mcpStatus,
+      redis_status: redisHealth.status,
+      redis_ready: redisHealth.ready,
+      redis_configured: redisHealth.configured,
+      redis_retry_after_ms: redisHealth.retryAfterMs,
+      redis_raw_status: redisHealth.rawStatus,
+      local_tools: mcpInventory.localTools,
+      remote_tools: mcpInventory.remoteTools,
+      total_tools: mcpInventory.totalTools,
+      notes,
     });
   } catch (error) {
     console.error('[Health] Error checking health:', error);
+    const redisHealth = getRedisHealthSnapshot();
     res.status(500).json({
       status: 'error',
       message: 'Failed to check system health',
       timestamp: new Date().toISOString(),
       mode: 'offline',
       mode_ready: false,
+      redis_status: redisHealth.status,
+      redis_ready: redisHealth.ready,
+      redis_configured: redisHealth.configured,
+      redis_retry_after_ms: redisHealth.retryAfterMs,
+      redis_raw_status: redisHealth.rawStatus,
     });
   }
 });
@@ -131,15 +181,66 @@ healthRouter.get('/live', (req: Request, res: Response) => {
  * MCP tools registration count — no auth required (public health check)
  */
 healthRouter.get('/keys', (req: Request, res: Response) => {
+  const redisHealth = getRedisHealthSnapshot();
   try {
     // Lazy require to avoid circular import (chat.ts initialises at startup)
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const chatModule = require('./chat');
     const mcpClientRef = chatModule?.mcpClient;
-    const tools: number = mcpClientRef?.getAvailableTools?.()?.length ?? 0;
-    res.status(200).json({ data: { mcpTools: tools }, mcpTools: tools, timestamp: new Date().toISOString() });
+    const inventory = mcpClientRef?.getToolInventory?.() ?? {
+      totalTools: Number(mcpClientRef?.getAvailableTools?.()?.length ?? 0),
+      localTools: Number(mcpClientRef?.getAvailableTools?.()?.length ?? 0),
+      remoteTools: 0,
+      connectedClients: Number(mcpClientRef?.getConnectedClients?.()?.length ?? 0),
+      remoteReady: false,
+    };
+    res.status(200).json({
+      data: {
+        mcpTools: inventory.totalTools,
+        localTools: inventory.localTools,
+        remoteTools: inventory.remoteTools,
+        connectedClients: inventory.connectedClients,
+        remoteReady: inventory.remoteReady,
+        redisStatus: redisHealth.status,
+        redisReady: redisHealth.ready,
+        redisConfigured: redisHealth.configured,
+        redisRetryAfterMs: redisHealth.retryAfterMs,
+      },
+      mcpTools: inventory.totalTools,
+      localTools: inventory.localTools,
+      remoteTools: inventory.remoteTools,
+      connectedClients: inventory.connectedClients,
+      remoteReady: inventory.remoteReady,
+      redisStatus: redisHealth.status,
+      redisReady: redisHealth.ready,
+      redisConfigured: redisHealth.configured,
+      redisRetryAfterMs: redisHealth.retryAfterMs,
+      timestamp: new Date().toISOString(),
+    });
   } catch {
-    res.status(200).json({ data: { mcpTools: 0 }, mcpTools: 0, timestamp: new Date().toISOString() });
+    res.status(200).json({
+      data: {
+        mcpTools: 0,
+        localTools: 0,
+        remoteTools: 0,
+        connectedClients: 0,
+        remoteReady: false,
+        redisStatus: redisHealth.status,
+        redisReady: redisHealth.ready,
+        redisConfigured: redisHealth.configured,
+        redisRetryAfterMs: redisHealth.retryAfterMs,
+      },
+      mcpTools: 0,
+      localTools: 0,
+      remoteTools: 0,
+      connectedClients: 0,
+      remoteReady: false,
+      redisStatus: redisHealth.status,
+      redisReady: redisHealth.ready,
+      redisConfigured: redisHealth.configured,
+      redisRetryAfterMs: redisHealth.retryAfterMs,
+      timestamp: new Date().toISOString(),
+    });
   }
 });
 

@@ -42,7 +42,10 @@ export function correlationIdMiddleware(
   res.setHeader('x-request-id', cid);
 
   // Log request with correlation ID
-  logger.info(`[Request] ${req.method} ${req.path} [cid=${cid.substring(0, 8)}] ip=${req.ip}`);
+  const isHealthProbe = req.path === '/api/health' || req.path.startsWith('/api/health/');
+  if (!isHealthProbe) {
+    logger.info(`[Request] ${req.method} ${req.path} [cid=${cid.substring(0, 8)}] ip=${req.ip}`);
+  }
 
   next();
 }

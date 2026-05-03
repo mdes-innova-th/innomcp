@@ -166,6 +166,14 @@ const SYSTEM_PROMPT = `คุณเป็น AI ผู้ช่วยอัจ�
 
 **Validation**: Every character must be in Unicode Thai block (U+0E00 to U+0E7F) or common symbols`;
 
+export interface MCPToolInventory {
+  totalTools: number;
+  localTools: number;
+  remoteTools: number;
+  connectedClients: number;
+  remoteReady: boolean;
+}
+
 // ========================================
 // MAIN CLASS
 // ========================================
@@ -697,6 +705,8 @@ class IntelligentMCPClient extends EventEmitter {
     } else {
       this.startHealthCheck();
     }
+
+    this.emitReadinessState();
   }
 
   private async loadToolsFromClient(clientName: string, client: Client) {
@@ -2320,7 +2330,8 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
         }
 
         let finalArgs: any;
-        const preGeneratedArgs = preGeneratedArgsMap?.[toolName];
+        // Also check originalToolName (unqualified) in case caller used short form (e.g., "thai_law_tool" vs "innomcp-server:thai_law_tool")
+        const preGeneratedArgs = preGeneratedArgsMap?.[toolName] ?? preGeneratedArgsMap?.[originalToolName];
 
         const hasEmptyObjectSchema = (schema: any): boolean => {
           if (!schema || typeof schema !== "object") return true;
@@ -2362,6 +2373,14 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
 
         // Deterministic fallback for local Thai Knowledge route when fast arg generation fails.
         if (actualToolName === "thaiKnowledgeTool") {
+          const q = String(callArgs.query || "").trim();
+          if (!q) {
+            callArgs.query = String(userMessage || "").trim();
+          }
+        }
+
+        // Deterministic fallback for remote Thai domain tools (thai_law_tool, thai_history_tool, thai_religion_tool).
+        if (/^thai_(law|history|religion)_tool$/.test(actualToolName)) {
           const q = String(callArgs.query || "").trim();
           if (!q) {
             callArgs.query = String(userMessage || "").trim();
@@ -3171,6 +3190,35 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
   private cachedAvailableTools: MCPTool[] | null = null;
   private toolsCacheInvalidated: boolean = true;
 
+  private buildToolInventory(allTools: MCPTool[]): MCPToolInventory {
+    const localTools = allTools.filter((tool) => tool.name.startsWith("local-tools:")).length;
+    const totalTools = allTools.length;
+    const remoteTools = Math.max(0, totalTools - localTools);
+
+    return {
+      totalTools,
+      localTools,
+      remoteTools,
+      connectedClients: this.clients.size,
+      remoteReady: this.clients.size > 0 && remoteTools > 0,
+    };
+  }
+
+  private emitReadinessState() {
+    const inventory = this.getToolInventory();
+    if (inventory.remoteReady) {
+      this.emit("ready", inventory);
+      return;
+    }
+    if (inventory.totalTools > 0) {
+      this.emit("partialReady", inventory);
+    }
+  }
+
+  getToolInventory(): MCPToolInventory {
+    return this.buildToolInventory(Array.from(this.tools.values()));
+  }
+
   getAvailableTools(): MCPTool[] {
     // Return cached if valid
     if (!this.toolsCacheInvalidated && this.cachedAvailableTools) {
@@ -3432,18 +3480,19 @@ Parameters ที่จำเป็น: ${required.length > 0 ? required.join(",
         }
       }
 
-      const toolCount = this.getAvailableTools().length;
+      const inventory = this.getToolInventory();
       
-      if (toolCount > 0) {
+      if (inventory.remoteReady) {
         this.reconnectAttempts = 0;
         this.reconnectBackoff = 5000;
         
         this.emit("reconnected", {
-          clients: this.clients.size,
-          tools: toolCount,
+          ...inventory,
           resources: this.resources.size,
         });
-        this.emit("ready");
+        this.emit("ready", inventory);
+      } else if (inventory.totalTools > 0) {
+        this.emit("partialReady", inventory);
       } else {
         // Increase backoff for next attempt
         this.reconnectBackoff = Math.min(
@@ -4639,9 +4688,6 @@ function InitMcpClient(
 
   mcpClient
     .initializeClients(configs)
-    .then(() => {
-      mcpClient.emit("ready");
-    })
     .catch((err) => {
       console.error("[MCP Client] Initialization error:", err);
       console.error("[MCP Client] Stack:", err.stack);

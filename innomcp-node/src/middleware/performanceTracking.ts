@@ -19,6 +19,7 @@ export function performanceTrackingMiddleware(
   const method = req.method;
   const path = req.path;
   const cid = (req as any).correlationId;
+  const isHealthProbe = path === '/api/health' || path.startsWith('/api/health/');
 
   // Track response finish
   res.on('finish', () => {
@@ -45,12 +46,14 @@ export function performanceTrackingMiddleware(
     }
 
     // Debug logging for all requests
-    logger.debug('[Performance] Request completed', {
-      endpoint,
-      duration,
-      statusCode,
-      cid: cid?.substring(0, 8)
-    });
+    if (!isHealthProbe) {
+      logger.debug('[Performance] Request completed', {
+        endpoint,
+        duration,
+        statusCode,
+        cid: cid?.substring(0, 8)
+      });
+    }
   });
 
   next();

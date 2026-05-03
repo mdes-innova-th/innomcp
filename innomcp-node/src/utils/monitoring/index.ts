@@ -8,8 +8,8 @@
 
 import axios from 'axios';
 import { logBoth } from '../mcpLogger';
-import { getRedisClient } from '../redis';
-import { connectWithRetry } from '../db';
+import { getRedisClient, getRedisHealthSnapshot } from '../redis';
+import { pingDatabase } from '../db';
 
 /**
  * Service health status
@@ -52,9 +52,101 @@ interface HealthCheckConfig {
   method?: 'GET' | 'POST' | 'HEAD';
   timeout?: number;
   expectedStatus?: number;
+  acceptableStatuses?: number[];
+  headers?: Record<string, string>;
   validateResponse?: (data: any) => boolean;
   /** When false, this service's failure causes DEGRADED (not UNHEALTHY) overall. Default: true */
   critical?: boolean;
+}
+
+interface SearchProviderProbe {
+  provider: string;
+  url: string;
+  headers?: Record<string, string>;
+  expectedStatus: number;
+  acceptableStatuses?: number[];
+  timeout?: number;
+  validateResponse?: (data: any) => boolean;
+}
+
+interface TmdHealthProbe {
+  endpoint: string;
+  url: string;
+  expectedStatus: number;
+  timeout: number;
+  validateResponse?: (data: any) => boolean;
+}
+
+function hasConfiguredTmdApiCredentials(): boolean {
+  const uid = String(process.env.TMD_UID_API || process.env.TMD_UID || '').trim();
+  const ukey = String(process.env.TMD_UKEY_API || process.env.TMD_UKEY || '').trim();
+  return Boolean(uid && ukey && !(uid === 'demo' && ukey === 'demo'));
+}
+
+function getTmdHealthProbe(): TmdHealthProbe | null {
+  const uid = String(process.env.TMD_UID_API || process.env.TMD_UID || '').trim();
+  const ukey = String(process.env.TMD_UKEY_API || process.env.TMD_UKEY || '').trim();
+  if (!uid || !ukey) {
+    return null;
+  }
+
+  const url = new URL('https://data.tmd.go.th/api/WeatherWarningNews/v2/');
+  url.searchParams.set('uid', uid);
+  url.searchParams.set('ukey', ukey);
+  url.searchParams.set('format', 'json');
+
+  return {
+    endpoint: 'WeatherWarningNews/v2',
+    url: url.toString(),
+    expectedStatus: 200,
+    timeout: 10000,
+    validateResponse: (data) => Boolean(data?.header?.title),
+  };
+}
+
+function getSearchProviderProbe(): SearchProviderProbe {
+  const googleApiKey = String(process.env.GOOGLE_SEARCH_API_KEY || '').trim();
+  const googleCx = String(process.env.GOOGLE_SEARCH_CX || '').trim();
+  if (googleApiKey && googleCx) {
+    return {
+      provider: 'google-custom-search',
+      url: `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleCx}&q=health&num=1`,
+      expectedStatus: 200,
+      validateResponse: (data) => typeof data?.searchInformation?.totalResults === 'string' || Array.isArray(data?.items),
+    };
+  }
+
+  const serpApiKey = String(process.env.SERPAPI_API_KEY || '').trim();
+  if (serpApiKey) {
+    return {
+      provider: 'serpapi',
+      url: `https://serpapi.com/search?engine=google&q=health&api_key=${serpApiKey}&num=1`,
+      expectedStatus: 200,
+      validateResponse: (data) => Array.isArray(data?.organic_results),
+    };
+  }
+
+  const braveApiKey = String(process.env.BRAVE_SEARCH_API_KEY || '').trim();
+  if (braveApiKey) {
+    return {
+      provider: 'brave-search',
+      url: 'https://api.search.brave.com/res/v1/web/search?q=health&count=1',
+      headers: {
+        'X-Subscription-Token': braveApiKey,
+      },
+      expectedStatus: 200,
+      validateResponse: (data) => Array.isArray(data?.web?.results),
+    };
+  }
+
+  return {
+    provider: 'duckduckgo-public',
+    url: 'https://api.duckduckgo.com/?q=thailand&format=json&no_redirect=1&no_html=1',
+    expectedStatus: 200,
+    acceptableStatuses: [200, 202],
+    timeout: 5000,
+    validateResponse: (data) => typeof data?.Abstract === 'string' || Array.isArray(data?.RelatedTopics),
+  };
 }
 
 /**
@@ -64,26 +156,26 @@ interface HealthCheckConfig {
 const HEALTH_CHECKS: HealthCheckConfig[] = [
   {
     name: 'Weather API (TMD)',
-    url: 'https://data.tmd.go.th/api/Weather3Hours/v1/',
+    url: 'https://data.tmd.go.th/api/WeatherWarningNews/v2/',
     method: 'GET',
-    timeout: 5000,
-    expectedStatus: 401, // API ต้องการ token, 401 แสดงว่าเซิร์ฟเวอร์ทำงาน
+    timeout: 10000,
+    expectedStatus: 200,
     critical: false,
   },
   {
     name: 'Open-Meteo API',
     url: 'https://api.open-meteo.com/v1/forecast?latitude=13.75&longitude=100.50&current=temperature_2m',
     method: 'GET',
-    timeout: 5000,
+    timeout: 3000,
     expectedStatus: 200,
     validateResponse: (data) => data?.current?.temperature_2m !== undefined,
     critical: false,
   },
   {
     name: 'OpenSearch (Thai Gov)',
-    url: 'https://search.thaigov.go.th/apis/suggestion?q=test',
+    url: 'https://api.search.brave.com/res/v1/web/search?q=health&count=1',
     method: 'GET',
-    timeout: 5000,
+    timeout: 3000,
     expectedStatus: 200,
     critical: false,
   },
@@ -123,7 +215,7 @@ const startTime = Date.now();
  * Cache for health check results
  */
 const healthCache = new Map<string, HealthCheckResult>();
-const CACHE_TTL = 60000; // 1 minute
+const CACHE_TTL = 300000; // 5 minutes
 
 /**
  * Perform health check on a single service
@@ -132,22 +224,77 @@ async function checkService(config: HealthCheckConfig): Promise<HealthCheckResul
   const startCheck = Date.now();
   
   try {
+    if (config.name === 'Weather API (TMD)' && !hasConfiguredTmdApiCredentials()) {
+      return {
+        service: config.name,
+        status: HealthStatus.UNKNOWN,
+        responseTime: Date.now() - startCheck,
+        lastCheck: new Date().toISOString(),
+        message: 'TMD API credentials not configured',
+      };
+    }
+
+    let requestConfig = config;
+    let requestDetails: Record<string, unknown> | undefined;
+
+    if (config.name === 'Weather API (TMD)') {
+      const probe = getTmdHealthProbe();
+      if (!probe) {
+        return {
+          service: config.name,
+          status: HealthStatus.UNKNOWN,
+          responseTime: Date.now() - startCheck,
+          lastCheck: new Date().toISOString(),
+          message: 'TMD API credentials not configured',
+        };
+      }
+
+      requestConfig = {
+        ...config,
+        url: probe.url,
+        timeout: probe.timeout,
+        expectedStatus: probe.expectedStatus,
+        validateResponse: probe.validateResponse,
+      };
+      requestDetails = {
+        endpoint: probe.endpoint,
+      };
+    }
+
+    if (config.name === 'OpenSearch (Thai Gov)') {
+      const probe = getSearchProviderProbe();
+
+      requestConfig = {
+        ...config,
+        url: probe.url,
+        headers: probe.headers,
+        expectedStatus: probe.expectedStatus,
+        acceptableStatuses: probe.acceptableStatuses,
+        timeout: probe.timeout || config.timeout,
+        validateResponse: probe.validateResponse,
+      };
+      requestDetails = { provider: probe.provider };
+    }
+
     // Check if service is HTTP-based
-    if (config.url.startsWith('http://') || config.url.startsWith('https://')) {
+    if (requestConfig.url.startsWith('http://') || requestConfig.url.startsWith('https://')) {
       const response = await axios({
-        method: config.method || 'GET',
-        url: config.url,
-        timeout: config.timeout || 5000,
+        method: requestConfig.method || 'GET',
+        url: requestConfig.url,
+        timeout: requestConfig.timeout || 5000,
+        headers: requestConfig.headers,
         validateStatus: () => true, // Accept any status
       });
       
       const responseTime = Date.now() - startCheck;
-      const expectedStatus = config.expectedStatus || 200;
-      const statusMatches = response.status === expectedStatus;
+      const expectedStatuses = requestConfig.acceptableStatuses?.length
+        ? requestConfig.acceptableStatuses
+        : [requestConfig.expectedStatus || 200];
+      const statusMatches = expectedStatuses.includes(response.status);
       
       let validResponse = true;
-      if (config.validateResponse && response.data) {
-        validResponse = config.validateResponse(response.data);
+      if (requestConfig.validateResponse && response.data) {
+        validResponse = requestConfig.validateResponse(response.data);
       }
       
       const isHealthy = statusMatches && validResponse;
@@ -159,6 +306,7 @@ async function checkService(config: HealthCheckConfig): Promise<HealthCheckResul
         lastCheck: new Date().toISOString(),
         message: isHealthy ? 'OK' : `Unexpected status: ${response.status}`,
         details: {
+          ...requestDetails,
           status: response.status,
           statusText: response.statusText,
         },
@@ -168,33 +316,36 @@ async function checkService(config: HealthCheckConfig): Promise<HealthCheckResul
     // Redis health check
     if (config.name === 'Redis') {
       try {
-        const redis = await getRedisClient();
-        const pong = await redis.ping();
-        const responseTime = Date.now() - startCheck;
-        return {
-          service: config.name,
-          status: pong === 'PONG' ? HealthStatus.HEALTHY : HealthStatus.DEGRADED,
-          responseTime,
-          lastCheck: new Date().toISOString(),
-          message: pong === 'PONG' ? 'OK' : `Unexpected ping response: ${pong}`,
-        };
-      } catch (redisErr: any) {
-        return {
-          service: config.name,
-          status: HealthStatus.UNHEALTHY,
-          responseTime: Date.now() - startCheck,
-          lastCheck: new Date().toISOString(),
-          message: redisErr.message || 'Redis ping failed',
-        };
+        const redisClient = await getRedisClient();
+        await redisClient.ping();
+      } catch {
+        // Fall through to the passive snapshot below so cooldown/disconnected states remain visible.
       }
+
+      const redisHealth = getRedisHealthSnapshot();
+      const responseTime = Date.now() - startCheck;
+      const status = !redisHealth.configured
+        ? HealthStatus.UNKNOWN
+        : redisHealth.ready
+        ? HealthStatus.HEALTHY
+        : redisHealth.status === 'connecting' || redisHealth.status === 'reconnecting' || redisHealth.status === 'cooldown'
+        ? HealthStatus.DEGRADED
+        : HealthStatus.UNHEALTHY;
+
+      return {
+        service: config.name,
+        status,
+        responseTime,
+        lastCheck: new Date().toISOString(),
+        message: !redisHealth.configured ? 'Redis not configured' : redisHealth.status,
+        details: redisHealth,
+      };
     }
 
     // Database health check
     if (config.name === 'Database') {
-      let conn: any;
       try {
-        conn = await connectWithRetry(1);
-        await conn.query('SELECT 1');
+        await pingDatabase();
         const responseTime = Date.now() - startCheck;
         return {
           service: config.name,
@@ -209,10 +360,8 @@ async function checkService(config: HealthCheckConfig): Promise<HealthCheckResul
           status: HealthStatus.UNHEALTHY,
           responseTime: Date.now() - startCheck,
           lastCheck: new Date().toISOString(),
-          message: dbErr.message || 'DB query failed',
+          message: dbErr.message || 'DB ping failed',
         };
-      } finally {
-        if (conn) { try { await conn.end(); } catch (_) {} }
       }
     }
 
@@ -259,23 +408,20 @@ function getCachedResult(serviceName: string): HealthCheckResult | null {
  * Check health of all services
  */
 export async function checkAllServices(useCache = true): Promise<SystemHealth> {
-  const results: HealthCheckResult[] = [];
-  
-  for (const config of HEALTH_CHECKS) {
-    // Try to get cached result
-    if (useCache) {
-      const cached = getCachedResult(config.name);
-      if (cached) {
-        results.push(cached);
-        continue;
+  const results = await Promise.all(
+    HEALTH_CHECKS.map(async (config) => {
+      if (useCache) {
+        const cached = getCachedResult(config.name);
+        if (cached) {
+          return cached;
+        }
       }
-    }
-    
-    // Perform health check
-    const result = await checkService(config);
-    healthCache.set(config.name, result);
-    results.push(result);
-  }
+
+      const result = await checkService(config);
+      healthCache.set(config.name, result);
+      return result;
+    })
+  );
   
   // Determine overall status
   // Critical services failing → UNHEALTHY; optional services failing → DEGRADED only

@@ -4,7 +4,7 @@
  * Uses Redis for storage, in-memory fallback
  */
 
-import { redisClient } from '../utils/redis';
+import { getReadyRedisClient } from '../utils/redis';
 import logger from '../utils/logger';
 
 const METRICS_KEY_PREFIX = 'metrics:lat:';
@@ -30,13 +30,14 @@ export interface LatencyStats {
 export async function recordLatency(name: string, durationMs: number): Promise<void> {
   const key = `${METRICS_KEY_PREFIX}${name}:${getCurrentDateKey()}`;
   const value = String(Math.round(durationMs));
+  const redis = getReadyRedisClient();
 
   // Try Redis first
   try {
-    if (redisClient) {
-      await redisClient.lpush(key, value);
-      await redisClient.ltrim(key, 0, MAX_SAMPLES - 1);
-      await redisClient.expire(key, RETENTION_DAYS * 24 * 3600);
+    if (redis) {
+      await redis.lpush(key, value);
+      await redis.ltrim(key, 0, MAX_SAMPLES - 1);
+      await redis.expire(key, RETENTION_DAYS * 24 * 3600);
       return;
     }
   } catch (err) {
@@ -61,11 +62,12 @@ export async function recordLatency(name: string, durationMs: number): Promise<v
  */
 export async function getLatencyStats(name: string): Promise<LatencyStats | null> {
   const key = `${METRICS_KEY_PREFIX}${name}:${getCurrentDateKey()}`;
+  const redis = getReadyRedisClient();
 
   // Try Redis first
   try {
-    if (redisClient) {
-      const values = await redisClient.lrange(key, 0, -1);
+    if (redis) {
+      const values = await redis.lrange(key, 0, -1);
       
       if (values.length === 0) return null;
       
@@ -89,12 +91,13 @@ export async function getLatencyStats(name: string): Promise<LatencyStats | null
 export async function getAllMetrics(): Promise<Record<string, LatencyStats>> {
   const dateKey = getCurrentDateKey();
   const result: Record<string, LatencyStats> = {};
+  const redis = getReadyRedisClient();
 
   // Try Redis first
   try {
-    if (redisClient) {
+    if (redis) {
       const pattern = `${METRICS_KEY_PREFIX}*:${dateKey}`;
-      const keys = await redisClient.keys(pattern);
+      const keys = await redis.keys(pattern);
       
       for (const key of keys) {
         const name = key.replace(`${METRICS_KEY_PREFIX}`, '').replace(`:${dateKey}`, '');
@@ -128,10 +131,11 @@ export async function getAllMetrics(): Promise<Record<string, LatencyStats>> {
  */
 export async function clearMetrics(name: string): Promise<void> {
   const key = `${METRICS_KEY_PREFIX}${name}:${getCurrentDateKey()}`;
+  const redis = getReadyRedisClient();
 
   try {
-    if (redisClient) {
-      await redisClient.del(key);
+    if (redis) {
+      await redis.del(key);
     }
   } catch (err) {
     logger.warn('[Metrics] Redis del failed', { name, error: String(err) });
@@ -192,5 +196,6 @@ export function cleanupOldMetrics(): void {
   }
 }
 
-// Cleanup every hour
-setInterval(cleanupOldMetrics, 3600_000);
+// Cleanup every hour without keeping Node alive just for housekeeping.
+const cleanupInterval = setInterval(cleanupOldMetrics, 3600_000);
+cleanupInterval.unref?.();

@@ -71,7 +71,10 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // Debug logging middleware
 app.use((req, res, next) => {
-  logger.info(`[REQUEST] ${req.method} ${req.url} from ${req.headers.origin || 'no-origin'}`);
+  const isHealthProbe = req.path === "/api/health" || req.path.startsWith("/api/health/");
+  if (!isHealthProbe) {
+    logger.info(`[REQUEST] ${req.method} ${req.url} from ${req.headers.origin || 'no-origin'}`);
+  }
   next();
 });
 

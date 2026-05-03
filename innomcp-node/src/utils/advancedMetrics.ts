@@ -3,7 +3,7 @@
  * Stores latency data in Redis for real-time analytics
  */
 
-import { redisClient } from './redis';
+import { getReadyRedisClient } from './redis';
 import logger from './logger';
 
 interface LatencyRecord {
@@ -27,12 +27,13 @@ export async function recordToolLatency(
   try {
     const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     const key = `metrics:tool:${toolName}:${today}`;
+    const redis = getReadyRedisClient();
     
-    if (redisClient) {
+    if (redis) {
       // Store as list (for percentile calculations)
-      await redisClient.lpush(key, String(latencyMs));
-      await redisClient.ltrim(key, 0, MAX_RECORDS_PER_KEY - 1);
-      await redisClient.expire(key, METRICS_TTL);
+      await redis.lpush(key, String(latencyMs));
+      await redis.ltrim(key, 0, MAX_RECORDS_PER_KEY - 1);
+      await redis.expire(key, METRICS_TTL);
       
       logger.debug(`[Metrics] Tool latency recorded: ${toolName} = ${latencyMs}ms`);
     } else {
@@ -54,11 +55,12 @@ export async function recordEndpointLatency(
   try {
     const today = new Date().toISOString().slice(0, 10);
     const key = `metrics:endpoint:${endpoint}:${today}`;
+    const redis = getReadyRedisClient();
     
-    if (redisClient) {
-      await redisClient.lpush(key, String(latencyMs));
-      await redisClient.ltrim(key, 0, MAX_RECORDS_PER_KEY - 1);
-      await redisClient.expire(key, METRICS_TTL);
+    if (redis) {
+      await redis.lpush(key, String(latencyMs));
+      await redis.ltrim(key, 0, MAX_RECORDS_PER_KEY - 1);
+      await redis.expire(key, METRICS_TTL);
       
       logger.debug(`[Metrics] Endpoint latency recorded: ${endpoint} = ${latencyMs}ms`);
     }
@@ -104,9 +106,10 @@ export async function getToolLatencyStats(
   days = 1
 ): Promise<ReturnType<typeof calculatePercentiles>> {
   const allValues: number[] = [];
+  const redis = getReadyRedisClient();
   
   try {
-    if (!redisClient) {
+    if (!redis) {
       return { p50: 0, p95: 0, p99: 0, min: 0, max: 0, avg: 0, count: 0 };
     }
     
@@ -117,7 +120,7 @@ export async function getToolLatencyStats(
       const dateStr = date.toISOString().slice(0, 10);
       const key = `metrics:tool:${toolName}:${dateStr}`;
       
-      const values = await redisClient.lrange(key, 0, -1);
+      const values = await redis.lrange(key, 0, -1);
       allValues.push(...values.map(v => parseInt(v, 10)).filter(v => !isNaN(v)));
     }
     
@@ -136,9 +139,10 @@ export async function getEndpointLatencyStats(
   days = 1
 ): Promise<ReturnType<typeof calculatePercentiles>> {
   const allValues: number[] = [];
+  const redis = getReadyRedisClient();
   
   try {
-    if (!redisClient) {
+    if (!redis) {
       return { p50: 0, p95: 0, p99: 0, min: 0, max: 0, avg: 0, count: 0 };
     }
     
@@ -148,7 +152,7 @@ export async function getEndpointLatencyStats(
       const dateStr = date.toISOString().slice(0, 10);
       const key = `metrics:endpoint:${endpoint}:${dateStr}`;
       
-      const values = await redisClient.lrange(key, 0, -1);
+      const values = await redis.lrange(key, 0, -1);
       allValues.push(...values.map(v => parseInt(v, 10)).filter(v => !isNaN(v)));
     }
     
@@ -166,15 +170,16 @@ export async function getAllToolsLatencyStats(
   days = 1
 ): Promise<Record<string, ReturnType<typeof calculatePercentiles>>> {
   const stats: Record<string, ReturnType<typeof calculatePercentiles>> = {};
+  const redis = getReadyRedisClient();
   
   try {
-    if (!redisClient) {
+    if (!redis) {
       return stats;
     }
     
     // Get all tool metric keys
     const pattern = `metrics:tool:*:${new Date().toISOString().slice(0, 10)}`;
-    const keys = await redisClient.keys(pattern);
+    const keys = await redis.keys(pattern);
     
     // Extract unique tool names
     const toolNames = new Set<string>();

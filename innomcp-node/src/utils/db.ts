@@ -1,11 +1,41 @@
-import mysql, { Connection } from "mysql2/promise";
+import mysql, { Connection, Pool } from "mysql2/promise";
 import "dotenv/config";
 
 // กำหนดค่าการลองใหม่สำหรับการเชื่อมต่อฐานข้อมูล
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 วินาที
 const RETRY_LOG_COOLDOWN_MS = 15000;
+const SUCCESS_LOG_COOLDOWN_MS = 60000;
+const DB_CONNECT_TIMEOUT_MS = 10000;
 let lastRetryLogAt = 0;
+let lastSuccessLogAt = 0;
+let dbHealthPool: Pool | null = null;
+
+function buildDbConfig() {
+  return {
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT),
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    connectTimeout: DB_CONNECT_TIMEOUT_MS,
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
+  };
+}
+
+function getDbHealthPool(): Pool {
+  if (!dbHealthPool) {
+    dbHealthPool = mysql.createPool({
+      ...buildDbConfig(),
+      waitForConnections: true,
+      connectionLimit: 2,
+      queueLimit: 0,
+    });
+  }
+
+  return dbHealthPool;
+}
 
 // ฟังก์ชันดำเนินการกับฐานข้อมูลและจัดการการเชื่อมต่อ
 export async function withDbConnection<T>(
@@ -36,20 +66,17 @@ export async function connectWithRetry(
 ): Promise<Connection> {
   try {
     const connection = await mysql.createConnection({
-      host: process.env.DB_HOST,
-      port: Number(process.env.DB_PORT),
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      connectTimeout: 10000, // 10 วินาที
+      ...buildDbConfig(),
       connectionLimit: 10,
-      enableKeepAlive: true,
-      keepAliveInitialDelay: 10000,
     });
 
     // ทดสอบการเชื่อมต่อ
     await connection.ping();
-    console.log("[db-connectWithRetry] Database connection successful");
+    const now = Date.now();
+    if (now - lastSuccessLogAt > SUCCESS_LOG_COOLDOWN_MS) {
+      lastSuccessLogAt = now;
+      console.log("[db-connectWithRetry] Database connection successful");
+    }
     return connection;
   } catch (error: any) {
     const code = String(error?.code || "").toUpperCase();
@@ -88,5 +115,16 @@ export async function connectWithRetry(
     }
     console.error("Database connection failed after maximum retries");
     throw error;
+  }
+}
+
+export async function pingDatabase(): Promise<void> {
+  const pool = getDbHealthPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.ping();
+  } finally {
+    connection.release();
   }
 }
