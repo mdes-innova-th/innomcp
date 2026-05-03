@@ -198,4 +198,71 @@ test("TC-08: /api/health returns valid JSON without 502/401 errors", async ({ pa
   const json = await response.json();
   expect(json).toHaveProperty("status");
   expect(json).toHaveProperty("service", "innomcp-next");
+  expect(json).toHaveProperty("mode");
+  expect(json).toHaveProperty("mode_ready");
+  expect(json).toHaveProperty("mcp_status");
+  expect(json).toHaveProperty("redis_status");
+  expect(json).toHaveProperty("redis_ready");
+  expect(json).toHaveProperty("redis_configured");
+  expect(json).toHaveProperty("redis_retry_after_ms");
+});
+
+test("TC-09: ModeStatusBar shows limited readiness when only local tools are available", async ({ page }) => {
+  await page.route("**/api/health", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "degraded",
+        service: "innomcp-next",
+        mode: "online",
+        mode_ready: false,
+        ai_mode: "local",
+        mcp_status: "local-only",
+        redis_status: "disconnected",
+        redis_ready: false,
+        redis_configured: true,
+        redis_retry_after_ms: 0,
+        local_tools: 4,
+        remote_tools: 0,
+        total_tools: 4,
+        notes: ["remote_mcp_unavailable"],
+      }),
+    });
+  });
+
+  await navigateToChat(page);
+  await expect(page.locator('[data-testid="mode-status-bar"]')).toBeVisible();
+  await expect(page.locator('[data-testid="mcp-badge"]')).toHaveCount(1);
+  await expect(page.locator('[data-testid="mcp-badge"]')).toContainText("เฉพาะในเครื่อง");
+  await expect(page.locator('[data-testid="mode-summary"]')).toContainText("ระบบออนไลน์แบบจำกัดความสามารถ");
+});
+
+test("TC-10: Evidence placeholder renders unavailable state instead of zero-data dashboard", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      "chatMessages",
+      JSON.stringify([
+        {
+          sender: "ai",
+          text: "สรุปหลักฐานเบื้องต้น: ขณะนี้ยังไม่มีข้อมูลจากคลังหลักฐาน (โหมดสำรอง)",
+          structuredContent: {
+            __render: { route: "evidence" },
+            ok: false,
+            code: "EVIDENCE_PLACEHOLDER",
+            message: "ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน",
+            meta: { dataSource: "placeholder", note: "detect-evidence-api not available" },
+            kpis: { total: 0 },
+            table: { rows: [] },
+            stats: { total: 0 },
+          },
+        },
+      ])
+    );
+  });
+
+  await navigateToChat(page);
+  await expect(page.locator('[data-testid="evidence-unavailable-state"]')).toBeVisible();
+  await expect(page.locator('[data-testid="evidence-unavailable-state"]')).toContainText("ข้อมูลจากคลังหลักฐานยังไม่พร้อมใช้งาน");
+  await expect(page.locator('[data-testid="evidence-kpi-total"]')).toHaveCount(0);
 });

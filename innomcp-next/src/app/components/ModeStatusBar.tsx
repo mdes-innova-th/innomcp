@@ -11,8 +11,103 @@ type HealthPayload = {
   /** AI mode from backend (local LLM vs remote Anthropic) */
   ai_mode?: "local" | "remote";
   /** MCP server connectivity */
-  mcp_status?: "connected" | "disconnected" | "unknown";
+  mcp_status?: "connected" | "local-only" | "disconnected" | "unknown";
+  local_tools?: number;
+  remote_tools?: number;
+  total_tools?: number;
 };
+
+const HEALTH_CACHE_KEY = "innomcp-health-cache:v1";
+const HEALTH_CACHE_TTL_MS = 60_000;
+const HEALTH_POLL_INTERVAL_MS = 60_000;
+
+type CachedHealthSnapshot = {
+  savedAt: number;
+  payload: HealthPayload;
+};
+
+let inMemoryHealthCache: CachedHealthSnapshot | null = null;
+let pendingHealthPayloadRequest: Promise<HealthPayload> | null = null;
+
+function isFreshHealthSnapshot(snapshot: CachedHealthSnapshot | null): snapshot is CachedHealthSnapshot {
+  return Boolean(snapshot && Date.now() - snapshot.savedAt <= HEALTH_CACHE_TTL_MS);
+}
+
+function readCachedHealthSnapshot(): CachedHealthSnapshot | null {
+  if (isFreshHealthSnapshot(inMemoryHealthCache)) {
+    return inMemoryHealthCache;
+  }
+
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = sessionStorage.getItem(HEALTH_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as CachedHealthSnapshot;
+    if (!parsed?.payload || typeof parsed.savedAt !== "number") return null;
+    if (!isFreshHealthSnapshot(parsed)) {
+      sessionStorage.removeItem(HEALTH_CACHE_KEY);
+      return null;
+    }
+    inMemoryHealthCache = parsed;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function readCachedHealthPayload(): HealthPayload | null {
+  return readCachedHealthSnapshot()?.payload ?? null;
+}
+
+function writeCachedHealthPayload(payload: HealthPayload): void {
+  const snapshot = {
+    savedAt: Date.now(),
+    payload,
+  } satisfies CachedHealthSnapshot;
+  inMemoryHealthCache = snapshot;
+
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    sessionStorage.setItem(
+      HEALTH_CACHE_KEY,
+      JSON.stringify(snapshot)
+    );
+  } catch {
+    // Ignore cache write issues.
+  }
+}
+
+async function requestHealthPayload(force = false): Promise<HealthPayload> {
+  if (!force) {
+    const cached = readCachedHealthPayload();
+    if (cached) {
+      return cached;
+    }
+  }
+
+  if (pendingHealthPayloadRequest) {
+    return pendingHealthPayloadRequest;
+  }
+
+  pendingHealthPayloadRequest = fetch("/api/health", { cache: "no-store" })
+    .then(async (response) => {
+      const json = (await response.json()) as HealthPayload;
+      writeCachedHealthPayload(json);
+      return json;
+    })
+    .catch(() => ({ mode: "offline", mode_ready: false, notes: ["cannot reach health endpoint"] } satisfies HealthPayload))
+    .finally(() => {
+      pendingHealthPayloadRequest = null;
+    });
+
+  return pendingHealthPayloadRequest;
+}
 
 export default function ModeStatusBar() {
   const [data, setData] = useState<HealthPayload | null>(null);
@@ -24,146 +119,163 @@ export default function ModeStatusBar() {
   useEffect(() => {
     let active = true;
 
-    const load = async () => {
+    const applyPayload = (json: HealthPayload) => {
+      if (!active) return;
+      setData(json);
+      setLoading(false);
+    };
+
+    const load = async (force = false) => {
       try {
-        const response = await fetch("/api/health", { cache: "no-store" });
-        const json = (await response.json()) as HealthPayload;
-        if (!active) return;
-        setData(json);
+        const json = await requestHealthPayload(force);
+        applyPayload(json);
       } catch {
-        if (!active) return;
-        setData({ mode: "offline", mode_ready: false, notes: ["cannot reach health endpoint"] });
-      } finally {
-        if (active) setLoading(false);
+        applyPayload({ mode: "offline", mode_ready: false, notes: ["cannot reach health endpoint"] });
       }
     };
 
-    load();
-    const id = setInterval(load, 20000);
+    void load();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void load();
+      }
+    };
+
+    const handleFocus = () => {
+      void load();
+    };
+
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void load();
+      }
+    }, HEALTH_POLL_INTERVAL_MS);
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
     return () => {
       active = false;
       clearInterval(id);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
     };
   }, []);
 
   const mode = data?.mode === "online" ? "online" : "offline";
   const modeReady = Boolean(data?.mode_ready);
   const missing = data?.missing_keys || [];
+  const notes = data?.notes || [];
   const warning = mode === "online" && !modeReady;
   const aiMode = data?.ai_mode;
   const mcpStatus = data?.mcp_status;
+  const localTools = Number(data?.local_tools || 0);
+  const remoteTools = Number(data?.remote_tools || 0);
+
+  const barToneClasses = useMemo(() => {
+    if (loading) {
+      return "border-border/60 bg-background/92 text-foreground shadow-[0_10px_26px_oklch(0_0_0/0.04)] dark:bg-background/88";
+    }
+    if (mode === "offline") {
+      return "border-slate-200/80 bg-slate-50/94 text-slate-800 shadow-[0_10px_26px_oklch(0_0_0/0.04)] dark:border-slate-700/70 dark:bg-slate-950/72 dark:text-slate-200";
+    }
+    if (warning) {
+      return "border-amber-200/70 bg-amber-50/92 text-amber-900 shadow-[0_10px_26px_oklch(0_0_0/0.04)] dark:border-amber-900/30 dark:bg-amber-950/78 dark:text-amber-200";
+    }
+    return "border-emerald-200/70 bg-background/92 text-foreground shadow-[0_10px_26px_oklch(0_0_0/0.04)] dark:border-emerald-900/30 dark:bg-background/88";
+  }, [loading, mode, warning]);
+
+  const summaryClassName = warning
+    ? "text-amber-800 dark:text-amber-300"
+    : mode === "offline"
+    ? "text-slate-700 dark:text-slate-200"
+    : "text-foreground/80 dark:text-foreground/80";
 
   const summary = useMemo(() => {
     if (loading) return "กำลังตรวจสอบระบบ...";
-    if (warning) return `ยังขาด key: ${missing.join(", ") || "ไม่ทราบ"}`;
-    return mode === "offline" ? "โหมดออฟไลน์: ปิดการเรียก API ภายนอก" : "โหมดออนไลน์พร้อมใช้งาน";
-  }, [loading, warning, missing, mode]);
+    if (mode === "offline") return "โหมดออฟไลน์: ปิดการเรียก API ภายนอก";
+    if (warning) {
+      if (missing.length > 0) return `ยังขาด key: ${missing.join(", ")}`;
+      if (mcpStatus === "local-only") {
+        return `ระบบออนไลน์แบบจำกัดความสามารถ: ในเครื่อง ${localTools} เครื่องมือ, ภายนอก ${remoteTools} เครื่องมือ`;
+      }
+      if (notes.includes("remote_mcp_unavailable")) return "ระบบออนไลน์ แต่ MCP ภายนอกยังไม่พร้อม";
+      return "ระบบออนไลน์ แต่บางความสามารถยังไม่พร้อม";
+    }
+    return "ระบบออนไลน์พร้อมใช้งาน";
+  }, [loading, mode, warning, missing, mcpStatus, localTools, remoteTools, notes]);
 
-  // ── AI mode badge ──
-  const aiBadge = useMemo(() => {
-    if (!aiMode) return null;
-    const isLocal = aiMode === "local";
+  // ── Compact role marker (admins only — regular users get the implicit "online" pill)
+  const roleMark = useMemo(() => {
+    if (isGuestMode || userRoleId === null || userRoleId !== 0) return null;
     return (
       <span
-        title={isLocal ? "ใช้ Local LLM (Ollama)" : "ใช้ Remote LLM (Anthropic Claude)"}
-        className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${
-          isLocal
-            ? "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300"
-            : "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
-        }`}
+        title="Admin"
+        className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-1.5 py-0.5 text-[10.5px] font-medium text-amber-800 dark:bg-amber-900/35 dark:text-amber-200"
       >
-        {isLocal ? (
-          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="2" y="3" width="20" height="14" rx="2" />
-            <path d="M8 21h8M12 17v4" />
-          </svg>
-        ) : (
-          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
-          </svg>
-        )}
-        AI: {isLocal ? "Local" : "Remote"}
-      </span>
-    );
-  }, [aiMode]);
-
-  // ── User role badge ──
-  const roleBadge = useMemo(() => {
-    if (isGuestMode || userRoleId === null)
-      return (
-        <span title="Guest — ล็อกอินเพื่อใช้งานเต็ม" className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-          👤 Guest
-        </span>
-      );
-    if (userRoleId === 0)
-      return (
-        <span title="Admin" className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-amber-200 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
-          👑 Admin
-        </span>
-      );
-    return (
-      <span title="Logged in user" className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300">
-        ✅ User
+        👑 Admin
       </span>
     );
   }, [isGuestMode, userRoleId]);
 
-  // ── MCP server status badge ──
-  const mcpBadge = useMemo(() => {
-    if (!mcpStatus) return null;
-    const ok = mcpStatus === "connected";
-    return (
-      <span
-        title={ok ? "MCP Server เชื่อมต่อแล้ว" : "MCP Server ไม่ตอบสนอง"}
-        className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium ${
-          ok
-            ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-            : "bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300"
-        }`}
-      >
-        <span className={`h-2 w-2 rounded-full ${ok ? "bg-emerald-500" : "bg-red-500"}`} />
-        MCP: {ok ? "ออนไลน์" : "ออฟไลน์"}
-      </span>
-    );
-  }, [mcpStatus]);
+  const aiLabel = aiMode ? `AI ${aiMode === "local" ? "Local" : "Remote"}` : null;
+  const mcpLabel = mcpStatus
+    ? `MCP ${mcpStatus === "connected" ? "พร้อม" : mcpStatus === "local-only" ? "ในเครื่อง" : "ออฟไลน์"}`
+    : null;
+  const tooltip = [aiLabel, mcpLabel, summary].filter(Boolean).join(" · ");
+
+  const dotClass =
+    mode === "offline"
+      ? "bg-slate-400"
+      : warning
+      ? "bg-amber-500"
+      : "bg-emerald-500";
+
+  const stateLabel =
+    mode === "offline" ? "ออฟไลน์" : warning ? "จำกัด" : "ออนไลน์";
 
   return (
-    <div className="fixed top-16 left-0 right-0 z-40 border-b border-amber-200 bg-amber-50/95 text-amber-900 backdrop-blur-sm dark:border-amber-900/30 dark:bg-amber-950/80 dark:text-amber-200">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-2 px-4 py-1.5 text-xs sm:text-sm">
-        {/* INNOMCP_MODE badge */}
-        <span
-          className={`inline-flex items-center gap-1 rounded px-2 py-0.5 font-semibold ${
-            mode === "online"
-              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300"
-              : "bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300"
-          }`}
-        >
-          {mode === "online" ? (
-            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M5 12.55a11 11 0 0114.08 0M1.42 9a16 16 0 0121.16 0M8.53 16.11a6 6 0 016.95 0M12 20h.01" />
-            </svg>
-          ) : (
-            <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="1" y1="1" x2="23" y2="23" />
-              <path d="M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.56 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01" />
-            </svg>
-          )}
-          {mode === "online" ? "Online" : "Offline"}
+    <div data-testid="mode-status-bar" className={`fixed left-0 right-0 top-14 z-40 border-b backdrop-blur-md sm:top-16 ${barToneClasses}`}>
+      <div
+        className="mx-auto flex max-w-screen-2xl items-center gap-x-3 px-4 py-0.5 text-[11px] sm:px-5 lg:px-6"
+        title={tooltip}
+      >
+        <span className="inline-flex items-center gap-1.5 font-medium">
+          <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} aria-hidden="true" />
+          {stateLabel}
         </span>
 
-        {/* AI mode + MCP status + Role badges */}
-        {aiBadge}
-        {mcpBadge}
-        {roleBadge}
-        {mcpBadge}
+        {(aiLabel || mcpLabel) && (
+          <span className="hidden items-center gap-2 text-muted-foreground/80 sm:inline-flex">
+            {aiLabel && <span className="font-mono text-[10.5px]">{aiLabel}</span>}
+            {aiLabel && mcpLabel && <span className="text-muted-foreground/40">·</span>}
+            {mcpLabel && (
+              <span data-testid="mcp-badge" className="font-mono text-[10.5px]">
+                {mcpLabel}
+              </span>
+            )}
+          </span>
+        )}
 
-        {/* Status summary text */}
-        <span className="min-w-0 truncate text-amber-800 dark:text-amber-300">{summary}</span>
+        {/* Status summary — single neutral line, truncated */}
+        <span
+          data-testid="mode-summary"
+          className={`min-w-0 flex-1 truncate ${summaryClassName}`}
+        >
+          {summary}
+        </span>
+
+        {roleMark}
 
         {/* Warning when online but keys missing */}
         {warning ? (
-          <span className="ml-auto rounded bg-rose-100 px-2 py-0.5 font-medium text-rose-700 dark:bg-rose-900/40 dark:text-rose-300">
-            ตั้งค่า key ก่อนถึงจะใช้ฟีเจอร์จริงได้
+          <span className="hidden rounded-md bg-rose-100 px-1.5 py-0.5 font-medium text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 md:inline-flex">
+            {missing.length > 0
+              ? "ตั้งค่า key ก่อน"
+              : mcpStatus === "local-only"
+              ? "ใช้ได้เฉพาะ local"
+              : "บางบริการยังไม่พร้อม"}
           </span>
         ) : null}
       </div>

@@ -65,7 +65,14 @@ export default function EvidenceDashboard({ structuredContent }: Props) {
   const topIspCount = topIspCountRaw === null ? null : Number.isFinite(Number(topIspCountRaw)) ? Number(topIspCountRaw) : null;
   const hasIspData = !!(topIspName && topIspCount !== null && topIspCount > 0);
   const dataSource = safeStr(sc?.meta?.dataSource).toLowerCase();
-  const dataSourceLabel = (dataSource === "detectdb" || dataSource === "detect-api" || dataSource.includes("detect")) ? "REAL" : dataSource || "—";
+  const isRealDataSource = dataSource === "detectdb" || dataSource === "detect-api" || dataSource.includes("detect");
+  const isUnavailableState = !isRealDataSource || sc?.code === "EVIDENCE_PLACEHOLDER" || sc?.ok === false;
+  const dataSourceLabel = isRealDataSource ? "REAL" : "สำรอง";
+  const rawUnavailableMessage = safeStr(sc?.message);
+  const unavailableMessage = "ข้อมูลจากคลังหลักฐานยังไม่พร้อมใช้งานในขณะนี้";
+  const unavailableDetail = rawUnavailableMessage && rawUnavailableMessage !== unavailableMessage
+    ? rawUnavailableMessage
+    : "กำลังใช้โหมดสำรองชั่วคราวจนกว่าการเชื่อมต่อแหล่งข้อมูลหลักจะกลับมาปกติ";
 
   const rowsRaw = sc && typeof sc === "object" ? sc?.table?.rows : null;
   const rows: Array<{ isp: string; count: number }> = Array.isArray(rowsRaw)
@@ -106,6 +113,27 @@ export default function EvidenceDashboard({ structuredContent }: Props) {
     setSortBy(nextBy);
     setSortDir(nextBy === "isp" ? "asc" : "desc");
   };
+
+  if (isUnavailableState) {
+    return (
+      <div
+        data-testid="evidence-unavailable-state"
+        className="mb-3 rounded-lg border border-amber-400/40 bg-amber-50/70 p-3 dark:border-amber-400/30 dark:bg-amber-900/15"
+      >
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-sm font-semibold text-amber-900 dark:text-amber-100">สถานะข้อมูลหลักฐาน</div>
+          <span className="rounded-full border border-amber-500/30 bg-white/80 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-amber-800 dark:border-amber-400/30 dark:bg-gray-900/40 dark:text-amber-200">
+            โหมดสำรอง
+          </span>
+        </div>
+        <p className="mt-2 text-sm text-amber-900 dark:text-amber-100">{unavailableMessage}</p>
+        <p className="mt-1 text-xs text-amber-800/90 dark:text-amber-200/90">
+          ค่าจากคลังหลักฐานหลักยังไม่พร้อมใช้งานในขณะนี้ จึงไม่แสดงตัวเลขสรุปเพื่อหลีกเลี่ยงความเข้าใจผิดว่าเป็นข้อมูลจริง
+        </p>
+        <p className="mt-2 text-xs text-amber-800/80 dark:text-amber-200/80">{unavailableDetail}</p>
+      </div>
+    );
+  }
 
   return (
     <div

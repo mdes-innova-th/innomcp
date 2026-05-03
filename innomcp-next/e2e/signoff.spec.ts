@@ -138,6 +138,14 @@ function record(id: string, query: string, route: string, tools: string, result:
   RESULTS.push({ id, query, route, tools, result: result.substring(0, 120), grounded, pass });
 }
 
+function startsWithEnglish(text: string): boolean {
+  return /^[A-Za-z]/.test(text.trim());
+}
+
+function containsAny(text: string, phrases: string[]): boolean {
+  return phrases.some((phrase) => text.includes(phrase));
+}
+
 // ─── Helper: API chat call for route/tools metadata ─────────────────────────
 async function apiChat(message: string): Promise<{ route: string; tools: string; text: string }> {
   const body = JSON.stringify({ message });
@@ -572,7 +580,9 @@ test.describe("S6: General Tool Flow", () => {
     await ss(page, "S6-03-general-knowledge");
 
     const api = await apiChat("Machine learning คืออะไร");
-    record("S6-03", "ML คืออะไร", api.route, api.tools, text.substring(0, 100), true, text.length > 10);
+    const pass = text.length > 10 && !startsWithEnglish(text) && containsAny(text, ["การเรียนรู้", "ข้อมูล", "คอมพิวเตอร์"]);
+    expect(pass).toBe(true);
+    record("S6-03", "ML คืออะไร", api.route, api.tools, text.substring(0, 100), true, pass);
   });
 
   test("S6-04: Mixed language typo prompt", async ({ page }) => {
@@ -736,7 +746,8 @@ test.describe("S8: Public Readiness Proof", () => {
       const text = await sendAndWait(page, "TCP คืออะไร อธิบายสั้นๆ", 90_000);
       await ss(page, "S8-01-remote-ai");
       const api = await apiChat("TCP คืออะไร อธิบายสั้นๆ");
-      const pass = text.length > 10;
+      const pass = text.length > 10 && !startsWithEnglish(text) && containsAny(text, ["โปรโตคอล", "เครือข่าย", "อินเทอร์เน็ต"]);
+      expect(pass).toBe(true);
       record("S8-01", "Remote AI browser", api.route, api.tools, text.substring(0, 100), pass, pass);
     } finally {
       // Always restore LOCAL mode
