@@ -9,6 +9,7 @@ import apiRouter from "./routes/api";
 import apiCsrfRouter from "./routes/api/csrf";
 import aiModeRouter from "./routes/api/aiMode";
 import providersRouter from "./routes/api/providers";
+import chatStreamRouter from "./routes/api/chatStream";
 import metricsRouter from "./routes/api/metrics";
 import { healthRouter } from "./routes/api/health";
 import authRouter from "./routes/api/auth";
@@ -125,6 +126,9 @@ app.use("/api/ai-mode", aiModeRouter);
 
 // Phase C: Provider registry CRUD + route-preview (no auth, public)
 app.use("/api/ai/providers", providersRouter);
+
+// Phase C: SSE streaming chat (additive — does not replace /api/chat)
+app.use("/api/chat/stream", chatStreamRouter);
 
 // Router สำหรับ Debug/Test GUI (ไม่ต้อง auth)
 app.use("/api/debug", debugRouter);
