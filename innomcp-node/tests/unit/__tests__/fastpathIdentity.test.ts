@@ -122,6 +122,46 @@ describe("GeneralGate deterministic identity/capability answers", () => {
     const answer = renderGeneralSmokeAnswer(input);
     expect(answer).toContain(expected);
   });
+
+  const opsCases: [string, string][] = [
+    ["ตอบคำเดียวว่า พร้อมใช้งาน", "พร้อมใช้งาน"],
+    ["backend ยังอยู่ไหม", "พร้อมใช้งาน"],
+    ["ระบบพร้อมใช้งานหรือไม่", "พร้อมใช้งาน"],
+  ];
+
+  test.each(opsCases)("renderGeneralSmokeAnswer('%s') contains '%s'", (input, expected) => {
+    const answer = renderGeneralSmokeAnswer(input);
+    expect(answer).toContain(expected);
+  });
+});
+
+describe("FastPath operational status detection", () => {
+  const pingCases = [
+    "ping",
+    "backend ยังอยู่ไหม",
+    "ระบบพร้อมใช้งานหรือไม่",
+  ];
+
+  test.each(pingCases)("detectFastPath('%s') returns 'ping'", (phrase) => {
+    expect(detectFastPath(phrase)).toBe("ping");
+  });
+});
+
+describe("GeneralGate tech knowledge answers stay Thai-led", () => {
+  const techCases: Array<[string, string[]]> = [
+    ["machine learning คืออะไร อธิบายเป็นภาษาไทย", ["การเรียนรู้", "ข้อมูล", "โมเดล"]],
+    ["ช่วยอธิบาย machine learning แบบภาษาคนให้หน่อย", ["การเรียนรู้", "ตัวอย่าง", "เข้าใจง่าย"]],
+    ["TCP/IP คืออะไร ขอคำอธิบายสั้นๆ เป็นภาษาไทย", ["โปรโตคอล", "เครือข่าย", "อินเทอร์เน็ต"]],
+    ["Python และ JavaScript ต่างกันอย่างไร", ["ภาษาโปรแกรม", "ไวยากรณ์", "เว็บ"]],
+  ];
+
+  test.each(techCases)("renderGeneralSmokeAnswer('%s') is Thai-led and grounded", (input, expectedPhrases) => {
+    const answer = renderGeneralSmokeAnswer(input);
+    expect(/^[A-Za-z]/.test(answer.trim())).toBe(false);
+    for (const phrase of expectedPhrases) {
+      expect(answer).toContain(phrase);
+    }
+  });
 });
 
 // ============================================================

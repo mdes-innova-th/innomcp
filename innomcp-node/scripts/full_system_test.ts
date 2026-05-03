@@ -83,6 +83,36 @@ async function chat(message: string): Promise<{ route: string; text: string; too
   };
 }
 
+const NATURALNESS_FORBIDDEN_PATTERNS = [
+  /จากข้อมูลที่ให้มา/,
+  /ตามข้อมูลใน/,
+  /the provided data/i,
+  /provided json/i,
+  /\bjson\b/i,
+  /\bapi\b/i,
+  /ระบบไม่สามารถ/,
+  /^okay\b/i,
+  /^based on\b/i,
+  /^i\s/i,
+];
+
+function countPhraseMatches(text: string, phrases: string[]): number {
+  return phrases.filter((phrase) => text.includes(phrase) || text.toLowerCase().includes(phrase.toLowerCase())).length;
+}
+
+function detectNaturalnessIssue(text: string): string | null {
+  const trimmed = text.trim();
+  if (!trimmed) return "empty response";
+  if (/^[A-Za-z]/.test(trimmed)) return "response starts with English";
+  const thaiChars = (trimmed.match(/[\u0E00-\u0E7F]/g) || []).length;
+  const lettersAndDigits = (trimmed.match(/[\u0E00-\u0E7FA-Za-z0-9]/g) || []).length;
+  const thaiRatio = lettersAndDigits === 0 ? 0 : thaiChars / lettersAndDigits;
+  if (thaiRatio < 0.3) return `Thai ratio too low (${thaiRatio.toFixed(2)})`;
+  const forbidden = NATURALNESS_FORBIDDEN_PATTERNS.find((pattern) => pattern.test(trimmed));
+  if (forbidden) return `forbidden phrase matched: ${forbidden}`;
+  return null;
+}
+
 // ── Result tracking ───────────────────────────────────────────────────────────
 interface TestResult {
   category: string;
@@ -131,41 +161,54 @@ async function suiteHealthCheck() {
   });
   await test("Health", "MCP server tools count", async () => {
     const r = await fetchJson(`${BACKEND}/api/health/keys`);
-    const tools = r?.data?.mcpTools || r?.mcpTools || 0;
-    return { pass: tools > 40, notes: `tools=${tools}`, preview: `${tools} tools registered` };
+    const totalTools = Number(r?.data?.mcpTools || r?.mcpTools || 0);
+    const localTools = Number(r?.data?.localTools || r?.localTools || 0);
+    const remoteTools = Number(r?.data?.remoteTools || r?.remoteTools || 0);
+    const remoteReady = Boolean(r?.data?.remoteReady ?? r?.remoteReady);
+    return {
+      pass: remoteReady && remoteTools > 40,
+      notes: `remoteReady=${remoteReady} remoteTools=${remoteTools} localTools=${localTools} totalTools=${totalTools}`,
+      preview: `remote=${remoteTools} local=${localTools} total=${totalTools}`,
+    };
   });
 }
 
 async function suiteAiChatThai() {
-  console.log("\n🤖 AI Thai Chat Quality");
+  console.log("\n🤖 AI Thai Chat Quality & Naturalness");
 
-  const cases: Array<{ q: string; expectRoute?: string; expectPhrases?: string[] }> = [
-    { q: "สวัสดี คุณคือใคร?", expectPhrases: ["innomcp","mdes","ผม","ครับ"] },
-    { q: "machine learning คืออะไร อธิบายเป็นภาษาไทย", expectPhrases: ["การเรียนรู้","โมเดล","ข้อมูล"] },
-    { q: "คำนวณ 123 * 456 บวก 789 ให้หน่อย", expectPhrases: ["56,877","56877"] },
-    { q: "ตอนนี้กี่โมงแล้ว บอกเป็นภาษาไทย", expectPhrases: ["นาฬิกา","โมง","เวลา"] },
-    { q: "TCP/IP คืออะไร ขอคำอธิบายสั้นๆ เป็นภาษาไทย", expectPhrases: ["โปรโตคอล","เครือข่าย","อินเทอร์เน็ต"] },
-    { q: "ช่วยแปลประโยค 'Hello World' เป็นภาษาไทย", expectPhrases: ["สวัสดี","โลก"] },
-    { q: "Python และ JavaScript ต่างกันอย่างไร", expectPhrases: ["ภาษา","โปรแกรม"] },
-    { q: "ขอบคุณมากครับ", expectPhrases: ["ครับ","ยินดี","ค่ะ","มีอะไร"] },
+  const cases: Array<{ q: string; expectPhrases: string[]; minMatches: number; minLength?: number }> = [
+    { q: "สวัสดี คุณคือใคร?", expectPhrases: ["ผู้ช่วย", "ช่วย", "ยินดี", "ครับ", "ค่ะ"], minMatches: 2, minLength: 12 },
+    { q: "machine learning คืออะไร อธิบายเป็นภาษาไทย", expectPhrases: ["การเรียนรู้", "ข้อมูล", "โมเดล", "คอมพิวเตอร์"], minMatches: 2 },
+    { q: "ช่วยอธิบาย machine learning แบบภาษาคนให้หน่อย", expectPhrases: ["การเรียนรู้", "ข้อมูล", "ตัวอย่าง", "เข้าใจง่าย"], minMatches: 2 },
+    { q: "คำนวณ 123 * 456 บวก 789 ให้หน่อย", expectPhrases: ["56,877", "56877"], minMatches: 1, minLength: 5 },
+    { q: "ตอนนี้กี่โมงแล้ว บอกเป็นภาษาไทย", expectPhrases: ["นาฬิกา", "โมง", "เวลา", "น."], minMatches: 1, minLength: 8 },
+    { q: "TCP/IP คืออะไร ขอคำอธิบายสั้นๆ เป็นภาษาไทย", expectPhrases: ["โปรโตคอล", "เครือข่าย", "อินเทอร์เน็ต", "การสื่อสาร"], minMatches: 2 },
+    { q: "ช่วยแปลประโยค 'Hello World' เป็นภาษาไทย", expectPhrases: ["สวัสดี", "โลก"], minMatches: 2, minLength: 8 },
+    { q: "Python และ JavaScript ต่างกันอย่างไร", expectPhrases: ["ภาษา", "โปรแกรม", "ไวยากรณ์", "เว็บ"], minMatches: 2 },
+    { q: "ขอบคุณมากครับ", expectPhrases: ["ยินดี", "ได้เสมอ", "ครับ", "ค่ะ"], minMatches: 1, minLength: 8 },
   ];
 
   for (const c of cases) {
     await test("AI-Thai", c.q.slice(0, 40), async () => {
       const r = await chat(c.q);
-      const textLower = r.text.toLowerCase();
       const hasThai = /[\u0e00-\u0e7f]/.test(r.text);
-      const longEnough = r.text.length > 20;
-      let phraseMatch = true;
-      let missedPhrase = "";
-      if (c.expectPhrases) {
-        phraseMatch = c.expectPhrases.some(p => textLower.includes(p.toLowerCase()) || r.text.includes(p));
-        if (!phraseMatch) missedPhrase = `expected one of: [${c.expectPhrases.join(", ")}]`;
-      }
-      const pass = r.ok && hasThai && longEnough && phraseMatch;
+      const longEnough = r.text.length > (c.minLength ?? 20);
+      const matchCount = countPhraseMatches(r.text, c.expectPhrases);
+      const naturalnessIssue = detectNaturalnessIssue(r.text);
+      const pass = r.ok && hasThai && longEnough && matchCount >= c.minMatches && !naturalnessIssue && !r.incomplete;
       return {
         pass,
-        notes: !r.ok ? "no response" : !hasThai ? "no Thai in response" : !longEnough ? "response too short" : missedPhrase || "OK",
+        notes: !r.ok
+          ? "no response"
+          : r.incomplete
+          ? "incomplete tool response"
+          : !hasThai
+          ? "no Thai in response"
+          : !longEnough
+          ? "response too short"
+          : matchCount < c.minMatches
+          ? `matched ${matchCount}/${c.minMatches} expected phrases`
+          : naturalnessIssue || "OK",
         preview: r.text.slice(0, 200),
       };
     });
@@ -445,7 +488,7 @@ async function suiteEdgeCases() {
   });
   await test("Edge", "mixed Thai-English gibberish", async () => {
     const r = await chat("asdf 1234 กขค zxcv ประเทศ test");
-    return { pass: r.status !== 500 && r.text?.length > 5, notes: `len=${r.text?.length}`, preview: r.text?.slice(0, 100) || "" };
+    return { pass: r.ok && r.text.length > 5, notes: `len=${r.text.length}`, preview: r.text.slice(0, 100) };
   });
 }
 
