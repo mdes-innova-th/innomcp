@@ -125,6 +125,9 @@ package-lock.json
 !/docs/reports/SIGNOFF_EVIDENCE_*.md
 !/docs/reports/evidence/
 !/docs/reports/evidence/db-port-audit-20260225.log
+# Local-only audit artifacts (safety patches captured during clean-baseline runs)
+docs/reports/evidence/*.patch
+docs/reports/evidence/*-untracked-list.txt
 
 # Allowlist: public-prod verification proof artifacts
 !/docs/screenshots/
