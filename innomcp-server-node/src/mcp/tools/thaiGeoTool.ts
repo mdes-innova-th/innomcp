@@ -285,13 +285,14 @@ export class InMemoryGeoDb implements GeoDbAdapter {
   }
 }
 
-let geoDb: GeoDbAdapter = new MariaDbGeoDb();
+let geoDb: GeoDbAdapter | null = null;
 
 export function setGeoDb(adapter: GeoDbAdapter): void {
   geoDb = adapter;
 }
 
 export function getGeoDb(): GeoDbAdapter {
+  if (geoDb === null) geoDb = new MariaDbGeoDb();
   return geoDb;
 }
 

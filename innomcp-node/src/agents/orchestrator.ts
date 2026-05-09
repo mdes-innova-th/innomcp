@@ -16,6 +16,7 @@
  */
 
 import { selectProvider } from "../providers/router";
+import type { Capability } from "../providers/types";
 import type { ProviderRecord } from "../providers/types";
 
 export type BrainRole = "coordinator" | "brain-1" | "brain-2";
@@ -158,14 +159,14 @@ export class MultiAgentOrchestrator {
    * Call Brain-1 or Brain-2 provider
    */
   private async callBrain(role: "brain-1" | "brain-2", input: string): Promise<string> {
-    const capability = role === "brain-1" ? "long-context" : "fast-cheap";
-    const model = role === "brain-1" ? this.config.brain1Model : this.config.brain2Model;
+    const capability = (role === "brain-1" ? "long-context" : "fast-cheap") as Capability;
 
-    const provider = await selectProvider({
-      capability,
+    const selection = selectProvider({
+      mode: "hybrid",
+      capabilities: [capability],
       privacyLevel: "internal",
-      preferredModel: model,
     });
+    const provider = selection.provider;
 
     if (!provider) {
       throw new Error(`No provider available for ${role}`);
@@ -198,11 +199,12 @@ export class MultiAgentOrchestrator {
    * Coordinate: analyze task, decide action, execute commit/push/review
    */
   private async coordinate(taskDesc: string, brain1Result: string, brain2Result: string): Promise<string> {
-    const coordinatorProvider = await selectProvider({
-      capability: "tool-use",
+    const coordinatorSelection = selectProvider({
+      mode: "hybrid",
+      capabilities: ["tool-use" as Capability],
       privacyLevel: "internal",
-      preferredModel: this.config.coordinatorModel,
     });
+    const coordinatorProvider = coordinatorSelection.provider;
 
     if (!coordinatorProvider) {
       return "SKIP: No coordinator provider available - task logged but not committed";
