@@ -1,0 +1,32 @@
+{
+  "servers": {
+    "innovaBot": {
+      "type": "stdio",
+      "command": "C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "C:/Users/USER-NT/DEV/innova-bot-template/devtools/innova-bot/scripts/start_stdio_from_env.ps1"
+      ],
+      "env": {
+        "INNOVA_BOT_ROOT": "C:/Users/USER-NT/DEV/innova-bot-template",
+        "INNOVA_CLIENT": "vscode",
+        "INNOVA_PROJECT": "innomcp",
+        "WORKSPACE_DIR": "C:/Users/USER-NT/DEV/innomcp",
+        "WORKSPACE_INNOMCP": "C:/Users/USER-NT/DEV/innomcp",
+        "ENABLE_WORKSPACE_TOOLS": "true",
+        "ENABLE_EXEC_TOOL": "true",
+        "ENABLE_JOB_TOOL": "true",
+        "EXEC_ALLOWLIST": "python,uv,git,powershell,pwsh,cmd,node,npm,echo,docker,taskkill",
+        "OLLAMA_URL": "https://ollama.mdes-innova.online",
+        "OLLAMA_API_KEY": "9e34679b9d60d8b984005ec46508579c",
+        "OLLAMA_MODEL": "qwen3.5:9b",
+        "OLLAMA_CODER_MODEL": "qwen2.5-coder:32b",
+        "OLLAMA_DEEP_MODEL": "qwen3.5:27b",
+        "OLLAMA_HERMES_MODEL": "gemma4:e4b"
+      }
+    }
+  }
+}
