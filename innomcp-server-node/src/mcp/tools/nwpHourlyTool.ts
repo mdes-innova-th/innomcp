@@ -10,6 +10,7 @@ import axios from "axios";
  */
 
 const NWP_API_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly";
+const NWP_AREA_REGION_API_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/area/region";
 const DEFAULT_TIMEOUT = 15000;
 
 function getNwpApiKey(): string {
@@ -87,8 +88,10 @@ export const nwpHourlyByPlaceSchema = z.object({
 export const nwpHourlyByRegionSchema = z.object({
   region: z.enum(["C", "N", "NE", "E", "S", "W"]).describe("ภูมิภาค: C=กลาง, N=เหนือ, NE=อีสาน, E=ตะวันออก, S=ใต้, W=ตะวันตก"),
   date: z.string().optional().describe("วันที่ต้องการข้อมูล (YYYY-MM-DD)"),
+  starttime: z.string().optional().describe("alias ของ date (YYYY-MM-DD)"),
   hour: z.number().min(0).max(23).optional().describe("ชั่วโมงเริ่มต้น (0-23)"),
   duration: z.number().min(1).max(48).optional().default(24).describe("จำนวนชั่วโมง (1-48)"),
+  domain: z.string().optional().describe("NWP forecast domain (เช่น thai, sea) Default: ใช้ค่า default ของ API"),
   fields: z.array(z.enum(AVAILABLE_FIELDS)).optional().describe("ตัวแปรที่ต้องการ"),
 });
 
@@ -431,20 +434,21 @@ export const nwpHourlyByRegionTool = {
     try {
       const apiKey = getNwpApiKey();
 
-      // Use /forecast/location/hourly/region — official docs endpoint with proper date/hour/duration params
+      // Use /forecast/area/region — official area endpoint with proper starttime/hour/duration params
       const nowTH = new Date(Date.now() + 7 * 3600 * 1000);
       const today = nowTH.toISOString().slice(0, 10);
-      const date = input.date || today;
+      const starttime = (input.starttime || input.date || today).slice(0, 10);
       const hour = input.hour !== undefined ? input.hour : nowTH.getUTCHours();
       const fields = (input.fields || ["tc", "rh", "cond"]).join(",");
-      const regionParams = new URLSearchParams({
+      const regionParams: Record<string, string> = {
         region: input.region,
-        date: date,
+        starttime: starttime,
         hour: String(hour),
         duration: String(input.duration || 24),
         fields: fields,
-      });
-      const url = `${NWP_API_BASE}/region?${regionParams.toString()}`;
+      };
+      if (input.domain) regionParams.domain = input.domain;
+      const url = `${NWP_AREA_REGION_API_BASE}?${new URLSearchParams(regionParams).toString()}`;
 
       console.log(`[NWP Hourly Region] GET ${url}`);
 

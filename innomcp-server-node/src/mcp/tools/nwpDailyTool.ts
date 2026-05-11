@@ -10,6 +10,7 @@ import axios from "axios";
  */
 
 const NWP_API_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/location/daily";
+const NWP_AREA_REGION_API_BASE = "https://data.tmd.go.th/nwpapi/v1/forecast/area/region";
 const DEFAULT_TIMEOUT = 15000;
 
 function getNwpApiKey(): string {
@@ -82,7 +83,9 @@ export const nwpDailyByPlaceSchema = z.object({
 export const nwpDailyByRegionSchema = z.object({
   region: z.enum(["C", "N", "NE", "E", "S", "W"]).describe("ภูมิภาค: C=กลาง, N=เหนือ, NE=อีสาน, E=ตะวันออก, S=ใต้, W=ตะวันตก"),
   date: z.string().optional().describe("วันที่เริ่มต้น (YYYY-MM-DD)"),
+  starttime: z.string().optional().describe("alias ของ date (YYYY-MM-DD)"),
   duration: z.number().min(1).max(126).optional().default(7).describe("จำนวนวัน (1-126)"),
+  domain: z.string().optional().describe("NWP forecast domain (เช่น thai, sea) Default: ใช้ค่า default ของ API"),
   fields: z.array(z.enum(AVAILABLE_FIELDS)).optional().describe("ตัวแปรที่ต้องการ"),
 });
 
@@ -429,17 +432,18 @@ export const nwpDailyByRegionTool = {
     try {
       const apiKey = getNwpApiKey();
 
-      // Use /forecast/location/daily/region — official docs endpoint with proper date/duration params
+      // Use /forecast/area/region — official area endpoint with proper starttime/duration params
       const today = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
-      const date = input.date || today;
+      const starttime = (input.starttime || input.date || today).slice(0, 10);
       const fields = (input.fields || ["tc_max", "tc_min", "rain", "cond"]).join(",");
-      const regionParams = new URLSearchParams({
+      const regionParams: Record<string, string> = {
         region: input.region,
-        date: date,
+        starttime: starttime,
         duration: String(input.duration || 7),
         fields: fields,
-      });
-      const url = `${NWP_API_BASE}/region?${regionParams.toString()}`;
+      };
+      if (input.domain) regionParams.domain = input.domain;
+      const url = `${NWP_AREA_REGION_API_BASE}?${new URLSearchParams(regionParams).toString()}`;
 
       console.log(`[NWP Daily Region] GET ${url}`);
 
