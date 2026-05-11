@@ -221,7 +221,7 @@ export default function ModeStatusBar() {
 
   const aiLabel = aiMode ? `AI ${aiMode === "local" ? "Local" : "Remote"}` : null;
   const mcpLabel = mcpStatus
-    ? `MCP ${mcpStatus === "connected" ? "พร้อม" : mcpStatus === "local-only" ? "ในเครื่อง" : "ออฟไลน์"}`
+    ? `MCP ${mcpStatus === "connected" ? "พร้อม" : mcpStatus === "local-only" ? "เฉพาะในเครื่อง" : "ออฟไลน์"}`
     : null;
   const tooltip = [aiLabel, mcpLabel, summary].filter(Boolean).join(" · ");
 

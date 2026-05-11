@@ -75,19 +75,25 @@ const ChatSidebar: React.FC<Props> = ({
         <button
           title={isCollapsed ? "ขยาย Sidebar" : "ย่อ Sidebar"}
           onClick={onToggle}
+          aria-label={isCollapsed ? "ขยาย Sidebar" : "ย่อ Sidebar"}
           className="group relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border/60 bg-background/95 text-foreground shadow-sm transition-colors hover:border-primary/25 hover:bg-primary/8"
           data-testid="toggle-sidebar-btn"
         >
-          <svg
-            className={`h-4 w-4 transition-transform duration-200 ${isCollapsed ? "" : "rotate-180"}`}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          >
-            <path d="m9 18 6-6-6-6" />
-          </svg>
+          <span
+            className={`absolute h-0.5 w-4 rounded-full bg-current transition-transform duration-200 ${
+              isCollapsed ? "-translate-y-1.5 rotate-0" : "translate-y-0 rotate-45"
+            }`}
+          />
+          <span
+            className={`absolute h-0.5 w-4 rounded-full bg-current transition-opacity duration-200 ${
+              isCollapsed ? "opacity-100" : "opacity-0"
+            }`}
+          />
+          <span
+            className={`absolute h-0.5 w-4 rounded-full bg-current transition-transform duration-200 ${
+              isCollapsed ? "translate-y-1.5 rotate-0" : "translate-y-0 -rotate-45"
+            }`}
+          />
         </button>
       </div>
 

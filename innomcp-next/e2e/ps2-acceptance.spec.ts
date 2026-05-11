@@ -17,10 +17,26 @@ const BACKEND = process.env.BACKEND_URL || "http://localhost:3011";
 const SS_DIR = path.join(__dirname, "..", "docs", "acceptance");
 if (!fs.existsSync(SS_DIR)) fs.mkdirSync(SS_DIR, { recursive: true });
 
-const JWT_SECRET = process.env.JWT_SECRET || "innomcp-secret-key-change-in-production";
 const API_KEY = "innomcp_d5acd09cc0103b16293181020cba0bace9b426f41ffb685c";
 const CSRF_SECRET = "testcsrf123";
 const CSRF_HASH = crypto.createHash("sha256").update(CSRF_SECRET).digest("hex");
+function loadBackendJwtSecret(): string {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
+  const candidates = [
+    path.resolve(__dirname, "..", "..", "innomcp-node", ".env"),
+  ];
+  for (const p of candidates) {
+    try {
+      const raw = fs.readFileSync(p, "utf8");
+      const m = raw.match(/^\s*JWT_SECRET\s*=\s*(.+?)\s*$/m);
+      if (m?.[1]) return m[1].replace(/^['"]|['"]$/g, "");
+    } catch {
+      // Fall through to the test default.
+    }
+  }
+  return "innomcp-secret-key-change-in-production";
+}
+const JWT_SECRET = loadBackendJwtSecret();
 const JWT_TOKEN = jwt.sign(
   { userId: 999, userEmail: "test@innomcp.local", userRoleId: 0, userDispName: "PS2 E2E" },
   JWT_SECRET,

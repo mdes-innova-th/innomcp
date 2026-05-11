@@ -96,7 +96,7 @@ const TOOL_TYPE_META: Record<ToolType, {
 const STARTER_PROMPTS = [
   {
     icon: "🌦️",
-    title: "สรุปอากาศเชิงปฏิบัติ",
+    title: "อากาศวันนี้",
     description: "ถามแบบได้คำตอบพร้อมใช้งาน เช่น พกอะไร เดินทางช่วงไหนดี ฝนจะตกไหม",
     query: "ช่วยสรุปอากาศกรุงเทพฯ วันนี้แบบอ่านเร็ว พร้อมคำแนะนำก่อนออกจากบ้าน",
     accent: "from-sky-500/16 via-sky-500/8 to-transparent",
@@ -1134,7 +1134,7 @@ const ChatPage: React.FC = () => {
                     </div>
 
                     <h1 className="font-display mt-3 max-w-3xl text-[1.65rem] font-semibold leading-tight text-foreground sm:text-[2rem]">
-                      ถาม วิเคราะห์ หรือสั่งงานเป็นภาษาไทยได้เลย
+                      สวัสดี ถาม วิเคราะห์ หรือสั่งงานเป็นภาษาไทยได้เลย
                     </h1>
                   </div>
 

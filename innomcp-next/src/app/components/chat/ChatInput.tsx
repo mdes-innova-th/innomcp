@@ -159,7 +159,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               }
             }}
             rows={1}
-            placeholder="ถาม วิเคราะห์ หรือสั่งงาน AI..."
+            placeholder="ถามเรื่องอากาศ วิเคราะห์ หรือสั่งงาน AI..."
             className="block max-h-60 w-full resize-none overflow-y-auto bg-transparent text-[15px] leading-7 text-foreground placeholder:text-muted-foreground/65 focus:outline-none sm:text-base"
             data-testid="chat-input"
           />

@@ -241,7 +241,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
     const totalRainy = d.totalRainyProvinces ?? topRows.length;
     const topSummary = topRows
       .slice(0, topN > 0 ? Math.min(topN, 10) : 10)
-      .map((r: any) => `${String(r?.province || "-")} (${Number(r?.percentRain ?? 0)}%)`)
+      .map((r: any) => `${String(r?.province || "-")} (ฝน ${Number(r?.percentRain ?? 0)} เปอร์เซ็นต์)`)
       .join(", ");
     const suffix = topSummary ? `: ${topSummary}` : "";
     const isWeek = /7\s*วัน|๗\s*วัน|สัปดาห์|อาทิตย์นี้|อาทิตย์หน้า|weekly|week/i.test(userText || "");
@@ -1950,6 +1950,31 @@ async function tryWeatherFallback(query: string, budgetMs: number): Promise<stri
   const aiResult = await answerGeneralWithFastModel(query, budgetMs);
   if (aiResult.text && aiResult.text.length > 20) return aiResult.text;
   return null;
+}
+
+function hasAnyWeatherSuccess(value: any): boolean {
+  const payload = value && typeof value === "object" && !Array.isArray(value)
+    ? (value as any).weatherPipeline ?? value
+    : value;
+
+  if (Array.isArray(payload)) {
+    return payload.some((r: any) => r && r.type && r.type !== "error");
+  }
+
+  if (!payload || typeof payload !== "object") return false;
+  if ((payload as any).ok === true) return true;
+  if (Array.isArray((payload as any).result)) {
+    return (payload as any).result.some((r: any) => r && r.type && r.type !== "error");
+  }
+  if (Array.isArray((payload as any).results)) {
+    return (payload as any).results.some((r: any) => hasAnyWeatherSuccess(r));
+  }
+  return false;
+}
+
+function shouldTryWeatherFallback(text: string, structuredOrPayload: any): boolean {
+  if (!/ขออภัย|ขัดข้อง|ไม่สามารถ|ERR:|ยังไม่มีข้อมูลอากาศ/i.test(text || "")) return false;
+  return !hasAnyWeatherSuccess(structuredOrPayload);
 }
 
 /**
@@ -4109,7 +4134,7 @@ wss.on("connection", (ws, req) => {
             const direct = renderStructuredDirect("weatherPipeline", sc, routingMessage) || renderWeatherDirectAnswer(routingMessage, payload);
             let textOut = direct.text;
             // Weather fallback: if result is error/no-data message, try brave search → AI gen
-            if (/ขออภัย|ขัดข้อง|ไม่สามารถ|ERR:|ยังไม่มีข้อมูลอากาศ/i.test(textOut)) {
+            if (shouldTryWeatherFallback(textOut, direct.structuredContent ?? sc)) {
               const fallbackText = await tryWeatherFallback(routingMessage, getGeneralBudgetMs());
               if (fallbackText) textOut = fallbackText;
             }
@@ -6552,7 +6577,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 
       // Weather fallback: if result is error/no-data message, try brave search → AI gen (HTTP path)
       let textOutWeatherHttp = direct.text;
-      if (/ขออภัย|ขัดข้อง|ไม่สามารถ|ERR:|ยังไม่มีข้อมูลอากาศ/i.test(textOutWeatherHttp)) {
+      if (shouldTryWeatherFallback(textOutWeatherHttp, direct.structuredContent ?? sc)) {
         const fallbackText = await tryWeatherFallback(routingMessage, getGeneralBudgetMs());
         if (fallbackText) textOutWeatherHttp = fallbackText;
       }

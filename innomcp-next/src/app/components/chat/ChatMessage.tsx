@@ -645,12 +645,27 @@ export function MessageView({
 
   const chatMeta = (message as any)?.structuredContent?.chatMeta;
   const modeBadge = chatMeta?.mode === "online" ? "online" : "offline";
-  // Read tools from chatMeta (structured) or fall back to message.toolsUsed (top-level array from backend)
-  const metaTools: Array<{ name: string }> = Array.isArray(chatMeta?.toolsUsed)
-    ? chatMeta.toolsUsed
-    : Array.isArray(message.toolsUsed) && message.toolsUsed.length > 0
-      ? message.toolsUsed.map((t: string) => ({ name: t }))
-      : [];
+  const groundedContract = (message as any)?.structuredContent?.__groundedContract;
+  const renderMeta = (message as any)?.structuredContent?.__render;
+  const namesFromTools = (tools: any): string[] => Array.isArray(tools)
+    ? tools
+        .map((tool: any) =>
+          typeof tool === "string"
+            ? tool
+            : String(tool?.name || tool?.toolName || tool?.id || "")
+        )
+        .map((name) => name.trim())
+        .filter(Boolean)
+    : [];
+  const toolNames = Array.from(new Set([
+    ...namesFromTools(chatMeta?.toolsUsed),
+    ...namesFromTools(message.toolsUsed),
+    ...namesFromTools(message.structuredContent?.toolsUsed),
+    ...namesFromTools(groundedContract?.selectedTools),
+    ...namesFromTools(renderMeta?.selectedTools),
+  ]));
+  const metaTools: Array<{ name: string }> = toolNames.map((name) => ({ name }));
+  const toolsUsedMetaText = toolNames.length > 0 ? toolNames.join(", ") : "ไม่มี";
   const metaConfidence = Number(chatMeta?.confidence);
   const confidenceLabel = Number.isFinite(metaConfidence) ? metaConfidence.toFixed(2) : "-";
   const reasonCode = String(chatMeta?.reason_code || "");
@@ -664,7 +679,6 @@ export function MessageView({
   const ragColdHits = memoryRag?.coldDocHits ?? 0;
 
   // PS1: Answer truth from grounded contract
-  const groundedContract = (message as any)?.structuredContent?.__groundedContract;
   const sourceType = groundedContract?.sourceType || null;
   const answerMode = groundedContract?.answerMode || null;
   const isDegraded = groundedContract?.degraded === true;
@@ -1014,7 +1028,7 @@ export function MessageView({
                   {summaryToolName && (
                     <>
                       <span className="text-muted-foreground/50">·</span>
-                      <span className="font-mono text-[11px] text-muted-foreground/85">{summaryToolName}</span>
+                      <span data-testid="tools-used-meta" className="font-mono text-[11px] text-muted-foreground/85">{toolsUsedMetaText}</span>
                     </>
                   )}
                   {isDegraded && (
@@ -1040,12 +1054,10 @@ export function MessageView({
                 </summary>
 
                 <div className="mt-2 space-y-1.5 px-1 pb-1.5 text-[11px] leading-5">
-                  <div data-testid="tools-used-meta">
+                  <div data-testid="tools-used-meta-details">
                     <span className="text-muted-foreground/70">เครื่องมือ:</span>{" "}
                     <span className="font-mono">
-                      {metaTools.length > 0
-                        ? metaTools.map((t: any) => String(t?.name || "")).filter(Boolean).join(", ")
-                        : "ไม่มี"}
+                      {toolsUsedMetaText}
                     </span>
                   </div>
                   <div>
