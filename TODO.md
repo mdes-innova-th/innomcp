@@ -1,12 +1,21 @@
 ﻿********* PHASE10.14 COMPLETED (2026-05-11) — Codex+SA Session *********
-STATUS: DONE — 3 commits on branch phase-c-living-agent-chat-opus-recovery
+STATUS: CODE/TEST DONE — local branch phase-c-living-agent-chat-opus-recovery is green but still not published from this shell
 
 COMMITS:
-  0174744 fix(geo-orch): lazy-init geoDb + orchestrator TS fix + OllamaGang skill
+  3f95557 fix(phase10.14): harden thai routing acceptance
+  1fd0555 docs(phase10.14): mark COMPLETED — NWP+geoDb+orchestrator fixed, Playwright 194/214 pass
   3973480 fix(nwp): use /forecast/area/region endpoint for daily+hourly region tools
   deff4de feat(codex): add Codex parent agent + MDES sub-agent delegation (pre-existing)
-
 COMPLETED ITEMS:
+F. Final Phase10.14 hardening (Codex parent + GPT-5.4 sub-agents + attempted MDES/Ollama)
+   Thai Gulf-side weather routing fixed; tools-used-meta rendering hardened; PS1/PS2/Memory-RAG auth harness fixed ✅
+   Full Playwright acceptance suite: 214/214 PASS × 3 consecutive runs ✅
+   Run 1: logs/playwright-full-run1-20260511-131343.status.json
+   Run 2: logs/playwright-full-run2-20260511-133730.status.json
+   Run 3: logs/playwright-full-run3-20260511-140057.status.json
+   Current verified code commit: 3f95557 ✅
+   Publish blocker: HTTPS GitHub credential prompt is unavailable in non-interactive Codex shell ⚠️
+
 D. thaiGeoTool async hang (69s→2.48s): lazy-init geoDb — 10/10 PASS ✅
 E. orchestrator.ts 6 TS errors fixed (capabilities[], mode, SelectionResult) ✅
    Phase10.9 NWP region endpoint: /forecast/area/region + starttime + domain ✅
@@ -16,7 +25,7 @@ E. orchestrator.ts 6 TS errors fixed (capabilities[], mode, SelectionResult) ✅
    test:thaiGeoTool (Jest, innomcp-node): 13/13 PASS ✅
    test:thaiKnowledgeTool: 16/16 PASS ✅
 
-F. BROWSER E2E (Playwright full suite): 194/214 PASS, 20 FAIL
+F. BROWSER E2E (earlier intermediate Playwright full suite): 194/214 PASS, 20 FAIL — superseded by final 214/214×3 proof above
    20 failures = pre-existing issue: embedding service offline (TypeError: fetch failed)
    → GodTierRouter cannot route calculator/datetime → toolsUsed not sent
    → tools-used-meta not rendered → assertToolUsed fails
