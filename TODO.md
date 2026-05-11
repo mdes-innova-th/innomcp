@@ -1,4 +1,35 @@
-﻿********* PHASE10.14 Thai Knowledge Routing Bug Fix (2026-03-26) *********
+﻿********* PHASE10.14 COMPLETED (2026-05-11) — Codex+SA Session *********
+STATUS: DONE — 3 commits on branch phase-c-living-agent-chat-opus-recovery
+
+COMMITS:
+  0174744 fix(geo-orch): lazy-init geoDb + orchestrator TS fix + OllamaGang skill
+  3973480 fix(nwp): use /forecast/area/region endpoint for daily+hourly region tools
+  deff4de feat(codex): add Codex parent agent + MDES sub-agent delegation (pre-existing)
+
+COMPLETED ITEMS:
+D. thaiGeoTool async hang (69s→2.48s): lazy-init geoDb — 10/10 PASS ✅
+E. orchestrator.ts 6 TS errors fixed (capabilities[], mode, SelectionResult) ✅
+   Phase10.9 NWP region endpoint: /forecast/area/region + starttime + domain ✅
+   Backend rebuilt + restarted (PID 66648 killed, fresh dist) ✅
+   verify_phase105: PASS (CASE_GEO mcpUsed=true, CASE_LOW_CONF fallback OK) ✅
+   test:thaiGeoTool (node:test): 10/10 PASS 2.48s ✅
+   test:thaiGeoTool (Jest, innomcp-node): 13/13 PASS ✅
+   test:thaiKnowledgeTool: 16/16 PASS ✅
+
+F. BROWSER E2E (Playwright full suite): 194/214 PASS, 20 FAIL
+   20 failures = pre-existing issue: embedding service offline (TypeError: fetch failed)
+   → GodTierRouter cannot route calculator/datetime → toolsUsed not sent
+   → tools-used-meta not rendered → assertToolUsed fails
+   NOT caused by NWP patch or any change in this session.
+   Failing categories: CALCULATOR (C1-C5), DATETIME (D1-D3), WEATHER SUMMARY (W1,W2,W4),
+   GROUNDED CONTRACT, INTELLIGENCE TOOLS, PERFORMANCE, TOOL ORCHESTRATION
+
+OPEN BLOCKERS (pre-existing, not introduced this session):
+   - Embedding service offline → GodTierRouter calculator/datetime routing fails
+   - MDES Ollama: 401 Unauthorized (needs MDES_API_KEY env var)
+   - TMD NWP JWT scopes still empty (P-158)
+
+********* PHASE10.14 Thai Knowledge Routing Bug Fix (2026-03-26) — ARCHIVED *********
 A. RECONCILE TRUE LATEST STATE
    1. อ่าน timeline ล่าสุดจาก file/context อีกครั้งแบบ bottom-up
    2. แสดง git state จริง: git rev-parse HEAD, git log --oneline -n 15, git status --short
