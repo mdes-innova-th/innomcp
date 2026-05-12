@@ -17,6 +17,8 @@ import {
   compactChatMessagesForStorage,
   isQuotaExceededError,
 } from "../../../utils/chatStorage";
+import MultiAgentPanel from "@/app/components/chat/MultiAgentPanel";
+import { useAgentEventStream } from "@/app/components/chat/useAgentEventStream";
 // icons are used in ChatInput; not needed here
 
 // Define the type for a chat message
@@ -198,6 +200,9 @@ const ChatPage: React.FC = () => {
   // For editing AI message (handled inside MessageView)
   const [input, setInput] = useState("");
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
+  // Phase 10.15: MultiAgent Panel state
+  const [expandAll, setExpandAll] = useState(false);
+  const { state: agentStreamState, send: sendAgentStream, reset: resetAgentStream } = useAgentEventStream();
   const [isSocketReady, setIsSocketReady] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const isStoppedRef = useRef(false);
@@ -745,6 +750,9 @@ const ChatPage: React.FC = () => {
         uiMode: message.uiMode || "auto",
       });
       socket.send(JSON.stringify(message));
+      // Phase 10.15: fire SSE channel for MultiAgentPanel
+      resetAgentStream();
+      sendAgentStream({ message: input });
       
       // Add user message to UI (include file indicator)
       const userMessage: ChatMessage = { 
@@ -1027,6 +1035,18 @@ const ChatPage: React.FC = () => {
 
   // Typing UI is handled inside MessageView
 
+  // Phase 10.15: Ctrl+O toggle for MultiAgentPanel
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === "o") {
+        e.preventDefault();
+        setExpandAll((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+
   // Add debug logs to check WebSocket and waiting state
   useEffect(() => {
     console.log("isSocketReady:", isSocketReady);
@@ -1251,6 +1271,15 @@ const ChatPage: React.FC = () => {
                       />
                     ))}
 
+                  {/* Phase 10.15: MultiAgent Panel */}
+                  {(agentStreamState.status !== "idle" || agentStreamState.events.length > 0) && (
+                    <MultiAgentPanel
+                      events={agentStreamState.events}
+                      status={agentStreamState.status}
+                      expandAll={expandAll}
+                      onToggleExpandAll={() => setExpandAll((v) => !v)}
+                    />
+                  )}
                   {isWaitingForResponse &&
                     (!messages.length ||
                       messages[messages.length - 1].sender !== "ai" ||

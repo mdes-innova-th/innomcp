@@ -15,6 +15,7 @@ export type AgentEventType =
   | "route_selected"
   | "agent_started"
   | "agent_delta"
+  | "agent_finished"
   | "tool_call_started"
   | "tool_call_finished"
   | "fact_found"
@@ -99,6 +100,7 @@ export function validateAgentEvent(ev: unknown): string | null {
     "route_selected",
     "agent_started",
     "agent_delta",
+    "agent_finished",
     "tool_call_started",
     "tool_call_finished",
     "fact_found",

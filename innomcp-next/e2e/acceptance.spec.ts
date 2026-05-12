@@ -1292,3 +1292,26 @@ test.describe("INTELLIGENCE TOOLS", () => {
     expect(text, "IT4 should have GDP data").toMatch(/\d+|GDP|billion/i);
   });
 });
+
+
+// ---------------------------------------------------------------------------
+// SECTION 25: MULTIAGENT — Phase 10.15 real parallel dispatch UI
+// ---------------------------------------------------------------------------
+test.describe("MULTIAGENT", () => {
+  test("M1 — multiagent panel renders during streaming response", async ({ page }) => {
+    await navigateToChat(page);
+    await sendMessage(page, "?????????????????????????????");
+    await page.waitForSelector('[data-testid="multiagent-panel"]', { timeout: 15_000 });
+    await expect(page.locator('[data-testid="multiagent-panel"]')).toBeVisible();
+  });
+
+  test("M2 — expand-all toggle shows per-agent event logs", async ({ page }) => {
+    await navigateToChat(page);
+    await sendMessage(page, "?????????????????????????????");
+    await page.waitForSelector('[data-testid="multiagent-expand-all"]', { timeout: 15_000 });
+    await page.click('[data-testid="multiagent-expand-all"]');
+    const agentCards = page.locator('[data-testid^="multiagent-agent-"]');
+    const count = await agentCards.count();
+    expect(count, "M2 should show at least 1 agent card").toBeGreaterThanOrEqual(1);
+  });
+});

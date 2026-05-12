@@ -27,6 +27,7 @@ import {
   type ChatIntent,
 } from "../services/intentClassifier";
 import { checkNaturalness } from "../services/naturalnessGuard";
+import { dispatchAgents, synthesizeAnswer } from "./parallelDispatch";
 
 export interface ConductorOptions {
   message: string;
@@ -365,6 +366,26 @@ export async function runConductor(
   finalEv.finalText = draft;
   finalEv.confidence = nat.ok ? 0.78 : 0.55;
   safeEmit(emit, finalEv, cls.expectedToolUsage);
+
+  // Phase 10.15: fire parallel MDES agents (non-blocking, best-effort)
+  dispatchAgents(cls.intent, opts.message, runId, messageId, emit)
+    .then((agentOutputs) => {
+      try {
+        const enriched = synthesizeAnswer(agentOutputs, draft);
+        if (enriched !== draft && enriched.length > 20) {
+          const enrichedEv = newEnvelope({
+            runId, messageId, type: "final_answer",
+            publicSummary: "คำตอบจาก MDES parallel agents", agentId: "concierge",
+          });
+          enrichedEv.finalText = enriched;
+          enrichedEv.confidence = 0.88;
+          safeEmit(emit, enrichedEv, cls.expectedToolUsage);
+        }
+      } catch {
+        /* stream likely closed before MDES agents finished — expected */
+      }
+    })
+    .catch(() => { /* MDES agent dispatch failed — deterministic draft already sent */ });
 
   return {
     runId,
