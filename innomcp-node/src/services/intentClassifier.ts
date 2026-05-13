@@ -9,6 +9,7 @@
  */
 
 export type ChatIntent =
+  | "greeting"
   | "planning-broad"
   | "weather"
   | "calc"
@@ -97,6 +98,19 @@ const CODE_KEYWORDS = [
   "type error",
 ];
 
+const GREETING_KEYWORDS = [
+  "สวัสดี",
+  "หวัดดี",
+  "ดีครับ",
+  "ดีค่ะ",
+  "hello",
+  "hi",
+  "hey",
+  "yo",
+  "alo",
+  "ฮัลโหล",
+];
+
 function containsAny(text: string, list: string[]): string | null {
   const lower = text.toLowerCase();
   for (const k of list) {
@@ -112,12 +126,19 @@ export function classifyIntent(message: string): ClassifyResult {
     return { intent: "general", expectedToolUsage: false, reasons: ["empty"] };
   }
 
+  const greeting = containsAny(message, GREETING_KEYWORDS);
   const planning = containsAny(message, PLANNING_KEYWORDS);
   const weather = containsAny(message, WEATHER_KEYWORDS);
   const travel = containsAny(message, TRAVEL_KEYWORDS);
   const map = containsAny(message, MAP_KEYWORDS);
   const calc = containsAny(message, CALC_KEYWORDS);
   const code = containsAny(message, CODE_KEYWORDS);
+
+  // Short greeting — fire 2 MDES agents for a friendly real response
+  if (greeting && message.trim().split(/\s+/).length <= 6) {
+    reasons.push(`greeting: ${greeting}`);
+    return { intent: "greeting", expectedToolUsage: false, reasons };
+  }
 
   // Planning beats single-topic when at least 2 dimensions show up.
   if (planning && (weather || travel)) {

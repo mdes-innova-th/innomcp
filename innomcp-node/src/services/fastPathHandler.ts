@@ -358,6 +358,11 @@ export async function handleFastPathMessage(
     return { handled: false, reason: "no-match", latencyMs };
   }
 
+  // Greeting hits bypass MDES agents — route to conductor instead (≥ 2 MDES agents required)
+  if (fp.hit === "greeting") {
+    return { handled: false, reason: "greeting-routed-to-mdes", latencyMs };
+  }
+
   // If for any reason we exceeded maxWorkMs significantly, still respond (fast path is the point)
   const payload = {
     text: fp.content?.[0]?.text || "",
@@ -506,14 +511,9 @@ export async function tryFastPathWebSocket(
     return sendAiText("guardrail", "ขอโทษครับ ไม่สามารถดำเนินการตามคำขอนี้ได้");
   }
 
-  // ===== GREETING / SMALL TALK (WS fastpath) =====
-  // Thai greetings often attach polite particles without spaces (e.g. "สวัสดีครับ")
-  if (/^\s*(สวัสดี|หวัดดี)(ครับ|ค่ะ|คับ|นะ|จ้า|ฮะ|ฮ่ะ)?/i.test(text) || /^\s*(hello|hi|hey)(\s|$)/i.test(text)) {
-    return sendAiText("greeting", "สวัสดีครับ มีอะไรให้ช่วยไหมครับ");
-  }
-  if (/(^|\s)(ขอบคุณ|thanks|thank you)/i.test(text)) {
-    return sendAiText("thanks", "ยินดีครับ หากต้องการให้ช่วยเพิ่มเติม บอกได้เลยครับ");
-  }
+  // GREETING / SMALL TALK — routed to MDES multi-agent (concierge + critic)
+  // Fast-path bypass removed: every greeting must use ≥ 2 MDES agents per requirement.
+  // Falls through to conductor → dispatchAgents("greeting", ...) → qwen3.5:9b + gemma4:e4b
 
   // ===== THAI-ONLY E2E PROMPTS (deterministic; avoids LLM/tool flakiness) =====
   // Keep these matches narrow (exact/near-exact) to minimize impact on real usage.

@@ -56,6 +56,8 @@ interface ComposeContext {
 
 function composeAnswer(ctx: ComposeContext): string {
   switch (ctx.intent) {
+    case "greeting":
+      return composeGreetingAnswer();
     case "planning-broad":
       return composePlanningBroadAnswer(ctx.query, ctx.facts);
     case "weather":
@@ -69,6 +71,10 @@ function composeAnswer(ctx: ComposeContext): string {
     default:
       return composeGeneralAnswer(ctx.query);
   }
+}
+
+function composeGreetingAnswer(): string {
+  return "สวัสดีครับ! ยินดีต้อนรับสู่ INNOMCP 🤝 มีอะไรให้ช่วยไหมครับ?";
 }
 
 function composePlanningBroadAnswer(query: string, facts: string[]): string {
@@ -392,6 +398,8 @@ export async function runConductor(
 
 function routeSummaryFor(intent: ChatIntent): string {
   switch (intent) {
+    case "greeting":
+      return "ทักทาย: ส่ง concierge + critic (MDES)";
     case "planning-broad":
       return "เลือกเส้นทางวางแผนหลายปัจจัย: อากาศ + การเดินทาง";
     case "weather":
