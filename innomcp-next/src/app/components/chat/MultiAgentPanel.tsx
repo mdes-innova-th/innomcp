@@ -2,6 +2,18 @@
 import { useMemo, useState } from "react";
 import type { AgentEvent, StreamStatus } from "./useAgentEventStream";
 
+const MDES_MODEL_BADGE: Record<string, string> = {
+  "qwen3.5:9b": "Q3.5-9B",
+  "qwen3.6:27b": "Q3.6-27B",
+  "qwen3.5:27b": "Q3.5-27B",
+  "gemma4:e4b": "G4-E4B",
+  "gemma4:26b": "G4-26B",
+  "z-uo/qwen2.5vl_tools:7b": "VL-7B",
+  "qwen2.5-coder:32b": "Coder-32B",
+  "claude-haiku-4-5-20251001": "Haiku↑",
+  "claude-opus-4-7": "Opus↑↑",
+};
+
 const AGENT_LABEL_TH: Record<string, string> = {
   conductor: "ผู้กำกับงาน",
   concierge: "ผู้เรียบเรียงคำตอบ",
@@ -35,6 +47,7 @@ interface AgentState {
   lastSummary: string;
   thinkingText: string;
   toolNames: string[];
+  model?: string;
 }
 
 interface Props {
@@ -68,7 +81,12 @@ export default function MultiAgentPanel({
       }
       const s = map.get(ev.agentId)!;
       s.events.push(ev);
-      
+
+      // Capture model from agent_started events
+      if (ev.type === "agent_started" && ev.model) {
+        s.model = ev.model;
+      }
+
       // Prefer agent_delta text (actual LLM response) over status messages
       if (ev.type === "agent_delta" && ev.publicSummary && ev.publicSummary.length > 20) {
         s.thinkingText = ev.publicSummary;
@@ -118,7 +136,7 @@ export default function MultiAgentPanel({
                 : "bg-sky-500"
             }`}
           />
-          multiagent
+          ⚡ MDES multi-agent
           <span className="text-muted-foreground/70">
             • {agents.length} ตัวแทน
             {status === "streaming" && agents.length > 0 && (
@@ -198,8 +216,13 @@ export default function MultiAgentPanel({
                       </span>
                     )}
                   </span>
+                  {agent.model && (
+                    <span className="ml-auto text-[9px] font-mono px-1 py-0.5 rounded bg-sky-500/15 text-sky-400/90 flex-shrink-0">
+                      {MDES_MODEL_BADGE[agent.model] ?? agent.model.split(":")[0]}
+                    </span>
+                  )}
                   {agent.toolNames.length > 0 && (
-                    <span className="ml-auto font-mono text-[10px] text-muted-foreground/70 truncate max-w-[80px]">
+                    <span className="font-mono text-[10px] text-muted-foreground/70 truncate max-w-[80px]">
                       {agent.toolNames[0]}
                     </span>
                   )}
@@ -215,6 +238,7 @@ export default function MultiAgentPanel({
                       <span className="animate-pulse text-emerald-500/50 inline-block ml-0.5">
                         ⋯
                       </span>
+                      <span className="animate-pulse text-emerald-400 ml-0.5">▌</span>
                       <span className="ml-1.5">{displayText}</span>
                     </>
                   ) : (
@@ -223,6 +247,12 @@ export default function MultiAgentPanel({
                 </p>
                 {isExpanded && agent.events.length > 0 && (
                   <div className="mt-2 border-t border-border/20 pt-1.5 space-y-1">
+                    {/* Show model info if available */}
+                    {agent.model && (
+                      <div className="text-[10px] font-mono text-sky-400/60 mb-1">
+                        🤖 {agent.model}
+                      </div>
+                    )}
                     {/* Show thinking text prominently if available */}
                     {agent.thinkingText && (
                       <div className="bg-muted/30 rounded px-2 py-1 text-foreground/80 text-[11px] leading-relaxed">

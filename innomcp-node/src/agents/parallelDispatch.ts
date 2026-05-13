@@ -171,13 +171,14 @@ async function runAgent(
   ollamaKey: string,
   modelOverride?: string
 ): Promise<{ agentId: AgentId; text: string }> {
+  const model = modelOverride ?? AGENT_MODEL_MDES[agentId] ?? "qwen3.5:9b";
+
   const startEv = newEnvelope({
     runId, messageId, type: "agent_started",
     publicSummary: `เริ่มงาน: ${agentId}`, agentId,
   });
+  startEv.model = model;
   if (checkAgentEventSafe(startEv, { expectedToolUsage: false }).ok) emit(startEv);
-
-  const model = modelOverride ?? AGENT_MODEL_MDES[agentId] ?? "qwen3.5:9b";
   const safeQ = query.replace(/["\\\n\r]/g, " ").trim().slice(0, 500);
   const promptFn = AGENT_PROMPT[agentId];
   const prompt = promptFn ? promptFn(safeQ) : `ช่วยตอบอย่างฉลาดและกระชับ: "${safeQ}"`;
@@ -242,6 +243,7 @@ async function runAgentWithEscalation(
         runId, messageId, type: "agent_started",
         publicSummary: `${agentId} → ยกระดับ Haiku`, agentId,
       });
+      haikuEv.model = "claude-haiku-4-5-20251001";
       if (checkAgentEventSafe(haikuEv, { expectedToolUsage: false }).ok) emit(haikuEv);
 
       const haikuText = await callAnthropic("claude-haiku-4-5-20251001", prompt, anthropicKey);
@@ -259,6 +261,7 @@ async function runAgentWithEscalation(
         runId, messageId, type: "agent_started",
         publicSummary: `${agentId} → ยกระดับ Opus`, agentId,
       });
+      opusEv.model = "claude-opus-4-7";
       if (checkAgentEventSafe(opusEv, { expectedToolUsage: false }).ok) emit(opusEv);
 
       const opusText = await callAnthropic("claude-opus-4-7", prompt, anthropicKey);
