@@ -734,6 +734,35 @@ const ChatPage: React.FC = () => {
     });
   }, [agentStreamState.finalText, agentStreamState.status]);
 
+  // MDES streaming preview: show concierge/critic answer while other agents still running
+  // Creates GPT thinking-style experience — partial answer appears as MDES processes
+  useEffect(() => {
+    if (agentStreamState.status !== "streaming") return;
+    // Pick best available agent delta (stylist > concierge > critic)
+    const deltas = agentStreamState.events.filter(
+      (ev) => ev.type === "agent_delta" && (ev.publicSummary?.length ?? 0) > 30
+    );
+    const pick =
+      deltas.find((ev) => ev.agentId === "stylist") ||
+      deltas.find((ev) => ev.agentId === "concierge") ||
+      deltas.find((ev) => ev.agentId === "critic");
+    if (!pick?.publicSummary) return;
+
+    const previewText = pick.publicSummary.replace(/\.\.\.$/, "") + " ⋯";
+    setMessages((prev) => {
+      const lastAiIdx = prev.map((m, i) => ({ m, i }))
+        .filter(({ m }) => m.sender === "ai" && !m.isProgress)
+        .pop()?.i;
+      if (lastAiIdx === undefined) return prev;
+      const last = prev[lastAiIdx];
+      if (last.structuredContent?.weatherPipeline || last.structuredContent?.chartSvg) return prev;
+      // Only show preview — don't trigger typewriter animation
+      const updated = [...prev];
+      updated[lastAiIdx] = { ...last, text: previewText, fullText: previewText, isAnimating: false };
+      return updated;
+    });
+  }, [agentStreamState.events, agentStreamState.status]);
+
   const sendMessage = async () => {
     if (
       socket &&
