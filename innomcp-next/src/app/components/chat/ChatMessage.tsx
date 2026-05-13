@@ -1204,6 +1204,11 @@ export function MessageView({
                     <TypingDots />
                   </span>
                 )}
+                {(message as any).mdesEnhanced && (
+                  <span className="inline-flex items-center gap-0.5 text-[9px] font-mono text-sky-400/60 ml-1 select-none">
+                    ⚡MDES
+                  </span>
+                )}
               </>
             )}
           </div>

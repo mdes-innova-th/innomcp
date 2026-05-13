@@ -36,6 +36,7 @@ interface ChatMessage {
   isProgress?: boolean;
   progressStage?: string;
   elapsedTime?: number;
+  mdesEnhanced?: boolean; // true when MDES agents upgraded this message
 }
 
 const CHAT_HISTORY_STORAGE_PLANS = [
@@ -729,6 +730,7 @@ const ChatPage: React.FC = () => {
         text: mdesText,
         fullText: mdesText,
         isAnimating: false,
+        mdesEnhanced: true,
       };
       return updated;
     });

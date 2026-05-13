@@ -1,24 +1,30 @@
-﻿======== PHASE10.15b COMPLETED (2026-05-13) — MultiAgent + MDES Fix ========
+﻿======== PHASE10.16 COMPLETED (2026-05-14) — Mother-Orchestrated MDES Multi-Agent Chat ========
 STATUS: PRODUCTION-READY ✅  branch: phase-c-living-agent-chat-opus-recovery
 
-COMMITS (latest 4):
-  [pending] feat(phase-10.15b): fix SSE timing + dynamic MDES agents 2-8 + MultiAgentPanel UI
-  5db3470 fix: cross-env NODE_ENV=production prevents dev-shell contamination
-  df17837 feat(phase-10.15): parallel MDES agent dispatch + MultiAgentPanel UI
-  3f95557 fix(phase10.14): harden thai routing acceptance
+COMMITS (this phase - latest 5):
+  b5e1f66 feat(chat): MDES streaming preview in chat bubble (GPT thinking style)
+  4c2a6c5 feat(chat): bridge MDES final_answer to main chat bubble
+  815f575 feat(chat): MDES loading indicator + improved agent prompts
+  f812823 feat(ui+backend): MDES model badges + streaming cursor in MultiAgentPanel
+  618868f feat(chat): mother-orchestrated MDES multi-agent dispatch for every query
 
-PHASE10.15b CHANGES:
-  conductor.ts   — concurrent agent dispatch (SSE stays open until agents finish) ✅
-  parallelDispatch.ts — dynamic 2-8 agents based on complexity + MDES URL fixed ✅
-  MultiAgentPanel.tsx — thinking animations, progress bar, role descriptions ✅
-  app.ts         — rate-limit /api/chat/stream (P1 security fix) ✅
-  .gitignore     — added .env.hybrid protection ✅
+PHASE10.16 CHANGES:
+  parallelDispatch.ts — every query ≥2 MDES agents, smart model assign, Haiku→Opus escalation ✅
+  conductor.ts        — greeting intent case, route summary ✅  
+  intentClassifier.ts — "greeting" ChatIntent + keyword detection ✅
+  fastPathHandler.ts  — greeting fast-path removed (WS + HTTP path) ✅
+  MultiAgentPanel.tsx — MDES model badges, streaming cursor, thinking style ✅
+  ChatPage.tsx        — MDES bridge (final_answer→chat bubble), streaming preview ✅
+  
+TYPESCRIPT VERIFICATION (2026-05-14):
+  innomcp-node:  ✅ tsc --noEmit PASS (no errors)
+  innomcp-next:  ✅ tsc --noEmit PASS (no errors)
+
 TESTS: M1+M2 PASS, 33/35 non-weather pass (CN1+CN2 = pre-existing NWP JWT issue)
 
 OPEN BLOCKERS:
   CN1, CN2 — NWP_UNAVAILABLE (JWT scopes empty in weather provider) [P3 - pre-existing]
   Redis    — disconnected, not critical [P3]
-  GitHub push — auth issue, push manually [P3]
   JWT_SECRET length check — add startup guard before production deploy [P2]
 
 ARCHIVED: Phase10.14 (2026-05-11) — Playwright 214/214 PASS x3, commit 3f95557
