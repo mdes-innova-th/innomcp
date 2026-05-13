@@ -203,6 +203,11 @@ export async function runConductor(
   const messageId = randomUUID();
   const cls = classifyIntent(opts.message);
 
+  // Fire agents concurrently — they emit events while conductor runs
+  const agentResultPromise = (process.env.PARALLEL_AGENTS !== "0")
+    ? dispatchAgents(cls.intent, opts.message, runId, messageId, emit)
+    : Promise.resolve({} as Record<string, string>);
+
   const startedEv = newEnvelope({
     runId,
     messageId,
@@ -356,6 +361,13 @@ export async function runConductor(
   critiqueEv.confidence = nat.ok ? 0.85 : 0.55;
   safeEmit(emit, critiqueEv, cls.expectedToolUsage);
 
+  // Wait for parallel agents (max 10s) — they've been emitting events all along
+  const agentOutputs = await Promise.race([
+    agentResultPromise,
+    new Promise<Record<string, string>>(resolve => setTimeout(() => resolve({}), 10_000)),
+  ]);
+  const enrichedText = synthesizeAnswer(agentOutputs, draft);
+
   const finalEv = newEnvelope({
     runId,
     messageId,
@@ -363,34 +375,14 @@ export async function runConductor(
     publicSummary: "ส่งคำตอบสุดท้าย",
     agentId: "concierge",
   });
-  finalEv.finalText = draft;
+  finalEv.finalText = enrichedText;
   finalEv.confidence = nat.ok ? 0.78 : 0.55;
   safeEmit(emit, finalEv, cls.expectedToolUsage);
-
-  // Phase 10.15: fire parallel MDES agents (non-blocking, best-effort)
-  dispatchAgents(cls.intent, opts.message, runId, messageId, emit)
-    .then((agentOutputs) => {
-      try {
-        const enriched = synthesizeAnswer(agentOutputs, draft);
-        if (enriched !== draft && enriched.length > 20) {
-          const enrichedEv = newEnvelope({
-            runId, messageId, type: "final_answer",
-            publicSummary: "คำตอบจาก MDES parallel agents", agentId: "concierge",
-          });
-          enrichedEv.finalText = enriched;
-          enrichedEv.confidence = 0.88;
-          safeEmit(emit, enrichedEv, cls.expectedToolUsage);
-        }
-      } catch {
-        /* stream likely closed before MDES agents finished — expected */
-      }
-    })
-    .catch(() => { /* MDES agent dispatch failed — deterministic draft already sent */ });
 
   return {
     runId,
     messageId,
-    finalText: draft,
+    finalText: enrichedText,
     intent: cls.intent,
     providerId,
     model,

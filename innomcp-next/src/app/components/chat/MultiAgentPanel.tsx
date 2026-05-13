@@ -15,11 +15,25 @@ const AGENT_LABEL_TH: Record<string, string> = {
   scribe: "ผู้บันทึกความจำ",
 };
 
+const AGENT_ROLE_DESC: Record<string, string> = {
+  "weather-analyst": "วิเคราะห์สภาพอากาศและแนวโน้ม",
+  "geo-planner": "วางแผนพื้นที่และเส้นทาง",
+  "rag-agent": "สืบค้นความรู้จากฐานข้อมูล",
+  concierge: "เรียบเรียงและสรุปคำตอบ",
+  "tool-scout": "เลือกเครื่องมือที่เหมาะสม",
+  critic: "ตรวจสอบความถูกต้องและครบถ้วน",
+  stylist: "ขัดเกลาภาษาให้ราบรื่น",
+  broker: "คัดเลือกผู้ให้บริการ AI",
+  conductor: "ประสานงานระหว่างตัวแทน",
+  scribe: "จัดเก็บความรู้และบริบท",
+};
+
 interface AgentState {
   agentId: string;
   status: "active" | "done" | "error";
   events: AgentEvent[];
   lastSummary: string;
+  thinkingText: string;
   toolNames: string[];
 }
 
@@ -48,12 +62,20 @@ export default function MultiAgentPanel({
           status: "active",
           events: [],
           lastSummary: "",
+          thinkingText: "",
           toolNames: [],
         });
       }
       const s = map.get(ev.agentId)!;
       s.events.push(ev);
-      if (ev.publicSummary) s.lastSummary = ev.publicSummary;
+      
+      // Prefer agent_delta text (actual LLM response) over status messages
+      if (ev.type === "agent_delta" && ev.publicSummary && ev.publicSummary.length > 20) {
+        s.thinkingText = ev.publicSummary;
+      } else if (!s.thinkingText && ev.publicSummary) {
+        s.lastSummary = ev.publicSummary;
+      }
+      
       if (
         ev.type === "tool_call_started" &&
         ev.toolName &&
@@ -76,6 +98,8 @@ export default function MultiAgentPanel({
   }, [events, status]);
 
   const agents = Array.from(agentMap.values());
+  const doneCount = agents.filter((a) => a.status !== "active").length;
+  
   if (status === "idle" && agents.length === 0) return null;
 
   return (
@@ -95,7 +119,12 @@ export default function MultiAgentPanel({
             }`}
           />
           multiagent
-          <span className="text-muted-foreground/70">• {agents.length} ตัวแทน</span>
+          <span className="text-muted-foreground/70">
+            • {agents.length} ตัวแทน
+            {status === "streaming" && agents.length > 0 && (
+              <> • {doneCount}/{agents.length} เสร็จ</>
+            )}
+          </span>
         </span>
         <button
           data-testid="multiagent-expand-all"
@@ -112,6 +141,26 @@ export default function MultiAgentPanel({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-border/10 p-px">
           {agents.map((agent) => {
             const isExpanded = expandAll || expandedAgents.has(agent.agentId);
+            const roleDesc = AGENT_ROLE_DESC[agent.agentId];
+            
+            // Determine display text
+            let displayText = "";
+            let isThinking = false;
+            if (agent.thinkingText) {
+              displayText = agent.thinkingText.substring(0, 150);
+            } else if (agent.status === "active") {
+              isThinking = true;
+              displayText = roleDesc || "กำลังประมวลผล...";
+            } else if (agent.lastSummary) {
+              displayText = agent.lastSummary.substring(0, 100);
+            } else {
+              displayText = roleDesc || "พร้อม";
+            }
+            
+            // Status icon
+            const statusIcon =
+              agent.status === "done" ? "✓" : agent.status === "error" ? "✗" : "";
+            
             return (
               <div
                 key={agent.agentId}
@@ -135,8 +184,19 @@ export default function MultiAgentPanel({
                         : "bg-sky-400"
                     }`}
                   />
-                  <span className="font-medium text-foreground/85 truncate">
+                  <span className="font-medium text-foreground/85 truncate flex items-center gap-1">
                     {AGENT_LABEL_TH[agent.agentId] ?? agent.agentId}
+                    {statusIcon && (
+                      <span
+                        className={`text-[10px] ${
+                          agent.status === "done"
+                            ? "text-sky-400"
+                            : "text-rose-400"
+                        }`}
+                      >
+                        {statusIcon}
+                      </span>
+                    )}
                   </span>
                   {agent.toolNames.length > 0 && (
                     <span className="ml-auto font-mono text-[10px] text-muted-foreground/70 truncate max-w-[80px]">
@@ -144,20 +204,48 @@ export default function MultiAgentPanel({
                     </span>
                   )}
                 </div>
-                <p className="mt-0.5 text-muted-foreground/80 leading-4 line-clamp-2">
-                  {agent.lastSummary.substring(0, 80)}
+                <p
+                  className={`mt-0.5 text-muted-foreground/80 leading-4 line-clamp-2 ${
+                    agent.status === "error" ? "text-rose-400/70" : ""
+                  }`}
+                >
+                  {isThinking ? (
+                    <>
+                      <span className="animate-pulse text-emerald-500/70">กำลังคิด</span>
+                      <span className="animate-pulse text-emerald-500/50 inline-block ml-0.5">
+                        ⋯
+                      </span>
+                      <span className="ml-1.5">{displayText}</span>
+                    </>
+                  ) : (
+                    displayText
+                  )}
                 </p>
                 {isExpanded && agent.events.length > 0 && (
-                  <ul className="mt-2 space-y-1 border-t border-border/20 pt-1.5">
-                    {agent.events.map((ev, i) => (
-                      <li key={i} className="text-muted-foreground/70 leading-4">
-                        <span className="text-[10px] font-mono text-muted-foreground/50 mr-1">
-                          {ev.type}
-                        </span>
-                        {ev.publicSummary}
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="mt-2 border-t border-border/20 pt-1.5 space-y-1">
+                    {/* Show thinking text prominently if available */}
+                    {agent.thinkingText && (
+                      <div className="bg-muted/30 rounded px-2 py-1 text-foreground/80 text-[11px] leading-relaxed">
+                        💭 {agent.thinkingText}
+                      </div>
+                    )}
+                    {/* Group events by type */}
+                    <ul className="space-y-0.5">
+                      {agent.events.map((ev, i) => {
+                        if (ev.type === "agent_delta" && agent.thinkingText) return null; // Already shown above
+                        return (
+                          <li key={i} className="text-muted-foreground/70 leading-4">
+                            <span className="text-[10px] font-mono text-muted-foreground/50 mr-1">
+                              {ev.type}
+                            </span>
+                            {ev.publicSummary && (
+                              <span className="text-[11px]">{ev.publicSummary}</span>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 )}
               </div>
             );

@@ -143,3 +143,5 @@ yarn-error.log*
 !/scripts/verify_memory_rag.ts
 
 
+
+.env.hybrid

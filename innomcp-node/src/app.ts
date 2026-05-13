@@ -1,4 +1,4 @@
-import "dotenv/config";
+﻿import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -32,7 +32,7 @@ process.on("unhandledRejection", (err) => {
   console.error("Unhandled rejection:", err);
 });
 
-logger.info('🚀 Backend application starting...');
+logger.info('ðŸš€ Backend application starting...');
 const allowedOrigin = process.env.ALLOWED_ORIGIN?.split(",") || [];
 
 // CORS origin function - allow all in development, restricted in production
@@ -67,7 +67,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// รองรับการแปลง JSON และ URL-encoded ในตัว request (ต้องมาก่อน CORS)
+// à¸£à¸­à¸‡à¸£à¸±à¸šà¸à¸²à¸£à¹à¸›à¸¥à¸‡ JSON à¹à¸¥à¸° URL-encoded à¹ƒà¸™à¸•à¸±à¸§ request (à¸•à¹‰à¸­à¸‡à¸¡à¸²à¸à¹ˆà¸­à¸™ CORS)
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
@@ -80,7 +80,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ใช้ cors middleware แทนการกำหนด header เอง
+// à¹ƒà¸Šà¹‰ cors middleware à¹à¸—à¸™à¸à¸²à¸£à¸à¸³à¸«à¸™à¸” header à¹€à¸­à¸‡
 app.use(
   cors({
     origin: corsOriginFn, // Dynamic origin checking
@@ -98,7 +98,7 @@ app.use(cookieParser());
 // Correlation ID tracking
 app.use(correlationIdMiddleware);
 
-// ⏱️ Performance Tracking Middleware (records latency metrics)
+// â±ï¸ Performance Tracking Middleware (records latency metrics)
 app.use(performanceTrackingMiddleware);
 
 // Default route
@@ -111,42 +111,42 @@ app.get("/health", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-// Router สำหรับ CSRF (ไม่ต้อง auth เพือ testsuit)
+// Router à¸ªà¸³à¸«à¸£à¸±à¸š CSRF (à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡ auth à¹€à¸žà¸·à¸­ testsuit)
 app.use("/api-get/csrf", apiCsrfRouter);
 
-// Router สำหรับ Metrics (ไม่ต้อง auth เพือ monitoring)
+// Router à¸ªà¸³à¸«à¸£à¸±à¸š Metrics (à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡ auth à¹€à¸žà¸·à¸­ monitoring)
 app.use("/api/metrics", metricsRouter);
 
-// Router สำหรับ Health Check (ไม่ต้อง auth — ใช้สำหรับ internal health probe และ Next.js proxy)
-// ต้องอยู่ก่อน /api middleware เพื่อไม่ให้ถูก apiKeyMiddleware บล็อก
+// Router à¸ªà¸³à¸«à¸£à¸±à¸š Health Check (à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡ auth â€” à¹ƒà¸Šà¹‰à¸ªà¸³à¸«à¸£à¸±à¸š internal health probe à¹à¸¥à¸° Next.js proxy)
+// à¸•à¹‰à¸­à¸‡à¸­à¸¢à¸¹à¹ˆà¸à¹ˆà¸­à¸™ /api middleware à¹€à¸žà¸·à¹ˆà¸­à¹„à¸¡à¹ˆà¹ƒà¸«à¹‰à¸–à¸¹à¸ apiKeyMiddleware à¸šà¸¥à¹‡à¸­à¸
 app.use("/api/health", healthRouter);
 
-// Router สำหรับ AI Mode (ไม่ต้อง auth เพือ testsuit - ต้องอยู่ก่อน /api middleware)
+// Router à¸ªà¸³à¸«à¸£à¸±à¸š AI Mode (à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡ auth à¹€à¸žà¸·à¸­ testsuit - à¸•à¹‰à¸­à¸‡à¸­à¸¢à¸¹à¹ˆà¸à¹ˆà¸­à¸™ /api middleware)
 app.use("/api/ai-mode", aiModeRouter);
 
 // Phase C: Provider registry CRUD + route-preview (no auth, public)
 app.use("/api/ai/providers", providersRouter);
 
-// Phase C: SSE streaming chat (additive — does not replace /api/chat)
-app.use("/api/chat/stream", chatStreamRouter);
+// Phase C: SSE streaming chat (additive â€” does not replace /api/chat)
+app.use("/api/chat/stream", generalRateLimit, chatStreamRouter);
 
-// Router สำหรับ Debug/Test GUI (ไม่ต้อง auth)
+// Router à¸ªà¸³à¸«à¸£à¸±à¸š Debug/Test GUI (à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡ auth)
 app.use("/api/debug", debugRouter);
 
-// Router สำหรับ Chat (ไม่ต้อง auth เพือ testsuit - ต้องอยู่ก่อน /api middleware)
-// FastPath middleware อยู่ใน chatRouter แล้ว
+// Router à¸ªà¸³à¸«à¸£à¸±à¸š Chat (à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡ auth à¹€à¸žà¸·à¸­ testsuit - à¸•à¹‰à¸­à¸‡à¸­à¸¢à¸¹à¹ˆà¸à¹ˆà¸­à¸™ /api middleware)
+// FastPath middleware à¸­à¸¢à¸¹à¹ˆà¹ƒà¸™ chatRouter à¹à¸¥à¹‰à¸§
 app.use("/api/chat", chatRouter);
 
-// Router สำหรับ Authentication (public endpoints) — tighter limit (10 rpm) to slow brute force
+// Router à¸ªà¸³à¸«à¸£à¸±à¸š Authentication (public endpoints) â€” tighter limit (10 rpm) to slow brute force
 app.use("/api/auth", authRateLimit, authRouter);
 
-// Router สำหรับ Workspace (requires authentication)
+// Router à¸ªà¸³à¸«à¸£à¸±à¸š Workspace (requires authentication)
 app.use("/api/workspace", workspaceRouter);
 
-// Router สำหรับ Admin (requires authentication + admin role)
+// Router à¸ªà¸³à¸«à¸£à¸±à¸š Admin (requires authentication + admin role)
 app.use("/api/admin", adminRouter);
 
-// Router สำหรับ API endpoint ทั้งหมดที่ต้องการ API key — 60 rpm general rate limit
+// Router à¸ªà¸³à¸«à¸£à¸±à¸š API endpoint à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”à¸—à¸µà¹ˆà¸•à¹‰à¸­à¸‡à¸à¸²à¸£ API key â€” 60 rpm general rate limit
 app.use("/api", generalRateLimit, apiKeyMiddleware, csrfMiddleware, apiRouter);
 
 export default app;
