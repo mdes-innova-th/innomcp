@@ -1292,6 +1292,19 @@ const ChatPage: React.FC = () => {
                       ? "bg-blue-400 dark:bg-blue-400/80"
                       : "bg-secondary dark:bg-secondary/80";
 
+                    // Count distinct MDES agents currently active from SSE events
+                    const mdesAgents = new Set<string>();
+                    for (const ev of agentStreamState.events) {
+                      if (ev.agentId && ev.agentId !== "conductor" && ev.agentId !== "broker") {
+                        mdesAgents.add(ev.agentId);
+                      }
+                    }
+                    const mdesCount = mdesAgents.size;
+                    const isMdesStreaming = agentStreamState.status === "streaming";
+                    const mdesLine = isMdesStreaming && mdesCount >= 1
+                      ? `⚡ MDES กำลังคิด... (${mdesCount} ตัวแทน)`
+                      : "กำลังสรุปและจัดรูปคำตอบให้อ่านง่าย";
+
                     return (
                       <div className="chat-elevated-panel max-w-sm rounded-lg px-4 py-3 text-left">
                         <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">ระบบกำลังทำงาน</div>
@@ -1301,7 +1314,7 @@ const ChatPage: React.FC = () => {
                             <span className={`h-2 w-2 rounded-full ${dotColor} animate-bounce [animation-delay:80ms]`} />
                             <span className={`h-2 w-2 rounded-full ${dotColor} animate-bounce [animation-delay:160ms]`} />
                           </span>
-                          <div className="text-sm text-foreground">กำลังสรุปและจัดรูปคำตอบให้อ่านง่าย</div>
+                          <div className="text-sm text-foreground">{mdesLine}</div>
                         </div>
                       </div>
                     );
