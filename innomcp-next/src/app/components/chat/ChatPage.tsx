@@ -703,6 +703,37 @@ const ChatPage: React.FC = () => {
     };
   }, [messages]);
 
+  // MDES bridge: when SSE pipeline produces a final_answer, upgrade the last AI message
+  // This connects the MDES enriched text to the main chat bubble.
+  // Guard: skip if WS already delivered structured tool results (weather, chart, etc.)
+  useEffect(() => {
+    const mdesText = agentStreamState.finalText;
+    if (!mdesText || mdesText.length < 30) return;
+    if (agentStreamState.status !== "done") return;
+
+    setMessages((prev) => {
+      const lastAiIdx = prev.map((m, i) => ({ m, i }))
+        .filter(({ m }) => m.sender === "ai" && !m.isProgress)
+        .pop()?.i;
+      if (lastAiIdx === undefined) return prev;
+      const lastAi = prev[lastAiIdx];
+      // Don't override weather pipeline or chart structured content
+      if (
+        lastAi.structuredContent?.weatherPipeline ||
+        lastAi.structuredContent?.weatherPayload ||
+        lastAi.structuredContent?.chartSvg
+      ) return prev;
+      const updated = [...prev];
+      updated[lastAiIdx] = {
+        ...lastAi,
+        text: mdesText,
+        fullText: mdesText,
+        isAnimating: false,
+      };
+      return updated;
+    });
+  }, [agentStreamState.finalText, agentStreamState.status]);
+
   const sendMessage = async () => {
     if (
       socket &&
