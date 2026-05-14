@@ -134,10 +134,16 @@ export function classifyIntent(message: string): ClassifyResult {
   const calc = containsAny(message, CALC_KEYWORDS);
   const code = containsAny(message, CODE_KEYWORDS);
 
-  // Short greeting — fire 2 MDES agents for a friendly real response
+  // Short greeting — fire 2 MDES agents for a friendly real response.
+  // If the greeting is paired with a real question (5W1H or ?), fall through
+  // to general so the user gets a proper answer instead of just a greeting.
   if (greeting && message.trim().split(/\s+/).length <= 6) {
-    reasons.push(`greeting: ${greeting}`);
-    return { intent: "greeting", expectedToolUsage: false, reasons };
+    const hasQuestion = /\?|ใคร|อะไร|ทำไม|เมื่อไหร่|เมื่อไร|ที่ไหน|อย่างไร|ยังไง|ไหม|หรือเปล่า/.test(message);
+    if (!hasQuestion) {
+      reasons.push(`greeting: ${greeting}`);
+      return { intent: "greeting", expectedToolUsage: false, reasons };
+    }
+    reasons.push(`greeting+question: ${greeting} → general`);
   }
 
   // Planning beats single-topic when at least 2 dimensions show up.

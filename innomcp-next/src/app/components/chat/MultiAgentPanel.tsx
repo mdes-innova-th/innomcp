@@ -55,6 +55,10 @@ interface Props {
   status: StreamStatus;
   expandAll?: boolean;
   onToggleExpandAll?: () => void;
+  /** When true (default), the panel renders collapsed by default. */
+  defaultCollapsed?: boolean;
+  /** Compact mode — slimmer chrome for inline embedding inside a chat bubble. */
+  inline?: boolean;
 }
 
 export default function MultiAgentPanel({
@@ -62,8 +66,11 @@ export default function MultiAgentPanel({
   status,
   expandAll = false,
   onToggleExpandAll,
+  defaultCollapsed = true,
+  inline = false,
 }: Props) {
   const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
+  const [open, setOpen] = useState<boolean>(!defaultCollapsed);
 
   const agentMap = useMemo(() => {
     const map = new Map<string, AgentState>();
@@ -120,12 +127,24 @@ export default function MultiAgentPanel({
   
   if (status === "idle" && agents.length === 0) return null;
 
+  const isOpen = open || expandAll;
+  const rootClass = inline
+    ? "rounded-md border border-border/40 bg-muted/20 text-xs overflow-hidden"
+    : "mb-2 rounded-lg border border-border/30 bg-card/20 text-xs overflow-hidden";
+
   return (
-    <div
-      data-testid="multiagent-panel"
-      className="mb-2 rounded-lg border border-border/30 bg-card/20 text-xs overflow-hidden"
-    >
-      <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/20 bg-card/30">
+    <div data-testid="multiagent-panel" className={rootClass}>
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((v) => !v);
+          onToggleExpandAll?.();
+        }}
+        className={`w-full flex items-center justify-between gap-2 px-3 ${inline ? "py-1.5" : "py-1.5"} text-left transition-colors hover:bg-card/40`}
+        aria-expanded={isOpen}
+        data-testid="multiagent-expand-all"
+        title="Ctrl+O"
+      >
         <span className="flex items-center gap-2 font-medium text-foreground/80">
           <span
             className={`h-1.5 w-1.5 rounded-full ${
@@ -136,26 +155,21 @@ export default function MultiAgentPanel({
                 : "bg-sky-500"
             }`}
           />
-          ⚡ MDES multi-agent
+          <span className="text-[11px] uppercase tracking-wider text-muted-foreground/80">
+            เบื้องหลังการคิด
+          </span>
           <span className="text-muted-foreground/70">
-            • {agents.length} ตัวแทน
+            · {agents.length} ตัวแทน
             {status === "streaming" && agents.length > 0 && (
-              <> • {doneCount}/{agents.length} เสร็จ</>
+              <> · {doneCount}/{agents.length} เสร็จ</>
             )}
           </span>
         </span>
-        <button
-          data-testid="multiagent-expand-all"
-          type="button"
-          onClick={onToggleExpandAll}
-          className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors rounded px-1.5 py-0.5 hover:bg-muted/50"
-          title="Ctrl+O"
-        >
-          {expandAll ? "▾ ซ่อน" : "▸ ดูทั้งหมด"}
-          <span className="text-[10px] opacity-60 ml-0.5">[Ctrl+O]</span>
-        </button>
-      </div>
-      {agents.length > 0 && status === "streaming" && (
+        <span className="inline-flex items-center gap-1 text-muted-foreground/70 text-[10px]">
+          {isOpen ? "▾ ซ่อน" : "▸ ดู"}
+        </span>
+      </button>
+      {isOpen && agents.length > 0 && status === "streaming" && (
         <div className="h-0.5 bg-card/40 overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-emerald-500/80 to-sky-400/80 transition-all duration-500 ease-out"
@@ -163,7 +177,7 @@ export default function MultiAgentPanel({
           />
         </div>
       )}
-      {agents.length > 0 && (
+      {isOpen && agents.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-border/10 p-px">
           {agents.map((agent) => {
             const isExpanded = expandAll || expandedAgents.has(agent.agentId);

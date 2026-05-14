@@ -724,11 +724,15 @@ const ChatPage: React.FC = () => {
         lastAi.structuredContent?.weatherPayload ||
         lastAi.structuredContent?.chartSvg
       ) return prev;
+      // Monotonic: final text must not be shorter than what's already shown.
+      // If WS already produced a longer answer, keep WS text — only annotate mdesEnhanced.
+      const existing = String(lastAi.fullText || lastAi.text || "");
+      const nextText = mdesText.length >= existing.length ? mdesText : existing;
       const updated = [...prev];
       updated[lastAiIdx] = {
         ...lastAi,
-        text: mdesText,
-        fullText: mdesText,
+        text: nextText,
+        fullText: nextText,
         isAnimating: false,
         mdesEnhanced: true,
       };
@@ -736,11 +740,11 @@ const ChatPage: React.FC = () => {
     });
   }, [agentStreamState.finalText, agentStreamState.status]);
 
-  // MDES streaming preview: show concierge/critic answer while other agents still running
-  // Creates GPT thinking-style experience — partial answer appears as MDES processes
+  // MDES streaming preview: show concierge/critic answer while other agents still running.
+  // Monotonic: only update if the new preview is strictly longer than what is shown,
+  // so the bubble grows forward and never flips backwards mid-stream.
   useEffect(() => {
     if (agentStreamState.status !== "streaming") return;
-    // Pick best available agent delta (stylist > concierge > critic)
     const deltas = agentStreamState.events.filter(
       (ev) => ev.type === "agent_delta" && (ev.publicSummary?.length ?? 0) > 30
     );
@@ -758,7 +762,12 @@ const ChatPage: React.FC = () => {
       if (lastAiIdx === undefined) return prev;
       const last = prev[lastAiIdx];
       if (last.structuredContent?.weatherPipeline || last.structuredContent?.chartSvg) return prev;
-      // Only show preview — don't trigger typewriter animation
+      const existing = String(last.fullText || last.text || "");
+      // Forward-only: skip if preview wouldn't extend the visible answer.
+      // Strip trailing "⋯" before comparing so the cursor isn't counted as growth.
+      const prevCore = existing.replace(/\s*⋯\s*$/, "");
+      const nextCore = previewText.replace(/\s*⋯\s*$/, "");
+      if (nextCore.length <= prevCore.length) return prev;
       const updated = [...prev];
       updated[lastAiIdx] = { ...last, text: previewText, fullText: previewText, isAnimating: false };
       return updated;
@@ -1332,28 +1341,31 @@ const ChatPage: React.FC = () => {
                     })();
                     const showInlinePanel =
                       agentStreamState.status !== "idle" || agentStreamState.events.length > 0;
-                    return visible.map((message, index) => (
-                      <React.Fragment key={index}>
+                    return visible.map((message, index) => {
+                      const inlinePanel =
+                        showInlinePanel && index === lastAiIdx ? (
+                          <MultiAgentPanel
+                            events={agentStreamState.events}
+                            status={agentStreamState.status}
+                            expandAll={expandAll}
+                            onToggleExpandAll={() => setExpandAll((v) => !v)}
+                            inline
+                            defaultCollapsed
+                          />
+                        ) : null;
+                      return (
                         <MessageView
+                          key={index}
                           message={message as MessageType}
                           index={index}
                           onUpdate={updateMessage}
                           onRetry={handleRetry}
+                          inlineExtras={inlinePanel}
                         />
-                        {showInlinePanel && index === lastAiIdx && (
-                          <div className="-mt-2 ml-0 sm:ml-1">
-                            <MultiAgentPanel
-                              events={agentStreamState.events}
-                              status={agentStreamState.status}
-                              expandAll={expandAll}
-                              onToggleExpandAll={() => setExpandAll((v) => !v)}
-                            />
-                          </div>
-                        )}
-                      </React.Fragment>
-                    ));
+                      );
+                    });
                   })()}
-                  {/* When no AI message yet but SSE is already streaming, anchor panel at bottom */}
+                  {/* When no AI message yet but SSE is already streaming, anchor a compact panel at bottom */}
                   {(agentStreamState.status !== "idle" || agentStreamState.events.length > 0) &&
                     !messages.some((m) => m.sender === "ai") && (
                       <MultiAgentPanel
@@ -1361,6 +1373,8 @@ const ChatPage: React.FC = () => {
                         status={agentStreamState.status}
                         expandAll={expandAll}
                         onToggleExpandAll={() => setExpandAll((v) => !v)}
+                        inline
+                        defaultCollapsed
                       />
                     )}
                   {isWaitingForResponse &&

@@ -445,6 +445,8 @@ type EnhancedProps = {
   onUpdate: (index: number, msg: Message) => void;
   onDelete?: (index: number) => void;
   onRetry?: (index: number) => void;
+  /** Optional inline content rendered inside this bubble (e.g. MultiAgentPanel). */
+  inlineExtras?: React.ReactNode;
 };
 
 export function MessageView({
@@ -454,6 +456,7 @@ export function MessageView({
   onUpdate,
   onDelete,
   onRetry,
+  inlineExtras,
 }: EnhancedProps) {
   const [copied, setCopied] = React.useState(false);
   const [showActions, setShowActions] = React.useState(false);
@@ -1230,6 +1233,12 @@ export function MessageView({
               </div>
             )}
           </div>
+
+          {/* Inline extras (MultiAgentPanel) — rendered inside this bubble so the
+              user sees one cohesive answer card. Hidden by default via <details>. */}
+          {message.sender === "ai" && inlineExtras && (
+            <div className="mt-2.5">{inlineExtras}</div>
+          )}
 
           {/* Metadata footer */}
           <div
