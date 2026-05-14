@@ -78,6 +78,23 @@ const ChatInput: React.FC<ChatInputProps> = ({
   }, [input, adjustTextarea]);
 
   const hasAttachment = Boolean(selectedFile);
+  // Character counter — only surface when the input is non-trivial.
+  // 4000 is a comfortable soft-ceiling; warn at 80% and tint at 95%.
+  const CHAR_LIMIT = 4000;
+  const charCount = input.length;
+  const showCharCounter = charCount >= 600;
+  const charPct = charCount / CHAR_LIMIT;
+  const counterTone =
+    charPct >= 0.95
+      ? "text-rose-500 dark:text-rose-300"
+      : charPct >= 0.8
+      ? "text-amber-600 dark:text-amber-300"
+      : "text-muted-foreground/85";
+
+  // Detect audio attachments so we can hint the user about Whisper STT.
+  const isAudioAttachment =
+    selectedFile?.type?.startsWith("audio/") ||
+    /\.(mp3|wav|m4a|ogg|webm|flac|mpga)$/i.test(selectedFile?.name || "");
   const attachmentSizeLabel = selectedFile
     ? selectedFile.size >= 1024 * 1024
       ? `${(selectedFile.size / 1024 / 1024).toFixed(1)} MB`
@@ -135,6 +152,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
           >
             <FontAwesomeIcon icon={faXmark} />
           </button>
+        </div>
+      )}
+
+      {/* Audio attachment hint — Whisper STT will auto-transcribe on send. */}
+      {hasAttachment && isAudioAttachment && (
+        <div
+          data-testid="audio-attach-hint"
+          className="mb-2 flex items-center gap-2 rounded-md border border-sky-500/25 bg-sky-50/70 px-3 py-1.5 text-[12px] text-sky-900 dark:bg-sky-950/30 dark:text-sky-100"
+        >
+          <span aria-hidden="true">🎙</span>
+          <span>ตรวจพบไฟล์เสียง — ระบบจะถอดเสียงเป็นข้อความ (Whisper) เมื่อกดส่ง</span>
         </div>
       )}
 
@@ -238,18 +266,33 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       </div>
 
-      {/* Helper line — small + accessible, hidden on tiny viewports */}
-      <div className="mt-1.5 hidden items-center justify-end gap-3 px-1 text-[11px] text-muted-foreground/85 sm:flex">
-        <span>
-          <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">Enter</kbd>{" "}
-          ส่ง
-        </span>
-        <span>
-          <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">Shift</kbd>{" "}
-          +{" "}
-          <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">Enter</kbd>{" "}
-          ขึ้นบรรทัดใหม่
-        </span>
+      {/* Helper line — keys on left, character counter on right when relevant. */}
+      <div className="mt-1.5 hidden items-center justify-between gap-3 px-1 text-[11px] text-muted-foreground/85 sm:flex">
+        <div className="flex items-center gap-3">
+          <span>
+            <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">Enter</kbd>{" "}
+            ส่ง
+          </span>
+          <span>
+            <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">Shift</kbd>{" "}
+            +{" "}
+            <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">Enter</kbd>{" "}
+            ขึ้นบรรทัดใหม่
+          </span>
+          <span className="hidden md:inline">
+            <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">?</kbd>{" "}
+            คีย์ลัด
+          </span>
+        </div>
+        {showCharCounter && (
+          <span
+            data-testid="char-counter"
+            className={`font-mono tabular-nums ${counterTone}`}
+            title={`${charCount.toLocaleString()} / ${CHAR_LIMIT.toLocaleString()} อักขระ`}
+          >
+            {charCount.toLocaleString()} / {CHAR_LIMIT.toLocaleString()}
+          </span>
+        )}
       </div>
 
       <input

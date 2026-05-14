@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEnvelope, faLock, faEye, faEyeSlash, faSpinner } from '@fortawesome/free-solid-svg-icons';
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  
+  const { notify } = useToast();
+
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -18,6 +20,37 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [capsLock, setCapsLock] = useState(false);
+
+  // Detect Caps Lock on keypress in the password field. Pure event-based;
+  // doesn't fire if the user enables Caps Lock without typing.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (typeof e.getModifierState !== 'function') return;
+      const target = e.target as HTMLElement | null;
+      if (target?.tagName === 'INPUT' && (target as HTMLInputElement).type === 'password') {
+        setCapsLock(e.getModifierState('CapsLock'));
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKey);
+    };
+  }, []);
+
+  // Friendly Thai error messages keyed by backend error string.
+  const localizeError = (raw: string): string => {
+    const m = raw.toLowerCase();
+    if (m.includes('invalid') || m.includes('credentials')) return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+    if (m.includes('locked') || m.includes('disabled')) return 'บัญชีถูกล็อก กรุณาติดต่อผู้ดูแลระบบ';
+    if (m.includes('rate') || m.includes('too many')) return 'พยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอสักครู่';
+    if (m.includes('network') || m.includes('fetch') || m.includes('failed to')) {
+      return 'เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ ตรวจสอบเครือข่ายหรือลองใหม่อีกครั้ง';
+    }
+    return raw || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -25,7 +58,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3011/api/auth/login', {
+      const backendHost = process.env.NEXT_PUBLIC_NODE_HOST || 'http://localhost:3011';
+      const response = await fetch(`${backendHost}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -43,10 +77,11 @@ export default function LoginPage() {
       // Update auth context
       await login(data.data);
 
-      // Redirect to home
+      notify('ยินดีต้อนรับกลับ — เข้าสู่ระบบสำเร็จ', 'success', 2500);
       router.push('/');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred during login');
+      const friendly = localizeError(err instanceof Error ? err.message : String(err));
+      setError(friendly);
     } finally {
       setLoading(false);
     }
@@ -54,7 +89,7 @@ export default function LoginPage() {
 
   const handleThaiIdLogin = () => {
     // TODO: Implement Thai ID OAuth flow
-    alert('Thai ID authentication will be implemented soon');
+    notify('การเข้าสู่ระบบด้วย Thai ID จะเปิดให้ใช้ในเร็วๆ นี้', 'info', 3500);
   };
 
   return (
@@ -68,10 +103,10 @@ export default function LoginPage() {
             </div>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Welcome back
+            ยินดีต้อนรับกลับ
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Sign in to continue to InnoMCP
+            เข้าสู่ระบบเพื่อเริ่มใช้งาน InnoMCP
           </p>
         </div>
 
@@ -100,7 +135,7 @@ export default function LoginPage() {
             {/* Email Input */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email address
+                อีเมล
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -127,7 +162,7 @@ export default function LoginPage() {
             {/* Password Input */}
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Password
+                รหัสผ่าน
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -141,7 +176,7 @@ export default function LoginPage() {
                   required
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
+                  className="block w-full pl-10 pr-10 py-3 border border-gray-300 dark:border-gray-600 rounded-lg
                            bg-white dark:bg-gray-700 text-gray-900 dark:text-white
                            placeholder-gray-400 dark:placeholder-gray-500
                            focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent
@@ -151,11 +186,21 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                 >
                   <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
                 </button>
               </div>
+              {capsLock && (
+                <p
+                  data-testid="capslock-warning"
+                  className="mt-1.5 flex items-center gap-1.5 text-[12px] text-amber-600 dark:text-amber-300"
+                >
+                  <span aria-hidden="true">⇪</span>
+                  <span>Caps Lock เปิดอยู่</span>
+                </p>
+              )}
             </div>
 
             {/* Forgot Password Link */}
@@ -165,7 +210,7 @@ export default function LoginPage() {
                   href="/forgot-password"
                   className="font-medium text-primary hover:text-primary/80 transition-colors"
                 >
-                  Forgot your password?
+                  ลืมรหัสผ่าน?
                 </Link>
               </div>
             </div>
@@ -174,6 +219,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
+              data-testid="login-submit-btn"
               className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg
                        text-white font-medium bg-gradient-to-r from-primary to-secondary
                        hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary
@@ -182,10 +228,10 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <FontAwesomeIcon icon={faSpinner} className="animate-spin mr-2" />
-                  Signing in...
+                  กำลังเข้าสู่ระบบ…
                 </>
               ) : (
-                'Sign in'
+                'เข้าสู่ระบบ'
               )}
             </button>
 
@@ -195,7 +241,7 @@ export default function LoginPage() {
                 <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">Or continue with</span>
+                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500">หรือเข้าสู่ระบบด้วย</span>
               </div>
             </div>
 
@@ -210,19 +256,19 @@ export default function LoginPage() {
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/>
               </svg>
-              Sign in with Thai ID
+              เข้าสู่ระบบด้วย Thai ID
             </button>
           </form>
 
           {/* Sign Up Link */}
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Don't have an account?{' '}
+              ยังไม่มีบัญชี?{' '}
               <Link
                 href="/register"
                 className="font-medium text-primary hover:text-primary/80 transition-colors"
               >
-                Sign up
+                สมัครสมาชิก
               </Link>
             </p>
           </div>

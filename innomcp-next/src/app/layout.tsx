@@ -6,6 +6,7 @@ import { getNonce } from "@/utils/nonce";
 import "dotenv/config";
 import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "@/app/context/ThemeContext";
+import { ToastProvider } from "@/app/context/ToastContext";
 import Header from "@/app/components/Header";
 import ModeStatusBar from "@/app/components/ModeStatusBar";
 import GlobalLoadingOverlay from "@/app/components/common/GlobalLoadingOverlay";
@@ -98,13 +99,15 @@ export default async function RootLayout({
       >
         <AuthProvider>
           <ThemeProvider>
-            <Header />
-            <ModeStatusBar />
-            <GlobalLoadingOverlay />
-            <main className="relative flex-1 overflow-x-hidden pt-24">
-              {children}
-            </main>
-            <FooterWrapper />
+            <ToastProvider>
+              <Header />
+              <ModeStatusBar />
+              <GlobalLoadingOverlay />
+              <main className="relative flex-1 overflow-x-hidden pt-24">
+                {children}
+              </main>
+              <FooterWrapper />
+            </ToastProvider>
           </ThemeProvider>
         </AuthProvider>
       </body>

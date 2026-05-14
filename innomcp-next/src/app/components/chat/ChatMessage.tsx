@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { useTheme } from "@/app/context/ThemeContext";
 import { useAuth } from "@/app/context/AuthContext";
+import { useToast } from "@/app/context/ToastContext";
 import ToolTypeBadge from "./ToolTypeBadge";
 import EvidenceDashboard from "./EvidenceDashboard";
 import GeneratedImageCard from "./GeneratedImageCard";
@@ -468,6 +469,7 @@ export function MessageView({
   const [showReportModal, setShowReportModal] = React.useState(false);
   const { theme } = useTheme();
   const { isGuestMode } = useAuth();
+  const { notify } = useToast();
 
   React.useEffect(() => {
     return () => {
@@ -598,10 +600,10 @@ export function MessageView({
         }),
       });
       setShowReportModal(false);
-      alert("ขอบคุณสำหรับการรายงาน เราจะตรวจสอบและดำเนินการต่อไป");
+      notify("ขอบคุณสำหรับการรายงาน — เราจะตรวจสอบและดำเนินการต่อไป", "success", 4500);
     } catch (error) {
       console.error("Report failed:", error);
-      alert("เกิดข้อผิดพลาดในการรายงาน กรุณาลองใหม่อีกครั้ง");
+      notify("เกิดข้อผิดพลาดในการรายงาน กรุณาลองใหม่อีกครั้ง", "error", 5000);
     }
   };
 

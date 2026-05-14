@@ -11,6 +11,7 @@ import ChatSidebar, {
 import ChatInput from "./ChatInput";
 import FileUploadProgress from "@/app/components/common/FileUploadProgress";
 import ThemeContext from "@/app/context/ThemeContext";
+import { useToast } from "@/app/context/ToastContext";
 import type { ToolType } from "./ToolsTypeSelector";
 import {
   buildChatTransportHistory,
@@ -19,6 +20,7 @@ import {
 } from "../../../utils/chatStorage";
 import MultiAgentPanel from "@/app/components/chat/MultiAgentPanel";
 import { useAgentEventStream } from "@/app/components/chat/useAgentEventStream";
+import KeyboardShortcutsPanel, { useKeyboardShortcutsPanel } from "@/app/components/chat/KeyboardShortcutsPanel";
 // icons are used in ChatInput; not needed here
 
 // Define the type for a chat message
@@ -187,6 +189,8 @@ function persistSummariesToLocalStorage(summaries: SidebarSummary[]): void {
 
 const ChatPage: React.FC = () => {
   const { theme } = useContext(ThemeContext) as { theme: string };
+  const { notify } = useToast();
+  const [shortcutsOpen, setShortcutsOpen] = useKeyboardShortcutsPanel();
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   // Stored compact chat summaries (keeps up to last 10)
@@ -890,7 +894,7 @@ const ChatPage: React.FC = () => {
       
       // Check file size
       if (file.size > maxFileSize) {
-        alert(`ไฟล์ใหญ่เกินไป! ขนาดสูงสุด ${maxFileSize / (1024 * 1024)} MB`);
+        notify(`ไฟล์ใหญ่เกินไป — ขนาดสูงสุด ${maxFileSize / (1024 * 1024)} MB`, "error", 5000);
         setIsUploading(false);
         return;
       }
@@ -1153,6 +1157,38 @@ const ChatPage: React.FC = () => {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
+  // Phase 10.21: power-user hotkeys.
+  //   Ctrl/Cmd + K → start new chat (matches Slack/Linear pattern)
+  //   Ctrl/Cmd + /  → focus the composer textarea
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName?.toLowerCase();
+      const inField = tag === "input" || tag === "textarea" || (t && t.isContentEditable);
+
+      if (e.key === "k" || e.key === "K") {
+        if (inField) return;
+        e.preventDefault();
+        handleNewChat();
+      } else if (e.key === "/") {
+        // Always allow — power users hit it from anywhere to jump back.
+        e.preventDefault();
+        const el = textareaRef.current;
+        if (el) {
+          el.focus();
+          // Scroll into view for very long pages.
+          el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+    // handleNewChat is a stable callback for this component; intentional empty deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Add debug logs to check WebSocket and waiting state
   useEffect(() => {
     console.log("isSocketReady:", isSocketReady);
@@ -1176,6 +1212,19 @@ const ChatPage: React.FC = () => {
   return (
     <div className="relative flex">
       <div className="pointer-events-none fixed inset-0 chat-workspace-bg" />
+
+      <KeyboardShortcutsPanel open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+
+      {/* Floating "?" button — power-users discover Ctrl+K, Ctrl+/, etc. */}
+      <button
+        onClick={() => setShortcutsOpen(true)}
+        data-testid="open-shortcuts-btn"
+        className="fixed bottom-4 right-4 z-40 hidden h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background/95 text-muted-foreground shadow-md transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-foreground lg:flex"
+        aria-label="ดูคีย์ลัด (กด ? เพื่อเปิด)"
+        title="คีย์ลัด — กด ?"
+      >
+        <span className="font-mono text-sm font-semibold">?</span>
+      </button>
 
       {!isSidebarCollapsed && (
         <button
