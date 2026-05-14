@@ -386,7 +386,9 @@ export function synthesizeAnswer(
   agentOutputs: Record<string, string>,
   fallbackText: string
 ): string {
-  // Priority: stylist > concierge > critic > first valid > fallback
+  // Priority: tool data > stylist > concierge > critic > first valid > fallback
+  // Tool data is authoritative (real-world numbers) — beats MDES commentary.
+  if (agentOutputs["__tool__"] && agentOutputs["__tool__"].length > 20) return agentOutputs["__tool__"];
   if (agentOutputs["stylist"] && agentOutputs["stylist"].length > 20) return agentOutputs["stylist"];
   if (agentOutputs["concierge"] && agentOutputs["concierge"].length > 20) return agentOutputs["concierge"];
   if (agentOutputs["critic"] && agentOutputs["critic"].length > 20) return agentOutputs["critic"];

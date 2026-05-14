@@ -28,6 +28,7 @@ import {
 } from "../services/intentClassifier";
 import { checkNaturalness } from "../services/naturalnessGuard";
 import { dispatchAgents, synthesizeAnswer } from "./parallelDispatch";
+import { dispatchTool } from "./toolDispatch";
 
 export interface ConductorOptions {
   message: string;
@@ -217,6 +218,11 @@ export async function runConductor(
     ? dispatchAgents(cls.intent, opts.message, runId, messageId, emit, liveOutputs)
     : Promise.resolve({} as Record<string, string>);
 
+  // Fire MCP tool in parallel for tool-requiring intents (weather, map).
+  // Result lands in liveOutputs["__tool__"] which synthesizeAnswer prefers.
+  const toolPromise = dispatchTool(cls.intent, opts.message, runId, messageId, emit, liveOutputs)
+    .catch(() => undefined);
+
   const startedEv = newEnvelope({
     runId,
     messageId,
@@ -385,8 +391,14 @@ export async function runConductor(
   // Always sleep at least 1.5s to let agents at least start emitting deltas
   await new Promise<void>((resolve) => setTimeout(resolve, 1500));
   while (Date.now() - pollStart < HARD_TIMEOUT_MS) {
+    // Tool data wins immediately — no need to wait for MDES if a tool succeeded
+    if (liveOutputs["__tool__"] && liveOutputs["__tool__"].length > 20) break;
     if (hasUsefulOutput(liveOutputs)) break;
     await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  }
+  // Wait briefly for tool to finish if it's still pending and no other output yet
+  if (!hasUsefulOutput(liveOutputs) && !liveOutputs["__tool__"]) {
+    await Promise.race([toolPromise, new Promise((r) => setTimeout(r, 5000))]);
   }
   // Suppress any uncaught rejection from the background dispatch
   agentResultPromise.catch(() => undefined);
