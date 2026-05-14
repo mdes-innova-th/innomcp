@@ -371,11 +371,11 @@ export async function runConductor(
   safeEmit(emit, critiqueEv, cls.expectedToolUsage);
 
   // Wait for parallel agents (max 35s) — they've been emitting events all along.
-  // 35s accommodates qwen3.6:27b + a fallback gemma4:e4b retry chain (12+12s)
-  // with margin. If the race fires, liveOutputs still holds anything that
-  // completed before the deadline.
+  // agentResultPromise.catch swallows any rejection so race always resolves.
+  // If the race fires, liveOutputs still holds anything that completed before
+  // the deadline.
   await Promise.race([
-    agentResultPromise,
+    agentResultPromise.catch(() => ({})),
     new Promise<void>((resolve) => setTimeout(() => resolve(), 35_000)),
   ]);
   const enrichedText = synthesizeAnswer(liveOutputs, draft);

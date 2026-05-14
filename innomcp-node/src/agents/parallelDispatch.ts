@@ -265,6 +265,8 @@ async function runAgent(
       runId, messageId, type: "fallback",
       publicSummary: `${agentId}[MDES]: ${msg.substring(0, 80)}`, agentId,
     });
+    fbEv.fallbackReason = msg.slice(0, 200);
+    fbEv.model = model;
     if (checkAgentEventSafe(fbEv, { expectedToolUsage: false }).ok) emit(fbEv);
     return { agentId, text: "" };
   }
