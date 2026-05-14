@@ -93,14 +93,18 @@ const AGENT_PROMPT: Record<string, (q: string) => string> = {
 };
 
 // ── Ollama (MDES) call ──────────────────────────────────────────────────────
+// Two modes: non-streaming (default) and streaming with chunk callback.
+// Streaming gives token-by-token UX in the chat bubble preview.
 
 async function callOllama(
   model: string,
   prompt: string,
   ollamaUrl: string,
-  ollamaKey: string
+  ollamaKey: string,
+  onChunk?: (accumulatedText: string) => void
 ): Promise<string> {
   const timeout = MODEL_TIMEOUT_MS[model] ?? DEFAULT_TIMEOUT_MS;
+  const useStream = onChunk !== undefined && process.env.OLLAMA_STREAM !== "0";
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), timeout);
   try {
@@ -113,14 +117,58 @@ async function callOllama(
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content: prompt }],
-        stream: false,
+        stream: useStream,
       }),
       signal: ac.signal,
     });
+    if (!res.ok) {
+      clearTimeout(timer);
+      throw new Error(`HTTP ${res.status}`);
+    }
+    if (!useStream) {
+      clearTimeout(timer);
+      const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+      return (json.choices?.[0]?.message?.content ?? "").trim();
+    }
+    // Streaming path — parse SSE chunks from Ollama OpenAI-compat endpoint
+    const reader = res.body?.getReader();
+    if (!reader) {
+      clearTimeout(timer);
+      throw new Error("no response body");
+    }
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let accumulated = "";
+    let lastEmitLen = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const payload = trimmed.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(payload) as { choices?: Array<{ delta?: { content?: string } }> };
+          const piece = parsed.choices?.[0]?.delta?.content ?? "";
+          if (piece) {
+            accumulated += piece;
+            // Throttle: emit every 30 chars to avoid event flood
+            if (accumulated.length - lastEmitLen >= 30) {
+              onChunk?.(accumulated);
+              lastEmitLen = accumulated.length;
+            }
+          }
+        } catch {
+          // ignore malformed chunks
+        }
+      }
+    }
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
-    return (json.choices?.[0]?.message?.content ?? "").trim();
+    return accumulated.trim();
   } finally {
     clearTimeout(timer);
   }
@@ -184,12 +232,24 @@ async function runAgent(
   const prompt = promptFn ? promptFn(safeQ) : `ช่วยตอบอย่างฉลาดและกระชับ: "${safeQ}"`;
 
   try {
-    const text = await callOllama(model, prompt, ollamaUrl, ollamaKey);
+    // Streaming callback: emit progressive agent_delta as tokens arrive
+    const onChunk = (accumulated: string) => {
+      const preview = accumulated.substring(0, 220) + (accumulated.length > 220 ? "..." : "");
+      const chunkEv = newEnvelope({
+        runId, messageId, type: "agent_delta",
+        publicSummary: preview, agentId,
+      });
+      chunkEv.model = model;
+      if (checkAgentEventSafe(chunkEv, { expectedToolUsage: false }).ok) emit(chunkEv);
+    };
+    const text = await callOllama(model, prompt, ollamaUrl, ollamaKey, onChunk);
 
+    // Final agent_delta with the complete text (replaces last progressive chunk)
     const deltaEv = newEnvelope({
       runId, messageId, type: "agent_delta",
       publicSummary: text.substring(0, 220) + (text.length > 220 ? "..." : ""), agentId,
     });
+    deltaEv.model = model;
     if (checkAgentEventSafe(deltaEv, { expectedToolUsage: false }).ok) emit(deltaEv);
 
     const doneEv = newEnvelope({
