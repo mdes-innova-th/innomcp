@@ -5,7 +5,7 @@
  * Architecture:
  *   Every query (even "สวัสดี") uses ≥ 2 MDES child agents.
  *   Thinker agent → Responder agent → optional specialists.
- *   On repeated MDES failure: escalate to Haiku (2x) → Opus (3x).
+ *   On repeated MDES failure: escalate to GPT fallbacks only after 2 MDES attempts.
  *
  * Guard: PARALLEL_AGENTS=0 → skip (smoke/test mode)
  */
@@ -174,34 +174,91 @@ async function callOllama(
   }
 }
 
-// ── Anthropic (Claude) escalation call ─────────────────────────────────────
+// ── GPT fallback call ──────────────────────────────────────────────────────
 
-async function callAnthropic(
+function parseModelList(raw: string | undefined, fallback: string[]): string[] {
+  const models = (raw ?? "")
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
+  const seen = new Set<string>();
+  const ordered = (models.length > 0 ? models : fallback).filter((model) => {
+    if (seen.has(model)) return false;
+    seen.add(model);
+    return true;
+  });
+  return ordered;
+}
+
+function getGptFallbackModels(): string[] {
+  const primary = parseModelList(
+    process.env.OPENAI_FALLBACK_MODELS ?? process.env.OPENAI_FALLBACK_MODEL,
+    ["gpt-5.4", "gpt-5.3-codex"]
+  );
+
+  // Emergency model is intentionally opt-in and not part of this phase.
+  if (process.env.OPENAI_EMERGENCY_FALLBACK === "1") {
+    const emergency = (process.env.OPENAI_EMERGENCY_MODEL || "gpt-5.4").trim();
+    if (emergency && !primary.includes(emergency)) primary.push(emergency);
+  }
+
+  return primary;
+}
+
+function safeErr(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.replace(/Bearer\s+[A-Za-z0-9._-]+/g, "Bearer [redacted]").slice(0, 200);
+}
+
+async function callGptFallback(
   model: string,
   prompt: string,
-  anthropicKey: string
+  apiKey: string,
+  baseUrl: string
 ): Promise<string> {
   const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), 30_000);
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const timeout = Number(process.env.OPENAI_FALLBACK_TIMEOUT_MS || 30_000);
+  const maxTokens = Number(process.env.OPENAI_FALLBACK_MAX_TOKENS || 512);
+  const timer = setTimeout(() => ac.abort(), timeout);
+  const endpoint = `${baseUrl.replace(/\/$/, "")}/chat/completions`;
+
+  const post = async (tokenField: "max_completion_tokens" | "max_tokens") => {
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model,
-        max_tokens: 512,
-        messages: [{ role: "user", content: prompt }],
+        messages: [
+          {
+            role: "system",
+            content:
+              "คุณเป็น GPT fallback ของ INNOMCP ใช้เฉพาะเมื่อ MDES Ollama ล้ม 2 รอบแล้ว ตอบภาษาไทย กระชับ ถูกต้อง และไม่กล่าวอ้างว่าใช้เครื่องมือหากไม่มีข้อมูลเครื่องมือ",
+          },
+          { role: "user", content: prompt },
+        ],
+        [tokenField]: maxTokens,
       }),
       signal: ac.signal,
     });
+    const text = await res.text();
+    return { ok: res.ok, status: res.status, text };
+  };
+
+  try {
+    let res = await post("max_completion_tokens");
+    if (!res.ok && res.status === 400) {
+      res = await post("max_tokens");
+    }
     clearTimeout(timer);
-    if (!res.ok) throw new Error(`Anthropic HTTP ${res.status}`);
-    const json = await res.json() as { content?: Array<{ text?: string }> };
-    return (json.content?.[0]?.text ?? "").trim();
+    if (!res.ok) throw new Error(`OpenAI-compatible HTTP ${res.status}: ${res.text.slice(0, 120)}`);
+    const json = JSON.parse(res.text) as {
+      choices?: Array<{ message?: { content?: string } }>;
+      output_text?: string;
+    };
+    return (json.choices?.[0]?.message?.content ?? json.output_text ?? "").trim();
   } finally {
     clearTimeout(timer);
   }
@@ -277,7 +334,7 @@ async function runAgent(
 }
 
 // ── Escalating agent runner ─────────────────────────────────────────────────
-// MDES attempt 1 → MDES attempt 2 → Haiku → Opus
+// MDES attempt 1 → MDES attempt 2 → GPT fallback models
 
 async function runAgentWithEscalation(
   agentId: AgentId,
@@ -298,51 +355,44 @@ async function runAgentWithEscalation(
   const r2 = await runAgent(agentId, query, runId, messageId, emit, ollamaUrl, ollamaKey, fallbackMdesModel, partialSink);
   if (r2.text) return r2;
 
-  // Attempt 3 — Claude Haiku escalation
-  const anthropicKey = process.env.ANTHROPIC_API_KEY ?? "";
-  if (anthropicKey.trim()) {
-    try {
-      const safeQ = query.replace(/["\\\n\r]/g, " ").trim().slice(0, 500);
-      const promptFn = AGENT_PROMPT[agentId];
-      const prompt = promptFn ? promptFn(safeQ) : `ช่วยตอบ: "${safeQ}"`;
+  // Attempt 3+ — GPT fallback after both MDES attempts failed.
+  const openAiKey = process.env.OPENAI_API_KEY ?? "";
+  if (process.env.OPENAI_FALLBACK_ENABLED !== "0" && openAiKey.trim()) {
+    const safeQ = query.replace(/["\\\n\r]/g, " ").trim().slice(0, 500);
+    const promptFn = AGENT_PROMPT[agentId];
+    const prompt = promptFn ? promptFn(safeQ) : `ช่วยตอบ: "${safeQ}"`;
+    const baseUrl = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
 
-      const haikuEv = newEnvelope({
+    for (const model of getGptFallbackModels()) {
+      const gptStart = newEnvelope({
         runId, messageId, type: "agent_started",
-        publicSummary: `${agentId} → ยกระดับ Haiku`, agentId,
+        publicSummary: `${agentId} → fallback GPT หลัง MDES ล้ม 2 รอบ`, agentId,
       });
-      haikuEv.model = "claude-haiku-4-5-20251001";
-      if (checkAgentEventSafe(haikuEv, { expectedToolUsage: false }).ok) emit(haikuEv);
+      gptStart.model = model;
+      if (checkAgentEventSafe(gptStart, { expectedToolUsage: false }).ok) emit(gptStart);
 
-      const haikuText = await callAnthropic("claude-haiku-4-5-20251001", prompt, anthropicKey);
-      if (haikuText) {
-        const haikuDone = newEnvelope({
-          runId, messageId, type: "agent_finished",
-          publicSummary: `${agentId} Haiku เสร็จสิ้น`, agentId,
+      try {
+        const gptText = await callGptFallback(model, prompt, openAiKey, baseUrl);
+        if (gptText) {
+          const gptDone = newEnvelope({
+            runId, messageId, type: "agent_finished",
+            publicSummary: `${agentId} GPT fallback เสร็จสิ้น`, agentId,
+          });
+          gptDone.model = model;
+          if (checkAgentEventSafe(gptDone, { expectedToolUsage: false }).ok) emit(gptDone);
+          return { agentId, text: gptText };
+        }
+      } catch (err) {
+        const msg = safeErr(err);
+        const gptFail = newEnvelope({
+          runId, messageId, type: "fallback",
+          publicSummary: `${agentId}[GPT ${model}]: ${msg.substring(0, 80)}`, agentId,
         });
-        if (checkAgentEventSafe(haikuDone, { expectedToolUsage: false }).ok) emit(haikuDone);
-        return { agentId, text: haikuText };
+        gptFail.fallbackReason = msg;
+        gptFail.model = model;
+        if (checkAgentEventSafe(gptFail, { expectedToolUsage: false }).ok) emit(gptFail);
+        console.warn(`[parallelDispatch] GPT fallback failed for ${agentId}/${model}: ${msg}`);
       }
-
-      // Attempt 4 — Claude Opus (heavy artillery)
-      const opusEv = newEnvelope({
-        runId, messageId, type: "agent_started",
-        publicSummary: `${agentId} → ยกระดับ Opus`, agentId,
-      });
-      opusEv.model = "claude-opus-4-7";
-      if (checkAgentEventSafe(opusEv, { expectedToolUsage: false }).ok) emit(opusEv);
-
-      const opusText = await callAnthropic("claude-opus-4-7", prompt, anthropicKey);
-      if (opusText) {
-        const opusDone = newEnvelope({
-          runId, messageId, type: "agent_finished",
-          publicSummary: `${agentId} Opus เสร็จสิ้น`, agentId,
-        });
-        if (checkAgentEventSafe(opusDone, { expectedToolUsage: false }).ok) emit(opusDone);
-        return { agentId, text: opusText };
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[parallelDispatch] Claude escalation failed for ${agentId}: ${msg}`);
     }
   }
 
@@ -360,8 +410,8 @@ export async function dispatchAgents(
   liveOutputs?: Record<string, string>
 ): Promise<Record<string, string>> {
   if (process.env.PARALLEL_AGENTS === "0") return {};
-  const ollamaUrl = process.env.OLLAMA_URL ?? "https://ollama.mdes-innova.online";
-  const ollamaKey = process.env.OLLAMA_API_KEY ?? "";
+  const ollamaUrl = process.env.OLLAMA_URL ?? process.env.OLLAMA_REMOTE_BASE_URL ?? "https://ollama.mdes-innova.online";
+  const ollamaKey = process.env.OLLAMA_API_KEY ?? process.env.OLLAMA_REMOTE_API_KEY ?? "";
   if (!ollamaKey.trim()) return {};
 
   const count = Math.max(2, scoreComplexity(intent, query)); // ALWAYS minimum 2 agents

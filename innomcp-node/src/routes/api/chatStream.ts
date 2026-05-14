@@ -18,10 +18,12 @@
  *   docs/brain/INNOMCP_BRAIN.md
  */
 
-import { Router, Request, Response } from "express";
+import { Router, Response } from "express";
 import { runConductor } from "../../agents/conductor";
 import type { AgentEvent } from "../../agents/events";
 import type { ChatMode } from "../../providers/router";
+import { optionalAuth, type AuthRequest } from "../../utils/jwt";
+import { guestLimiterMiddleware, limitResponseLength } from "../../middleware/guestLimiter";
 
 const router = Router();
 
@@ -37,7 +39,7 @@ function writeComment(res: Response, comment: string): void {
   (res as unknown as { write: (chunk: string) => boolean }).write(`: ${comment}\n\n`);
 }
 
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, res: Response) => {
   const body = (req.body || {}) as {
     message?: string;
     sessionId?: string;
@@ -89,16 +91,27 @@ router.post("/", async (req: Request, res: Response) => {
   res.on("close", cleanup);
 
   try {
+    const limits = (req as any).guestLimits;
+    const isGuest = Boolean((req as any).isGuest ?? !req.user);
+    const capabilityLevel = Number((req as any).capabilityLevel ?? (isGuest ? 50 : 100));
+    const userTier = isGuest ? "guest" : req.user?.userRoleId === 0 ? "admin" : "user";
+
     await runConductor(
       {
         message,
         sessionId: body.sessionId,
         preferredMode: body.preferredMode,
         preferredProviderId: body.preferredProviderId,
+        userTier,
+        capabilityLevel,
       },
       (ev) => {
         if (closed) return;
-        writeEvent(res, ev);
+        const out =
+          ev.type === "final_answer" && typeof ev.finalText === "string" && limits
+            ? { ...ev, finalText: limitResponseLength(ev.finalText, limits) }
+            : ev;
+        writeEvent(res, out);
       }
     );
   } catch (err: any) {

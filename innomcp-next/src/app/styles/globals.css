@@ -566,6 +566,24 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   50%      { box-shadow: 0 4px 18px -2px oklch(0.65 0.18 145 / 0.45); }
 }
 .animate-pulse-soft { animation: pulse-soft 1.8s ease-in-out infinite; }
+
+/* Phase 10.22: chat bubble entry — slight rise + fade. Reduced-motion safe. */
+@keyframes bubble-in {
+  0%   { opacity: 0; transform: translateY(6px) scale(0.985); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-bubble-in { animation: bubble-in 320ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+/* Phase 10.22: hero empty-state — subtle floating accents */
+@keyframes float-orbit {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50%      { transform: translate3d(0, -6px, 0); }
+}
+.animate-float-orbit { animation: float-orbit 4.5s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-pulse-soft { animation: none; }
+  .animate-pulse-soft,
+  .animate-bubble-in,
+  .animate-float-orbit { animation: none; }
 }

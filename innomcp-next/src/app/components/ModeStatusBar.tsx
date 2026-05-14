@@ -8,8 +8,8 @@ type HealthPayload = {
   mode_ready?: boolean;
   missing_keys?: string[];
   notes?: string[];
-  /** AI mode from backend (local LLM vs remote Anthropic) */
-  ai_mode?: "local" | "remote";
+  /** AI mode from backend (local LLM, remote MDES/cloud, or hybrid router) */
+  ai_mode?: "local" | "remote" | "hybrid";
   /** MCP server connectivity */
   mcp_status?: "connected" | "local-only" | "disconnected" | "unknown";
   local_tools?: number;
@@ -219,7 +219,25 @@ export default function ModeStatusBar() {
     );
   }, [isGuestMode, userRoleId]);
 
-  const aiLabel = aiMode ? `AI ${aiMode === "local" ? "Local" : "Remote"}` : null;
+  const aiLabel =
+    aiMode === "local"
+      ? "AI Local"
+      : aiMode === "remote"
+      ? "AI Remote"
+      : aiMode === "hybrid"
+      ? "AI Hybrid"
+      : null;
+
+  // Color-code the AI mode badge so the user can tell at a glance which
+  // backend is wired up — sky for local, violet for remote, emerald for hybrid.
+  const aiToneClass =
+    aiMode === "local"
+      ? "bg-sky-500/12 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300"
+      : aiMode === "remote"
+      ? "bg-violet-500/12 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300"
+      : aiMode === "hybrid"
+      ? "bg-emerald-500/12 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300"
+      : "";
   const mcpLabel = mcpStatus
     ? `MCP ${mcpStatus === "connected" ? "พร้อม" : mcpStatus === "local-only" ? "เฉพาะในเครื่อง" : "ออฟไลน์"}`
     : null;
@@ -248,7 +266,15 @@ export default function ModeStatusBar() {
 
         {(aiLabel || mcpLabel) && (
           <span className="hidden items-center gap-2 text-muted-foreground/80 sm:inline-flex">
-            {aiLabel && <span className="font-mono text-[10.5px]">{aiLabel}</span>}
+            {aiLabel && (
+              <span
+                data-testid="ai-mode-badge"
+                className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 font-mono text-[10.5px] font-medium ${aiToneClass}`}
+                title={`AI backend: ${aiMode}`}
+              >
+                {aiLabel}
+              </span>
+            )}
             {aiLabel && mcpLabel && <span className="text-muted-foreground/40">·</span>}
             {mcpLabel && (
               <span data-testid="mcp-badge" className="font-mono text-[10.5px]">

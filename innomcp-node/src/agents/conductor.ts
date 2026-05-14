@@ -35,6 +35,8 @@ export interface ConductorOptions {
   sessionId?: string;
   preferredMode?: ChatMode;
   preferredProviderId?: string;
+  userTier?: "guest" | "user" | "admin";
+  capabilityLevel?: number;
 }
 
 export type EmitFn = (ev: AgentEvent) => void;
@@ -209,6 +211,14 @@ export async function runConductor(
   const runId = randomUUID();
   const messageId = randomUUID();
   const cls = classifyIntent(opts.message);
+  const userTier = opts.userTier ?? "guest";
+  const capabilityLevel = opts.capabilityLevel ?? (userTier === "guest" ? 50 : 100);
+  const userModeSummary =
+    userTier === "guest"
+      ? `Guest ${capabilityLevel}%: ใช้บริบทและเครื่องมือแบบจำกัด`
+      : userTier === "admin"
+        ? `Admin ${capabilityLevel}%: เปิดความสามารถเต็ม`
+        : `User ${capabilityLevel}%: เปิดความสามารถเต็ม`;
 
   // Fire agents concurrently — they emit events while conductor runs.
   // Use a shared liveOutputs object so the race-timeout can still use
@@ -227,7 +237,7 @@ export async function runConductor(
     runId,
     messageId,
     type: "agent_run_started",
-    publicSummary: "เริ่มประมวลคำขอ",
+    publicSummary: `เริ่มประมวลคำขอ (${userModeSummary})`,
     agentId: "conductor",
   });
   safeEmit(emit, startedEv, cls.expectedToolUsage);

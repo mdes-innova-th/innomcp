@@ -9,7 +9,13 @@ function resolveLocalUrl(): string | undefined {
 }
 
 function resolveRemoteUrl(): string | undefined {
-  return process.env.REMOTE_OLLAMA_BASE_URL || process.env.OLLAMA_REMOTE_URL || undefined;
+  // OLLAMA_URL is the canonical MDES remote endpoint configured for the
+  // multi-agent dispatch — reuse it so the AI-mode toggle picks up the same
+  // remote without requiring duplicate env keys.
+  return process.env.REMOTE_OLLAMA_BASE_URL
+    || process.env.OLLAMA_REMOTE_URL
+    || process.env.OLLAMA_URL
+    || undefined;
 }
 
 function resolveLocalModel(): string | undefined {

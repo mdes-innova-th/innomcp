@@ -11,6 +11,7 @@ import ChatSidebar, {
 import ChatInput from "./ChatInput";
 import FileUploadProgress from "@/app/components/common/FileUploadProgress";
 import ThemeContext from "@/app/context/ThemeContext";
+import { useAuth } from "@/app/context/AuthContext";
 import { useToast } from "@/app/context/ToastContext";
 import type { ToolType } from "./ToolsTypeSelector";
 import {
@@ -189,6 +190,7 @@ function persistSummariesToLocalStorage(summaries: SidebarSummary[]): void {
 
 const ChatPage: React.FC = () => {
   const { theme } = useContext(ThemeContext) as { theme: string };
+  const { isGuestMode, capabilityLevel } = useAuth();
   const { notify } = useToast();
   const [shortcutsOpen, setShortcutsOpen] = useKeyboardShortcutsPanel();
   const [socket, setSocket] = useState<WebSocket | null>(null);
@@ -848,7 +850,7 @@ const ChatPage: React.FC = () => {
       socket.send(JSON.stringify(message));
       // Phase 10.15: fire SSE channel for MultiAgentPanel
       resetAgentStream();
-      sendAgentStream({ message: input });
+      sendAgentStream({ message: input, sessionId: activeSummaryId ?? undefined });
       
       // Add user message to UI (include file indicator)
       const userMessage: ChatMessage = { 
@@ -1294,9 +1296,16 @@ const ChatPage: React.FC = () => {
               <div className="flex min-h-0 flex-1 flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(16rem,1fr)] lg:items-start">
                 <section className="flex flex-col gap-4">
                   {/* Hero — single statement, not two restating ones (req 2: reduce duplicated copy) */}
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-primary/85">
+                  <div className="relative">
+                    {/* Soft accent gradient ring behind the headline — gives the page a premium feel
+                        without competing with content. Pointer-events-none + aria-hidden. */}
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute -left-4 -top-6 h-24 w-24 rounded-full bg-gradient-to-br from-primary/20 via-sky-400/15 to-violet-500/10 blur-2xl animate-float-orbit"
+                    />
+                    <div className="relative flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-md bg-gradient-to-r from-emerald-500/15 via-primary/15 to-sky-500/15 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-primary/85">
+                        <span aria-hidden="true">✨</span>
                         การสนทนาใหม่
                       </span>
                       <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11.5px] font-medium text-muted-foreground">
@@ -1309,9 +1318,18 @@ const ChatPage: React.FC = () => {
                       </span>
                     </div>
 
-                    <h1 className="font-display mt-3 max-w-3xl text-[1.65rem] font-semibold leading-tight text-foreground sm:text-[2rem]">
-                      สวัสดี ถาม วิเคราะห์ หรือสั่งงานเป็นภาษาไทยได้เลย
+                    <h1 className="font-display relative mt-3 max-w-3xl text-[1.65rem] font-semibold leading-tight text-foreground sm:text-[2rem]">
+                      สวัสดี{" "}
+                      <span className="bg-gradient-to-r from-emerald-500 via-primary to-sky-500 bg-clip-text text-transparent dark:from-emerald-300 dark:via-primary dark:to-sky-300">
+                        ถาม วิเคราะห์ หรือสั่งงาน
+                      </span>
+                      {" "}เป็นภาษาไทยได้เลย
                     </h1>
+
+                    <p className="relative mt-2 max-w-2xl text-[13.5px] leading-relaxed text-muted-foreground">
+                      INNOMCP เลือกเครื่องมือที่เหมาะกับคำถามให้อัตโนมัติ — อากาศ TMD/NWP, สถิติ World Bank,
+                      ภาพ AI, สร้างเอกสาร PDF/DOCX, ค่าเงิน, ข่าว RSS และอีกหลายแหล่ง
+                    </p>
                   </div>
 
                   {!isSocketReady && (
@@ -1483,6 +1501,9 @@ const ChatPage: React.FC = () => {
                     }
                     const mdesCount = mdesAgents.size;
                     const isMdesStreaming = agentStreamState.status === "streaming";
+                    const capabilityLine = isGuestMode
+                      ? `Guest ${capabilityLevel}% · จำกัดบริบท/เครื่องมือ`
+                      : `User ${capabilityLevel}% · เปิดความสามารถเต็ม`;
                     const mdesLine = isMdesStreaming && mdesCount >= 1
                       ? `⚡ MDES กำลังคิด... (${mdesCount} ตัวแทน)`
                       : "กำลังสรุปและจัดรูปคำตอบให้อ่านง่าย";
@@ -1496,7 +1517,10 @@ const ChatPage: React.FC = () => {
                             <span className={`h-2 w-2 rounded-full ${dotColor} animate-bounce [animation-delay:80ms]`} />
                             <span className={`h-2 w-2 rounded-full ${dotColor} animate-bounce [animation-delay:160ms]`} />
                           </span>
-                          <div className="text-sm text-foreground">{mdesLine}</div>
+                          <div>
+                            <div className="text-sm text-foreground">{mdesLine}</div>
+                            <div className="mt-0.5 text-[11px] text-muted-foreground">{capabilityLine}</div>
+                          </div>
                         </div>
                       </div>
                     );

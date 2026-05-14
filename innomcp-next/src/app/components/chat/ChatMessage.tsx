@@ -492,9 +492,11 @@ export function MessageView({
         document.body.removeChild(ta);
       }
       setCopied(true);
+      notify("คัดลอกข้อความแล้ว", "success", 1800);
       setTimeout(() => setCopied(false), 1500);
     } catch (err) {
       console.error("Copy failed:", err);
+      notify("คัดลอกไม่สำเร็จ — ลองอีกครั้ง", "error", 2500);
     }
   };
 
@@ -706,7 +708,7 @@ export function MessageView({
 
   return (
     <div
-      className={`relative group px-4 py-3.5 sm:px-5 ${
+      className={`relative group px-4 py-3.5 sm:px-5 animate-bubble-in ${
         message.sender === "user"
           ? "ml-auto max-w-[min(78%,46rem)] self-end rounded-2xl rounded-br-sm bg-primary text-primary-foreground shadow-[0_2px_6px_oklch(0_0_0/0.08)]"
           : "max-w-[min(88%,50rem)] self-start rounded-2xl border border-border/70 bg-background/96 text-left shadow-[0_1px_2px_oklch(0_0_0/0.04)] dark:border-white/10 dark:bg-white/5"
@@ -715,14 +717,37 @@ export function MessageView({
       onMouseLeave={() => setShowActions(false)}
       data-testid={message.sender === "user" ? "message-user" : "message-assistant"}
     >
-      <div className={`mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] ${
-        message.sender === "user"
-          ? "text-primary-foreground/75"
-          : "text-muted-foreground"
+      <div className={`mb-2.5 flex items-center gap-2 ${
+        message.sender === "user" ? "text-primary-foreground/80" : "text-muted-foreground"
       }`}>
-        <span>{message.sender === "user" ? "คุณ" : "MDES AI"}</span>
+        {message.sender === "ai" ? (
+          <span
+            aria-hidden="true"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 via-sky-400 to-violet-500 text-[11px] font-bold text-white shadow-sm ring-1 ring-white/40 dark:ring-white/10"
+          >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden="true">
+              <path d="M12 2 14.39 8.42 21 11l-6.61 2.58L12 20l-2.39-6.42L3 11l6.61-2.58L12 2z" />
+            </svg>
+          </span>
+        ) : (
+          <span
+            aria-hidden="true"
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary-foreground/15 text-[11px] font-semibold text-primary-foreground/95 ring-1 ring-primary-foreground/15"
+          >
+            <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <circle cx="12" cy="8" r="3.5" />
+              <path d="M5 21a7 7 0 0 1 14 0" />
+            </svg>
+          </span>
+        )}
+        <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">
+          {message.sender === "user" ? "คุณ" : "MDES AI"}
+        </span>
         {message.sender === "ai" && modelUsed ? (
-          <span className="rounded-full bg-primary/8 px-2 py-0.5 text-[10px] normal-case tracking-normal text-primary dark:bg-white/8 dark:text-white/75">
+          <span
+            className="rounded-full bg-primary/8 px-2 py-0.5 font-mono text-[10px] normal-case tracking-normal text-primary dark:bg-white/8 dark:text-white/75"
+            title={`Model: ${String(modelUsed)}`}
+          >
             {String(modelUsed)}
           </span>
         ) : null}

@@ -78,6 +78,7 @@ function rawHasForbiddenKey(raw: string): string | null {
 
 export interface SendOptions {
   message: string;
+  sessionId?: string;
   preferredMode?: "local" | "remote" | "hybrid";
   preferredProviderId?: string;
 }
@@ -178,9 +179,11 @@ export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: opts.message,
+            sessionId: opts.sessionId,
             preferredMode: opts.preferredMode,
             preferredProviderId: opts.preferredProviderId,
           }),
+          credentials: "include",
           signal: controller.signal,
         });
       } catch (err: any) {

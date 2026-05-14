@@ -2767,9 +2767,14 @@ export function updateChatAIMode() {
   logBoth("info", `[Chat AI] 🔄 updateChatAIMode called`);
   logBoth("info", `[Chat AI] 📊 Mode change: ${oldMode} → ${AI_MODE}`);
   
-  // Initialize remote Ollama if needed (for remote/hybrid modes)
+  // Initialize remote Ollama if needed (for remote/hybrid modes).
+  // OLLAMA_URL is the canonical MDES remote — reuse it so toggling to
+  // remote/hybrid Just Works without an extra env key.
   if ((AI_MODE === 'remote' || AI_MODE === 'hybrid') && !remoteOllama) {
-    const remoteRawHost = process.env.REMOTE_OLLAMA_BASE_URL;
+    const remoteRawHost =
+      process.env.REMOTE_OLLAMA_BASE_URL ||
+      process.env.OLLAMA_REMOTE_URL ||
+      process.env.OLLAMA_URL;
     if (remoteRawHost) {
       let remoteOllamaHostUrl = remoteRawHost;
       try {
@@ -2781,20 +2786,21 @@ export function updateChatAIMode() {
       } catch (e) {
         remoteOllamaHostUrl = remoteRawHost.replace(/\/$/, "");
       }
-      
-      const remoteToken = process.env.REMOTE_OLLAMA_TOKEN;
+
+      const remoteToken = process.env.REMOTE_OLLAMA_TOKEN || process.env.OLLAMA_API_KEY;
       remoteOllama = new Ollama({
         host: remoteOllamaHostUrl,
         ...(remoteToken ? { headers: { Authorization: `Bearer ${remoteToken}` } } : {}),
       });
-      remoteModel = process.env.REMOTE_OLLAMA_MODEL || localModel;
-      remoteFastModel = process.env.REMOTE_FAST_OLLAMA_MODEL || process.env.REMOTE_OLLAMA_MODEL || fastModel;
+      // Pick a sensible MDES default if no explicit remote model is set.
+      remoteModel = process.env.REMOTE_OLLAMA_MODEL || process.env.MDES_PRIMARY_MODEL || "qwen3.5:9b";
+      remoteFastModel = process.env.REMOTE_FAST_OLLAMA_MODEL || process.env.REMOTE_OLLAMA_MODEL || "gemma4:e4b";
       logBoth('info', `[Chat AI] 🌐 Initializing Remote Ollama: ${remoteOllamaHostUrl}${remoteToken ? ' (auth ✓)' : ''}`);
       logBoth('info', `[Chat AI] 📦 Primary Model: ${remoteModel}`);
       logBoth('info', `[Chat AI] ⚡ Fast Model: ${remoteFastModel}`);
       logBoth("info", `🎯 Remote AI initialized: ${remoteOllamaHostUrl} (${remoteModel})`);
     } else {
-      logBoth('warn', `[Chat AI] ⚠️  ${AI_MODE} mode requested but REMOTE_OLLAMA_BASE_URL not configured`);
+      logBoth('warn', `[Chat AI] ⚠️  ${AI_MODE} mode requested but no remote URL configured (checked REMOTE_OLLAMA_BASE_URL / OLLAMA_REMOTE_URL / OLLAMA_URL)`);
       logBoth('warn', `[Chat AI] ⚠️  Will use local AI as fallback`);
     }
   }
@@ -4095,7 +4101,7 @@ wss.on("connection", (ws, req) => {
             { type: "heading", level: 2, text: "หมายเหตุ" },
             { type: "list", items: [
               `สร้าง ณ ${new Date().toLocaleString("th-TH")}`,
-              "ระบบ: INNOMCP multi-agent (MDES + Haiku + Opus fallback)",
+              "ระบบ: INNOMCP multi-agent (MDES primary + GPT fallback หลัง MDES ล้ม 2 รอบ)",
               "บันทึกใน workspace-storage/ ของระบบ",
             ] },
           ];
@@ -6679,7 +6685,7 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
         { type: "heading" as const, level: 2 as const, text: "หมายเหตุ" },
         { type: "list" as const, items: [
           `สร้าง ณ ${new Date().toLocaleString("th-TH")}`,
-          "ระบบ: INNOMCP multi-agent (MDES + Haiku + Opus fallback)",
+          "ระบบ: INNOMCP multi-agent (MDES primary + GPT fallback หลัง MDES ล้ม 2 รอบ)",
           "บันทึกใน workspace-storage/ ของระบบ",
         ] },
       ];

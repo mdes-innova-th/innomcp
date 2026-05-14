@@ -10,8 +10,21 @@ const MDES_MODEL_BADGE: Record<string, string> = {
   "gemma4:26b": "G4-26B",
   "z-uo/qwen2.5vl_tools:7b": "VL-7B",
   "qwen2.5-coder:32b": "Coder-32B",
-  "claude-haiku-4-5-20251001": "Haiku↑",
-  "claude-opus-4-7": "Opus↑↑",
+  "gpt-5.4": "GPT-5.4",
+  "gpt-5.4-mini": "GPT-5.4 Mini",
+  "gpt-5.3-codex": "GPT-5.3 Codex",
+};
+
+const EVENT_LABEL_TH: Record<string, string> = {
+  agent_started: "เริ่ม",
+  agent_delta: "ร่าง",
+  agent_finished: "เสร็จ",
+  tool_call_started: "เรียกเครื่องมือ",
+  tool_call_finished: "เครื่องมือเสร็จ",
+  fact_found: "พบข้อมูล",
+  critique: "ตรวจคำตอบ",
+  fallback: "ทางสำรอง",
+  error: "ผิดพลาด",
 };
 
 const AGENT_LABEL_TH: Record<string, string> = {
@@ -42,11 +55,13 @@ const AGENT_ROLE_DESC: Record<string, string> = {
 
 interface AgentState {
   agentId: string;
-  status: "active" | "done" | "error";
+  status: "active" | "recovering" | "done" | "error";
   events: AgentEvent[];
   lastSummary: string;
   thinkingText: string;
   toolNames: string[];
+  fallbackCount: number;
+  lastFallback?: string;
   model?: string;
 }
 
@@ -84,6 +99,7 @@ export default function MultiAgentPanel({
           lastSummary: "",
           thinkingText: "",
           toolNames: [],
+          fallbackCount: 0,
         });
       }
       const s = map.get(ev.agentId)!;
@@ -92,6 +108,7 @@ export default function MultiAgentPanel({
       // Capture model from agent_started events
       if (ev.type === "agent_started" && ev.model) {
         s.model = ev.model;
+        s.status = "active";
       }
 
       // Prefer agent_delta text (actual LLM response) over status messages
@@ -108,7 +125,12 @@ export default function MultiAgentPanel({
       ) {
         s.toolNames.push(ev.toolName);
       }
-      if (ev.type === "fallback" || ev.type === "error") {
+      if (ev.type === "fallback") {
+        s.fallbackCount += 1;
+        s.lastFallback = ev.publicSummary || ev.fallbackReason || "";
+        s.lastSummary = s.lastFallback;
+        if (s.status !== "done") s.status = "recovering";
+      } else if (ev.type === "error") {
         s.status = "error";
       } else if ((ev.type as string) === "agent_finished") {
         s.status = "done";
@@ -117,13 +139,17 @@ export default function MultiAgentPanel({
     if (status === "done") {
       for (const [, s] of map) {
         if (s.status === "active") s.status = "done";
+        if (s.status === "recovering") s.status = "error";
       }
     }
     return map;
   }, [events, status]);
 
   const agents = Array.from(agentMap.values());
-  const doneCount = agents.filter((a) => a.status !== "active").length;
+  const doneCount = agents.filter((a) => a.status === "done").length;
+  const recoveringCount = agents.filter((a) => a.status === "recovering").length;
+  const errorCount = agents.filter((a) => a.status === "error").length;
+  const runSummary = events.find((ev) => ev.type === "agent_run_started")?.publicSummary;
   
   if (status === "idle" && agents.length === 0) return null;
 
@@ -150,19 +176,23 @@ export default function MultiAgentPanel({
             className={`h-1.5 w-1.5 rounded-full ${
               status === "streaming"
                 ? "animate-pulse bg-emerald-500"
-                : status === "error"
+                : status === "error" || errorCount > 0
                 ? "bg-rose-500"
+                : recoveringCount > 0
+                ? "bg-amber-500"
                 : "bg-sky-500"
             }`}
           />
           <span className="text-[11px] uppercase tracking-wider text-muted-foreground/80">
-            เบื้องหลังการคิด
+            ทีม AI กำลังทำงาน
           </span>
           <span className="text-muted-foreground/70">
             · {agents.length} ตัวแทน
             {status === "streaming" && agents.length > 0 && (
               <> · {doneCount}/{agents.length} เสร็จ</>
             )}
+            {recoveringCount > 0 && <> · กู้คืน {recoveringCount}</>}
+            {errorCount > 0 && <> · ล้มเหลว {errorCount}</>}
           </span>
         </span>
         <span className="inline-flex items-center gap-1 text-muted-foreground/70 text-[10px]">
@@ -178,6 +208,12 @@ export default function MultiAgentPanel({
         </div>
       )}
       {isOpen && agents.length > 0 && (
+        <div>
+          {runSummary && (
+            <div className="border-t border-border/20 px-3 py-1.5 text-[11px] leading-4 text-muted-foreground">
+              {runSummary}
+            </div>
+          )}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-border/10 p-px">
           {agents.map((agent) => {
             const isExpanded = expandAll || expandedAgents.has(agent.agentId);
@@ -199,7 +235,18 @@ export default function MultiAgentPanel({
             
             // Status icon
             const statusIcon =
-              agent.status === "done" ? "✓" : agent.status === "error" ? "✗" : "";
+              agent.status === "done" ? "✓" : agent.status === "error" ? "✗" : agent.status === "recovering" ? "↻" : "";
+            const dotClass =
+              agent.status === "active"
+                ? "animate-pulse bg-emerald-500"
+                : agent.status === "recovering"
+                ? "animate-pulse bg-amber-500"
+                : agent.status === "error"
+                ? "bg-rose-500"
+                : "bg-sky-400";
+            const badgeClass = agent.model?.startsWith("gpt-")
+              ? "bg-amber-500/15 text-amber-600 dark:text-amber-300"
+              : "bg-sky-500/15 text-sky-500 dark:text-sky-300";
             
             return (
               <div
@@ -216,13 +263,7 @@ export default function MultiAgentPanel({
               >
                 <div className="flex items-center gap-2">
                   <span
-                    className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${
-                      agent.status === "active"
-                        ? "animate-pulse bg-emerald-500"
-                        : agent.status === "error"
-                        ? "bg-rose-500"
-                        : "bg-sky-400"
-                    }`}
+                    className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${dotClass}`}
                   />
                   <span className="font-medium text-foreground/85 truncate flex items-center gap-1">
                     {AGENT_LABEL_TH[agent.agentId] ?? agent.agentId}
@@ -231,6 +272,8 @@ export default function MultiAgentPanel({
                         className={`text-[10px] ${
                           agent.status === "done"
                             ? "text-sky-400"
+                            : agent.status === "recovering"
+                            ? "text-amber-500"
                             : "text-rose-400"
                         }`}
                       >
@@ -239,7 +282,7 @@ export default function MultiAgentPanel({
                     )}
                   </span>
                   {agent.model && (
-                    <span className="ml-auto text-[9px] font-mono px-1 py-0.5 rounded bg-sky-500/15 text-sky-400/90 flex-shrink-0">
+                    <span className={`ml-auto text-[9px] font-mono px-1 py-0.5 rounded flex-shrink-0 ${badgeClass}`}>
                       {MDES_MODEL_BADGE[agent.model] ?? agent.model.split(":")[0]}
                     </span>
                   )}
@@ -251,7 +294,7 @@ export default function MultiAgentPanel({
                 </div>
                 <p
                   className={`mt-0.5 text-muted-foreground/80 leading-4 line-clamp-2 ${
-                    agent.status === "error" ? "text-rose-400/70" : ""
+                    agent.status === "error" ? "text-rose-400/70" : agent.status === "recovering" ? "text-amber-600/80 dark:text-amber-300/80" : ""
                   }`}
                 >
                   {isThinking ? (
@@ -264,7 +307,9 @@ export default function MultiAgentPanel({
                       <span className="ml-1.5">{displayText}</span>
                     </>
                   ) : (
-                    displayText
+                    agent.status === "recovering" && agent.lastFallback
+                      ? `${agent.lastFallback} · กำลังลองทางสำรอง`
+                      : displayText
                   )}
                 </p>
                 {isExpanded && agent.events.length > 0 && (
@@ -288,7 +333,7 @@ export default function MultiAgentPanel({
                         return (
                           <li key={i} className="text-muted-foreground/70 leading-4">
                             <span className="text-[10px] font-mono text-muted-foreground/50 mr-1">
-                              {ev.type}
+                              {EVENT_LABEL_TH[ev.type] ?? ev.type}
                             </span>
                             {ev.publicSummary && (
                               <span className="text-[11px]">{ev.publicSummary}</span>
@@ -302,6 +347,7 @@ export default function MultiAgentPanel({
               </div>
             );
           })}
+        </div>
         </div>
       )}
     </div>
