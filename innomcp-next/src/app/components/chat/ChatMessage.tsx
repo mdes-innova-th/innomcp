@@ -688,9 +688,11 @@ export function MessageView({
   const degradedReasons = Array.isArray(groundedContract?.degradedReasons) ? groundedContract.degradedReasons : [];
   const modelUsed = groundedContract?.modelUsed || null;
   const fallbackReason = groundedContract?.fallbackReason || null;
+  // Mobile (< sm): rail is always visible so touch users can reach copy/like.
+  // Desktop (≥ sm): rail fades in on hover only — keeps the chat surface calm.
   const actionRailVisibility = showActions
     ? "opacity-100 translate-y-0"
-    : "opacity-100 translate-y-0 sm:pointer-events-none sm:opacity-0 sm:translate-y-1";
+    : "opacity-100 translate-y-0 sm:pointer-events-none sm:opacity-0 sm:translate-y-1 sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto sm:group-hover:translate-y-0 sm:focus-within:opacity-100 sm:focus-within:pointer-events-auto sm:focus-within:translate-y-0";
   const actionSurfaceClass = message.sender === "user"
     ? "border border-primary-foreground/15 bg-primary-foreground/10 text-primary-foreground"
     : "border border-border/70 bg-background/90 text-muted-foreground backdrop-blur";

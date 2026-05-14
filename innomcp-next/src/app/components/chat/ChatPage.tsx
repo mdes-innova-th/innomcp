@@ -249,6 +249,9 @@ const ChatPage: React.FC = () => {
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(true);
+  // Count messages added while user is scrolled up — badge on the floating button.
+  const [unreadCount, setUnreadCount] = useState(0);
+  const prevMessagesLenRef = useRef(0);
   const [, setIsChatActive] = useState(false); // tracks composer focus for future hooks
   const [selectedToolType, setSelectedToolType] = useState<ToolType>("auto");
   const activeToolMeta = TOOL_TYPE_META[selectedToolType] || TOOL_TYPE_META.auto;
@@ -382,7 +385,25 @@ const ChatPage: React.FC = () => {
   // Function to scroll to bottom (used by floating button)
   const scrollToBottom = () => {
     window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" });
+    setUnreadCount(0);
   };
+
+  // Increment unread when new AI messages arrive while user scrolled up;
+  // clear when user returns to bottom.
+  useEffect(() => {
+    const prevLen = prevMessagesLenRef.current;
+    const newLen = messages.length;
+    if (newLen > prevLen && !isNearBottom) {
+      // Only count messages that are AI replies (user's own messages don't bug them).
+      let aiAdded = 0;
+      for (let i = prevLen; i < newLen; i++) {
+        if (messages[i]?.sender === "ai" && !messages[i]?.isProgress) aiAdded++;
+      }
+      if (aiAdded > 0) setUnreadCount((c) => c + aiAdded);
+    }
+    if (isNearBottom && unreadCount > 0) setUnreadCount(0);
+    prevMessagesLenRef.current = newLen;
+  }, [messages, isNearBottom, unreadCount]);
 
   // (Previously: scroll detection and hiding input while scrolling.)
   // That behavior was removed to keep the ChatInput always visible.
@@ -996,7 +1017,7 @@ const ChatPage: React.FC = () => {
     );
     setChatSummaries(updated);
     // No need to call saveSummariesToStorage - useEffect handles this
-    
+
     // If renaming active chat, update localStorage metadata
     if (id === activeSummaryId) {
       try {
@@ -1004,6 +1025,20 @@ const ChatPage: React.FC = () => {
       } catch (e) {
         // ignore
       }
+    }
+  };
+
+  // Phase 10.21: delete a chat from history. If the deleted chat is the
+  // currently-active one, clear the canvas (the auto-save effect will then
+  // not re-create the summary because messages is empty).
+  const handleDeleteSummary = (id: string) => {
+    setChatSummaries((prev) => prev.filter((s) => s.id !== id));
+    if (id === activeSummaryId) {
+      setMessages([]);
+      setActiveSummaryId(null);
+      try {
+        localStorage.removeItem("chatTitle");
+      } catch {}
     }
   };
 
@@ -1176,6 +1211,7 @@ const ChatPage: React.FC = () => {
           onLoad={loadSummary}
           onNewChat={handleNewChat}
           onRename={handleRename}
+          onDelete={handleDeleteSummary}
           theme={theme}
         />
       </div>
@@ -1427,23 +1463,42 @@ const ChatPage: React.FC = () => {
               {showScrollButton && (
                 <button
                   onClick={scrollToBottom}
-                  className="absolute -top-12 right-2 z-10 rounded-full border border-border/70 bg-background/92 p-2.5 text-card-foreground shadow-md transition-colors hover:bg-primary/8"
-                  title="กลับไปด้านล่าง"
+                  data-testid="scroll-to-bottom-btn"
+                  className={`group absolute -top-12 right-2 z-10 inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-background/95 px-3 py-2 text-card-foreground shadow-md transition-all hover:bg-primary/10 hover:border-primary/30 ${
+                    isWaitingForResponse ? "animate-pulse-soft" : ""
+                  }`}
+                  title={
+                    unreadCount > 0
+                      ? `กลับไปด้านล่าง • ${unreadCount} ข้อความใหม่`
+                      : "กลับไปด้านล่าง"
+                  }
                   aria-label="Scroll to bottom"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="18"
-                    height="18"
+                    width="16"
+                    height="16"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth="2"
+                    strokeWidth="2.25"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                    aria-hidden="true"
                   >
                     <path d="M12 5v14M19 12l-7 7-7-7" />
                   </svg>
+                  {unreadCount > 0 && (
+                    <span
+                      data-testid="scroll-unread-badge"
+                      className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground shadow-sm"
+                    >
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                  {isWaitingForResponse && unreadCount === 0 && (
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" aria-hidden="true" />
+                  )}
                 </button>
               )}
 

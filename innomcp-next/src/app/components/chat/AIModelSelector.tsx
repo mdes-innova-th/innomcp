@@ -57,6 +57,23 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({ theme: _theme, onMode
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen]);
 
+  // Global shortcut: Ctrl+M (or Cmd+M on Mac) toggles the AI mode menu.
+  // Skip when an input is focused so users typing "m" don't trigger it.
+  useEffect(() => {
+    const onGlobalKey = (e: KeyboardEvent) => {
+      const isTogglerCombo = (e.ctrlKey || e.metaKey) && (e.key === "m" || e.key === "M");
+      if (!isTogglerCombo) return;
+      const t = e.target as HTMLElement | null;
+      const tag = t?.tagName?.toLowerCase();
+      if (tag === "input" || tag === "textarea" || (t && t.isContentEditable)) return;
+      e.preventDefault();
+      setIsOpen((v) => !v);
+      buttonRef.current?.focus();
+    };
+    window.addEventListener("keydown", onGlobalKey);
+    return () => window.removeEventListener("keydown", onGlobalKey);
+  }, []);
+
   const fetchCurrentMode = async () => {
     try {
       const backendHost = process.env.NEXT_PUBLIC_NODE_HOST || "http://localhost:3011";
@@ -99,12 +116,17 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({ theme: _theme, onMode
       <button
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
+        data-testid="ai-mode-button"
         className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border/70 bg-background px-2.5 text-[13px] font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-primary/8 aria-expanded:border-primary/40 aria-expanded:bg-primary/8"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        title={`โหมด AI: ${current.label} — ${current.helper}`}
+        title={`โหมด AI: ${current.label} — ${current.helper} (Ctrl+M)`}
       >
         <FontAwesomeIcon icon={faRobot} className="text-muted-foreground" aria-hidden="true" />
+        {/* Mobile: a single-letter pill so users still see which mode is active. */}
+        <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-primary/10 px-1 text-[10px] font-semibold uppercase tracking-wider text-primary sm:hidden">
+          {current.short.charAt(0)}
+        </span>
         <span className="hidden truncate sm:inline">{current.short}</span>
         <FontAwesomeIcon
           icon={faChevronDown}
@@ -129,13 +151,18 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({ theme: _theme, onMode
             aria-label="เลือกโหมดประมวลผล AI"
             className="absolute bottom-full right-0 z-[101] mb-2 w-[min(18rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-border/70 bg-card shadow-lg"
           >
-            <div className="border-b border-border/60 px-3 py-2">
-              <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                โหมดประมวลผล AI
+            <div className="flex items-start justify-between gap-2 border-b border-border/60 px-3 py-2">
+              <div className="min-w-0">
+                <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  โหมดประมวลผล AI
+                </div>
+                <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground/85">
+                  เลือกแนวทางให้เหมาะกับงาน
+                </div>
               </div>
-              <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground/85">
-                เลือกแนวทางให้เหมาะกับงาน
-              </div>
+              <kbd className="shrink-0 rounded border border-border/60 bg-background px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                Ctrl+M
+              </kbd>
             </div>
 
             <ul className="space-y-0.5 p-1.5">
