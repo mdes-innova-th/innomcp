@@ -155,6 +155,14 @@ export default function MultiAgentPanel({
           <span className="text-[10px] opacity-60 ml-0.5">[Ctrl+O]</span>
         </button>
       </div>
+      {agents.length > 0 && status === "streaming" && (
+        <div className="h-0.5 bg-card/40 overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-emerald-500/80 to-sky-400/80 transition-all duration-500 ease-out"
+            style={{ width: `${Math.round((doneCount / agents.length) * 100)}%` }}
+          />
+        </div>
+      )}
       {agents.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-border/10 p-px">
           {agents.map((agent) => {

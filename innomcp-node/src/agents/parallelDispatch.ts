@@ -188,7 +188,7 @@ async function runAgent(
 
     const deltaEv = newEnvelope({
       runId, messageId, type: "agent_delta",
-      publicSummary: text.substring(0, 150) + (text.length > 150 ? "..." : ""), agentId,
+      publicSummary: text.substring(0, 220) + (text.length > 220 ? "..." : ""), agentId,
     });
     if (checkAgentEventSafe(deltaEv, { expectedToolUsage: false }).ok) emit(deltaEv);
 

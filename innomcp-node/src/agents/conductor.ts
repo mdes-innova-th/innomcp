@@ -367,10 +367,11 @@ export async function runConductor(
   critiqueEv.confidence = nat.ok ? 0.85 : 0.55;
   safeEmit(emit, critiqueEv, cls.expectedToolUsage);
 
-  // Wait for parallel agents (max 10s) — they've been emitting events all along
+  // Wait for parallel agents (max 25s) — they've been emitting events all along
+  // 25s — accommodates qwen3.6:27b first-token latency
   const agentOutputs = await Promise.race([
     agentResultPromise,
-    new Promise<Record<string, string>>(resolve => setTimeout(() => resolve({}), 10_000)),
+    new Promise<Record<string, string>>(resolve => setTimeout(() => resolve({}), 25_000)),
   ]);
   const enrichedText = synthesizeAnswer(agentOutputs, draft);
 
