@@ -82,8 +82,11 @@ router.post("/", async (req: Request, res: Response) => {
     }
   };
 
-  // Client disconnect → cleanup
-  req.on("close", cleanup);
+  // Client disconnect → cleanup. Use res.on("close") instead of req.on
+  // because req emits "close" when its readable body finishes (which for
+  // small POST bodies fires within milliseconds), causing premature
+  // cleanup that drops everything after the first event.
+  res.on("close", cleanup);
 
   try {
     await runConductor(
