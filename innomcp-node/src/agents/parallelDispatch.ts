@@ -217,7 +217,8 @@ async function runAgent(
   emit: EmitFn,
   ollamaUrl: string,
   ollamaKey: string,
-  modelOverride?: string
+  modelOverride?: string,
+  partialSink?: (agentId: AgentId, partialText: string) => void
 ): Promise<{ agentId: AgentId; text: string }> {
   const model = modelOverride ?? AGENT_MODEL_MDES[agentId] ?? "qwen3.5:9b";
 
@@ -233,6 +234,8 @@ async function runAgent(
 
   try {
     // Streaming callback: emit progressive agent_delta as tokens arrive
+    // AND surface partial text to liveOutputs so polling sees content
+    // even when the model doesn't finish before race-timeout.
     const onChunk = (accumulated: string) => {
       const preview = accumulated.substring(0, 220) + (accumulated.length > 220 ? "..." : "");
       const chunkEv = newEnvelope({
@@ -241,6 +244,7 @@ async function runAgent(
       });
       chunkEv.model = model;
       if (checkAgentEventSafe(chunkEv, { expectedToolUsage: false }).ok) emit(chunkEv);
+      if (partialSink) partialSink(agentId, accumulated);
     };
     const text = await callOllama(model, prompt, ollamaUrl, ollamaKey, onChunk);
 
@@ -282,15 +286,16 @@ async function runAgentWithEscalation(
   messageId: string,
   emit: EmitFn,
   ollamaUrl: string,
-  ollamaKey: string
+  ollamaKey: string,
+  partialSink?: (agentId: AgentId, partialText: string) => void
 ): Promise<{ agentId: AgentId; text: string }> {
   // Attempt 1 — MDES
-  const r1 = await runAgent(agentId, query, runId, messageId, emit, ollamaUrl, ollamaKey);
+  const r1 = await runAgent(agentId, query, runId, messageId, emit, ollamaUrl, ollamaKey, undefined, partialSink);
   if (r1.text) return r1;
 
   // Attempt 2 — MDES retry with smaller fallback model
   const fallbackMdesModel = "gemma4:e4b"; // fast fallback within MDES
-  const r2 = await runAgent(agentId, query, runId, messageId, emit, ollamaUrl, ollamaKey, fallbackMdesModel);
+  const r2 = await runAgent(agentId, query, runId, messageId, emit, ollamaUrl, ollamaKey, fallbackMdesModel, partialSink);
   if (r2.text) return r2;
 
   // Attempt 3 — Claude Haiku escalation
@@ -367,10 +372,15 @@ export async function dispatchAgents(
   const outputs: Record<string, string> = liveOutputs ?? {};
 
   // Fire all agents in parallel; capture each result the moment it settles
-  // so the conductor's race-timeout can still use partial outputs even when
-  // some big-model agents are still finishing.
+  // AND stream partial accumulated tokens into outputs so the conductor's
+  // poll loop sees content immediately, not only after the agent finishes.
+  const partialSink = (id: AgentId, partialText: string) => {
+    if (partialText && partialText.length > 20) {
+      outputs[id] = partialText;
+    }
+  };
   const tasks = agents.map((agentId) =>
-    runAgentWithEscalation(agentId, query, runId, messageId, emit, ollamaUrl, ollamaKey)
+    runAgentWithEscalation(agentId, query, runId, messageId, emit, ollamaUrl, ollamaKey, partialSink)
       .then((r) => {
         if (r.text) outputs[r.agentId] = r.text;
         return r;
