@@ -3189,6 +3189,8 @@ function chatTraceOut(params: {
     | "thai_history"
     | "thai_law"
     | "thai_religion"
+    | "currency"
+    | "rss"
     | "multi_intent";
   tool?: string;
   code: number;
@@ -6353,8 +6355,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     if (imageGenLike) {
       logBoth("info", `[ImageGenGate] bypass=true transport=http query=${routingMessage.slice(0, 80)}`);
       // Authenticated users only — guest mode cannot use image generation
+      // Smoke bypass: SMOKE_MODE=1 + X-Smoke-Run header lets test harness exercise this path.
       const authReq = req as any;
-      if (!authReq.user) {
+      const imgSmokeBypass = process.env.SMOKE_MODE === "1" && String(req.headers["x-smoke-run"] || "") === "1";
+      if (!authReq.user && !imgSmokeBypass) {
         const textOut = "🔒 ฟีเจอร์สร้างรูปภาพ AI สำหรับผู้ใช้ที่เข้าสู่ระบบแล้วเท่านั้น กรุณาเข้าสู่ระบบก่อนใช้งาน";
         sessionHistory.push({ sender: "ai", text: textOut } as any);
         chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "image_generation", tool: "auth_required", code: 403, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: "AUTH_REQUIRED" });
@@ -6456,6 +6460,106 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       sessionHistory.push({ sender: "ai", text: textOut } as any);
       chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: matchedSubtopic.route as any, tool: matchedSubtopic.tool, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
       return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: true, mcpResults: toolResults, toolsUsed: [matchedSubtopic.tool], route: matchedSubtopic.route });
+    }
+
+    // =====================================
+    // Phase 10.19: Misc deterministic gates — Currency + RSS
+    // These tools were registered but had no routing detection.
+    // =====================================
+    const currencyLike = /\b(usd|eur|gbp|jpy|cny|sgd|krw|aud|cad|chf|hkd|inr|myr|vnd)\b.*(บาท|thb|ไทย)|(บาท|thb|ไทย).*\b(usd|eur|gbp|jpy|cny|sgd|krw|aud|cad|chf|hkd|inr|myr|vnd)\b|อัตราแลกเปลี่ยน|ค่าเงิน|exchange.*rate|currency.*convert/i.test(routingMessage);
+    if (mcpClient && currencyLike) {
+      // Inline parser — extract amount + currencies from Thai/English query.
+      const fxMap: Record<string, string> = {
+        บาท: "THB", baht: "THB", ไทย: "THB",
+        "เหรียญสหรัฐ": "USD", "ดอลลาร์สหรัฐ": "USD", "ดอลลาร์": "USD",
+        "ยูโร": "EUR", "เยน": "JPY", "หยวน": "CNY", "ปอนด์": "GBP",
+        "วอน": "KRW", "ดอลลาร์สิงคโปร์": "SGD", "ฟรังก์": "CHF",
+      };
+      const txt = routingMessage.toUpperCase();
+      const codeRe = /\b(USD|EUR|GBP|JPY|CNY|SGD|KRW|AUD|CAD|CHF|HKD|INR|MYR|VND|THB)\b/g;
+      const codes: string[] = [];
+      let m: RegExpExecArray | null;
+      while ((m = codeRe.exec(txt)) !== null) codes.push(m[1]);
+      // Also pick up Thai aliases
+      for (const [alias, code] of Object.entries(fxMap)) {
+        if (routingMessage.includes(alias) && !codes.includes(code)) codes.push(code);
+      }
+      const amtMatch = routingMessage.match(/[\d,]+(?:\.\d+)?/);
+      const amount = amtMatch ? Number(amtMatch[0].replace(/,/g, "")) : 1;
+      const fromCurrency = codes[0] || "USD";
+      const toCurrency = codes[1] || (fromCurrency === "THB" ? "USD" : "THB");
+
+      logBoth("info", `[CurrencyGate] bypass=true tool=currencyExchangeTool amount=${amount} from=${fromCurrency} to=${toCurrency}`);
+      const toolResults = await mcpClient.executeTools(["currencyExchangeTool"], routingMessage, {
+        currencyExchangeTool: { amount, fromCurrency, toCurrency },
+      });
+      const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+      const sc = first?.structuredContent ?? first?.result;
+      // mcpClient.executeSingleTool already parses content[0].text → first.result is already an object.
+      // Fall through to content[].text only if sc is still the wire envelope.
+      let parsedFx: any = null;
+      if (sc && typeof sc === "object" && !Array.isArray((sc as any).content) && (sc as any).success !== undefined) {
+        parsedFx = sc;
+      } else {
+        const textContent = Array.isArray((sc as any)?.content) && (sc as any).content.length > 0 ? String((sc as any).content[0]?.text || "") : "";
+        try { parsedFx = textContent ? JSON.parse(textContent) : null; } catch {}
+      }
+      let textOut: string;
+      if (parsedFx?.success && parsedFx.convertedAmount != null) {
+        const converted = Number(parsedFx.convertedAmount).toLocaleString(undefined, { maximumFractionDigits: 2 });
+        textOut = `💱 อัตราแลกเปลี่ยน\n${amount.toLocaleString()} ${fromCurrency} ≈ **${converted} ${toCurrency}**\n\n(อัตรา 1 ${fromCurrency} = ${parsedFx.exchangeRate} ${toCurrency} • ${parsedFx.timestamp ? new Date(parsedFx.timestamp).toLocaleDateString("th-TH") : ""} • exchangerate-api.com)`;
+      } else if (parsedFx?.error) {
+        textOut = `💱 ขออภัย ดึงอัตราแลกเปลี่ยนไม่ได้: ${parsedFx.error}`;
+      } else {
+        textOut = `💱 อัตราแลกเปลี่ยน ${fromCurrency} → ${toCurrency}: ไม่สามารถดึงข้อมูลได้ในขณะนี้`;
+      }
+      const scOut = withRenderMeta(sc, { route: "currency", llmUsed: false, routeDecider: "deterministic", version: "phase10.19" }, ["currencyExchangeTool"]);
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+      chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "currency", tool: "currencyExchangeTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+      return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: true, mcpResults: toolResults, toolsUsed: ["currencyExchangeTool"], route: "currency" });
+    }
+
+    const rssLike = /\brss\b|\batom\b|ข่าวล่าสุด.*จาก|feed.*ข่าว|ฟีด.*ข่าว|rss.*feed|subscribe.*ข่าว/i.test(routingMessage);
+    if (mcpClient && rssLike) {
+      // Detect feed URL or popular feed name in the query.
+      const urlMatch = routingMessage.match(/https?:\/\/[^\s"']+/i);
+      const popular = ["bbc","techcrunch","reuters","theverge","hackernews","github","stackoverflow","medium"];
+      const popularPicked = popular.find((p) => routingMessage.toLowerCase().includes(p)) || "bbc";
+      const feedUrl = urlMatch ? urlMatch[0] : popularPicked;
+      const limitMatch = routingMessage.match(/(?:\b|^)(\d{1,2})\s*(?:บทความ|รายการ|ข่าว|item|article)/i);
+      const limit = limitMatch ? Math.min(20, Number(limitMatch[1])) : 5;
+      logBoth("info", `[RssGate] bypass=true tool=rssFeedTool feedUrl=${feedUrl} limit=${limit}`);
+      const toolResults = await mcpClient.executeTools(["rssFeedTool"], routingMessage, {
+        rssFeedTool: { feedUrl, limit },
+      });
+      const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+      const sc = first?.structuredContent ?? first?.result;
+      let parsedFeed: any = null;
+      if (sc && typeof sc === "object" && Array.isArray((sc as any).items)) {
+        parsedFeed = sc;
+      } else {
+        const textContent = Array.isArray((sc as any)?.content) && (sc as any).content.length > 0 ? String((sc as any).content[0]?.text || "") : "";
+        try { parsedFeed = textContent ? JSON.parse(textContent) : null; } catch {}
+      }
+      let textOut: string;
+      if (Array.isArray(parsedFeed?.items) && parsedFeed.items.length > 0) {
+        const lines: string[] = [`📰 ข่าวล่าสุดจาก **${parsedFeed.feedTitle || feedUrl}** (${parsedFeed.items.length} รายการ)`];
+        for (const it of parsedFeed.items.slice(0, limit)) {
+          const title = String(it.title || "").trim();
+          const date = it.pubDate ? new Date(it.pubDate).toLocaleDateString("th-TH") : "";
+          lines.push(`• ${title}${date ? ` _(${date})_` : ""}`);
+          if (it.link) lines.push(`  🔗 ${it.link}`);
+        }
+        textOut = lines.join("\n");
+      } else if (parsedFeed?.error) {
+        textOut = `📰 ขออภัย ดึง RSS ไม่ได้: ${parsedFeed.error}`;
+      } else {
+        textOut = `📰 RSS Feed ${feedUrl}: ไม่สามารถดึง feed ได้ในขณะนี้ ลองระบุ URL อื่น`;
+      }
+      const scOut = withRenderMeta(sc, { route: "rss", llmUsed: false, routeDecider: "deterministic", version: "phase10.19" }, ["rssFeedTool"]);
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+      chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "rss", tool: "rssFeedTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+      return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: true, mcpResults: toolResults, toolsUsed: ["rssFeedTool"], route: "rss" });
     }
 
     // =====================================

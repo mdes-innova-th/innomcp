@@ -77,6 +77,10 @@ import ocrTool from "./mcp/tools/ocrTool";
 import fileReaderTool from "./mcp/tools/fileReaderTool";
 import imageGeneratorTool from "./mcp/tools/imageGeneratorTool";
 
+// NEW: 2026-05-14 — Phase 10.19 register previously-orphaned tools
+import { storageTool } from "./mcp/tools/storageTool";
+import { keywordTool } from "./mcp/tools/keywordTool";
+
 // NEW: 2026-01-06 - NWP Weather Forecast Tools (High Performance Computing)
 import {
   nwpHourlyByLocationTool,
@@ -225,6 +229,18 @@ mcpserver.registerTool(imageGeneratorTool.name, {
   description: imageGeneratorTool.description,
   inputSchema: imageGeneratorTool.inputSchema,
 }, imageGeneratorTool.execute);
+
+mcpserver.registerTool(storageTool.name, {
+  title: "Workspace Storage - read/write/list files",
+  description: storageTool.description,
+  inputSchema: storageTool.inputSchema,
+}, storageTool.execute);
+
+mcpserver.registerTool(keywordTool.name, {
+  title: "Keyword Tool - smart query routing",
+  description: keywordTool.description,
+  inputSchema: keywordTool.inputSchema,
+}, keywordTool.execute);
 
 // Register NWP Weather Forecast Tools (HPC)
 mcpserver.registerTool(nwpHourlyByLocationTool.name, {
