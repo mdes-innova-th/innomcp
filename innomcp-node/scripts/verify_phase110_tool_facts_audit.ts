@@ -29,6 +29,7 @@ import fs from "fs";
 import path from "path";
 
 const CHAT_PORT = Number(process.env.CHAT_PORT || process.env.PORT || 3011);
+const CHAT_HOST = process.env.CHAT_HOST || "127.0.0.1";
 const INNOMCP_MODE = process.env.INNOMCP_MODE || "online";
 const AUTH_TOKEN = process.env.TEST_AUTH_TOKEN || "";
 const EVIDENCE_DIR = path.resolve(__dirname, "../evidence");
@@ -57,7 +58,7 @@ function chatPost(message: string): Promise<AuditResp> {
     let settled = false;
     const req = http.request(
       {
-        host: "127.0.0.1",
+        host: CHAT_HOST,
         port: CHAT_PORT,
         path: "/api/chat",
         method: "POST",

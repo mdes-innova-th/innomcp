@@ -88,7 +88,7 @@ function chatPost(message: string, headers: Record<string, string> = {}): Promis
 function healthGet(): Promise<{ status: number; json: any }> {
   return new Promise((resolve, reject) => {
     const req = http.request(
-      { host: "127.0.0.1", port: CHAT_PORT, path: "/api/health", method: "GET", timeout: 10000 },
+      { host: process.env.CHAT_HOST || "127.0.0.1", port: CHAT_PORT, path: "/api/health", method: "GET", timeout: 10000 },
       (res) => {
         const chunks: Buffer[] = [];
         res.on("data", (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(String(c))));
