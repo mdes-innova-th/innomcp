@@ -3191,6 +3191,8 @@ function chatTraceOut(params: {
     | "thai_religion"
     | "currency"
     | "rss"
+    | "doc_writer"
+    | "audio_hint"
     | "multi_intent";
   tool?: string;
   code: number;
@@ -4072,6 +4074,70 @@ wss.on("connection", (ws, req) => {
           sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["currencyExchangeTool"] });
           sendDoneOnce();
           chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "currency", tool: "currencyExchangeTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+          return;
+        }
+
+        // Phase 10.20: Document writer (WS path)
+        const docWriterLikeWs = /(สร้าง|ส่งออก|export|generate|write|create|save)\s*(?:เป็น|as)?\s*(?:ไฟล์|file|เอกสาร|document|รายงาน|report)?[^a-z฀-๿]*(?:\.?(docx|pdf|md)|word|markdown)|(?:เอกสาร|รายงาน|document|report)\s*(?:เป็น|as)\s*(docx|pdf|word|markdown)|(?:write|build|emit)\s+(?:a\s+)?(?:docx|pdf|markdown|report)/i.test(routingMessage);
+        if (mcpClient && docWriterLikeWs) {
+          const fmtMatchWs = routingMessage.match(/\b(docx|pdf|md|markdown|word)\b/i);
+          const fmtRawWs = (fmtMatchWs?.[1] || "md").toLowerCase();
+          const formatWs = fmtRawWs === "word" ? "docx" : fmtRawWs === "markdown" ? "md" : fmtRawWs;
+          const titleMatchWs = routingMessage.match(/["“]([^"”]{3,80})["”]/);
+          const titleWs = titleMatchWs?.[1] || "รายงานสร้างโดย INNOMCP";
+          const baseNameWs = titleWs.replace(/[^\w฀-๿-]+/g, "_").slice(0, 40);
+          const filenameWs = `${baseNameWs}-${Date.now()}.${formatWs}`;
+          const blocksWs = [
+            { type: "heading", level: 1, text: titleWs },
+            { type: "paragraph", text: `เอกสารนี้สร้างขึ้นโดยอัตโนมัติจาก INNOMCP MDES multi-agent system เพื่อตอบคำขอ "${routingMessage.slice(0, 120)}".` },
+            { type: "heading", level: 2, text: "สรุปคำขอ" },
+            { type: "paragraph", text: routingMessage },
+            { type: "heading", level: 2, text: "หมายเหตุ" },
+            { type: "list", items: [
+              `สร้าง ณ ${new Date().toLocaleString("th-TH")}`,
+              "ระบบ: INNOMCP multi-agent (MDES + Haiku + Opus fallback)",
+              "บันทึกใน workspace-storage/ ของระบบ",
+            ] },
+          ];
+          logBoth("info", `[DocWriterGate] transport=ws format=${formatWs} filename=${filenameWs}`);
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+          const toolResults = await mcpClient.executeTools(["docWriterTool"], routingMessage, {
+            docWriterTool: { filename: filenameWs, title: titleWs, blocks: blocksWs },
+          });
+          const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+          const sc = first?.structuredContent ?? first?.result;
+          let textOut: string;
+          if ((sc as any)?.success && (sc as any)?.path) {
+            textOut = `📄 สร้างเอกสารเสร็จแล้ว\n\n**ไฟล์:** \`${(sc as any).filename}\`\n**รูปแบบ:** ${(sc as any).format.toUpperCase()}\n**ขนาด:** ${(sc as any).bytes.toLocaleString()} bytes\n**ที่เก็บ:** workspace-storage/`;
+          } else {
+            textOut = `📄 ขออภัย ไม่สามารถสร้างเอกสารได้ในขณะนี้: ${(sc as any)?.error || "unknown"}`;
+          }
+          const scOut = withRenderMeta(sc, { route: "doc_writer", llmUsed: false, routeDecider: "deterministic", version: "phase10.20" }, ["docWriterTool"]);
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["docWriterTool"] };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, ["docWriterTool"]);
+          sessionManager.completeResponse(currentSessionId);
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["docWriterTool"] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["docWriterTool"] });
+          sendDoneOnce();
+          chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "doc_writer" as any, tool: "docWriterTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+          return;
+        }
+
+        const audioHintLikeWs = /^\s*(?:ถอดเสียง|transcribe|\bstt\b|speech\s*to\s*text|พิมพ์จาก.*เสียง)/i.test(routingMessage);
+        if (audioHintLikeWs && !messageWithFile.includes("data:audio/")) {
+          const textOut = `🎙️ ระบบรองรับการถอดเสียงด้วย Whisper STT แล้ว\n\nวิธีใช้:\n1. แนบไฟล์เสียง (MP3/WAV/M4A/OGG/WEBM, ≤25 MB)\n2. พิมพ์ "ถอดเสียงไฟล์นี้" หรือกดส่ง\n3. ระบบจะใช้ OpenAI Whisper หรือ MDES Whisper Gateway แปลงเป็นข้อความ\n\nรองรับ 95+ ภาษา รวมภาษาไทย — ระบุภาษาเพิ่มได้ เช่น "ถอดเสียง language=th"`;
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionHistory.push({ sender: "ai", text: textOut } as any);
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, ["audioTranscribeTool"]);
+          sessionManager.completeResponse(currentSessionId);
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: { __audioHint: true }, toolsUsed: ["audioTranscribeTool"] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["audioTranscribeTool"] });
+          sendDoneOnce();
+          chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "audio_hint" as any, tool: "audioTranscribeTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
           return;
         }
 
@@ -6587,6 +6653,67 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       sessionHistory.push({ sender: "ai", text: textOut } as any);
       chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: matchedSubtopic.route as any, tool: matchedSubtopic.tool, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
       return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: true, mcpResults: toolResults, toolsUsed: [matchedSubtopic.tool], route: matchedSubtopic.route });
+    }
+
+    // =====================================
+    // Phase 10.20: Document writer gate — generates DOCX/PDF/MD on demand.
+    // Triggers on "สร้างเอกสาร / รายงาน PDF / ส่งออก DOCX" with content/topic.
+    // =====================================
+    const docWriterLike = /(สร้าง|ส่งออก|export|generate|write|create|save)\s*(?:เป็น|as)?\s*(?:ไฟล์|file|เอกสาร|document|รายงาน|report)?[^a-z฀-๿]*(?:\.?(docx|pdf|md)|word|markdown)|(?:เอกสาร|รายงาน|document|report)\s*(?:เป็น|as)\s*(docx|pdf|word|markdown)|(?:write|build|emit)\s+(?:a\s+)?(?:docx|pdf|markdown|report)/i.test(routingMessage);
+    if (mcpClient && docWriterLike) {
+      // Pick format from explicit mention; default md
+      const fmtMatch = routingMessage.match(/\b(docx|pdf|md|markdown|word)\b/i);
+      const fmtRaw = (fmtMatch?.[1] || "md").toLowerCase();
+      const format = fmtRaw === "word" ? "docx" : fmtRaw === "markdown" ? "md" : fmtRaw;
+      // Pick title — text inside quotes, else default
+      const titleMatch = routingMessage.match(/["“]([^"”]{3,80})["”]/);
+      const title = titleMatch?.[1] || "รายงานสร้างโดย INNOMCP";
+      const baseName = title.replace(/[^\w฀-๿-]+/g, "_").slice(0, 40);
+      const filename = `${baseName}-${Date.now()}.${format}`;
+      // Build minimal blocks from the conversation context — use last user prompt as starter
+      const blocks = [
+        { type: "heading" as const, level: 1 as const, text: title },
+        { type: "paragraph" as const, text: `เอกสารนี้สร้างขึ้นโดยอัตโนมัติจาก INNOMCP MDES multi-agent system เพื่อตอบคำขอ "${routingMessage.slice(0, 120)}".` },
+        { type: "heading" as const, level: 2 as const, text: "สรุปคำขอ" },
+        { type: "paragraph" as const, text: routingMessage },
+        { type: "heading" as const, level: 2 as const, text: "หมายเหตุ" },
+        { type: "list" as const, items: [
+          `สร้าง ณ ${new Date().toLocaleString("th-TH")}`,
+          "ระบบ: INNOMCP multi-agent (MDES + Haiku + Opus fallback)",
+          "บันทึกใน workspace-storage/ ของระบบ",
+        ] },
+      ];
+      logBoth("info", `[DocWriterGate] bypass=true transport=http format=${format} filename=${filename}`);
+      const toolResults = await mcpClient.executeTools(["docWriterTool"], routingMessage, {
+        docWriterTool: { filename, title, blocks },
+      });
+      const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+      const sc = first?.structuredContent ?? first?.result;
+      let textOut: string;
+      if ((sc as any)?.success && (sc as any)?.path) {
+        textOut = `📄 สร้างเอกสารเสร็จแล้ว\n\n**ไฟล์:** \`${(sc as any).filename}\`\n**รูปแบบ:** ${(sc as any).format.toUpperCase()}\n**ขนาด:** ${(sc as any).bytes.toLocaleString()} bytes\n**ที่เก็บ:** workspace-storage/\n\n_หากต้องการเนื้อหาเฉพาะ ลองพิมพ์อีกครั้งโดยใส่ "หัวข้อ" ในเครื่องหมายคำพูด และระบุเนื้อหาที่ต้องการ_`;
+      } else {
+        textOut = `📄 ขออภัย ไม่สามารถสร้างเอกสารได้ในขณะนี้: ${(sc as any)?.error || "unknown"}`;
+      }
+      const scOut = withRenderMeta(sc, { route: "doc_writer", llmUsed: false, routeDecider: "deterministic", version: "phase10.20" }, ["docWriterTool"]);
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+      chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "doc_writer" as any, tool: "docWriterTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+      return res.json({ text: textOut, structuredContent: scOut, messages: sessionHistory, mcpUsed: true, mcpResults: toolResults, toolsUsed: ["docWriterTool"], route: "doc_writer" });
+    }
+
+    // =====================================
+    // Phase 10.20: Audio transcribe hint gate (no audio attached yet).
+    // Real transcription happens via file upload pipeline; this gate
+    // catches naked "ถอดเสียง" requests and points the user at the upload UI.
+    // =====================================
+    // Note: `\b` doesn't anchor at Thai-letter boundaries, so we omit it
+    // and accept the alternation followed by any non-word/end.
+    const audioHintLike = /^\s*(?:ถอดเสียง|transcribe|\bstt\b|speech\s*to\s*text|พิมพ์จาก.*เสียง)/i.test(routingMessage);
+    if (audioHintLike && !messageWithFile.includes("data:audio/")) {
+      const textOut = `🎙️ ระบบรองรับการถอดเสียงด้วย Whisper STT แล้ว\n\nวิธีใช้:\n1. แนบไฟล์เสียง (MP3/WAV/M4A/OGG/WEBM, ≤25 MB)\n2. พิมพ์ "ถอดเสียงไฟล์นี้" หรือกดส่ง\n3. ระบบจะใช้ OpenAI Whisper หรือ MDES Whisper Gateway แปลงเป็นข้อความ\n\nรองรับ 95+ ภาษา รวมภาษาไทย — ระบุภาษาเพิ่มได้ เช่น "ถอดเสียง language=th"`;
+      sessionHistory.push({ sender: "ai", text: textOut } as any);
+      chatTraceOut({ transport: "http", sid: httpSessionId, cid: httpCid, uiMode, route: "audio_hint" as any, tool: "audioTranscribeTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+      return res.json({ text: textOut, structuredContent: { __audioHint: true }, messages: sessionHistory, mcpUsed: false, toolsUsed: ["audioTranscribeTool"], route: "audio_hint" });
     }
 
     // =====================================

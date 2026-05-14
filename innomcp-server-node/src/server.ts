@@ -81,6 +81,10 @@ import imageGeneratorTool from "./mcp/tools/imageGeneratorTool";
 import { storageTool } from "./mcp/tools/storageTool";
 import { keywordTool } from "./mcp/tools/keywordTool";
 
+// NEW: 2026-05-14 — Phase 10.20 audio STT + doc writer
+import { audioTranscribeTool } from "./mcp/tools/audioTranscribeTool";
+import { docWriterTool } from "./mcp/tools/docWriterTool";
+
 // NEW: 2026-01-06 - NWP Weather Forecast Tools (High Performance Computing)
 import {
   nwpHourlyByLocationTool,
@@ -241,6 +245,18 @@ mcpserver.registerTool(keywordTool.name, {
   description: keywordTool.description,
   inputSchema: keywordTool.inputSchema,
 }, keywordTool.execute);
+
+mcpserver.registerTool(audioTranscribeTool.name, {
+  title: "Audio Transcribe Tool — ถอดเสียงเป็นข้อความ (Whisper STT)",
+  description: audioTranscribeTool.description,
+  inputSchema: audioTranscribeTool.inputSchema,
+}, audioTranscribeTool.execute);
+
+mcpserver.registerTool(docWriterTool.name, {
+  title: "Document Writer — DOCX / PDF / Markdown generator",
+  description: docWriterTool.description,
+  inputSchema: docWriterTool.inputSchema,
+}, docWriterTool.execute);
 
 // Register NWP Weather Forecast Tools (HPC)
 mcpserver.registerTool(nwpHourlyByLocationTool.name, {
