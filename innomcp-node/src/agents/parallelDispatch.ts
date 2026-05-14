@@ -349,7 +349,8 @@ export async function dispatchAgents(
   query: string,
   runId: string,
   messageId: string,
-  emit: EmitFn
+  emit: EmitFn,
+  liveOutputs?: Record<string, string>
 ): Promise<Record<string, string>> {
   if (process.env.PARALLEL_AGENTS === "0") return {};
   const ollamaUrl = process.env.OLLAMA_URL ?? "https://ollama.mdes-innova.online";
@@ -361,18 +362,21 @@ export async function dispatchAgents(
   const pool = INTENT_AGENTS_POOL[intent] ?? INTENT_AGENTS_POOL["general"];
   const agents = pool.slice(0, Math.min(count, pool.length));
 
-  const settled = await Promise.allSettled(
-    agents.map((agentId) =>
-      runAgentWithEscalation(agentId, query, runId, messageId, emit, ollamaUrl, ollamaKey)
-    )
+  const outputs: Record<string, string> = liveOutputs ?? {};
+
+  // Fire all agents in parallel; capture each result the moment it settles
+  // so the conductor's race-timeout can still use partial outputs even when
+  // some big-model agents are still finishing.
+  const tasks = agents.map((agentId) =>
+    runAgentWithEscalation(agentId, query, runId, messageId, emit, ollamaUrl, ollamaKey)
+      .then((r) => {
+        if (r.text) outputs[r.agentId] = r.text;
+        return r;
+      })
+      .catch(() => null)
   );
 
-  const outputs: Record<string, string> = {};
-  for (const r of settled) {
-    if (r.status === "fulfilled" && r.value.text) {
-      outputs[r.value.agentId] = r.value.text;
-    }
-  }
+  await Promise.allSettled(tasks);
   return outputs;
 }
 

@@ -209,9 +209,12 @@ export async function runConductor(
   const messageId = randomUUID();
   const cls = classifyIntent(opts.message);
 
-  // Fire agents concurrently — they emit events while conductor runs
+  // Fire agents concurrently — they emit events while conductor runs.
+  // Use a shared liveOutputs object so the race-timeout can still use
+  // partial results from agents that finished before the deadline.
+  const liveOutputs: Record<string, string> = {};
   const agentResultPromise = (process.env.PARALLEL_AGENTS !== "0")
-    ? dispatchAgents(cls.intent, opts.message, runId, messageId, emit)
+    ? dispatchAgents(cls.intent, opts.message, runId, messageId, emit, liveOutputs)
     : Promise.resolve({} as Record<string, string>);
 
   const startedEv = newEnvelope({
@@ -367,13 +370,15 @@ export async function runConductor(
   critiqueEv.confidence = nat.ok ? 0.85 : 0.55;
   safeEmit(emit, critiqueEv, cls.expectedToolUsage);
 
-  // Wait for parallel agents (max 25s) — they've been emitting events all along
-  // 25s — accommodates qwen3.6:27b first-token latency
-  const agentOutputs = await Promise.race([
+  // Wait for parallel agents (max 35s) — they've been emitting events all along.
+  // 35s accommodates qwen3.6:27b + a fallback gemma4:e4b retry chain (12+12s)
+  // with margin. If the race fires, liveOutputs still holds anything that
+  // completed before the deadline.
+  await Promise.race([
     agentResultPromise,
-    new Promise<Record<string, string>>(resolve => setTimeout(() => resolve({}), 25_000)),
+    new Promise<void>((resolve) => setTimeout(() => resolve(), 35_000)),
   ]);
-  const enrichedText = synthesizeAnswer(agentOutputs, draft);
+  const enrichedText = synthesizeAnswer(liveOutputs, draft);
 
   const finalEv = newEnvelope({
     runId,
