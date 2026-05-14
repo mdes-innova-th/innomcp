@@ -5850,7 +5850,16 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
       }
     };
 
-    const detectedDomains = detectMultiIntentDomains(messageWithFile);
+    // Phase 10.19: TMD subtopic priority guard — runs BEFORE multi-intent
+    // detection so very-specific TMD queries (climate normal, rain regions,
+    // station list, warning, monthly rainfall) aren't hijacked by the
+    // calculator regex matching year ranges like "1981-2010" or by the
+    // chart/rainfall analytical fallback.
+    const TMD_SUBTOPIC_PRIORITY_RE = /ค่าปกติ|climate.*normal|สภาพ.*ปกติ|เฉลี่ย.*30.*ปี|1981.*2010|ฝน.*ภูมิภาค|ภูมิภาค.*ฝน|rain.*region|ฝน.*ภาค.*ไหน.*มาก|ฝน.*แต่ละ.*ภาค|ฝนราย.*ภาค|ฝน.*ราย.*เดือน|ปริมาณ.*ฝน.*เฉลี่ย|monthly.*rain|เดือน.*ฝน.*มาก|รายชื่อ.*สถานี|สถานี.*มีกี่|station.*list|เตือนภัย|ประกาศเตือน|weather.*warning/i;
+    const tmdSubtopicHasPriority = TMD_SUBTOPIC_PRIORITY_RE.test(messageWithFile);
+    const detectedDomains = tmdSubtopicHasPriority
+      ? []  // suppress multi-intent so we land on the TMD subtopic gate below
+      : detectMultiIntentDomains(messageWithFile);
 
     // ─── Multi-intent combined dispatch ───
     if (detectedDomains.length >= 2) {
@@ -6307,7 +6316,10 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Uses Open-Meteo ERA5 reanalysis data (free, no API key, real scientific data)
     // =====================================
     const rainfallChartLike = /กราฟ.*ฝน.*(?:3|สาม|๓).*เดือน|เปรียบเทียบ.*ฝน.*(?:3|สาม|๓|ย้อนหลัง).*เดือน|ฝน.*ย้อนหลัง.*(?:3|สาม|๓).*เดือน|rainfall.*chart.*(?:3|three).*month|กราฟ.*ปริมาณ.*ฝน.*(?:ย้อนหลัง|เปรียบเทียบ)|เปรียบเทียบ.*ปริมาณ.*ฝน/i.test(routingMessage);
-    if (rainfallChartLike) {
+    // Phase 10.19: chart gate is Bangkok-historical-only. If the query asks
+    // about multiple regions / per-region rainfall, defer to tmd_rain_regions.
+    const multiRegionRainfall = /แต่ละภาค|ราย.*ภาค|ภูมิภาค|ทุก.*ภาค|5\s*ภาค|ภาคเหนือ.*ภาคใต้|ภาคใต้.*ภาคเหนือ/i.test(routingMessage);
+    if (rainfallChartLike && !multiRegionRainfall) {
       logBoth("info", `[RainfallChartGate] bypass=true transport=http query=${routingMessage.slice(0, 80)}`);
       const rainfall = await fetchOpenMeteo3MonthRainfall();
       if (rainfall.ok && rainfall.months.length > 0) {
