@@ -370,14 +370,26 @@ export async function runConductor(
   critiqueEv.confidence = nat.ok ? 0.85 : 0.55;
   safeEmit(emit, critiqueEv, cls.expectedToolUsage);
 
-  // Wait for parallel agents (max 35s) — they've been emitting events all along.
-  // agentResultPromise.catch swallows any rejection so race always resolves.
-  // If the race fires, liveOutputs still holds anything that completed before
-  // the deadline.
-  await Promise.race([
-    agentResultPromise.catch(() => ({})),
-    new Promise<void>((resolve) => setTimeout(() => resolve(), 35_000)),
-  ]);
+  // Wait for MDES agents. dispatchAgents is firing events in the background;
+  // liveOutputs gets populated as each agent finishes. Poll every 200ms for
+  // up to 35s — exits early once any agent in priority order produces text.
+  // Avoids Promise.race quirks that caused SSE to hang in prior revisions.
+  const HARD_TIMEOUT_MS = 35_000;
+  const POLL_INTERVAL_MS = 200;
+  const pollStart = Date.now();
+  const hasUsefulOutput = (o: Record<string, string>) =>
+    (o["stylist"] && o["stylist"].length > 20) ||
+    (o["concierge"] && o["concierge"].length > 20) ||
+    (o["critic"] && o["critic"].length > 20) ||
+    Object.values(o).some((t) => t.length > 20);
+  // Always sleep at least 1.5s to let agents at least start emitting deltas
+  await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+  while (Date.now() - pollStart < HARD_TIMEOUT_MS) {
+    if (hasUsefulOutput(liveOutputs)) break;
+    await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  }
+  // Suppress any uncaught rejection from the background dispatch
+  agentResultPromise.catch(() => undefined);
   const enrichedText = synthesizeAnswer(liveOutputs, draft);
 
   const finalEv = newEnvelope({
