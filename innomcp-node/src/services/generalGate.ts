@@ -8,7 +8,7 @@ import { logBoth } from "../utils/mcpLogger";
 export const LOW_CONFIDENCE_FALLBACK_TEXT = "ขอข้อมูลเพิ่มอีกนิดเพื่อให้ตอบได้แม่นยำขึ้น เช่น ระบุจังหวัดหรือหัวข้อที่ต้องการ";
 
 export function renderGeneralFallbackMessage(): string {
-  return "ขออภัย ตอนนี้ตอบได้ไม่ทันเวลา ลองระบุคำถามให้แคบลงอีกนิด (เช่น เป้าหมาย/บริบท/ตัวอย่าง) แล้วผมจะสรุปให้สั้นๆ ได้ครับ";
+  return "กำลังเรียบเรียงคำตอบให้นะครับ — ระบบกำลังประสานข้อมูลจากหลายตัวแทน หากใช้เวลานานเกินไป ลองระบุคำถามให้เฉพาะเจาะจงขึ้น (เช่น จังหวัด/ช่วงเวลา/บริบท) จะตอบได้แม่นยำขึ้นครับ";
 }
 
 export function renderThaiNumberText(value: number): string {

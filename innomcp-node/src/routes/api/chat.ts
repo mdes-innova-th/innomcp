@@ -146,7 +146,7 @@ function renderWeatherDirectAnswer(userText: string, weatherPayload: any): { tex
   const renderUpstreamWeatherErr = (codeRaw: string, messageRaw?: string): { text: string; structuredContent: any } => {
     const code = String(codeRaw || "UPSTREAM_ERROR").toUpperCase();
     const errToken = `ERR:WX_${code}`;
-    const base = String(messageRaw || "ขออภัย ยังไม่สามารถดึงข้อมูลอากาศได้ในขณะนี้").trim();
+    const base = String(messageRaw || "ขณะนี้ระบบยังเชื่อมต่อข้อมูลพยากรณ์อากาศไม่ได้ — กรุงตรวจสอบสิทธิ์ TMD/NWP token หรือลองใหม่อีกครั้ง").trim();
     const msg = base.includes("ERR:") ? base : `${base} (${errToken})`;
     return {
       text: msg,
@@ -1430,7 +1430,7 @@ function resolveThaiGeoLocal(rawQuery: string): { text: string; geoIntent: strin
 }
 
 function renderGeneralFallbackMessage(): string {
-  return "ขออภัย ตอนนี้ตอบได้ไม่ทันเวลา ลองระบุคำถามให้แคบลงอีกนิด (เช่น เป้าหมาย/บริบท/ตัวอย่าง) แล้วผมจะสรุปให้สั้นๆ ได้ครับ";
+  return "กำลังเรียบเรียงคำตอบให้นะครับ — ระบบกำลังประสานข้อมูลจากหลายตัวแทน หากใช้เวลานานเกินไป ลองระบุคำถามให้เฉพาะเจาะจงขึ้น (เช่น จังหวัด/ช่วงเวลา/บริบท) จะตอบได้แม่นยำขึ้นครับ";
 }
 
 function renderGeneralSmokeAnswer(userText: string): string {

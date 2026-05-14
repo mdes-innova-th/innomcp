@@ -1320,28 +1320,49 @@ const ChatPage: React.FC = () => {
               /* Messages — natural document flow, no inner scroll container */
               <div ref={messagesRef} className="mx-auto max-w-[50rem] pb-36 pt-1">
                 <div className="flex flex-col gap-4">
-                  {messages
-                    .filter(Boolean)
-                    .filter((m) => m.sender)
-                    .map((message, index) => (
-                      <MessageView
-                        key={index}
-                        message={message as MessageType}
-                        index={index}
-                        onUpdate={updateMessage}
-                        onRetry={handleRetry}
+                  {(() => {
+                    const visible = messages
+                      .filter(Boolean)
+                      .filter((m) => m.sender);
+                    const lastAiIdx = (() => {
+                      for (let i = visible.length - 1; i >= 0; i--) {
+                        if (visible[i].sender === "ai") return i;
+                      }
+                      return -1;
+                    })();
+                    const showInlinePanel =
+                      agentStreamState.status !== "idle" || agentStreamState.events.length > 0;
+                    return visible.map((message, index) => (
+                      <React.Fragment key={index}>
+                        <MessageView
+                          message={message as MessageType}
+                          index={index}
+                          onUpdate={updateMessage}
+                          onRetry={handleRetry}
+                        />
+                        {showInlinePanel && index === lastAiIdx && (
+                          <div className="-mt-2 ml-0 sm:ml-1">
+                            <MultiAgentPanel
+                              events={agentStreamState.events}
+                              status={agentStreamState.status}
+                              expandAll={expandAll}
+                              onToggleExpandAll={() => setExpandAll((v) => !v)}
+                            />
+                          </div>
+                        )}
+                      </React.Fragment>
+                    ));
+                  })()}
+                  {/* When no AI message yet but SSE is already streaming, anchor panel at bottom */}
+                  {(agentStreamState.status !== "idle" || agentStreamState.events.length > 0) &&
+                    !messages.some((m) => m.sender === "ai") && (
+                      <MultiAgentPanel
+                        events={agentStreamState.events}
+                        status={agentStreamState.status}
+                        expandAll={expandAll}
+                        onToggleExpandAll={() => setExpandAll((v) => !v)}
                       />
-                    ))}
-
-                  {/* Phase 10.15: MultiAgent Panel */}
-                  {(agentStreamState.status !== "idle" || agentStreamState.events.length > 0) && (
-                    <MultiAgentPanel
-                      events={agentStreamState.events}
-                      status={agentStreamState.status}
-                      expandAll={expandAll}
-                      onToggleExpandAll={() => setExpandAll((v) => !v)}
-                    />
-                  )}
+                    )}
                   {isWaitingForResponse &&
                     (!messages.length ||
                       messages[messages.length - 1].sender !== "ai" ||
