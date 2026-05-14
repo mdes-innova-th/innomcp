@@ -3995,6 +3995,133 @@ wss.on("connection", (ws, req) => {
         }
 
         // =====================================
+        // Phase 10.19 (WS): TMD subtopic + Currency + RSS deterministic gates
+        // Same gates as HTTP path so the chat UI (WebSocket) sees them too.
+        // =====================================
+        const tmdSubtopicRoutesWs: Array<{ pattern: RegExp; tool: string; route: string; fallbackText: string }> = [
+          { pattern: /เตือนภัย|ประกาศเตือน|warning.*weather|weather.*warning|คำเตือน.*อากาศ|อากาศ.*เตือน/i, tool: "tmd_weather_warning_news", route: "tmd_warning", fallbackText: "ขออภัย ไม่สามารถดึงข้อมูลการเตือนภัยได้ในขณะนี้" },
+          { pattern: /ค่าปกติ|climate.*normal|สภาพ.*ปกติ|เฉลี่ย.*30.*ปี|1981.*2010/i, tool: "tmd_thailand_climate_normal_1981_2010", route: "tmd_climate", fallbackText: "ขออภัย ไม่สามารถดึงข้อมูลค่าปกติภูมิอากาศได้ในขณะนี้" },
+          { pattern: /รายชื่อ.*สถานี|สถานี.*มีกี่|มีสถานี.*อะไร|จำแนก.*สถานี|station.*list/i, tool: "tmd_station_list", route: "tmd_stations", fallbackText: "ขออภัย ไม่สามารถดึงข้อมูลสถานีอุตุนิยมวิทยาได้ในขณะนี้" },
+          { pattern: /ฝน.*ราย.*เดือน|ปริมาณ.*ฝน.*เฉลี่ย|monthly.*rain|เดือน.*ฝน.*มาก/i, tool: "tmd_thailand_monthly_rainfall", route: "tmd_rainfall", fallbackText: "ขออภัย ไม่สามารถดึงข้อมูลปริมาณฝนรายเดือนได้ในขณะนี้" },
+          { pattern: /ฝน.*ภูมิภาค|ภูมิภาค.*ฝน|rain.*region|ฝน.*ภาค.*ไหน.*มาก|ฝน.*แต่ละ.*ภาค|ฝนราย.*ภาค/i, tool: "tmd_rain_regions", route: "tmd_rain_regions", fallbackText: "ขออภัย ไม่สามารถดึงข้อมูลฝนตามภูมิภาคได้ในขณะนี้" },
+        ];
+        const matchedSubtopicWs = mcpClient ? tmdSubtopicRoutesWs.find((r) => r.pattern.test(routingMessage)) : undefined;
+        if (mcpClient && matchedSubtopicWs) {
+          logBoth("info", `[TMDSubtopicGate] bypass=true transport=ws tool=${matchedSubtopicWs.tool}`);
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+          const toolResults = await mcpClient.executeTools([matchedSubtopicWs.tool], routingMessage);
+          const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+          const sc = first?.structuredContent ?? first?.result;
+          const direct = renderStructuredDirect(matchedSubtopicWs.tool, sc, routingMessage) || { text: matchedSubtopicWs.fallbackText };
+          const textOut = direct.text;
+          const scOut = withRenderMeta(sc, { route: matchedSubtopicWs.route, llmUsed: false, routeDecider: "deterministic", version: "phase10.19" }, [matchedSubtopicWs.tool]);
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [matchedSubtopicWs.tool] };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, [matchedSubtopicWs.tool]);
+          sessionManager.completeResponse(currentSessionId);
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: [matchedSubtopicWs.tool] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: [matchedSubtopicWs.tool] });
+          sendDoneOnce();
+          chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: matchedSubtopicWs.route as any, tool: matchedSubtopicWs.tool, code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+          return;
+        }
+
+        const currencyLikeWs = /\b(usd|eur|gbp|jpy|cny|sgd|krw|aud|cad|chf|hkd|inr|myr|vnd)\b.*(บาท|thb|ไทย)|(บาท|thb|ไทย).*\b(usd|eur|gbp|jpy|cny|sgd|krw|aud|cad|chf|hkd|inr|myr|vnd)\b|อัตราแลกเปลี่ยน|ค่าเงิน|exchange.*rate|currency.*convert/i.test(routingMessage);
+        if (mcpClient && currencyLikeWs) {
+          const fxMapWs: Record<string, string> = { บาท: "THB", baht: "THB", ไทย: "THB", "เหรียญสหรัฐ": "USD", "ดอลลาร์สหรัฐ": "USD", "ดอลลาร์": "USD", "ยูโร": "EUR", "เยน": "JPY", "หยวน": "CNY", "ปอนด์": "GBP", "วอน": "KRW" };
+          const codes: string[] = [];
+          const codeReWs = /\b(USD|EUR|GBP|JPY|CNY|SGD|KRW|AUD|CAD|CHF|HKD|INR|MYR|VND|THB)\b/g;
+          let mw: RegExpExecArray | null;
+          const upper = routingMessage.toUpperCase();
+          while ((mw = codeReWs.exec(upper)) !== null) codes.push(mw[1]);
+          for (const [alias, code] of Object.entries(fxMapWs)) {
+            if (routingMessage.includes(alias) && !codes.includes(code)) codes.push(code);
+          }
+          const amtMatchWs = routingMessage.match(/[\d,]+(?:\.\d+)?/);
+          const amount = amtMatchWs ? Number(amtMatchWs[0].replace(/,/g, "")) : 1;
+          const fromCurrency = codes[0] || "USD";
+          const toCurrency = codes[1] || (fromCurrency === "THB" ? "USD" : "THB");
+          logBoth("info", `[CurrencyGate] transport=ws amount=${amount} ${fromCurrency}→${toCurrency}`);
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+          const toolResults = await mcpClient.executeTools(["currencyExchangeTool"], routingMessage, {
+            currencyExchangeTool: { amount, fromCurrency, toCurrency },
+          });
+          const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+          const sc = first?.structuredContent ?? first?.result;
+          let parsedFx: any = null;
+          if (sc && typeof sc === "object" && !Array.isArray((sc as any).content) && (sc as any).success !== undefined) {
+            parsedFx = sc;
+          }
+          let textOut: string;
+          if (parsedFx?.success && parsedFx.convertedAmount != null) {
+            const converted = Number(parsedFx.convertedAmount).toLocaleString(undefined, { maximumFractionDigits: 2 });
+            textOut = `💱 อัตราแลกเปลี่ยน\n${amount.toLocaleString()} ${fromCurrency} ≈ **${converted} ${toCurrency}**\n\n(อัตรา 1 ${fromCurrency} = ${parsedFx.exchangeRate} ${toCurrency} • ${parsedFx.timestamp ? new Date(parsedFx.timestamp).toLocaleDateString("th-TH") : ""} • exchangerate-api.com)`;
+          } else {
+            textOut = `💱 อัตราแลกเปลี่ยน ${fromCurrency} → ${toCurrency}: ไม่สามารถดึงข้อมูลได้ในขณะนี้`;
+          }
+          const scOut = withRenderMeta(sc, { route: "currency", llmUsed: false, routeDecider: "deterministic", version: "phase10.19" }, ["currencyExchangeTool"]);
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["currencyExchangeTool"] };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, ["currencyExchangeTool"]);
+          sessionManager.completeResponse(currentSessionId);
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["currencyExchangeTool"] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["currencyExchangeTool"] });
+          sendDoneOnce();
+          chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "currency", tool: "currencyExchangeTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+          return;
+        }
+
+        const rssLikeWs = /\brss\b|\batom\b|ข่าวล่าสุด.*จาก|feed.*ข่าว|ฟีด.*ข่าว|rss.*feed|subscribe.*ข่าว/i.test(routingMessage);
+        if (mcpClient && rssLikeWs) {
+          const urlMatchWs = routingMessage.match(/https?:\/\/[^\s"']+/i);
+          const popularWs = ["bbc","techcrunch","reuters","theverge","hackernews","github","stackoverflow","medium"];
+          const popularPickedWs = popularWs.find((p) => routingMessage.toLowerCase().includes(p)) || "bbc";
+          const feedUrl = urlMatchWs ? urlMatchWs[0] : popularPickedWs;
+          const limitMatchWs = routingMessage.match(/(?:\b|^)(\d{1,2})\s*(?:บทความ|รายการ|ข่าว|item|article)/i);
+          const limit = limitMatchWs ? Math.min(20, Number(limitMatchWs[1])) : 5;
+          logBoth("info", `[RssGate] transport=ws feedUrl=${feedUrl} limit=${limit}`);
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+          const toolResults = await mcpClient.executeTools(["rssFeedTool"], routingMessage, {
+            rssFeedTool: { feedUrl, limit },
+          });
+          const first = Array.isArray(toolResults) ? toolResults[0] : undefined;
+          const sc = first?.structuredContent ?? first?.result;
+          let parsedFeed: any = null;
+          if (sc && typeof sc === "object" && Array.isArray((sc as any).items)) {
+            parsedFeed = sc;
+          }
+          let textOut: string;
+          if (Array.isArray(parsedFeed?.items) && parsedFeed.items.length > 0) {
+            const lines: string[] = [`📰 ข่าวล่าสุดจาก **${parsedFeed.feedTitle || feedUrl}** (${parsedFeed.items.length} รายการ)`];
+            for (const it of parsedFeed.items.slice(0, limit)) {
+              const title = String(it.title || "").trim();
+              const date = it.pubDate ? new Date(it.pubDate).toLocaleDateString("th-TH") : "";
+              lines.push(`• ${title}${date ? ` _(${date})_` : ""}`);
+              if (it.link) lines.push(`  🔗 ${it.link}`);
+            }
+            textOut = lines.join("\n");
+          } else {
+            textOut = `📰 RSS Feed ${feedUrl}: ไม่สามารถดึง feed ได้ในขณะนี้ ลองระบุ URL อื่น`;
+          }
+          const scOut = withRenderMeta(sc, { route: "rss", llmUsed: false, routeDecider: "deterministic", version: "phase10.19" }, ["rssFeedTool"]);
+          const aiMessage: any = { sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["rssFeedTool"] };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, ["rssFeedTool"]);
+          sessionManager.completeResponse(currentSessionId);
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent: scOut, toolsUsed: ["rssFeedTool"] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["rssFeedTool"] });
+          sendDoneOnce();
+          chatTraceOut({ transport: "ws", sid: currentSessionId, cid, uiMode, route: "rss", tool: "rssFeedTool", code: 200, durMs: Date.now() - traceStartMs, q: messageWithFile, ans: textOut.slice(0, 120) });
+          return;
+        }
+
+        // =====================================
         // Phase 7.1: Deterministic Weather Router (NO LLM tool planning)
         // Gate BEFORE any God-Tier Router / semantic / LLM-based tool selection.
         // =====================================
