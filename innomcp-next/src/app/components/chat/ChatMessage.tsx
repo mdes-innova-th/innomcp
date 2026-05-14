@@ -1211,6 +1211,24 @@ export function MessageView({
                 )}
               </>
             )}
+
+            {/* Tool chips — visible indicator of which MCP tools were called */}
+            {message.sender === "ai" && message.toolsUsed && message.toolsUsed.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {message.toolsUsed.map((tool: string, i: number) => {
+                  const name = tool.replace(/^local-tools:/, "").replace(/_/g, " ");
+                  return (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/12 text-amber-600 dark:text-amber-300 border border-amber-500/20"
+                      title={tool}
+                    >
+                      <span aria-hidden="true">🛠</span> {name}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Metadata footer */}
