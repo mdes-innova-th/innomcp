@@ -1353,9 +1353,9 @@ export function MessageView({
             <div className="mt-2.5">{inlineExtras}</div>
           )}
 
-          {/* Metadata footer */}
+          {/* Metadata footer — Phase 10.49 tightened icons. */}
           <div
-            className={`mt-2 pt-2 border-t flex flex-wrap gap-3 text-xs ${
+            className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2 text-[11px] ${
               message.sender === "user"
                 ? "border-primary-foreground/15 text-primary-foreground/70"
                 : theme === "light"
@@ -1365,16 +1365,10 @@ export function MessageView({
           >
             {/* Timestamp */}
             {message.timestamp && (
-              <span className="flex items-center gap-1">
-                <svg
-                  className="w-3 h-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
+              <span className="inline-flex items-center gap-1 font-mono tabular-nums" title={new Date(message.timestamp).toLocaleString("th-TH")}>
+                <svg className="h-3 w-3 shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M12 7v5l3 2" />
                 </svg>
                 {formatTimestamp(message.timestamp)}
               </span>
@@ -1382,34 +1376,22 @@ export function MessageView({
 
             {/* Token count (AI messages only) */}
             {message.sender === "ai" && message.tokenCount && (
-              <span className="flex items-center gap-1">
-                <svg
-                  className="w-3 h-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <rect x="3" y="3" width="7" height="7"></rect>
-                  <rect x="14" y="3" width="7" height="7"></rect>
-                  <rect x="14" y="14" width="7" height="7"></rect>
-                  <rect x="3" y="14" width="7" height="7"></rect>
+              <span className="inline-flex items-center gap-1 font-mono tabular-nums" title="โทเค็นที่ใช้">
+                <svg className="h-3 w-3 shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3.5" y="3.5" width="6" height="6" rx="1" />
+                  <rect x="14.5" y="3.5" width="6" height="6" rx="1" />
+                  <rect x="3.5" y="14.5" width="6" height="6" rx="1" />
+                  <rect x="14.5" y="14.5" width="6" height="6" rx="1" />
                 </svg>
-                {message.tokenCount} โทเค็น
+                {message.tokenCount.toLocaleString()} tok
               </span>
             )}
 
             {/* Response time (AI messages only) */}
             {message.sender === "ai" && message.responseTime && (
-              <span className="flex items-center gap-1">
-                <svg
-                  className="w-3 h-3"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+              <span className="inline-flex items-center gap-1 font-mono tabular-nums" title="เวลาตอบสนอง">
+                <svg className="h-3 w-3 shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" />
                 </svg>
                 {formatResponseTime(message.responseTime)}
               </span>
