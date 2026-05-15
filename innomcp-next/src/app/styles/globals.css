@@ -582,8 +582,33 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 }
 .animate-float-orbit { animation: float-orbit 4.5s ease-in-out infinite; }
 
+/* Phase 10.23: multi-agent panel — premium edition */
+@keyframes agent-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.agent-shimmer-active {
+  background-image: linear-gradient(
+    90deg,
+    transparent 30%,
+    color-mix(in oklab, var(--agent-accent, #64748b) 22%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: agent-shimmer 1.8s linear infinite;
+}
+
+@keyframes radar-ping {
+  0%   { transform: scale(1);   opacity: 0.95; }
+  70%  { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.animate-radar-ping { animation: radar-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse-soft,
   .animate-bubble-in,
-  .animate-float-orbit { animation: none; }
+  .animate-float-orbit,
+  .agent-shimmer-active,
+  .animate-radar-ping { animation: none; }
 }

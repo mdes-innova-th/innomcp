@@ -13,7 +13,20 @@ const MDES_MODEL_BADGE: Record<string, string> = {
   "gpt-5.4": "GPT-5.4",
   "gpt-5.4-mini": "GPT-5.4 Mini",
   "gpt-5.3-codex": "GPT-5.3 Codex",
+  "minimax-m2.5:cloud": "MMx-M2.5",
 };
+
+// Phase 10.23 — model family → accent color for left-border + badge tint.
+// Picks the family by string prefix so unknown models still get a sane default.
+function getModelAccent(model?: string): { hex: string; pill: string } {
+  const m = (model || "").toLowerCase();
+  if (m.startsWith("qwen") || m.includes("qwen2.5vl")) return { hex: "#0ea5e9", pill: "bg-sky-500/15 text-sky-600 dark:text-sky-300" };
+  if (m.startsWith("gemma")) return { hex: "#10b981", pill: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" };
+  if (m.startsWith("gpt-")) return { hex: "#8b5cf6", pill: "bg-violet-500/15 text-violet-600 dark:text-violet-300" };
+  if (m.startsWith("claude")) return { hex: "#f59e0b", pill: "bg-amber-500/15 text-amber-600 dark:text-amber-300" };
+  if (m.startsWith("minimax")) return { hex: "#f43f5e", pill: "bg-rose-500/15 text-rose-600 dark:text-rose-300" };
+  return { hex: "#64748b", pill: "bg-slate-500/15 text-slate-600 dark:text-slate-300" };
+}
 
 const EVENT_LABEL_TH: Record<string, string> = {
   agent_started: "เริ่ม",
@@ -158,6 +171,25 @@ export default function MultiAgentPanel({
     ? "rounded-md border border-border/40 bg-muted/20 text-xs overflow-hidden"
     : "mb-2 rounded-lg border border-border/30 bg-card/20 text-xs overflow-hidden";
 
+  // Collect distinct models in firing order for the marquee strip.
+  const activeModels = Array.from(new Set(
+    agents.map((a) => a.model).filter((m): m is string => Boolean(m))
+  ));
+  const isStreaming = status === "streaming";
+  const headerTone =
+    status === "error" || errorCount > 0
+      ? "from-rose-500/12 via-rose-500/6 to-transparent"
+      : recoveringCount > 0
+      ? "from-amber-500/12 via-amber-500/6 to-transparent"
+      : isStreaming
+      ? "from-emerald-500/14 via-primary/8 to-sky-500/10"
+      : "from-primary/8 via-sky-500/6 to-violet-500/6";
+  const radarColor =
+    status === "error" || errorCount > 0 ? "bg-rose-500"
+    : recoveringCount > 0 ? "bg-amber-500"
+    : isStreaming ? "bg-emerald-500"
+    : "bg-sky-500";
+
   return (
     <div data-testid="multiagent-panel" className={rootClass}>
       <button
@@ -166,38 +198,60 @@ export default function MultiAgentPanel({
           setOpen((v) => !v);
           onToggleExpandAll?.();
         }}
-        className={`w-full flex items-center justify-between gap-2 px-3 ${inline ? "py-1.5" : "py-1.5"} text-left transition-colors hover:bg-card/40`}
+        className={`group/header relative w-full overflow-hidden bg-gradient-to-r ${headerTone} px-3 py-2 text-left transition-colors hover:brightness-110`}
         aria-expanded={isOpen}
         data-testid="multiagent-expand-all"
         title="Ctrl+O"
       >
-        <span className="flex items-center gap-2 font-medium text-foreground/80">
-          <span
-            className={`h-1.5 w-1.5 rounded-full ${
-              status === "streaming"
-                ? "animate-pulse bg-emerald-500"
-                : status === "error" || errorCount > 0
-                ? "bg-rose-500"
-                : recoveringCount > 0
-                ? "bg-amber-500"
-                : "bg-sky-500"
-            }`}
-          />
-          <span className="text-[11px] uppercase tracking-wider text-muted-foreground/80">
-            ทีม AI กำลังทำงาน
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-2 font-medium text-foreground/85">
+            {/* Radar ping — two concentric rings, outer one animates */}
+            <span className="relative inline-flex h-3 w-3 shrink-0 items-center justify-center">
+              <span
+                className={`absolute inline-flex h-3 w-3 rounded-full opacity-75 ${radarColor} ${isStreaming ? "animate-radar-ping" : ""}`}
+                aria-hidden="true"
+              />
+              <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${radarColor}`} aria-hidden="true" />
+            </span>
+            <span className="font-display text-[11px] uppercase tracking-[0.18em] text-foreground/85">
+              ทีม AI
+            </span>
+            <span className="hidden text-[11px] text-muted-foreground/85 sm:inline">
+              · {agents.length} ตัวแทน
+              {isStreaming && agents.length > 0 && (
+                <> · {doneCount}/{agents.length}</>
+              )}
+              {recoveringCount > 0 && <> · กู้คืน {recoveringCount}</>}
+              {errorCount > 0 && <> · ล้มเหลว {errorCount}</>}
+            </span>
           </span>
-          <span className="text-muted-foreground/70">
-            · {agents.length} ตัวแทน
-            {status === "streaming" && agents.length > 0 && (
-              <> · {doneCount}/{agents.length} เสร็จ</>
+
+          {/* Right side: model marquee + expand caret */}
+          <span className="flex shrink-0 items-center gap-1.5">
+            {!isOpen && activeModels.length > 0 && (
+              <span className="hidden items-center gap-1 md:inline-flex">
+                {activeModels.slice(0, 3).map((m) => {
+                  const accent = getModelAccent(m);
+                  return (
+                    <span
+                      key={m}
+                      className={`inline-flex items-center rounded px-1.5 py-0.5 font-mono text-[9.5px] ${accent.pill}`}
+                      title={m}
+                    >
+                      {MDES_MODEL_BADGE[m] ?? m.split(":")[0]}
+                    </span>
+                  );
+                })}
+                {activeModels.length > 3 && (
+                  <span className="text-[9.5px] text-muted-foreground/70">+{activeModels.length - 3}</span>
+                )}
+              </span>
             )}
-            {recoveringCount > 0 && <> · กู้คืน {recoveringCount}</>}
-            {errorCount > 0 && <> · ล้มเหลว {errorCount}</>}
+            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/70">
+              {isOpen ? "▾ ซ่อน" : "▸ ดู"}
+            </span>
           </span>
-        </span>
-        <span className="inline-flex items-center gap-1 text-muted-foreground/70 text-[10px]">
-          {isOpen ? "▾ ซ่อน" : "▸ ดู"}
-        </span>
+        </div>
       </button>
       {isOpen && agents.length > 0 && status === "streaming" && (
         <div className="h-0.5 bg-card/40 overflow-hidden">
@@ -218,7 +272,8 @@ export default function MultiAgentPanel({
           {agents.map((agent) => {
             const isExpanded = expandAll || expandedAgents.has(agent.agentId);
             const roleDesc = AGENT_ROLE_DESC[agent.agentId];
-            
+            const accent = getModelAccent(agent.model);
+
             // Determine display text
             let displayText = "";
             let isThinking = false;
@@ -232,7 +287,7 @@ export default function MultiAgentPanel({
             } else {
               displayText = roleDesc || "พร้อม";
             }
-            
+
             // Status icon
             const statusIcon =
               agent.status === "done" ? "✓" : agent.status === "error" ? "✗" : agent.status === "recovering" ? "↻" : "";
@@ -244,15 +299,15 @@ export default function MultiAgentPanel({
                 : agent.status === "error"
                 ? "bg-rose-500"
                 : "bg-sky-400";
-            const badgeClass = agent.model?.startsWith("gpt-")
-              ? "bg-amber-500/15 text-amber-600 dark:text-amber-300"
-              : "bg-sky-500/15 text-sky-500 dark:text-sky-300";
-            
+
+            const cardShimmerClass = agent.status === "active" ? "agent-shimmer-active" : "";
+
             return (
               <div
                 key={agent.agentId}
                 data-testid={`multiagent-agent-${agent.agentId}`}
-                className="bg-card/40 px-3 py-2 cursor-pointer hover:bg-card/60 transition-colors"
+                style={{ ['--agent-accent' as any]: accent.hex, borderLeftColor: accent.hex }}
+                className={`relative border-l-2 bg-card/40 px-3 py-2 pl-3 cursor-pointer hover:bg-card/60 transition-colors ${cardShimmerClass}`}
                 onClick={() =>
                   setExpandedAgents((prev) => {
                     const n = new Set(prev);
@@ -282,7 +337,7 @@ export default function MultiAgentPanel({
                     )}
                   </span>
                   {agent.model && (
-                    <span className={`ml-auto text-[9px] font-mono px-1 py-0.5 rounded flex-shrink-0 ${badgeClass}`}>
+                    <span className={`ml-auto text-[9px] font-mono px-1 py-0.5 rounded flex-shrink-0 ${accent.pill}`}>
                       {MDES_MODEL_BADGE[agent.model] ?? agent.model.split(":")[0]}
                     </span>
                   )}
