@@ -1,0 +1,77 @@
+event: agent_started
+data: {"type":"agent_started","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T09:30:40.414Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T09:30:40.414Z","model":"gemma4:e4b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T09:30:40.414Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"ทักทาย: ส่ง concierge + critic (MDES)","isSafeForUser":true,"timestamp":"2026-05-14T09:30:40.414Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T09:30:40.414Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T09:30:40.414Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:30:40.414Z","deltaText":"สวัสดีครับ! ยินดีต้อนรับสู่ INNOMCP 🤝 มีอะไรให้ช่วยไหมครับ?","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T09:30:40.414Z","confidence":0.85}
+
+event: fallback
+data: {"type":"fallback","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:30:52.415Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T09:30:52.415Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:30:52.417Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T09:30:52.418Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"\"สวัสดีครับ\" เป็นคำทักทายมาตรฐาน","isSafeForUser":true,"timestamp":"2026-05-14T09:30:57.877Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"\"สวัสดีครับ\" เป็นคำทักทายมาตรฐานในภาษาไทย ซึ่งผู้พูดชายใช้เพื่อ","isSafeForUser":true,"timestamp":"2026-05-14T09:30:57.969Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"\"สวัสดีครับ\" เป็นคำทักทายมาตรฐานในภาษาไทย ซึ่งผู้พูดชายใช้เพื่อเริ่มต้นบทสนทนาอย่างสุภาพและให้","isSafeForUser":true,"timestamp":"2026-05-14T09:30:58.074Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"\"สวัสดีครับ\" เป็นคำทักทายมาตรฐานในภาษาไทย ซึ่งผู้พูดชายใช้เพื่อเริ่มต้นบทสนทนาอย่างสุภาพและให้เกียรติผู้รับสาร การตอบกลับที่","isSafeForUser":true,"timestamp":"2026-05-14T09:30:58.192Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"\"สวัสดีครับ\" เป็นคำทักทายมาตรฐานในภาษาไทย ซึ่งผู้พูดชายใช้เพื่อเริ่มต้นบทสนทนาอย่างสุภาพและให้เกียรติผู้รับสาร การตอบกลับที่เหมาะสมที่สุดคือการทักทายกลับด้วย","isSafeForUser":true,"timestamp":"2026-05-14T09:30:58.296Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"\"สวัสดีครับ\" เป็นคำทักทายมาตรฐานในภาษาไทย ซึ่งผู้พูดชายใช้เพื่อเริ่มต้นบทสนทนาอย่างสุภาพและให้เกียรติผู้รับสาร การตอบกลับที่เหมาะสมที่สุดคือการทักทายกลับด้วยคำว่า \"สวัสดีครับ\" หรือ \"สวัสดี","isSafeForUser":true,"timestamp":"2026-05-14T09:30:58.389Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"\"สวัสดีครับ\" เป็นคำทักทายมาตรฐานในภาษาไทย ซึ่งผู้พูดชายใช้เพื่อเริ่มต้นบทสนทนาอย่างสุภาพและให้เกียรติผู้รับสาร การตอบกลับที่เหมาะสมที่สุดคือการทักทายกลับด้วยคำว่า \"สวัสดีครับ\" หรือ \"สวัสดีค่ะ\" (ตามเพศของผู้ตอบ) เพื่อแสดง","isSafeForUser":true,"timestamp":"2026-05-14T09:30:58.504Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"\"สวัสดีครับ\" เป็นคำทักทายมาตรฐานในภาษาไทย ซึ่งผู้พูดชายใช้เพื่อเริ่มต้นบทสนทนาอย่างสุภาพและให้เกียรติผู้รับสาร การตอบกลับที่เหมาะสมที่สุดคือการทักทายกลับด้วยคำว่า \"สวัสดีครับ\" หรือ \"สวัสดีค่ะ\" (ตามเพศของผู้ตอบ) เพื่อแสดง...","isSafeForUser":true,"timestamp":"2026-05-14T09:30:58.609Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"\"สวัสดีครับ\" เป็นคำทักทายมาตรฐานในภาษาไทย ซึ่งผู้พูดชายใช้เพื่อเริ่มต้นบทสนทนาอย่างสุภาพและให้เกียรติผู้รับสาร การตอบกลับที่เหมาะสมที่สุดคือการทักทายกลับด้วยคำว่า \"สวัสดีครับ\" หรือ \"สวัสดีค่ะ\" (ตามเพศของผู้ตอบ) เพื่อแสดง...","isSafeForUser":true,"timestamp":"2026-05-14T09:30:58.682Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"\"สวัสดีครับ\" เป็นคำทักทายมาตรฐานในภาษาไทย ซึ่งผู้พูดชายใช้เพื่อเริ่มต้นบทสนทนาอย่างสุภาพและให้เกียรติผู้รับสาร การตอบกลับที่เหมาะสมที่สุดคือการทักทายกลับด้วยคำว่า \"สวัสดีครับ\" หรือ \"สวัสดีค่ะ\" (ตามเพศของผู้ตอบ) เพื่อแสดง...","isSafeForUser":true,"timestamp":"2026-05-14T09:30:58.776Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"\"สวัสดีครับ\" เป็นคำทักทายมาตรฐานในภาษาไทย ซึ่งผู้พูดชายใช้เพื่อเริ่มต้นบทสนทนาอย่างสุภาพและให้เกียรติผู้รับสาร การตอบกลับที่เหมาะสมที่สุดคือการทักทายกลับด้วยคำว่า \"สวัสดีครับ\" หรือ \"สวัสดีค่ะ\" (ตามเพศของผู้ตอบ) เพื่อแสดง...","isSafeForUser":true,"timestamp":"2026-05-14T09:30:58.840Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T09:30:58.840Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"1e596b82-947f-4733-8545-f5b5f82abf10","messageId":"5a2d4e72-fea5-4deb-85d9-931c9c46e7f2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T09:30:58.903Z","finalText":"\"สวัสดีครับ\" เป็นคำทักทายมาตรฐานในภาษาไทย ซึ่งผู้พูดชายใช้เพื่อเริ่มต้นบทสนทนาอย่างสุภาพและให้เกียรติผู้รับสาร การตอบกลับที่เหมาะสมที่สุดคือการทักทายกลับด้วยคำว่า \"สวัสดีครับ\" หรือ \"สวัสดีค่ะ\" (ตามเพศของผู้ตอบ) เพื่อแสดงการรับรู้และสานต่อการสื่อสารได้อย่างเป็นธรรมชาติ ถือเป็นการรักษาความสัมพันธ์และบริบททางภาษาที่ครบถ้วนสมบูรณ์ที่สุด","confidence":0.78}
+

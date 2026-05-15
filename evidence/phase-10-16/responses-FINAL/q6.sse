@@ -1,0 +1,42 @@
+event: agent_started
+data: {"type":"agent_started","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T09:42:57.255Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T09:42:57.256Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T09:42:57.256Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T09:42:57.256Z","model":"qwen3.5:9b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:57.257Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางตอบทั่วไป","isSafeForUser":true,"timestamp":"2026-05-14T09:42:57.257Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T09:42:57.257Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T09:42:57.257Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:57.257Z","deltaText":"ผมรับโจทย์ \"ทำไม INNOMCP ใช้ multi-agent\" แล้ว — ตอบเป็นภาษาไทยให้กระชับและตรงปร","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:57.257Z","deltaText":"ะเด็น หากต้องการละเอียดกว่านี้บอกได้ครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:57.257Z","confidence":0.85}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"โดยหลักแล้ว การใช้ multi-agent","isSafeForUser":true,"timestamp":"2026-05-14T09:43:04.321Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"โดยหลักแล้ว การใช้ multi-agent system ช่วยให้ INNOMCP สามารถ","isSafeForUser":true,"timestamp":"2026-05-14T09:43:04.395Z","model":"gemma4:e4b"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"111fa4d5-bb60-4464-b46e-ce7dc2143412","messageId":"9f3fdc34-4ee1-4c29-bf1d-04b269a16eb9","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T09:43:04.429Z","finalText":"โดยหลักแล้ว การใช้ multi-agent system ช่วยให้ INNOMCP สามารถ","confidence":0.78}
+

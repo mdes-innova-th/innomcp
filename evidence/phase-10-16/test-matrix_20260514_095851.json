@@ -1,0 +1,32 @@
+[
+  {"id":"T1","query":"ค้นหาหลักฐานคดีล่าสุดในระบบมีกี่รายการ","status":"FAIL","agents":12,"hasFinal":0
+0,"models":"minimax-m2.5:cloud","latency_ms":55}
+,
+  {"id":"T2","query":"จังหวัดเชียงใหม่อยู่ภาคอะไร มีอำเภอกี่อำเภอ","status":"FAIL","agents":12,"hasFinal":0
+0,"models":"minimax-m2.5:cloud","latency_ms":57}
+,
+  {"id":"T3","query":"สถานะเครื่อง docker และ evidence db ตอนนี้เป็นอย่างไร","status":"FAIL","agents":12,"hasFinal":0
+0,"models":"minimax-m2.5:cloud","latency_ms":57}
+,
+  {"id":"T4","query":"บอกข้อมูลพื้นฐานเกี่ยวกับประเทศไทยและภูมิศาสตร์","status":"FAIL","agents":12,"hasFinal":0
+0,"models":"minimax-m2.5:cloud","latency_ms":77}
+,
+  {"id":"T5","query":"พยากรณ์อากาศพรุ่งนี้ที่กรุงเทพมหานครเป็นอย่างไร","status":"FAIL","agents":12,"hasFinal":0
+0,"models":"minimax-m2.5:cloud","latency_ms":53}
+,
+  {"id":"T6","query":"คำนวณ 15% ของ 87450 บาทเท่ากับเท่าไหร่","status":"FAIL","agents":8,"hasFinal":0
+0,"models":"minimax-m2.5:cloud","latency_ms":54}
+,
+  {"id":"T7","query":"วันนี้วันที่เท่าไหร่ และอีก 45 วันจะตรงกับวันอะไร","status":"FAIL","agents":12,"hasFinal":0
+0,"models":"minimax-m2.5:cloud","latency_ms":87}
+,
+  {"id":"T8","query":"สวัสดีครับ ช่วยแนะนำตัวเองหน่อยได้ไหม","status":"FAIL","agents":12,"hasFinal":0
+0,"models":"minimax-m2.5:cloud","latency_ms":59}
+,
+  {"id":"T9","query":"วางแผนระบบรักษาความปลอดภัยสำหรับสถานีตำรวจ 3 จังหวัด","status":"FAIL","agents":12,"hasFinal":0
+0,"models":"minimax-m2.5:cloud","latency_ms":67}
+,
+  {"id":"T10","query":"เขียน Python function ดึงข้อมูล JSON จาก REST API พร้อม error handling","status":"FAIL","agents":12,"hasFinal":0
+0,"models":"minimax-m2.5:cloud","latency_ms":61}
+
+]

@@ -1,0 +1,89 @@
+event: agent_started
+data: {"type":"agent_started","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:44:13.829Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:44:13.829Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:44:13.829Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:44:13.829Z","model":"qwen3.5:9b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T08:44:13.830Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางตอบทั่วไป","isSafeForUser":true,"timestamp":"2026-05-14T08:44:13.830Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T08:44:13.830Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T08:44:13.830Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:44:13.830Z","deltaText":"ผมรับโจทย์ \"??????????????????????????????????\" แล้ว — ตอบเป็นภาษาไทยให้กระชับแล","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:44:13.830Z","deltaText":"ะตรงประเด็น หากต้องการละเอียดกว่านี้บอกได้ครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T08:44:13.830Z","confidence":0.85}
+
+event: fallback
+data: {"type":"fallback","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:44:25.835Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:44:25.835Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:44:25.836Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:44:25.836Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"stylist[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:44:25.837Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:44:25.837Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"rag-agent[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:44:25.838Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:44:25.838Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"การวิเคราะห์ปัญหาต้องเริ่มต้นจากการ","isSafeForUser":true,"timestamp":"2026-05-14T08:44:30.907Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"การวิเคราะห์ปัญหาต้องเริ่มต้นจากการระบุสาเหตุหลักที่แท้จริง ไม่ใช่","isSafeForUser":true,"timestamp":"2026-05-14T08:44:31.023Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"การวิเคราะห์ปัญหาต้องเริ่มต้นจากการระบุสาเหตุหลักที่แท้จริง ไม่ใช่แค่ที่อาการที่ปรากฏ การขับเคลื่อน","isSafeForUser":true,"timestamp":"2026-05-14T08:44:31.118Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"การวิเคราะห์ปัญหาต้องเริ่มต้นจากการระบุสาเหตุหลักที่แท้จริง ไม่ใช่แค่ที่อาการที่ปรากฏ การขับเคลื่อนกลยุทธ์จึงควรเน้นที่การแก้กระบวน","isSafeForUser":true,"timestamp":"2026-05-14T08:44:31.254Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"การวิเคราะห์ปัญหาต้องเริ่มต้นจากการระบุสาเหตุหลักที่แท้จริง ไม่ใช่แค่ที่อาการที่ปรากฏ การขับเคลื่อนกลยุทธ์จึงควรเน้นที่การแก้กระบวนการ (Process A) และการปรับโครง","isSafeForUser":true,"timestamp":"2026-05-14T08:44:31.348Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"การวิเคราะห์ปัญหาต้องเริ่มต้นจากการระบุสาเหตุหลักที่แท้จริง ไม่ใช่แค่ที่อาการที่ปรากฏ การขับเคลื่อนกลยุทธ์จึงควรเน้นที่การแก้กระบวนการ (Process A) และการปรับโครงสร้างองค์ความรู้ (Knowledge Structure","isSafeForUser":true,"timestamp":"2026-05-14T08:44:31.421Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"การวิเคราะห์ปัญหาต้องเริ่มต้นจากการระบุสาเหตุหลักที่แท้จริง ไม่ใช่แค่ที่อาการที่ปรากฏ การขับเคลื่อนกลยุทธ์จึงควรเน้นที่การแก้กระบวนการ (Process A) และการปรับโครงสร้างองค์ความรู้ (Knowledge Structure) เพื่อให้เกิดความยั่ง...","isSafeForUser":true,"timestamp":"2026-05-14T08:44:31.526Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"การวิเคราะห์ปัญหาต้องเริ่มต้นจากการระบุสาเหตุหลักที่แท้จริง ไม่ใช่แค่ที่อาการที่ปรากฏ การขับเคลื่อนกลยุทธ์จึงควรเน้นที่การแก้กระบวนการ (Process A) และการปรับโครงสร้างองค์ความรู้ (Knowledge Structure) เพื่อให้เกิดความยั่ง...","isSafeForUser":true,"timestamp":"2026-05-14T08:44:31.610Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T08:44:31.610Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"592199a3-4938-4a03-9215-9ee3ab6e3b41","messageId":"bfc6798c-745c-4174-8265-bf6fca59c8f3","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T08:44:31.713Z","finalText":"การวิเคราะห์ปัญหาต้องเริ่มต้นจากการระบุสาเหตุหลักที่แท้จริง ไม่ใช่แค่ที่อาการที่ปรากฏ การขับเคลื่อนกลยุทธ์จึงควรเน้นที่การแก้กระบวนการ (Process A) และการปรับโครงสร้างองค์ความรู้ (Knowledge Structure) เพื่อให้เกิดความยั่งยืนและผลลัพธ์ที่วัดได้จริง","confidence":0.78}
+

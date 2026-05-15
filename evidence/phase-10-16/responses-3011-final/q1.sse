@@ -1,0 +1,98 @@
+event: agent_started
+data: {"type":"agent_started","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:06:22.345Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:06:22.345Z","model":"gemma4:e4b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:22.345Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"ทักทาย: ส่ง concierge + critic (MDES)","isSafeForUser":true,"timestamp":"2026-05-14T08:06:22.345Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T08:06:22.345Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T08:06:22.345Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:22.345Z","deltaText":"สวัสดีครับ! ยินดีต้อนรับสู่ INNOMCP 🤝 มีอะไรให้ช่วยไหมครับ?","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:22.345Z","confidence":0.85}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**สวัสดี** เป็นคำทักทายพื้นฐาน","isSafeForUser":true,"timestamp":"2026-05-14T08:06:33.659Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**สวัสดี** เป็นคำทักทายพื้นฐานที่สุดในภาษาไทย ใช้เพื่อเริ่มต้น","isSafeForUser":true,"timestamp":"2026-05-14T08:06:33.852Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**สวัสดี** เป็นคำทักทายพื้นฐานที่สุดในภาษาไทย ใช้เพื่อเริ่มต้นบทสนทนาและแสดงความเคารพต่อบุคคล","isSafeForUser":true,"timestamp":"2026-05-14T08:06:34.186Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:06:34.347Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:06:34.347Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:06:34.349Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:06:34.349Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี","isSafeForUser":true,"timestamp":"2026-05-14T08:06:39.282Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถาม","isSafeForUser":true,"timestamp":"2026-05-14T08:06:39.420Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมาย","isSafeForUser":true,"timestamp":"2026-05-14T08:06:39.537Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมายถึงการเริ่มต้นบทสนทนา\n→ **คิดคำ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:39.661Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมายถึงการเริ่มต้นบทสนทนา\n→ **คิดคำตอบที่ดีที่สุด:** เนื่องจากการ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:39.723Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมายถึงการเริ่มต้นบทสนทนา\n→ **คิดคำตอบที่ดีที่สุด:** เนื่องจากการตอบคำถามที่ไม่มีบริบทอื่น ระบบ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:39.819Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมายถึงการเริ่มต้นบทสนทนา\n→ **คิดคำตอบที่ดีที่สุด:** เนื่องจากการตอบคำถามที่ไม่มีบริบทอื่น ระบบควรตอบรับการทักทายด้วยความสุภาพ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:39.946Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมายถึงการเริ่มต้นบทสนทนา\n→ **คิดคำตอบที่ดีที่สุด:** เนื่องจากการตอบคำถามที่ไม่มีบริบทอื่น ระบบควรตอบรับการทักทายด้วยความสุภาพ พร้อ...","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.008Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมายถึงการเริ่มต้นบทสนทนา\n→ **คิดคำตอบที่ดีที่สุด:** เนื่องจากการตอบคำถามที่ไม่มีบริบทอื่น ระบบควรตอบรับการทักทายด้วยความสุภาพ พร้อ...","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.122Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมายถึงการเริ่มต้นบทสนทนา\n→ **คิดคำตอบที่ดีที่สุด:** เนื่องจากการตอบคำถามที่ไม่มีบริบทอื่น ระบบควรตอบรับการทักทายด้วยความสุภาพ พร้อ...","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.196Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมายถึงการเริ่มต้นบทสนทนา\n→ **คิดคำตอบที่ดีที่สุด:** เนื่องจากการตอบคำถามที่ไม่มีบริบทอื่น ระบบควรตอบรับการทักทายด้วยความสุภาพ พร้อ...","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.301Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมายถึงการเริ่มต้นบทสนทนา\n→ **คิดคำตอบที่ดีที่สุด:** เนื่องจากการตอบคำถามที่ไม่มีบริบทอื่น ระบบควรตอบรับการทักทายด้วยความสุภาพ พร้อ...","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.417Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมายถึงการเริ่มต้นบทสนทนา\n→ **คิดคำตอบที่ดีที่สุด:** เนื่องจากการตอบคำถามที่ไม่มีบริบทอื่น ระบบควรตอบรับการทักทายด้วยความสุภาพ พร้อ...","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.502Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมายถึงการเริ่มต้นบทสนทนา\n→ **คิดคำตอบที่ดีที่สุด:** เนื่องจากการตอบคำถามที่ไม่มีบริบทอื่น ระบบควรตอบรับการทักทายด้วยความสุภาพ พร้อ...","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.597Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมายถึงการเริ่มต้นบทสนทนา\n→ **คิดคำตอบที่ดีที่สุด:** เนื่องจากการตอบคำถามที่ไม่มีบริบทอื่น ระบบควรตอบรับการทักทายด้วยความสุภาพ พร้อ...","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.661Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.661Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"49e31685-d71e-46b1-8852-c9df4d83727b","messageId":"88e3bdb5-04c6-45f3-b331-abccd34a4c40","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.823Z","finalText":"[THINK] วิเคราะห์คำถาม: \"สวัสดี\"\n→ **ระบุประเด็นหลัก:** คำถามคือการทักทาย (Greeting) ซึ่งหมายถึงการเริ่มต้นบทสนทนา\n→ **คิดคำตอบที่ดีที่สุด:** เนื่องจากการตอบคำถามที่ไม่มีบริบทอื่น ระบบควรตอบรับการทักทายด้วยความสุภาพ พร้อมด้วยการเสนอความช่วยเหลือเพื่อกระตุ้นให้เกิดการสนทนาต่อเนื่องและให้ข้อมูลที่เป็นประโยชน์\n\n[ANSWER] สวัสดีค่ะ/ครับ ยินดีที่ได้พูดคุยกับคุณค่ะ/ครับ ไม่ทราบว่าวันนี้มีเรื่องใดให้ช่วย หรือมีคำถามอะไรที่อยากให้แนะนำเป็นพิเศษไหมคะ/ครับ","confidence":0.78}
+

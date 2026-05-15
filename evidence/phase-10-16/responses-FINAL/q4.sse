@@ -1,0 +1,42 @@
+event: agent_started
+data: {"type":"agent_started","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เริ่มงาน: weather-analyst","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.251Z","model":"qwen3.6:27b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"geo-planner","role":"นักวางแผนพื้นที่/การเดินทาง","publicSummary":"เริ่มงาน: geo-planner","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.251Z","model":"qwen3.5:27b"}
+
+event: tool_call_started
+data: {"type":"tool_call_started","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"เรียก nwp_daily_by_place …","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.251Z","toolName":"nwp_daily_by_place"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.251Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางสรุปอากาศ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.251Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.251Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"ประเมินความเสี่ยงฝนรายภาคในช่วงเวลาที่เกี่ยวข้อง","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.251Z"}
+
+event: fact_found
+data: {"type":"fact_found","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"ภาคกลางและภาคอีสานตอนล่างมีโอกาสฝนเฉลี่ยน้อยกว่าภาคเหนือในเดือนกลางฤดูฝน","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.251Z","confidence":0.65}
+
+event: agent_started
+data: {"type":"agent_started","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.251Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.251Z","deltaText":"ขออนุญาตสรุปอากาศตามที่ถามครับ\n• ภาคกลาง/อีสานตอนล่าง: ฝนเฉลี่ยน้อยกว่าภาคเหนือใ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.251Z","deltaText":"นเดือนกลางฤดูฝน\nหากต้องการข้อมูลรายชั่วโมงหรือเฉพาะอำเภอ บอกผมเพิ่มได้นะครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.251Z","confidence":0.85}
+
+event: tool_call_finished
+data: {"type":"tool_call_finished","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"nwp_daily_by_place เสร็จ (208ms)","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.459Z","toolName":"nwp_daily_by_place"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"a6595620-5bcd-42ce-8b7d-837ab904c62e","messageId":"e5a3f821-4d51-47df-9b50-0e48920398bc","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T09:42:50.757Z","finalText":"📍 พยากรณ์อากาศรายวัน — ชลบุรี\n• **2026-05-14**: สูงสุด 31.4°C, ต่ำสุด 27.8°C, ความชื้น 74%, ฝน 0.3mm (ท้องฟ้าแจ่มใส)\n• **2026-05-15**: สูงสุด 31.9°C, ต่ำสุด 28.8°C, ความชื้น 76%, ฝน 0.2mm (เมฆมาก)\n\nข้อมูลจาก NWP (TMD High Performance Computing)","confidence":0.78}
+

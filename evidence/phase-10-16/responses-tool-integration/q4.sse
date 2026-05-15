@@ -1,0 +1,45 @@
+event: agent_started
+data: {"type":"agent_started","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เริ่มงาน: weather-analyst","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.462Z","model":"qwen3.6:27b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"geo-planner","role":"นักวางแผนพื้นที่/การเดินทาง","publicSummary":"เริ่มงาน: geo-planner","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.463Z","model":"qwen3.5:27b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.463Z","model":"gemma4:e4b"}
+
+event: tool_call_started
+data: {"type":"tool_call_started","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"เรียก nwp_daily_by_place …","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.463Z","toolName":"nwp_daily_by_place"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.463Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางสรุปอากาศ","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.463Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.463Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"ประเมินความเสี่ยงฝนรายภาคในช่วงเวลาที่เกี่ยวข้อง","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.463Z"}
+
+event: fact_found
+data: {"type":"fact_found","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"ภาคกลางและภาคอีสานตอนล่างมีโอกาสฝนเฉลี่ยน้อยกว่าภาคเหนือในเดือนกลางฤดูฝน","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.463Z","confidence":0.65}
+
+event: agent_started
+data: {"type":"agent_started","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.463Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.463Z","deltaText":"ขออนุญาตสรุปอากาศตามที่ถามครับ\n• ภาคกลาง/อีสานตอนล่าง: ฝนเฉลี่ยน้อยกว่าภาคเหนือใ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.463Z","deltaText":"นเดือนกลางฤดูฝน\nหากต้องการข้อมูลรายชั่วโมงหรือเฉพาะอำเภอ บอกผมเพิ่มได้นะครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.463Z","confidence":0.85}
+
+event: tool_call_finished
+data: {"type":"tool_call_finished","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"nwp_daily_by_place เสร็จ (243ms)","isSafeForUser":true,"timestamp":"2026-05-14T09:31:02.706Z","toolName":"nwp_daily_by_place"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"d62c4c41-35e5-45c9-8887-33ee504addcd","messageId":"53bbf365-e21e-4a26-b685-78a26bf16e18","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T09:31:03.974Z","finalText":"📍 พยากรณ์อากาศรายวัน — เชียงใหม่\n• **2026-05-14**: สูงสุด 32.2°C, ต่ำสุด 26.6°C, ความชื้น 61%, ฝน 1.3mm (เมฆบางส่วน)\n• **2026-05-15**: สูงสุด 34.0°C, ต่ำสุด 26.8°C, ความชื้น 59%, ฝน 0.0mm (เมฆเป็นส่วนมาก)\n\nข้อมูลจาก NWP (TMD High Performance Computing)","confidence":0.78}
+

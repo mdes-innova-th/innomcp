@@ -1,0 +1,256 @@
+event: agent_started
+data: {"type":"agent_started","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:43:12.308Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:43:12.308Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:43:12.308Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:43:12.309Z","model":"qwen3.5:9b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T08:43:12.309Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางตอบทั่วไป","isSafeForUser":true,"timestamp":"2026-05-14T08:43:12.309Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T08:43:12.309Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T08:43:12.309Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:43:12.309Z","deltaText":"ผมรับโจทย์ \"????????? docker ??????? evidence db ????????\" แล้ว — ตอบเป็นภาษาไทย","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:43:12.309Z","deltaText":"ให้กระชับและตรงประเด็น หากต้องการละเอียดกว่านี้บอกได้ครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T08:43:12.309Z","confidence":0.85}
+
+event: fallback
+data: {"type":"fallback","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:43:24.316Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:43:24.316Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:43:24.317Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:43:24.318Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"stylist[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:43:24.319Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:43:24.319Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"rag-agent[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:43:24.322Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:43:24.322Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (?????","isSafeForUser":true,"timestamp":"2026-05-14T08:43:30.958Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db","isSafeForUser":true,"timestamp":"2026-05-14T08:43:31.021Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับ","isSafeForUser":true,"timestamp":"2026-05-14T08:43:31.114Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **","isSafeForUser":true,"timestamp":"2026-05-14T08:43:31.211Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database","isSafeForUser":true,"timestamp":"2026-05-14T08:43:31.285Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้","isSafeForUser":true,"timestamp":"2026-05-14T08:43:31.379Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:31.493Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:31.588Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:31.682Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:31.788Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:31.905Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:32.009Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:32.062Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:32.137Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:32.242Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:32.358Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:32.410Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:32.473Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:32.536Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:32.621Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:32.736Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:32.852Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:32.956Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:33.084Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:33.167Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:33.240Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:33.303Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:33.399Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:33.470Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:33.587Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:33.650Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:33.733Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:33.860Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:33.984Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:34.079Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:34.152Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:34.257Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:34.330Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:34.383Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:34.509Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:34.551Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:34.624Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:34.688Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:34.766Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:34.830Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:34.937Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:35.013Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:35.096Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:35.159Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:35.233Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:35.329Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:35.413Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:35.540Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:35.612Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:35.728Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:35.844Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:35.927Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:36.022Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:36.137Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"ข้อความที่คุณป้อนเข้ามา (????????? docker ??????? evidence db ????????) เป็นการสอบถามเกี่ยวกับกระบวนการหรือแนวคิดการใช้งาน **Docker** กับระบบ **Evidence Database** (ฐานข้อมูลหลักฐาน)\n\nเพื่อให้ได้คำตอบที่สมบูรณ์ เป็นมืออา...","isSafeForUser":true,"timestamp":"2026-05-14T08:43:36.234Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:43:36.316Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:43:36.318Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"stylist[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:43:36.325Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"rag-agent[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:43:36.326Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: final_answer
+data: {"type":"final_answer","runId":"88a73449-b013-4dc7-a8fc-6d42ff44805b","messageId":"ec9eff04-a86a-45d4-bd0a-b8a62ffed1e2","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T08:43:47.417Z","finalText":"ผมรับโจทย์ \"????????? docker ??????? evidence db ????????\" แล้ว — ตอบเป็นภาษาไทยให้กระชับและตรงประเด็น หากต้องการละเอียดกว่านี้บอกได้ครับ","confidence":0.78}
+

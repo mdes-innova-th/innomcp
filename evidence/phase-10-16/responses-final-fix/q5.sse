@@ -1,0 +1,110 @@
+event: agent_started
+data: {"type":"agent_started","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:55:25.874Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:55:25.874Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:55:25.874Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:55:25.875Z","model":"qwen3.5:9b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T08:55:25.875Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางตอบทั่วไป","isSafeForUser":true,"timestamp":"2026-05-14T08:55:25.875Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T08:55:25.875Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T08:55:25.875Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:55:25.875Z","deltaText":"ผมรับโจทย์ \"ขอเทียบจังหวัดเชียงใหม่กับเชียงราย\" แล้ว — ตอบเป็นภาษาไทยให้กระชับแล","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:55:25.875Z","deltaText":"ะตรงประเด็น หากต้องการละเอียดกว่านี้บอกได้ครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T08:55:25.875Z","confidence":0.85}
+
+event: fallback
+data: {"type":"fallback","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:55:37.882Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:55:37.882Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:55:37.884Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:55:37.884Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"stylist[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:55:37.885Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:55:37.885Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"rag-agent[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:55:37.887Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:55:37.887Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์","isSafeForUser":true,"timestamp":"2026-05-14T08:55:43.424Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมือง","isSafeForUser":true,"timestamp":"2026-05-14T08:55:43.551Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับ","isSafeForUser":true,"timestamp":"2026-05-14T08:55:43.622Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองที่มี","isSafeForUser":true,"timestamp":"2026-05-14T08:55:43.726Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองที่มีความสะดวกสบายและแหล่งท่องเที่ยว","isSafeForUser":true,"timestamp":"2026-05-14T08:55:43.790Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองที่มีความสะดวกสบายและแหล่งท่องเที่ยวครบครัน\n\nในขณะที่ **เชียงราย**","isSafeForUser":true,"timestamp":"2026-05-14T08:55:43.915Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองที่มีความสะดวกสบายและแหล่งท่องเที่ยวครบครัน\n\nในขณะที่ **เชียงราย** มีบรรยากาศที่สงบกว่า โดดเด่นด้วย","isSafeForUser":true,"timestamp":"2026-05-14T08:55:44.060Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองที่มีความสะดวกสบายและแหล่งท่องเที่ยวครบครัน\n\nในขณะที่ **เชียงราย** มีบรรยากาศที่สงบกว่า โดดเด่นด้วยธร...","isSafeForUser":true,"timestamp":"2026-05-14T08:55:44.185Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองที่มีความสะดวกสบายและแหล่งท่องเที่ยวครบครัน\n\nในขณะที่ **เชียงราย** มีบรรยากาศที่สงบกว่า โดดเด่นด้วยธร...","isSafeForUser":true,"timestamp":"2026-05-14T08:55:44.290Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองที่มีความสะดวกสบายและแหล่งท่องเที่ยวครบครัน\n\nในขณะที่ **เชียงราย** มีบรรยากาศที่สงบกว่า โดดเด่นด้วยธร...","isSafeForUser":true,"timestamp":"2026-05-14T08:55:44.415Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองที่มีความสะดวกสบายและแหล่งท่องเที่ยวครบครัน\n\nในขณะที่ **เชียงราย** มีบรรยากาศที่สงบกว่า โดดเด่นด้วยธร...","isSafeForUser":true,"timestamp":"2026-05-14T08:55:44.509Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองที่มีความสะดวกสบายและแหล่งท่องเที่ยวครบครัน\n\nในขณะที่ **เชียงราย** มีบรรยากาศที่สงบกว่า โดดเด่นด้วยธร...","isSafeForUser":true,"timestamp":"2026-05-14T08:55:44.606Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองที่มีความสะดวกสบายและแหล่งท่องเที่ยวครบครัน\n\nในขณะที่ **เชียงราย** มีบรรยากาศที่สงบกว่า โดดเด่นด้วยธร...","isSafeForUser":true,"timestamp":"2026-05-14T08:55:44.709Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองที่มีความสะดวกสบายและแหล่งท่องเที่ยวครบครัน\n\nในขณะที่ **เชียงราย** มีบรรยากาศที่สงบกว่า โดดเด่นด้วยธร...","isSafeForUser":true,"timestamp":"2026-05-14T08:55:44.813Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองที่มีความสะดวกสบายและแหล่งท่องเที่ยวครบครัน\n\nในขณะที่ **เชียงราย** มีบรรยากาศที่สงบกว่า โดดเด่นด้วยธร...","isSafeForUser":true,"timestamp":"2026-05-14T08:55:44.830Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T08:55:44.830Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"226f8e31-92dc-4bfb-9b3f-6905edbafb49","messageId":"1582c860-7c32-4c40-a32d-c3b6ab909728","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T08:55:44.989Z","finalText":"**เชียงใหม่** เน้นความเป็นศูนย์กลางทางวัฒนธรรมที่คึกคักและเมืองเก่าที่เข้าถึงง่าย เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองที่มีความสะดวกสบายและแหล่งท่องเที่ยวครบครัน\n\nในขณะที่ **เชียงราย** มีบรรยากาศที่สงบกว่า โดดเด่นด้วยธรรมชาติภูเขา อาร์ตแกลเลอรี และวัดวาอารามที่มีเอกลักษณ์ทางศิลปะล้ำค่า\n\nหากคุณต้องการความคึกคักและวัฒนธรรมในรูปแบบเมืองใหญ่ให้เลือกเชียงใหม่ แต่ถ้าคุณชอบความเงียบสงบ ธรรมชาติ และความอลังการทางศิลปะให้เลือกเชียงรายค่ะ","confidence":0.78}
+

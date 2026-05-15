@@ -1,0 +1,74 @@
+event: agent_started
+data: {"type":"agent_started","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:00:46.315Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:00:46.317Z","model":"gemma4:e4b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T08:00:46.317Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"ทักทาย: ส่ง concierge + critic (MDES)","isSafeForUser":true,"timestamp":"2026-05-14T08:00:46.317Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T08:00:46.318Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T08:00:46.318Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:00:46.318Z","deltaText":"สวัสดีครับ! ยินดีต้อนรับสู่ INNOMCP 🤝 มีอะไรให้ช่วยไหมครับ?","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T08:00:46.318Z","confidence":0.85}
+
+event: fallback
+data: {"type":"fallback","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:00:58.324Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:00:58.324Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:00:58.327Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:00:58.327Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมคือแบบจำลองภาษาขนาด","isSafeForUser":true,"timestamp":"2026-05-14T08:01:04.784Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมคือแบบจำลองภาษาขนาดใหญ่ (Large Language Model) ที่","isSafeForUser":true,"timestamp":"2026-05-14T08:01:04.856Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมคือแบบจำลองภาษาขนาดใหญ่ (Large Language Model) ที่ได้รับการพัฒนามาเพื่อช่วยในการ","isSafeForUser":true,"timestamp":"2026-05-14T08:01:04.918Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมคือแบบจำลองภาษาขนาดใหญ่ (Large Language Model) ที่ได้รับการพัฒนามาเพื่อช่วยในการประมวลผลข้อมูลและตอบคำถามในหลากหลาย","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.034Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมคือแบบจำลองภาษาขนาดใหญ่ (Large Language Model) ที่ได้รับการพัฒนามาเพื่อช่วยในการประมวลผลข้อมูลและตอบคำถามในหลากหลายหัวข้อครับ คุณสามารถใช้ผมในการ","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.118Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมคือแบบจำลองภาษาขนาดใหญ่ (Large Language Model) ที่ได้รับการพัฒนามาเพื่อช่วยในการประมวลผลข้อมูลและตอบคำถามในหลากหลายหัวข้อครับ คุณสามารถใช้ผมในการสรุปเนื้อหา แปลภาษา เขียนบทความ","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.210Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมคือแบบจำลองภาษาขนาดใหญ่ (Large Language Model) ที่ได้รับการพัฒนามาเพื่อช่วยในการประมวลผลข้อมูลและตอบคำถามในหลากหลายหัวข้อครับ คุณสามารถใช้ผมในการสรุปเนื้อหา แปลภาษา เขียนบทความ หรือให้ข้อมูลความรู้ในด้านต่าง...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.294Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมคือแบบจำลองภาษาขนาดใหญ่ (Large Language Model) ที่ได้รับการพัฒนามาเพื่อช่วยในการประมวลผลข้อมูลและตอบคำถามในหลากหลายหัวข้อครับ คุณสามารถใช้ผมในการสรุปเนื้อหา แปลภาษา เขียนบทความ หรือให้ข้อมูลความรู้ในด้านต่าง...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.378Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมคือแบบจำลองภาษาขนาดใหญ่ (Large Language Model) ที่ได้รับการพัฒนามาเพื่อช่วยในการประมวลผลข้อมูลและตอบคำถามในหลากหลายหัวข้อครับ คุณสามารถใช้ผมในการสรุปเนื้อหา แปลภาษา เขียนบทความ หรือให้ข้อมูลความรู้ในด้านต่าง...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.481Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมคือแบบจำลองภาษาขนาดใหญ่ (Large Language Model) ที่ได้รับการพัฒนามาเพื่อช่วยในการประมวลผลข้อมูลและตอบคำถามในหลากหลายหัวข้อครับ คุณสามารถใช้ผมในการสรุปเนื้อหา แปลภาษา เขียนบทความ หรือให้ข้อมูลความรู้ในด้านต่าง...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.524Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.524Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"062a1d33-d339-4ba0-9585-aa3b6795aec7","messageId":"749465f2-169e-43a6-9d96-f9cad0653dd7","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.640Z","finalText":"สวัสดีครับ ผมคือแบบจำลองภาษาขนาดใหญ่ (Large Language Model) ที่ได้รับการพัฒนามาเพื่อช่วยในการประมวลผลข้อมูลและตอบคำถามในหลากหลายหัวข้อครับ คุณสามารถใช้ผมในการสรุปเนื้อหา แปลภาษา เขียนบทความ หรือให้ข้อมูลความรู้ในด้านต่างๆ ได้เลยครับ มีอะไรให้ผมช่วยเหลือหรือมีคำถามอะไรที่อยากรู้เป็นพิเศษไหมครับ?","confidence":0.78}
+

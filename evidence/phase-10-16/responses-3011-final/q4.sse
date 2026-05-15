@@ -1,0 +1,104 @@
+event: agent_started
+data: {"type":"agent_started","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:07:47.405Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:07:47.405Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:07:47.405Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:07:47.405Z","model":"qwen3.5:9b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T08:07:47.406Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางตอบทั่วไป","isSafeForUser":true,"timestamp":"2026-05-14T08:07:47.406Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T08:07:47.406Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T08:07:47.406Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:07:47.406Z","deltaText":"ผมรับโจทย์ \"ขอเทียบจังหวัดเชียงใหม่กับเชียงราย\" แล้ว — ตอบเป็นภาษาไทยให้กระชับแล","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:07:47.406Z","deltaText":"ะตรงประเด็น หากต้องการละเอียดกว่านี้บอกได้ครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T08:07:47.406Z","confidence":0.85}
+
+event: fallback
+data: {"type":"fallback","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:07:59.408Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:07:59.408Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:07:59.409Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:07:59.409Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"stylist[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:07:59.410Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:07:59.410Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"rag-agent[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:07:59.412Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:07:59.412Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่น","isSafeForUser":true,"timestamp":"2026-05-14T08:08:05.327Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองเก่า วัฒนธรรมล","isSafeForUser":true,"timestamp":"2026-05-14T08:08:05.442Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองเก่า วัฒนธรรมล้านนาที่เข้มข้น และการท่องเที่ยว","isSafeForUser":true,"timestamp":"2026-05-14T08:08:05.555Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองเก่า วัฒนธรรมล้านนาที่เข้มข้น และการท่องเที่ยวแบบครบวงจร ทั้งตลาด คาเฟ่ และวัด","isSafeForUser":true,"timestamp":"2026-05-14T08:08:05.681Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองเก่า วัฒนธรรมล้านนาที่เข้มข้น และการท่องเที่ยวแบบครบวงจร ทั้งตลาด คาเฟ่ และวัดวาอาราม ต่างขณะที่เชียงรายจะเน","isSafeForUser":true,"timestamp":"2026-05-14T08:08:05.805Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองเก่า วัฒนธรรมล้านนาที่เข้มข้น และการท่องเที่ยวแบบครบวงจร ทั้งตลาด คาเฟ่ และวัดวาอาราม ต่างขณะที่เชียงรายจะเน้นไปที่ทิวทัศน์ธรรมชาติที่สวยงาม","isSafeForUser":true,"timestamp":"2026-05-14T08:08:05.933Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองเก่า วัฒนธรรมล้านนาที่เข้มข้น และการท่องเที่ยวแบบครบวงจร ทั้งตลาด คาเฟ่ และวัดวาอาราม ต่างขณะที่เชียงรายจะเน้นไปที่ทิวทัศน์ธรรมชาติที่สวยงามและสถานที่ท่องเที่ยวทางศิลปะที่มี","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.004Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองเก่า วัฒนธรรมล้านนาที่เข้มข้น และการท่องเที่ยวแบบครบวงจร ทั้งตลาด คาเฟ่ และวัดวาอาราม ต่างขณะที่เชียงรายจะเน้นไปที่ทิวทัศน์ธรรมชาติที่สวยงามและสถานที่ท่องเที่ยวทางศิลปะที่มีเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.108Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองเก่า วัฒนธรรมล้านนาที่เข้มข้น และการท่องเที่ยวแบบครบวงจร ทั้งตลาด คาเฟ่ และวัดวาอาราม ต่างขณะที่เชียงรายจะเน้นไปที่ทิวทัศน์ธรรมชาติที่สวยงามและสถานที่ท่องเที่ยวทางศิลปะที่มีเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.223Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองเก่า วัฒนธรรมล้านนาที่เข้มข้น และการท่องเที่ยวแบบครบวงจร ทั้งตลาด คาเฟ่ และวัดวาอาราม ต่างขณะที่เชียงรายจะเน้นไปที่ทิวทัศน์ธรรมชาติที่สวยงามและสถานที่ท่องเที่ยวทางศิลปะที่มีเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.329Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองเก่า วัฒนธรรมล้านนาที่เข้มข้น และการท่องเที่ยวแบบครบวงจร ทั้งตลาด คาเฟ่ และวัดวาอาราม ต่างขณะที่เชียงรายจะเน้นไปที่ทิวทัศน์ธรรมชาติที่สวยงามและสถานที่ท่องเที่ยวทางศิลปะที่มีเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.413Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองเก่า วัฒนธรรมล้านนาที่เข้มข้น และการท่องเที่ยวแบบครบวงจร ทั้งตลาด คาเฟ่ และวัดวาอาราม ต่างขณะที่เชียงรายจะเน้นไปที่ทิวทัศน์ธรรมชาติที่สวยงามและสถานที่ท่องเที่ยวทางศิลปะที่มีเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.529Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองเก่า วัฒนธรรมล้านนาที่เข้มข้น และการท่องเที่ยวแบบครบวงจร ทั้งตลาด คาเฟ่ และวัดวาอาราม ต่างขณะที่เชียงรายจะเน้นไปที่ทิวทัศน์ธรรมชาติที่สวยงามและสถานที่ท่องเที่ยวทางศิลปะที่มีเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.602Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.602Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"18486b9d-b8b7-4ca0-9570-835acbd54bd8","messageId":"c1d8249c-b1a5-4013-857c-852dfee90788","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.709Z","finalText":"เชียงใหม่เหมาะสำหรับผู้ที่ชื่นชอบบรรยากาศเมืองเก่า วัฒนธรรมล้านนาที่เข้มข้น และการท่องเที่ยวแบบครบวงจร ทั้งตลาด คาเฟ่ และวัดวาอาราม ต่างขณะที่เชียงรายจะเน้นไปที่ทิวทัศน์ธรรมชาติที่สวยงามและสถานที่ท่องเที่ยวทางศิลปะที่มีเอกลักษณ์ เช่น วัดร่องขุ่นและดอกไม้ที่ดอยตุง หากต้องการความผ่อนคลายและมนต์ขลังทางธรรมชาติ ควรเลือกเชียงราย แต่หากต้องการความสะดวกสบายและสัมผัสวิถีชีวิตแบบเมือง ควรเลือกเชียงใหม่","confidence":0.78}
+

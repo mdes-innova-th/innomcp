@@ -1,0 +1,33 @@
+event: agent_started
+data: {"type":"agent_started","runId":"7b9fc096-29fc-4972-b01c-c8d4a99a18b3","messageId":"57a884e1-5d9d-41c9-93e9-1e5c377c6a18","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"เริ่มงาน: tool-scout","isSafeForUser":true,"timestamp":"2026-05-14T09:42:50.892Z","model":"z-uo/qwen2.5vl_tools:7b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7b9fc096-29fc-4972-b01c-c8d4a99a18b3","messageId":"57a884e1-5d9d-41c9-93e9-1e5c377c6a18","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T09:42:50.892Z","model":"gemma4:e4b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"7b9fc096-29fc-4972-b01c-c8d4a99a18b3","messageId":"57a884e1-5d9d-41c9-93e9-1e5c377c6a18","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:50.892Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"7b9fc096-29fc-4972-b01c-c8d4a99a18b3","messageId":"57a884e1-5d9d-41c9-93e9-1e5c377c6a18","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางคำนวณแบบ deterministic","isSafeForUser":true,"timestamp":"2026-05-14T09:42:50.892Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7b9fc096-29fc-4972-b01c-c8d4a99a18b3","messageId":"57a884e1-5d9d-41c9-93e9-1e5c377c6a18","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T09:42:50.892Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7b9fc096-29fc-4972-b01c-c8d4a99a18b3","messageId":"57a884e1-5d9d-41c9-93e9-1e5c377c6a18","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T09:42:50.892Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"7b9fc096-29fc-4972-b01c-c8d4a99a18b3","messageId":"57a884e1-5d9d-41c9-93e9-1e5c377c6a18","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:50.892Z","deltaText":"ผมคำนวณตามคำถาม \"15% ของ 87450 คือเท่าไหร่\" ให้ — เส้นทางนี้เป็นแบบกำหนดได้ (det","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"7b9fc096-29fc-4972-b01c-c8d4a99a18b3","messageId":"57a884e1-5d9d-41c9-93e9-1e5c377c6a18","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:50.892Z","deltaText":"erministic) จึงไม่ต้องใช้โมเดลภาษา ผลที่ได้จะแสดงในเซสชันถัดไปครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"7b9fc096-29fc-4972-b01c-c8d4a99a18b3","messageId":"57a884e1-5d9d-41c9-93e9-1e5c377c6a18","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:50.892Z","confidence":0.85}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7b9fc096-29fc-4972-b01c-c8d4a99a18b3","messageId":"57a884e1-5d9d-41c9-93e9-1e5c377c6a18","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"การหาค่า $15\\%$ ของ $87,450$ สามารถ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:56.983Z","model":"gemma4:e4b"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"7b9fc096-29fc-4972-b01c-c8d4a99a18b3","messageId":"57a884e1-5d9d-41c9-93e9-1e5c377c6a18","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T09:42:57.103Z","finalText":"การหาค่า $15\\%$ ของ $87,450$ สามารถ","confidence":0.78}
+

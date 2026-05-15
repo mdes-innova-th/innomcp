@@ -1,0 +1,122 @@
+event: agent_started
+data: {"type":"agent_started","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.842Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.842Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.842Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.843Z","model":"qwen3.5:9b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.843Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางตอบทั่วไป","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.843Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.843Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.843Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.843Z","deltaText":"ผมรับโจทย์ \"ทำไม INNOMCP ใช้ multi-agent\" แล้ว — ตอบเป็นภาษาไทยให้กระชับและตรงปร","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.843Z","deltaText":"ะเด็น หากต้องการละเอียดกว่านี้บอกได้ครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T08:08:06.843Z","confidence":0.85}
+
+event: fallback
+data: {"type":"fallback","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:08:18.844Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:08:18.844Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:08:18.845Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:08:18.845Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"stylist[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:08:18.846Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:08:18.846Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"rag-agent[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:08:18.847Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:08:18.847Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อ","isSafeForUser":true,"timestamp":"2026-05-14T08:08:25.633Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์","isSafeForUser":true,"timestamp":"2026-05-14T08:08:25.734Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใด","isSafeForUser":true,"timestamp":"2026-05-14T08:08:25.822Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (","isSafeForUser":true,"timestamp":"2026-05-14T08:08:25.913Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบ","isSafeForUser":true,"timestamp":"2026-05-14T08:08:26.002Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่","isSafeForUser":true,"timestamp":"2026-05-14T08:08:26.080Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization)...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:26.163Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization)...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:26.259Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization)...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:26.374Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization)...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:26.470Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization)...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:26.522Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization)...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:26.625Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization)...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:26.713Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization)...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:26.795Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization)...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:26.921Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization)...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:27.018Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization)...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:27.119Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization)...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:27.203Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization)...","isSafeForUser":true,"timestamp":"2026-05-14T08:08:27.225Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T08:08:27.225Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"c9d63648-ecf6-429d-8576-dc60b71f45e2","messageId":"c8aef244-5a48-44ee-a34f-49b1304bd586","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T08:08:27.333Z","finalText":"INNOMCP ใช้แนวคิด Multi-agent เพื่อจำลองความซับซ้อนและการปฏิสัมพันธ์ของโลกจริงที่ไม่มีองค์ประกอบใดทำหน้าที่ได้สมบูรณ์ด้วยตัวเอง (Single Point of Failure)\n\nการออกแบบนี้ช่วยให้มีการแบ่งบทบาทหน้าที่เฉพาะทาง (Specialization) โดยปล่อยให้แต่ละ Agent รับผิดชอบชุดภารกิจหรือขอบเขตความรู้อันต่างกัน ส่งผลให้เกิดการทำงานร่วมกัน (Collaboration) ที่มีประสิทธิภาพสูงและเกิดพลังเสริม (Synergy)\n\nดังนั้น Multi-agent จึงช่วยเพิ่มความสามารถในการแก้ไขปัญหาที่ซับซ้อนข้ามโดเมน (Cross-Domain Problem Solving) และเพิ่มความทนทานของระบบโดยรวมให้เหนือกว่าการพึ่งพาโครงสร้างแบบรวมศูนย์ (Centralized)","confidence":0.78}
+

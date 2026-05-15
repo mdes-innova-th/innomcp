@@ -1,0 +1,42 @@
+event: agent_started
+data: {"type":"agent_started","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T09:37:26.762Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T09:37:26.763Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T09:37:26.763Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T09:37:26.763Z","model":"qwen3.5:9b"}
+
+event: tool_call_started
+data: {"type":"tool_call_started","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"เรียก detect_evidence_stats …","isSafeForUser":true,"timestamp":"2026-05-14T09:37:26.763Z","toolName":"detect_evidence_stats"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T09:37:26.763Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางตอบทั่วไป","isSafeForUser":true,"timestamp":"2026-05-14T09:37:26.763Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T09:37:26.763Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T09:37:26.763Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:37:26.763Z","deltaText":"ผมรับโจทย์ \"หลักฐาน threat ล่าสุด\" แล้ว — ตอบเป็นภาษาไทยให้กระชับและตรงประเด็น ห","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:37:26.763Z","deltaText":"ากต้องการละเอียดกว่านี้บอกได้ครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T09:37:26.763Z","confidence":0.85}
+
+event: tool_call_finished
+data: {"type":"tool_call_finished","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"detect_evidence_stats เสร็จ (5ms)","isSafeForUser":true,"timestamp":"2026-05-14T09:37:26.768Z","toolName":"detect_evidence_stats"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"5a556c8d-9c38-4d45-8170-a883ab74cc3e","messageId":"447067fd-76c2-4fd8-8550-02c771dbba72","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T09:37:28.265Z","finalText":"🛡️ ระบบฐานข้อมูลหลักฐาน (Detect API) ยังไม่พร้อมให้บริการในขณะนี้ ลองเรียกใหม่ภายหลังครับ","confidence":0.78}
+

@@ -1,0 +1,62 @@
+event: agent_started
+data: {"type":"agent_started","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T09:37:02.803Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T09:37:02.804Z","model":"gemma4:e4b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T09:37:02.805Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"ทักทาย: ส่ง concierge + critic (MDES)","isSafeForUser":true,"timestamp":"2026-05-14T09:37:02.805Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T09:37:02.805Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T09:37:02.805Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:37:02.805Z","deltaText":"สวัสดีครับ! ยินดีต้อนรับสู่ INNOMCP 🤝 มีอะไรให้ช่วยไหมครับ?","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T09:37:02.805Z","confidence":0.85}
+
+event: fallback
+data: {"type":"fallback","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:37:14.809Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T09:37:14.809Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:37:14.812Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T09:37:14.812Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"สวัสดีครับ ยินดีที่ได้ให้บริการ","isSafeForUser":true,"timestamp":"2026-05-14T09:37:21.191Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"สวัสดีครับ ยินดีที่ได้ให้บริการครับ\n\nพร้อมให้คำตอบและข้อมูลใน","isSafeForUser":true,"timestamp":"2026-05-14T09:37:21.291Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"สวัสดีครับ ยินดีที่ได้ให้บริการครับ\n\nพร้อมให้คำตอบและข้อมูลในทุกประเด็นที่ต้องการอย่างมืออา","isSafeForUser":true,"timestamp":"2026-05-14T09:37:21.378Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"สวัสดีครับ ยินดีที่ได้ให้บริการครับ\n\nพร้อมให้คำตอบและข้อมูลในทุกประเด็นที่ต้องการอย่างมืออาชีพ แจ้งรายละเอียดหรือคำถามเข้ามา","isSafeForUser":true,"timestamp":"2026-05-14T09:37:21.467Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"สวัสดีครับ ยินดีที่ได้ให้บริการครับ\n\nพร้อมให้คำตอบและข้อมูลในทุกประเด็นที่ต้องการอย่างมืออาชีพ แจ้งรายละเอียดหรือคำถามเข้ามาได้เลยครับ จะดำเนินการให้รวดเร็ว","isSafeForUser":true,"timestamp":"2026-05-14T09:37:21.563Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"สวัสดีครับ ยินดีที่ได้ให้บริการครับ\n\nพร้อมให้คำตอบและข้อมูลในทุกประเด็นที่ต้องการอย่างมืออาชีพ แจ้งรายละเอียดหรือคำถามเข้ามาได้เลยครับ จะดำเนินการให้รวดเร็วและตรงประเด็นที่สุด","isSafeForUser":true,"timestamp":"2026-05-14T09:37:21.647Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T09:37:21.647Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"9f390e50-8e4d-4e44-b915-c72bcef99907","messageId":"ba16ecad-2206-4adf-9c51-fc16cdcdde1c","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T09:37:21.696Z","finalText":"สวัสดีครับ ยินดีที่ได้ให้บริการครับ\n\nพร้อมให้คำตอบและข้อมูลในทุกประเด็นที่ต้องการอย่างมืออาชีพ แจ้งรายละเอียดหรือคำถามเข้ามาได้เลยครับ จะดำเนินการให้รวดเร็วและตรงประเด็นที่สุด","confidence":0.78}
+

@@ -1,0 +1,48 @@
+event: agent_started
+data: {"type":"agent_started","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"เริ่มงาน: tool-scout","isSafeForUser":true,"timestamp":"2026-05-14T07:30:25.895Z","model":"z-uo/qwen2.5vl_tools:7b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T07:30:25.895Z","model":"gemma4:e4b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T07:30:25.896Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางคำนวณแบบ deterministic","isSafeForUser":true,"timestamp":"2026-05-14T07:30:25.896Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T07:30:25.896Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T07:30:25.896Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T07:30:25.896Z","deltaText":"ผมคำนวณตามคำถาม \"คำนวณ 15% ของ 87450 บาท\" ให้ — เส้นทางนี้เป็นแบบกำหนดได้ (deter","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T07:30:25.896Z","deltaText":"ministic) จึงไม่ต้องใช้โมเดลภาษา ผลที่ได้จะแสดงในเซสชันถัดไปครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T07:30:25.896Z","confidence":0.85}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"$15\\%$ ของ $87,450$ บาท คำนวณได้","isSafeForUser":true,"timestamp":"2026-05-14T07:30:36.240Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"$15\\%$ ของ $87,450$ บาท คำนวณได้โดยการนำ $87,450$ คูณด้วย $0.1","isSafeForUser":true,"timestamp":"2026-05-14T07:30:36.418Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"$15\\%$ ของ $87,450$ บาท คำนวณได้โดยการนำ $87,450$ คูณด้วย $0.15$ หรือคิดเป็น $\\frac{15}{100}$","isSafeForUser":true,"timestamp":"2026-05-14T07:30:36.577Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"$15\\%$ ของ $87,450$ บาท คำนวณได้โดยการนำ $87,450$ คูณด้วย $0.15$ หรือคิดเป็น $\\frac{15}{100}$\nดังนั้น ผลลัพธ์ที่ได้คือ $13,","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.114Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"$15\\%$ ของ $87,450$ บาท คำนวณได้โดยการนำ $87,450$ คูณด้วย $0.15$ หรือคิดเป็น $\\frac{15}{100}$\nดังนั้น ผลลัพธ์ที่ได้คือ $13,117.50$ บาท","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.115Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.115Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"ef3659d6-3204-4c85-8062-9c05621c53ab","messageId":"f6c1e8ff-58ea-41f2-91aa-1a146525bff7","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.261Z","finalText":"$15\\%$ ของ $87,450$ บาท คำนวณได้โดยการนำ $87,450$ คูณด้วย $0.15$ หรือคิดเป็น $\\frac{15}{100}$\nดังนั้น ผลลัพธ์ที่ได้คือ $13,117.50$ บาท","confidence":0.78}
+

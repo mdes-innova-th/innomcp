@@ -178,6 +178,25 @@ When TMD credentials fail, the system:
 | `OLLAMA_HOST` | Yes | Ollama base URL |
 | `REDIS_HOST` | Yes | Redis host for session cache |
 
+#### Multi-agent chat routing and fallback
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PARALLEL_AGENTS` | Optional | Set `0` to disable MDES child agents for smoke/dev tests; enabled by default |
+| `OLLAMA_URL` | MDES | Primary MDES/Ollama chat endpoint base URL |
+| `OLLAMA_API_KEY` | MDES | Primary MDES/Ollama bearer token |
+| `OLLAMA_REMOTE_BASE_URL` | Optional | Backwards-compatible fallback for `OLLAMA_URL` |
+| `OLLAMA_REMOTE_API_KEY` | Optional | Backwards-compatible fallback for `OLLAMA_API_KEY` |
+| `OLLAMA_STREAM` | Optional | Set `0` to disable progressive MDES token streaming |
+| `OPENAI_API_KEY` | GPT fallback | Enables GPT fallback only after the MDES primary attempt and MDES retry both fail |
+| `OPENAI_BASE_URL` | Optional | OpenAI-compatible API base URL; defaults to `https://api.openai.com/v1` |
+| `OPENAI_FALLBACK_ENABLED` | Optional | Set `0` to disable GPT fallback even when `OPENAI_API_KEY` is present |
+| `OPENAI_FALLBACK_MODELS` | Optional | Comma-separated GPT fallback order; defaults to `gpt-5.4,gpt-5.3-codex` |
+| `OPENAI_FALLBACK_TIMEOUT_MS` | Optional | GPT fallback request timeout; defaults to `30000` |
+| `OPENAI_FALLBACK_MAX_TOKENS` | Optional | GPT fallback answer budget; defaults to `512` |
+| `OPENAI_EMERGENCY_FALLBACK` | Optional | Set `1` only for a real emergency to append `OPENAI_EMERGENCY_MODEL` to the fallback chain |
+| `OPENAI_EMERGENCY_MODEL` | Optional | Emergency-only model; kept out of the normal phase to control cost |
+
 ---
 
 ## Restart Procedure

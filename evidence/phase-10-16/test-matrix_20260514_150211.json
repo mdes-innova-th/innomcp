@@ -1,0 +1,22 @@
+[
+  {"id":"T1","query":"ค้นหาหลักฐานคดีล่าสุดในระบบมีกี่รายการ","status":"PASS","agents":20,"hasFinal":2,"models":"gemma4:e4b,minimax-m2.5:cloud,qwen3.5:9b","latency_ms":19536}
+,
+  {"id":"T2","query":"จังหวัดเชียงใหม่อยู่ภาคอะไร มีอำเภอกี่อำเภอ","status":"PASS","agents":20,"hasFinal":2,"models":"gemma4:e4b,minimax-m2.5:cloud,qwen3.5:9b","latency_ms":17894}
+,
+  {"id":"T3","query":"สถานะเครื่อง docker และ evidence db ตอนนี้เป็นอย่างไร","status":"PASS","agents":20,"hasFinal":2,"models":"gemma4:e4b,minimax-m2.5:cloud,qwen3.5:9b","latency_ms":18783}
+,
+  {"id":"T4","query":"บอกข้อมูลพื้นฐานเกี่ยวกับประเทศไทยและภูมิศาสตร์","status":"PASS","agents":20,"hasFinal":2,"models":"gemma4:e4b,minimax-m2.5:cloud,qwen3.5:9b","latency_ms":35226}
+,
+  {"id":"T5","query":"พยากรณ์อากาศพรุ่งนี้ที่กรุงเทพมหานครเป็นอย่างไร","status":"PASS","agents":12,"hasFinal":2,"models":"gemma4:e4b,minimax-m2.5:cloud,qwen3.5:27b","latency_ms":8085}
+,
+  {"id":"T6","query":"คำนวณ 15% ของ 87450 บาทเท่ากับเท่าไหร่","status":"PASS","agents":12,"hasFinal":2,"models":"gemma4:e4b,minimax-m2.5:cloud,z-uo/qwen2.5vl_tools:7b","latency_ms":35070}
+,
+  {"id":"T7","query":"วันนี้วันที่เท่าไหร่ และอีก 45 วันจะตรงกับวันอะไร","status":"PASS","agents":20,"hasFinal":2,"models":"gemma4:e4b,minimax-m2.5:cloud,qwen3.5:9b","latency_ms":20398}
+,
+  {"id":"T8","query":"สวัสดีครับ ช่วยแนะนำตัวเองหน่อยได้ไหม","status":"PASS","agents":12,"hasFinal":2,"models":"gemma4:e4b,minimax-m2.5:cloud,qwen3.5:9b","latency_ms":19137}
+,
+  {"id":"T9","query":"วางแผนระบบรักษาความปลอดภัยสำหรับสถานีตำรวจ 3 จังหวัด","status":"PASS","agents":20,"hasFinal":2,"models":"gemma4:e4b,minimax-m2.5:cloud,qwen3.5:9b","latency_ms":35238}
+,
+  {"id":"T10","query":"เขียน Python function ดึงข้อมูล JSON จาก REST API พร้อม error handling","status":"PASS","agents":20,"hasFinal":2,"models":"gemma4:e4b,minimax-m2.5:cloud,qwen3.5:9b","latency_ms":23334}
+
+]

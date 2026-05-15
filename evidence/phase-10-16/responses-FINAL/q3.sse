@@ -1,0 +1,42 @@
+event: agent_started
+data: {"type":"agent_started","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เริ่มงาน: weather-analyst","isSafeForUser":true,"timestamp":"2026-05-14T09:42:47.592Z","model":"qwen3.6:27b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"geo-planner","role":"นักวางแผนพื้นที่/การเดินทาง","publicSummary":"เริ่มงาน: geo-planner","isSafeForUser":true,"timestamp":"2026-05-14T09:42:47.592Z","model":"qwen3.5:27b"}
+
+event: tool_call_started
+data: {"type":"tool_call_started","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"เรียก nwp_daily_by_place …","isSafeForUser":true,"timestamp":"2026-05-14T09:42:47.592Z","toolName":"nwp_daily_by_place"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:47.592Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางสรุปอากาศ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:47.592Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T09:42:47.592Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"ประเมินความเสี่ยงฝนรายภาคในช่วงเวลาที่เกี่ยวข้อง","isSafeForUser":true,"timestamp":"2026-05-14T09:42:47.592Z"}
+
+event: fact_found
+data: {"type":"fact_found","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"ภาคกลางและภาคอีสานตอนล่างมีโอกาสฝนเฉลี่ยน้อยกว่าภาคเหนือในเดือนกลางฤดูฝน","isSafeForUser":true,"timestamp":"2026-05-14T09:42:47.592Z","confidence":0.65}
+
+event: agent_started
+data: {"type":"agent_started","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T09:42:47.592Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:47.593Z","deltaText":"ขออนุญาตสรุปอากาศตามที่ถามครับ\n• ภาคกลาง/อีสานตอนล่าง: ฝนเฉลี่ยน้อยกว่าภาคเหนือใ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:47.593Z","deltaText":"นเดือนกลางฤดูฝน\nหากต้องการข้อมูลรายชั่วโมงหรือเฉพาะอำเภอ บอกผมเพิ่มได้นะครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T09:42:47.593Z","confidence":0.85}
+
+event: tool_call_finished
+data: {"type":"tool_call_finished","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"nwp_daily_by_place เสร็จ (232ms)","isSafeForUser":true,"timestamp":"2026-05-14T09:42:47.824Z","toolName":"nwp_daily_by_place"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"101fefea-2ca5-45fb-a4cb-0ba6b09cfe1a","messageId":"959a96c5-e3d2-4751-927f-5670d408c2c0","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T09:42:49.093Z","finalText":"📍 พยากรณ์อากาศรายวัน — สงขลา\n• **2026-05-14**: สูงสุด 30.4°C, ต่ำสุด 25.7°C, ความชื้น 82%, ฝน 1.1mm (เมฆเป็นส่วนมาก)\n• **2026-05-15**: สูงสุด 30.5°C, ต่ำสุด 25.9°C, ความชื้น 83%, ฝน 19.7mm (ท้องฟ้าแจ่มใส)\n\nข้อมูลจาก NWP (TMD High Performance Computing)","confidence":0.78}
+

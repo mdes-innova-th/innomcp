@@ -1,0 +1,65 @@
+event: agent_started
+data: {"type":"agent_started","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:54:02.531Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:54:02.532Z","model":"gemma4:e4b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T08:54:02.532Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"ทักทาย: ส่ง concierge + critic (MDES)","isSafeForUser":true,"timestamp":"2026-05-14T08:54:02.532Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T08:54:02.532Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T08:54:02.532Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:54:02.532Z","deltaText":"สวัสดีครับ! ยินดีต้อนรับสู่ INNOMCP 🤝 มีอะไรให้ช่วยไหมครับ?","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T08:54:02.532Z","confidence":0.85}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"การวิเคราะห์คำว่า \"สวัสดีครับ\"","isSafeForUser":true,"timestamp":"2026-05-14T08:54:14.212Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"การวิเคราะห์คำว่า \"สวัสดีครับ\" พบว่านี่คือคำทักทายที่เป็นมาตรฐาน","isSafeForUser":true,"timestamp":"2026-05-14T08:54:14.514Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:54:14.536Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:54:14.536Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:54:14.538Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:54:14.538Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมยินดีที่ได้พูดคุย","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.409Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมยินดีที่ได้พูดคุยกับคุณครับ ไม่ทราบว่าวันนี้ต้องการ","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.495Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมยินดีที่ได้พูดคุยกับคุณครับ ไม่ทราบว่าวันนี้ต้องการให้ผมช่วยเหลือหรือให้ข้อมูลเกี่ยวกับ","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.567Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมยินดีที่ได้พูดคุยกับคุณครับ ไม่ทราบว่าวันนี้ต้องการให้ผมช่วยเหลือหรือให้ข้อมูลเกี่ยวกับเรื่องใดเป็นพิเศษหรือเปล่าครับ","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.650Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"สวัสดีครับ ผมยินดีที่ได้พูดคุยกับคุณครับ ไม่ทราบว่าวันนี้ต้องการให้ผมช่วยเหลือหรือให้ข้อมูลเกี่ยวกับเรื่องใดเป็นพิเศษหรือเปล่าครับ","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.662Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.662Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"7230a0fe-199c-45cf-b07f-79f7ee42bc01","messageId":"436d91d2-c4c4-4c7d-b792-22b78af07e4a","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.785Z","finalText":"สวัสดีครับ ผมยินดีที่ได้พูดคุยกับคุณครับ ไม่ทราบว่าวันนี้ต้องการให้ผมช่วยเหลือหรือให้ข้อมูลเกี่ยวกับเรื่องใดเป็นพิเศษหรือเปล่าครับ","confidence":0.78}
+

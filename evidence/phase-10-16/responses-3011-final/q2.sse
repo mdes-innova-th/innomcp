@@ -1,0 +1,133 @@
+event: agent_started
+data: {"type":"agent_started","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เริ่มงาน: weather-analyst","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.992Z","model":"qwen3.6:27b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"geo-planner","role":"นักวางแผนพื้นที่/การเดินทาง","publicSummary":"เริ่มงาน: geo-planner","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.993Z","model":"qwen3.5:27b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.993Z","model":"gemma4:e4b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.993Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางสรุปอากาศ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.993Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.993Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"ประเมินความเสี่ยงฝนรายภาคในช่วงเวลาที่เกี่ยวข้อง","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.993Z"}
+
+event: fact_found
+data: {"type":"fact_found","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"ภาคกลางและภาคอีสานตอนล่างมีโอกาสฝนเฉลี่ยน้อยกว่าภาคเหนือในเดือนกลางฤดูฝน","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.993Z","confidence":0.65}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.993Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.993Z","deltaText":"ขออนุญาตสรุปอากาศตามที่ถามครับ\n• ภาคกลาง/อีสานตอนล่าง: ฝนเฉลี่ยน้อยกว่าภาคเหนือใ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.993Z","deltaText":"นเดือนกลางฤดูฝน\nหากต้องการข้อมูลรายชั่วโมงหรือเฉพาะอำเภอ บอกผมเพิ่มได้นะครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:40.993Z","confidence":0.85}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ในฐานะแบบจำลองภาษา ฉันไม่สามารถ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:52.055Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ในฐานะแบบจำลองภาษา ฉันไม่สามารถให้ข้อมูลพยากรณ์อากาศ ณ เวลาจริง","isSafeForUser":true,"timestamp":"2026-05-14T08:06:52.154Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ในฐานะแบบจำลองภาษา ฉันไม่สามารถให้ข้อมูลพยากรณ์อากาศ ณ เวลาจริงได้ค่ะ\n\nหากต้องการทราบสภาพอากาศ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:52.228Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ในฐานะแบบจำลองภาษา ฉันไม่สามารถให้ข้อมูลพยากรณ์อากาศ ณ เวลาจริงได้ค่ะ\n\nหากต้องการทราบสภาพอากาศของกรุงเทพฯ ในวันพรุ่งนี้อย่าง","isSafeForUser":true,"timestamp":"2026-05-14T08:06:52.337Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ในฐานะแบบจำลองภาษา ฉันไม่สามารถให้ข้อมูลพยากรณ์อากาศ ณ เวลาจริงได้ค่ะ\n\nหากต้องการทราบสภาพอากาศของกรุงเทพฯ ในวันพรุ่งนี้อย่างแม่นยำที่สุด ขอแนะนำให้ตรวจสอบ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:52.448Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ในฐานะแบบจำลองภาษา ฉันไม่สามารถให้ข้อมูลพยากรณ์อากาศ ณ เวลาจริงได้ค่ะ\n\nหากต้องการทราบสภาพอากาศของกรุงเทพฯ ในวันพรุ่งนี้อย่างแม่นยำที่สุด ขอแนะนำให้ตรวจสอบจากแหล่งข้อมูลที่เชื่อถือได้ เช่น","isSafeForUser":true,"timestamp":"2026-05-14T08:06:52.542Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ในฐานะแบบจำลองภาษา ฉันไม่สามารถให้ข้อมูลพยากรณ์อากาศ ณ เวลาจริงได้ค่ะ\n\nหากต้องการทราบสภาพอากาศของกรุงเทพฯ ในวันพรุ่งนี้อย่างแม่นยำที่สุด ขอแนะนำให้ตรวจสอบจากแหล่งข้อมูลที่เชื่อถือได้ เช่น เว็บไซต์ของกรมอุตุนิยมวิทยา หรือ","isSafeForUser":true,"timestamp":"2026-05-14T08:06:52.664Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ในฐานะแบบจำลองภาษา ฉันไม่สามารถให้ข้อมูลพยากรณ์อากาศ ณ เวลาจริงได้ค่ะ\n\nหากต้องการทราบสภาพอากาศของกรุงเทพฯ ในวันพรุ่งนี้อย่างแม่นยำที่สุด ขอแนะนำให้ตรวจสอบจากแหล่งข้อมูลที่เชื่อถือได้ เช่น เว็บไซต์ของกรมอุตุนิยมวิทยา หรือ...","isSafeForUser":true,"timestamp":"2026-05-14T08:06:52.785Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ในฐานะแบบจำลองภาษา ฉันไม่สามารถให้ข้อมูลพยากรณ์อากาศ ณ เวลาจริงได้ค่ะ\n\nหากต้องการทราบสภาพอากาศของกรุงเทพฯ ในวันพรุ่งนี้อย่างแม่นยำที่สุด ขอแนะนำให้ตรวจสอบจากแหล่งข้อมูลที่เชื่อถือได้ เช่น เว็บไซต์ของกรมอุตุนิยมวิทยา หรือ...","isSafeForUser":true,"timestamp":"2026-05-14T08:06:52.877Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ในฐานะแบบจำลองภาษา ฉันไม่สามารถให้ข้อมูลพยากรณ์อากาศ ณ เวลาจริงได้ค่ะ\n\nหากต้องการทราบสภาพอากาศของกรุงเทพฯ ในวันพรุ่งนี้อย่างแม่นยำที่สุด ขอแนะนำให้ตรวจสอบจากแหล่งข้อมูลที่เชื่อถือได้ เช่น เว็บไซต์ของกรมอุตุนิยมวิทยา หรือ...","isSafeForUser":true,"timestamp":"2026-05-14T08:06:52.991Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:06:52.996Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:06:52.996Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: fallback
+data: {"type":"fallback","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"weather-analyst[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:07:01.008Z","fallbackReason":"This operation was aborted","model":"qwen3.6:27b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เริ่มงาน: weather-analyst","isSafeForUser":true,"timestamp":"2026-05-14T08:07:01.008Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"geo-planner","role":"นักวางแผนพื้นที่/การเดินทาง","publicSummary":"geo-planner[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:07:01.010Z","fallbackReason":"This operation was aborted","model":"qwen3.5:27b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"geo-planner","role":"นักวางแผนพื้นที่/การเดินทาง","publicSummary":"เริ่มงาน: geo-planner","isSafeForUser":true,"timestamp":"2026-05-14T08:07:01.010Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:07:04.999Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เนื่องจากข้อมูลสภาพอากาศเป็นแบบ","isSafeForUser":true,"timestamp":"2026-05-14T08:07:10.652Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เนื่องจากข้อมูลสภาพอากาศเป็นแบบเรียลไทม์ กรุณาระบุวันที่เพื่อ","isSafeForUser":true,"timestamp":"2026-05-14T08:07:10.777Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เนื่องจากข้อมูลสภาพอากาศเป็นแบบเรียลไทม์ กรุณาระบุวันที่เพื่อทำการวิเคราะห์ได้อย่างแม่นยำที่สุด","isSafeForUser":true,"timestamp":"2026-05-14T08:07:10.871Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เนื่องจากข้อมูลสภาพอากาศเป็นแบบเรียลไทม์ กรุณาระบุวันที่เพื่อทำการวิเคราะห์ได้อย่างแม่นยำที่สุด โดยภาพรวมแล้ว พยากรณ์อากาศของ","isSafeForUser":true,"timestamp":"2026-05-14T08:07:10.976Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เนื่องจากข้อมูลสภาพอากาศเป็นแบบเรียลไทม์ กรุณาระบุวันที่เพื่อทำการวิเคราะห์ได้อย่างแม่นยำที่สุด โดยภาพรวมแล้ว พยากรณ์อากาศของกรุงเทพฯ สำหรับวันพรุ่งนี้มีโอกาส","isSafeForUser":true,"timestamp":"2026-05-14T08:07:11.081Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เนื่องจากข้อมูลสภาพอากาศเป็นแบบเรียลไทม์ กรุณาระบุวันที่เพื่อทำการวิเคราะห์ได้อย่างแม่นยำที่สุด โดยภาพรวมแล้ว พยากรณ์อากาศของกรุงเทพฯ สำหรับวันพรุ่งนี้มีโอกาสที่ท้องฟ้าจะครึ้มและมีเมฆมากได้","isSafeForUser":true,"timestamp":"2026-05-14T08:07:11.218Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เนื่องจากข้อมูลสภาพอากาศเป็นแบบเรียลไทม์ กรุณาระบุวันที่เพื่อทำการวิเคราะห์ได้อย่างแม่นยำที่สุด โดยภาพรวมแล้ว พยากรณ์อากาศของกรุงเทพฯ สำหรับวันพรุ่งนี้มีโอกาสที่ท้องฟ้าจะครึ้มและมีเมฆมากได้ตลอดวัน ควรเตรียมพร้อมรับมือกับ","isSafeForUser":true,"timestamp":"2026-05-14T08:07:11.303Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เนื่องจากข้อมูลสภาพอากาศเป็นแบบเรียลไทม์ กรุณาระบุวันที่เพื่อทำการวิเคราะห์ได้อย่างแม่นยำที่สุด โดยภาพรวมแล้ว พยากรณ์อากาศของกรุงเทพฯ สำหรับวันพรุ่งนี้มีโอกาสที่ท้องฟ้าจะครึ้มและมีเมฆมากได้ตลอดวัน ควรเตรียมพร้อมรับมือกับ...","isSafeForUser":true,"timestamp":"2026-05-14T08:07:11.407Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เนื่องจากข้อมูลสภาพอากาศเป็นแบบเรียลไทม์ กรุณาระบุวันที่เพื่อทำการวิเคราะห์ได้อย่างแม่นยำที่สุด โดยภาพรวมแล้ว พยากรณ์อากาศของกรุงเทพฯ สำหรับวันพรุ่งนี้มีโอกาสที่ท้องฟ้าจะครึ้มและมีเมฆมากได้ตลอดวัน ควรเตรียมพร้อมรับมือกับ...","isSafeForUser":true,"timestamp":"2026-05-14T08:07:11.522Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เนื่องจากข้อมูลสภาพอากาศเป็นแบบเรียลไทม์ กรุณาระบุวันที่เพื่อทำการวิเคราะห์ได้อย่างแม่นยำที่สุด โดยภาพรวมแล้ว พยากรณ์อากาศของกรุงเทพฯ สำหรับวันพรุ่งนี้มีโอกาสที่ท้องฟ้าจะครึ้มและมีเมฆมากได้ตลอดวัน ควรเตรียมพร้อมรับมือกับ...","isSafeForUser":true,"timestamp":"2026-05-14T08:07:11.607Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เนื่องจากข้อมูลสภาพอากาศเป็นแบบเรียลไทม์ กรุณาระบุวันที่เพื่อทำการวิเคราะห์ได้อย่างแม่นยำที่สุด โดยภาพรวมแล้ว พยากรณ์อากาศของกรุงเทพฯ สำหรับวันพรุ่งนี้มีโอกาสที่ท้องฟ้าจะครึ้มและมีเมฆมากได้ตลอดวัน ควรเตรียมพร้อมรับมือกับ...","isSafeForUser":true,"timestamp":"2026-05-14T08:07:11.733Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"เนื่องจากข้อมูลสภาพอากาศเป็นแบบเรียลไทม์ กรุณาระบุวันที่เพื่อทำการวิเคราะห์ได้อย่างแม่นยำที่สุด โดยภาพรวมแล้ว พยากรณ์อากาศของกรุงเทพฯ สำหรับวันพรุ่งนี้มีโอกาสที่ท้องฟ้าจะครึ้มและมีเมฆมากได้ตลอดวัน ควรเตรียมพร้อมรับมือกับ...","isSafeForUser":true,"timestamp":"2026-05-14T08:07:11.753Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"weather-analyst","role":"นักวิเคราะห์อากาศ","publicSummary":"weather-analyst เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T08:07:11.753Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"7f622809-f141-416f-9e9e-7c80f1b43490","messageId":"70c5993f-2e91-4ff9-aa76-a5b596bb0a03","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T08:07:11.920Z","finalText":"เนื่องจากข้อมูลสภาพอากาศเป็นแบบเรียลไทม์ กรุณาระบุวันที่เพื่อทำการวิเคราะห์ได้อย่างแม่นยำที่สุด โดยภาพรวมแล้ว พยากรณ์อากาศของกรุงเทพฯ สำหรับวันพรุ่งนี้มีโอกาสที่ท้องฟ้าจะครึ้มและมีเมฆมากได้ตลอดวัน ควรเตรียมพร้อมรับมือกับช่วงเวลาที่มีโอกาสเกิดฝนฟ้าคะนองในช่วงบ่ายถึงเย็น อุณหภูมิจะอยู่ในเกณฑ์สบายถึงร้อนเล็กน้อย ควรพกร่มและเสื้อกันฝนติดตัวไว้เสมอ","confidence":0.78}
+

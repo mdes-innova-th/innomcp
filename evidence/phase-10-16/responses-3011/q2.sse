@@ -1,0 +1,116 @@
+event: agent_started
+data: {"type":"agent_started","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.755Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.756Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.756Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.756Z","model":"qwen3.5:9b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.757Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางตอบทั่วไป","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.757Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.757Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.757Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.757Z","deltaText":"ผมรับโจทย์ \"จังหวัดเชียงใหม่อยู่ภาคอะไร มีอำเภอกี่อำเภอ\" แล้ว — ตอบเป็นภาษาไทยให","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.757Z","deltaText":"้กระชับและตรงประเด็น หากต้องการละเอียดกว่านี้บอกได้ครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T08:01:05.757Z","confidence":0.85}
+
+event: fallback
+data: {"type":"fallback","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:01:17.758Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:01:17.758Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:01:17.760Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:01:17.760Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"stylist[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:01:17.761Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:01:17.762Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"rag-agent[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:01:17.763Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:01:17.763Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:**","isSafeForUser":true,"timestamp":"2026-05-14T08:01:22.830Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก","isSafeForUser":true,"timestamp":"2026-05-14T08:01:22.913Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำ","isSafeForUser":true,"timestamp":"2026-05-14T08:01:23.017Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **","isSafeForUser":true,"timestamp":"2026-05-14T08:01:23.144Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง","isSafeForUser":true,"timestamp":"2026-05-14T08:01:23.259Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง: ภาคเหนือ (Northern Region)\n    ","isSafeForUser":true,"timestamp":"2026-05-14T08:01:23.364Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง: ภาคเหนือ (Northern Region)\n    *   จำนวนอำเภอ: ปัจจุบันมี 18 อำ","isSafeForUser":true,"timestamp":"2026-05-14T08:01:23.509Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง: ภาคเหนือ (Northern Region)\n    *   จำนวนอำเภอ: ปัจจุบันมี 18 อำเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:23.636Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง: ภาคเหนือ (Northern Region)\n    *   จำนวนอำเภอ: ปัจจุบันมี 18 อำเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:23.741Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง: ภาคเหนือ (Northern Region)\n    *   จำนวนอำเภอ: ปัจจุบันมี 18 อำเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:23.834Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง: ภาคเหนือ (Northern Region)\n    *   จำนวนอำเภอ: ปัจจุบันมี 18 อำเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:23.971Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง: ภาคเหนือ (Northern Region)\n    *   จำนวนอำเภอ: ปัจจุบันมี 18 อำเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:24.064Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง: ภาคเหนือ (Northern Region)\n    *   จำนวนอำเภอ: ปัจจุบันมี 18 อำเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:24.127Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง: ภาคเหนือ (Northern Region)\n    *   จำนวนอำเภอ: ปัจจุบันมี 18 อำเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:24.222Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง: ภาคเหนือ (Northern Region)\n    *   จำนวนอำเภอ: ปัจจุบันมี 18 อำเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:24.305Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง: ภาคเหนือ (Northern Region)\n    *   จำนวนอำเภอ: ปัจจุบันมี 18 อำเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:24.421Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง: ภาคเหนือ (Northern Region)\n    *   จำนวนอำเภอ: ปัจจุบันมี 18 อำเ...","isSafeForUser":true,"timestamp":"2026-05-14T08:01:24.454Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T08:01:24.454Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"2b74ae25-8165-442b-a25a-6910286ba12a","messageId":"b6dda754-0d3f-45ca-92e9-27634a3625fe","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T08:01:24.614Z","finalText":"[THINK]\n1.  **วิเคราะห์คำถาม:** คำถามต้องการข้อมูล 2 ส่วนหลัก คือ \"ภาคที่ตั้ง\" และ \"จำนวนอำเภอ\" ของจังหวัดเชียงใหม่\n2.  **ระบุข้อมูล:**\n    *   ภาคที่ตั้ง: ภาคเหนือ (Northern Region)\n    *   จำนวนอำเภอ: ปัจจุบันมี 18 อำเภอ\n3.  **สร้างคำตอบ:** ต้องนำข้อมูลทั้งสองส่วนมาเรียบเรียงให้เป็นภาษาไทยที่ถูกต้อง กระชับ และไม่เกิน 3 ประโยค\n[ANSWER]\nจังหวัดเชียงใหม่ตั้งอยู่ในภูมิภาคภาคเหนือของประเทศไทย เป็นจังหวัดที่มีความสำคัญทางประวัติศาสตร์และวัฒนธรรมอย่างยิ่ง ปัจจุบัน จังหวัดเชียงใหม่มีจำนวนอำเภอทั้งสิ้น 18 อำเภอ.","confidence":0.78}
+

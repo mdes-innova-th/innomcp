@@ -1,0 +1,52 @@
+event: agent_started
+data: {"type":"agent_started","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"เริ่มงาน: tool-scout","isSafeForUser":true,"timestamp":"2026-05-14T09:37:28.419Z","model":"z-uo/qwen2.5vl_tools:7b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T09:37:28.420Z","model":"gemma4:e4b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T09:37:28.420Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางคำนวณแบบ deterministic","isSafeForUser":true,"timestamp":"2026-05-14T09:37:28.420Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T09:37:28.420Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T09:37:28.420Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:37:28.420Z","deltaText":"ผมคำนวณตามคำถาม \"15% ของ 87450\" ให้ — เส้นทางนี้เป็นแบบกำหนดได้ (deterministic) ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:37:28.420Z","deltaText":"จึงไม่ต้องใช้โมเดลภาษา ผลที่ได้จะแสดงในเซสชันถัดไปครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T09:37:28.420Z","confidence":0.85}
+
+event: fallback
+data: {"type":"fallback","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"tool-scout[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:37:40.421Z","fallbackReason":"This operation was aborted","model":"z-uo/qwen2.5vl_tools:7b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"เริ่มงาน: tool-scout","isSafeForUser":true,"timestamp":"2026-05-14T09:37:40.421Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:37:40.425Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T09:37:40.425Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: fallback
+data: {"type":"fallback","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"tool-scout","role":"ผู้เลือกเครื่องมือ","publicSummary":"tool-scout[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:37:52.424Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:37:52.426Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: final_answer
+data: {"type":"final_answer","runId":"a56692fd-a4fd-480d-8288-eeb34eaacd16","messageId":"28008539-350a-4f0c-9dc8-7940c7a50c20","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T09:38:03.425Z","finalText":"ผมคำนวณตามคำถาม \"15% ของ 87450\" ให้ — เส้นทางนี้เป็นแบบกำหนดได้ (deterministic) จึงไม่ต้องใช้โมเดลภาษา ผลที่ได้จะแสดงในเซสชันถัดไปครับ","confidence":0.78}
+

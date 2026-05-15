@@ -23,7 +23,7 @@ import { runConductor } from "../../agents/conductor";
 import type { AgentEvent } from "../../agents/events";
 import type { ChatMode } from "../../providers/router";
 import { optionalAuth, type AuthRequest } from "../../utils/jwt";
-import { guestLimiterMiddleware, limitResponseLength } from "../../middleware/guestLimiter";
+import { guestLimiterMiddleware, limitResponseLength, type GuestLimits } from "../../middleware/guestLimiter";
 
 const router = Router();
 
@@ -37,6 +37,44 @@ function writeEvent(res: Response, ev: AgentEvent): void {
 
 function writeComment(res: Response, comment: string): void {
   (res as unknown as { write: (chunk: string) => boolean }).write(`: ${comment}\n\n`);
+}
+
+function clampText(text: string, max: number): string {
+  if (text.length <= max) return text;
+  return text.slice(0, max);
+}
+
+function createStreamEventLimiter(limits: GuestLimits | undefined, isGuest: boolean) {
+  let draftCharsSent = 0;
+  const agentSummaryLimit = 180;
+
+  return (ev: AgentEvent): AgentEvent | null => {
+    if (!limits) return ev;
+
+    if (ev.type === "final_answer" && typeof ev.finalText === "string") {
+      return { ...ev, finalText: limitResponseLength(ev.finalText, limits) };
+    }
+
+    if (!isGuest) return ev;
+
+    if (ev.type === "draft_delta" && typeof ev.deltaText === "string") {
+      const remaining = limits.maxResponseLength - draftCharsSent;
+      if (remaining <= 0) return null;
+      const deltaText = clampText(ev.deltaText, remaining);
+      draftCharsSent += deltaText.length;
+      return { ...ev, deltaText };
+    }
+
+    if (ev.type === "agent_delta") {
+      return { ...ev, publicSummary: clampText(ev.publicSummary, agentSummaryLimit) };
+    }
+
+    if (ev.type === "fallback" && typeof ev.fallbackReason === "string") {
+      return { ...ev, fallbackReason: clampText(ev.fallbackReason, agentSummaryLimit) };
+    }
+
+    return ev;
+  };
 }
 
 router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, res: Response) => {
@@ -91,10 +129,11 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
   res.on("close", cleanup);
 
   try {
-    const limits = (req as any).guestLimits;
+    const limits = (req as any).guestLimits as GuestLimits | undefined;
     const isGuest = Boolean((req as any).isGuest ?? !req.user);
     const capabilityLevel = Number((req as any).capabilityLevel ?? (isGuest ? 50 : 100));
     const userTier = isGuest ? "guest" : req.user?.userRoleId === 0 ? "admin" : "user";
+    const limitStreamEvent = createStreamEventLimiter(limits, isGuest);
 
     await runConductor(
       {
@@ -104,13 +143,12 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
         preferredProviderId: body.preferredProviderId,
         userTier,
         capabilityLevel,
+        guestLimits: limits,
       },
       (ev) => {
         if (closed) return;
-        const out =
-          ev.type === "final_answer" && typeof ev.finalText === "string" && limits
-            ? { ...ev, finalText: limitResponseLength(ev.finalText, limits) }
-            : ev;
+        const out = limitStreamEvent(ev);
+        if (!out) return;
         writeEvent(res, out);
       }
     );

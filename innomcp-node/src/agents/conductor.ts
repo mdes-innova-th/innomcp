@@ -29,6 +29,7 @@ import {
 import { checkNaturalness } from "../services/naturalnessGuard";
 import { dispatchAgents, synthesizeAnswer } from "./parallelDispatch";
 import { dispatchTool } from "./toolDispatch";
+import type { GuestLimits } from "../middleware/guestLimiter";
 
 export interface ConductorOptions {
   message: string;
@@ -37,6 +38,7 @@ export interface ConductorOptions {
   preferredProviderId?: string;
   userTier?: "guest" | "user" | "admin";
   capabilityLevel?: number;
+  guestLimits?: GuestLimits;
 }
 
 export type EmitFn = (ev: AgentEvent) => void;
@@ -230,7 +232,7 @@ export async function runConductor(
 
   // Fire MCP tool in parallel for tool-requiring intents (weather, map).
   // Result lands in liveOutputs["__tool__"] which synthesizeAnswer prefers.
-  const toolPromise = dispatchTool(cls.intent, opts.message, runId, messageId, emit, liveOutputs)
+  const toolPromise = dispatchTool(cls.intent, opts.message, runId, messageId, emit, liveOutputs, opts.guestLimits)
     .catch(() => undefined);
 
   const startedEv = newEnvelope({

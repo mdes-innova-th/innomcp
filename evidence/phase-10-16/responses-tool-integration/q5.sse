@@ -1,0 +1,76 @@
+event: agent_started
+data: {"type":"agent_started","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T09:31:04.155Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T09:31:04.155Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T09:31:04.156Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T09:31:04.156Z","model":"qwen3.5:9b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T09:31:04.156Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางตอบทั่วไป","isSafeForUser":true,"timestamp":"2026-05-14T09:31:04.156Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T09:31:04.156Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T09:31:04.156Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:31:04.156Z","deltaText":"ผมรับโจทย์ \"หลักฐาน threat ล่าสุด\" แล้ว — ตอบเป็นภาษาไทยให้กระชับและตรงประเด็น ห","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T09:31:04.156Z","deltaText":"ากต้องการละเอียดกว่านี้บอกได้ครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T09:31:04.156Z","confidence":0.85}
+
+event: fallback
+data: {"type":"fallback","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:31:16.157Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T09:31:16.157Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:31:16.158Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T09:31:16.158Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"stylist[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:31:16.160Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T09:31:16.160Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"rag-agent[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:31:16.162Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T09:31:16.162Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: fallback
+data: {"type":"fallback","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:31:28.159Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:31:28.160Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"stylist[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:31:28.163Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"rag-agent[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T09:31:28.164Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: final_answer
+data: {"type":"final_answer","runId":"31d65950-5a22-4df4-bf66-36fff5eb0d54","messageId":"7fddf12a-f8b0-42e8-8c84-bd8ced3c1ed9","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T09:31:39.243Z","finalText":"ผมรับโจทย์ \"หลักฐาน threat ล่าสุด\" แล้ว — ตอบเป็นภาษาไทยให้กระชับและตรงประเด็น หากต้องการละเอียดกว่านี้บอกได้ครับ","confidence":0.78}
+

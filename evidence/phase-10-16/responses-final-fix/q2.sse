@@ -1,0 +1,77 @@
+event: agent_started
+data: {"type":"agent_started","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.919Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.919Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.919Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.919Z","model":"qwen3.5:9b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.919Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางตอบทั่วไป","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.919Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.920Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.920Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.920Z","deltaText":"ผมรับโจทย์ \"เชียงใหม่อยู่ภาคไหน\" แล้ว — ตอบเป็นภาษาไทยให้กระชับและตรงประเด็น หาก","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.920Z","deltaText":"ต้องการละเอียดกว่านี้บอกได้ครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T08:54:19.920Z","confidence":0.85}
+
+event: fallback
+data: {"type":"fallback","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:54:31.921Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T08:54:31.921Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:54:31.923Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T08:54:31.923Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"stylist[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:54:31.924Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T08:54:31.925Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"rag-agent[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T08:54:31.926Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T08:54:31.926Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เชียงใหม่ตั้งอยู่ในภาคเหนือของ","isSafeForUser":true,"timestamp":"2026-05-14T08:54:36.260Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เชียงใหม่ตั้งอยู่ในภาคเหนือของประเทศไทยอย่างชัดเจน ภาคเหนือเป็น","isSafeForUser":true,"timestamp":"2026-05-14T08:54:36.346Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เชียงใหม่ตั้งอยู่ในภาคเหนือของประเทศไทยอย่างชัดเจน ภาคเหนือเป็นพื้นที่ที่อุดมไปด้วยวัฒนธรรมล้าน","isSafeForUser":true,"timestamp":"2026-05-14T08:54:36.462Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เชียงใหม่ตั้งอยู่ในภาคเหนือของประเทศไทยอย่างชัดเจน ภาคเหนือเป็นพื้นที่ที่อุดมไปด้วยวัฒนธรรมล้านนาและธรรมชาติที่งดงามหลายแห่ง","isSafeForUser":true,"timestamp":"2026-05-14T08:54:36.569Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T08:54:36.570Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"3e738d82-f917-4ee5-9975-772b5cd470e7","messageId":"9e6029a5-c4d3-483a-9ff2-94d8322caa80","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T08:54:36.604Z","finalText":"เชียงใหม่ตั้งอยู่ในภาคเหนือของประเทศไทยอย่างชัดเจน ภาคเหนือเป็นพื้นที่ที่อุดมไปด้วยวัฒนธรรมล้านนาและธรรมชาติที่งดงามหลายแห่ง","confidence":0.78}
+

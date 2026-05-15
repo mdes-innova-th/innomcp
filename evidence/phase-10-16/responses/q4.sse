@@ -1,0 +1,101 @@
+event: agent_started
+data: {"type":"agent_started","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.349Z","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.349Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.350Z","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.350Z","model":"qwen3.5:9b"}
+
+event: agent_run_started
+data: {"type":"agent_run_started","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เริ่มประมวลคำขอ","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.350Z"}
+
+event: route_selected
+data: {"type":"route_selected","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"conductor","role":"ผู้กำกับงาน","publicSummary":"เลือกเส้นทางตอบทั่วไป","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.350Z"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"broker","role":"ผู้คัดเลือกผู้ให้บริการ","publicSummary":"เลือก Local Ollama (innomcp) (priority=90): ตรงความสามารถ thai-naturalness","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.350Z","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มเรียบเรียงคำตอบเป็นภาษาไทย","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.350Z"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.350Z","deltaText":"ผมรับโจทย์ \"วางแผนระบบรักษาความปลอดภัยสำหรับสถานีตำรวจ\" แล้ว — ตอบเป็นภาษาไทยให้","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: draft_delta
+data: {"type":"draft_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบเป็นช่วงๆ","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.350Z","deltaText":"กระชับและตรงประเด็น หากต้องการละเอียดกว่านี้บอกได้ครับ","provider":"seed-local-ollama","model":"minimax-m2.5:cloud"}
+
+event: critique
+data: {"type":"critique","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"ตรวจความครบถ้วนของคำตอบ","isSafeForUser":true,"timestamp":"2026-05-14T07:30:37.350Z","confidence":0.85}
+
+event: fallback
+data: {"type":"fallback","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T07:30:49.356Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"เริ่มงาน: concierge","isSafeForUser":true,"timestamp":"2026-05-14T07:30:49.356Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"critic[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T07:30:49.357Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"critic","role":"ผู้ตรวจสอบความถูกต้อง","publicSummary":"เริ่มงาน: critic","isSafeForUser":true,"timestamp":"2026-05-14T07:30:49.357Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"stylist[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T07:30:49.358Z","fallbackReason":"This operation was aborted","model":"gemma4:e4b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"stylist","role":"ผู้ขัดเกลาภาษาไทย","publicSummary":"เริ่มงาน: stylist","isSafeForUser":true,"timestamp":"2026-05-14T07:30:49.358Z","model":"gemma4:e4b"}
+
+event: fallback
+data: {"type":"fallback","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"rag-agent[MDES]: This operation was aborted","isSafeForUser":true,"timestamp":"2026-05-14T07:30:49.359Z","fallbackReason":"This operation was aborted","model":"qwen3.5:9b"}
+
+event: agent_started
+data: {"type":"agent_started","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"rag-agent","role":"ผู้สืบค้นความรู้","publicSummary":"เริ่มงาน: rag-agent","isSafeForUser":true,"timestamp":"2026-05-14T07:30:49.360Z","model":"gemma4:e4b"}
+
+: heartbeat
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"กำหนดระบบการควบคุมการเข้าออกหลาย","isSafeForUser":true,"timestamp":"2026-05-14T07:30:58.486Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"กำหนดระบบการควบคุมการเข้าออกหลายชั้น (Multi-layered Access Control","isSafeForUser":true,"timestamp":"2026-05-14T07:30:58.557Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"กำหนดระบบการควบคุมการเข้าออกหลายชั้น (Multi-layered Access Control) โดยใช้ระบบไบโอเมตริกซ์และบัน","isSafeForUser":true,"timestamp":"2026-05-14T07:30:58.703Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"กำหนดระบบการควบคุมการเข้าออกหลายชั้น (Multi-layered Access Control) โดยใช้ระบบไบโอเมตริกซ์และบันทึกการเข้า-ออกทุกจุด. ติดตั้งกล","isSafeForUser":true,"timestamp":"2026-05-14T07:30:58.833Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"กำหนดระบบการควบคุมการเข้าออกหลายชั้น (Multi-layered Access Control) โดยใช้ระบบไบโอเมตริกซ์และบันทึกการเข้า-ออกทุกจุด. ติดตั้งกล้องวงจรปิดความละเอียดสูงครอบคล","isSafeForUser":true,"timestamp":"2026-05-14T07:30:58.923Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"กำหนดระบบการควบคุมการเข้าออกหลายชั้น (Multi-layered Access Control) โดยใช้ระบบไบโอเมตริกซ์และบันทึกการเข้า-ออกทุกจุด. ติดตั้งกล้องวงจรปิดความละเอียดสูงครอบคลุมพื้นที่ทั้งหมด พร้อมระบบวิเคราะห์","isSafeForUser":true,"timestamp":"2026-05-14T07:30:58.995Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"กำหนดระบบการควบคุมการเข้าออกหลายชั้น (Multi-layered Access Control) โดยใช้ระบบไบโอเมตริกซ์และบันทึกการเข้า-ออกทุกจุด. ติดตั้งกล้องวงจรปิดความละเอียดสูงครอบคลุมพื้นที่ทั้งหมด พร้อมระบบวิเคราะห์ภาพด้วยปัญญาประดิษฐ์เพื่อแจ้...","isSafeForUser":true,"timestamp":"2026-05-14T07:30:59.110Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"กำหนดระบบการควบคุมการเข้าออกหลายชั้น (Multi-layered Access Control) โดยใช้ระบบไบโอเมตริกซ์และบันทึกการเข้า-ออกทุกจุด. ติดตั้งกล้องวงจรปิดความละเอียดสูงครอบคลุมพื้นที่ทั้งหมด พร้อมระบบวิเคราะห์ภาพด้วยปัญญาประดิษฐ์เพื่อแจ้...","isSafeForUser":true,"timestamp":"2026-05-14T07:30:59.248Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"กำหนดระบบการควบคุมการเข้าออกหลายชั้น (Multi-layered Access Control) โดยใช้ระบบไบโอเมตริกซ์และบันทึกการเข้า-ออกทุกจุด. ติดตั้งกล้องวงจรปิดความละเอียดสูงครอบคลุมพื้นที่ทั้งหมด พร้อมระบบวิเคราะห์ภาพด้วยปัญญาประดิษฐ์เพื่อแจ้...","isSafeForUser":true,"timestamp":"2026-05-14T07:30:59.330Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"กำหนดระบบการควบคุมการเข้าออกหลายชั้น (Multi-layered Access Control) โดยใช้ระบบไบโอเมตริกซ์และบันทึกการเข้า-ออกทุกจุด. ติดตั้งกล้องวงจรปิดความละเอียดสูงครอบคลุมพื้นที่ทั้งหมด พร้อมระบบวิเคราะห์ภาพด้วยปัญญาประดิษฐ์เพื่อแจ้...","isSafeForUser":true,"timestamp":"2026-05-14T07:30:59.446Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"กำหนดระบบการควบคุมการเข้าออกหลายชั้น (Multi-layered Access Control) โดยใช้ระบบไบโอเมตริกซ์และบันทึกการเข้า-ออกทุกจุด. ติดตั้งกล้องวงจรปิดความละเอียดสูงครอบคลุมพื้นที่ทั้งหมด พร้อมระบบวิเคราะห์ภาพด้วยปัญญาประดิษฐ์เพื่อแจ้...","isSafeForUser":true,"timestamp":"2026-05-14T07:30:59.550Z","model":"gemma4:e4b"}
+
+event: agent_delta
+data: {"type":"agent_delta","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"กำหนดระบบการควบคุมการเข้าออกหลายชั้น (Multi-layered Access Control) โดยใช้ระบบไบโอเมตริกซ์และบันทึกการเข้า-ออกทุกจุด. ติดตั้งกล้องวงจรปิดความละเอียดสูงครอบคลุมพื้นที่ทั้งหมด พร้อมระบบวิเคราะห์ภาพด้วยปัญญาประดิษฐ์เพื่อแจ้...","isSafeForUser":true,"timestamp":"2026-05-14T07:30:59.644Z","model":"gemma4:e4b"}
+
+event: agent_finished
+data: {"type":"agent_finished","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"concierge เสร็จสิ้น","isSafeForUser":true,"timestamp":"2026-05-14T07:30:59.644Z"}
+
+event: final_answer
+data: {"type":"final_answer","runId":"502c88aa-4d29-4170-beb5-58be7b1a8b32","messageId":"9b8639f6-5c0e-4584-8fb4-1a695bd641b6","agentId":"concierge","role":"ผู้เรียบเรียงคำตอบ","publicSummary":"ส่งคำตอบสุดท้าย","isSafeForUser":true,"timestamp":"2026-05-14T07:30:59.807Z","finalText":"กำหนดระบบการควบคุมการเข้าออกหลายชั้น (Multi-layered Access Control) โดยใช้ระบบไบโอเมตริกซ์และบันทึกการเข้า-ออกทุกจุด. ติดตั้งกล้องวงจรปิดความละเอียดสูงครอบคลุมพื้นที่ทั้งหมด พร้อมระบบวิเคราะห์ภาพด้วยปัญญาประดิษฐ์เพื่อแจ้งเตือนภัยแบบเรียลไทม์. จัดการความปลอดภัยของหลักฐานและพื้นที่เสี่ยงด้วยระบบสัญญาณเตือนที่ซ้ำซ้อน (Redundancy) และกำหนดแผนรับมือเหตุการณ์ฉุกเฉินที่เป็นมาตรฐาน.","confidence":0.78}
+

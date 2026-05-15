@@ -11,6 +11,7 @@ import { newEnvelope } from "./events";
 import { checkAgentEventSafe } from "./eventGuard";
 import type { EmitFn } from "./conductor";
 import type { ChatIntent } from "../services/intentClassifier";
+import { checkToolAccess, type GuestLimits } from "../middleware/guestLimiter";
 
 const MCP_URL = (process.env.MCPSERVER_URL ?? "http://localhost:3012/mcp").replace(/\/$/, "");
 const TOOL_TIMEOUT_MS = 20_000;
@@ -135,10 +136,24 @@ export async function dispatchTool(
   runId: string,
   messageId: string,
   emit: EmitFn,
-  liveOutputs: Record<string, string>
+  liveOutputs: Record<string, string>,
+  limits?: GuestLimits
 ): Promise<void> {
   const plan = planToolCall(intent, query);
   if (!plan) return;
+
+  if (limits && !checkToolAccess(plan.toolName, limits)) {
+    const blockedEv = newEnvelope({
+      runId,
+      messageId,
+      type: "fallback",
+      publicSummary: `This account tier cannot use ${plan.toolName}; sign in for full tool access.`,
+      agentId: "tool-scout",
+    });
+    blockedEv.fallbackReason = "tool_not_allowed_for_account_tier";
+    if (checkAgentEventSafe(blockedEv, { expectedToolUsage: true }).ok) emit(blockedEv);
+    return;
+  }
 
   const startEv = newEnvelope({
     runId,
