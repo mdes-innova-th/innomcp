@@ -533,8 +533,17 @@ export default function MultiAgentPanel({
                     </span>
                   )}
                   {agent.toolNames.length > 0 && (
-                    <span className="font-mono text-[10px] text-muted-foreground/70 truncate max-w-[80px]">
-                      {agent.toolNames[0]}
+                    <span
+                      className="inline-flex items-center gap-0.5 rounded bg-amber-500/10 px-1 py-0.5 font-mono text-[9.5px] text-amber-700 dark:text-amber-300"
+                      title={agent.toolNames.join(", ")}
+                    >
+                      <span aria-hidden="true">🛠</span>
+                      <span className="truncate max-w-[5rem]">
+                        {agent.toolNames[0].replace(/^[^:]+:/, "")}
+                      </span>
+                      {agent.toolNames.length > 1 && (
+                        <span className="font-mono text-[8.5px] opacity-70">+{agent.toolNames.length - 1}</span>
+                      )}
                     </span>
                   )}
                 </div>
@@ -576,13 +585,32 @@ export default function MultiAgentPanel({
                     <ul className="space-y-0.5">
                       {agent.events.map((ev, i) => {
                         if (ev.type === "agent_delta" && agent.thinkingText) return null; // Already shown above
+                        const isTool = ev.type === "tool_call_started" || ev.type === "tool_call_finished";
+                        const isFallback = ev.type === "fallback";
+                        const isError = ev.type === "error";
+                        const labelTone = isTool
+                          ? "text-amber-600 dark:text-amber-300 bg-amber-500/10"
+                          : isFallback
+                          ? "text-amber-700 dark:text-amber-200 bg-amber-500/10"
+                          : isError
+                          ? "text-rose-600 dark:text-rose-300 bg-rose-500/10"
+                          : "text-muted-foreground/55 bg-muted/30";
                         return (
-                          <li key={i} className="text-muted-foreground/70 leading-4">
-                            <span className="text-[10px] font-mono text-muted-foreground/50 mr-1">
+                          <li key={i} className="leading-4">
+                            <span
+                              className={`mr-1 inline-block rounded px-1 py-px font-mono text-[9.5px] ${labelTone}`}
+                            >
                               {EVENT_LABEL_TH[ev.type] ?? ev.type}
                             </span>
+                            {isTool && ev.toolName && (
+                              <span className="mr-1 font-mono text-[10px] text-amber-600/90 dark:text-amber-300/90">
+                                {ev.toolName.replace(/^[^:]+:/, "")}
+                              </span>
+                            )}
                             {ev.publicSummary && (
-                              <span className="text-[11px]">{ev.publicSummary}</span>
+                              <span className={`text-[11px] ${isError ? "text-rose-600/85 dark:text-rose-300/85" : "text-muted-foreground/85"}`}>
+                                {ev.publicSummary}
+                              </span>
                             )}
                           </li>
                         );
