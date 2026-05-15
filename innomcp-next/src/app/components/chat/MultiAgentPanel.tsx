@@ -76,6 +76,17 @@ interface AgentState {
   fallbackCount: number;
   lastFallback?: string;
   model?: string;
+  /** Epoch ms of the first agent_started event */
+  startedAt?: number;
+  /** Epoch ms of the most recent finishing event (done / error). */
+  finishedAt?: number;
+}
+
+/** ms → human-readable ("1.4s", "320ms", "12s"). */
+function fmtLatency(ms: number | undefined): string | null {
+  if (ms == null || !Number.isFinite(ms) || ms < 0) return null;
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`;
 }
 
 interface Props {
@@ -117,6 +128,13 @@ export default function MultiAgentPanel({
       }
       const s = map.get(ev.agentId)!;
       s.events.push(ev);
+
+      // Track started/finished epoch ms for latency display.
+      const ts = ev.timestamp ? Date.parse(ev.timestamp) : NaN;
+      if (Number.isFinite(ts)) {
+        if (ev.type === "agent_started" && s.startedAt == null) s.startedAt = ts;
+        if (ev.type === "agent_finished" || ev.type === "error") s.finishedAt = ts;
+      }
 
       // Capture model from agent_started events
       if (ev.type === "agent_started" && ev.model) {
@@ -316,10 +334,20 @@ export default function MultiAgentPanel({
                 <span
                   style={{ ['--agent-accent' as any]: accent.hex }}
                   className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium leading-tight transition-colors ${pillTone}`}
-                  title={`${AGENT_LABEL_TH[agent.agentId] ?? agent.agentId} · ${agent.status}${agent.model ? ` · ${agent.model}` : ""}`}
+                  title={`${AGENT_LABEL_TH[agent.agentId] ?? agent.agentId} · ${agent.status}${agent.model ? ` · ${agent.model}` : ""}${
+                    agent.startedAt && agent.finishedAt
+                      ? ` · ${fmtLatency(agent.finishedAt - agent.startedAt)}`
+                      : ""
+                  }`}
                 >
                   <span className="inline-block h-1 w-1 shrink-0 rounded-full" style={{ background: accent.hex }} aria-hidden="true" />
                   <span className="truncate max-w-[6.5rem]">{AGENT_LABEL_TH[agent.agentId] ?? agent.agentId}</span>
+                  {/* Latency badge — only when agent has finished cleanly */}
+                  {agent.status === "done" && agent.startedAt && agent.finishedAt && (
+                    <span className="font-mono text-[9px] opacity-75 tabular-nums">
+                      {fmtLatency(agent.finishedAt - agent.startedAt)}
+                    </span>
+                  )}
                   {agent.status === "done" && <span aria-hidden="true">✓</span>}
                   {agent.status === "recovering" && <span aria-hidden="true">↻</span>}
                   {agent.status === "error" && <span aria-hidden="true">✗</span>}
@@ -404,8 +432,21 @@ export default function MultiAgentPanel({
                       </span>
                     )}
                   </span>
+                  {/* Latency badge appears between status icon and model — only when finished */}
+                  {agent.status !== "active" && agent.startedAt && agent.finishedAt && (
+                    <span
+                      className="ml-auto font-mono text-[9.5px] tabular-nums text-muted-foreground/85"
+                      title="ระยะเวลาทำงาน"
+                    >
+                      {fmtLatency(agent.finishedAt - agent.startedAt)}
+                    </span>
+                  )}
                   {agent.model && (
-                    <span className={`ml-auto text-[9px] font-mono px-1 py-0.5 rounded flex-shrink-0 ${accent.pill}`}>
+                    <span
+                      className={`text-[9px] font-mono px-1 py-0.5 rounded flex-shrink-0 ${accent.pill} ${
+                        agent.status !== "active" && agent.startedAt && agent.finishedAt ? "" : "ml-auto"
+                      }`}
+                    >
                       {MDES_MODEL_BADGE[agent.model] ?? agent.model.split(":")[0]}
                     </span>
                   )}

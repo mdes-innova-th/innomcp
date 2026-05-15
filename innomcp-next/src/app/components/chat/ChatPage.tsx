@@ -1365,30 +1365,47 @@ const ChatPage: React.FC = () => {
                     onBlur={() => setIsChatActive(false)}
                   />
 
-                  {/* Starter prompts — shorter copy + grid that adapts (req 9) */}
+                  {/* Starter prompts — premium card design with hover accent + arrow CTA */}
                   <div className="mt-1">
                     <div className="mb-2 flex items-center justify-between">
                       <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                         ตัวอย่างคำถาม
                       </h2>
-                      <span className="text-[11.5px] text-muted-foreground">กดเพื่อใส่ใน input</span>
+                      <span className="text-[11.5px] text-muted-foreground/85">กดเพื่อเริ่มทันที</span>
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {STARTER_PROMPTS.map((prompt) => (
                         <button
                           key={prompt.query}
                           onClick={() => setInput(prompt.query)}
-                          className="group flex min-w-0 items-start gap-2.5 rounded-md border border-border/70 bg-card p-3 text-left transition-colors hover:border-primary/30 hover:bg-primary/4"
+                          data-testid="starter-prompt"
+                          className={`group relative flex min-w-0 items-start gap-3 overflow-hidden rounded-lg border border-border/70 bg-card p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md`}
                         >
-                          <span className="text-lg leading-none" aria-hidden="true">
+                          {/* Soft accent wash unique to the prompt — sits behind everything */}
+                          <span
+                            aria-hidden="true"
+                            className={`pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b ${prompt.accent} opacity-0 transition-opacity duration-300 group-hover:opacity-100`}
+                          />
+                          <span
+                            className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-lg leading-none ring-1 ring-border/60 transition-colors group-hover:bg-primary/8 group-hover:ring-primary/30"
+                            aria-hidden="true"
+                          >
                             {prompt.icon}
                           </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[13.5px] font-semibold text-foreground transition-colors group-hover:text-primary">
-                              {prompt.title}
+                          <span className="relative min-w-0 flex-1">
+                            <span className="flex items-center gap-1.5">
+                              <span className="block truncate text-[13.5px] font-semibold text-foreground transition-colors group-hover:text-primary">
+                                {prompt.title}
+                              </span>
+                              <span
+                                aria-hidden="true"
+                                className="opacity-0 transition-opacity text-primary text-[12px] group-hover:opacity-100"
+                              >
+                                →
+                              </span>
                             </span>
                             <span className="mt-0.5 line-clamp-2 block text-[12.5px] leading-5 text-muted-foreground">
-                              {prompt.query}
+                              {prompt.description}
                             </span>
                           </span>
                         </button>
