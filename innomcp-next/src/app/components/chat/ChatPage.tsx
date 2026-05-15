@@ -1556,17 +1556,44 @@ const ChatPage: React.FC = () => {
                       : "กำลังสรุปและจัดรูปคำตอบให้อ่านง่าย";
 
                     return (
-                      <div className="chat-elevated-panel max-w-sm rounded-lg px-4 py-3 text-left">
-                        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">ระบบกำลังทำงาน</div>
-                        <div className="mt-2 flex items-center gap-3">
+                      <div
+                        data-testid="working-indicator"
+                        className="chat-elevated-panel relative max-w-sm overflow-hidden rounded-xl px-4 py-3 text-left animate-bubble-in"
+                      >
+                        {/* Top progress shimmer bar */}
+                        <span
+                          aria-hidden="true"
+                          className="absolute inset-x-0 top-0 h-0.5 overflow-hidden"
+                        >
+                          <span
+                            className={`block h-full bg-gradient-to-r from-transparent via-primary/60 to-transparent ${
+                              isMdesStreaming ? "agent-shimmer-active" : ""
+                            }`}
+                            style={{ ['--agent-accent' as any]: 'oklch(0.65 0.18 265)' }}
+                          />
+                        </span>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-display text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                            ระบบกำลังทำงาน
+                          </span>
+                          {isMdesStreaming && mdesCount > 0 && (
+                            <span
+                              className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] text-emerald-700 dark:text-emerald-300"
+                              title={`${mdesCount} MDES agents in flight`}
+                            >
+                              ⚡ {mdesCount}
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-2.5 flex items-center gap-3">
                           <span className="inline-flex items-center gap-1">
                             <span className={`h-2 w-2 rounded-full ${dotColor} animate-bounce [animation-delay:0s]`} />
-                            <span className={`h-2 w-2 rounded-full ${dotColor} animate-bounce [animation-delay:80ms]`} />
-                            <span className={`h-2 w-2 rounded-full ${dotColor} animate-bounce [animation-delay:160ms]`} />
+                            <span className={`h-2 w-2 rounded-full ${dotColor} animate-bounce [animation-delay:120ms]`} />
+                            <span className={`h-2 w-2 rounded-full ${dotColor} animate-bounce [animation-delay:240ms]`} />
                           </span>
-                          <div>
-                            <div className="text-sm text-foreground">{mdesLine}</div>
-                            <div className="mt-0.5 text-[11px] text-muted-foreground">{capabilityLine}</div>
+                          <div className="min-w-0">
+                            <div className="truncate text-[13.5px] text-foreground">{mdesLine}</div>
+                            <div className="mt-0.5 truncate text-[11px] text-muted-foreground">{capabilityLine}</div>
                           </div>
                         </div>
                       </div>
