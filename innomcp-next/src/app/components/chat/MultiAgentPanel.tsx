@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import type { AgentEvent, StreamStatus } from "./useAgentEventStream";
 
 const MDES_MODEL_BADGE: Record<string, string> = {
@@ -164,7 +164,27 @@ export default function MultiAgentPanel({
   const errorCount = agents.filter((a) => a.status === "error").length;
   const runSummary = events.find((ev) => ev.type === "agent_run_started")?.publicSummary;
   
-  if (status === "idle" && agents.length === 0) return null;
+  // Phase 10.24: dormant idle state — instead of vanishing, render a calm
+  // single-row strip so multi-agent feels "always present" / "ready".
+  if (status === "idle" && agents.length === 0) {
+    return (
+      <div
+        data-testid="multiagent-panel-dormant"
+        className={`flex items-center gap-2 rounded-md border border-border/30 bg-muted/15 px-3 py-1 text-[10.5px] opacity-60 ${
+          inline ? "mb-0" : "mb-2"
+        }`}
+        title="ทีม AI พร้อมทำงาน — เริ่มสนทนาเพื่อเปิดใช้"
+      >
+        <span className="inline-flex h-2.5 w-2.5 items-center justify-center rounded-full border border-slate-400/50" aria-hidden="true">
+          <span className="block h-1 w-1 rounded-full bg-slate-400/70" />
+        </span>
+        <span className="font-display uppercase tracking-[0.18em] text-muted-foreground/85">
+          ทีม AI พร้อม
+        </span>
+        <span className="text-muted-foreground/60">· เปิดใช้เมื่อสนทนา</span>
+      </div>
+    );
+  }
 
   const isOpen = open || expandAll;
   const rootClass = inline
@@ -253,12 +273,60 @@ export default function MultiAgentPanel({
           </span>
         </div>
       </button>
-      {isOpen && agents.length > 0 && status === "streaming" && (
-        <div className="h-0.5 bg-card/40 overflow-hidden">
+      {isOpen && agents.length > 0 && isStreaming && (
+        <div className="h-1 bg-card/40 overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-emerald-500/80 to-sky-400/80 transition-all duration-500 ease-out"
-            style={{ width: `${Math.round((doneCount / agents.length) * 100)}%` }}
+            className="h-full bg-gradient-to-r from-emerald-500/85 via-primary/80 to-sky-400/85 transition-all duration-700 ease-out"
+            style={{
+              width: `${Math.round((doneCount / agents.length) * 100)}%`,
+              boxShadow: "0 0 8px currentColor",
+            }}
           />
+        </div>
+      )}
+
+      {/* Phase 10.24: pipeline micro-row — chain of agent pills with → arrows
+          so the orchestration reads as a sequence, not just a parallel grid. */}
+      {isOpen && agents.length > 1 && (
+        <div className="flex items-center gap-1 overflow-x-auto border-b border-border/20 bg-card/30 px-3 py-1.5">
+          {agents.map((agent, i) => {
+            const accent = getModelAccent(agent.model);
+            const pillTone =
+              agent.status === "done"
+                ? `${accent.pill} ring-1 ring-inset`
+                : agent.status === "active"
+                ? `${accent.pill} agent-shimmer-active`
+                : agent.status === "recovering"
+                ? "bg-amber-500/15 text-amber-600 dark:text-amber-300"
+                : agent.status === "error"
+                ? "bg-rose-500/15 text-rose-600 dark:text-rose-300"
+                : "bg-muted/40 text-muted-foreground/70";
+            return (
+              <React.Fragment key={agent.agentId}>
+                {i > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className={`shrink-0 select-none font-mono text-[11px] ${
+                      agents[i - 1].status === "done" ? "text-foreground/60" : "text-muted-foreground/40"
+                    }`}
+                  >
+                    →
+                  </span>
+                )}
+                <span
+                  style={{ ['--agent-accent' as any]: accent.hex }}
+                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium leading-tight transition-colors ${pillTone}`}
+                  title={`${AGENT_LABEL_TH[agent.agentId] ?? agent.agentId} · ${agent.status}${agent.model ? ` · ${agent.model}` : ""}`}
+                >
+                  <span className="inline-block h-1 w-1 shrink-0 rounded-full" style={{ background: accent.hex }} aria-hidden="true" />
+                  <span className="truncate max-w-[6.5rem]">{AGENT_LABEL_TH[agent.agentId] ?? agent.agentId}</span>
+                  {agent.status === "done" && <span aria-hidden="true">✓</span>}
+                  {agent.status === "recovering" && <span aria-hidden="true">↻</span>}
+                  {agent.status === "error" && <span aria-hidden="true">✗</span>}
+                </span>
+              </React.Fragment>
+            );
+          })}
         </div>
       )}
       {isOpen && agents.length > 0 && (
