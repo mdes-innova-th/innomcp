@@ -79,14 +79,26 @@ export default function Header() {
         {/* Right — compact action buttons */}
         <div className="flex items-center gap-1 sm:gap-1.5">
 
-          {/* Theme toggle — icon-only ghost */}
+          {/* Theme toggle — icon-only ghost with a 360° spin on switch.
+              Phase 10.37 — adds aria-pressed for screen readers + subtle hover ring. */}
           <button
             type="button"
             onClick={toggleTheme}
+            aria-pressed={theme === "dark"}
+            aria-label={theme === "dark" ? "สลับเป็นโหมดสว่าง" : "สลับเป็นโหมดมืด"}
             title={theme === "dark" ? "สลับเป็นโหมดสว่าง" : "สลับเป็นโหมดมืด"}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+            data-testid="theme-toggle"
+            className="group/themetoggle relative inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/40"
           >
-            {theme === "dark" ? <FaSun className="text-[13px]" /> : <FaMoon className="text-[13px]" />}
+            <span
+              key={theme}
+              className="inline-flex items-center justify-center transition-transform duration-500 motion-reduce:transition-none"
+              style={{ animation: "theme-spin 380ms ease-out" }}
+            >
+              {theme === "dark"
+                ? <FaSun className="text-[13.5px] text-amber-400 group-hover/themetoggle:text-amber-300" />
+                : <FaMoon className="text-[13.5px] text-sky-600 group-hover/themetoggle:text-sky-500" />}
+            </span>
           </button>
 
           {/* MDES Hub — compact, label only on sm+ */}
