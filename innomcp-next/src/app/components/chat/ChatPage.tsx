@@ -1606,7 +1606,14 @@ const ChatPage: React.FC = () => {
 
           {/* Sticky composer — viewport-sticky, single browser scrollbar */}
           {(hasMessages || isWaitingForResponse) && (
-            <div className="sticky bottom-4 z-30 mx-auto mt-3 w-full max-w-[50rem] rounded-xl bg-background/96 pb-1 pt-1 shadow-[0_-1px_0_0_hsl(var(--border)/.25)] backdrop-blur-sm">
+            <div className="sticky bottom-4 z-30 mx-auto mt-3 w-full max-w-[50rem] rounded-xl bg-background/96 pb-1 pt-1 backdrop-blur-sm">
+              {/* Phase 10.34 — soft fade above the composer so messages don't
+                  clip into the textarea on a hard line. Pointer-events-none
+                  so the user can still click through near the edge. */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute -top-6 inset-x-0 h-6 bg-gradient-to-b from-transparent to-background/96"
+              />
               {showScrollButton && (
                 <button
                   onClick={scrollToBottom}
