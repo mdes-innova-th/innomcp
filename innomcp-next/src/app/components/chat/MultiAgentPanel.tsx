@@ -246,6 +246,35 @@ export default function MultiAgentPanel({
     );
   }
 
+  // Phase 10.29: warming-up state — streaming has begun but no agent_started
+  // event arrived yet (typical 200-800 ms window). Show a thin animated strip
+  // that says "เรียกทีมตัวแทน..." with the radar-ping dot so the user knows
+  // something is happening RIGHT NOW, not stuck.
+  if (status === "streaming" && agents.length === 0) {
+    return (
+      <div
+        data-testid="multiagent-panel-warming"
+        className={`flex items-center gap-2 rounded-md border border-primary/20 bg-gradient-to-r from-primary/8 via-sky-500/5 to-transparent px-3 py-1 text-[10.5px] ${
+          inline ? "mb-0" : "mb-2"
+        }`}
+      >
+        <span className="relative inline-flex h-3 w-3 shrink-0 items-center justify-center">
+          <span className="absolute inline-flex h-3 w-3 animate-radar-ping rounded-full bg-emerald-500 opacity-75" aria-hidden="true" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+        </span>
+        <span className="font-display uppercase tracking-[0.18em] text-foreground/85">
+          เรียกทีมตัวแทน
+        </span>
+        <span className="font-mono text-muted-foreground/80">
+          <span className="animate-pulse">·</span>
+          <span className="animate-pulse [animation-delay:120ms]">·</span>
+          <span className="animate-pulse [animation-delay:240ms]">·</span>
+        </span>
+        <span className="ml-auto text-muted-foreground/60">conductor</span>
+      </div>
+    );
+  }
+
   const isOpen = open || expandAll;
   const rootClass = inline
     ? "rounded-md border border-border/40 bg-muted/20 text-xs overflow-hidden"
