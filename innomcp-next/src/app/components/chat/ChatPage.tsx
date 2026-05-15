@@ -1407,7 +1407,21 @@ const ChatPage: React.FC = () => {
                       {STARTER_PROMPTS.map((prompt) => (
                         <button
                           key={prompt.query}
-                          onClick={() => setInput(prompt.query)}
+                          onClick={() => {
+                            setInput(prompt.query);
+                            // Phase 10.35 — focus composer + scroll into view so the
+                            // user's next move is obviously "press Enter".
+                            requestAnimationFrame(() => {
+                              const el = textareaRef.current;
+                              if (el) {
+                                el.focus();
+                                // Place cursor at end so they can edit naturally.
+                                const len = prompt.query.length;
+                                try { el.setSelectionRange(len, len); } catch {}
+                                el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                              }
+                            });
+                          }}
                           data-testid="starter-prompt"
                           className={`group relative flex min-w-0 items-start gap-3 overflow-hidden rounded-lg border border-border/70 bg-card p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md`}
                         >
