@@ -53,6 +53,48 @@ const AGENT_LABEL_TH: Record<string, string> = {
   scribe: "ผู้บันทึกความจำ",
 };
 
+// Phase 10.28 — role-specific SVG glyphs (16×16 viewBox).
+// Tiny, monoline, render in currentColor so they pick up the accent.
+function AgentRoleIcon({ agentId, className }: { agentId: string; className?: string }) {
+  const common = { viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+  const cls = `h-3 w-3 ${className || ""}`;
+  switch (agentId) {
+    case "weather-analyst":
+      // sun + cloud
+      return (<svg {...common} className={cls} aria-hidden><circle cx="6" cy="6" r="2.4" /><path d="M11 11.5h-6a2 2 0 0 1 0-4 3 3 0 0 1 5.8.6 1.8 1.8 0 0 1 .2 3.4Z" /></svg>);
+    case "geo-planner":
+      // pin
+      return (<svg {...common} className={cls} aria-hidden><path d="M8 14s4.5-4.2 4.5-7.5a4.5 4.5 0 0 0-9 0C3.5 9.8 8 14 8 14Z" /><circle cx="8" cy="6.3" r="1.5" /></svg>);
+    case "rag-agent":
+      // magnifying glass over book lines
+      return (<svg {...common} className={cls} aria-hidden><circle cx="7" cy="7" r="3.6" /><path d="m10 10 3 3" /></svg>);
+    case "concierge":
+      // chat bubble with dots
+      return (<svg {...common} className={cls} aria-hidden><path d="M2.5 4.5h11v6h-7L4 13v-2.5H2.5z" /><circle cx="6" cy="7.5" r="0.5" fill="currentColor" /><circle cx="8" cy="7.5" r="0.5" fill="currentColor" /><circle cx="10" cy="7.5" r="0.5" fill="currentColor" /></svg>);
+    case "tool-scout":
+      // wrench
+      return (<svg {...common} className={cls} aria-hidden><path d="M11 3a3 3 0 0 1 0 4.2L13 9.5 9.5 13 7.3 11a3 3 0 1 1-4.2-4.2L5 8.5 8.5 5 6.7 3a3 3 0 0 1 4.3 0Z" /></svg>);
+    case "critic":
+      // shield with check
+      return (<svg {...common} className={cls} aria-hidden><path d="M8 2 3 4v4.5C3 11 5 13 8 14c3-1 5-3 5-5.5V4Z" /><path d="m6 8 1.5 1.5L10.5 6.5" /></svg>);
+    case "stylist":
+      // pen nib
+      return (<svg {...common} className={cls} aria-hidden><path d="M3 13 9 7l3.5 3.5L7 16Z" transform="translate(-1 -3)" /><path d="m11 4 1.5 1.5" /></svg>);
+    case "broker":
+      // intersecting circles (network)
+      return (<svg {...common} className={cls} aria-hidden><circle cx="5.5" cy="8" r="3" /><circle cx="10.5" cy="8" r="3" /></svg>);
+    case "conductor":
+      // baton / node
+      return (<svg {...common} className={cls} aria-hidden><circle cx="8" cy="4.5" r="1.6" /><path d="M8 6v8" /><path d="M5 14h6" /></svg>);
+    case "scribe":
+      // scroll
+      return (<svg {...common} className={cls} aria-hidden><path d="M3 4h8v8H3z" /><path d="M11 4h2v8" /><path d="M5 7h4M5 9h3" /></svg>);
+    default:
+      // generic spark
+      return (<svg {...common} className={cls} aria-hidden><path d="M8 2v4M8 10v4M2 8h4M10 8h4" /></svg>);
+  }
+}
+
 const AGENT_ROLE_DESC: Record<string, string> = {
   "weather-analyst": "วิเคราะห์สภาพอากาศและแนวโน้ม",
   "geo-planner": "วางแผนพื้นที่และเส้นทาง",
@@ -413,6 +455,17 @@ export default function MultiAgentPanel({
                 }
               >
                 <div className="flex items-center gap-2">
+                  <span
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md ring-1 ring-inset"
+                    style={{
+                      color: accent.hex,
+                      background: `color-mix(in oklab, ${accent.hex} 12%, transparent)`,
+                      borderColor: `color-mix(in oklab, ${accent.hex} 35%, transparent)`,
+                    }}
+                    aria-hidden="true"
+                  >
+                    <AgentRoleIcon agentId={agent.agentId} />
+                  </span>
                   <span
                     className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${dotClass}`}
                   />
