@@ -40,6 +40,9 @@ interface ChatMessage {
   progressStage?: string;
   elapsedTime?: number;
   mdesEnhanced?: boolean; // true when MDES agents upgraded this message
+  // Phase 10.27 — wall-clock receipt + roundtrip latency (ms)
+  timestamp?: number;
+  responseTime?: number;
 }
 
 const CHAT_HISTORY_STORAGE_PLANS = [
@@ -213,6 +216,9 @@ const ChatPage: React.FC = () => {
   const [isSocketReady, setIsSocketReady] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const isStoppedRef = useRef(false);
+  // Phase 10.27 — wall-clock timestamp captured when the user hits send.
+  // Used to stamp responseTime onto the AI reply when it lands.
+  const lastSendAtRef = useRef<number | null>(null);
   
   // File upload progress tracking (TODO #40)
   const [isUploading, setIsUploading] = useState(false);
@@ -492,6 +498,10 @@ const ChatPage: React.FC = () => {
           if (message.type === "chunk" && message.text) {
             console.log("[Frontend] Received chunk response:", message.text);
             console.log("[Frontend] Chunk structuredContent:", message.structuredContent);
+            // Stamp responseTime + timestamp on the first chunk only (= "TTFT").
+            const sentAt = lastSendAtRef.current;
+            const now = Date.now();
+            const firstChunkResponseTime = sentAt ? now - sentAt : undefined;
             setMessages((prevMessages) => {
               if (
                 prevMessages.length > 0 &&
@@ -518,6 +528,8 @@ const ChatPage: React.FC = () => {
                     fullText: message.text,
                     structuredContent: message.structuredContent,
                     isAnimating: true,
+                    timestamp: now,
+                    responseTime: firstChunkResponseTime,
                   },
                 ];
               }
@@ -595,6 +607,9 @@ const ChatPage: React.FC = () => {
             message.type !== "mcp-context"
           ) {
             console.log("[Frontend] Received text response:", message.text);
+            const sentAt = lastSendAtRef.current;
+            const now = Date.now();
+            const responseTime = sentAt ? now - sentAt : undefined;
             setMessages((prevMessages) => {
               if (
                   prevMessages.length > 0 &&
@@ -609,6 +624,8 @@ const ChatPage: React.FC = () => {
                   // attach structured content (chartSvg etc.) if present
                   structuredContent: message.structuredContent ?? last.structuredContent,
                   isAnimating: true,
+                  timestamp: last.timestamp || now,
+                  responseTime: last.responseTime || responseTime,
                 };
                 return updatedMessages;
               } else {
@@ -620,6 +637,8 @@ const ChatPage: React.FC = () => {
                     fullText: message.text,
                     structuredContent: message.structuredContent,
                     isAnimating: true,
+                    timestamp: now,
+                    responseTime,
                   },
                 ];
               }
@@ -875,6 +894,7 @@ const ChatPage: React.FC = () => {
       setSelectedImage(null);
       setIsStopped(false);
       isStoppedRef.current = false;
+      lastSendAtRef.current = Date.now();
       setIsWaitingForResponse(true); // Prevent sending new messages until a response is received
     } else if (socket && !isSocketReady) {
       console.error(
@@ -1237,15 +1257,25 @@ const ChatPage: React.FC = () => {
       )}
 
       <button
-        className={`fixed left-4 top-[6.75rem] z-[60] flex h-11 w-11 items-center justify-center rounded-xl border border-border/70 bg-background/92 shadow-lg transition-all duration-300 hover:border-primary/25 hover:bg-primary/8 lg:hidden ${
+        className={`group fixed left-4 top-[6.75rem] z-[60] flex h-11 items-center gap-2 rounded-xl border border-border/70 bg-background/92 px-2.5 shadow-lg transition-all duration-300 hover:border-primary/30 hover:bg-primary/8 lg:hidden ${
           isSidebarCollapsed ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={() => setIsSidebarCollapsed(false)}
-        aria-label="เปิด sidebar"
+        aria-label="เปิดเมนูประวัติการสนทนา"
+        data-testid="open-sidebar-btn"
       >
-        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg className="h-5 w-5 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M3 12h18M3 6h18M3 18h12" />
         </svg>
+        {chatSummaries.length > 0 && (
+          <span
+            data-testid="sidebar-unread-count"
+            className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/12 px-1.5 font-mono text-[11px] font-semibold text-primary"
+            title={`${chatSummaries.length} บทสนทนาในประวัติ`}
+          >
+            {chatSummaries.length > 99 ? "99+" : chatSummaries.length}
+          </span>
+        )}
       </button>
 
       {/* Sidebar - stays above chat content but below nav */}
