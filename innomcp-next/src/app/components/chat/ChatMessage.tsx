@@ -588,16 +588,12 @@ export function MessageView({
   };
 
   const TypingDots: React.FC = () => (
-    <span className="inline-flex items-center gap-1">
-      <span
-        className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce [animation-delay:0s]"
-      />
-      <span
-        className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce [animation-delay:80ms]"
-      />
-      <span
-        className="w-2 h-2 rounded-full bg-indigo-600 dark:bg-indigo-500 animate-bounce [animation-delay:160ms]"
-      />
+    /* Phase 10.44 — tri-tone dots (emerald → primary → sky) match the AI
+       avatar gradient so the typing indicator visually belongs to MDES. */
+    <span className="inline-flex items-center gap-1" aria-label="กำลังพิมพ์">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-bounce [animation-delay:0s]" />
+      <span className="h-1.5 w-1.5 rounded-full bg-primary animate-bounce [animation-delay:140ms]" />
+      <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-bounce [animation-delay:280ms]" />
     </span>
   );
 

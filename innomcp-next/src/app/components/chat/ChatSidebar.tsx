@@ -253,7 +253,16 @@ const ChatSidebar: React.FC<Props> = ({
           {/* Chat History List */}
           <div className="flex-1 overflow-y-auto px-2 pb-4">
             {summaries.length === 0 ? (
-              <div className="mx-1 mt-2 rounded-md border border-dashed border-border/70 bg-background/60 px-3 py-6 text-center">
+              <div className="mx-1 mt-2 rounded-lg border border-dashed border-border/70 bg-gradient-to-br from-background/60 via-primary/[0.04] to-sky-500/[0.04] px-3 py-5 text-center">
+                {/* Phase 10.44 — minimal SVG illustration: stack of cards.
+                    Uses currentColor + opacity layers so it themes correctly. */}
+                <div className="mx-auto mb-2.5 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/8 text-primary/80">
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <rect x="3" y="6" width="14" height="10" rx="2" opacity="0.4" />
+                    <rect x="7" y="4" width="14" height="10" rx="2" opacity="0.7" />
+                    <path d="M10 9h7M10 11.5h5" />
+                  </svg>
+                </div>
                 <div className="text-[13px] font-semibold text-foreground">ยังไม่มีประวัติ</div>
                 <div className="mt-1 text-[12px] leading-snug text-muted-foreground">
                   เริ่มบทสนทนาแรกเพื่อให้ระบบจดจำงานและสลับกลับมาได้
