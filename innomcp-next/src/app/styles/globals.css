@@ -67,12 +67,26 @@ body {
   letter-spacing: -0.025em;
 }
 
+/* Phase 10.26 — premium canvas. Base wash + faint radial accent in the
+   upper-right gives the chat surface depth without competing with content.
+   The dot pattern is rendered at 4% opacity; almost invisible up close
+   but you can feel it as texture. Pointer-events-none everywhere it lives. */
 .chat-workspace-bg {
   background-color: color-mix(in oklab, var(--background) 98%, var(--accent) 2%);
+  background-image:
+    radial-gradient(ellipse at 88% 12%, color-mix(in oklab, var(--primary) 8%, transparent) 0%, transparent 55%),
+    radial-gradient(ellipse at 8% 92%, color-mix(in oklab, var(--accent) 6%, transparent) 0%, transparent 55%),
+    radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 4%, transparent) 1px, transparent 0);
+  background-size: auto, auto, 22px 22px;
 }
 
 html.dark .chat-workspace-bg {
   background-color: color-mix(in oklab, var(--background) 96%, black 4%);
+  background-image:
+    radial-gradient(ellipse at 88% 12%, color-mix(in oklab, var(--primary) 12%, transparent) 0%, transparent 55%),
+    radial-gradient(ellipse at 8% 92%, color-mix(in oklab, var(--accent) 8%, transparent) 0%, transparent 55%),
+    radial-gradient(circle at 1px 1px, color-mix(in oklab, var(--foreground) 6%, transparent) 1px, transparent 0);
+  background-size: auto, auto, 22px 22px;
 }
 
 .chat-shell-grid {

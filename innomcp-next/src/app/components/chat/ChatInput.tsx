@@ -166,7 +166,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       )}
 
-      <div className="rounded-xl border border-border/70 bg-card shadow-[0_1px_2px_oklch(0_0_0/0.04)] focus-within:border-primary/40 focus-within:shadow-[0_2px_8px_oklch(0_0_0/0.06)]">
+      <div className="group/composer relative rounded-xl border border-border/70 bg-card shadow-[0_1px_2px_oklch(0_0_0/0.04)] transition-all duration-200 focus-within:border-primary/45 focus-within:shadow-[0_4px_18px_-4px_oklch(0.65_0.18_265/0.18)] focus-within:ring-1 focus-within:ring-primary/15">
+        {/* Phase 10.26 — focus-glow halo */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 rounded-xl opacity-0 transition-opacity duration-300 group-focus-within/composer:opacity-100"
+          style={{
+            background:
+              "radial-gradient(120% 80% at 50% 0%, color-mix(in oklab, var(--primary) 6%, transparent), transparent 60%)",
+          }}
+        />
         {/* Textarea — autosizes via adjustTextarea, capped at max-h-60 */}
         <div className="px-3.5 pt-3 sm:px-4">
           <textarea
