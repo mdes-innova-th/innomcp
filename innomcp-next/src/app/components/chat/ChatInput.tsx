@@ -37,14 +37,15 @@ interface ChatInputProps {
 }
 
 function DotsAnimation() {
-  const [dots, setDots] = useState(".");
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setDots((prev) => (prev.length < 3 ? prev + "." : "."));
-    }, 300);
-    return () => clearInterval(interval);
-  }, []);
-  return <span>{dots}</span>;
+  // Phase 10.47 — render as three CSS-animated dots so the cursor doesn't
+  // flicker and the reflow-cost is zero. Pure CSS bouncy stagger.
+  return (
+    <span className="ml-1 inline-flex items-center gap-0.5 align-middle" aria-hidden="true">
+      <span className="h-1 w-1 rounded-full bg-current animate-bounce [animation-delay:0s]" />
+      <span className="h-1 w-1 rounded-full bg-current animate-bounce [animation-delay:140ms]" />
+      <span className="h-1 w-1 rounded-full bg-current animate-bounce [animation-delay:280ms]" />
+    </span>
+  );
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
