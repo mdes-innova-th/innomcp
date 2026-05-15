@@ -77,6 +77,26 @@ const ChatInput: React.FC<ChatInputProps> = ({
     return () => window.removeEventListener("resize", handler);
   }, [input, adjustTextarea]);
 
+  // Phase 10.38 — rotate the textarea placeholder when empty + unfocused so the
+  // canvas feels "alive". Cycles every 4 s; pauses while user is typing.
+  const PLACEHOLDER_ROTATION = React.useMemo(() => ([
+    "ถามเรื่องอากาศ วิเคราะห์ หรือสั่งงาน AI…",
+    "สรุปไฟล์ PDF / Word / Excel ที่แนบ…",
+    "สร้างกราฟ ตาราง หรือเอกสาร DOCX/PDF…",
+    "วาดรูป AI: 'นักบินอวกาศกลางทุ่งนาไทย'…",
+    "ค่าเงิน USD→บาท หรือข่าวล่าสุด RSS…",
+    "พิมพ์ ? เพื่อดูคีย์ลัด",
+  ]), []);
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  useEffect(() => {
+    if (input.length > 0) return; // pause while typing
+    const id = setInterval(() => {
+      setPlaceholderIndex((i) => (i + 1) % PLACEHOLDER_ROTATION.length);
+    }, 4000);
+    return () => clearInterval(id);
+  }, [input.length, PLACEHOLDER_ROTATION.length]);
+  const rotatingPlaceholder = PLACEHOLDER_ROTATION[placeholderIndex];
+
   const hasAttachment = Boolean(selectedFile);
   // Character counter — only surface when the input is non-trivial.
   // 4000 is a comfortable soft-ceiling; warn at 80% and tint at 95%.
@@ -196,7 +216,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
               }
             }}
             rows={1}
-            placeholder="ถามเรื่องอากาศ วิเคราะห์ หรือสั่งงาน AI..."
+            placeholder={rotatingPlaceholder}
             className="block max-h-60 w-full resize-none overflow-y-auto bg-transparent text-[15px] leading-7 text-foreground placeholder:text-muted-foreground/65 focus:outline-none sm:text-base"
             data-testid="chat-input"
           />
