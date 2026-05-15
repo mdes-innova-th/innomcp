@@ -1364,10 +1364,14 @@ const ChatPage: React.FC = () => {
 
                   {!isSocketReady && (
                     <div
-                      className="rounded-md bg-rose-500/8 px-3 py-2 text-[13px] text-rose-800 ring-1 ring-rose-500/15 dark:text-rose-200"
+                      className="flex items-center gap-2 rounded-md bg-amber-500/10 px-3 py-2 text-[13px] text-amber-800 ring-1 ring-amber-500/20 dark:text-amber-200 dark:ring-amber-400/20"
                       role="status"
                     >
-                      backend ยังไม่ตอบกลับ — การส่งข้อความจะพร้อมเมื่อ websocket เชื่อมต่อสำเร็จ
+                      <span className="relative inline-flex h-3 w-3 shrink-0 items-center justify-center" aria-hidden="true">
+                        <span className="absolute inline-flex h-3 w-3 animate-radar-ping rounded-full bg-amber-500/70" />
+                        <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      </span>
+                      <span>กำลังเชื่อมต่อระบบ AI — เมื่อพร้อมแล้วช่องส่งข้อความจะเปิดให้ใช้</span>
                     </div>
                   )}
 
@@ -1671,8 +1675,16 @@ const ChatPage: React.FC = () => {
               )}
 
               {!isSocketReady && (
-                <div className="mb-2 rounded-md bg-rose-500/8 px-3 py-1.5 text-center text-xs text-rose-700 ring-1 ring-rose-500/15 dark:bg-rose-400/10 dark:text-rose-200 dark:ring-rose-400/18">
-                  backend ยังไม่ตอบกลับ การส่งข้อความจะพร้อมเมื่อ websocket เชื่อมต่อสำเร็จ
+                <div
+                  data-testid="ws-not-ready-banner"
+                  role="status"
+                  className="mb-2 flex items-center justify-center gap-2 rounded-md bg-amber-500/10 px-3 py-1.5 text-center text-[12px] text-amber-800 ring-1 ring-amber-500/20 dark:bg-amber-400/10 dark:text-amber-200 dark:ring-amber-400/20"
+                >
+                  <span className="relative inline-flex h-2.5 w-2.5 shrink-0 items-center justify-center" aria-hidden="true">
+                    <span className="absolute inline-flex h-2.5 w-2.5 animate-radar-ping rounded-full bg-amber-500/70" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  </span>
+                  <span>กำลังเชื่อมต่อระบบ — รอสักครู่ก่อนส่งข้อความ</span>
                 </div>
               )}
 
