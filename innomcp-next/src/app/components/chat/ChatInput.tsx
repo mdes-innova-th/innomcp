@@ -275,22 +275,32 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       </div>
 
-      {/* Helper line — keys on left, character counter on right when relevant. */}
+      {/* Helper line — keys on left, character counter on right when relevant.
+          Phase 10.36 — kbds upgraded with a faint inner bevel + tight gap so the
+          row reads as a single hint strip rather than three separate phrases. */}
       <div className="mt-1.5 hidden items-center justify-between gap-3 px-1 text-[11px] text-muted-foreground/85 sm:flex">
         <div className="flex items-center gap-3">
-          <span>
-            <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">Enter</kbd>{" "}
-            ส่ง
+          <span className="inline-flex items-center gap-1">
+            <kbd className="inline-flex h-4 min-w-[26px] items-center justify-center rounded border border-border/70 bg-background px-1 font-mono text-[10px] leading-none shadow-[inset_0_-1px_0_var(--border)]">
+              ↵
+            </kbd>
+            <span className="text-muted-foreground/85">ส่ง</span>
           </span>
-          <span>
-            <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">Shift</kbd>{" "}
-            +{" "}
-            <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">Enter</kbd>{" "}
-            ขึ้นบรรทัดใหม่
+          <span className="inline-flex items-center gap-1">
+            <kbd className="inline-flex h-4 min-w-[34px] items-center justify-center rounded border border-border/70 bg-background px-1 font-mono text-[10px] leading-none shadow-[inset_0_-1px_0_var(--border)]">
+              ⇧
+            </kbd>
+            <span aria-hidden="true" className="opacity-60">+</span>
+            <kbd className="inline-flex h-4 min-w-[26px] items-center justify-center rounded border border-border/70 bg-background px-1 font-mono text-[10px] leading-none shadow-[inset_0_-1px_0_var(--border)]">
+              ↵
+            </kbd>
+            <span className="text-muted-foreground/85">ขึ้นบรรทัดใหม่</span>
           </span>
-          <span className="hidden md:inline">
-            <kbd className="rounded border border-border/70 bg-background px-1 py-px font-mono text-[10px]">?</kbd>{" "}
-            คีย์ลัด
+          <span className="hidden items-center gap-1 md:inline-flex">
+            <kbd className="inline-flex h-4 min-w-[20px] items-center justify-center rounded border border-border/70 bg-background px-1 font-mono text-[10px] leading-none shadow-[inset_0_-1px_0_var(--border)]">
+              ?
+            </kbd>
+            <span className="text-muted-foreground/85">คีย์ลัด</span>
           </span>
         </div>
         {showCharCounter && (
