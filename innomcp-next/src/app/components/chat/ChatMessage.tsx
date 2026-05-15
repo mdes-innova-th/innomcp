@@ -417,6 +417,77 @@ export default function ChatMessage({
                 {children}
               </td>
             ),
+            /* Phase 10.31 — premium code/quote/link styling */
+            code: ({ children, className, ...rest }) => {
+              // Inline code (no language class) → tinted pill.
+              if (!className || !className.includes("language-")) {
+                return (
+                  <code
+                    className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[12.5px] text-primary dark:bg-primary/15 dark:text-primary"
+                    {...rest}
+                  >
+                    {children}
+                  </code>
+                );
+              }
+              // Block code (inside <pre>) — let the pre wrapper handle the surface.
+              return (
+                <code className={`${className} font-mono text-[12.5px] leading-relaxed`} {...rest}>
+                  {children}
+                </code>
+              );
+            },
+            pre: ({ children }) => {
+              // Extract language from first <code>'s class if present.
+              const child: any = Array.isArray(children) ? children[0] : children;
+              const lang =
+                (child && child.props && typeof child.props.className === "string"
+                  ? child.props.className.match(/language-([\w-]+)/)?.[1]
+                  : null) || "code";
+              return (
+                <div className="group/code my-3 overflow-hidden rounded-lg border border-border/70 bg-slate-950/95 text-slate-100 shadow-sm dark:bg-black/60">
+                  <div className="flex items-center justify-between border-b border-white/8 bg-white/5 px-3 py-1.5">
+                    <span className="font-mono text-[10.5px] uppercase tracking-wider text-slate-300/80">
+                      {lang}
+                    </span>
+                    <span className="text-[10px] text-slate-400/70 opacity-0 transition-opacity group-hover/code:opacity-100">
+                      โค้ดบล็อก
+                    </span>
+                  </div>
+                  <pre className="m-0 overflow-x-auto px-4 py-3 text-[12.5px] leading-relaxed">
+                    {children}
+                  </pre>
+                </div>
+              );
+            },
+            blockquote: ({ children }) => (
+              <blockquote className="my-3 border-l-[3px] border-primary/45 bg-primary/4 px-4 py-2 italic text-foreground/85">
+                {children}
+              </blockquote>
+            ),
+            a: ({ children, href }) => (
+              <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary underline decoration-primary/40 underline-offset-2 transition-colors hover:decoration-primary hover:text-primary"
+              >
+                {children}
+              </a>
+            ),
+            hr: () => (
+              <hr className="my-4 border-0 border-t border-border/60" />
+            ),
+            ul: ({ children }) => (
+              <ul className="my-2 ml-4 list-disc space-y-1 text-[14px] marker:text-muted-foreground/70">
+                {children}
+              </ul>
+            ),
+            ol: ({ children }) => (
+              <ol className="my-2 ml-4 list-decimal space-y-1 text-[14px] marker:text-muted-foreground/70">
+                {children}
+              </ol>
+            ),
           }}
         >
           {html}
