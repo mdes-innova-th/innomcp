@@ -781,7 +781,7 @@ export function MessageView({
     <div
       className={`relative group px-4 py-3.5 sm:px-5 animate-bubble-in ${
         message.sender === "user"
-          ? "ml-auto max-w-[min(78%,46rem)] self-end rounded-2xl rounded-br-sm bg-primary text-primary-foreground shadow-[0_2px_6px_oklch(0_0_0/0.08)]"
+          ? "ml-auto max-w-[min(78%,46rem)] self-end rounded-2xl rounded-br-sm bg-gradient-to-br from-primary via-primary to-primary/92 text-primary-foreground shadow-[0_4px_14px_-4px_oklch(0.65_0.18_265/0.35)]"
           : "max-w-[min(88%,50rem)] self-start rounded-2xl border border-border/70 bg-background/96 text-left shadow-[0_1px_2px_oklch(0_0_0/0.04)] dark:border-white/10 dark:bg-white/5"
       } ${className || ""}`}
       onMouseEnter={() => setShowActions(true)}
