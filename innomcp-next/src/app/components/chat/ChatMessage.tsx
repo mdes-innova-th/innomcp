@@ -1310,7 +1310,10 @@ export function MessageView({
                   message.text
                 )}
                 {message.sender === "ai" && message.isAnimating && (
-                  <span className="ml-2 inline-block align-middle text-gray-600">
+                  <span
+                    className="ml-2 inline-flex translate-y-[1px] items-center align-middle text-foreground/80"
+                    aria-hidden="true"
+                  >
                     <TypingDots />
                   </span>
                 )}
