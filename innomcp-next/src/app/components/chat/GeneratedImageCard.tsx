@@ -184,18 +184,38 @@ const GeneratedImageCard: React.FC<GeneratedImageCardProps> = ({
         )}
 
         {!error && hasImageSource && (
-          <img
-            key={retryKey}
-            src={src}
-            alt={imagePrompt || "AI Generated Image"}
-            className={`max-h-[512px] h-auto w-full object-contain transition-opacity duration-300 ${loading ? "opacity-0" : "opacity-100"}`}
-            loading="lazy"
-            onLoad={() => setLoading(false)}
-            onError={() => {
-              setLoading(false);
-              setError(true);
-            }}
-          />
+          <div className="group/img relative h-full w-full">
+            <img
+              key={retryKey}
+              src={src}
+              alt={imagePrompt || "AI Generated Image"}
+              className={`max-h-[512px] h-auto w-full object-contain transition-opacity duration-300 ${loading ? "opacity-0" : "opacity-100"}`}
+              loading="lazy"
+              onLoad={() => setLoading(false)}
+              onError={() => {
+                setLoading(false);
+                setError(true);
+              }}
+            />
+            {/* Phase 10.39 — hover floating action chip (download). The bare
+                button has been here all along; expose it visibly on hover. */}
+            {!loading && (
+              <button
+                onClick={handleDownload}
+                data-testid="image-download-btn"
+                title="ดาวน์โหลดภาพ"
+                aria-label="ดาวน์โหลดภาพ"
+                className="absolute right-2.5 top-2.5 inline-flex h-9 items-center gap-1.5 rounded-full border border-white/15 bg-black/55 px-3 text-[12px] font-medium text-white opacity-0 backdrop-blur-md transition-all hover:bg-black/75 hover:scale-105 group-hover/img:opacity-100 focus-visible:opacity-100"
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                บันทึก
+              </button>
+            )}
+          </div>
         )}
       </div>
 
