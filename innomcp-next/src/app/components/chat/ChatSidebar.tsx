@@ -269,8 +269,22 @@ const ChatSidebar: React.FC<Props> = ({
               <ul className="flex flex-col gap-0.5">
                 {visibleSummaries.map((s) => {
                   const isActive = s.id === activeId;
+                  // Phase 10.40 — relative "x นาทีที่แล้ว" for the last day,
+                  // absolute date+time for older entries. Easier to scan history
+                  // than a wall of identical MM/DD HH:mm timestamps.
                   const dateLabel = (() => {
                     const date = new Date(s.time);
+                    const diffMs = Date.now() - date.getTime();
+                    const diffSec = Math.max(0, Math.floor(diffMs / 1000));
+                    const diffMin = Math.floor(diffSec / 60);
+                    const diffHr = Math.floor(diffMin / 60);
+                    const diffDay = Math.floor(diffHr / 24);
+                    if (diffSec < 45) return "เมื่อสักครู่";
+                    if (diffMin < 1) return `${diffSec} วินาทีที่แล้ว`;
+                    if (diffMin < 60) return `${diffMin} นาทีที่แล้ว`;
+                    if (diffHr < 24) return `${diffHr} ชั่วโมงที่แล้ว`;
+                    if (diffDay === 1) return "เมื่อวาน";
+                    if (diffDay < 7) return `${diffDay} วันที่แล้ว`;
                     return date.toLocaleString("th-TH", {
                       timeZone: "Asia/Bangkok",
                       month: "2-digit",
@@ -340,7 +354,10 @@ const ChatSidebar: React.FC<Props> = ({
                             >
                               {s.title}
                             </span>
-                            <span className="mt-1 block truncate font-mono text-[11px] text-muted-foreground/85">
+                            <span
+                              className="mt-1 block truncate text-[11px] text-muted-foreground/85"
+                              title={new Date(s.time).toLocaleString("th-TH", { timeZone: "Asia/Bangkok" })}
+                            >
                               {dateLabel}
                             </span>
                           </button>
