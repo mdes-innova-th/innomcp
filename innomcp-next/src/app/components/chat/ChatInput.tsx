@@ -260,24 +260,34 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <button
               onClick={isWaitingForResponse ? handleStop : sendMessage}
               disabled={!isSocketReady || (!isWaitingForResponse && !input.trim())}
-              className={`inline-flex h-9 items-center justify-center gap-1.5 rounded-md px-3.5 text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-colors ${
+              className={`relative inline-flex h-9 items-center justify-center gap-1.5 overflow-hidden rounded-md px-3.5 text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] ${
                 isWaitingForResponse
-                  ? "bg-amber-600 hover:bg-amber-700"
+                  ? "bg-rose-600 hover:bg-rose-700"
                   : "bg-primary hover:bg-primary/92"
-              } disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground/70 disabled:shadow-none`}
+              } disabled:cursor-not-allowed disabled:scale-100 disabled:bg-muted disabled:text-muted-foreground/70 disabled:shadow-none`}
               data-testid="send-btn"
               title={
                 isWaitingForResponse
-                  ? "หยุดการตอบ"
+                  ? "หยุดการตอบ (Esc)"
                   : isSocketReady
                   ? "ส่งข้อความ (Enter)"
                   : "กำลังเชื่อมต่อ AI"
               }
+              aria-label={isWaitingForResponse ? "หยุดการตอบของ AI" : "ส่งข้อความ"}
             >
+              {/* Phase 10.41 — animated halo only while waiting so the user
+                  knows the stop button is "armed" and clickable. */}
+              {isWaitingForResponse && (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-r from-transparent via-white/15 to-transparent agent-shimmer-active"
+                  style={{ ['--agent-accent' as any]: '#fff' }}
+                />
+              )}
               {isWaitingForResponse ? (
                 <>
-                  <FontAwesomeIcon icon={faStop} />
-                  <span>หยุด</span>
+                  <FontAwesomeIcon icon={faStop} className="relative" />
+                  <span className="relative">หยุด</span>
                 </>
               ) : isSocketReady ? (
                 <>
