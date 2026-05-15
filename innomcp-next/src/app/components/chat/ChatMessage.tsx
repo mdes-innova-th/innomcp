@@ -1109,13 +1109,20 @@ export function MessageView({
               sourceType === "tool+rewrite" ? "เครื่องมือ+AI" :
               sourceType ? "AI" : "";
 
+            // Map sourceType to a tinted pill for premium feel.
+            const sourceTypeTone =
+              sourceType === "deterministic" ? "bg-sky-500/10 text-sky-700 dark:text-sky-300"
+              : sourceType === "tool-only" ? "bg-amber-500/10 text-amber-700 dark:text-amber-300"
+              : sourceType === "tool+rewrite" ? "bg-violet-500/10 text-violet-700 dark:text-violet-300"
+              : sourceType ? "bg-muted/60 text-muted-foreground" : "";
+
             return (
               <details
                 className="group/meta mb-2 -mt-1 rounded-md text-xs text-muted-foreground"
                 data-testid="tool-meta-row"
               >
                 <summary
-                  className="flex flex-wrap items-center gap-x-2 gap-y-1 list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none rounded-md px-1 py-0.5 transition-colors hover:bg-muted/50"
+                  className="flex flex-wrap items-center gap-x-2 gap-y-1 list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none rounded-md px-1.5 py-1 transition-all hover:bg-muted/50 hover:shadow-[inset_0_0_0_1px_var(--border)]"
                 >
                   <span
                     className={`inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 font-medium ${
@@ -1127,7 +1134,11 @@ export function MessageView({
                     <span className={`h-1.5 w-1.5 rounded-full ${modeBadge === "online" ? "bg-emerald-500" : "bg-slate-400"}`} />
                     {modeBadge}
                   </span>
-                  {sourceTypeLabel && <span>{sourceTypeLabel}</span>}
+                  {sourceTypeLabel && (
+                    <span className={`inline-flex items-center rounded px-1.5 py-0.5 font-medium ${sourceTypeTone}`}>
+                      {sourceTypeLabel}
+                    </span>
+                  )}
                   {summaryToolName && (
                     <>
                       <span className="text-muted-foreground/50">·</span>
