@@ -1277,23 +1277,23 @@ export function MessageView({
 
           {/* Message content — Thai-friendly: 16px body, leading-7 for breathing room (req 6) */}
           <div className="whitespace-pre-wrap wrap-break-word text-[15px] leading-7 sm:text-base sm:leading-[1.75]">
-            {/* Progress indicator - แสดงขณะรอ AI พร้อมกรอบและ font เล็ก */}
+            {/* Progress indicator — Phase 10.46: themed pill instead of grey box. */}
             {(message as any).isProgress && (
-              <div className={`
-                flex items-center gap-2 animate-pulse
-                px-3 py-2 rounded-lg border
-                ${theme === 'light' 
-                  ? 'border-gray-300 bg-gray-50 text-gray-600' 
-                  : 'border-gray-700 bg-gray-800/50 text-gray-400'
-                }
-              `}>
-                <svg className="w-4 h-4 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" opacity="0.25"></circle>
-                  <path d="M4 12a8 8 0 018-8" strokeLinecap="round" opacity="0.75"></path>
+              <div
+                className="flex items-center gap-2.5 rounded-xl border border-primary/15 bg-gradient-to-r from-primary/[0.06] via-sky-500/[0.04] to-transparent px-3.5 py-2 text-foreground/85"
+                role="status"
+                aria-live="polite"
+              >
+                {/* Spinner with primary tint */}
+                <svg className="h-4 w-4 shrink-0 animate-spin text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <circle cx="12" cy="12" r="10" opacity="0.2" />
+                  <path d="M4 12a8 8 0 0 1 8-8" strokeLinecap="round" />
                 </svg>
-                <span className="text-sm">{message.text}</span>
+                <span className="text-[13.5px] font-medium">{message.text}</span>
                 {(message as any).elapsedTime && (
-                  <span className="text-xs opacity-70">({(message as any).elapsedTime}วินาที)</span>
+                  <span className="ml-auto rounded-full bg-primary/8 px-2 py-0.5 font-mono text-[10.5px] tabular-nums text-primary/85">
+                    {(message as any).elapsedTime}s
+                  </span>
                 )}
               </div>
             )}
