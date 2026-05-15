@@ -1319,8 +1319,11 @@ export function MessageView({
                   </span>
                 )}
                 {(message as any).mdesEnhanced && (
-                  <span className="inline-flex items-center gap-0.5 text-[9px] font-mono text-sky-400/60 ml-1 select-none">
-                    ⚡MDES
+                  <span
+                    className="ml-1.5 inline-flex select-none items-center gap-0.5 rounded-full bg-gradient-to-r from-emerald-500/15 via-sky-500/15 to-violet-500/15 px-1.5 py-0.5 font-mono text-[9.5px] font-medium text-emerald-700 ring-1 ring-emerald-500/20 dark:text-emerald-300 dark:ring-emerald-400/25"
+                    title="คำตอบนี้เสริมโดย MDES multi-agent (qwen / gemma / minimax)"
+                  >
+                    <span aria-hidden="true">⚡</span> MDES
                   </span>
                 )}
               </>
