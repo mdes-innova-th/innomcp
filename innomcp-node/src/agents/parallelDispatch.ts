@@ -615,10 +615,13 @@ export function synthesizeAnswer(
   options: { runMode?: AgentRunMode } = {}
 ): string {
   // Priority: tool data > stylist > concierge > critic > first valid > fallback
-  // Tool data is authoritative (real-world numbers) — beats MDES commentary.
+  // Phase C.02: tool data is authoritative in BOTH modes — real-world numbers
+  // always beat MDES commentary. Previously only normal mode short-circuited
+  // on tool text; thinking mode could ignore a valid weather/geo result when
+  // agents returned empty strings, falling through to fallbackText.
   const runMode = normalizeRunMode(options.runMode);
   const toolText = agentOutputs["__tool__"];
-  if (toolText && toolText.length > 20 && runMode === "normal") return toolText;
+  if (toolText && toolText.length > 20) return toolText;
 
   if (runMode === "thinking") {
     const ordered = ["stylist", "concierge", "rag-agent", "weather-analyst", "geo-planner", "critic", "tool-scout"];

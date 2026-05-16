@@ -452,10 +452,10 @@ export async function runConductor(
   safeEmit(emit, critiqueEv, cls.expectedToolUsage);
 
   // Wait for MDES agents. dispatchAgents is firing events in the background;
-  // liveOutputs gets populated as each agent finishes. Poll every 200ms for
-  // up to 35s — exits early once any agent in priority order produces text.
-  // Avoids Promise.race quirks that caused SSE to hang in prior revisions.
-  const HARD_TIMEOUT_MS = responseMode === "thinking" ? 75_000 : 35_000;
+  // Phase C.02 — Corrected poll windows. Prior code: normal=35s+8s=43s worst-case.
+  // Normal mode uses 1 fast concierge (qwen3.5:9b, 20s model timeout) — no need
+  // to wait 35s. Thinking mode keeps 75s for full multi-agent fan-out.
+  const HARD_TIMEOUT_MS = responseMode === "thinking" ? 75_000 : 22_000;
   const POLL_INTERVAL_MS = 200;
   const pollStart = Date.now();
   const hasFinalOutput = (o: Record<string, string>) =>
@@ -465,37 +465,45 @@ export async function runConductor(
     Object.entries(o).some(([key, text]) => !key.startsWith("__partial_") && text.length > 20);
   const hasAnyPartial = (o: Record<string, string>) =>
     Object.entries(o).some(([key, text]) => key.startsWith("__partial_") && text.length > 20);
-  // Always sleep at least 1.5s to let agents at least start emitting deltas
-  await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+  // Phase C.02: lower mandatory floor — greeting/datetime fast-paths need 300ms,
+  // tool-heavy intents need 1s, thinking mode needs 2s to let all agents start.
+  const floorMs =
+    responseMode === "thinking" ? 2_000
+    : ["greeting", "datetime"].includes(cls.intent) ? 300
+    : 1_000;
+  await new Promise<void>((resolve) => setTimeout(resolve, floorMs));
   const TOOL_FIRST_WAIT_MS = cls.expectedToolUsage ? (responseMode === "thinking" ? 15_000 : 8_000) : 0;
   while (Date.now() - pollStart < HARD_TIMEOUT_MS) {
     // Tool data wins immediately — no need to wait for MDES if a tool succeeded
-    if (responseMode === "normal" && liveOutputs["__tool__"] && liveOutputs["__tool__"].length > 20) break;
+    if (liveOutputs["__tool__"] && liveOutputs["__tool__"].length > 20) break;
     const elapsed = Date.now() - pollStart;
     if (cls.expectedToolUsage && !toolSettled && elapsed < TOOL_FIRST_WAIT_MS) {
       await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
       continue;
     }
     if (agentsSettled && (!cls.expectedToolUsage || toolSettled)) break;
-    if (responseMode === "normal" && hasFinalOutput(liveOutputs) && elapsed > 4_000) break;
+    // Phase C.02: exit early when output is ready — 2s for normal (was 4s), 5s for thinking
+    const earlyExitMs = responseMode === "normal" ? 2_000 : 5_000;
+    if (hasFinalOutput(liveOutputs) && elapsed > earlyExitMs) break;
     await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
   // Wait briefly for tool to finish if it's still pending and no other output yet
   if (!hasFinalOutput(liveOutputs) && !hasAnyPartial(liveOutputs) && !liveOutputs["__tool__"]) {
-    await Promise.race([toolPromise, new Promise((r) => setTimeout(r, 5000))]);
+    await Promise.race([toolPromise, new Promise((r) => setTimeout(r, 3000))]);
   }
 
-  // Phase C.01b — Bug A fix: ensure agents have finished (or hit a hard cap)
-  // BEFORE we synthesize. Previously the poll loop could exit on partial output
-  // and call synthesizeAnswer while agentResultPromise was still racing — losing
-  // slow but higher-quality agent text. We give the in-flight dispatch up to 8s
-  // more to land, but never longer (so SSE never hangs forever).
-  const agentOutputs = await Promise.race([
-    agentResultPromise.catch(() => liveOutputs),
-    new Promise<Record<string, string>>((resolve) =>
-      setTimeout(() => resolve(liveOutputs), 8000)
-    ),
-  ]);
+  // Phase C.01b / C.02 — Only race agentResultPromise if agents haven't settled.
+  // If agentsSettled=true they already wrote to liveOutputs (no extra wait needed).
+  // Cap: 3s for normal (was 8s, additive!), 6s for thinking.
+  const extraWaitMs = responseMode === "normal" ? 3_000 : 6_000;
+  const agentOutputs = agentsSettled
+    ? liveOutputs
+    : await Promise.race([
+        agentResultPromise.catch(() => liveOutputs),
+        new Promise<Record<string, string>>((resolve) =>
+          setTimeout(() => resolve(liveOutputs), extraWaitMs)
+        ),
+      ]);
   // Merge any keys the promise resolved with that weren't already in liveOutputs.
   // dispatchAgents normally writes directly into liveOutputs, but we merge
   // defensively in case a future caller passes a fresh object.
