@@ -1,231 +1,210 @@
-
 import { z } from "zod";
 import { logBoth } from "../../utils/mcpLogger";
 
-/**
- * GovDataTool - US Government Data.gov API Tool
- * 
- * Access US government open data including census, transportation, health, education, and more.
- * API: Data.gov CKAN API
- * 
- * Use cases:
- * - "จำนวนประชากรสหรัฐล่าสุด"
- * - "ข้อมูลสุขภาพสาธารณะในอเมริกา"
- * - "ข้อมูลการจราจรของสหรัฐ"
- */
-
-// Zod schema for input validation
 const GovDataToolInputSchema = z.object({
-  query: z.string().describe("Search query for datasets (e.g., 'census', 'health', 'transportation')"),
-  rows: z.number().min(1).max(100).default(10)
-    .describe("Number of results to return (default: 10, max: 100)"),
-  category: z.string().optional()
-    .describe("Category filter (optional): health, education, transportation, environment, etc.")
+  query: z.string().describe("Search query for datasets, such as census, health, or transportation"),
+  rows: z.number().min(1).max(100).default(10).describe("Number of results to return"),
+  category: z.string().optional().describe("Optional keyword/category filter"),
 });
 
 type GovDataToolInput = z.infer<typeof GovDataToolInputSchema>;
 
-interface CKANDataset {
-  id: string;
-  name: string;
-  title: string;
-  notes: string;
-  metadata_created: string;
-  metadata_modified: string;
-  organization: {
-    title: string;
-    name: string;
+interface CatalogDataset {
+  identifier?: string;
+  slug?: string;
+  name?: string;
+  title?: string;
+  description?: string;
+  notes?: string;
+  metadata_created?: string;
+  metadata_modified?: string;
+  last_harvested_date?: string;
+  publisher?: string;
+  organization?: {
+    title?: string;
+    name?: string;
+    slug?: string;
   };
-  tags: Array<{ name: string }>;
-  resources: Array<{
-    id: string;
-    name: string;
-    description: string;
-    format: string;
-    url: string;
+  keyword?: string[];
+  tags?: Array<{ name: string }>;
+  distribution_titles?: string[];
+  landingPage?: string;
+  resources?: Array<{
+    id?: string;
+    name?: string;
+    description?: string;
+    format?: string;
+    url?: string;
   }>;
 }
 
-interface CKANResponse {
-  success: boolean;
-  result: {
-    count: number;
-    results: CKANDataset[];
-  };
+interface CatalogSearchResponse {
+  total?: number;
+  count?: number;
+  results?: CatalogDataset[];
 }
 
-/**
- * Search Data.gov datasets
- */
+function stripHtml(text: string): string {
+  return text.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+}
+
+function formatDate(value: string | undefined): string {
+  if (!value) return "N/A";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString("en-US");
+}
+
+function catalogBaseUrl(): string {
+  return process.env.DATAGOV_CATALOG_BASE_URL || "https://catalog.data.gov";
+}
+
 async function searchGovData(params: GovDataToolInput): Promise<string> {
   const startTime = Date.now();
-  
+
   try {
-    // Build query
-    let q = params.query;
+    const url = new URL("/search", catalogBaseUrl());
+    url.searchParams.set("q", params.query);
+    url.searchParams.set("per_page", String(params.rows));
+    url.searchParams.set("sort", "last_harvested_date");
+
     if (params.category) {
-      q = `${q} AND tags:${params.category}`;
+      url.searchParams.append("keyword", params.category);
     }
-    
-    // Build URL - using CKAN API
-    const url = new URL("https://catalog.data.gov/api/3/action/package_search");
-    url.searchParams.set("q", q);
-    url.searchParams.set("rows", params.rows.toString());
-    url.searchParams.set("sort", "metadata_modified desc"); // Latest first
-    
-    logBoth('INFO', `[GovDataTool] Searching: ${url.toString()}`);
-    
-    // Fetch data
+
+    logBoth("INFO", `[GovDataTool] Searching: ${url.toString()}`);
+
     const response = await fetch(url.toString(), {
       headers: {
-        "User-Agent": "INNOMCP/1.0 (MCP Tool)"
-      }
+        "User-Agent": "INNOMCP/1.0 (MCP Tool)",
+      },
     });
-    
+
     if (!response.ok) {
       throw new Error(`Data.gov API error: ${response.status} ${response.statusText}`);
     }
-    
-    const data: CKANResponse = await response.json();
+
+    const data = (await response.json()) as CatalogSearchResponse;
     const duration = Date.now() - startTime;
-    
-    if (!data.success) {
-      throw new Error("API request failed");
-    }
-    
-    logBoth('INFO', `[GovDataTool] Found ${data.result.count} datasets in ${duration}ms`);
-    
-    // Parse results
-    const datasets = data.result.results;
-    
+    const datasets = Array.isArray(data.results) ? data.results : [];
+    const totalCount = Number(data.total ?? data.count ?? datasets.length);
+
+    logBoth("INFO", `[GovDataTool] Found ${totalCount} datasets in ${duration}ms`);
+
     if (datasets.length === 0) {
-      return JSON.stringify({
-        success: true,
-        query: params.query,
-        totalFound: 0,
-        results: [],
-        message: "ไม่พบผลลัพธ์ ลองใช้คำค้นหาอื่น"
-      }, null, 2);
+      return JSON.stringify(
+        {
+          success: true,
+          query: params.query,
+          totalFound: 0,
+          results: [],
+          message: "No datasets found. Try a broader search term.",
+        },
+        null,
+        2,
+      );
     }
-    
-    return formatGovData(datasets, data.result.count, params.query, duration);
-    
+
+    return formatGovData(datasets, totalCount, params.query, duration);
   } catch (error: any) {
     const duration = Date.now() - startTime;
-    logBoth('ERROR', `[GovDataTool] Error after ${duration}ms: ${error && error.message ? error.message : error}`);
-    
-    return JSON.stringify({
-      success: false,
-      error: error.message || "Unknown error",
-      query: params.query,
-      duration: `${duration}ms`,
-      hint: "Try broader search terms like 'census', 'health', 'education', 'transportation'"
-    }, null, 2);
+    const message = error?.message || String(error);
+    logBoth("ERROR", `[GovDataTool] Error after ${duration}ms: ${message}`);
+
+    return JSON.stringify(
+      {
+        success: false,
+        error: message,
+        query: params.query,
+        duration: `${duration}ms`,
+        hint: "Try broader search terms like census, health, education, or transportation",
+      },
+      null,
+      2,
+    );
   }
 }
 
-/**
- * Format government data results
- */
-function formatGovData(datasets: CKANDataset[], totalCount: number, query: string, duration: number): string {
-  let output = `🏛️  US Government Open Data\n\n`;
-  
+function formatGovData(datasets: CatalogDataset[], totalCount: number, query: string, duration: number): string {
+  let output = "US Government Open Data\n\n";
   output += `Query: "${query}"\n`;
   output += `Found: ${totalCount.toLocaleString()} datasets (showing ${datasets.length})\n`;
   output += `Duration: ${duration}ms\n\n`;
-  output += `---\n\n`;
-  
+  output += "---\n\n";
+
   datasets.forEach((dataset, index) => {
-    output += `${index + 1}. **${dataset.title}**\n`;
-    output += `   🆔 ID: ${dataset.name}\n`;
-    output += `   🏢 Organization: ${dataset.organization.title}\n`;
-    
-    // Dates
-    const created = new Date(dataset.metadata_created).toLocaleDateString("en-US");
-    const modified = new Date(dataset.metadata_modified).toLocaleDateString("en-US");
-    output += `   📅 Created: ${created}, Modified: ${modified}\n`;
-    
-    // Description
-    if (dataset.notes) {
-      const desc = dataset.notes.length > 200 
-        ? dataset.notes.substring(0, 200).replace(/<[^>]*>/g, "") + "..." 
-        : dataset.notes.replace(/<[^>]*>/g, "");
-      output += `   📝 ${desc}\n`;
+    const title = dataset.title || dataset.name || dataset.slug || dataset.identifier || "Untitled dataset";
+    const datasetSlug = dataset.slug || dataset.name;
+    const organization = dataset.organization?.title || dataset.organization?.name || dataset.publisher || "N/A";
+    const notes = dataset.notes || dataset.description || "";
+    const keywordTags = dataset.keyword || dataset.tags?.map((tag) => tag.name) || [];
+    const modified = formatDate(dataset.metadata_modified || dataset.last_harvested_date);
+
+    output += `${index + 1}. **${title}**\n`;
+    output += `   ID: ${datasetSlug || dataset.identifier || "N/A"}\n`;
+    output += `   Organization: ${organization}\n`;
+    output += `   Created: ${formatDate(dataset.metadata_created)}, Modified/Harvested: ${modified}\n`;
+
+    if (notes) {
+      output += `   ${stripHtml(notes).slice(0, 240)}${stripHtml(notes).length > 240 ? "..." : ""}\n`;
     }
-    
-    // Tags
-    if (dataset.tags && dataset.tags.length > 0) {
-      const tags = dataset.tags.slice(0, 5).map(t => t.name).join(", ");
-      output += `   🏷️  Tags: ${tags}\n`;
+
+    if (keywordTags.length > 0) {
+      output += `   Tags: ${keywordTags.slice(0, 5).join(", ")}\n`;
     }
-    
-    // Resources
+
     if (dataset.resources && dataset.resources.length > 0) {
-      output += `   📦 Resources (${dataset.resources.length}):\n`;
-      
-      dataset.resources.slice(0, 3).forEach(resource => {
-        output += `      • ${resource.format || "N/A"}: ${resource.name || "Unnamed"}\n`;
-        output += `        ${resource.url}\n`;
+      output += `   Resources (${dataset.resources.length}):\n`;
+      dataset.resources.slice(0, 3).forEach((resource) => {
+        output += `      - ${resource.format || "N/A"}: ${resource.name || "Unnamed"}\n`;
+        if (resource.url) output += `        ${resource.url}\n`;
       });
-      
-      if (dataset.resources.length > 3) {
-        output += `      ... and ${dataset.resources.length - 3} more resources\n`;
-      }
     }
-    
-    // Link to full dataset
-    output += `   🔗 View: https://catalog.data.gov/dataset/${dataset.name}\n`;
-    output += `\n`;
+
+    if (dataset.distribution_titles && dataset.distribution_titles.length > 0) {
+      output += `   Distributions: ${dataset.distribution_titles.slice(0, 3).join(", ")}\n`;
+    }
+
+    output += `   View: ${dataset.landingPage || (datasetSlug ? `https://catalog.data.gov/dataset/${datasetSlug}` : "https://catalog.data.gov")}\n\n`;
   });
-  
-  output += `---\n\n`;
-  output += `✅ Search completed successfully\n`;
-  output += `💡 Tip: Visit catalog.data.gov to explore datasets interactively`;
-  
+
+  output += "---\n\n";
+  output += "Search completed successfully";
+
   return output;
 }
 
-/**
- * Tool definition for MCP
- */
 export const govDataTool = {
   name: "govdata",
-  description: "Search US government open data from Data.gov. Access census, health, education, transportation, environment, and thousands of other datasets. Returns dataset metadata and download links.",
+  description:
+    "Search US government open data from Data.gov. Access census, health, education, transportation, environment, and thousands of other datasets. Returns dataset metadata and download links.",
   inputSchema: GovDataToolInputSchema,
   execute: async (args: unknown) => {
-    // Validate input
     const parsed = GovDataToolInputSchema.safeParse(args);
     if (!parsed.success) {
-      const errorText = JSON.stringify({
-        success: false,
-        error: "Invalid input",
-        details: parsed.error.issues,
-        hint: "Try queries like: 'census population', 'health statistics', 'transportation data'"
-      }, null, 2);
       return {
-        content: [{ type: "text" as const, text: errorText }]
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              {
+                success: false,
+                error: "Invalid input",
+                details: parsed.error.issues,
+                hint: "Try queries like census population, health statistics, or transportation data",
+              },
+              null,
+              2,
+            ),
+          },
+        ],
       };
     }
-    
+
     const result = await searchGovData(parsed.data);
     return {
-      content: [{ type: "text" as const, text: result }]
+      content: [{ type: "text" as const, text: result }],
     };
-  }
+  },
 };
 
 export default govDataTool;
-
-/**
- * Popular Data.gov categories:
- * - Census & Demographics
- * - Health & Healthcare
- * - Education
- * - Transportation
- * - Environment & Climate
- * - Public Safety
- * - Economy & Commerce
- * - Agriculture
- * - Energy
- * - Science & Research
- */

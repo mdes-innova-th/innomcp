@@ -27,15 +27,19 @@ import {
   type ChatIntent,
 } from "../services/intentClassifier";
 import { checkNaturalness } from "../services/naturalnessGuard";
-import { dispatchAgents, synthesizeAnswer } from "./parallelDispatch";
+import { dispatchAgents, synthesizeAnswer, type AgentRunMode } from "./parallelDispatch";
 import { dispatchTool } from "./toolDispatch";
 import type { GuestLimits } from "../middleware/guestLimiter";
 
 export interface ConductorOptions {
   message: string;
   sessionId?: string;
+  clientMessageId?: string;
   preferredMode?: ChatMode;
   preferredProviderId?: string;
+  responseMode?: AgentRunMode;
+  thinkingMode?: boolean;
+  toolHint?: string;
   userTier?: "guest" | "user" | "admin";
   capabilityLevel?: number;
   guestLimits?: GuestLimits;
@@ -67,15 +71,53 @@ function composeAnswer(ctx: ComposeContext): string {
       return composePlanningBroadAnswer(ctx.query, ctx.facts);
     case "weather":
       return composeWeatherAnswer(ctx.query, ctx.facts);
+    case "datetime":
+      return composeDateTimeAnswer();
     case "calc":
       return composeCalcAnswer(ctx.query);
     case "code":
       return composeCodeAnswer(ctx.query);
     case "map":
       return composeMapAnswer(ctx.query);
+    case "evidence":
+      return "ผมจะตรวจจากฐานข้อมูลหลักฐานก่อน แล้วสรุปเฉพาะสิ่งที่ยืนยันได้ หากระบบหลักฐานไม่พร้อมจะแจ้งสถานะให้ตรงๆ";
+    case "knowledge":
+      return "ผมจะค้นข้อมูลไทยที่เกี่ยวข้องก่อน แล้วสรุปคำตอบพร้อมขอบเขตความมั่นใจให้ชัดเจน";
     default:
       return composeGeneralAnswer(ctx.query);
   }
+}
+
+function normalizeResponseMode(opts: ConductorOptions): AgentRunMode {
+  if (opts.thinkingMode === true) return "thinking";
+  return opts.responseMode === "thinking" ? "thinking" : "normal";
+}
+
+function composeDateTimeAnswer(): string {
+  const now = new Date();
+  const bkk = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+  const dayNames = ["วันอาทิตย์", "วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"];
+  const monthNames = [
+    "มกราคม",
+    "กุมภาพันธ์",
+    "มีนาคม",
+    "เมษายน",
+    "พฤษภาคม",
+    "มิถุนายน",
+    "กรกฎาคม",
+    "สิงหาคม",
+    "กันยายน",
+    "ตุลาคม",
+    "พฤศจิกายน",
+    "ธันวาคม",
+  ];
+  const weekday = dayNames[bkk.getUTCDay()];
+  const day = bkk.getUTCDate();
+  const month = monthNames[bkk.getUTCMonth()];
+  const yearBe = bkk.getUTCFullYear() + 543;
+  const hh = String(bkk.getUTCHours()).padStart(2, "0");
+  const mm = String(bkk.getUTCMinutes()).padStart(2, "0");
+  return `ขณะนี้ที่ประเทศไทยคือ ${weekday}ที่ ${day} ${month} พ.ศ. ${yearBe} เวลา ${hh}:${mm} น. (UTC+7)`;
 }
 
 function composeGreetingAnswer(): string {
@@ -211,8 +253,13 @@ export async function runConductor(
   emit: EmitFn
 ): Promise<RunResult> {
   const runId = randomUUID();
-  const messageId = randomUUID();
-  const cls = classifyIntent(opts.message);
+  const requestedMessageId =
+    typeof opts.clientMessageId === "string" && /^[A-Za-z0-9:_-]{1,128}$/.test(opts.clientMessageId)
+      ? opts.clientMessageId
+      : "";
+  const messageId = requestedMessageId || randomUUID();
+  const cls = classifyIntent(opts.message, opts.toolHint);
+  const responseMode = normalizeResponseMode(opts);
   const userTier = opts.userTier ?? "guest";
   const capabilityLevel = opts.capabilityLevel ?? (userTier === "guest" ? 50 : 100);
   const userModeSummary =
@@ -226,20 +273,35 @@ export async function runConductor(
   // Use a shared liveOutputs object so the race-timeout can still use
   // partial results from agents that finished before the deadline.
   const liveOutputs: Record<string, string> = {};
-  const agentResultPromise = (process.env.PARALLEL_AGENTS !== "0")
-    ? dispatchAgents(cls.intent, opts.message, runId, messageId, emit, liveOutputs)
-    : Promise.resolve({} as Record<string, string>);
+  let agentsSettled = false;
+  const agentResultPromise = ((process.env.PARALLEL_AGENTS !== "0")
+    ? dispatchAgents(cls.intent, opts.message, runId, messageId, emit, liveOutputs, {
+        runMode: responseMode,
+        preferredMode: opts.preferredMode ?? "hybrid",
+      })
+    : Promise.resolve({} as Record<string, string>))
+    .finally(() => {
+      agentsSettled = true;
+    });
 
   // Fire MCP tool in parallel for tool-requiring intents (weather, map).
   // Result lands in liveOutputs["__tool__"] which synthesizeAnswer prefers.
+  let toolSettled = false;
   const toolPromise = dispatchTool(cls.intent, opts.message, runId, messageId, emit, liveOutputs, opts.guestLimits)
-    .catch(() => undefined);
+    .catch(() => undefined)
+    .finally(() => {
+      toolSettled = true;
+    });
 
   const startedEv = newEnvelope({
     runId,
     messageId,
     type: "agent_run_started",
-    publicSummary: `เริ่มประมวลคำขอ (${userModeSummary})`,
+    publicSummary: `เริ่มประมวลคำขอ (${userModeSummary}) · ${
+      responseMode === "thinking"
+        ? "Thinking: ใช้ multi-agent เต็มรูปแบบและรอการสังเคราะห์นานขึ้น"
+        : "Normal: ใช้ 2 agents แบบ local+remote เพื่อให้ตอบเร็วและไม่รก"
+    }`,
     agentId: "conductor",
   });
   safeEmit(emit, startedEv, cls.expectedToolUsage);
@@ -259,6 +321,7 @@ export async function runConductor(
   const broker = selectProvider({
     mode: opts.preferredMode || "local",
     capabilities: ["thai-naturalness"],
+    preferredProviderId: opts.preferredProviderId,
   });
   const provider = broker.provider;
   const providerId = provider?.id ?? null;
@@ -392,29 +455,38 @@ export async function runConductor(
   // liveOutputs gets populated as each agent finishes. Poll every 200ms for
   // up to 35s — exits early once any agent in priority order produces text.
   // Avoids Promise.race quirks that caused SSE to hang in prior revisions.
-  const HARD_TIMEOUT_MS = 35_000;
+  const HARD_TIMEOUT_MS = responseMode === "thinking" ? 75_000 : 35_000;
   const POLL_INTERVAL_MS = 200;
   const pollStart = Date.now();
-  const hasUsefulOutput = (o: Record<string, string>) =>
+  const hasFinalOutput = (o: Record<string, string>) =>
     (o["stylist"] && o["stylist"].length > 20) ||
     (o["concierge"] && o["concierge"].length > 20) ||
     (o["critic"] && o["critic"].length > 20) ||
-    Object.values(o).some((t) => t.length > 20);
+    Object.entries(o).some(([key, text]) => !key.startsWith("__partial_") && text.length > 20);
+  const hasAnyPartial = (o: Record<string, string>) =>
+    Object.entries(o).some(([key, text]) => key.startsWith("__partial_") && text.length > 20);
   // Always sleep at least 1.5s to let agents at least start emitting deltas
   await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+  const TOOL_FIRST_WAIT_MS = cls.expectedToolUsage ? (responseMode === "thinking" ? 15_000 : 8_000) : 0;
   while (Date.now() - pollStart < HARD_TIMEOUT_MS) {
     // Tool data wins immediately — no need to wait for MDES if a tool succeeded
-    if (liveOutputs["__tool__"] && liveOutputs["__tool__"].length > 20) break;
-    if (hasUsefulOutput(liveOutputs)) break;
+    if (responseMode === "normal" && liveOutputs["__tool__"] && liveOutputs["__tool__"].length > 20) break;
+    const elapsed = Date.now() - pollStart;
+    if (cls.expectedToolUsage && !toolSettled && elapsed < TOOL_FIRST_WAIT_MS) {
+      await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+      continue;
+    }
+    if (agentsSettled && (!cls.expectedToolUsage || toolSettled)) break;
+    if (responseMode === "normal" && hasFinalOutput(liveOutputs) && elapsed > 4_000) break;
     await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
   // Wait briefly for tool to finish if it's still pending and no other output yet
-  if (!hasUsefulOutput(liveOutputs) && !liveOutputs["__tool__"]) {
+  if (!hasFinalOutput(liveOutputs) && !hasAnyPartial(liveOutputs) && !liveOutputs["__tool__"]) {
     await Promise.race([toolPromise, new Promise((r) => setTimeout(r, 5000))]);
   }
   // Suppress any uncaught rejection from the background dispatch
   agentResultPromise.catch(() => undefined);
-  const enrichedText = synthesizeAnswer(liveOutputs, draft);
+  const enrichedText = synthesizeAnswer(liveOutputs, draft, { runMode: responseMode });
 
   const finalEv = newEnvelope({
     runId,
@@ -446,12 +518,18 @@ function routeSummaryFor(intent: ChatIntent): string {
       return "เลือกเส้นทางวางแผนหลายปัจจัย: อากาศ + การเดินทาง";
     case "weather":
       return "เลือกเส้นทางสรุปอากาศ";
+    case "datetime":
+      return "เลือกเส้นทางวันเวลา: dateTimeTool + concierge";
     case "calc":
       return "เลือกเส้นทางคำนวณแบบ deterministic";
     case "code":
       return "เลือกเส้นทางช่วยเขียนโค้ด";
     case "map":
       return "เลือกเส้นทางแผนที่";
+    case "evidence":
+      return "เลือกเส้นทางเจ้าหน้าที่: evidenceTool + critic";
+    case "knowledge":
+      return "เลือกเส้นทางข้อมูลไทย: thaiKnowledgeTool + responder";
     default:
       return "เลือกเส้นทางตอบทั่วไป";
   }

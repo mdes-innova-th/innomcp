@@ -81,6 +81,9 @@ export interface SendOptions {
   sessionId?: string;
   preferredMode?: "local" | "remote" | "hybrid";
   preferredProviderId?: string;
+  toolHint?: string;
+  clientMessageId?: string;
+  reasoningMode?: "normal" | "thinking";
 }
 
 export interface AgentStreamState {
@@ -89,6 +92,7 @@ export interface AgentStreamState {
   finalText: string;
   status: StreamStatus;
   warnings: string[];
+  activeMessageId?: string;
 }
 
 const initialState: AgentStreamState = {
@@ -97,6 +101,7 @@ const initialState: AgentStreamState = {
   finalText: "",
   status: "idle",
   warnings: [],
+  activeMessageId: undefined,
 };
 
 function parseSseChunk(buffer: string): { complete: string[]; remainder: string } {
@@ -162,6 +167,7 @@ export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
       reset();
       const controller = new AbortController();
       abortRef.current = controller;
+      const isCurrent = () => abortRef.current === controller;
 
       setState({
         events: [],
@@ -169,6 +175,7 @@ export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
         finalText: "",
         status: "streaming",
         warnings: [],
+        activeMessageId: opts.clientMessageId,
       });
 
       const fullUrl = resolveStreamUrl(endpoint);
@@ -182,11 +189,15 @@ export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
             sessionId: opts.sessionId,
             preferredMode: opts.preferredMode,
             preferredProviderId: opts.preferredProviderId,
+            toolHint: opts.toolHint,
+            clientMessageId: opts.clientMessageId,
+            reasoningMode: opts.reasoningMode,
           }),
           credentials: "include",
           signal: controller.signal,
         });
       } catch (err: any) {
+        if (!isCurrent()) return;
         setState((s) => ({
           ...s,
           status: "error",
@@ -196,6 +207,7 @@ export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
       }
 
       if (!response.ok || !response.body) {
+        if (!isCurrent()) return;
         setState((s) => ({
           ...s,
           status: "error",
@@ -211,6 +223,7 @@ export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
       try {
         while (true) {
           const { value, done } = await reader.read();
+          if (!isCurrent()) return;
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
 
@@ -240,6 +253,16 @@ export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
               continue;
             }
             if (!ev || ev.isSafeForUser !== true) continue;
+            if (opts.clientMessageId && ev.messageId !== opts.clientMessageId) {
+              setState((s) => ({
+                ...s,
+                warnings: [
+                  ...s.warnings,
+                  `dropped stale event for messageId: ${ev?.messageId || "unknown"}`,
+                ],
+              }));
+              continue;
+            }
 
             setState((s) => {
               const next: AgentStreamState = { ...s, events: [...s.events, ev!] };
@@ -258,14 +281,17 @@ export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
           }
         }
       } catch (err: any) {
+        if (!isCurrent()) return;
         setState((s) => ({
           ...s,
           status: "error",
           warnings: [...s.warnings, `read: ${String(err?.message || err)}`],
         }));
       } finally {
-        setState((s) => (s.status === "streaming" ? { ...s, status: "done" } : s));
-        abortRef.current = null;
+        if (isCurrent()) {
+          setState((s) => (s.status === "streaming" ? { ...s, status: "done" } : s));
+          abortRef.current = null;
+        }
       }
     },
     [endpoint, reset]

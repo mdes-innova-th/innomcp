@@ -290,7 +290,7 @@ export const thaiKnowledgeTool = {
 };
 
 export function registerThaiKnowledgeTool(server: McpServer) {
-  server.registerTool(
+  (server.registerTool as any)(
     thaiKnowledgeTool.name,
     {
       title: "Thai Knowledge Tool",

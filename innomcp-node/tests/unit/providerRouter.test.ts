@@ -68,6 +68,23 @@ describe("provider router (selectProvider)", () => {
     expect(r.provider?.id).toBe(created.id);
   });
 
+  test("capability fit beats unrelated high priority providers", () => {
+    const unrelated = createProvider({
+      displayName: "Local-unrelated-high-priority",
+      type: "ollama-local",
+      baseUrl: "http://localhost:9994",
+      model: "unrelated-model",
+      capabilities: ["fast-cheap"],
+      priority: 999,
+    });
+    const r = selectProvider({
+      mode: "local",
+      capabilities: ["thai-naturalness"],
+    });
+    expect(r.provider?.id).not.toBe(unrelated.id);
+    expect(r.provider?.capabilities).toContain("thai-naturalness");
+  });
+
   test("returns alternates in priority order", () => {
     const lowPri = createProvider({
       displayName: "Local-low",
@@ -82,6 +99,60 @@ describe("provider router (selectProvider)", () => {
       capabilities: ["thai-naturalness"],
     });
     expect(r.alternates.map((p) => p.id)).toContain(lowPri.id);
+  });
+
+  test("honors preferredProviderId when the provider is eligible", () => {
+    const preferred = createProvider({
+      displayName: "Local-preferred",
+      type: "ollama-local",
+      baseUrl: "http://localhost:9997",
+      model: "preferred-model",
+      capabilities: ["thai-naturalness"],
+      priority: 1,
+    });
+    const r = selectProvider({
+      mode: "local",
+      capabilities: ["thai-naturalness"],
+      preferredProviderId: preferred.id,
+    });
+    expect(r.provider?.id).toBe(preferred.id);
+    expect(r.reason).toMatch(/provider/);
+  });
+
+  test("ignores preferredProviderId when the provider is down", () => {
+    const preferred = createProvider({
+      displayName: "Local-down-preferred",
+      type: "ollama-local",
+      baseUrl: "http://localhost:9996",
+      model: "down-model",
+      capabilities: ["thai-naturalness"],
+      priority: 99,
+    });
+    setHealth(preferred.id, "down");
+    const r = selectProvider({
+      mode: "local",
+      capabilities: ["thai-naturalness"],
+      preferredProviderId: preferred.id,
+    });
+    expect(r.provider?.id).not.toBe(preferred.id);
+  });
+
+  test("ignores preferredProviderId when capabilities do not match", () => {
+    const preferred = createProvider({
+      displayName: "Local-no-capability-match",
+      type: "ollama-local",
+      baseUrl: "http://localhost:9995",
+      model: "no-match-model",
+      capabilities: ["fast-cheap"],
+      priority: 999,
+    });
+    const r = selectProvider({
+      mode: "local",
+      capabilities: ["thai-naturalness"],
+      preferredProviderId: preferred.id,
+    });
+    expect(r.provider?.id).not.toBe(preferred.id);
+    expect(r.provider?.capabilities).toContain("thai-naturalness");
   });
 });
 

@@ -1,4 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { mcpLog } from "../../utils/mcpLogger";
 import { logBoth } from "../../utils/mcpLogger";
 
@@ -41,6 +42,12 @@ export function registerDateTimeTool(mcpserver: McpServer) {
       ข้อผิดพลาดที่คาดได้: 400 (invalid format)
       
       หมายเหตุ: รูปแบบ 'thai' จะแสดงวันที่และเวลาในรูปแบบปฏิทินไทยพุทธศักราช`,
+      inputSchema: {
+        format: z
+          .string()
+          .optional()
+          .describe("Output format: thai, iso, timestamp, or default JavaScript Date string"),
+      },
     },
     async (args: any) => {
       const input = args as DateTimeInput;

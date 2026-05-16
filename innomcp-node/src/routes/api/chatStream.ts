@@ -4,7 +4,8 @@
  *   POST /api/chat/stream
  *
  * Body: { message: string, sessionId?: string, preferredMode?: "local"|"remote"|"hybrid",
- *         preferredProviderId?: string }
+ *         preferredProviderId?: string, responseMode?: "normal"|"thinking", reasoningMode?: "normal"|"thinking",
+ *         thinkingMode?: boolean, toolHint?: string, clientMessageId?: string }
  *
  * Response: text/event-stream where each message is one AgentEvent.
  *
@@ -21,6 +22,7 @@
 import { Router, Response } from "express";
 import { runConductor } from "../../agents/conductor";
 import type { AgentEvent } from "../../agents/events";
+import type { AgentRunMode } from "../../agents/parallelDispatch";
 import type { ChatMode } from "../../providers/router";
 import { optionalAuth, type AuthRequest } from "../../utils/jwt";
 import { guestLimiterMiddleware, limitResponseLength, type GuestLimits } from "../../middleware/guestLimiter";
@@ -83,6 +85,11 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
     sessionId?: string;
     preferredMode?: ChatMode;
     preferredProviderId?: string;
+    responseMode?: AgentRunMode;
+    reasoningMode?: AgentRunMode;
+    thinkingMode?: boolean;
+    toolHint?: string;
+    clientMessageId?: string;
   };
 
   const message = typeof body.message === "string" ? body.message.trim() : "";
@@ -141,6 +148,10 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
         sessionId: body.sessionId,
         preferredMode: body.preferredMode,
         preferredProviderId: body.preferredProviderId,
+        responseMode: body.responseMode ?? body.reasoningMode,
+        thinkingMode: body.thinkingMode,
+        toolHint: body.toolHint,
+        clientMessageId: body.clientMessageId,
         userTier,
         capabilityLevel,
         guestLimits: limits,

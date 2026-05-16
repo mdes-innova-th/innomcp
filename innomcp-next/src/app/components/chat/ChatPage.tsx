@@ -14,6 +14,8 @@ import ThemeContext from "@/app/context/ThemeContext";
 import { useAuth } from "@/app/context/AuthContext";
 import { useToast } from "@/app/context/ToastContext";
 import type { ToolType } from "./ToolsTypeSelector";
+import type { AIMode } from "./AIModelSelector";
+import type { ReasoningMode } from "./ThinkingModeToggle";
 import {
   buildChatTransportHistory,
   compactChatMessagesForStorage,
@@ -191,6 +193,16 @@ function persistSummariesToLocalStorage(summaries: SidebarSummary[]): void {
   localStorage.removeItem("chatSummaries");
 }
 
+function shouldUseMdesFinal(existing: string, next: string, isProgress?: boolean): boolean {
+  const current = existing.trim();
+  const candidate = next.trim();
+  if (!candidate) return false;
+  if (isProgress) return true;
+  if (current.length < 30) return true;
+  if (/processing|thinking|working|deterministic/i.test(current)) return true;
+  return candidate.length > current.length * 1.6 && current.length < 240;
+}
+
 const ChatPage: React.FC = () => {
   const { theme } = useContext(ThemeContext) as { theme: string };
   const { isGuestMode, capabilityLevel } = useAuth();
@@ -213,6 +225,7 @@ const ChatPage: React.FC = () => {
   // Phase 10.15: MultiAgent Panel state
   const [expandAll, setExpandAll] = useState(false);
   const { state: agentStreamState, send: sendAgentStream, reset: resetAgentStream } = useAgentEventStream();
+  const activeAgentStreamRequestRef = useRef<string | null>(null);
   const [isSocketReady, setIsSocketReady] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const isStoppedRef = useRef(false);
@@ -274,6 +287,8 @@ const ChatPage: React.FC = () => {
   const prevMessagesLenRef = useRef(0);
   const [, setIsChatActive] = useState(false); // tracks composer focus for future hooks
   const [selectedToolType, setSelectedToolType] = useState<ToolType>("auto");
+  const [selectedAIMode, setSelectedAIMode] = useState<AIMode>("local");
+  const [reasoningMode, setReasoningMode] = useState<ReasoningMode>("normal");
   const activeToolMeta = TOOL_TYPE_META[selectedToolType] || TOOL_TYPE_META.auto;
 
   // Load data from localStorage on mount
@@ -762,7 +777,10 @@ const ChatPage: React.FC = () => {
   // This connects the MDES enriched text to the main chat bubble.
   // Guard: skip if WS already delivered structured tool results (weather, chart, etc.)
   useEffect(() => {
+    const activeMessageId = activeAgentStreamRequestRef.current;
     const mdesText = agentStreamState.finalText;
+    if (!activeMessageId) return;
+    if (agentStreamState.activeMessageId !== activeMessageId) return;
     if (!mdesText || mdesText.length < 30) return;
     if (agentStreamState.status !== "done") return;
 
@@ -781,7 +799,9 @@ const ChatPage: React.FC = () => {
       // Monotonic: final text must not be shorter than what's already shown.
       // If WS already produced a longer answer, keep WS text — only annotate mdesEnhanced.
       const existing = String(lastAi.fullText || lastAi.text || "");
-      const nextText = mdesText.length >= existing.length ? mdesText : existing;
+      const nextText = shouldUseMdesFinal(existing, mdesText, lastAi.isProgress)
+        ? mdesText
+        : existing;
       const updated = [...prev];
       updated[lastAiIdx] = {
         ...lastAi,
@@ -792,12 +812,16 @@ const ChatPage: React.FC = () => {
       };
       return updated;
     });
-  }, [agentStreamState.finalText, agentStreamState.status]);
+    activeAgentStreamRequestRef.current = null;
+  }, [agentStreamState.activeMessageId, agentStreamState.finalText, agentStreamState.status]);
 
   // MDES streaming preview: show concierge/critic answer while other agents still running.
   // Monotonic: only update if the new preview is strictly longer than what is shown,
   // so the bubble grows forward and never flips backwards mid-stream.
   useEffect(() => {
+    const activeMessageId = activeAgentStreamRequestRef.current;
+    if (!activeMessageId) return;
+    if (agentStreamState.activeMessageId !== activeMessageId) return;
     if (agentStreamState.status !== "streaming") return;
     const deltas = agentStreamState.events.filter(
       (ev) => ev.type === "agent_delta" && (ev.publicSummary?.length ?? 0) > 30
@@ -826,7 +850,18 @@ const ChatPage: React.FC = () => {
       updated[lastAiIdx] = { ...last, text: previewText, fullText: previewText, isAnimating: false };
       return updated;
     });
-  }, [agentStreamState.events, agentStreamState.status]);
+  }, [agentStreamState.activeMessageId, agentStreamState.events, agentStreamState.status]);
+
+  useEffect(() => {
+    const activeMessageId = activeAgentStreamRequestRef.current;
+    if (activeMessageId && agentStreamState.activeMessageId !== activeMessageId) return;
+    if (
+      agentStreamState.status === "error" ||
+      (agentStreamState.status === "done" && !agentStreamState.finalText)
+    ) {
+      activeAgentStreamRequestRef.current = null;
+    }
+  }, [agentStreamState.activeMessageId, agentStreamState.finalText, agentStreamState.status]);
 
   const sendMessage = async () => {
     if (
@@ -865,6 +900,9 @@ const ChatPage: React.FC = () => {
         messages: transportHistory, 
         messageId,
         file: fileData, // Include file data if available
+        preferredMode: selectedAIMode,
+        toolHint: selectedToolType,
+        reasoningMode,
         uiMode: selectedToolType === "officer" ? "officer" : undefined
       };
       
@@ -872,12 +910,23 @@ const ChatPage: React.FC = () => {
         textLength: input.length,
         historySize: transportHistory.length,
         hasFile: Boolean(fileData),
+        preferredMode: message.preferredMode,
+        toolHint: message.toolHint,
+        reasoningMode: message.reasoningMode,
         uiMode: message.uiMode || "auto",
       });
       socket.send(JSON.stringify(message));
       // Phase 10.15: fire SSE channel for MultiAgentPanel
       resetAgentStream();
-      sendAgentStream({ message: input, sessionId: activeSummaryId ?? undefined });
+      activeAgentStreamRequestRef.current = messageId;
+      sendAgentStream({
+        message: input,
+        sessionId: activeSummaryId ?? undefined,
+        preferredMode: selectedAIMode,
+        toolHint: selectedToolType,
+        reasoningMode,
+        clientMessageId: messageId,
+      });
       
       // Add user message to UI (include file indicator)
       const userMessage: ChatMessage = { 
@@ -970,6 +1019,8 @@ const ChatPage: React.FC = () => {
 
   const handleNewChat = () => {
     // Stop any ongoing request (same as handleStop)
+    activeAgentStreamRequestRef.current = null;
+    resetAgentStream();
     setIsWaitingForResponse(false);
     setIsStopped(true);
     isStoppedRef.current = true;
@@ -1038,6 +1089,8 @@ const ChatPage: React.FC = () => {
   };
 
   const loadSummary = (summary: SidebarSummary) => {
+    activeAgentStreamRequestRef.current = null;
+    resetAgentStream();
     setMessages(summary.messages || []);
     setActiveSummaryId(summary.id);
     // persist messages to storage as current active
@@ -1072,6 +1125,8 @@ const ChatPage: React.FC = () => {
   const handleDeleteSummary = (id: string) => {
     setChatSummaries((prev) => prev.filter((s) => s.id !== id));
     if (id === activeSummaryId) {
+      activeAgentStreamRequestRef.current = null;
+      resetAgentStream();
       setMessages([]);
       setActiveSummaryId(null);
       try {
@@ -1081,6 +1136,8 @@ const ChatPage: React.FC = () => {
   };
 
   const handleStop = () => {
+    activeAgentStreamRequestRef.current = null;
+    resetAgentStream();
     setIsWaitingForResponse(false);
     setIsStopped(true);
     isStoppedRef.current = true;
@@ -1164,14 +1221,31 @@ const ChatPage: React.FC = () => {
     const message = { 
       text: userMessage.text, 
       messages: transportHistory.slice(0, Math.max(0, transportHistory.length - 1)),
-      messageId 
+      messageId,
+      preferredMode: selectedAIMode,
+      toolHint: selectedToolType,
+      reasoningMode,
+      uiMode: selectedToolType === "officer" ? "officer" : undefined
     };
     
     console.log("Retrying message:", {
       textLength: userMessage.text.length,
       historySize: message.messages.length,
+      preferredMode: message.preferredMode,
+      toolHint: message.toolHint,
+      reasoningMode: message.reasoningMode,
     });
     socket.send(JSON.stringify(message));
+    resetAgentStream();
+    activeAgentStreamRequestRef.current = messageId;
+    sendAgentStream({
+      message: userMessage.text,
+      sessionId: activeSummaryId ?? undefined,
+      preferredMode: selectedAIMode,
+      toolHint: selectedToolType,
+      reasoningMode,
+      clientMessageId: messageId,
+    });
     setIsStopped(false);
     isStoppedRef.current = false;
     setIsWaitingForResponse(true);
@@ -1430,6 +1504,9 @@ const ChatPage: React.FC = () => {
                     theme={theme}
                     layoutMode="empty"
                     onToolTypeChange={(t) => setSelectedToolType(t)}
+                    onModeChange={setSelectedAIMode}
+                    reasoningMode={reasoningMode}
+                    onReasoningModeChange={setReasoningMode}
                     onFocus={() => setIsChatActive(true)}
                     onBlur={() => setIsChatActive(false)}
                   />
@@ -1760,6 +1837,9 @@ const ChatPage: React.FC = () => {
                 theme={theme}
                 layoutMode="conversation"
                 onToolTypeChange={(t) => setSelectedToolType(t)}
+                onModeChange={setSelectedAIMode}
+                reasoningMode={reasoningMode}
+                onReasoningModeChange={setReasoningMode}
                 onFocus={() => setIsChatActive(true)}
                 onBlur={() => setIsChatActive(false)}
               />

@@ -5161,8 +5161,8 @@ wss.on("connection", (ws, req) => {
 
           // Get last 2 messages from history for context
           const conversationHistory = sessionHistory.slice(-2).map((m: any) => ({
-            role: m.role,
-            content: m.content,
+            role: m.role || m.sender,
+            content: m.content || m.text,
             timestamp: new Date()
           }));
 

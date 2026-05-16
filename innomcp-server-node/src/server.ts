@@ -97,13 +97,6 @@ import {
   nwpDailyByRegionTool
 } from "./mcp/tools/nwpDailyTool";
 
-// Create MCP server instance and register tools
-const mcpserver = new McpServer({
-  name: "INNOMCP Server",
-  version: "1.0.0",
-});
-
-
 // Phase 4: Intelligence Pipeline Integration
 import { IntelligencePipeline } from "./intelligence/pipeline";
 
@@ -113,9 +106,17 @@ const USE_INTELLIGENCE_PIPELINE = process.env.USE_INTELLIGENCE_PIPELINE === "tru
 // Tool Registry for Pipeline
 const toolsRegistry: Record<string, any> = {};
 
-// Monkey-patch registerTool to collect tools
-const originalRegister = mcpserver.registerTool.bind(mcpserver);
-mcpserver.registerTool = (name: string, ...args: any[]) => {
+function createMcpServerInstance(registry?: Record<string, any>) {
+  const server = new McpServer({
+    name: "INNOMCP Server",
+    version: "1.0.0",
+  });
+
+  // Monkey-patch registerTool only to collect handlers for the optional
+  // intelligence pipeline registry. Each HTTP MCP request gets its own server
+  // instance so concurrent requests do not share Protocol transport state.
+  const originalRegister = server.registerTool.bind(server);
+  server.registerTool = (name: string, ...args: any[]) => {
     // args[0] might be schema or details, args[1] represents execute
     // Type definition for registerTool varies, but usually it's (name, details, execute) 
     // OR (name, schema, execute)
@@ -125,11 +126,17 @@ mcpserver.registerTool = (name: string, ...args: any[]) => {
     // In SDK, it might be: registerTool(name, description, handler)
     // Let's safe guard.
     const execute = args[args.length - 1]; // Execute is usually last
-    if (typeof execute === "function") {
-        toolsRegistry[name] = { execute };
+    if (registry && typeof execute === "function") {
+        registry[name] = { execute };
     }
-    return originalRegister(name, ...args as [any, any]); 
-};
+    return (originalRegister as any)(name, ...args);
+  };
+
+  registerAllMcpTools(server);
+  return server;
+}
+
+function registerAllMcpTools(mcpserver: McpServer) {
 
 // Register essential tools only (10 tools for 2025 professional system)
 registerDateTimeTool(mcpserver);
@@ -294,6 +301,11 @@ mcpserver.registerTool(nwpDailyByRegionTool.name, {
   description: nwpDailyByRegionTool.description,
   inputSchema: nwpDailyByRegionTool.inputSchema,
 }, nwpDailyByRegionTool.execute);
+}
+
+// Create a bootstrap MCP server for exports and pipeline registry only.
+// Runtime HTTP requests create fresh instances to avoid shared transport state.
+const mcpserver = createMcpServerInstance(toolsRegistry);
 
 logBoth('INFO', `[BOOT] Registered ${Object.keys(toolsRegistry).length} essential tools (2026 World-Class System)`);
 
@@ -506,7 +518,8 @@ app.post("/mcp", async (req, res) => {
     );
   });
 
-  await mcpserver.connect(transport);
+  const requestMcpServer = createMcpServerInstance();
+  await requestMcpServer.connect(transport);
   await transport.handleRequest(req, res, req.body);
 });
 

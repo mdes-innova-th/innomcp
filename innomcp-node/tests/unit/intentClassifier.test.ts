@@ -37,7 +37,7 @@ describe("classifyIntent", () => {
   test("map keyword routes to map", () => {
     const r = classifyIntent("ขอแผนที่จังหวัดเชียงราย");
     expect(r.intent).toBe("map");
-    expect(r.expectedToolUsage).toBe(false);
+    expect(r.expectedToolUsage).toBe(true);
   });
 
   test("code keyword routes to code", () => {
@@ -54,5 +54,28 @@ describe("classifyIntent", () => {
   test("general greeting falls through to general", () => {
     const r = classifyIntent("สวัสดีครับ คุณคือใคร?");
     expect(r.intent).toBe("general");
+  });
+  test("datetime tool hint routes to datetime", () => {
+    const r = classifyIntent("anything", "datetime");
+    expect(r.intent).toBe("datetime");
+    expect(r.expectedToolUsage).toBe(true);
+  });
+
+  test("data hint routes evidence-like questions to evidence", () => {
+    const r = classifyIntent("NIP top ISP yesterday", "data");
+    expect(r.intent).toBe("evidence");
+    expect(r.expectedToolUsage).toBe(true);
+  });
+
+  test("data hint routes non-evidence questions to knowledge", () => {
+    const r = classifyIntent("อธิบาย PDPA แบบสั้น", "data");
+    expect(r.intent).toBe("knowledge");
+    expect(r.expectedToolUsage).toBe(true);
+  });
+
+  test("machine learning question does not route to officer evidence", () => {
+    const r = classifyIntent("machine learning คืออะไร");
+    expect(r.intent).toBe("knowledge");
+    expect(r.expectedToolUsage).toBe(true);
   });
 });

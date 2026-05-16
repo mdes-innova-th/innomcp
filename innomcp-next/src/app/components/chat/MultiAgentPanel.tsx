@@ -16,29 +16,15 @@ const MDES_MODEL_BADGE: Record<string, string> = {
   "minimax-m2.5:cloud": "MMx-M2.5",
 };
 
-// Phase 10.23 — model family → accent color for left-border + badge tint.
-// Picks the family by string prefix so unknown models still get a sane default.
 function getModelAccent(model?: string): { hex: string; pill: string } {
   const m = (model || "").toLowerCase();
   if (m.startsWith("qwen") || m.includes("qwen2.5vl")) return { hex: "#0ea5e9", pill: "bg-sky-500/15 text-sky-600 dark:text-sky-300" };
   if (m.startsWith("gemma")) return { hex: "#10b981", pill: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" };
-  if (m.startsWith("gpt-")) return { hex: "#8b5cf6", pill: "bg-violet-500/15 text-violet-600 dark:text-violet-300" };
+  if (m.startsWith("gpt-")) return { hex: "#475569", pill: "bg-slate-500/15 text-slate-700 dark:text-slate-200" };
   if (m.startsWith("claude")) return { hex: "#f59e0b", pill: "bg-amber-500/15 text-amber-600 dark:text-amber-300" };
   if (m.startsWith("minimax")) return { hex: "#f43f5e", pill: "bg-rose-500/15 text-rose-600 dark:text-rose-300" };
   return { hex: "#64748b", pill: "bg-slate-500/15 text-slate-600 dark:text-slate-300" };
 }
-
-const EVENT_LABEL_TH: Record<string, string> = {
-  agent_started: "เริ่ม",
-  agent_delta: "ร่าง",
-  agent_finished: "เสร็จ",
-  tool_call_started: "เรียกเครื่องมือ",
-  tool_call_finished: "เครื่องมือเสร็จ",
-  fact_found: "พบข้อมูล",
-  critique: "ตรวจคำตอบ",
-  fallback: "ทางสำรอง",
-  error: "ผิดพลาด",
-};
 
 const AGENT_LABEL_TH: Record<string, string> = {
   conductor: "ผู้กำกับงาน",
@@ -53,48 +39,6 @@ const AGENT_LABEL_TH: Record<string, string> = {
   scribe: "ผู้บันทึกความจำ",
 };
 
-// Phase 10.28 — role-specific SVG glyphs (16×16 viewBox).
-// Tiny, monoline, render in currentColor so they pick up the accent.
-function AgentRoleIcon({ agentId, className }: { agentId: string; className?: string }) {
-  const common = { viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round" } as const;
-  const cls = `h-3 w-3 ${className || ""}`;
-  switch (agentId) {
-    case "weather-analyst":
-      // sun + cloud
-      return (<svg {...common} className={cls} aria-hidden><circle cx="6" cy="6" r="2.4" /><path d="M11 11.5h-6a2 2 0 0 1 0-4 3 3 0 0 1 5.8.6 1.8 1.8 0 0 1 .2 3.4Z" /></svg>);
-    case "geo-planner":
-      // pin
-      return (<svg {...common} className={cls} aria-hidden><path d="M8 14s4.5-4.2 4.5-7.5a4.5 4.5 0 0 0-9 0C3.5 9.8 8 14 8 14Z" /><circle cx="8" cy="6.3" r="1.5" /></svg>);
-    case "rag-agent":
-      // magnifying glass over book lines
-      return (<svg {...common} className={cls} aria-hidden><circle cx="7" cy="7" r="3.6" /><path d="m10 10 3 3" /></svg>);
-    case "concierge":
-      // chat bubble with dots
-      return (<svg {...common} className={cls} aria-hidden><path d="M2.5 4.5h11v6h-7L4 13v-2.5H2.5z" /><circle cx="6" cy="7.5" r="0.5" fill="currentColor" /><circle cx="8" cy="7.5" r="0.5" fill="currentColor" /><circle cx="10" cy="7.5" r="0.5" fill="currentColor" /></svg>);
-    case "tool-scout":
-      // wrench
-      return (<svg {...common} className={cls} aria-hidden><path d="M11 3a3 3 0 0 1 0 4.2L13 9.5 9.5 13 7.3 11a3 3 0 1 1-4.2-4.2L5 8.5 8.5 5 6.7 3a3 3 0 0 1 4.3 0Z" /></svg>);
-    case "critic":
-      // shield with check
-      return (<svg {...common} className={cls} aria-hidden><path d="M8 2 3 4v4.5C3 11 5 13 8 14c3-1 5-3 5-5.5V4Z" /><path d="m6 8 1.5 1.5L10.5 6.5" /></svg>);
-    case "stylist":
-      // pen nib
-      return (<svg {...common} className={cls} aria-hidden><path d="M3 13 9 7l3.5 3.5L7 16Z" transform="translate(-1 -3)" /><path d="m11 4 1.5 1.5" /></svg>);
-    case "broker":
-      // intersecting circles (network)
-      return (<svg {...common} className={cls} aria-hidden><circle cx="5.5" cy="8" r="3" /><circle cx="10.5" cy="8" r="3" /></svg>);
-    case "conductor":
-      // baton / node
-      return (<svg {...common} className={cls} aria-hidden><circle cx="8" cy="4.5" r="1.6" /><path d="M8 6v8" /><path d="M5 14h6" /></svg>);
-    case "scribe":
-      // scroll
-      return (<svg {...common} className={cls} aria-hidden><path d="M3 4h8v8H3z" /><path d="M11 4h2v8" /><path d="M5 7h4M5 9h3" /></svg>);
-    default:
-      // generic spark
-      return (<svg {...common} className={cls} aria-hidden><path d="M8 2v4M8 10v4M2 8h4M10 8h4" /></svg>);
-  }
-}
-
 const AGENT_ROLE_DESC: Record<string, string> = {
   "weather-analyst": "วิเคราะห์สภาพอากาศและแนวโน้ม",
   "geo-planner": "วางแผนพื้นที่และเส้นทาง",
@@ -108,6 +52,35 @@ const AGENT_ROLE_DESC: Record<string, string> = {
   scribe: "จัดเก็บความรู้และบริบท",
 };
 
+function AgentRoleIcon({ agentId, className }: { agentId: string; className?: string }) {
+  const common = { viewBox: "0 0 16 16", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+  const cls = `h-3 w-3 ${className || ""}`;
+  switch (agentId) {
+    case "weather-analyst":
+      return (<svg {...common} className={cls} aria-hidden><circle cx="6" cy="6" r="2.4" /><path d="M11 11.5h-6a2 2 0 0 1 0-4 3 3 0 0 1 5.8.6 1.8 1.8 0 0 1 .2 3.4Z" /></svg>);
+    case "geo-planner":
+      return (<svg {...common} className={cls} aria-hidden><path d="M8 14s4.5-4.2 4.5-7.5a4.5 4.5 0 0 0-9 0C3.5 9.8 8 14 8 14Z" /><circle cx="8" cy="6.3" r="1.5" /></svg>);
+    case "rag-agent":
+      return (<svg {...common} className={cls} aria-hidden><circle cx="7" cy="7" r="3.6" /><path d="m10 10 3 3" /></svg>);
+    case "concierge":
+      return (<svg {...common} className={cls} aria-hidden><path d="M2.5 4.5h11v6h-7L4 13v-2.5H2.5z" /><circle cx="6" cy="7.5" r="0.5" fill="currentColor" /><circle cx="8" cy="7.5" r="0.5" fill="currentColor" /><circle cx="10" cy="7.5" r="0.5" fill="currentColor" /></svg>);
+    case "tool-scout":
+      return (<svg {...common} className={cls} aria-hidden><path d="M11 3a3 3 0 0 1 0 4.2L13 9.5 9.5 13 7.3 11a3 3 0 1 1-4.2-4.2L5 8.5 8.5 5 6.7 3a3 3 0 0 1 4.3 0Z" /></svg>);
+    case "critic":
+      return (<svg {...common} className={cls} aria-hidden><path d="M8 2 3 4v4.5C3 11 5 13 8 14c3-1 5-3 5-5.5V4Z" /><path d="m6 8 1.5 1.5L10.5 6.5" /></svg>);
+    case "stylist":
+      return (<svg {...common} className={cls} aria-hidden><path d="M3 13 9 7l3.5 3.5L7 16Z" transform="translate(-1 -3)" /><path d="m11 4 1.5 1.5" /></svg>);
+    case "broker":
+      return (<svg {...common} className={cls} aria-hidden><circle cx="5.5" cy="8" r="3" /><circle cx="10.5" cy="8" r="3" /></svg>);
+    case "conductor":
+      return (<svg {...common} className={cls} aria-hidden><circle cx="8" cy="4.5" r="1.6" /><path d="M8 6v8" /><path d="M5 14h6" /></svg>);
+    case "scribe":
+      return (<svg {...common} className={cls} aria-hidden><path d="M3 4h8v8H3z" /><path d="M11 4h2v8" /><path d="M5 7h4M5 9h3" /></svg>);
+    default:
+      return (<svg {...common} className={cls} aria-hidden><path d="M8 2v4M8 10v4M2 8h4M10 8h4" /></svg>);
+  }
+}
+
 interface AgentState {
   agentId: string;
   status: "active" | "recovering" | "done" | "error";
@@ -118,17 +91,46 @@ interface AgentState {
   fallbackCount: number;
   lastFallback?: string;
   model?: string;
-  /** Epoch ms of the first agent_started event */
   startedAt?: number;
-  /** Epoch ms of the most recent finishing event (done / error). */
   finishedAt?: number;
 }
 
-/** ms → human-readable ("1.4s", "320ms", "12s"). */
 function fmtLatency(ms: number | undefined): string | null {
   if (ms == null || !Number.isFinite(ms) || ms < 0) return null;
   if (ms < 1000) return `${Math.round(ms)}ms`;
   return `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)}s`;
+}
+
+function cleanAgentText(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+  if (/openai-compatible|http\s+\d{3}|rate limit|exceeded|gateway|timeout|api key/i.test(trimmed)) {
+    return "เส้นทางโมเดลหลักตอบกลับไม่สำเร็จ ระบบกำลังจัดลำดับทางสำรองและเก็บเฉพาะข้อมูลที่ปลอดภัยสำหรับคำตอบสุดท้าย";
+  }
+  return trimmed.length > 520 ? `${trimmed.slice(0, 520).trimEnd()}...` : trimmed;
+}
+
+function getAgentParagraph(agent: AgentState): { text: string; live: boolean } {
+  const roleDesc = AGENT_ROLE_DESC[agent.agentId];
+  if (agent.status === "recovering" && agent.lastFallback) {
+    return { text: `${cleanAgentText(agent.lastFallback)} กำลังลองทางสำรองเพื่อให้คำตอบเดินต่อได้อย่างปลอดภัย`, live: false };
+  }
+  if (agent.thinkingText) return { text: cleanAgentText(agent.thinkingText), live: false };
+  if (agent.lastSummary) return { text: cleanAgentText(agent.lastSummary), live: false };
+  if (agent.status === "active") {
+    return { text: `${roleDesc || "กำลังตรวจสอบข้อมูล"} และรอข้อมูลถัดไปจากระบบ`, live: true };
+  }
+  if (agent.status === "error") {
+    return { text: "ตัวแทนนี้พบข้อผิดพลาดระหว่างทำงาน ระบบจะใช้ข้อมูลที่เชื่อถือได้จากส่วนอื่นประกอบคำตอบ", live: false };
+  }
+  return { text: roleDesc || "ดำเนินงานส่วนนี้เสร็จแล้ว", live: false };
+}
+
+function getStatusLabel(status: AgentState["status"]): string {
+  if (status === "active") return "กำลังคิด";
+  if (status === "recovering") return "สำรอง";
+  if (status === "error") return "ติดขัด";
+  return "เสร็จ";
 }
 
 interface Props {
@@ -136,9 +138,7 @@ interface Props {
   status: StreamStatus;
   expandAll?: boolean;
   onToggleExpandAll?: () => void;
-  /** When true (default), the panel renders collapsed by default. */
   defaultCollapsed?: boolean;
-  /** Compact mode — slimmer chrome for inline embedding inside a chat bubble. */
   inline?: boolean;
 }
 
@@ -146,11 +146,9 @@ export default function MultiAgentPanel({
   events,
   status,
   expandAll = false,
-  onToggleExpandAll,
   defaultCollapsed = true,
   inline = false,
 }: Props) {
-  const [expandedAgents, setExpandedAgents] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<boolean>(!defaultCollapsed);
 
   const agentMap = useMemo(() => {
@@ -171,26 +169,23 @@ export default function MultiAgentPanel({
       const s = map.get(ev.agentId)!;
       s.events.push(ev);
 
-      // Track started/finished epoch ms for latency display.
       const ts = ev.timestamp ? Date.parse(ev.timestamp) : NaN;
       if (Number.isFinite(ts)) {
         if (ev.type === "agent_started" && s.startedAt == null) s.startedAt = ts;
         if (ev.type === "agent_finished" || ev.type === "error") s.finishedAt = ts;
       }
 
-      // Capture model from agent_started events
       if (ev.type === "agent_started" && ev.model) {
         s.model = ev.model;
         s.status = "active";
       }
 
-      // Prefer agent_delta text (actual LLM response) over status messages
       if (ev.type === "agent_delta" && ev.publicSummary && ev.publicSummary.length > 20) {
         s.thinkingText = ev.publicSummary;
       } else if (!s.thinkingText && ev.publicSummary) {
         s.lastSummary = ev.publicSummary;
       }
-      
+
       if (
         ev.type === "tool_call_started" &&
         ev.toolName &&
@@ -223,38 +218,28 @@ export default function MultiAgentPanel({
   const recoveringCount = agents.filter((a) => a.status === "recovering").length;
   const errorCount = agents.filter((a) => a.status === "error").length;
   const runSummary = events.find((ev) => ev.type === "agent_run_started")?.publicSummary;
-  
-  // Phase 10.24: dormant idle state — instead of vanishing, render a calm
-  // single-row strip so multi-agent feels "always present" / "ready".
+
   if (status === "idle" && agents.length === 0) {
     return (
       <div
         data-testid="multiagent-panel-dormant"
-        className={`flex items-center gap-2 rounded-md border border-border/30 bg-muted/15 px-3 py-1 text-[10.5px] opacity-60 ${
+        className={`flex items-center gap-2 rounded-md border border-border/50 bg-background/70 px-3 py-1.5 text-[11px] text-muted-foreground ${
           inline ? "mb-0" : "mb-2"
         }`}
         title="ทีม AI พร้อมทำงาน — เริ่มสนทนาเพื่อเปิดใช้"
       >
-        <span className="inline-flex h-2.5 w-2.5 items-center justify-center rounded-full border border-slate-400/50" aria-hidden="true">
-          <span className="block h-1 w-1 rounded-full bg-slate-400/70" />
-        </span>
-        <span className="font-display uppercase tracking-[0.18em] text-muted-foreground/85">
-          ทีม AI พร้อม
-        </span>
-        <span className="text-muted-foreground/60">· เปิดใช้เมื่อสนทนา</span>
+        <span className="inline-flex h-2 w-2 rounded-full bg-slate-400/80" aria-hidden="true" />
+        <span className="font-medium text-foreground/75">ทีม AI พร้อม</span>
+        <span>เปิดใช้เมื่อเริ่มสนทนา</span>
       </div>
     );
   }
 
-  // Phase 10.29: warming-up state — streaming has begun but no agent_started
-  // event arrived yet (typical 200-800 ms window). Show a thin animated strip
-  // that says "เรียกทีมตัวแทน..." with the radar-ping dot so the user knows
-  // something is happening RIGHT NOW, not stuck.
   if (status === "streaming" && agents.length === 0) {
     return (
       <div
         data-testid="multiagent-panel-warming"
-        className={`flex items-center gap-2 rounded-md border border-primary/20 bg-gradient-to-r from-primary/8 via-sky-500/5 to-transparent px-3 py-1 text-[10.5px] ${
+        className={`flex items-center gap-2 rounded-md border border-emerald-500/25 bg-emerald-50/55 px-3 py-1.5 text-[11px] text-emerald-950 dark:bg-emerald-950/20 dark:text-emerald-100 ${
           inline ? "mb-0" : "mb-2"
         }`}
       >
@@ -262,59 +247,51 @@ export default function MultiAgentPanel({
           <span className="absolute inline-flex h-3 w-3 animate-radar-ping rounded-full bg-emerald-500 opacity-75" aria-hidden="true" />
           <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
         </span>
-        <span className="font-display uppercase tracking-[0.18em] text-foreground/85">
-          เรียกทีมตัวแทน
-        </span>
-        <span className="font-mono text-muted-foreground/80">
+        <span className="font-medium">เรียกทีมตัวแทน</span>
+        <span className="font-mono text-emerald-700/80 dark:text-emerald-200/80">
           <span className="animate-pulse">·</span>
           <span className="animate-pulse [animation-delay:120ms]">·</span>
           <span className="animate-pulse [animation-delay:240ms]">·</span>
         </span>
-        <span className="ml-auto text-muted-foreground/60">conductor</span>
+        <span className="ml-auto hidden text-emerald-800/70 dark:text-emerald-200/70 sm:inline">กำลังเตรียมบทความความคิด</span>
       </div>
     );
   }
 
   const isOpen = open || expandAll;
   const rootClass = inline
-    ? "rounded-md border border-border/40 bg-muted/20 text-xs overflow-hidden"
-    : "mb-2 rounded-lg border border-border/30 bg-card/20 text-xs overflow-hidden";
-
-  // Collect distinct models in firing order for the marquee strip.
+    ? "border-y border-border/45 bg-transparent text-xs overflow-hidden"
+    : "mb-2 rounded-lg border border-border/60 bg-background/80 text-xs overflow-hidden";
   const activeModels = Array.from(new Set(
     agents.map((a) => a.model).filter((m): m is string => Boolean(m))
   ));
   const isStreaming = status === "streaming";
-  const headerTone =
-    status === "error" || errorCount > 0
-      ? "from-rose-500/12 via-rose-500/6 to-transparent"
-      : recoveringCount > 0
-      ? "from-amber-500/12 via-amber-500/6 to-transparent"
-      : isStreaming
-      ? "from-emerald-500/14 via-primary/8 to-sky-500/10"
-      : "from-primary/8 via-sky-500/6 to-violet-500/6";
   const radarColor =
     status === "error" || errorCount > 0 ? "bg-rose-500"
     : recoveringCount > 0 ? "bg-amber-500"
     : isStreaming ? "bg-emerald-500"
     : "bg-sky-500";
+  const headerStatusText =
+    errorCount > 0
+      ? `ติดขัด ${errorCount}`
+      : recoveringCount > 0
+      ? `กำลังสำรอง ${recoveringCount}`
+      : isStreaming
+      ? `${doneCount}/${agents.length} เสร็จ`
+      : "เสร็จแล้ว";
 
   return (
     <div data-testid="multiagent-panel" className={rootClass}>
       <button
         type="button"
-        onClick={() => {
-          setOpen((v) => !v);
-          onToggleExpandAll?.();
-        }}
-        className={`group/header relative w-full overflow-hidden bg-gradient-to-r ${headerTone} px-3 py-2 text-left transition-colors hover:brightness-110`}
+        onClick={() => setOpen((v) => !v)}
+        className="group/header relative w-full px-3 py-2.5 text-left transition-colors hover:bg-muted/45"
         aria-expanded={isOpen}
         data-testid="multiagent-expand-all"
         title="Ctrl+O"
       >
         <div className="flex items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-2 font-medium text-foreground/85">
-            {/* Radar ping — two concentric rings, outer one animates */}
             <span className="relative inline-flex h-3 w-3 shrink-0 items-center justify-center">
               <span
                 className={`absolute inline-flex h-3 w-3 rounded-full opacity-75 ${radarColor} ${isStreaming ? "animate-radar-ping" : ""}`}
@@ -322,20 +299,12 @@ export default function MultiAgentPanel({
               />
               <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${radarColor}`} aria-hidden="true" />
             </span>
-            <span className="font-display text-[11px] uppercase tracking-[0.18em] text-foreground/85">
-              ทีม AI
-            </span>
-            <span className="hidden text-[11px] text-muted-foreground/85 sm:inline">
-              · {agents.length} ตัวแทน
-              {isStreaming && agents.length > 0 && (
-                <> · {doneCount}/{agents.length}</>
-              )}
-              {recoveringCount > 0 && <> · กู้คืน {recoveringCount}</>}
-              {errorCount > 0 && <> · ล้มเหลว {errorCount}</>}
+            <span className="text-[13px] font-semibold text-foreground/90">บันทึกการคิด</span>
+            <span className="hidden text-[11.5px] text-muted-foreground/85 sm:inline">
+              · {agents.length} ตัวแทน · {headerStatusText}
             </span>
           </span>
 
-          {/* Right side: model marquee + expand caret */}
           <span className="flex shrink-0 items-center gap-1.5">
             {!isOpen && activeModels.length > 0 && (
               <span className="hidden items-center gap-1 md:inline-flex">
@@ -356,273 +325,93 @@ export default function MultiAgentPanel({
                 )}
               </span>
             )}
-            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/70">
-              {isOpen ? "▾ ซ่อน" : "▸ ดู"}
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/75">
+              {isOpen ? "ซ่อน" : "ดู"}
             </span>
           </span>
         </div>
       </button>
+
       {isOpen && agents.length > 0 && isStreaming && (
-        <div className="h-1 bg-card/40 overflow-hidden">
+        <div className="h-px bg-border/45">
           <div
-            className="h-full bg-gradient-to-r from-emerald-500/85 via-primary/80 to-sky-400/85 transition-all duration-700 ease-out"
-            style={{
-              width: `${Math.round((doneCount / agents.length) * 100)}%`,
-              boxShadow: "0 0 8px currentColor",
-            }}
+            className="h-full bg-emerald-500 transition-all duration-700 ease-out"
+            style={{ width: `${Math.round((doneCount / agents.length) * 100)}%` }}
           />
         </div>
       )}
 
-      {/* Phase 10.24: pipeline micro-row — chain of agent pills with → arrows
-          so the orchestration reads as a sequence, not just a parallel grid. */}
-      {isOpen && agents.length > 1 && (
-        <div className="flex items-center gap-1 overflow-x-auto border-b border-border/20 bg-card/30 px-3 py-1.5">
-          {agents.map((agent, i) => {
-            const accent = getModelAccent(agent.model);
-            const pillTone =
-              agent.status === "done"
-                ? `${accent.pill} ring-1 ring-inset`
-                : agent.status === "active"
-                ? `${accent.pill} agent-shimmer-active`
-                : agent.status === "recovering"
-                ? "bg-amber-500/15 text-amber-600 dark:text-amber-300"
-                : agent.status === "error"
-                ? "bg-rose-500/15 text-rose-600 dark:text-rose-300"
-                : "bg-muted/40 text-muted-foreground/70";
-            return (
-              <React.Fragment key={agent.agentId}>
-                {i > 0 && (
-                  <span
-                    aria-hidden="true"
-                    className={`shrink-0 select-none font-mono text-[11px] ${
-                      agents[i - 1].status === "done" ? "text-foreground/60" : "text-muted-foreground/40"
-                    }`}
-                  >
-                    →
-                  </span>
-                )}
-                <span
-                  style={{ ['--agent-accent' as any]: accent.hex }}
-                  className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium leading-tight transition-colors ${pillTone}`}
-                  title={`${AGENT_LABEL_TH[agent.agentId] ?? agent.agentId} · ${agent.status}${agent.model ? ` · ${agent.model}` : ""}${
-                    agent.startedAt && agent.finishedAt
-                      ? ` · ${fmtLatency(agent.finishedAt - agent.startedAt)}`
-                      : ""
-                  }`}
-                >
-                  <span className="inline-block h-1 w-1 shrink-0 rounded-full" style={{ background: accent.hex }} aria-hidden="true" />
-                  <span className="truncate max-w-[6.5rem]">{AGENT_LABEL_TH[agent.agentId] ?? agent.agentId}</span>
-                  {/* Latency badge — only when agent has finished cleanly */}
-                  {agent.status === "done" && agent.startedAt && agent.finishedAt && (
-                    <span className="font-mono text-[9px] opacity-75 tabular-nums">
-                      {fmtLatency(agent.finishedAt - agent.startedAt)}
-                    </span>
-                  )}
-                  {agent.status === "done" && <span aria-hidden="true">✓</span>}
-                  {agent.status === "recovering" && <span aria-hidden="true">↻</span>}
-                  {agent.status === "error" && <span aria-hidden="true">✗</span>}
-                </span>
-              </React.Fragment>
-            );
-          })}
-        </div>
-      )}
       {isOpen && agents.length > 0 && (
-        <div>
-          {runSummary && (
-            <div className="border-t border-border/20 px-3 py-1.5 text-[11px] leading-4 text-muted-foreground">
-              {runSummary}
-            </div>
-          )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-px bg-border/10 p-px">
-          {agents.map((agent) => {
-            const isExpanded = expandAll || expandedAgents.has(agent.agentId);
-            const roleDesc = AGENT_ROLE_DESC[agent.agentId];
-            const accent = getModelAccent(agent.model);
+        <article className="border-t border-border/40 px-3.5 py-3 text-[13px] leading-6">
+          <header className="mb-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+            <span className="font-medium text-foreground/80">ทีมอ่านโจทย์เป็นบทความเดียว</span>
+            {runSummary && <span className="min-w-0 flex-1 truncate">{runSummary}</span>}
+          </header>
 
-            // Determine display text
-            let displayText = "";
-            let isThinking = false;
-            if (agent.thinkingText) {
-              displayText = agent.thinkingText.substring(0, 150);
-            } else if (agent.status === "active") {
-              isThinking = true;
-              displayText = roleDesc || "กำลังประมวลผล...";
-            } else if (agent.lastSummary) {
-              displayText = agent.lastSummary.substring(0, 100);
-            } else {
-              displayText = roleDesc || "พร้อม";
-            }
+          <div className="space-y-4">
+            {agents.map((agent) => {
+              const accent = getModelAccent(agent.model);
+              const latency = agent.startedAt && agent.finishedAt ? fmtLatency(agent.finishedAt - agent.startedAt) : null;
+              const paragraph = getAgentParagraph(agent);
+              const statusTone =
+                agent.status === "active"
+                  ? "text-emerald-700 dark:text-emerald-300"
+                  : agent.status === "recovering"
+                  ? "text-amber-700 dark:text-amber-300"
+                  : agent.status === "error"
+                  ? "text-rose-700 dark:text-rose-300"
+                  : "text-sky-700 dark:text-sky-300";
 
-            // Status icon
-            const statusIcon =
-              agent.status === "done" ? "✓" : agent.status === "error" ? "✗" : agent.status === "recovering" ? "↻" : "";
-            const dotClass =
-              agent.status === "active"
-                ? "animate-pulse bg-emerald-500"
-                : agent.status === "recovering"
-                ? "animate-pulse bg-amber-500"
-                : agent.status === "error"
-                ? "bg-rose-500"
-                : "bg-sky-400";
-
-            const cardShimmerClass = agent.status === "active" ? "agent-shimmer-active" : "";
-
-            return (
-              <div
-                key={agent.agentId}
-                data-testid={`multiagent-agent-${agent.agentId}`}
-                style={{ ['--agent-accent' as any]: accent.hex, borderLeftColor: accent.hex }}
-                className={`relative border-l-2 bg-card/40 px-3 py-2 pl-3 cursor-pointer hover:bg-card/60 transition-colors ${cardShimmerClass}`}
-                onClick={() =>
-                  setExpandedAgents((prev) => {
-                    const n = new Set(prev);
-                    n.has(agent.agentId) ? n.delete(agent.agentId) : n.add(agent.agentId);
-                    return n;
-                  })
-                }
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md ring-1 ring-inset"
-                    style={{
-                      color: accent.hex,
-                      background: `color-mix(in oklab, ${accent.hex} 12%, transparent)`,
-                      borderColor: `color-mix(in oklab, ${accent.hex} 35%, transparent)`,
-                    }}
-                    aria-hidden="true"
-                  >
-                    <AgentRoleIcon agentId={agent.agentId} />
-                  </span>
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${dotClass}`}
-                  />
-                  <span className="font-medium text-foreground/85 truncate flex items-center gap-1">
-                    {AGENT_LABEL_TH[agent.agentId] ?? agent.agentId}
-                    {statusIcon && (
-                      <span
-                        className={`text-[10px] ${
-                          agent.status === "done"
-                            ? "text-sky-400"
-                            : agent.status === "recovering"
-                            ? "text-amber-500"
-                            : "text-rose-400"
-                        }`}
-                      >
-                        {statusIcon}
-                      </span>
-                    )}
-                  </span>
-                  {/* Latency badge appears between status icon and model — only when finished */}
-                  {agent.status !== "active" && agent.startedAt && agent.finishedAt && (
-                    <span
-                      className="ml-auto font-mono text-[9.5px] tabular-nums text-muted-foreground/85"
-                      title="ระยะเวลาทำงาน"
-                    >
-                      {fmtLatency(agent.finishedAt - agent.startedAt)}
-                    </span>
-                  )}
-                  {agent.model && (
-                    <span
-                      className={`text-[9px] font-mono px-1 py-0.5 rounded flex-shrink-0 ${accent.pill} ${
-                        agent.status !== "active" && agent.startedAt && agent.finishedAt ? "" : "ml-auto"
-                      }`}
-                    >
-                      {MDES_MODEL_BADGE[agent.model] ?? agent.model.split(":")[0]}
-                    </span>
-                  )}
-                  {agent.toolNames.length > 0 && (
-                    <span
-                      className="inline-flex items-center gap-0.5 rounded bg-amber-500/10 px-1 py-0.5 font-mono text-[9.5px] text-amber-700 dark:text-amber-300"
-                      title={agent.toolNames.join(", ")}
-                    >
-                      <span aria-hidden="true">🛠</span>
-                      <span className="truncate max-w-[5rem]">
-                        {agent.toolNames[0].replace(/^[^:]+:/, "")}
-                      </span>
-                      {agent.toolNames.length > 1 && (
-                        <span className="font-mono text-[8.5px] opacity-70">+{agent.toolNames.length - 1}</span>
-                      )}
-                    </span>
-                  )}
-                </div>
-                <p
-                  className={`mt-0.5 text-muted-foreground/80 leading-4 line-clamp-2 ${
-                    agent.status === "error" ? "text-rose-400/70" : agent.status === "recovering" ? "text-amber-600/80 dark:text-amber-300/80" : ""
-                  }`}
+              return (
+                <section
+                  key={agent.agentId}
+                  data-testid={`multiagent-agent-${agent.agentId}`}
+                  className="border-t border-border/35 pt-3 first:border-t-0 first:pt-0"
                 >
-                  {isThinking ? (
-                    <>
-                      <span className="animate-pulse text-emerald-500/70">กำลังคิด</span>
-                      <span className="animate-pulse text-emerald-500/50 inline-block ml-0.5">
-                        ⋯
-                      </span>
-                      <span className="animate-pulse text-emerald-400 ml-0.5">▌</span>
-                      <span className="ml-1.5">{displayText}</span>
-                    </>
-                  ) : (
-                    agent.status === "recovering" && agent.lastFallback
-                      ? `${agent.lastFallback} · กำลังลองทางสำรอง`
-                      : displayText
-                  )}
-                </p>
-                {isExpanded && agent.events.length > 0 && (
-                  <div className="mt-2 border-t border-border/20 pt-1.5 space-y-1">
-                    {/* Show model info if available */}
+                  <div className="mb-1.5 flex flex-wrap items-center gap-1.5 text-[11px] leading-5">
+                    <span
+                      className="inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ring-inset"
+                      style={{
+                        color: accent.hex,
+                        background: `color-mix(in oklab, ${accent.hex} 10%, transparent)`,
+                        borderColor: `color-mix(in oklab, ${accent.hex} 28%, transparent)`,
+                      }}
+                      aria-hidden="true"
+                    >
+                      <AgentRoleIcon agentId={agent.agentId} />
+                    </span>
+                    <span className="font-semibold text-foreground/90">
+                      {AGENT_LABEL_TH[agent.agentId] ?? agent.agentId}
+                    </span>
+                    <span className={statusTone}>
+                      {getStatusLabel(agent.status)}
+                      {paragraph.live && <span className="ml-0.5 animate-pulse">...</span>}
+                    </span>
                     {agent.model && (
-                      <div className="text-[10px] font-mono text-sky-400/60 mb-1">
-                        🤖 {agent.model}
-                      </div>
+                      <span className={`rounded px-1.5 py-0.5 font-mono text-[9.5px] ${accent.pill}`} title={agent.model}>
+                        {MDES_MODEL_BADGE[agent.model] ?? agent.model.split(":")[0]}
+                      </span>
                     )}
-                    {/* Show thinking text prominently if available */}
-                    {agent.thinkingText && (
-                      <div className="bg-muted/30 rounded px-2 py-1 text-foreground/80 text-[11px] leading-relaxed">
-                        💭 {agent.thinkingText}
-                      </div>
+                    {latency && (
+                      <span className="font-mono text-[10px] tabular-nums text-muted-foreground/80" title="ระยะเวลาทำงาน">
+                        {latency}
+                      </span>
                     )}
-                    {/* Group events by type */}
-                    <ul className="space-y-0.5">
-                      {agent.events.map((ev, i) => {
-                        if (ev.type === "agent_delta" && agent.thinkingText) return null; // Already shown above
-                        const isTool = ev.type === "tool_call_started" || ev.type === "tool_call_finished";
-                        const isFallback = ev.type === "fallback";
-                        const isError = ev.type === "error";
-                        const labelTone = isTool
-                          ? "text-amber-600 dark:text-amber-300 bg-amber-500/10"
-                          : isFallback
-                          ? "text-amber-700 dark:text-amber-200 bg-amber-500/10"
-                          : isError
-                          ? "text-rose-600 dark:text-rose-300 bg-rose-500/10"
-                          : "text-muted-foreground/55 bg-muted/30";
-                        return (
-                          <li key={i} className="leading-4">
-                            <span
-                              className={`mr-1 inline-block rounded px-1 py-px font-mono text-[9.5px] ${labelTone}`}
-                            >
-                              {EVENT_LABEL_TH[ev.type] ?? ev.type}
-                            </span>
-                            {isTool && ev.toolName && (
-                              <span className="mr-1 font-mono text-[10px] text-amber-600/90 dark:text-amber-300/90">
-                                {ev.toolName.replace(/^[^:]+:/, "")}
-                              </span>
-                            )}
-                            {ev.publicSummary && (
-                              <span className={`text-[11px] ${isError ? "text-rose-600/85 dark:text-rose-300/85" : "text-muted-foreground/85"}`}>
-                                {ev.publicSummary}
-                              </span>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
+                    {agent.toolNames.length > 0 && (
+                      <span className="rounded bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9.5px] text-amber-700 dark:text-amber-300" title={agent.toolNames.join(", ")}>
+                        {agent.toolNames[0].replace(/^[^:]+:/, "")}
+                        {agent.toolNames.length > 1 ? ` +${agent.toolNames.length - 1}` : ""}
+                      </span>
+                    )}
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        </div>
+                  <p className="max-w-[72ch] text-[13.5px] leading-6 text-foreground/85">
+                    {paragraph.text}
+                  </p>
+                </section>
+              );
+            })}
+          </div>
+        </article>
       )}
     </div>
   );

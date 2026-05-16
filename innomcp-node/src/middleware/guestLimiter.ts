@@ -36,6 +36,8 @@ const GUEST_LIMITS: GuestLimits = {
     'weather',
     'nwp_hourly_by_place',
     'nwp_daily_by_place',
+    'thai_geo_tool',
+    'thaiKnowledgeTool',
     'tmd_weather_forecast_7days_by_province',
     'tmd_weather_forecast_7days_by_region',
     'echartsTool',
@@ -219,7 +221,7 @@ export function getLimitsForUser(user: any | null): GuestLimits {
 /**
  * Cleanup old rate limit entries (run periodically)
  */
-setInterval(() => {
+const rateLimitCleanupTimer = setInterval(() => {
   const now = new Date();
   for (const [key, entry] of rateLimitStore.entries()) {
     if (entry.resetAt < now) {
@@ -227,3 +229,5 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000); // Every 5 minutes
+
+rateLimitCleanupTimer.unref?.();

@@ -16,30 +16,173 @@ import { checkToolAccess, type GuestLimits } from "../middleware/guestLimiter";
 const MCP_URL = (process.env.MCPSERVER_URL ?? "http://localhost:3012/mcp").replace(/\/$/, "");
 const TOOL_TIMEOUT_MS = 20_000;
 
+export interface ToolPlan {
+  toolName: string;
+  args: Record<string, unknown>;
+  reason: string;
+  authoritative: boolean;
+}
+
+function needsHourlyWeather(query: string): boolean {
+  return /ตอนนี้|วันนี้|รายชั่วโมง|ชั่วโมง|hourly|now|current/i.test(query);
+}
+
+function extractMathExpression(query: string): string {
+  let expr = query
+    .replace(/คำนวณ|ช่วย|หน่อย|เท่ากับเท่าไหร่|เท่ากับ|ผลลัพธ์|calculate|compute|what is/gi, " ")
+    .replace(/บวก/g, "+")
+    .replace(/ลบ/g, "-")
+    .replace(/คูณ/g, "*")
+    .replace(/หาร/g, "/")
+    .replace(/ยกกำลัง/g, "^")
+    .replace(/เปอร์เซ็นต์|percent/gi, "%")
+    .trim();
+
+  if (/ค่าเฉลี่ย|average|mean/i.test(query)) {
+    const nums = query.match(/-?\d+(?:\.\d+)?/g);
+    if (nums && nums.length > 0) return `mean([${nums.join(",")}])`;
+  }
+
+  const safe = expr.match(/[0-9+\-*/%^().,\s\[\]]+/g)?.join(" ").trim();
+  return safe && /\d/.test(safe) ? safe : expr;
+}
+
+function inferEvidenceAction(query: string): string {
+  if (/offline|ออฟไลน์/i.test(query)) return "active_machines_offline_count";
+  if (/machine|เครื่อง/i.test(query) && /ล่าสุด|last|latest/i.test(query)) return "machine_last_scan";
+  if (/machine|เครื่อง/i.test(query)) return "active_machines_count";
+  if (/7\s*day|7\s*วัน|trend|แนวโน้ม/i.test(query)) return "evidence_records_last_7_days_trend";
+  if (/yesterday|เมื่อวาน/i.test(query) && /isp/i.test(query)) return "evidence_records_yesterday_by_isp_top";
+  if (/yesterday|เมื่อวาน/i.test(query)) return "evidence_records_yesterday_total";
+  if (/nip|url/i.test(query) && /isp|top|สูงสุด|มากสุด/i.test(query)) return "nip_top_isp_this_month";
+  if (/nip|url/i.test(query)) return "nip_latest";
+  return "officer_summary";
+}
+
+function extractIspFilter(query: string): string | undefined {
+  const hit = query.match(/\b(ais|dtac|true|tot|3bb|nt)\b/i)?.[1];
+  return hit ? hit.toLowerCase() : undefined;
+}
+
+function inferKnowledgeDomain(query: string): string | undefined {
+  if (/กฎหมาย|พระราชบัญญัติ|พรบ|PDPA|law/i.test(query)) return "law";
+  if (/ประวัติ|history/i.test(query)) return "history";
+  if (/ศาสนา|วัด|religion/i.test(query)) return "religion";
+  if (/จังหวัด|อำเภอ|ตำบล|geo|province/i.test(query)) return "geo";
+  return undefined;
+}
+
+function hasEvidenceSignal(query: string): boolean {
+  if (/หลักฐาน|คดี|พยาน|forensic|evidence|detect|nip|isp|threat|sigint/i.test(query)) return true;
+  if (/machine|เครื่อง|url|traffic/i.test(query)) {
+    return /offline|ล่าสุด|last|latest|scan|สแกน|หลักฐาน|คดี|detect|nip|isp/i.test(query);
+  }
+  return false;
+}
+
 /** Resolve intent (and query keywords) → MCP tool name + arg builder */
-function planToolCall(intent: ChatIntent, query: string): { toolName: string; args: Record<string, unknown> } | null {
+export function planToolCall(intent: ChatIntent, query: string): ToolPlan | null {
   const trimmed = query.trim();
   const lower = trimmed.toLowerCase();
+
+  if (intent === "datetime") {
+    return {
+      toolName: "dateTimeTool",
+      args: { format: "thai" },
+      reason: "datetime intent",
+      authoritative: true,
+    };
+  }
+
+  if (intent === "calc") {
+    return {
+      toolName: "calculatorTool",
+      args: { expression: extractMathExpression(trimmed) },
+      reason: "calculation intent",
+      authoritative: true,
+    };
+  }
 
   // Weather — handled via NWP daily
   if (intent === "weather" || /อากาศ|พยากรณ์|ฝน|อุณหภูมิ|forecast|weather/.test(lower)) {
     const province = extractThaiProvince(trimmed) || "กรุงเทพมหานคร";
+    const hourly = needsHourlyWeather(trimmed);
     return {
-      toolName: "nwp_daily_by_place",
-      args: { province, duration: 2, fields: ["tc_max", "tc_min", "rh", "rain", "cond"] },
+      toolName: hourly ? "nwp_hourly_by_place" : "nwp_daily_by_place",
+      args: hourly
+        ? { province, duration: 24, fields: ["tc", "rh", "rain", "cond"] }
+        : { province, duration: 2, fields: ["tc_max", "tc_min", "rh", "rain", "cond"] },
+      reason: hourly ? "current weather intent" : "daily weather intent",
+      authoritative: true,
     };
   }
 
-  // Evidence intel — keyword-driven (intent classifier doesn't have "evidence" yet)
-  if (/หลักฐาน|threat|คดี|nip|forensic|sigint/i.test(trimmed)) {
-    return { toolName: "detect_evidence_stats", args: { intent: "list_recent_threats", limit: 10 } };
+  // Evidence intel — keyword-driven fallback for officer/data questions.
+  if (hasEvidenceSignal(trimmed)) {
+    const ispFilter = extractIspFilter(trimmed);
+    return {
+      toolName: "evidenceTool",
+      args: {
+        action: inferEvidenceAction(trimmed),
+        limit: 5,
+        ...(ispFilter ? { ispFilter } : {}),
+      },
+      reason: "evidence/officer keyword",
+      authoritative: true,
+    };
+  }
+
+  if (intent === "evidence") {
+    const ispFilter = extractIspFilter(trimmed);
+    return {
+      toolName: "evidenceTool",
+      args: {
+        action: inferEvidenceAction(trimmed),
+        limit: 5,
+        ...(ispFilter ? { ispFilter } : {}),
+      },
+      reason: "evidence/officer intent",
+      authoritative: true,
+    };
   }
 
   // Geo lookup (thai_geo_tool expects { query })
   if (intent === "map") {
     const province = extractThaiProvince(trimmed);
-    if (!province) return null;
-    return { toolName: "thai_geo_tool", args: { query: province } };
+    return {
+      toolName: "thai_geo_tool",
+      args: { query: province || trimmed },
+      reason: "map/geo intent",
+      authoritative: true,
+    };
+  }
+
+  if (intent === "knowledge") {
+    const domain = inferKnowledgeDomain(trimmed);
+    return {
+      toolName: "thaiKnowledgeTool",
+      args: {
+        query: trimmed,
+        context: {
+          ...(domain ? { domain } : {}),
+          confidence_required: 0.45,
+        },
+      },
+      reason: domain ? `thai knowledge:${domain}` : "thai knowledge",
+      authoritative: false,
+    };
+  }
+
+  if (intent === "planning-broad") {
+    const province = extractThaiProvince(trimmed);
+    return {
+      toolName: province ? "thai_geo_tool" : "thaiKnowledgeTool",
+      args: province
+        ? { query: province }
+        : { query: trimmed, context: { confidence_required: 0.45 } },
+      reason: "planning support lookup",
+      authoritative: false,
+    };
   }
 
   // No tool for greeting/calc/code/general/planning-broad/datetime
@@ -193,6 +336,9 @@ export async function dispatchTool(
 function formatToolResult(toolName: string, rawText: string): string | null {
   let parsed: any;
   try { parsed = JSON.parse(rawText); } catch {
+    if (["dateTimeTool", "calculatorTool", "evidenceTool"].includes(toolName)) {
+      return rawText.trim().slice(0, 4000);
+    }
     // Couldn't parse — for evidence tool return a graceful message
     if (toolName === "detect_evidence_stats") {
       return `🛡️ ระบบฐานข้อมูลหลักฐาน (Detect API) ยังไม่พร้อมให้บริการในขณะนี้ ลองเรียกใหม่ภายหลังครับ`;
@@ -200,7 +346,7 @@ function formatToolResult(toolName: string, rawText: string): string | null {
     return null;
   }
 
-  if (toolName.startsWith("nwp_daily")) {
+  if (toolName.startsWith("nwp_daily") || toolName.startsWith("nwp_hourly")) {
     const fc = parsed?.data?.WeatherForecasts?.[0] || parsed?.WeatherForecasts?.[0];
     const loc = fc?.location;
     const days = fc?.forecasts || [];
@@ -209,12 +355,13 @@ function formatToolResult(toolName: string, rawText: string): string | null {
     const lines = [`📍 พยากรณ์อากาศรายวัน — ${place}`];
     for (const d of days.slice(0, 7)) {
       const date = String(d.time || "").slice(0, 10);
+      const temp = d.data?.tc != null ? `อุณหภูมิ ${d.data.tc.toFixed(1)}°C` : "";
       const tmax = d.data?.tc_max != null ? `สูงสุด ${d.data.tc_max.toFixed(1)}°C` : "";
       const tmin = d.data?.tc_min != null ? `ต่ำสุด ${d.data.tc_min.toFixed(1)}°C` : "";
       const rh = d.data?.rh != null ? `ความชื้น ${d.data.rh.toFixed(0)}%` : "";
       const rain = d.data?.rain != null ? `ฝน ${d.data.rain.toFixed(1)}mm` : "";
       const cond = d.data?.cond != null ? `(${weatherCond(d.data.cond)})` : "";
-      lines.push(`• **${date}**: ${[tmax, tmin, rh, rain].filter(Boolean).join(", ")} ${cond}`);
+      lines.push(`• **${date}**: ${[temp, tmax, tmin, rh, rain].filter(Boolean).join(", ")} ${cond}`);
     }
     lines.push("");
     lines.push(`ข้อมูลจาก NWP (TMD High Performance Computing)`);
@@ -230,6 +377,25 @@ function formatToolResult(toolName: string, rawText: string): string | null {
       if (p.lat && p.lon) out.push(`พิกัด: ${p.lat}, ${p.lon}`);
     }
     return out.length > 0 ? out.join("\n") : null;
+  }
+
+  if (toolName === "thaiKnowledgeTool") {
+    if (parsed?.success === false) {
+      return typeof parsed.message === "string" ? parsed.message : null;
+    }
+    const rows = Array.isArray(parsed?.data) ? parsed.data : [];
+    if (rows.length > 0) {
+      const lines = rows.slice(0, 5).map((row: any) => {
+        const name = row.name_th || row.name || row.id || "ข้อมูล";
+        const desc = row.description ? `: ${row.description}` : "";
+        return `• **${name}**${desc}`;
+      });
+      const source = Array.isArray(parsed?.source) && parsed.source.length > 0
+        ? `\n\nแหล่งข้อมูล: ${parsed.source.map((s: any) => s.name).filter(Boolean).join(", ")}`
+        : "";
+      return `${lines.join("\n")}${source}`;
+    }
+    return JSON.stringify(parsed).slice(0, 800);
   }
 
   if (toolName === "detect_evidence_stats") {

@@ -1,6 +1,5 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as echarts from "echarts";
-import puppeteer from "puppeteer";
 import { z } from "zod";
 import { mcpLog } from "../../utils/mcpLogger";
 import { logBoth } from "../../utils/mcpLogger";
@@ -15,7 +14,7 @@ type EchartsInput = {
 };
 
 export function registerEchartsTool(mcpserver: McpServer) {
-  mcpserver.registerTool(
+  (mcpserver.registerTool as any)(
     "echartsTool",
     {
       title: "สร้างกราฟด้วย ECharts (ECharts Tool)",
@@ -62,6 +61,14 @@ D) chartTitle (ทางเลือก): ชื่อกราฟ
 - ห้าม: ส่ง type เป็น undefined หรือ null
 - ห้าม: ลืมส่ง labels เมื่อส่ง datasets
         `,
+      inputSchema: {
+        type: z.string().optional(),
+        labels: z.array(z.string()).optional(),
+        datasets: z.array(z.object({ label: z.string(), data: z.array(z.number()) })).optional(),
+        dataJson: z.string().optional(),
+        chatText: z.string().optional(),
+        chartTitle: z.string().optional(),
+      },
     },
     async (args: any) => {
       const input = args as EchartsInput;
@@ -283,41 +290,16 @@ D) chartTitle (ทางเลือก): ชื่อกราฟ
           };
         }
 
-        const browser = await puppeteer.launch({ headless: true });
-        const page = await browser.newPage();
-
         try {
-          await page.setContent(
-            `
-<html>
-<head>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-</head>
-<body>
-<div id="chart" style="width: 600px; height: 400px;"></div>
-<script>
-window.option = ${JSON.stringify(option)};
-window.chart = echarts.init(document.getElementById('chart'), null, { renderer: 'svg' });
-window.chart.setOption(window.option);
-</script>
-</body>
-</html>
-          `,
-            { waitUntil: "load" }
-          );
-
-          // Wait a bit for chart to render
-          await new Promise((resolve) => setTimeout(resolve, 500));
-
-          const svg = await page.evaluate(() => {
-            const chart = (window as any).chart;
-            if (!chart) {
-              throw new Error("Chart not initialized");
-            }
-            return chart.renderToSVGString();
+          const chart = echarts.init(null, null, {
+            renderer: "svg",
+            ssr: true,
+            width: 600,
+            height: 400,
           });
-
-          await browser.close();
+          chart.setOption(option);
+          const svg = chart.renderToSVGString();
+          chart.dispose();
 
           if (!svg || svg.length === 0) {
             throw new Error("SVG rendering failed - empty result");
@@ -333,7 +315,6 @@ window.chart.setOption(window.option);
             structuredContent: { chartSvg: svg },
           };
         } catch (renderError) {
-          await browser.close();
           logBoth('ERROR', `[ECharts Tool] Failed to render chart: ${String(renderError)}`);
           throw new Error(
             `Failed to render chart: ${

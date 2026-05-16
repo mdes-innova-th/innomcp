@@ -9,7 +9,8 @@ import {
   faStop,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
-import AIModelSelector from "./AIModelSelector";
+import AIModelSelector, { type AIMode } from "./AIModelSelector";
+import ThinkingModeToggle, { type ReasoningMode } from "./ThinkingModeToggle";
 import ToolsTypeSelector, { type ToolType } from "./ToolsTypeSelector";
 
 interface ChatInputProps {
@@ -32,6 +33,9 @@ interface ChatInputProps {
   theme: string;
   layoutMode?: "empty" | "conversation";
   onToolTypeChange?: (type: ToolType) => void;
+  onModeChange?: (mode: AIMode) => void;
+  reasoningMode?: ReasoningMode;
+  onReasoningModeChange?: (mode: ReasoningMode) => void;
   onFocus?: () => void;
   onBlur?: () => void;
 }
@@ -68,6 +72,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
   theme,
   layoutMode: _layoutMode = "conversation",
   onToolTypeChange,
+  onModeChange,
+  reasoningMode = "normal",
+  onReasoningModeChange,
   onFocus,
   onBlur,
 }) => {
@@ -256,7 +263,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
           {/* Right-aligned: model selector + send */}
           <div className="ml-auto flex flex-1 items-center justify-end gap-2 sm:flex-none">
-            <AIModelSelector theme={theme} />
+            <ThinkingModeToggle
+              mode={reasoningMode}
+              onModeChange={(mode) => onReasoningModeChange?.(mode)}
+              disabled={isWaitingForResponse}
+            />
+            <AIModelSelector theme={theme} onModeChange={onModeChange} />
 
             <button
               onClick={isWaitingForResponse ? handleStop : sendMessage}

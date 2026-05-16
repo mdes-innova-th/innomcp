@@ -16,6 +16,7 @@ export interface SelectOptions {
   mode: ChatMode;
   capabilities: Capability[];
   privacyLevel?: PrivacyLevel;
+  preferredProviderId?: string;
   /** Block providers whose latest health is `down`. Default true. */
   excludeDown?: boolean;
 }
@@ -72,10 +73,32 @@ export function selectProvider(opts: SelectOptions): SelectionResult {
     };
   }
 
-  const ranked = candidates
+  const capabilityCandidates =
+    opts.capabilities.length > 0
+      ? candidates.filter((p) => capabilityScore(p, opts.capabilities) > 0)
+      : candidates;
+  const eligible = capabilityCandidates.length > 0 ? capabilityCandidates : candidates;
+  const rank = (p: ProviderRecord) => capabilityScore(p, opts.capabilities) * 100 + p.priority;
+  const preferred = opts.preferredProviderId
+    ? eligible.find((p) => p.id === opts.preferredProviderId)
+    : undefined;
+
+  if (preferred && capabilityScore(preferred, opts.capabilities) > 0) {
+    const alternates = eligible
+      .filter((p) => p.id !== preferred.id)
+      .sort((a, b) => rank(b) - rank(a));
+    const matched = opts.capabilities.filter((c) => preferred.capabilities.includes(c));
+    const reason =
+      `เลือก ${preferred.displayName} ตาม provider ที่ผู้ใช้ระบุ` +
+      (matched.length > 0 ? `: ตรงความสามารถ ${matched.join(", ")}` : "");
+
+    return { provider: preferred, alternates, reason };
+  }
+
+  const ranked = eligible
     .map((p) => ({
       p,
-      score: capabilityScore(p, opts.capabilities) * 100 + p.priority,
+      score: rank(p),
     }))
     .sort((a, b) => b.score - a.score);
 

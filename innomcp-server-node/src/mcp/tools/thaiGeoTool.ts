@@ -322,20 +322,22 @@ function successResult(output: ThaiGeoToolOutput): { content: Array<{ type: "tex
   return { content: [{ type: "text", text: JSON.stringify(output) }] };
 }
 
+const thaiGeoInputSchema = {
+  query: z.string().min(1),
+  context: z
+    .object({
+      domain: z.literal("geo").optional(),
+      language: z.string().default("th").optional(),
+      confidence_required: z.number().min(0).max(1).default(DEFAULT_CONFIDENCE_REQUIRED).optional(),
+    })
+    .optional(),
+  filter_region: z.string().min(1).optional(),
+} satisfies z.ZodRawShape;
+
 export const thaiGeoTool = {
   name: TOOL_NAME,
   description: TOOL_DESC,
-  inputSchema: z.object({
-    query: z.string().min(1),
-    context: z
-      .object({
-        domain: z.literal("geo").optional(),
-        language: z.string().default("th").optional(),
-        confidence_required: z.number().min(0).max(1).default(DEFAULT_CONFIDENCE_REQUIRED).optional(),
-      })
-      .optional(),
-    filter_region: z.string().min(1).optional(),
-  }),
+  inputSchema: thaiGeoInputSchema,
   execute: async (rawArgs: unknown) => {
     const args = rawArgs as ThaiGeoToolInput;
     const searchTerm = String(args?.query ?? "").trim();
@@ -450,7 +452,7 @@ export const thaiGeoTool = {
 };
 
 export function registerThaiGeoTool(server: McpServer): void {
-  server.registerTool(
+  (server.registerTool as any)(
     thaiGeoTool.name,
     {
       title: "Thai GEO Tool - ค้นหาภูมิศาสตร์ไทย",

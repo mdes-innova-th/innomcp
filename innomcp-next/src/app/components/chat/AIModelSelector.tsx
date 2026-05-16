@@ -1,10 +1,17 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronDown, faRobot } from "@fortawesome/free-solid-svg-icons";
+import {
+  faBolt,
+  faBrain,
+  faCheck,
+  faChevronDown,
+  faLayerGroup,
+} from "@fortawesome/free-solid-svg-icons";
 
-type AIMode = "local" | "remote" | "hybrid";
+export type AIMode = "local" | "remote" | "hybrid";
 
 interface AIModelSelectorProps {
   theme: string;
@@ -16,6 +23,9 @@ interface ModeMeta {
   short: string;
   label: string;
   helper: string;
+  icon: IconDefinition;
+  tone: string;
+  selectedTone: string;
 }
 
 const MODES: ModeMeta[] = [
@@ -23,19 +33,28 @@ const MODES: ModeMeta[] = [
     id: "local",
     short: "ในเครื่อง",
     label: "ประมวลผลในเครื่อง",
-    helper: "เร็วและควบคุมข้อมูลได้เอง",
+    helper: "ตอบไว ควบคุมข้อมูลเอง เหมาะกับงานตรงไปตรงมา",
+    icon: faBolt,
+    tone: "text-sky-700 dark:text-sky-300",
+    selectedTone: "bg-sky-500/10 text-sky-800 ring-sky-500/25 dark:text-sky-200",
   },
   {
     id: "remote",
     short: "คลาวด์",
     label: "ประมวลผลบนคลาวด์",
-    helper: "ใช้พลังโมเดลภายนอกเพิ่มความสามารถ",
+    helper: "ใช้โมเดลภายนอกเพิ่มความสามารถเมื่องานซับซ้อน",
+    icon: faBrain,
+    tone: "text-slate-700 dark:text-slate-200",
+    selectedTone: "bg-slate-500/10 text-slate-900 ring-slate-500/25 dark:text-slate-100",
   },
   {
     id: "hybrid",
-    short: "ผสมผสาน",
-    label: "ผสมผสาน",
-    helper: "บาลานซ์ความเร็วและความสามารถ",
+    short: "ผสม",
+    label: "ผสมหลายระบบ",
+    helper: "บาลานซ์ความเร็ว ความสามารถ และเครื่องมือประกอบ",
+    icon: faLayerGroup,
+    tone: "text-emerald-700 dark:text-emerald-300",
+    selectedTone: "bg-emerald-500/10 text-emerald-900 ring-emerald-500/25 dark:text-emerald-100",
   },
 ];
 
@@ -80,7 +99,10 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({ theme: _theme, onMode
       const response = await fetch(`${backendHost}/api/ai-mode`);
       if (response.ok) {
         const data = await response.json();
-        setCurrentMode(data.mode);
+        if (data.mode === "local" || data.mode === "remote" || data.mode === "hybrid") {
+          setCurrentMode(data.mode);
+          onModeChange?.(data.mode);
+        }
       }
     } catch (error) {
       console.error("Failed to fetch AI mode:", error);
@@ -117,16 +139,15 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({ theme: _theme, onMode
         ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         data-testid="ai-mode-button"
-        className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border/70 bg-background px-2.5 text-[13px] font-medium text-foreground transition-colors hover:border-primary/30 hover:bg-primary/8 aria-expanded:border-primary/40 aria-expanded:bg-primary/8"
+        className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border/70 bg-background px-2.5 text-[13px] font-medium text-foreground transition-colors hover:border-emerald-500/30 hover:bg-emerald-500/10 aria-expanded:border-emerald-500/35 aria-expanded:bg-emerald-500/10"
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        title={`โหมด AI: ${current.label} — ${current.helper} (Ctrl+M)`}
+        title={`เส้นทาง AI: ${current.label} — ${current.helper} (Ctrl+M)`}
       >
-        <FontAwesomeIcon icon={faRobot} className="text-muted-foreground" aria-hidden="true" />
-        {/* Mobile: a single-letter pill so users still see which mode is active. */}
-        <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded bg-primary/10 px-1 text-[10px] font-semibold uppercase tracking-wider text-primary sm:hidden">
-          {current.short.charAt(0)}
+        <span className={`inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ring-inset ${current.selectedTone}`}>
+          <FontAwesomeIcon icon={current.icon} className="text-[10px]" aria-hidden="true" />
         </span>
+        <span className="sm:hidden">AI</span>
         <span className="hidden truncate sm:inline">{current.short}</span>
         <FontAwesomeIcon
           icon={faChevronDown}
@@ -148,16 +169,16 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({ theme: _theme, onMode
 
           <div
             role="listbox"
-            aria-label="เลือกโหมดประมวลผล AI"
-            className="absolute bottom-full right-0 z-[101] mb-2 w-[min(18rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-border/70 bg-card shadow-lg"
+            aria-label="เลือกเส้นทางประมวลผล AI"
+            className="absolute bottom-full right-0 z-[101] mb-2 w-[min(19rem,calc(100vw-1.5rem))] overflow-hidden rounded-lg border border-border/70 bg-card shadow-lg"
           >
             <div className="flex items-start justify-between gap-2 border-b border-border/60 px-3 py-2">
               <div className="min-w-0">
-                <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  โหมดประมวลผล AI
+                <div className="text-[11px] font-semibold text-foreground/85">
+                  เส้นทางประมวลผล AI
                 </div>
                 <div className="mt-0.5 text-[12px] leading-snug text-muted-foreground/85">
-                  เลือกแนวทางให้เหมาะกับงาน
+                  เลือกแหล่งประมวลผลให้เหมาะกับโจทย์
                 </div>
               </div>
               <kbd className="shrink-0 rounded border border-border/60 bg-background px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
@@ -176,13 +197,13 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({ theme: _theme, onMode
                       onClick={() => handleModeChange(mode.id)}
                       className={`flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors ${
                         isSelected
-                          ? "bg-primary/10 text-primary"
+                          ? `${mode.selectedTone} ring-1 ring-inset`
                           : "text-foreground hover:bg-muted/60"
                       }`}
                     >
                       <FontAwesomeIcon
-                        icon={faRobot}
-                        className={isSelected ? "text-primary" : "text-muted-foreground"}
+                        icon={mode.icon}
+                        className={isSelected ? mode.tone : "text-muted-foreground"}
                         aria-hidden="true"
                       />
                       <span className="min-w-0 flex-1">
@@ -194,18 +215,7 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({ theme: _theme, onMode
                         </span>
                       </span>
                       {isSelected && (
-                        <svg
-                          className="h-4 w-4 shrink-0 text-primary"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          aria-hidden="true"
-                        >
-                          <path d="M5 12l5 5L20 7" />
-                        </svg>
+                        <FontAwesomeIcon icon={faCheck} className={`h-4 w-4 shrink-0 ${mode.tone}`} aria-hidden="true" />
                       )}
                     </button>
                   </li>

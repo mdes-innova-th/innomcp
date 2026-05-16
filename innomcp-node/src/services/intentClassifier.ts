@@ -12,9 +12,12 @@ export type ChatIntent =
   | "greeting"
   | "planning-broad"
   | "weather"
+  | "datetime"
   | "calc"
   | "code"
   | "map"
+  | "evidence"
+  | "knowledge"
   | "general";
 
 export interface ClassifyResult {
@@ -98,6 +101,53 @@ const CODE_KEYWORDS = [
   "type error",
 ];
 
+const DATETIME_KEYWORDS = [
+  "เวลา",
+  "วันที่",
+  "กี่โมง",
+  "ตอนนี้",
+  "ขณะนี้",
+  "เดี๋ยวนี้",
+  "วันนี้วัน",
+  "date",
+  "datetime",
+  "current time",
+  "what time",
+  "clock",
+];
+
+const EVIDENCE_KEYWORDS = [
+  "หลักฐาน",
+  "คดี",
+  "พยาน",
+  "forensic",
+  "evidence",
+  "detect",
+  "NIP",
+  "nip",
+  "ISP",
+  "traffic",
+  "machine",
+  "url",
+];
+
+const KNOWLEDGE_KEYWORDS = [
+  "คืออะไร",
+  "หมายความว่า",
+  "อธิบาย",
+  "ประวัติ",
+  "กฎหมาย",
+  "ศาสนา",
+  "วัด",
+  "จังหวัด",
+  "พระราชบัญญัติ",
+  "PDPA",
+  "what is",
+  "explain",
+  "law",
+  "history",
+];
+
 const GREETING_KEYWORDS = [
   "สวัสดี",
   "หวัดดี",
@@ -119,7 +169,23 @@ function containsAny(text: string, list: string[]): string | null {
   return null;
 }
 
-export function classifyIntent(message: string): ClassifyResult {
+function evidenceMatch(message: string): string | null {
+  const hit = containsAny(message, EVIDENCE_KEYWORDS);
+  if (!hit) return null;
+  const lower = message.toLowerCase();
+
+  // "machine" and "url" are common in non-officer questions. Only treat
+  // them as evidence intent when the query also has an officer/data signal.
+  if (["machine", "url", "traffic"].includes(hit.toLowerCase())) {
+    const hasOfficerSignal =
+      /หลักฐาน|คดี|พยาน|forensic|evidence|detect|nip|isp|offline|threat|sigint|scan|สแกน/i.test(message);
+    if (!hasOfficerSignal) return null;
+  }
+  if (/machine learning|url encoding|url คืออะไร/.test(lower)) return null;
+  return hit;
+}
+
+export function classifyIntent(message: string, toolHint?: string): ClassifyResult {
   const reasons: string[] = [];
 
   if (!message || typeof message !== "string") {
@@ -129,10 +195,25 @@ export function classifyIntent(message: string): ClassifyResult {
   const greeting = containsAny(message, GREETING_KEYWORDS);
   const planning = containsAny(message, PLANNING_KEYWORDS);
   const weather = containsAny(message, WEATHER_KEYWORDS);
+  const datetime = containsAny(message, DATETIME_KEYWORDS);
+  const evidence = evidenceMatch(message);
+  const knowledge = containsAny(message, KNOWLEDGE_KEYWORDS);
   const travel = containsAny(message, TRAVEL_KEYWORDS);
   const map = containsAny(message, MAP_KEYWORDS);
   const calc = containsAny(message, CALC_KEYWORDS);
   const code = containsAny(message, CODE_KEYWORDS);
+  const hint = String(toolHint || "auto").toLowerCase();
+
+  if (hint && hint !== "auto") {
+    if (hint === "weather") return { intent: "weather", expectedToolUsage: true, reasons: ["tool-hint:weather"] };
+    if (hint === "calculation") return { intent: "calc", expectedToolUsage: true, reasons: ["tool-hint:calculation"] };
+    if (hint === "datetime") return { intent: "datetime", expectedToolUsage: true, reasons: ["tool-hint:datetime"] };
+    if (hint === "officer") return { intent: "evidence", expectedToolUsage: true, reasons: ["tool-hint:officer"] };
+    if (hint === "data") {
+      const intent = evidence ? "evidence" : "knowledge";
+      return { intent, expectedToolUsage: true, reasons: [`tool-hint:data:${intent}`] };
+    }
+  }
 
   // Short greeting — fire 2 MDES agents for a friendly real response.
   // If the greeting is paired with a real question (5W1H or ?), fall through
@@ -151,21 +232,33 @@ export function classifyIntent(message: string): ClassifyResult {
     reasons.push(`planning-broad: planning=${planning}, weather=${weather}, travel=${travel}`);
     return { intent: "planning-broad", expectedToolUsage: true, reasons };
   }
+  if (evidence) {
+    reasons.push(`evidence: ${evidence}`);
+    return { intent: "evidence", expectedToolUsage: true, reasons };
+  }
   if (map) {
     reasons.push(`map: ${map}`);
-    return { intent: "map", expectedToolUsage: false, reasons };
+    return { intent: "map", expectedToolUsage: true, reasons };
   }
   if (weather) {
     reasons.push(`weather: ${weather}`);
     return { intent: "weather", expectedToolUsage: true, reasons };
   }
+  if (datetime) {
+    reasons.push(`datetime: ${datetime}`);
+    return { intent: "datetime", expectedToolUsage: true, reasons };
+  }
   if (calc && /\d/.test(message)) {
     reasons.push(`calc: ${calc}`);
-    return { intent: "calc", expectedToolUsage: false, reasons };
+    return { intent: "calc", expectedToolUsage: true, reasons };
   }
   if (code) {
     reasons.push(`code: ${code}`);
     return { intent: "code", expectedToolUsage: false, reasons };
+  }
+  if (knowledge) {
+    reasons.push(`knowledge: ${knowledge}`);
+    return { intent: "knowledge", expectedToolUsage: true, reasons };
   }
 
   reasons.push("general (no keywords matched)");

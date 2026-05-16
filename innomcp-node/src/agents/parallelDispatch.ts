@@ -13,6 +13,32 @@ import type { AgentId } from "./events";
 import { newEnvelope } from "./events";
 import { checkAgentEventSafe } from "./eventGuard";
 import type { EmitFn } from "./conductor";
+import type { ChatMode } from "../providers/router";
+
+export type AgentRunMode = "normal" | "thinking";
+
+type AgentEndpointKind = "local" | "remote";
+
+interface AgentEndpoint {
+  kind: AgentEndpointKind;
+  url: string;
+  key: string;
+  model: string;
+  timeoutMs: number;
+}
+
+export interface AgentPlanItem extends AgentEndpoint {
+  agentId: AgentId;
+}
+
+export interface AgentDispatchOptions {
+  runMode?: AgentRunMode;
+  preferredMode?: ChatMode;
+}
+
+export interface AgentPlanOptions extends AgentDispatchOptions {
+  remoteAvailable?: boolean;
+}
 
 // Legacy export kept for backward compatibility
 export const INTENT_AGENTS: Record<string, AgentId[]> = {
@@ -64,6 +90,69 @@ const MODEL_TIMEOUT_MS: Record<string, number> = {
 };
 const DEFAULT_TIMEOUT_MS = 12_000;
 
+function normalizeRunMode(mode: AgentRunMode | undefined): AgentRunMode {
+  return mode === "thinking" ? "thinking" : "normal";
+}
+
+function hasRemoteEndpoint(): boolean {
+  return Boolean(
+    process.env.REMOTE_OLLAMA_BASE_URL ||
+    process.env.OLLAMA_REMOTE_BASE_URL ||
+    process.env.OLLAMA_REMOTE_URL ||
+    process.env.OLLAMA_URL ||
+    process.env.REMOTE_OLLAMA_TOKEN ||
+    process.env.OLLAMA_API_KEY ||
+    process.env.OLLAMA_REMOTE_API_KEY
+  );
+}
+
+function resolveEndpoint(kind: AgentEndpointKind, agentId: AgentId, runMode: AgentRunMode): AgentEndpoint {
+  const timeoutFactor = runMode === "thinking" ? 2 : 1;
+  if (kind === "local") {
+    const model =
+      process.env.LOCAL_OLLAMA_MODEL ||
+      process.env.OLLAMA_LOCAL_DEFAULT_MODEL ||
+      process.env.OLLAMA_MODEL ||
+      AGENT_MODEL_MDES[agentId] ||
+      "qwen2.5:14b";
+    return {
+      kind,
+      url:
+        process.env.LOCAL_OLLAMA_BASE_URL ||
+        process.env.OLLAMA_LOCAL_BASE_URL ||
+        process.env.OLLAMA_BASE_URL ||
+        process.env.OLLAMA_HOST ||
+        "http://localhost:11434",
+      key: process.env.LOCAL_OLLAMA_TOKEN || process.env.OLLAMA_LOCAL_API_KEY || "",
+      model,
+      timeoutMs: (MODEL_TIMEOUT_MS[model] ?? DEFAULT_TIMEOUT_MS) * timeoutFactor,
+    };
+  }
+
+  const model =
+    process.env.REMOTE_OLLAMA_MODEL ||
+    process.env.OLLAMA_REMOTE_DEFAULT_MODEL ||
+    process.env.MDES_PRIMARY_MODEL ||
+    AGENT_MODEL_MDES[agentId] ||
+    "qwen3.5:9b";
+  return {
+    kind,
+    url:
+      process.env.REMOTE_OLLAMA_BASE_URL ||
+      process.env.OLLAMA_REMOTE_BASE_URL ||
+      process.env.OLLAMA_REMOTE_URL ||
+      process.env.OLLAMA_URL ||
+      "https://ollama.mdes-innova.online",
+    key:
+      process.env.REMOTE_OLLAMA_TOKEN ||
+      process.env.OLLAMA_REMOTE_API_KEY ||
+      process.env.OLLAMA_API_KEY ||
+      "",
+    model,
+    timeoutMs: (MODEL_TIMEOUT_MS[model] ?? DEFAULT_TIMEOUT_MS) * timeoutFactor,
+  };
+}
+
 /**
  * Score query complexity → desired agent count.
  *
@@ -98,6 +187,49 @@ export function scoreComplexity(intent: string, query: string): number {
   return 4;
 }
 
+export function selectAgentPlan(
+  intent: string,
+  query: string,
+  opts: AgentPlanOptions = {}
+): AgentPlanItem[] {
+  const runMode = normalizeRunMode(opts.runMode);
+  const preferredMode = opts.preferredMode ?? "hybrid";
+  const remoteAvailable = opts.remoteAvailable ?? hasRemoteEndpoint();
+  const pool = INTENT_AGENTS_POOL[intent] ?? INTENT_AGENTS_POOL["general"];
+
+  if (runMode === "normal") {
+    const roles = pool.length >= 2 ? pool.slice(0, 2) : ["concierge", "critic"] as AgentId[];
+    const endpointKinds: AgentEndpointKind[] =
+      preferredMode === "remote"
+        ? ["remote", "remote"]
+        : preferredMode === "local"
+          ? ["local", "local"]
+          : ["local", remoteAvailable ? "remote" : "local"];
+
+    return roles.map((agentId, idx) => ({
+      agentId,
+      ...resolveEndpoint(endpointKinds[idx] ?? "local", agentId, runMode),
+    }));
+  }
+
+  const count = Math.max(2, scoreComplexity(intent, query));
+  const agents = pool.slice(0, Math.min(count, pool.length));
+  return agents.map((agentId, idx) => {
+    const endpointKind: AgentEndpointKind =
+      preferredMode === "local"
+        ? "local"
+        : preferredMode === "remote"
+          ? "remote"
+          : remoteAvailable && (idx === 0 || ["critic", "rag-agent", "weather-analyst", "geo-planner"].includes(agentId))
+            ? "remote"
+            : "local";
+    return {
+      agentId,
+      ...resolveEndpoint(endpointKind, agentId, runMode),
+    };
+  });
+}
+
 const AGENT_PROMPT: Record<string, (q: string) => string> = {
   "weather-analyst": (q) => `คุณเป็นผู้เชี่ยวชาญด้านสภาพอากาศ วิเคราะห์และตอบ: "${q}"\n[ตอบตรงๆ เป็นภาษาไทย 2-3 ประโยค ไม่ต้องขึ้นต้นด้วย "ผม" หรือ "ขออนุญาต"]`,
   "geo-planner":     (q) => `คุณเป็นผู้เชี่ยวชาญด้านภูมิศาสตร์และการเดินทาง วิเคราะห์และตอบ: "${q}"\n[ตอบตรงๆ เป็นภาษาไทย 2-3 ประโยค]`,
@@ -117,19 +249,22 @@ async function callOllama(
   prompt: string,
   ollamaUrl: string,
   ollamaKey: string,
-  onChunk?: (accumulatedText: string) => void
+  onChunk?: (accumulatedText: string) => void,
+  timeoutOverrideMs?: number
 ): Promise<string> {
-  const timeout = MODEL_TIMEOUT_MS[model] ?? DEFAULT_TIMEOUT_MS;
+  const timeout = timeoutOverrideMs ?? MODEL_TIMEOUT_MS[model] ?? DEFAULT_TIMEOUT_MS;
   const useStream = onChunk !== undefined && process.env.OLLAMA_STREAM !== "0";
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), timeout);
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (ollamaKey.trim()) headers.Authorization = `Bearer ${ollamaKey}`;
+
     const res = await fetch(`${ollamaUrl.replace(/\/$/, "")}/v1/chat/completions`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${ollamaKey}`,
-      },
+      headers,
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content: prompt }],
@@ -288,18 +423,17 @@ async function runAgent(
   runId: string,
   messageId: string,
   emit: EmitFn,
-  ollamaUrl: string,
-  ollamaKey: string,
-  modelOverride?: string,
+  endpoint: AgentEndpoint,
   partialSink?: (agentId: AgentId, partialText: string) => void
 ): Promise<{ agentId: AgentId; text: string }> {
-  const model = modelOverride ?? AGENT_MODEL_MDES[agentId] ?? "qwen3.5:9b";
+  const model = endpoint.model;
 
   const startEv = newEnvelope({
     runId, messageId, type: "agent_started",
-    publicSummary: `เริ่มงาน: ${agentId}`, agentId,
+    publicSummary: `เริ่มงาน: ${agentId} (${endpoint.kind})`, agentId,
   });
   startEv.model = model;
+  startEv.provider = endpoint.kind;
   if (checkAgentEventSafe(startEv, { expectedToolUsage: false }).ok) emit(startEv);
   const safeQ = query.replace(/["\\\n\r]/g, " ").trim().slice(0, 500);
   const promptFn = AGENT_PROMPT[agentId];
@@ -316,10 +450,18 @@ async function runAgent(
         publicSummary: preview, agentId,
       });
       chunkEv.model = model;
+      chunkEv.provider = endpoint.kind;
       if (checkAgentEventSafe(chunkEv, { expectedToolUsage: false }).ok) emit(chunkEv);
       if (partialSink) partialSink(agentId, accumulated);
     };
-    const text = await callOllama(model, prompt, ollamaUrl, ollamaKey, onChunk);
+    const text = await callOllama(
+      model,
+      prompt,
+      endpoint.url,
+      endpoint.key,
+      onChunk,
+      endpoint.timeoutMs
+    );
 
     // Final agent_delta with the complete text (replaces last progressive chunk)
     const deltaEv = newEnvelope({
@@ -327,12 +469,14 @@ async function runAgent(
       publicSummary: text.substring(0, 220) + (text.length > 220 ? "..." : ""), agentId,
     });
     deltaEv.model = model;
+    deltaEv.provider = endpoint.kind;
     if (checkAgentEventSafe(deltaEv, { expectedToolUsage: false }).ok) emit(deltaEv);
 
     const doneEv = newEnvelope({
       runId, messageId, type: "agent_finished",
       publicSummary: `${agentId} เสร็จสิ้น`, agentId,
     });
+    doneEv.provider = endpoint.kind;
     if (checkAgentEventSafe(doneEv, { expectedToolUsage: false }).ok) emit(doneEv);
 
     return { agentId, text };
@@ -344,6 +488,7 @@ async function runAgent(
     });
     fbEv.fallbackReason = msg.slice(0, 200);
     fbEv.model = model;
+    fbEv.provider = endpoint.kind;
     if (checkAgentEventSafe(fbEv, { expectedToolUsage: false }).ok) emit(fbEv);
     return { agentId, text: "" };
   }
@@ -358,17 +503,20 @@ async function runAgentWithEscalation(
   runId: string,
   messageId: string,
   emit: EmitFn,
-  ollamaUrl: string,
-  ollamaKey: string,
+  endpoint: AgentEndpoint,
   partialSink?: (agentId: AgentId, partialText: string) => void
 ): Promise<{ agentId: AgentId; text: string }> {
   // Attempt 1 — MDES
-  const r1 = await runAgent(agentId, query, runId, messageId, emit, ollamaUrl, ollamaKey, undefined, partialSink);
+  const r1 = await runAgent(agentId, query, runId, messageId, emit, endpoint, partialSink);
   if (r1.text) return r1;
 
   // Attempt 2 — MDES retry with smaller fallback model
-  const fallbackMdesModel = "gemma4:e4b"; // fast fallback within MDES
-  const r2 = await runAgent(agentId, query, runId, messageId, emit, ollamaUrl, ollamaKey, fallbackMdesModel, partialSink);
+  const fallbackEndpoint = {
+    ...endpoint,
+    model: "gemma4:e4b",
+    timeoutMs: Math.max(endpoint.timeoutMs, MODEL_TIMEOUT_MS["gemma4:e4b"] ?? DEFAULT_TIMEOUT_MS),
+  };
+  const r2 = await runAgent(agentId, query, runId, messageId, emit, fallbackEndpoint, partialSink);
   if (r2.text) return r2;
 
   // Attempt 3+ — GPT fallback after both MDES attempts failed.
@@ -423,17 +571,12 @@ export async function dispatchAgents(
   runId: string,
   messageId: string,
   emit: EmitFn,
-  liveOutputs?: Record<string, string>
+  liveOutputs?: Record<string, string>,
+  options: AgentDispatchOptions = {}
 ): Promise<Record<string, string>> {
   if (process.env.PARALLEL_AGENTS === "0") return {};
-  const ollamaUrl = process.env.OLLAMA_URL ?? process.env.OLLAMA_REMOTE_BASE_URL ?? "https://ollama.mdes-innova.online";
-  const ollamaKey = process.env.OLLAMA_API_KEY ?? process.env.OLLAMA_REMOTE_API_KEY ?? "";
-  if (!ollamaKey.trim()) return {};
-
-  const count = Math.max(2, scoreComplexity(intent, query)); // ALWAYS minimum 2 agents
-
-  const pool = INTENT_AGENTS_POOL[intent] ?? INTENT_AGENTS_POOL["general"];
-  const agents = pool.slice(0, Math.min(count, pool.length));
+  const plan = selectAgentPlan(intent, query, options);
+  if (plan.length === 0) return {};
 
   const outputs: Record<string, string> = liveOutputs ?? {};
 
@@ -442,11 +585,11 @@ export async function dispatchAgents(
   // poll loop sees content immediately, not only after the agent finishes.
   const partialSink = (id: AgentId, partialText: string) => {
     if (partialText && partialText.length > 20) {
-      outputs[id] = partialText;
+      outputs[`__partial_${id}`] = partialText;
     }
   };
-  const tasks = agents.map((agentId) =>
-    runAgentWithEscalation(agentId, query, runId, messageId, emit, ollamaUrl, ollamaKey, partialSink)
+  const tasks = plan.map((item) =>
+    runAgentWithEscalation(item.agentId, query, runId, messageId, emit, item, partialSink)
       .then((r) => {
         if (r.text) outputs[r.agentId] = r.text;
         return r;
@@ -460,14 +603,40 @@ export async function dispatchAgents(
 
 export function synthesizeAnswer(
   agentOutputs: Record<string, string>,
-  fallbackText: string
+  fallbackText: string,
+  options: { runMode?: AgentRunMode } = {}
 ): string {
   // Priority: tool data > stylist > concierge > critic > first valid > fallback
   // Tool data is authoritative (real-world numbers) — beats MDES commentary.
-  if (agentOutputs["__tool__"] && agentOutputs["__tool__"].length > 20) return agentOutputs["__tool__"];
+  const runMode = normalizeRunMode(options.runMode);
+  const toolText = agentOutputs["__tool__"];
+  if (toolText && toolText.length > 20 && runMode === "normal") return toolText;
+
+  if (runMode === "thinking") {
+    const ordered = ["stylist", "concierge", "rag-agent", "weather-analyst", "geo-planner", "critic", "tool-scout"];
+    const useful = ordered
+      .map((id) => agentOutputs[id])
+      .filter((text): text is string => typeof text === "string" && text.trim().length > 20);
+    const unique = useful.filter((text, idx) => useful.findIndex((other) => other.trim() === text.trim()) === idx);
+    if (toolText && toolText.length > 20) {
+      const synthesis = unique.find((text) => !toolText.includes(text.slice(0, 80)));
+      return synthesis
+        ? `${toolText}\n\nสรุปเพิ่มเติมจากทีมวิเคราะห์:\n${synthesis}`
+        : toolText;
+    }
+    if (unique.length >= 2) {
+      return `${unique[0]}\n\nตรวจทานเพิ่มเติม:\n${unique[1]}`;
+    }
+    if (unique.length === 1) return unique[0];
+  }
+
+  if (toolText && toolText.length > 20) return toolText;
   if (agentOutputs["stylist"] && agentOutputs["stylist"].length > 20) return agentOutputs["stylist"];
   if (agentOutputs["concierge"] && agentOutputs["concierge"].length > 20) return agentOutputs["concierge"];
   if (agentOutputs["critic"] && agentOutputs["critic"].length > 20) return agentOutputs["critic"];
-  const first = Object.values(agentOutputs).find((t) => t.length > 20);
+  const first = Object.entries(agentOutputs)
+    .filter(([key]) => !key.startsWith("__partial_"))
+    .map(([, text]) => text)
+    .find((t) => t.length > 20);
   return first ?? fallbackText;
 }
