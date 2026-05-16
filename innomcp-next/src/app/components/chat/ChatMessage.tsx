@@ -238,8 +238,21 @@ export default function ChatMessage({
             colorClass = "border-yellow-400/30 bg-yellow-50/30 text-yellow-800 dark:border-yellow-400/20 dark:bg-yellow-900/10 dark:text-yellow-300";
           }
           return (
-            <div className={`mb-3 rounded-lg border px-3 py-2 text-xs ${colorClass}`}>
-              {icon} {reason}
+            // Phase 10.58 — notice now reads as a labelled hint block,
+            // not a raw single-line warning.
+            <div
+              className={`mb-3 flex items-start gap-2.5 rounded-lg border px-3 py-2.5 text-[12.5px] leading-snug ${colorClass}`}
+              role="status"
+            >
+              <span className="shrink-0 text-base leading-none" aria-hidden="true">
+                {icon}
+              </span>
+              <div className="min-w-0">
+                <div className="text-[10.5px] font-semibold uppercase tracking-[0.14em] opacity-80">
+                  สถานะข้อมูลอากาศ
+                </div>
+                <div className="mt-0.5">{reason}</div>
+              </div>
             </div>
           );
         })()}
