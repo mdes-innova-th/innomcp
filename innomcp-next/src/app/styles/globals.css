@@ -626,10 +626,35 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   100% { transform: rotate(0deg) scale(1); opacity: 1; }
 }
 
+/* Phase 10.63 — diagonal skeleton sweep shared across image placeholders
+   (NASA APOD, generated image, future QR/chart loading states). Element
+   keeps its underlying brand tint; the ::after pseudo paints a 105°
+   highlight that slides across once every 2.2 s. */
+@keyframes skeleton-sweep {
+  0%   { background-position: -150% 0; }
+  100% { background-position: 250% 0; }
+}
+.skeleton-shimmer { position: relative; overflow: hidden; }
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(
+    105deg,
+    transparent 30%,
+    color-mix(in oklab, white 22%, transparent) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-sweep 2.2s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse-soft,
   .animate-bubble-in,
   .animate-float-orbit,
   .agent-shimmer-active,
   .animate-radar-ping { animation: none; }
+  .skeleton-shimmer::after { animation: none; opacity: 0; }
 }

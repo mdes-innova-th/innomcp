@@ -167,7 +167,7 @@ export default function ChatMessage({
                   image lands; the gradient matches the card header brand tint. */}
               {!apodLoaded && !apodError && (
                 <div
-                  className="aspect-[4/3] w-full animate-pulse-soft bg-gradient-to-br from-violet-500/15 via-sky-500/10 to-violet-400/8"
+                  className="skeleton-shimmer aspect-[4/3] w-full bg-gradient-to-br from-violet-500/15 via-sky-500/10 to-violet-400/8"
                   aria-hidden="true"
                 />
               )}

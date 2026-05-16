@@ -151,7 +151,7 @@ const GeneratedImageCard: React.FC<GeneratedImageCardProps> = ({
         )}
 
         {hasImageSource && loading && !error && (
-          <div className={`absolute inset-0 flex items-center justify-center ${isDark ? "bg-white/5" : "bg-primary/4"} animate-pulse`}>
+          <div className={`skeleton-shimmer absolute inset-0 flex items-center justify-center ${isDark ? "bg-white/5" : "bg-primary/4"}`}>
             <svg className="h-12 w-12 opacity-20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
               <rect x="3" y="3" width="18" height="18" rx="3" />
               <circle cx="8.5" cy="8.5" r="1.5" />
