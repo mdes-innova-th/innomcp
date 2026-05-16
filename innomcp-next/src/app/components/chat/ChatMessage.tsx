@@ -319,33 +319,37 @@ export default function ChatMessage({
 
         {/* Display SVG chart if available */}
         {structuredContent?.chartSvg && (
-          <div className="mb-4">
-            <div className="flex justify-center mb-2">
+          <div className="mb-4 overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm">
+            <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-muted/40 px-3 py-2">
+              <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
+                <span aria-hidden="true">📈</span> แผนภูมิ SVG
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/8 px-2 py-0.5 font-mono text-[10.5px] text-primary">
+                vector
+              </span>
+            </div>
+            <div className="flex justify-center bg-gradient-to-b from-background to-muted/30 p-4">
               <div
-                className="relative inline-flex"
+                className="relative inline-flex overflow-hidden rounded-md ring-1 ring-border/40"
                 dangerouslySetInnerHTML={{ __html: structuredContent.chartSvg }}
               />
             </div>
-            <div className="flex justify-center gap-2">
+            <div className="flex flex-wrap justify-end gap-2 border-t border-border/60 bg-muted/30 px-3 py-2">
               <button
                 onClick={handleCopyChartCode}
                 title="คัดลอก SVG Code"
-                className={`flex items-center gap-1 px-3 py-1 rounded text-sm transition-all ${
+                className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] font-medium transition-all ${
                   copiedChart
-                    ? theme === "dark"
-                      ? "bg-green-600 text-white"
-                      : "bg-green-500 text-white"
-                    : theme === "dark"
-                    ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
-                    : "bg-gray-200 text-gray-800 hover:bg-gray-300"
+                    ? "border-emerald-500/40 bg-emerald-500/12 text-emerald-700 dark:text-emerald-300"
+                    : "border-border/70 bg-card text-foreground/80 hover:bg-muted hover:text-foreground"
                 }`}
               >
                 <svg
-                  className="w-4 h-4"
+                  className="h-3.5 w-3.5"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2"
+                  strokeWidth="1.8"
                   aria-hidden
                 >
                   <path d="M16 1H4c-1.1 0-2 .9-2 2v12h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z" />
@@ -355,18 +359,14 @@ export default function ChatMessage({
               <button
                 onClick={handleDownloadChart}
                 title="ดาวน์โหลด SVG"
-                className={`flex items-center gap-1 px-3 py-1 rounded text-sm transition-all ${
-                  theme === "dark"
-                    ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
-                    : "bg-gray-200 text-gray-800 hover:bg-gray-300"
-                }`}
+                className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-card px-2.5 py-1 text-[11.5px] font-medium text-foreground/80 transition-all hover:bg-muted hover:text-foreground"
               >
                 <svg
-                  className="w-4 h-4"
+                  className="h-3.5 w-3.5"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2"
+                  strokeWidth="1.8"
                   aria-hidden
                 >
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>

@@ -219,6 +219,14 @@ const ChatPage: React.FC = () => {
   // Phase 10.27 — wall-clock timestamp captured when the user hits send.
   // Used to stamp responseTime onto the AI reply when it lands.
   const lastSendAtRef = useRef<number | null>(null);
+  // Phase 10.61 — keep the working-indicator visible for ≥1500 ms after a send,
+  // so fast-fallback models (e.g. qwen2.5:0.5b returning a cached acknowledgment
+  // in <200 ms) still produce a visible "typing" affordance. Without this, the
+  // working-indicator can flicker off before the user perceives any feedback,
+  // and Playwright's animate-bounce-visible assertion races the response.
+  const [stickyWorkingTick, setStickyWorkingTick] = useState(0);
+  const stickyWorkingUntilRef = useRef<number>(0);
+  const isWorkingSticky = stickyWorkingUntilRef.current > Date.now();
   
   // File upload progress tracking (TODO #40)
   const [isUploading, setIsUploading] = useState(false);
@@ -895,6 +903,10 @@ const ChatPage: React.FC = () => {
       setIsStopped(false);
       isStoppedRef.current = false;
       lastSendAtRef.current = Date.now();
+      // Phase 10.61 — guarantee ≥1500 ms of working-indicator visibility.
+      stickyWorkingUntilRef.current = Date.now() + 1500;
+      setStickyWorkingTick((t) => t + 1);
+      setTimeout(() => setStickyWorkingTick((t) => t + 1), 1500);
       setIsWaitingForResponse(true); // Prevent sending new messages until a response is received
     } else if (socket && !isSocketReady) {
       console.error(
@@ -1584,10 +1596,11 @@ const ChatPage: React.FC = () => {
                         defaultCollapsed
                       />
                     )}
-                  {isWaitingForResponse &&
+                  {(isWaitingForResponse || isWorkingSticky) &&
                     (!messages.length ||
                       messages[messages.length - 1].sender !== "ai" ||
-                      !messages[messages.length - 1].isAnimating) && (() => {
+                      !messages[messages.length - 1].isAnimating ||
+                      isWorkingSticky) && (() => {
                     const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
                     const stage = lastMsg && (lastMsg as any).isProgress ? (lastMsg as any).progressStage as string : undefined;
                     const dotColor = stage === "processing"
