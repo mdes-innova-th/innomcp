@@ -81,12 +81,15 @@ const AGENT_MODEL_MDES: Record<string, string> = {
 
 // Per-model timeouts — larger models need more time for first token
 const MODEL_TIMEOUT_MS: Record<string, number> = {
-  "qwen3.6:27b":          20_000,
-  "qwen3.5:27b":          20_000,
-  "qwen2.5-coder:32b":    25_000,
-  "qwen3-vl:32b":         25_000,
-  "gemma4:26b":           20_000,
-  "deepseek-coder:33b":   25_000,
+  "qwen3.6:27b":              35_000,
+  "qwen3.5:27b":              30_000,
+  "qwen3.5:9b":               20_000,
+  "gemma4:e4b":               15_000,
+  "z-uo/qwen2.5vl_tools:7b":  18_000,
+  "qwen2.5-coder:32b":        25_000,
+  "qwen3-vl:32b":             25_000,
+  "gemma4:26b":               20_000,
+  "deepseek-coder:33b":       25_000,
 };
 const DEFAULT_TIMEOUT_MS = 12_000;
 
@@ -511,11 +514,15 @@ async function runAgentWithEscalation(
   const r1 = await runAgent(agentId, query, runId, messageId, emit, endpoint, partialSink);
   if (r1.text) return r1;
 
-  // Attempt 2 — MDES retry with smaller fallback model
-  const fallbackEndpoint = {
-    ...endpoint,
+  // Attempt 2 — Force LOCAL Ollama with fast fallback model.
+  // If the original attempt was against a remote endpoint that is down, retrying
+  // the same remote will fail again. Drop to local so we have a real second chance.
+  const fallbackEndpoint: AgentEndpoint = {
+    kind: "local",
+    url: process.env.LOCAL_OLLAMA_BASE_URL || "http://localhost:11434",
+    key: process.env.LOCAL_OLLAMA_TOKEN || "",
     model: "gemma4:e4b",
-    timeoutMs: Math.max(endpoint.timeoutMs, MODEL_TIMEOUT_MS["gemma4:e4b"] ?? DEFAULT_TIMEOUT_MS),
+    timeoutMs: MODEL_TIMEOUT_MS["gemma4:e4b"] ?? DEFAULT_TIMEOUT_MS,
   };
   const r2 = await runAgent(agentId, query, runId, messageId, emit, fallbackEndpoint, partialSink);
   if (r2.text) return r2;
@@ -632,9 +639,13 @@ export function synthesizeAnswer(
   }
 
   if (toolText && toolText.length > 20) return toolText;
-  if (agentOutputs["stylist"] && agentOutputs["stylist"].length > 20) return agentOutputs["stylist"];
-  if (agentOutputs["concierge"] && agentOutputs["concierge"].length > 20) return agentOutputs["concierge"];
-  if (agentOutputs["critic"] && agentOutputs["critic"].length > 20) return agentOutputs["critic"];
+  // Ranked priority: prefer roles that polish/respond first, then the
+  // domain analysts. This replaces insertion-order luck with a deterministic
+  // quality ranking when no toolText/thinking-mode synthesis applies.
+  const RANKED = ["stylist", "concierge", "critic", "rag-agent", "weather-analyst", "geo-planner"];
+  for (const key of RANKED) {
+    if (agentOutputs[key] && agentOutputs[key].length > 20) return agentOutputs[key];
+  }
   const first = Object.entries(agentOutputs)
     .filter(([key]) => !key.startsWith("__partial_"))
     .map(([, text]) => text)

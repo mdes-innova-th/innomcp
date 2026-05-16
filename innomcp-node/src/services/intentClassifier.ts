@@ -105,7 +105,9 @@ const DATETIME_KEYWORDS = [
   "เวลา",
   "วันที่",
   "กี่โมง",
-  "ตอนนี้",
+  // "ตอนนี้" removed: too ambiguous — "อากาศตอนนี้เป็นยังไง" is a weather
+  // question, not a datetime question. The remaining keywords ("กี่โมง",
+  // "วันที่", "what time") are unambiguous datetime triggers.
   "ขณะนี้",
   "เดี๋ยวนี้",
   "วันนี้วัน",
