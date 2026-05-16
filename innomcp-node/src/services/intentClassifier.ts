@@ -132,20 +132,43 @@ const EVIDENCE_KEYWORDS = [
 ];
 
 const KNOWLEDGE_KEYWORDS = [
+  // Explanation / definition
   "คืออะไร",
   "หมายความว่า",
   "อธิบาย",
-  "ประวัติ",
+  "บอกหน่อย",
+  "บอกให้กระชับ",
+  "สรุปให้",
+  "explain",
+  "what is",
+  "tell me about",
+  "describe",
+  // Thai law / policy
   "กฎหมาย",
+  "พระราชบัญญัติ",
+  "PDPA",
+  "law",
+  // Thai culture / history / place
+  "ประวัติ",
   "ศาสนา",
   "วัด",
   "จังหวัด",
-  "พระราชบัญญัติ",
-  "PDPA",
-  "what is",
-  "explain",
-  "law",
   "history",
+  // Science / technology / space
+  "ภารกิจ",
+  "นาซ่า",
+  "nasa",
+  "spacex",
+  "อวกาศ",
+  "ดาวเคราะห์",
+  "ดวงจันทร์",
+  "วิทยาศาสตร์",
+  "เทคโนโลยี",
+  "วิจัย",
+  "โครงการ",
+  "artemis",
+  "ยาน",
+  "ดาวเทียม",
 ];
 
 const GREETING_KEYWORDS = [
