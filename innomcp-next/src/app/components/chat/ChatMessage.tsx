@@ -1332,18 +1332,39 @@ export function MessageView({
               </>
             )}
 
-            {/* Tool chips — visible indicator of which MCP tools were called */}
+            {/* Tool chips — visible indicator of which MCP tools were called.
+                Phase 10.51 — friendlier names + per-tool icons. */}
             {message.sender === "ai" && message.toolsUsed && message.toolsUsed.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1.5">
+              <div className="mt-1.5 flex flex-wrap gap-1">
                 {message.toolsUsed.map((tool: string, i: number) => {
-                  const name = tool.replace(/^local-tools:/, "").replace(/_/g, " ");
+                  const bare = tool.replace(/^[^:]+:/, "").replace(/_/g, " ");
+                  // Quick keyword → emoji mapping so each chip self-identifies.
+                  const lower = bare.toLowerCase();
+                  const glyph =
+                    /weather|nwp|tmd/i.test(lower) ? "🌦"
+                    : /seismic|earthquake/i.test(lower) ? "🌐"
+                    : /calc|math|newton/i.test(lower) ? "🔢"
+                    : /chart|echarts/i.test(lower) ? "📊"
+                    : /image|qr/i.test(lower) ? "🎨"
+                    : /datetime/i.test(lower) ? "⏰"
+                    : /evidence|webd|detect/i.test(lower) ? "🛡"
+                    : /thai|geo|knowledge|history|law|religion/i.test(lower) ? "📍"
+                    : /currency|exchange/i.test(lower) ? "💱"
+                    : /rss|feed|news/i.test(lower) ? "📰"
+                    : /translation/i.test(lower) ? "🌏"
+                    : /doc|writer|file/i.test(lower) ? "📄"
+                    : /audio|whisper/i.test(lower) ? "🎙"
+                    : /nasa/i.test(lower) ? "🚀"
+                    : /worldbank/i.test(lower) ? "🌍"
+                    : "🛠";
                   return (
                     <span
                       key={i}
-                      className="inline-flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/12 text-amber-600 dark:text-amber-300 border border-amber-500/20"
+                      className="inline-flex items-center gap-1 rounded border border-amber-500/20 bg-amber-500/12 px-1.5 py-0.5 font-mono text-[10px] text-amber-700 dark:text-amber-300"
                       title={tool}
                     >
-                      <span aria-hidden="true">🛠</span> {name}
+                      <span aria-hidden="true">{glyph}</span>
+                      <span className="truncate max-w-[10rem]">{bare}</span>
                     </span>
                   );
                 })}
