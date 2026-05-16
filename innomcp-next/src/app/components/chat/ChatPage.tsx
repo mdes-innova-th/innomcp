@@ -526,9 +526,14 @@ const ChatPage: React.FC = () => {
             const now = Date.now();
             const firstChunkResponseTime = sentAt ? now - sentAt : undefined;
             setMessages((prevMessages) => {
+              const lastMsg = prevMessages[prevMessages.length - 1];
+              // Phase C.01 fix: if the last AI message is a *progress* placeholder
+              // (isProgress:true), append the real chunk as a NEW message instead
+              // of concatenating — prevents "กำลังคิด..." bleeding into the answer.
               if (
                 prevMessages.length > 0 &&
-                prevMessages[prevMessages.length - 1].sender === "ai"
+                lastMsg.sender === "ai" &&
+                !(lastMsg as any).isProgress
               ) {
                 const updatedMessages = [...prevMessages];
                 const last = updatedMessages[updatedMessages.length - 1];
@@ -668,8 +673,20 @@ const ChatPage: React.FC = () => {
             });
             setIsWaitingForResponse(false);
           } else if (message.error) {
-            console.log("[Frontend] Received error response:", message.error);
-            console.error("Server error:", message.error);
+            console.error("[Frontend] Server error:", message.error);
+            // Phase C.01 fix: insert a visible error bubble so the user doesn't
+            // see an empty response — silent drops are worse than a clear message.
+            setMessages((prev) => [
+              ...prev,
+              {
+                sender: "ai" as const,
+                text: `⚠️ ขออภัย ระบบพบปัญหา: ${String(message.error).slice(0, 200)}`,
+                fullText: `⚠️ ขออภัย ระบบพบปัญหา: ${String(message.error).slice(0, 200)}`,
+                isAnimating: false,
+                timestamp: Date.now(),
+              },
+            ]);
+            notify("ระบบพบข้อผิดพลาด กรุณาลองใหม่อีกครั้ง", "error");
             setIsWaitingForResponse(false);
           }
         } catch (error) {
