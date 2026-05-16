@@ -35,15 +35,16 @@ describe("runConductor", () => {
     expect(events.every((ev) => ev.messageId === "msg-frontend-123")).toBe(true);
   });
 
-  test("normal mode plans exactly two local+remote agents in hybrid mode", () => {
+  // Phase 10.68 — normal (ธรรมดา) mode: 1 fast concierge agent
+  test("normal mode (ธรรมดา) uses exactly 1 concierge agent", () => {
     const plan = selectAgentPlan("general", "ช่วยสรุปข่าวนี้ให้หน่อย", {
       runMode: "normal",
       preferredMode: "hybrid",
       remoteAvailable: true,
     });
 
-    expect(plan).toHaveLength(2);
-    expect(plan.map((p) => p.kind)).toEqual(["local", "remote"]);
+    expect(plan).toHaveLength(1);
+    expect(plan[0].agentId).toBe("concierge");
   });
 
   test("thinking mode can expand beyond two agents for complex prompts", () => {

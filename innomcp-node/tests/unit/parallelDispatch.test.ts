@@ -11,7 +11,8 @@ describe("parallelDispatch agent planning", () => {
     }
   });
 
-  test("normal hybrid mode uses exactly two agents with local plus remote when available", () => {
+  // Phase 10.68 — normal mode: 1 fast concierge agent (ธรรมดา mode)
+  test("normal mode uses exactly 1 concierge agent (fast, small model)", () => {
     process.env.OLLAMA_URL = "https://ollama.mdes-innova.online";
 
     const plan = selectAgentPlan("general", "สรุปข่าวนี้ให้หน่อย", {
@@ -20,22 +21,24 @@ describe("parallelDispatch agent planning", () => {
       remoteAvailable: true,
     });
 
-    expect(plan).toHaveLength(2);
-    expect(plan.map((p) => p.kind)).toEqual(["local", "remote"]);
+    expect(plan).toHaveLength(1);
+    expect(plan[0].agentId).toBe("concierge");
+    expect(plan[0].kind).toBe("remote"); // hybrid → remote when available
   });
 
-  test("normal local mode stays at two local agents", () => {
+  test("normal local mode stays at 1 local concierge agent", () => {
     const plan = selectAgentPlan("knowledge", "อธิบาย PDPA แบบสั้น", {
       runMode: "normal",
       preferredMode: "local",
       remoteAvailable: true,
     });
 
-    expect(plan).toHaveLength(2);
-    expect(plan.every((p) => p.kind === "local")).toBe(true);
+    expect(plan).toHaveLength(1);
+    expect(plan[0].agentId).toBe("concierge");
+    expect(plan[0].kind).toBe("local");
   });
 
-  test("thinking mode expands to full multi-agent logic with longer timeouts", () => {
+  test("thinking mode expands to full multi-agent (MultiAgent mode)", () => {
     const normal = selectAgentPlan("planning-broad", "ช่วยวางแผนงานสัมมนาช่วงหน้าฝนและการเดินทาง", {
       runMode: "normal",
       preferredMode: "hybrid",
@@ -47,8 +50,9 @@ describe("parallelDispatch agent planning", () => {
       remoteAvailable: true,
     });
 
-    expect(normal).toHaveLength(2);
-    expect(thinking.length).toBeGreaterThan(2);
+    // normal = 1 agent, thinking = many
+    expect(normal).toHaveLength(1);
+    expect(thinking.length).toBeGreaterThan(1);
     expect(Math.min(...thinking.map((p) => p.timeoutMs))).toBeGreaterThan(
       Math.min(...normal.map((p) => p.timeoutMs))
     );

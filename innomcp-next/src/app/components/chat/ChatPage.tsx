@@ -14,8 +14,8 @@ import ThemeContext from "@/app/context/ThemeContext";
 import { useAuth } from "@/app/context/AuthContext";
 import { useToast } from "@/app/context/ToastContext";
 import type { ToolType } from "./ToolsTypeSelector";
-import type { AIMode } from "./AIModelSelector";
-import type { ReasoningMode } from "./ThinkingModeToggle";
+// Phase 10.68 — unified ChatMode replaces AIMode + ReasoningMode
+import { type ChatMode } from "./ChatModeSelector";
 import {
   buildChatTransportHistory,
   compactChatMessagesForStorage,
@@ -287,8 +287,8 @@ const ChatPage: React.FC = () => {
   const prevMessagesLenRef = useRef(0);
   const [, setIsChatActive] = useState(false); // tracks composer focus for future hooks
   const [selectedToolType, setSelectedToolType] = useState<ToolType>("auto");
-  const [selectedAIMode, setSelectedAIMode] = useState<AIMode>("local");
-  const [reasoningMode, setReasoningMode] = useState<ReasoningMode>("normal");
+  // Phase 10.68 — single ChatMode drives both AI backend & agent count
+  const [chatMode, setChatMode] = useState<ChatMode>("normal");
   const activeToolMeta = TOOL_TYPE_META[selectedToolType] || TOOL_TYPE_META.auto;
 
   // Load data from localStorage on mount
@@ -895,26 +895,21 @@ const ChatPage: React.FC = () => {
         messages as unknown as Array<Record<string, unknown>>,
         CHAT_HISTORY_CONTEXT_LIMIT
       );
-      const message = { 
-        text: input, 
-        messages: transportHistory, 
+      // Phase 10.68 — map ChatMode → conductor params
+      const derivedMode = chatMode === "multiagent" ? "hybrid" : "local";
+      const derivedReasoning = chatMode === "multiagent" ? "thinking" : "normal";
+      const message = {
+        text: input,
+        messages: transportHistory,
         messageId,
-        file: fileData, // Include file data if available
-        preferredMode: selectedAIMode,
+        file: fileData,
+        preferredMode: derivedMode,
         toolHint: selectedToolType,
-        reasoningMode,
+        reasoningMode: derivedReasoning,
         uiMode: selectedToolType === "officer" ? "officer" : undefined
       };
-      
-      console.log("Sending message to WebSocket:", {
-        textLength: input.length,
-        historySize: transportHistory.length,
-        hasFile: Boolean(fileData),
-        preferredMode: message.preferredMode,
-        toolHint: message.toolHint,
-        reasoningMode: message.reasoningMode,
-        uiMode: message.uiMode || "auto",
-      });
+
+      console.log("[ChatMode]", chatMode, "→ mode:", derivedMode, "reasoning:", derivedReasoning);
       socket.send(JSON.stringify(message));
       // Phase 10.15: fire SSE channel for MultiAgentPanel
       resetAgentStream();
@@ -922,9 +917,9 @@ const ChatPage: React.FC = () => {
       sendAgentStream({
         message: input,
         sessionId: activeSummaryId ?? undefined,
-        preferredMode: selectedAIMode,
+        preferredMode: derivedMode,
         toolHint: selectedToolType,
-        reasoningMode,
+        reasoningMode: derivedReasoning,
         clientMessageId: messageId,
       });
       
@@ -1222,28 +1217,21 @@ const ChatPage: React.FC = () => {
       text: userMessage.text, 
       messages: transportHistory.slice(0, Math.max(0, transportHistory.length - 1)),
       messageId,
-      preferredMode: selectedAIMode,
+      preferredMode: chatMode === "multiagent" ? "hybrid" : "local",
       toolHint: selectedToolType,
-      reasoningMode,
+      reasoningMode: chatMode === "multiagent" ? "thinking" : "normal",
       uiMode: selectedToolType === "officer" ? "officer" : undefined
     };
-    
-    console.log("Retrying message:", {
-      textLength: userMessage.text.length,
-      historySize: message.messages.length,
-      preferredMode: message.preferredMode,
-      toolHint: message.toolHint,
-      reasoningMode: message.reasoningMode,
-    });
+
     socket.send(JSON.stringify(message));
     resetAgentStream();
     activeAgentStreamRequestRef.current = messageId;
     sendAgentStream({
       message: userMessage.text,
       sessionId: activeSummaryId ?? undefined,
-      preferredMode: selectedAIMode,
+      preferredMode: chatMode === "multiagent" ? "hybrid" : "local",
       toolHint: selectedToolType,
-      reasoningMode,
+      reasoningMode: chatMode === "multiagent" ? "thinking" : "normal",
       clientMessageId: messageId,
     });
     setIsStopped(false);
@@ -1504,9 +1492,8 @@ const ChatPage: React.FC = () => {
                     theme={theme}
                     layoutMode="empty"
                     onToolTypeChange={(t) => setSelectedToolType(t)}
-                    onModeChange={setSelectedAIMode}
-                    reasoningMode={reasoningMode}
-                    onReasoningModeChange={setReasoningMode}
+                    chatMode={chatMode}
+                    onChatModeChange={setChatMode}
                     onFocus={() => setIsChatActive(true)}
                     onBlur={() => setIsChatActive(false)}
                   />
@@ -1837,9 +1824,8 @@ const ChatPage: React.FC = () => {
                 theme={theme}
                 layoutMode="conversation"
                 onToolTypeChange={(t) => setSelectedToolType(t)}
-                onModeChange={setSelectedAIMode}
-                reasoningMode={reasoningMode}
-                onReasoningModeChange={setReasoningMode}
+                chatMode={chatMode}
+                onChatModeChange={setChatMode}
                 onFocus={() => setIsChatActive(true)}
                 onBlur={() => setIsChatActive(false)}
               />

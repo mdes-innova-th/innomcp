@@ -198,18 +198,19 @@ export function selectAgentPlan(
   const pool = INTENT_AGENTS_POOL[intent] ?? INTENT_AGENTS_POOL["general"];
 
   if (runMode === "normal") {
-    const roles = pool.length >= 2 ? pool.slice(0, 2) : ["concierge", "critic"] as AgentId[];
-    const endpointKinds: AgentEndpointKind[] =
-      preferredMode === "remote"
-        ? ["remote", "remote"]
-        : preferredMode === "local"
-          ? ["local", "local"]
-          : ["local", remoteAvailable ? "remote" : "local"];
-
-    return roles.map((agentId, idx) => ({
-      agentId,
-      ...resolveEndpoint(endpointKinds[idx] ?? "local", agentId, runMode),
-    }));
+    // "ธรรมดา" mode — 1 fast concierge agent on MDES qwen3.5:9b.
+    // One agent is enough for simple Q&A and is 2–3x faster than the old
+    // 2-agent path. The concierge already uses the small fast model and is
+    // the best single-agent role for Thai general questions.
+    const conciergeAgent: AgentId = "concierge";
+    const endpointKind: AgentEndpointKind =
+      preferredMode === "remote" || (preferredMode !== "local" && remoteAvailable)
+        ? "remote"
+        : "local";
+    return [{
+      agentId: conciergeAgent,
+      ...resolveEndpoint(endpointKind, conciergeAgent, runMode),
+    }];
   }
 
   const count = Math.max(2, scoreComplexity(intent, query));
