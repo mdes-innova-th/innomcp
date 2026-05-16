@@ -484,8 +484,28 @@ export async function runConductor(
   if (!hasFinalOutput(liveOutputs) && !hasAnyPartial(liveOutputs) && !liveOutputs["__tool__"]) {
     await Promise.race([toolPromise, new Promise((r) => setTimeout(r, 5000))]);
   }
-  // Suppress any uncaught rejection from the background dispatch
-  agentResultPromise.catch(() => undefined);
+
+  // Phase C.01b — Bug A fix: ensure agents have finished (or hit a hard cap)
+  // BEFORE we synthesize. Previously the poll loop could exit on partial output
+  // and call synthesizeAnswer while agentResultPromise was still racing — losing
+  // slow but higher-quality agent text. We give the in-flight dispatch up to 8s
+  // more to land, but never longer (so SSE never hangs forever).
+  const agentOutputs = await Promise.race([
+    agentResultPromise.catch(() => liveOutputs),
+    new Promise<Record<string, string>>((resolve) =>
+      setTimeout(() => resolve(liveOutputs), 8000)
+    ),
+  ]);
+  // Merge any keys the promise resolved with that weren't already in liveOutputs.
+  // dispatchAgents normally writes directly into liveOutputs, but we merge
+  // defensively in case a future caller passes a fresh object.
+  if (agentOutputs && agentOutputs !== liveOutputs) {
+    for (const [key, value] of Object.entries(agentOutputs)) {
+      if (typeof value === "string" && value.length > 0 && !liveOutputs[key]) {
+        liveOutputs[key] = value;
+      }
+    }
+  }
   const enrichedText = synthesizeAnswer(liveOutputs, draft, { runMode: responseMode });
 
   const finalEv = newEnvelope({

@@ -416,6 +416,35 @@ function formatToolResult(toolName: string, rawText: string): string | null {
     return `🛡️ ผลการตรวจสอบหลักฐาน:\n${JSON.stringify(parsed).slice(0, 300)}`;
   }
 
+  // Phase C.01b — Bug B fix: evidenceTool success-path formatter.
+  // Previously `formatToolResult` only handled evidenceTool in the JSON.parse
+  // failure branch, so a successful (parsed) response fell through to `return null`
+  // and the chat bubble showed nothing. Now we summarize the array / data shape
+  // in Thai and fall back to a bounded raw slice if the shape is unfamiliar.
+  if (toolName === "evidenceTool") {
+    if (Array.isArray(parsed)) {
+      const count = parsed.length;
+      const items = parsed
+        .slice(0, 3)
+        .map((r: any) => {
+          const label =
+            r?.url ||
+            r?.ip ||
+            r?.id ||
+            r?.nip ||
+            r?.ref ||
+            JSON.stringify(r).slice(0, 80);
+          return `• ${label}`;
+        })
+        .join("\n");
+      return `พบข้อมูลหลักฐาน ${count} รายการ:\n${items}`;
+    }
+    if (parsed && typeof parsed === "object" && parsed.data !== undefined) {
+      return `ข้อมูลหลักฐาน: ${JSON.stringify(parsed.data).slice(0, 2000)}`;
+    }
+    return rawText.slice(0, 2000);
+  }
+
   return null;
 }
 
