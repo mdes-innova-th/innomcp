@@ -807,7 +807,11 @@ export function MessageView({
             </svg>
           </span>
         )}
-        <span className="text-[11px] font-semibold uppercase tracking-[0.18em]">
+        <span
+          className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${
+            message.sender === "ai" && message.isAnimating ? "animate-pulse" : ""
+          }`}
+        >
           {message.sender === "user" ? "คุณ" : "MDES AI"}
         </span>
         {message.sender === "ai" && modelUsed ? (
