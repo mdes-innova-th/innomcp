@@ -4,7 +4,7 @@ packages:
   - innomcp-server-node
 
 overrides:
-  zod: "3.22.4"
+  zod: "3.25.76"
   # Phase 10.64 — match the exact npm-resolved version from the original
   # package-lock.json. npm had SSC 5.1.0 where ParamsDictionary[key]=string
   # (not string|string[]) and handler overloads resolve correctly.
