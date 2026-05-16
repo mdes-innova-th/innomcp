@@ -87,21 +87,20 @@ const ToolTypeBadge: React.FC<ToolTypeBadgeProps> = ({ toolType, toolsUsed, them
     return null;
   }
 
+  // Phase 10.53 — tighter chips: thinner border (was 2 px), smaller text,
+  // remove the redundant "AI ใช้เครื่องมือ:" prefix since the icon already
+  // signals "tool category". Now reads as one compact row, not a banner.
   return (
-    <div className="flex flex-wrap gap-2 mt-2 mb-3">
+    <div className="mt-2 mb-3 flex flex-wrap gap-1.5">
       {toolTypeInfo.map((info) => (
         <div
           key={info.type}
-          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 text-xs font-medium transition-all ${
-            info.borderColor
-          } ${info.color} ${
-            theme === 'light' 
-              ? 'bg-white shadow-sm' 
-              : 'bg-gray-800 shadow-md'
+          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all ${info.borderColor.replace('border-', 'border-')}/40 ${info.color} ${
+            theme === 'light' ? 'bg-white/85 shadow-sm' : 'bg-card shadow-sm'
           }`}
         >
-          <span className="text-base">{info.icon}</span>
-          <span>AI ใช้เครื่องมือ: {info.label}</span>
+          <span className="text-[13px] leading-none">{info.icon}</span>
+          <span>{info.label}</span>
         </div>
       ))}
     </div>
