@@ -31,6 +31,12 @@ export default function ChatMessage({
   structuredContent,
 }: Props) {
   const [copiedChart, setCopiedChart] = React.useState(false);
+  // Phase 10.62 — APOD lazy-load shimmer + onError fallback.
+  // Two flags drive the UI: while !apodLoaded we paint a shimmering violet/sky
+  // skeleton (the same brand tint as the card header), and on apodError we
+  // swap the img for a quiet placeholder card so the bubble never collapses.
+  const [apodLoaded, setApodLoaded] = React.useState(false);
+  const [apodError, setApodError] = React.useState(false);
   const { theme } = useTheme();
   const rawMapTiles = Array.isArray(structuredContent?.weatherPayload?.mapTiles)
     ? structuredContent.weatherPayload.mapTiles
@@ -156,13 +162,43 @@ export default function ChatMessage({
               </a>
             </div>
             <div className="group/apod relative overflow-hidden">
-              <img
-                src={structuredContent.hdurl || structuredContent.url}
-                alt={structuredContent.title || 'NASA APOD Image'}
-                className="h-auto w-full transition-transform duration-500 group-hover/apod:scale-[1.01]"
-                loading="lazy"
-              />
-              {structuredContent.title && (
+              {/* Skeleton shimmer — hides itself as soon as apodLoaded or apodError flips.
+                  aspect-[4/3] reserves space so the bubble doesn't jump when the
+                  image lands; the gradient matches the card header brand tint. */}
+              {!apodLoaded && !apodError && (
+                <div
+                  className="aspect-[4/3] w-full animate-pulse-soft bg-gradient-to-br from-violet-500/15 via-sky-500/10 to-violet-400/8"
+                  aria-hidden="true"
+                />
+              )}
+              {!apodError && (
+                <img
+                  src={structuredContent.hdurl || structuredContent.url}
+                  alt={structuredContent.title || 'NASA Astronomy Picture of the Day'}
+                  className={`h-auto w-full transition-all duration-500 group-hover/apod:scale-[1.01] ${
+                    apodLoaded ? "opacity-100" : "absolute inset-0 opacity-0"
+                  }`}
+                  loading="lazy"
+                  decoding="async"
+                  onLoad={() => setApodLoaded(true)}
+                  onError={() => setApodError(true)}
+                />
+              )}
+              {apodError && (
+                <div className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-1.5 bg-gradient-to-br from-violet-500/12 via-sky-500/8 to-transparent text-center text-violet-900/80 dark:text-violet-100/80">
+                  <span aria-hidden="true" className="text-2xl">🌌</span>
+                  <p className="text-[12.5px] font-medium">โหลดภาพอวกาศไม่สำเร็จ</p>
+                  <a
+                    href={structuredContent.hdurl || structuredContent.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] text-violet-600 underline-offset-2 hover:underline dark:text-violet-300"
+                  >
+                    ลองเปิดในแท็บใหม่
+                  </a>
+                </div>
+              )}
+              {structuredContent.title && apodLoaded && !apodError && (
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 text-white">
                   <p className="text-[13.5px] font-semibold leading-tight">{structuredContent.title}</p>
                   {structuredContent.copyright && (
