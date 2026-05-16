@@ -249,24 +249,39 @@ export default function ChatMessage({
           const sourcesUsed: string[] = Array.isArray(structuredContent?.weatherPayload?.sourcesUsed)
             ? structuredContent.weatherPayload.sourcesUsed : [];
           return (
-            <div data-testid="weather-map-tiles" className="mb-4 rounded-xl border border-emerald-500/20 bg-gradient-to-b from-emerald-50/40 to-transparent p-3 shadow-sm dark:border-emerald-400/20 dark:from-emerald-900/10">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-200">🗺️ แผนที่สภาพอากาศ</span>
+            <div
+              data-testid="weather-map-tiles"
+              className="mb-4 overflow-hidden rounded-xl border border-emerald-500/25 bg-gradient-to-b from-emerald-50/50 via-sky-50/30 to-transparent shadow-sm dark:border-emerald-400/25 dark:from-emerald-900/15 dark:via-sky-900/10"
+            >
+              <div className="flex items-center justify-between gap-2 border-b border-emerald-500/15 bg-emerald-500/8 px-3 py-2 dark:border-emerald-400/15">
+                <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-emerald-900 dark:text-emerald-100">
+                  <span aria-hidden="true">🗺️</span>
+                  แผนที่สภาพอากาศ
+                </span>
                 {sourcesUsed.length > 0 && (
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                  <span
+                    className="inline-flex items-center gap-1 rounded-full bg-emerald-100/95 px-2 py-0.5 font-mono text-[10.5px] font-medium text-emerald-800 ring-1 ring-emerald-500/15 dark:bg-emerald-900/40 dark:text-emerald-200 dark:ring-emerald-400/20"
+                    title={`แหล่งข้อมูล: ${sourcesUsed.join(", ")}`}
+                  >
+                    <span aria-hidden="true">📡</span>
                     {sourcesUsed.join(" · ")}
                   </span>
                 )}
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2.5 p-3">
                 {mapTiles.slice(0, 3).map((tile: any, idx: number) => {
                   const url = String(tile?.url || "").trim();
                   const label = String(tile?.label || tile?.area || "แผนที่อากาศ").trim();
                   if (!url) return null;
                   return (
-                    <div key={`${url}-${idx}`} className="overflow-hidden rounded-lg border border-emerald-500/20 dark:border-emerald-400/20">
-                      <img src={url} alt={label} className="h-auto w-full" loading="lazy" />
-                      <div className="bg-white/60 px-2 py-1 text-xs text-gray-700 dark:bg-black/20 dark:text-gray-200">{label}</div>
+                    <div
+                      key={`${url}-${idx}`}
+                      className="group/tile overflow-hidden rounded-lg border border-emerald-500/20 bg-card shadow-[0_2px_8px_-4px_oklch(0.7_0.15_165/0.25)] transition-all hover:shadow-[0_6px_20px_-6px_oklch(0.7_0.15_165/0.35)] dark:border-emerald-400/20"
+                    >
+                      <img src={url} alt={label} className="h-auto w-full transition-transform duration-300 group-hover/tile:scale-[1.01]" loading="lazy" />
+                      <div className="border-t border-emerald-500/15 bg-background/85 px-2.5 py-1 text-[11.5px] font-medium text-emerald-900/85 backdrop-blur-sm dark:bg-card/70 dark:text-emerald-100/85">
+                        {label}
+                      </div>
                     </div>
                   );
                 })}
