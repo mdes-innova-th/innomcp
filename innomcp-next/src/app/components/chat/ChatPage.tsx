@@ -1360,6 +1360,29 @@ const ChatPage: React.FC = () => {
                       INNOMCP เลือกเครื่องมือที่เหมาะกับคำถามให้อัตโนมัติ — อากาศ TMD/NWP, สถิติ World Bank,
                       ภาพ AI, สร้างเอกสาร PDF/DOCX, ค่าเงิน, ข่าว RSS และอีกหลายแหล่ง
                     </p>
+
+                    {/* Phase 10.54 — sales-grade trust strip: shows scale at a glance. */}
+                    <div className="relative mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11.5px] text-muted-foreground">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="font-mono font-semibold text-foreground/85 tabular-nums">56+</span>
+                        <span>เครื่องมือ MCP</span>
+                      </span>
+                      <span className="h-3 w-px bg-border/60" aria-hidden="true" />
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="font-mono font-semibold text-foreground/85 tabular-nums">3</span>
+                        <span>โหมด AI (local / cloud / hybrid)</span>
+                      </span>
+                      <span className="h-3 w-px bg-border/60" aria-hidden="true" />
+                      <span className="inline-flex items-center gap-1.5">
+                        <span aria-hidden="true">⚡</span>
+                        <span>MDES multi-agent</span>
+                      </span>
+                      <span className="h-3 w-px bg-border/60" aria-hidden="true" />
+                      <span className="inline-flex items-center gap-1.5">
+                        <span aria-hidden="true">🇹🇭</span>
+                        <span>ภาษาไทยเป็นหลัก</span>
+                      </span>
+                    </div>
                   </div>
 
                   {!isSocketReady && (
