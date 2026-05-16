@@ -159,8 +159,8 @@ const ChatSidebar: React.FC<Props> = ({
                 onClick={() => router.push("/settings")}
                 className="flex h-9 w-full items-center justify-center gap-2 rounded-md border border-border/60 bg-background/95 text-foreground transition-colors hover:bg-primary/8"
               >
-                <span className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-[13px] font-semibold text-primary-foreground">
-                  {userDispName?.charAt(0) || "U"}
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary via-sky-500 to-violet-500 text-[13px] font-semibold text-white shadow-sm">
+                  {(userDispName?.charAt(0) || "U").toUpperCase()}
                 </span>
                 <FontAwesomeIcon icon={faGear} className="w-4 text-muted-foreground" />
               </button>
@@ -435,8 +435,13 @@ const ChatSidebar: React.FC<Props> = ({
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-foreground transition-colors hover:bg-primary/8"
                 >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-[13px] font-semibold text-primary-foreground">
-                    {userDispName?.charAt(0) || "U"}
+                  {/* Phase 10.52 — gradient ring avatar, lifts when menu open. */}
+                  <div
+                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary via-sky-500 to-violet-500 text-[13px] font-semibold text-white shadow-sm ring-2 transition-all ${
+                      showUserMenu ? "ring-primary/40 scale-105" : "ring-transparent"
+                    }`}
+                  >
+                    {(userDispName?.charAt(0) || "U").toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1 text-left">
                     <div className="truncate text-[13.5px] font-medium leading-tight text-foreground">
