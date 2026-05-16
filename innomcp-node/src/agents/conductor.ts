@@ -398,10 +398,13 @@ export async function runConductor(
 
   let draft = composeAnswer({ intent: cls.intent, query: opts.message, facts });
 
-  // Stream the draft as draft_delta events in chunks of ~80 chars so the
-  // frontend can render real-time growth without LLM streaming infra.
+  // Phase C.03 fix: skip draft_delta streaming when a tool is expected to
+  // provide the answer — streaming the canned template creates a visible
+  // flash of placeholder text that gets replaced by the real tool answer.
+  // The progress spinner + agent SSE events provide sufficient feedback.
+  const streamDraft = !cls.expectedToolUsage;
   const chunkSize = 80;
-  for (let i = 0; i < draft.length; i += chunkSize) {
+  for (let i = 0; streamDraft && i < draft.length; i += chunkSize) {
     const piece = draft.slice(i, i + chunkSize);
     const deltaEv = newEnvelope({
       runId,

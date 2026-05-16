@@ -38,8 +38,15 @@ describe("planToolCall", () => {
     expect(plan?.args.query).toBe("explain PDPA in Thailand");
   });
 
-  test("uses hourly NWP for current weather", () => {
+  // Phase C.03: casual "now" uses daily (lighter). Only explicit "hourly"/
+  // "รายชั่วโมง" triggers 24-hour breakdown to avoid over-heavy responses.
+  test("uses daily NWP for casual 'current weather now' (no hourly keyword)", () => {
     const plan = planToolCall("weather", "current weather now");
+    expect(plan?.toolName).toBe("nwp_daily_by_place");
+  });
+
+  test("uses hourly NWP when query explicitly includes hourly keyword", () => {
+    const plan = planToolCall("weather", "อากาศรายชั่วโมงวันนี้กรุงเทพ");
     expect(plan?.toolName).toBe("nwp_hourly_by_place");
   });
 });

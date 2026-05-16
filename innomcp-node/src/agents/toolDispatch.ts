@@ -24,7 +24,12 @@ export interface ToolPlan {
 }
 
 function needsHourlyWeather(query: string): boolean {
-  return /ตอนนี้|วันนี้|รายชั่วโมง|ชั่วโมง|hourly|now|current/i.test(query);
+  // Phase C.03 fix: "ตอนนี้" alone (casual weather check) uses daily — only
+  // request 24-hour hourly data when the user specifically asks for hours.
+  // "อากาศตอนนี้ดีไหม" → daily;  "อากาศรายชั่วโมงวันนี้" → hourly.
+  if (/รายชั่วโมง|ชั่วโมง|hourly/i.test(query)) return true;
+  if (/วันนี้|today|current.*hour|now.*hour/i.test(query) && /ชั่วโมง|hour/i.test(query)) return true;
+  return false;
 }
 
 function extractMathExpression(query: string): string {
@@ -381,7 +386,12 @@ function formatToolResult(toolName: string, rawText: string): string | null {
 
   if (toolName === "thaiKnowledgeTool") {
     if (parsed?.success === false) {
-      return typeof parsed.message === "string" ? parsed.message : null;
+      // Phase C.03 fix: NOT_FOUND → return a useful string (not null) so
+      // liveOutputs["__tool__"] is set and synthesizeAnswer doesn't fall back
+      // to the canned template. MDES agents will then add context on top.
+      const msg = typeof parsed.message === "string" ? parsed.message : "ไม่พบข้อมูลในฐานความรู้ท้องถิ่น";
+      const errCode = typeof parsed.error_code === "string" ? ` (${parsed.error_code})` : "";
+      return `📚 ${msg}${errCode} — MDES จะช่วยค้นหาคำตอบเพิ่มเติมให้ท่าน`;
     }
     const rows = Array.isArray(parsed?.data) ? parsed.data : [];
     if (rows.length > 0) {
