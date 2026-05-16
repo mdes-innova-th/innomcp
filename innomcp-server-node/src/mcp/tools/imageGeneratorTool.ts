@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { createCanvas } from "canvas";
+// canvas is a native module requiring Cairo/Pango + build toolchain.
+// Gracefully degrade when the binary is unavailable (Windows dev without
+// Visual C++ Build Tools, or pnpm strict isolation blocking the postinstall).
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const _canvas = (() => { try { return require("canvas"); } catch { return null; } })();
+const createCanvas: typeof import("canvas").createCanvas = _canvas
+  ? _canvas.createCanvas
+  : (() => { throw new Error("canvas native module unavailable on this host"); }) as any;
 
 /**
  * Image Generator Tool - สร้างรูปภาพด้วย Canvas
