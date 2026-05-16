@@ -1057,28 +1057,52 @@ export function MessageView({
         </div>
       )}
 
-      {/* Edit mode */}
+      {/* Edit mode — Phase 10.56 themed input + Ctrl+Enter save shortcut. */}
       {isEditing ? (
         <div>
           <textarea
-            className="w-full rounded border border-gray-400 p-2 text-black dark:text-white bg-white dark:bg-gray-800 mb-2"
+            className="mb-2 w-full rounded-lg border border-border/70 bg-background/95 p-2.5 text-[14px] leading-6 text-foreground placeholder:text-muted-foreground/60 focus:border-primary/45 focus:outline-none focus:ring-1 focus:ring-primary/20"
             value={editValue}
             rows={Math.max(2, editValue.split("\n").length)}
             onChange={(e) => setEditValue(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                e.preventDefault();
+                saveEdit();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setIsEditing(false);
+              }
+            }}
             autoFocus
           />
-          <div className="flex gap-2 justify-end">
+          <div className="flex items-center justify-end gap-2 text-[12px]">
+            <span className="mr-auto inline-flex items-center gap-1 text-[10.5px] text-muted-foreground">
+              <kbd className="inline-flex h-4 min-w-[26px] items-center justify-center rounded border border-border/70 bg-background px-1 font-mono text-[10px] leading-none shadow-[inset_0_-1px_0_var(--border)]">
+                {typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl"}
+              </kbd>
+              <span aria-hidden="true">+</span>
+              <kbd className="inline-flex h-4 min-w-[26px] items-center justify-center rounded border border-border/70 bg-background px-1 font-mono text-[10px] leading-none shadow-[inset_0_-1px_0_var(--border)]">
+                ↵
+              </kbd>
+              <span>บันทึก</span>
+              <span className="ml-1 opacity-60">·</span>
+              <kbd className="inline-flex h-4 min-w-[28px] items-center justify-center rounded border border-border/70 bg-background px-1 font-mono text-[10px] leading-none shadow-[inset_0_-1px_0_var(--border)]">
+                Esc
+              </kbd>
+              <span>ยกเลิก</span>
+            </span>
             <button
-              className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-              onClick={saveEdit}
-            >
-              บันทึก
-            </button>
-            <button
-              className="px-3 py-1 bg-gray-500 text-white rounded hover:bg-gray-600"
+              className="rounded-md bg-muted px-3 py-1 text-[12.5px] font-medium text-foreground transition-colors hover:bg-muted/70"
               onClick={() => setIsEditing(false)}
             >
               ยกเลิก
+            </button>
+            <button
+              className="rounded-md bg-primary px-3 py-1 text-[12.5px] font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+              onClick={saveEdit}
+            >
+              บันทึก
             </button>
           </div>
         </div>
