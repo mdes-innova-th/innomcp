@@ -35,10 +35,14 @@ function writeEvent(res: Response, ev: AgentEvent): void {
   const line = `event: ${ev.type}\ndata: ${JSON.stringify(ev)}\n\n`;
   // Express types don't always carry .write, but Response is a Writable
   (res as unknown as { write: (chunk: string) => boolean }).write(line);
+  // Flush immediately so SSE events are delivered even when Express
+  // compression middleware is active, instead of buffering until close.
+  if (typeof (res as any).flush === "function") (res as any).flush();
 }
 
 function writeComment(res: Response, comment: string): void {
   (res as unknown as { write: (chunk: string) => boolean }).write(`: ${comment}\n\n`);
+  if (typeof (res as any).flush === "function") (res as any).flush();
 }
 
 function clampText(text: string, max: number): string {
@@ -135,6 +139,12 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
   // cleanup that drops everything after the first event.
   res.on("close", cleanup);
 
+  // Capture runId/messageId from the first event emitted by the conductor so
+  // that any error event we synthesize in the catch block carries the real
+  // identifiers instead of a hardcoded "0".
+  let capturedRunId: string | undefined;
+  let capturedMessageId: string | undefined;
+
   try {
     const limits = (req as any).guestLimits as GuestLimits | undefined;
     const isGuest = Boolean((req as any).isGuest ?? !req.user);
@@ -158,6 +168,12 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
       },
       (ev) => {
         if (closed) return;
+        if (!capturedRunId && typeof ev.runId === "string" && ev.runId.length > 0) {
+          capturedRunId = ev.runId;
+        }
+        if (!capturedMessageId && typeof ev.messageId === "string" && ev.messageId.length > 0) {
+          capturedMessageId = ev.messageId;
+        }
         const out = limitStreamEvent(ev);
         if (!out) return;
         writeEvent(res, out);
@@ -167,8 +183,8 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
     if (!closed) {
       const errEv: AgentEvent = {
         type: "error",
-        runId: "0",
-        messageId: "0",
+        runId: capturedRunId || "unknown",
+        messageId: capturedMessageId || "unknown",
         publicSummary: "เกิดข้อผิดพลาดระหว่างประมวลคำขอ — โปรดลองใหม่อีกครั้ง",
         isSafeForUser: true,
         timestamp: new Date().toISOString(),
