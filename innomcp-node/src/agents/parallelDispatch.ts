@@ -201,19 +201,22 @@ export function selectAgentPlan(
   const pool = INTENT_AGENTS_POOL[intent] ?? INTENT_AGENTS_POOL["general"];
 
   if (runMode === "normal") {
-    // "ธรรมดา" mode — 1 fast concierge agent on MDES qwen3.5:9b.
-    // One agent is enough for simple Q&A and is 2–3x faster than the old
-    // 2-agent path. The concierge already uses the small fast model and is
-    // the best single-agent role for Thai general questions.
-    const conciergeAgent: AgentId = "concierge";
-    const endpointKind: AgentEndpointKind =
-      preferredMode === "remote" || (preferredMode !== "local" && remoteAvailable)
-        ? "remote"
-        : "local";
-    return [{
-      agentId: conciergeAgent,
-      ...resolveEndpoint(endpointKind, conciergeAgent, runMode),
-    }];
+    // Normal mode keeps a professional two-reader path: local + remote in
+    // hybrid mode when MDES is reachable. Thinking mode expands beyond this.
+    const agents = pool.length >= 2
+      ? pool.slice(0, 2)
+      : (["concierge", "critic"] satisfies AgentId[]);
+    const endpointKinds: AgentEndpointKind[] =
+      preferredMode === "local"
+        ? ["local", "local"]
+        : preferredMode === "remote"
+          ? ["remote", "remote"]
+          : ["local", remoteAvailable ? "remote" : "local"];
+
+    return agents.map((agentId, idx) => ({
+      agentId,
+      ...resolveEndpoint(endpointKinds[idx] ?? "local", agentId, runMode),
+    }));
   }
 
   const count = Math.max(2, scoreComplexity(intent, query));
@@ -621,7 +624,6 @@ export function synthesizeAnswer(
   // agents returned empty strings, falling through to fallbackText.
   const runMode = normalizeRunMode(options.runMode);
   const toolText = agentOutputs["__tool__"];
-  if (toolText && toolText.length > 20) return toolText;
 
   if (runMode === "thinking") {
     const ordered = ["stylist", "concierge", "rag-agent", "weather-analyst", "geo-planner", "critic", "tool-scout"];

@@ -35,22 +35,21 @@ describe("runConductor", () => {
     expect(events.every((ev) => ev.messageId === "msg-frontend-123")).toBe(true);
   });
 
-  // Phase 10.68 — normal (ธรรมดา) mode: 1 fast concierge agent
-  test("normal mode (ธรรมดา) uses exactly 1 concierge agent", () => {
-    const plan = selectAgentPlan("general", "ช่วยสรุปข่าวนี้ให้หน่อย", {
+  test("normal mode uses exactly 2 agents", () => {
+    const plan = selectAgentPlan("general", "summarize this news", {
       runMode: "normal",
       preferredMode: "hybrid",
       remoteAvailable: true,
     });
 
-    expect(plan).toHaveLength(1);
-    expect(plan[0].agentId).toBe("concierge");
+    expect(plan).toHaveLength(2);
+    expect(plan.map((p) => p.agentId)).toEqual(["concierge", "critic"]);
   });
 
   test("thinking mode can expand beyond two agents for complex prompts", () => {
     const plan = selectAgentPlan(
       "planning-broad",
-      "ช่วยวางแผนเลือกจังหวัดสำหรับจัดสัมมนาหน้าฝนโดยดูอากาศ การเดินทาง งบประมาณ และความเสี่ยงให้ครบ",
+      "plan province options for a rainy-season seminar with weather, travel, budget, and risk",
       {
         runMode: "thinking",
         preferredMode: "hybrid",
@@ -64,12 +63,12 @@ describe("runConductor", () => {
   test("final synthesis never promotes partial agent previews to final answer", () => {
     const text = synthesizeAnswer(
       {
-        __partial_concierge: "นี่เป็น preview ที่ยังไม่ควรกลายเป็นคำตอบสุดท้าย",
+        __partial_concierge: "preview that should not become the final answer",
       },
-      "fallback ที่ครบถ้วนกว่า",
+      "fallback with complete answer",
       { runMode: "normal" }
     );
 
-    expect(text).toBe("fallback ที่ครบถ้วนกว่า");
+    expect(text).toBe("fallback with complete answer");
   });
 });
