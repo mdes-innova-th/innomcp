@@ -511,7 +511,7 @@ app.post("/mcp", async (req, res) => {
 });
 
 // NEW: Smart Query Endpoint (Phase 4)
-app.post("/api/smart", async (req, res) => {
+app.post("/api/smart", (async (req: any, res: any) => {
     if (!USE_INTELLIGENCE_PIPELINE || !pipeline) {
         return res.status(503).json({ error: "Intelligence Pipeline Disabled" });
     }
@@ -550,7 +550,7 @@ app.post("/api/smart", async (req, res) => {
         safeWrite({ type: "error", message: e?.message || String(e), ms: 0 });
         safeEnd();
     }
-});
+}) as any);
 
 const server = app.listen(port, host, () => {
   logBoth('INFO', `🚀 MCP Server running on http://${host}:${port}/mcp`);

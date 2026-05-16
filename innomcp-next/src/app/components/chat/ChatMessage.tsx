@@ -1323,6 +1323,17 @@ export function MessageView({
             </div>
           )}
 
+          {/* Phase 10.64 — MultiAgentPanel placed ABOVE the main answer text as
+              a thinking-mode strip. Mom's directive: simple Q&A should not be
+              dominated by a 4-agent panel under the answer; surface the
+              "thinking" tape at the top, collapsed by default, so the answer
+              stays the protagonist. */}
+          {message.sender === "ai" && inlineExtras && (
+            <div className="mb-2.5 -mt-0.5">
+              {inlineExtras}
+            </div>
+          )}
+
           {/* Source attachments — small chips above the AI body (req 5) */}
           {message.sender === "ai" && (() => {
             const sc = message.structuredContent as any;
@@ -1474,11 +1485,9 @@ export function MessageView({
             )}
           </div>
 
-          {/* Inline extras (MultiAgentPanel) — rendered inside this bubble so the
-              user sees one cohesive answer card. Hidden by default via <details>. */}
-          {message.sender === "ai" && inlineExtras && (
-            <div className="mt-2.5">{inlineExtras}</div>
-          )}
+          {/* Inline extras moved to ABOVE the answer text in Phase 10.64.
+              (Previously rendered below the body — caused panel-domination
+              for short answers per mom's review.) */}
 
           {/* Metadata footer — Phase 10.49 tightened icons. */}
           <div

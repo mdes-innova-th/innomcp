@@ -46,14 +46,14 @@ router.post("/", (req: Request, res: Response) => {
 });
 
 router.patch("/:id", (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const updated = updateProvider(id, req.body || {});
   if (!updated) return res.status(404).json({ error: "provider not found" });
   res.json({ provider: toPublicView(updated) });
 });
 
 router.delete("/:id", (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const ok = deleteProvider(id);
   if (!ok) return res.status(404).json({ error: "provider not found" });
   res.status(204).end();
@@ -66,7 +66,7 @@ router.delete("/:id", (req: Request, res: Response) => {
  * are out of scope for this slice and tracked in TASK_GRAPH C-2.5.
  */
 router.post("/:id/test", async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = req.params.id as string;
   const rec = getProvider(id);
   if (!rec) return res.status(404).json({ error: "provider not found" });
 

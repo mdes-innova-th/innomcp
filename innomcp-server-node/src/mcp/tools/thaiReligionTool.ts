@@ -144,6 +144,6 @@ export function registerThaiReligionTool(server: McpServer) {
              description: thaiReligionTool.description,
              inputSchema: thaiReligionTool.inputSchema
         },
-        thaiReligionTool.execute
+        thaiReligionTool.execute as any
     );
 }

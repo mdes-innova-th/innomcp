@@ -1,0 +1,17 @@
+packages:
+  - innomcp-next
+  - innomcp-node
+  - innomcp-server-node
+
+# Phase 10.64 — pnpm build-script allow-list. Postinstall scripts are only
+# run for the deps we actually need at runtime. Everything else is denied
+# explicitly so pnpm stops prompting in CI/headless mode.
+allowBuilds:
+  bcrypt: true
+  canvas: false
+  core-js: false
+  puppeteer: false
+  sharp: true
+  tesseract.js: false
+  unrs-resolver: false
+  "@parcel/watcher": true

@@ -37,7 +37,7 @@ adminRouter.get('/users', async (req: AuthRequest, res: Response) => {
  */
 adminRouter.patch('/users/:id/role', async (req: AuthRequest, res: Response) => {
   try {
-    const targetId = parseInt(req.params.id, 10);
+    const targetId = parseInt(req.params.id as string, 10);
     const { roleId } = req.body;
 
     if (isNaN(targetId) || typeof roleId !== 'number') {
@@ -87,7 +87,7 @@ adminRouter.patch('/users/:id/role', async (req: AuthRequest, res: Response) => 
  */
 adminRouter.patch('/users/:id/active', async (req: AuthRequest, res: Response) => {
   try {
-    const targetId = parseInt(req.params.id, 10);
+    const targetId = parseInt(req.params.id as string, 10);
     const { active } = req.body;
 
     if (isNaN(targetId) || typeof active !== 'boolean') {

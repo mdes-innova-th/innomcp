@@ -19,6 +19,7 @@ export const INTENT_AGENTS: Record<string, AgentId[]> = {
   weather:           ["weather-analyst", "geo-planner", "critic"],
   geo:               ["geo-planner", "rag-agent", "critic"],
   knowledge:         ["rag-agent", "concierge", "critic"],
+  evidence:          ["tool-scout", "critic", "concierge"],
   "planning-broad":  ["weather-analyst", "geo-planner", "rag-agent", "critic", "stylist"],
   calc:              ["tool-scout", "critic"],
   code:              ["tool-scout", "concierge"],
@@ -34,6 +35,7 @@ const INTENT_AGENTS_POOL: Record<string, AgentId[]> = {
   weather:          ["weather-analyst", "geo-planner", "critic"],
   geo:              ["geo-planner", "weather-analyst", "rag-agent", "critic"],
   knowledge:        ["rag-agent", "concierge", "critic", "stylist"],
+  evidence:         ["tool-scout", "critic", "concierge", "stylist"],
   "planning-broad": ["weather-analyst", "geo-planner", "rag-agent", "concierge", "critic", "stylist", "tool-scout"],
   calc:             ["tool-scout", "critic"],
   code:             ["tool-scout", "concierge", "critic", "stylist"],
@@ -64,22 +66,36 @@ const DEFAULT_TIMEOUT_MS = 12_000;
 
 /**
  * Score query complexity → desired agent count.
- * MINIMUM is 2 — every query gets at least thinker + responder.
- * 2  → greeting/datetime/short
- * 4  → medium (weather, calc, 5-25 tokens)
- * 6  → complex (planning-broad, long queries)
- * 8  → very complex (code + multi-tool)
+ *
+ * Phase 10.64 — parsimony rewrite. The earlier matrix sprayed 4 agents at
+ * any sub-25-token query, which produced 4 cards on the panel for trivial
+ * NASA/Artemis-class questions and made simple Q&A feel slow + chaotic.
+ *
+ * New floor: 2 (thinker + responder). Only escalate when the intent or
+ * length genuinely warrants more reasoners.
+ *
+ * 2 → greeting / datetime / weather / general / knowledge / geo / calc
+ *     when query is ≤ 25 tokens (the vast majority of chat traffic)
+ * 3 → same intents above with 25-50 tokens (medium-depth ask)
+ * 4 → general / knowledge with > 50 tokens (essays, multi-part Qs)
+ * 6 → planning-broad (always — these require multiple specialist lenses)
+ * 8 → code (multi-tool reasoning + style + critic)
  */
 export function scoreComplexity(intent: string, query: string): number {
   if (intent === "planning-broad") return 6;
   if (intent === "code") return 8;
-  // greeting and datetime always get 2 agents (thinker + responder) — never skip
+  // greeting and datetime are always 2 agents (thinker + responder).
   if (["greeting", "datetime"].includes(intent)) return 2;
   const words = query.trim().split(/\s+/).length;
   const tokenEst = Math.max(words, Math.ceil(query.trim().length / 5));
-  if (tokenEst <= 4 && intent === "weather") return 2;
-  if (tokenEst <= 25) return 4;
-  return 6;
+  // Short queries (≤ 25 tokens) → 2 agents regardless of intent. This is
+  // ~90% of chat traffic and the old "4 for short knowledge" rule was
+  // overkill — burned tokens, lit up the panel, and slowed first-token.
+  if (tokenEst <= 25) return 2;
+  // Medium length → 3 agents (responder + critic + stylist).
+  if (tokenEst <= 50) return 3;
+  // Long form → 4 agents for general/knowledge depth.
+  return 4;
 }
 
 const AGENT_PROMPT: Record<string, (q: string) => string> = {

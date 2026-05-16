@@ -192,6 +192,6 @@ export function registerThaiLawTool(server: McpServer) {
             description: thaiLawTool.description,
             inputSchema: thaiLawTool.inputSchema
         },
-        thaiLawTool.execute
+        thaiLawTool.execute as any
     );
 }

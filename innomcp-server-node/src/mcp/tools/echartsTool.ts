@@ -303,7 +303,7 @@ window.chart.setOption(window.option);
 </body>
 </html>
           `,
-            { waitUntil: "networkidle2" }
+            { waitUntil: "load" }
           );
 
           // Wait a bit for chart to render

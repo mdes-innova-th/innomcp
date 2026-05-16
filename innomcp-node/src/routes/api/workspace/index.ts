@@ -61,7 +61,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 router.get('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const workspaceId = parseInt(req.params.id);
+    const workspaceId = parseInt(req.params.id as string);
 
     const workspace = await withDbConnection(async (conn) => {
       const [rows] = await conn.query(
@@ -148,7 +148,7 @@ router.post('/', async (req: AuthRequest, res: Response) => {
 router.put('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const workspaceId = parseInt(req.params.id);
+    const workspaceId = parseInt(req.params.id as string);
     const { name, description, theme, colorScheme, language, timezone } = req.body;
 
     // Verify ownership
@@ -203,7 +203,7 @@ router.put('/:id', async (req: AuthRequest, res: Response) => {
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const workspaceId = parseInt(req.params.id);
+    const workspaceId = parseInt(req.params.id as string);
 
     // Verify ownership and check if default
     const workspace = await withDbConnection(async (conn) => {
@@ -256,7 +256,7 @@ router.delete('/:id', async (req: AuthRequest, res: Response) => {
 router.get('/:id/instructions', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const workspaceId = parseInt(req.params.id);
+    const workspaceId = parseInt(req.params.id as string);
 
     // Verify ownership
     const hasAccess = await withDbConnection(async (conn) => {
@@ -306,7 +306,7 @@ router.get('/:id/instructions', async (req: AuthRequest, res: Response) => {
 router.post('/:id/instructions', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const workspaceId = parseInt(req.params.id);
+    const workspaceId = parseInt(req.params.id as string);
     const { type, text, priority } = req.body;
 
     if (!type || !text) {
@@ -364,8 +364,8 @@ router.post('/:id/instructions', async (req: AuthRequest, res: Response) => {
 router.delete('/:id/instructions/:instructionId', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
-    const workspaceId = parseInt(req.params.id);
-    const instructionId = parseInt(req.params.instructionId);
+    const workspaceId = parseInt(req.params.id as string);
+    const instructionId = parseInt(req.params.instructionId as string);
 
     // Verify ownership
     const hasAccess = await withDbConnection(async (conn) => {
