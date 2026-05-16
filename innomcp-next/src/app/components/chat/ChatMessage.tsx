@@ -132,47 +132,44 @@ export default function ChatMessage({
         {/* Evidence Dashboard (structuredContent-only) */}
         <EvidenceDashboard structuredContent={structuredContent} />
 
-        {/* Display NASA APOD Image if available */}
+        {/* Display NASA APOD Image — Phase 10.59 themed card */}
         {structuredContent?.url && structuredContent?.media_type === 'image' && (
-          <div className="mb-4">
-            <div className="relative rounded-lg overflow-hidden">
-              <img 
-                src={structuredContent.hdurl || structuredContent.url} 
-                alt={structuredContent.title || 'NASA APOD Image'} 
-                className="w-full h-auto"
-                loading="lazy"
-              />
-              {structuredContent.title && (
-                <div className={`absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t ${
-                  theme === 'dark' 
-                    ? 'from-black/80 to-transparent' 
-                    : 'from-white/90 to-transparent'
-                }`}>
-                  <p className="font-semibold text-sm">{structuredContent.title}</p>
-                  {structuredContent.copyright && (
-                    <p className="text-xs opacity-80">© {structuredContent.copyright}</p>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="flex justify-center gap-2 mt-2">
+          <div className="mb-4 overflow-hidden rounded-xl border border-violet-500/25 bg-gradient-to-b from-violet-500/8 via-sky-500/4 to-transparent shadow-sm dark:border-violet-400/25 dark:from-violet-900/15">
+            <div className="flex items-center justify-between gap-2 border-b border-violet-500/15 bg-violet-500/8 px-3 py-2 dark:border-violet-400/15">
+              <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-violet-900 dark:text-violet-100">
+                <span aria-hidden="true">🚀</span>
+                NASA APOD · ภาพอวกาศประจำวัน
+              </span>
               <a
                 href={structuredContent.hdurl || structuredContent.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={`flex items-center gap-1 px-3 py-1 rounded text-sm transition-all ${
-                  theme === "dark"
-                    ? "bg-gray-700 text-gray-200 hover:bg-gray-600"
-                    : "bg-gray-200 text-gray-800 hover:bg-gray-300"
-                }`}
+                className="inline-flex items-center gap-1 rounded-full bg-violet-500/12 px-2 py-0.5 text-[11px] font-medium text-violet-700 ring-1 ring-violet-500/20 transition-colors hover:bg-violet-500/20 dark:text-violet-200 dark:ring-violet-400/25"
+                title="เปิดภาพขนาดเต็ม"
               >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                  <polyline points="15 3 21 3 21 9"></polyline>
-                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
                 </svg>
-                เปิดภาพขนาดเต็ม
+                เต็มจอ
               </a>
+            </div>
+            <div className="group/apod relative overflow-hidden">
+              <img
+                src={structuredContent.hdurl || structuredContent.url}
+                alt={structuredContent.title || 'NASA APOD Image'}
+                className="h-auto w-full transition-transform duration-500 group-hover/apod:scale-[1.01]"
+                loading="lazy"
+              />
+              {structuredContent.title && (
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-3 text-white">
+                  <p className="text-[13.5px] font-semibold leading-tight">{structuredContent.title}</p>
+                  {structuredContent.copyright && (
+                    <p className="mt-0.5 text-[11px] text-white/75">© {structuredContent.copyright}</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
