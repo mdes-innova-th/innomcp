@@ -39,11 +39,9 @@ fi
 echo ""
 echo "Running static checks (TypeScript: noEmit)..."
 
-# Phase 10.64 — give tsc 16 GB heap. The MCP catalogue (56 tools, deep
-# zod schemas + Express 5 generics + path-to-regexp v8 type recursion)
-# routinely OOMs at 8 GB. 16 GB is generous but commit-time is rare and
-# the alternative is dropping type checking from the hook entirely.
-export NODE_OPTIONS="--max-old-space-size=16384"
+# Phase 10.64 — give tsc 8 GB heap. Larger MCP catalogue (56 tools, deep
+# zod schemas) trips the 4 GB default when run alongside the dev stack.
+export NODE_OPTIONS="--max-old-space-size=8192"
 
 {
   echo "[node] tsc --noEmit"

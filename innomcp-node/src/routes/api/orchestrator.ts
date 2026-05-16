@@ -52,7 +52,7 @@ orchestratorRouter.post("/tasks", async (req: Request, res: Response) => {
  */
 orchestratorRouter.get("/tasks/:taskId", async (req: Request, res: Response) => {
   try {
-    const task = orchestrator.getTask(req.params.taskId as string);
+    const task = orchestrator.getTask(req.params.taskId);
     if (!task) {
       return res.status(404).json({ error: "Task not found" });
     }

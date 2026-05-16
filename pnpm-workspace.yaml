@@ -3,6 +3,14 @@ packages:
   - innomcp-node
   - innomcp-server-node
 
+overrides:
+  zod: "3.22.4"
+  # Phase 10.64 — match the exact npm-resolved version from the original
+  # package-lock.json. npm had SSC 5.1.0 where ParamsDictionary[key]=string
+  # (not string|string[]) and handler overloads resolve correctly.
+  # pnpm's SAT solver picked 5.0.x which triggered 33 TS2769 errors.
+  "@types/express-serve-static-core": "5.1.0"
+
 # Phase 10.64 — pnpm build-script allow-list. Postinstall scripts are only
 # run for the deps we actually need at runtime. Everything else is denied
 # explicitly so pnpm stops prompting in CI/headless mode.

@@ -56,7 +56,7 @@ router.get('/', async (req: Request, res: Response) => {
  */
 router.get('/:name', async (req: Request, res: Response) => {
   try {
-    const name = req.params.name as string;
+    const { name } = req.params;
     const stats = await getLatencyStats(name);
 
     if (!stats) {
@@ -83,7 +83,7 @@ router.get('/:name', async (req: Request, res: Response) => {
  */
 router.delete('/:name', async (req: Request, res: Response) => {
   try {
-    const name = req.params.name as string;
+    const { name } = req.params;
     await clearMetrics(name);
 
     res.json({
