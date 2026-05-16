@@ -174,14 +174,31 @@ export default function ChatMessage({
           </div>
         )}
 
-        {/* QR Code Image: render directly from structuredContent to avoid LLM streaming base64 */}
+        {/* QR Code Image — Phase 10.60 themed card with eyebrow + decoded text */}
         {structuredContent?.__qrDirect && structuredContent?.qrCodeImage && (
-          <div className="mb-4" data-testid="qr-code-image">
-            <div className="flex justify-center">
+          <div
+            className="mb-4 overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm"
+            data-testid="qr-code-image"
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-border/60 bg-muted/40 px-3 py-2">
+              <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-foreground">
+                <span aria-hidden="true">🔳</span>
+                QR Code
+              </span>
+              {structuredContent.text && (
+                <span
+                  className="max-w-[14rem] truncate rounded-full bg-primary/8 px-2 py-0.5 font-mono text-[10.5px] text-primary"
+                  title={String(structuredContent.text)}
+                >
+                  {String(structuredContent.text)}
+                </span>
+              )}
+            </div>
+            <div className="flex justify-center bg-gradient-to-b from-background to-muted/30 p-4">
               <img
                 src={structuredContent.qrCodeImage}
                 alt={`QR Code: ${structuredContent.text || ''}`}
-                className="max-w-[300px] h-auto rounded-lg shadow-md"
+                className="h-auto max-w-[260px] rounded-md ring-1 ring-border/40"
               />
             </div>
           </div>
