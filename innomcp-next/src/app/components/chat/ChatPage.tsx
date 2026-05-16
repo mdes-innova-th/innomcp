@@ -1503,14 +1503,30 @@ const ChatPage: React.FC = () => {
                     </ul>
 
                     <div className="mt-5 border-t border-border/60 pt-4">
-                      <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                      <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        <span aria-hidden="true">🎨</span>
                         สั่งสร้างภาพให้ดี
                       </h2>
-                      <ul className="mt-2.5 space-y-1.5 text-[12.5px] leading-5 text-muted-foreground">
-                        <li>· subject — คน สัตว์ สถานที่</li>
-                        <li>· style — cinematic / watercolor / editorial</li>
-                        <li>· ฉาก — เช่น ทุ่งนาไทยตอนเย็น</li>
-                        <li>· จุดเน้น — สี แสง มุมกล้อง</li>
+                      {/* Phase 10.55 — image prompt recipe as labeled rows
+                          instead of bullet dots. Easier to scan and looks
+                          like a checklist users can mentally tick off. */}
+                      <ul className="mt-2.5 space-y-1.5 text-[12.5px] leading-5">
+                        <li className="flex gap-2">
+                          <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-wider text-primary/80">subject</span>
+                          <span className="text-muted-foreground">คน · สัตว์ · สถานที่</span>
+                        </li>
+                        <li className="flex gap-2">
+                          <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-wider text-primary/80">style</span>
+                          <span className="text-muted-foreground">cinematic / watercolor / editorial</span>
+                        </li>
+                        <li className="flex gap-2">
+                          <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-wider text-primary/80">scene</span>
+                          <span className="text-muted-foreground">เช่น ทุ่งนาไทยตอนเย็น</span>
+                        </li>
+                        <li className="flex gap-2">
+                          <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-wider text-primary/80">focus</span>
+                          <span className="text-muted-foreground">สี · แสง · มุมกล้อง</span>
+                        </li>
                       </ul>
                     </div>
                   </div>
