@@ -37,10 +37,11 @@ interface Props {
   events: AgentEvent[];
   status: "idle" | "streaming" | "done" | "error";
   warnings?: string[];
+  compact?: boolean;
 }
 
-export default function ThinkingPanel({ events, status, warnings }: Props) {
-  const [open, setOpen] = useState(false);
+export default function ThinkingPanel({ events, status, warnings, compact }: Props) {
+  const [open, setOpen] = useState(compact ? true : false);
 
   const visibleEvents = useMemo(() => {
     // Filter out raw draft_delta events from the panel — they are
@@ -56,7 +57,9 @@ export default function ThinkingPanel({ events, status, warnings }: Props) {
   return (
     <div
       data-testid="thinking-panel"
-      className="mt-2 rounded-md border border-border/40 bg-card/30 px-3 py-2 text-xs text-muted-foreground transition-colors"
+      className={`mt-2 rounded-md border border-border/40 bg-card/30 px-3 py-2 transition-colors ${
+        compact ? "text-[10px]" : "text-xs"
+      } text-muted-foreground`}
     >
       <button
         type="button"

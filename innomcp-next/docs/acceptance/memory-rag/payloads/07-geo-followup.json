@@ -14,7 +14,12 @@
       "routeDecider": "deterministic",
       "sourceType": "tool-only",
       "version": "phase10.7",
-      "timestamp": "2026-04-18T12:57:48.368Z",
+      "timestamp": "2026-05-17T14:20:03.585Z",
+      "modelUsed": null,
+      "answerMode": "tool-only",
+      "fallbackReason": null,
+      "degraded": false,
+      "degradedReasons": [],
       "canonicalQuery": "เหนือ",
       "geoIntent": "region_to_provinces"
     },
@@ -47,7 +52,12 @@
         "routeDecider": "deterministic",
         "sourceType": "tool-only",
         "version": "phase10.7",
-        "timestamp": "2026-04-18T12:57:48.368Z",
+        "timestamp": "2026-05-17T14:20:03.585Z",
+        "modelUsed": null,
+        "answerMode": "tool-only",
+        "fallbackReason": null,
+        "degraded": false,
+        "degradedReasons": [],
         "canonicalQuery": "เหนือ",
         "geoIntent": "region_to_provinces"
       }

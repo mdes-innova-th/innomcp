@@ -2,7 +2,7 @@
   "query": "อากาศเชียงใหม่วันนี้เป็นอย่างไร และโอกาสฝนหมายถึงอะไร",
   "route": "weather",
   "tools": "weatherPipeline",
-  "text": "ช่วงเวลา: วันนี้ (23/04/2026)\n\nพื้นที่: เชียงใหม่\n📍 เชียงใหม่ — โอกาสฝนน้อย อุณหภูมิ 26–40°C\nโอกาสฝน: 10%\nช่วงเวลาเสี่ยง: พยากรณ์รายวัน\nอุณหภูมิ: 26–40°C\nลม: 5km/h ตะวันตกเฉียงใต้\nข้อควรระวัง: ไม่มีคำเตือนพิเศษ\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย",
+  "text": "ช่วงเวลา: วันนี้ (17/05/2026)\n\nพื้นที่: เชียงใหม่\n📍 เชียงใหม่ — มีโอกาสฝนตก อุณหภูมิ 25–38°C\nโอกาสฝน: 40%\nช่วงเวลาเสี่ยง: พยากรณ์รายวัน\nอุณหภูมิ: 25–38°C\nลม: 5km/h ตะวันตกเฉียงใต้\nข้อควรระวัง: อาจมีฝนประปราย\nอำเภอที่ควรติดตาม: เมืองเชียงใหม่, แม่ริม, สันทราย",
   "memoryRag": null,
   "groundedContract": {
     "selectedRoute": "weather",
@@ -13,7 +13,7 @@
     "routeDecider": "deterministic",
     "sourceType": "tool-only",
     "version": "phase8",
-    "timestamp": "2026-04-22T20:25:15.796Z",
+    "timestamp": "2026-05-17T14:19:37.936Z",
     "modelUsed": null,
     "answerMode": "tool-only",
     "fallbackReason": null,
@@ -29,35 +29,39 @@
           "province": "เชียงใหม่",
           "forecast": {
             "ForecastDate": [
-              "28/04/2026",
-              "27/04/2026",
-              "26/04/2026",
-              "25/04/2026",
-              "24/04/2026",
-              "23/04/2026"
+              "23/05/2026",
+              "22/05/2026",
+              "21/05/2026",
+              "20/05/2026",
+              "19/05/2026",
+              "18/05/2026",
+              "17/05/2026"
             ],
             "MaximumTemperature": [
-              "38.0",
-              "38.0",
+              "31.0",
+              "31.0",
+              "31.0",
+              "33.0",
               "36.0",
               "38.0",
-              "39.0",
-              "40.0"
+              "38.0"
             ],
             "MinimumTemperature": [
+              "24.0",
+              "24.0",
+              "24.0",
               "25.0",
+              "26.0",
               "25.0",
-              "25.0",
-              "27.0",
-              "27.0",
-              "26.0"
+              "25.0"
             ],
             "WindDirection": [
-              "180",
-              "180",
-              "180",
-              "180",
-              "180",
+              "240",
+              "240",
+              "240",
+              "240",
+              "240",
+              "240",
               "240"
             ],
             "WindSpeed": [
@@ -66,33 +70,38 @@
               "5",
               "5",
               "5",
+              "5",
               "5"
             ],
             "PercentRainCover": [
-              "10",
-              "10",
-              "30",
-              "30",
-              "20",
-              "10"
+              "60",
+              "80",
+              "80",
+              "60",
+              "40",
+              "40",
+              "40"
             ],
             "DescriptionThai": [
               "ฝนฟ้าคะนอง",
               "ฝนฟ้าคะนอง",
-              "พายุฝนฟ้าคะนอง",
-              "พายุฝนฟ้าคะนอง",
-              "พายุฝนฟ้าคะนอง",
-              "พายุฝนฟ้าคะนอง"
+              "ฝนฟ้าคะนอง",
+              "ฝนฟ้าคะนอง",
+              "ฝนฟ้าคะนอง",
+              "ฝนฟ้าคะนอง",
+              "ฝนฟ้าคะนอง"
             ],
             "DescriptionEnglish": [
               "Heavy Rain",
               "Heavy Rain",
-              "Thunder Storm",
-              "Thunder Storm",
-              "Thunder Storm",
-              "Thunder Storm"
+              "Heavy Rain",
+              "Heavy Rain",
+              "Heavy Rain",
+              "Heavy Rain",
+              "Heavy Rain"
             ],
             "TemperatureThai": [
+              "ปกติ",
               "ปกติ",
               "ปกติ",
               "ปกติ",
@@ -101,6 +110,7 @@
               "ปกติ"
             ],
             "TemperatureEnglish": [
+              "Normal",
               "Normal",
               "Normal",
               "Normal",
@@ -115,7 +125,7 @@
     ],
     "weatherPayload": {
       "version": "10.1",
-      "generatedAt": "2026-04-22T20:25:15.796Z",
+      "generatedAt": "2026-05-17T14:19:37.936Z",
       "sourcesUsed": [
         "forecast"
       ],
@@ -129,9 +139,9 @@
       "areas": [
         {
           "area": "เชียงใหม่",
-          "rainChancePct": 10,
-          "temperature": "25–38°C",
-          "wind": "5 180",
+          "rainChancePct": 60,
+          "temperature": "24–31°C",
+          "wind": "5 240",
           "updateTime": "ยังไม่มีข้อมูล",
           "summary": "ฝนฟ้าคะนอง",
           "sourcesUsed": [
@@ -173,7 +183,7 @@
       "routeDecider": "deterministic",
       "sourceType": "tool-only",
       "version": "phase8",
-      "timestamp": "2026-04-22T20:25:15.796Z",
+      "timestamp": "2026-05-17T14:19:37.936Z",
       "modelUsed": null,
       "answerMode": "tool-only",
       "fallbackReason": null,

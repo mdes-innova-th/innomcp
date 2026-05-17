@@ -2,7 +2,7 @@
   "query": "สวัสดีครับ",
   "route": "general",
   "tools": "none",
-  "text": "สวัสดีค่ะ! มีอะไรที่ฉันสามารถช่วยคุณได้บ้าง?",
+  "text": "กำลังเรียบเรียงคำตอบให้นะครับ — ระบบกำลังประสานข้อมูลจากหลายตัวแทน หากใช้เวลานานเกินไป ลองระบุคำถามให้เฉพาะเจาะจงขึ้น (เช่น จังหวัด/ช่วงเวลา/บริบท) จะตอบได้แม่นยำขึ้นครับ",
   "memoryRag": null,
   "groundedContract": {
     "selectedRoute": "general",
@@ -11,18 +11,25 @@
     "routeDecider": "deterministic",
     "sourceType": "llm-only",
     "version": "phase8",
-    "timestamp": "2026-04-18T12:57:52.989Z"
+    "timestamp": "2026-05-17T14:20:03.715Z",
+    "modelUsed": "qwen2.5:0.5b",
+    "answerMode": "deterministic",
+    "fallbackReason": "ERROR",
+    "degraded": true,
+    "degradedReasons": [
+      "GeneralGate: ERROR"
+    ]
   },
   "fullSc": {
     "generalGate": {
       "route": "general",
       "usedTools": false,
-      "budgetMs": 60000,
-      "durMs": 4410,
-      "model": "qwen2.5-coder:7b",
-      "fallback": false,
-      "reason": "OK",
-      "totalDurMs": 4411,
+      "budgetMs": 5000,
+      "durMs": 3,
+      "model": "qwen2.5:0.5b",
+      "fallback": true,
+      "reason": "ERROR",
+      "totalDurMs": 4,
       "coldRagDocs": 0,
       "coldRagSources": []
     },
@@ -30,7 +37,14 @@
       "route": "general",
       "llmUsed": true,
       "routeDecider": "deterministic",
-      "version": "phase8"
+      "version": "phase8",
+      "modelUsed": "qwen2.5:0.5b",
+      "answerMode": "deterministic",
+      "fallbackReason": "ERROR",
+      "degraded": true,
+      "degradedReasons": [
+        "GeneralGate: ERROR"
+      ]
     },
     "chatMeta": {
       "mode": "online",
@@ -45,7 +59,14 @@
       "routeDecider": "deterministic",
       "sourceType": "llm-only",
       "version": "phase8",
-      "timestamp": "2026-04-18T12:57:52.989Z"
+      "timestamp": "2026-05-17T14:20:03.715Z",
+      "modelUsed": "qwen2.5:0.5b",
+      "answerMode": "deterministic",
+      "fallbackReason": "ERROR",
+      "degraded": true,
+      "degradedReasons": [
+        "GeneralGate: ERROR"
+      ]
     }
   }
 }

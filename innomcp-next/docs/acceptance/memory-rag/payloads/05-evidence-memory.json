@@ -3,7 +3,7 @@
     "query": "รายการ NIP วันนี้ของ AIS",
     "route": "evidence",
     "tools": "none",
-    "text": "วันนี้ตรวจพบ URL/NIP ของ AIS: 5 รายการ",
+    "text": "ขออภัย ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน หากต้องการข้อมูลจริง กรุณาติดต่อผู้ดูแลระบบหรือลองใหม่ภายหลังครับ\nขณะนี้จำนวน: 0 รายการ (ข้อมูลยังไม่พร้อม)",
     "memoryRag": null,
     "groundedContract": {
       "selectedRoute": "evidence",
@@ -12,7 +12,7 @@
       "routeDecider": "deterministic",
       "sourceType": "deterministic",
       "version": "phase8",
-      "timestamp": "2026-04-22T20:25:33.665Z",
+      "timestamp": "2026-05-17T14:19:49.179Z",
       "modelUsed": null,
       "answerMode": "deterministic",
       "fallbackReason": null,
@@ -20,13 +20,26 @@
       "degradedReasons": []
     },
     "fullSc": {
-      "ok": true,
+      "ok": false,
+      "code": "DETECT_API_UNAVAILABLE",
       "intent": "detected_urls_today",
-      "count": 5,
-      "ispFilter": "ais",
-      "date": "2026-04-23",
       "meta": {
-        "dataSource": "detect-api"
+        "dataSource": "placeholder",
+        "note": "detect-evidence-api not available"
+      },
+      "message": "ขออภัย ขณะนี้ยังไม่พร้อมเชื่อมต่อฐานข้อมูลหลักฐาน กรุณาติดต่อผู้ดูแลระบบหรือลองใหม่ภายหลังครับ",
+      "kpis": {
+        "total": 0,
+        "topIspName": null,
+        "topIspCount": null
+      },
+      "table": {
+        "rows": [
+          {
+            "isp": "(ยังไม่มีข้อมูล)",
+            "count": 0
+          }
+        ]
       },
       "__render": {
         "route": "evidence",
@@ -47,7 +60,7 @@
         "routeDecider": "deterministic",
         "sourceType": "deterministic",
         "version": "phase8",
-        "timestamp": "2026-04-22T20:25:33.665Z",
+        "timestamp": "2026-05-17T14:19:49.179Z",
         "modelUsed": null,
         "answerMode": "deterministic",
         "fallbackReason": null,

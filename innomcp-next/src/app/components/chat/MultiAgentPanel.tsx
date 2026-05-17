@@ -1,6 +1,7 @@
 "use client";
 import React, { useMemo, useState } from "react";
 import type { AgentEvent, StreamStatus } from "./useAgentEventStream";
+import { getThinkingReportToneClass, resolveThinkingReportSummary } from "./multiAgentExperience";
 
 const MDES_MODEL_BADGE: Record<string, string> = {
   "qwen3.5:9b": "Q3.5-9B",
@@ -266,19 +267,19 @@ export default function MultiAgentPanel({
     agents.map((a) => a.model).filter((m): m is string => Boolean(m))
   ));
   const isStreaming = status === "streaming";
+  const reportSummary = resolveThinkingReportSummary({
+    streamStatus: status,
+    agentCount: agents.length,
+    doneCount,
+    recoveringCount,
+    errorCount,
+  });
+  const reportToneClass = getThinkingReportToneClass(reportSummary.tone);
   const radarColor =
     status === "error" || errorCount > 0 ? "bg-rose-500"
     : recoveringCount > 0 ? "bg-amber-500"
     : isStreaming ? "bg-emerald-500"
     : "bg-sky-500";
-  const headerStatusText =
-    errorCount > 0
-      ? `ติดขัด ${errorCount}`
-      : recoveringCount > 0
-      ? `กำลังสำรอง ${recoveringCount}`
-      : isStreaming
-      ? `${doneCount}/${agents.length} เสร็จ`
-      : "เสร็จแล้ว";
 
   return (
     <div data-testid="multiagent-panel" className={rootClass}>
@@ -290,8 +291,8 @@ export default function MultiAgentPanel({
         data-testid="multiagent-expand-all"
         title="Ctrl+O"
       >
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-2 font-medium text-foreground/85">
+        <div className="flex items-start justify-between gap-3">
+          <span className="flex min-w-0 items-start gap-2 font-medium text-foreground/85">
             <span className="relative inline-flex h-3 w-3 shrink-0 items-center justify-center">
               <span
                 className={`absolute inline-flex h-3 w-3 rounded-full opacity-75 ${radarColor} ${isStreaming ? "animate-radar-ping" : ""}`}
@@ -299,9 +300,16 @@ export default function MultiAgentPanel({
               />
               <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${radarColor}`} aria-hidden="true" />
             </span>
-            <span className="text-[13px] font-semibold text-foreground/90">บันทึกการคิด</span>
-            <span className="hidden text-[11.5px] text-muted-foreground/85 sm:inline">
-              · {agents.length} ตัวแทน · {headerStatusText}
+            <span className="min-w-0">
+              <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className="text-[13px] font-semibold text-foreground/90">{reportSummary.title}</span>
+                <span className={`text-[11.5px] ${reportToneClass}`}>
+                  {agents.length} ตัวแทน · {reportSummary.statusText}
+                </span>
+              </span>
+              <span className="mt-0.5 hidden max-w-[62ch] truncate text-[11.5px] leading-5 text-muted-foreground/85 sm:block">
+                {reportSummary.digest}
+              </span>
             </span>
           </span>
 
@@ -343,9 +351,18 @@ export default function MultiAgentPanel({
 
       {isOpen && agents.length > 0 && (
         <article className="border-t border-border/40 px-3.5 py-3 text-[13px] leading-6">
-          <header className="mb-3 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-            <span className="font-medium text-foreground/80">ทีมอ่านโจทย์เป็นบทความเดียว</span>
-            {runSummary && <span className="min-w-0 flex-1 truncate">{runSummary}</span>}
+          <header className="mb-3 grid gap-2 text-[11px] text-muted-foreground sm:grid-cols-[1fr_auto] sm:items-center">
+            <span className="min-w-0">
+              <span className="block">
+                <span className="font-medium text-foreground/80">ทีมอ่านโจทย์เป็นบทความเดียว</span>
+                <span className="ml-2 text-muted-foreground/85">{reportSummary.digest}</span>
+              </span>
+              {runSummary && <span className="mt-1 block truncate text-muted-foreground/75">{runSummary}</span>}
+            </span>
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-md border border-border/50 bg-muted/35 px-2 py-1 text-[10.5px] font-medium text-foreground/75">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+              unified answer
+            </span>
           </header>
 
           <div className="space-y-4">
