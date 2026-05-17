@@ -5226,45 +5226,8 @@ wss.on("connection", (ws, req) => {
           }
         }
 
-      // 🎯 Intent-based handling: DISABLED FOR WEATHER (use MCP tools instead)
-      // Weather queries should use NWP/TMD tools via MCP, not Open-Meteo direct API
-      /*
-      const { handleByIntent } = await import("../../utils/intent/handler");
-      const intentResult = await handleByIntent(messageWithFile);
-      
-      if (intentResult.handled) {
-        logBoth('info', `[Intent] ✅ Handled ${intentResult.intent} in ${intentResult.latencyMs}ms`);
-        
-        // Send response as chunk
-        ws.send(JSON.stringify({ 
-          type: "chunk", 
-          text: intentResult.response,
-          structuredContent: intentResult.structuredContent
-        }));
-        
-        // Update history
-        const aiMessage: any = { sender: "ai", text: intentResult.response || "" };
-        if (intentResult.structuredContent) {
-          aiMessage.structuredContent = intentResult.structuredContent;
-        }
-        sessionHistory.push({ sender: "user", text: messageWithFile });
-        sessionHistory.push(aiMessage);
-        
-        // Log to session
-        const toolsUsed = intentResult.sources?.map(s => s.name) || [intentResult.intent || 'Intent'];
-        sessionManager.addMessage(currentSessionId, 'assistant', intentResult.response || "", toolsUsed);
-        
-        ws.send(JSON.stringify({
-          type: "history-update",
-          messages: sessionHistory,
-          structuredContent: intentResult.structuredContent
-        }));
-        
-        return; // Intent handler responded, done!
-      }
-      */
-      
-      logBoth('info', `[Intent] ⚠️  Weather Intent Handler DISABLED - using MCP tools (NWP/TMD priority)`);
+      // Phase C.10: dual-classifier path (utils/intent/handler.ts) removed —
+      // live path uses MCP tools via services/intentClassifier.ts + MDES conductor.
 
       // Add user message to history (with file context)
       sessionHistory.push({ sender: "user", text: messageWithFile });

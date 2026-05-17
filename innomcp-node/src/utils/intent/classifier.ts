@@ -1,7 +1,7 @@
 /**
  * Intent Classifier Module
  * จำแนกประเภทคำถามผู้ใช้เพื่อนำไปสู่ data source ที่เหมาะสม
- * 
+ *
  * Intent Types:
  * - WeatherNow: สภาพอากาศปัจจุบัน (ตอนนี้ฝนตก, อากาศวันนี้)
  * - WeatherForecast: พยากรณ์อากาศล่วงหน้า (พรุ่งนี้, 7 วัน, NWP)
@@ -11,9 +11,16 @@
  * - OpenSearch: ค้นหาเว็บทั่วไป
  * - ToolSpecific: ระบุ tool เฉพาะ (Archive, WorldBank, NASA, etc.)
  * - Fallback: ไม่สามารถจำแนกได้
- * 
+ *
  * @author MDES Development Team
  * @created 2026-01-10
+ */
+
+/**
+ * @deprecated Phase C.10 (2026-05-17): part of the dead intent/handler subtree.
+ * Live path uses services/intentClassifier.ts + agents/conductor.ts.
+ * Imported only by intent/handler.ts (also deprecated). Kept for safety;
+ * do not extend.
  */
 
 export type IntentType =

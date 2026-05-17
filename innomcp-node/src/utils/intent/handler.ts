@@ -2,7 +2,13 @@
  * Intent-based Message Handler
  * จัดการคำถามตาม intent classification
  * เชื่อมต่อกับ weather modules, time, office holder ฯลฯ
- * 
+ *
+ * @deprecated Phase C.10 (2026-05-17): live chat flow uses services/intentClassifier.ts
+ * + agents/conductor.ts (MDES multi-agent dispatch). The only callsite at
+ * routes/api/chat.ts:5232 has been commented out since before C.05 and the block
+ * was removed in C.10. This file is kept for now but is not invoked. Do not
+ * extend or re-introduce — extend services/intentClassifier.ts instead.
+ *
  * @author MDES Development Team
  * @created 2026-01-10
  */

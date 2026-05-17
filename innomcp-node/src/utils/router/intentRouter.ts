@@ -1,14 +1,21 @@
 /**
  * Intent Router Module
  * เชื่อม Intent → Data Source/Tool → Response Schema
- * 
+ *
  * แต่ละ intent มี:
  * - Data source ที่ระบุชัด
  * - Response schema ที่กำหนด
  * - Fallback handler
- * 
+ *
  * @author MDES Development Team
  * @created 2026-01-10
+ */
+
+/**
+ * @deprecated Phase C.10 (2026-05-17): part of the dead intent/handler subtree.
+ * Live path uses services/intentClassifier.ts + agents/conductor.ts.
+ * Imported only by intent/handler.ts (also deprecated). Kept for safety;
+ * do not extend.
  */
 
 import { ClassifiedIntent, IntentType } from '../intent/classifier';
