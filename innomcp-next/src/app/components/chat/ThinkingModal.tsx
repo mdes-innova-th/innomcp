@@ -62,11 +62,21 @@ export default function ThinkingModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-end bg-black/20 p-4 backdrop-blur-sm">
-      <div className="flex h-full w-full max-w-2xl flex-col rounded-lg border border-border bg-background shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-end bg-black/20 p-4 backdrop-blur-sm"
+      role="presentation"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="thinking-modal-title"
+        className="flex h-full w-full max-w-2xl flex-col rounded-lg border border-border bg-background shadow-2xl"
+      >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <h2 className="text-sm font-semibold text-foreground">
+          <h2 id="thinking-modal-title" className="text-sm font-semibold text-foreground">
             🧠 Thinking Mode — Agent Planning
           </h2>
           <button

@@ -31,7 +31,11 @@ export const flashSelector: FlashSelector = {
 
     // 1. Calculator (High Confidence)
     // Matches: "1 + 1", "sin(90)", "50 * 20"
-    if (/^[\d\s\+\-\*\/\(\)\.]+$|sin|cos|tan|sqrt|log/.test(q) && /[0-9]/.test(q)) {
+    // Fix: use word boundaries for trig/math functions to avoid false positives
+    // ("logistics 123" contains "log" but is not math; "singular 45" contains "sin" but is not math).
+    const isPureMath = /^[\d\s\+\-\*\/\(\)\.]+$/.test(q);
+    const hasMathFn = /\b(sin|cos|tan|sqrt|log)\b/.test(q);
+    if ((isPureMath || hasMathFn) && /[0-9]/.test(q)) {
         return {
             toolName: "calculatorTool",
             confidence: 0.95,
