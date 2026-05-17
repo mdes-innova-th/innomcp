@@ -208,3 +208,4 @@ dev-log-findings.txt
 playwright-report/
 test-results/
 # .ai/silent/*.json
+docs/reports/SKILL-USAGE-LOG.md
