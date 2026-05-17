@@ -64,6 +64,41 @@ declare global {
 
       // Summary
       AIMODEL_SUM_MESSAGE: string;
+
+      // Phase 10.15 — MDES multi-agent dispatch
+      OLLAMA_URL?: string;
+      OLLAMA_API_KEY?: string;
+      OLLAMA_HOST?: string;
+      OLLAMA_MODEL?: string;
+      OLLAMA_STREAM?: string;
+      PARALLEL_AGENTS?: string;
+      LOCAL_OLLAMA_BASE_URL?: string;
+      LOCAL_OLLAMA_TOKEN?: string;
+      REMOTE_OLLAMA_BASE_URL?: string;
+      REMOTE_OLLAMA_URL?: string;
+      OLLAMA_REMOTE_BASE_URL?: string;
+      OLLAMA_REMOTE_URL?: string;
+      REMOTE_OLLAMA_TOKEN?: string;
+      OLLAMA_REMOTE_API_KEY?: string;
+      OLLAMA_REMOTE_DEFAULT_MODEL?: string;
+      REMOTE_OLLAMA_MODEL?: string;
+      MDES_PRIMARY_MODEL?: string;
+      LOCAL_OLLAMA_MODEL?: string;
+      OLLAMA_LOCAL_BASE_URL?: string;
+      OLLAMA_LOCAL_API_KEY?: string;
+      OLLAMA_LOCAL_DEFAULT_MODEL?: string;
+      OLLAMA_REMOTE_API_KEY?: string;
+
+      // Phase C.18 — MDES-only mode
+      // "1" = skip localhost + GPT fallback; all agents use ollama.mdes only
+      MDES_ONLY?: string;
+
+      // OpenAI fallback (skipped when MDES_ONLY=1)
+      OPENAI_API_KEY?: string;
+      OPENAI_BASE_URL?: string;
+      OPENAI_EMERGENCY_MODEL?: string;
+      OPENAI_FALLBACK_ENABLED?: string;
+      OPENAI_FALLBACK_MODELS?: string;
     }
   }
 }
