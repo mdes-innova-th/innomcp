@@ -34,6 +34,21 @@ describe("multi-agent thinking report UX contract", () => {
     expect(getThinkingReportToneClass(summary.tone)).toContain("emerald");
   });
 
+  test("marks report complete with sky-blue tone when all agents finish", () => {
+    const summary = resolveThinkingReportSummary({
+      streamStatus: "done",
+      agentCount: 4,
+      doneCount: 4,
+      recoveringCount: 0,
+      errorCount: 0,
+    });
+
+    expect(summary.tone).toBe("complete");
+    expect(summary.statusText).toBe("เสร็จแล้ว");
+    expect(summary.digest).toContain("บันทึกจากลูกทีม");
+    expect(getThinkingReportToneClass("complete")).toContain("sky");
+  });
+
   test("prioritizes remediation tone when an agent is recovering or blocked", () => {
     const recovering = resolveThinkingReportSummary({
       streamStatus: "streaming",
