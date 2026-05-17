@@ -1879,6 +1879,12 @@ const ChatPage: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* ThinkingModal — popup opens from ?thinkingMode=true or /living-chat redirect */}
+      <ThinkingModal
+        open={thinkingModalOpen}
+        onClose={() => setThinkingModalOpen(false)}
+      />
     </div>
   );
 };
