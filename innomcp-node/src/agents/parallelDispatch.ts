@@ -512,7 +512,10 @@ async function runAgent(
 }
 
 // ── Escalating agent runner ─────────────────────────────────────────────────
-// MDES attempt 1 → MDES attempt 2 → GPT fallback models
+// MDES attempt 1 → MDES attempt 2 → GPT fallback models (GPT skipped if MDES_ONLY=1)
+// Set MDES_ONLY=1 in .env to restrict all agents to ollama.mdes — no localhost, no GPT.
+
+const MDES_ONLY = process.env.MDES_ONLY === "1";
 
 async function runAgentWithEscalation(
   agentId: AgentId,
@@ -523,24 +526,35 @@ async function runAgentWithEscalation(
   endpoint: AgentEndpoint,
   partialSink?: (agentId: AgentId, partialText: string) => void
 ): Promise<{ agentId: AgentId; text: string }> {
-  // Attempt 1 — MDES
+  // Attempt 1 — MDES (remote or local per endpoint config)
   const r1 = await runAgent(agentId, query, runId, messageId, emit, endpoint, partialSink);
   if (r1.text) return r1;
 
-  // Attempt 2 — Force LOCAL Ollama with fast fallback model.
-  // If the original attempt was against a remote endpoint that is down, retrying
-  // the same remote will fail again. Drop to local so we have a real second chance.
-  const fallbackEndpoint: AgentEndpoint = {
-    kind: "local",
-    url: process.env.LOCAL_OLLAMA_BASE_URL || "http://localhost:11434",
-    key: process.env.LOCAL_OLLAMA_TOKEN || "",
-    model: "gemma4:e4b",
-    timeoutMs: MODEL_TIMEOUT_MS["gemma4:e4b"] ?? DEFAULT_TIMEOUT_MS,
-  };
+  // Attempt 2:
+  // - MDES_ONLY=1 → retry on the same MDES remote with the lighter gemma4:e4b model
+  //   (keeps everything on ollama.mdes, no localhost).
+  // - Default → force local Ollama at localhost:11434 with gemma4:e4b as a real second chance.
+  const fallbackEndpoint: AgentEndpoint = MDES_ONLY
+    ? {
+        kind: "remote",
+        url: endpoint.url, // same MDES remote
+        key: endpoint.key,
+        model: "gemma4:e4b",
+        timeoutMs: MODEL_TIMEOUT_MS["gemma4:e4b"] ?? DEFAULT_TIMEOUT_MS,
+      }
+    : {
+        kind: "local",
+        url: process.env.LOCAL_OLLAMA_BASE_URL || "http://localhost:11434",
+        key: process.env.LOCAL_OLLAMA_TOKEN || "",
+        model: "gemma4:e4b",
+        timeoutMs: MODEL_TIMEOUT_MS["gemma4:e4b"] ?? DEFAULT_TIMEOUT_MS,
+      };
   const r2 = await runAgent(agentId, query, runId, messageId, emit, fallbackEndpoint, partialSink);
   if (r2.text) return r2;
 
-  // Attempt 3+ — GPT fallback after both MDES attempts failed.
+  // Attempt 3+ — GPT fallback. Skipped when MDES_ONLY=1.
+  if (MDES_ONLY) return { agentId, text: "" };
+
   const openAiKey = process.env.OPENAI_API_KEY ?? "";
   if (process.env.OPENAI_FALLBACK_ENABLED !== "0" && openAiKey.trim()) {
     const safeQ = query.replace(/["\\\n\r]/g, " ").trim().slice(0, 500);
