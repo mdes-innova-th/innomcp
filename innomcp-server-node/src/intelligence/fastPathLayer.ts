@@ -53,7 +53,7 @@ export class FastPathLayer {
              
              try {
                  const result = evaluate(q);
-                 if (typeof result === 'number' || result.type === 'Complex') {
+                 if (result != null && (typeof result === 'number' || result.type === 'Complex')) {
                      return {
                          handled: true,
                          response: `${result}`

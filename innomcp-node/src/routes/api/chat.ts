@@ -15,7 +15,6 @@ import { validateThaiLanguage, createThaiOnlyFallbackPrompt, createThaiErrorResp
 import { buildSystemPrompt, buildIdentityPrompt } from "../../config/systemPrompt";
 import { extractCorrelationIdFromUpgrade } from "../../middleware/correlationId";
 import { checkRateLimit, buildRateLimitKey } from "../../fastpath/rateLimit";
-import { analyzeIntent } from "../../fastpath/intentGate";
 import { getSemanticRouter } from "../../utils/semanticRouter"; // 🧠 NEW: Semantic classification for hybrid mode
 import { getGodTierRouter } from "../../utils/mcp/godTierRouter"; // 🎯 God-Tier Context-Aware Intent Engine (2026)
 import { getABTester } from "../../utils/mcp/abTester"; // 🧪 A/B Testing: Remote vs Hybrid mode comparison
