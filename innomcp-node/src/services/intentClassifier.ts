@@ -66,6 +66,13 @@ const TRAVEL_KEYWORDS = [
   "travel",
   "route",
   "distance",
+  // C.09: travel-planning vocabulary (tightly scoped to leisure travel words)
+  "เที่ยว",
+  "ทริป",
+  "วันหยุด",
+  "ท่องเที่ยว",
+  "holiday",
+  "vacation",
   // Phase C.07: "traffic" (English) intentionally removed — it conflicts with
   // EVIDENCE_KEYWORDS ("network traffic"). hasOfficerSignal in the evidence
   // guard does the discriminating work for the Thai "การจราจร" still here.

@@ -25,7 +25,7 @@ describe("parallelDispatch agent planning", () => {
     expect(plan.map((p) => p.kind)).toEqual(["local", "remote"]);
   });
 
-  test("normal local mode keeps 2 local agents", () => {
+  test("normal local mode keeps 2 local agents with critic as slot-2 polish", () => {
     const plan = selectAgentPlan("knowledge", "explain PDPA briefly", {
       runMode: "normal",
       preferredMode: "local",
@@ -33,7 +33,9 @@ describe("parallelDispatch agent planning", () => {
     });
 
     expect(plan).toHaveLength(2);
-    expect(plan.map((p) => p.agentId)).toEqual(["rag-agent", "concierge"]);
+    // Phase C.09: when pool contains "critic", slot-2 is critic so
+    // synthesizeAnswer always has a polished output available.
+    expect(plan.map((p) => p.agentId)).toEqual(["rag-agent", "critic"]);
     expect(plan.map((p) => p.kind)).toEqual(["local", "local"]);
   });
 

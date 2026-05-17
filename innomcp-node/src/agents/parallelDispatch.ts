@@ -203,9 +203,19 @@ export function selectAgentPlan(
   if (runMode === "normal") {
     // Normal mode keeps a professional two-reader path: local + remote in
     // hybrid mode when MDES is reachable. Thinking mode expands beyond this.
-    const agents = pool.length >= 2
-      ? pool.slice(0, 2)
-      : (["concierge", "critic"] satisfies AgentId[]);
+    let agents: AgentId[];
+    if (pool.length >= 2) {
+      const head = pool[0];
+      // C.09: ถ้า pool มี critic, ให้ critic เป็นตัวที่ 2 (เพื่อให้ synthesizeAnswer
+      // มี polished output เสมอ). ถ้าไม่มี critic, ใช้ slice(0,2) เดิม
+      if (head !== "critic" && pool.includes("critic")) {
+        agents = [head, "critic"];
+      } else {
+        agents = pool.slice(0, 2) as AgentId[];
+      }
+    } else {
+      agents = ["concierge", "critic"];
+    }
     const endpointKinds: AgentEndpointKind[] =
       preferredMode === "local"
         ? ["local", "local"]
