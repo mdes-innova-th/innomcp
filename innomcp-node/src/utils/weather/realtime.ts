@@ -81,11 +81,11 @@ export async function fetchOpenMeteoWeather(
 
     return {
       isRaining,
-      temperature: current.temperature_2m,
-      humidity: current.relative_humidity_2m,
-      windSpeed: current.wind_speed_10m,
-      pressure: current.pressure_msl,
-      cloudCover: current.cloud_cover,
+      temperature: current.temperature_2m ?? 0,
+      humidity: current.relative_humidity_2m ?? 0,
+      windSpeed: current.wind_speed_10m ?? 0,
+      pressure: current.pressure_msl ?? 1013,
+      cloudCover: current.cloud_cover ?? 0,
       weatherCode,
       location,
       coordinates: { lat, lon },
@@ -130,35 +130,38 @@ export async function fetchOpenWeatherWeather(
 
     const data = await response.json();
 
-    // OpenWeather rain check
-    const isRainingByWeather = data.weather.some((w: any) =>
-      ['Rain', 'Drizzle', 'Thunderstorm'].includes(w.main)
+    // OpenWeather rain check — guard all fields; partial/malformed API responses
+    // are common on degraded OpenWeather endpoints.
+    const weatherArr: any[] = Array.isArray(data.weather) ? data.weather : [];
+    const isRainingByWeather = weatherArr.some((w: any) =>
+      ['Rain', 'Drizzle', 'Thunderstorm'].includes(w?.main)
     );
     const hasRainData = data.rain && (data.rain['1h'] || data.rain['3h']);
+    const cloudAll: number = data.clouds?.all ?? 0;
 
     const isRaining: 'yes' | 'no' | 'likely' = isRainingByWeather || hasRainData
       ? 'yes'
-      : data.clouds.all > 80
+      : cloudAll > 80
       ? 'likely'
       : 'no';
 
     return {
       isRaining,
-      temperature: data.main.temp,
-      humidity: data.main.humidity,
-      windSpeed: data.wind.speed * 3.6, // m/s → km/h
-      pressure: data.main.pressure,
-      cloudCover: data.clouds.all,
+      temperature: data.main?.temp ?? 0,
+      humidity: data.main?.humidity ?? 0,
+      windSpeed: (data.wind?.speed ?? 0) * 3.6, // m/s → km/h
+      pressure: data.main?.pressure ?? 1013,
+      cloudCover: cloudAll,
       location,
       coordinates: { lat, lon },
-      observedAt: new Date(data.dt * 1000).toISOString(),
+      observedAt: new Date((data.dt ?? Date.now() / 1000) * 1000).toISOString(),
       sources: [
         {
           name: 'OpenWeather',
           url: 'https://openweathermap.org',
         },
       ],
-      note: `Weather: ${data.weather[0].main}`,
+      note: `Weather: ${weatherArr[0]?.main ?? 'unknown'}`,
     };
   } catch (error: any) {
     console.error('[Weather Module] OpenWeather error:', error.message);
