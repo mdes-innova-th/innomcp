@@ -45,6 +45,10 @@ mariadb/data/
 
 # Workspace storage
 workspace-storage/data/
+workspace-storage/*.png
+workspace-storage/live-chat-smoke.js
+workspace-storage/smoke-shot.js
+innomcp-next/workspace-storage/*.png
 
 # Runtime state / local keys
 states/*.pem
