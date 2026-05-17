@@ -129,6 +129,15 @@ export function recordTurnAndGetMeta(
   toolsUsed: string[],
   toolResult?: any
 ): MemoryRagMeta {
+  // Guard: empty sessionId would create a degenerate shared key "" in the memory
+  // store, potentially polluting session context across unrelated requests.
+  if (!sessionId.trim()) {
+    return {
+      memoryUsed: false, memoryEntities: [], retrievalMode: "none",
+      retrievalReason: "no-session-id", coldDocHits: 0, coldContext: "",
+      hotFactCount: 0, sessionTurnCount: 0, activeDomain: null,
+    };
+  }
   const domain = routeToDomain(route);
   const entities = extractEntities(query, route, toolResult);
 
