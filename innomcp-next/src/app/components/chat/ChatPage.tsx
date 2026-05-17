@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useContext } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import ChatMessage, {
   MessageView,
   Message as MessageType,
@@ -22,6 +23,7 @@ import {
   isQuotaExceededError,
 } from "../../../utils/chatStorage";
 import MultiAgentPanel from "@/app/components/chat/MultiAgentPanel";
+import ThinkingModal from "@/app/components/chat/ThinkingModal";
 import { useAgentEventStream } from "@/app/components/chat/useAgentEventStream";
 import KeyboardShortcutsPanel, { useKeyboardShortcutsPanel } from "@/app/components/chat/KeyboardShortcutsPanel";
 // icons are used in ChatInput; not needed here
@@ -207,7 +209,10 @@ const ChatPage: React.FC = () => {
   const { theme } = useContext(ThemeContext) as { theme: string };
   const { isGuestMode, capabilityLevel } = useAuth();
   const { notify } = useToast();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [shortcutsOpen, setShortcutsOpen] = useKeyboardShortcutsPanel();
+  const [thinkingModalOpen, setThinkingModalOpen] = useState(false);
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   // Stored compact chat summaries (keeps up to last 10)
@@ -294,6 +299,13 @@ const ChatPage: React.FC = () => {
   // Load data from localStorage on mount
   useEffect(() => {
     setMounted(true);
+
+    // Check for thinking mode query parameter
+    if (searchParams.get("thinkingMode") === "true") {
+      setThinkingModalOpen(true);
+      // Clean up URL
+      window.history.replaceState(null, "", "/");
+    }
 
     // Load sidebar collapsed state
     try {
