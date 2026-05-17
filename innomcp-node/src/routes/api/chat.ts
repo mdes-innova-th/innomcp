@@ -5166,7 +5166,7 @@ wss.on("connection", (ws, req) => {
           }));
 
           const routingResult = await godTierRouter.route(routingMessage, conversationHistory);
-          semanticCategory = routingResult.category;
+          semanticCategory = String((routingResult as any)?.category || "").trim() || null;
           godTierConfidence = Number((routingResult as any)?.confidence ?? 0);
           godTierFallbackUsed = Boolean((routingResult as any)?.usedFallback || (routingResult as any)?.fallbackUsed);
           const latency = Date.now() - startTime;
