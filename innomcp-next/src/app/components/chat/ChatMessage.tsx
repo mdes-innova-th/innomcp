@@ -261,6 +261,7 @@ export default function ChatMessage({
           const sources = Array.isArray(structuredContent.weatherPayload?.sourcesUsed)
             ? structuredContent.weatherPayload.sourcesUsed : [];
           if (errTotal === 0 && sources.length === 0) return null; // not a weather query
+          if (errTotal === 0 && sources.length > 0) return null;  // data retrieved, map tiles just not available — text answer is fine
 
           // Color-coded severity: red=auth/upstream, amber=timeout, blue=noData, yellow=offline
           let icon: string;
@@ -1224,45 +1225,31 @@ export function MessageView({
                 data-testid="tool-meta-row"
               >
                 <summary
-                  className="flex flex-wrap items-center gap-x-2 gap-y-1 list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none rounded-md px-1.5 py-1 transition-all hover:bg-muted/50 hover:shadow-[inset_0_0_0_1px_var(--border)]"
+                  className="flex items-center gap-2 list-none [&::-webkit-details-marker]:hidden cursor-pointer select-none rounded-md px-1.5 py-0.5 transition-all hover:bg-muted/40"
                 >
+                  {/* Compact: just the status dot + mode badge. Full details inside the opened body. */}
                   <span
-                    className={`inline-flex items-center gap-1.5 rounded px-1.5 py-0.5 font-medium ${
+                    className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10.5px] font-medium ${
                       modeBadge === "online"
-                        ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300"
-                        : "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                        ? "bg-emerald-100/60 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400"
+                        : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
                     }`}
                   >
                     <span className={`h-1.5 w-1.5 rounded-full ${modeBadge === "online" ? "bg-emerald-500" : "bg-slate-400"}`} />
                     {modeBadge}
                   </span>
-                  {sourceTypeLabel && (
-                    <span className={`inline-flex items-center rounded px-1.5 py-0.5 font-medium ${sourceTypeTone}`}>
-                      {sourceTypeLabel}
-                    </span>
-                  )}
-                  {summaryToolName && (
-                    <>
-                      <span className="text-muted-foreground/50">·</span>
-                      <span data-testid="tools-used-meta" className="font-mono text-[11px] text-muted-foreground/85">{toolsUsedMetaText}</span>
-                    </>
-                  )}
                   {isDegraded && (
-                    <span className="inline-flex items-center rounded px-1.5 py-0.5 font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                      ⚠ จำกัด
+                    <span className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium bg-amber-100 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+                      ⚠
                     </span>
                   )}
-                  {ragMode && ragMode !== "none" && (
-                    <span className="font-mono text-[11px] text-muted-foreground/70">RAG {ragMode}</span>
-                  )}
-                  <span className="ml-auto inline-flex items-center gap-1 text-[11px] text-muted-foreground/70 transition-colors group-hover/meta:text-foreground">
-                    <span className="hidden sm:inline">รายละเอียด</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground/50 transition-colors group-hover/meta:text-muted-foreground">
                     <svg
-                      className="h-3 w-3 transition-transform group-open/meta:rotate-180"
+                      className="h-2.5 w-2.5 transition-transform group-open/meta:rotate-180"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="2"
+                      strokeWidth="2.5"
                     >
                       <path d="m6 9 6 6 6-6" />
                     </svg>

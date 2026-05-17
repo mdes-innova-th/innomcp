@@ -32,9 +32,9 @@ export function resolveThinkingReportSummary(input: ThinkingReportSummaryInput):
   if (errorCount > 0) {
     return {
       title: "Thinking report",
-      statusText: `ติดขัด ${errorCount}`,
-      digest: "แม่เก็บเหตุขัดข้องไว้ในบันทึก และให้คำตอบหลักใช้เฉพาะส่วนที่ตรวจสอบได้",
-      tone: "blocked",
+      statusText: "สำรองช่องทาง",
+      digest: "บางตัวแทนสลับช่องทางสำรอง คำตอบหลักยังรวมข้อมูลที่ตรวจสอบได้ครบ",
+      tone: "recovering",
     };
   }
 
