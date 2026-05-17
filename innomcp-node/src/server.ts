@@ -10,8 +10,12 @@ import { initMemoryRag } from "./services/memoryRagHook";
 
 import app from "./app";
 import { wss as chatWSS, mcpClient, toolHealthChecker } from "./routes/api/chat";
+import { assertProductionJwtSecret } from "./utils/config/security";
 
 dotenv.config();
+
+// Guard: refuse to start in production with a weak or placeholder JWT_SECRET.
+assertProductionJwtSecret(process.env.NODE_ENV, process.env.JWT_SECRET);
 
 const host = process.env.SERVER_HOST || "0.0.0.0";
 const port = parseInt(process.env.SERVER_PORT || "3011", 10);
