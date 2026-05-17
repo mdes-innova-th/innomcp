@@ -487,7 +487,7 @@ export function registerWebdTools(mcpserver: McpServer) {
       inputSchema: z.object({
         orderId: z.number().optional().describe("Court order ID"),
         orderNo: z.string().optional().describe("Court order number e.g. พ.001/2566"),
-      }),
+      }) as any,
     },
     async (args: any) => {
       const { orderId, orderNo } = args as { orderId?: number; orderNo?: string };
@@ -518,7 +518,7 @@ export function registerWebdTools(mcpserver: McpServer) {
 พารามิเตอร์: { limit?: number } — จำนวนรายการ (default 10, max 20)`,
       inputSchema: z.object({
         limit: z.number().optional().describe("Number of results (default 10, max 20)"),
-      }),
+      }) as any,
     },
     async (args: any) => {
       const { limit } = args as { limit?: number };
@@ -542,7 +542,7 @@ export function registerWebdTools(mcpserver: McpServer) {
 พารามิเตอร์: { url: string }`,
       inputSchema: z.object({
         url: z.string().describe("The URL to check for court order coverage"),
-      }),
+      }) as any,
     },
     async (args: any) => {
       const { url } = args as { url: string };

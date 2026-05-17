@@ -155,7 +155,7 @@ export function registerStorageTool(server: McpServer) {
     {
       title: "Workspace Storage + NAS — read/write/list/delete with network support",
       description: storageTool.description,
-      inputSchema: storageTool.inputSchema,
+      inputSchema: storageTool.inputSchema as any,
     },
     storageTool.execute,
   );

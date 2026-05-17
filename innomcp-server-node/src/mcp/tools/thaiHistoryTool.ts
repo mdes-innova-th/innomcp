@@ -439,7 +439,7 @@ export function registerThaiHistoryTool(server: McpServer): void {
     {
       title: "Thai History Tool - ค้นหาประวัติศาสตร์ไทย",
       description: thaiHistoryTool.description,
-      inputSchema: thaiHistoryTool.inputSchema,
+      inputSchema: thaiHistoryTool.inputSchema as any,
     },
     thaiHistoryTool.execute,
   );

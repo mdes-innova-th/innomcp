@@ -68,7 +68,7 @@ D) chartTitle (ทางเลือก): ชื่อกราฟ
         dataJson: z.string().optional(),
         chatText: z.string().optional(),
         chartTitle: z.string().optional(),
-      },
+      } as any,
     },
     async (args: any) => {
       const input = args as EchartsInput;

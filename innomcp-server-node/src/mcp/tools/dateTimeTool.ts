@@ -47,7 +47,7 @@ export function registerDateTimeTool(mcpserver: McpServer) {
           .string()
           .optional()
           .describe("Output format: thai, iso, timestamp, or default JavaScript Date string"),
-      },
+      } as any,
     },
     async (args: any) => {
       const input = args as DateTimeInput;

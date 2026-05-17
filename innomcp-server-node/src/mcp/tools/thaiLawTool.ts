@@ -190,7 +190,7 @@ export function registerThaiLawTool(server: McpServer) {
         {
             title: "Thai Law & Royal Gazette",
             description: thaiLawTool.description,
-            inputSchema: thaiLawTool.inputSchema
+            inputSchema: thaiLawTool.inputSchema as any
         },
         thaiLawTool.execute as any
     );

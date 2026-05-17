@@ -142,7 +142,7 @@ export function registerThaiReligionTool(server: McpServer) {
         {
              title: "Thai Religion & Culture",
              description: thaiReligionTool.description,
-             inputSchema: thaiReligionTool.inputSchema
+             inputSchema: thaiReligionTool.inputSchema as any
         },
         thaiReligionTool.execute as any
     );

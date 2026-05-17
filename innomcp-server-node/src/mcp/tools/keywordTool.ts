@@ -55,7 +55,7 @@ export function registerKeywordTool(server: McpServer) {
     {
       title: "Keyword Tool",
       description: keywordTool.description,
-      inputSchema: keywordTool.inputSchema,
+      inputSchema: keywordTool.inputSchema as any,
     },
     keywordTool.execute,
   );

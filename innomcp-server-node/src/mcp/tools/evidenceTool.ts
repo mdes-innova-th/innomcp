@@ -269,7 +269,7 @@ export function registerEvidenceTool(server: McpServer) {
     {
       title: "Evidence Tool (Detect DB via API)",
       description: evidenceTool.description,
-      inputSchema: evidenceTool.inputSchema,
+      inputSchema: evidenceTool.inputSchema as any,
     },
     evidenceTool.execute,
   );

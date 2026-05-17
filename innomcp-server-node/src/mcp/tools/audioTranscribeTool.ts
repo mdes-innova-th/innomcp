@@ -170,7 +170,7 @@ export function registerAudioTranscribeTool(server: McpServer) {
     {
       title: "Audio Transcribe Tool — ถอดเสียงเป็นข้อความ (Whisper STT)",
       description: audioTranscribeTool.description,
-      inputSchema: audioTranscribeTool.inputSchema,
+      inputSchema: audioTranscribeTool.inputSchema as any,
     },
     audioTranscribeTool.execute,
   );
