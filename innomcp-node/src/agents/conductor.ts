@@ -30,6 +30,8 @@ import { checkNaturalness } from "../services/naturalnessGuard";
 import { dispatchAgents, synthesizeAnswer, type AgentRunMode } from "./parallelDispatch";
 import { dispatchTool } from "./toolDispatch";
 import type { GuestLimits } from "../middleware/guestLimiter";
+import { sessionMemory, type MemoryDomain } from "../services/sessionMemory";
+import { disambiguateWithSessionMemory } from "../services/memoryRagHook";
 
 export interface ConductorOptions {
   message: string;
@@ -253,7 +255,24 @@ export async function runConductor(
       ? opts.clientMessageId
       : "";
   const messageId = requestedMessageId || randomUUID();
-  const cls = classifyIntent(opts.message, opts.toolHint);
+  let cls = classifyIntent(opts.message, opts.toolHint);
+
+  // Session-memory disambiguation: override a low-confidence / follow-up
+  // classification when session context makes the domain clear.
+  if (opts.sessionId) {
+    const override = disambiguateWithSessionMemory(
+      opts.sessionId,
+      opts.message,
+      cls.intent,
+      cls.intent === "general" ? 0.4 : 0.7,
+      cls.intent === "general"
+    );
+    if (override) {
+      const overrideIntent = override.category as typeof cls.intent;
+      cls = { ...cls, intent: overrideIntent };
+    }
+  }
+
   const responseMode = normalizeResponseMode(opts);
   const userTier = opts.userTier ?? "guest";
   const capabilityLevel = opts.capabilityLevel ?? (userTier === "guest" ? 50 : 100);
@@ -527,6 +546,20 @@ export async function runConductor(
   finalEv.finalText = enrichedText;
   finalEv.confidence = nat.ok ? 0.78 : 0.55;
   safeEmit(emit, finalEv, cls.expectedToolUsage);
+
+  // Record turn to session memory so follow-up queries can carry context forward.
+  if (opts.sessionId) {
+    const domainMap: Record<string, MemoryDomain> = {
+      weather: "weather",
+      evidence: "evidence",
+      map: "geo",
+      knowledge: "knowledge",
+      calc: "calculator",
+      datetime: "datetime",
+    };
+    const domain: MemoryDomain = domainMap[cls.intent] ?? "general";
+    sessionMemory.recordTurn(opts.sessionId, opts.message, domain, []);
+  }
 
   return {
     runId,
