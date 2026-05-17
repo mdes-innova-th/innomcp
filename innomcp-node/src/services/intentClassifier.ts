@@ -66,6 +66,9 @@ const TRAVEL_KEYWORDS = [
   "travel",
   "route",
   "distance",
+  // Phase C.07: "traffic" (English) intentionally removed — it conflicts with
+  // EVIDENCE_KEYWORDS ("network traffic"). hasOfficerSignal in the evidence
+  // guard does the discriminating work for the Thai "การจราจร" still here.
 ];
 
 const MAP_KEYWORDS = [

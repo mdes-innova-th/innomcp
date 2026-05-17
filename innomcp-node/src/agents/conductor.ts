@@ -486,8 +486,11 @@ export async function runConductor(
     await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
   // Wait briefly for tool to finish if it's still pending and no other output yet
+  // Phase C.07: bump from 3s to 8s (normal) / 12s (thinking) — TOOL_TIMEOUT_MS is
+  // 20s, so a tool that needs 5s was being prematurely cut off, leaving template.
   if (!hasFinalOutput(liveOutputs) && !hasAnyPartial(liveOutputs) && !liveOutputs["__tool__"]) {
-    await Promise.race([toolPromise, new Promise((r) => setTimeout(r, 3000))]);
+    const toolRaceMs = responseMode === "thinking" ? 12_000 : 8_000;
+    await Promise.race([toolPromise, new Promise((r) => setTimeout(r, toolRaceMs))]);
   }
 
   // Phase C.01b / C.02 — Only race agentResultPromise if agents haven't settled.

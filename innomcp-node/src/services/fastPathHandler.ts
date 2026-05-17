@@ -3,7 +3,6 @@ import fs from "fs";
 import path from "path";
 import { performance } from "perf_hooks";
 import { evaluate } from "mathjs";
-// const evaluate = (expr: string) => { try { return Function('"use strict";return (' + expr + ')')(); } catch(e) { return null; } };
 import { logger } from "../utils/logger";
 import { maybeFastPath, getFastPathDictInfo } from "../utils/fastPathGreeting";
 import { analyzeIntent } from "../fastpath/intentGate";
@@ -269,9 +268,8 @@ export async function handleFastPathMessage(
   // (sin|cos|tan|sqrt|log|exp|pow|abs|pi|e)
   if (/^[\d+\-*/().\s%^]+$|^(sin|cos|tan|sqrt|log|exp|pow|abs|pi|e|gcd|lcm|std|stdev|mean|median|sum|min|max|mod|variance)[\d\W]+$/i.test(q)) {
       try {
-          // Dynamic import to avoid load time if not needed (or require if CommonJS)
-          // We can use the installed 'mathjs'
-          const { evaluate } = require('mathjs');
+          // Phase C.07: use top-level static import (line 5) instead of dynamic
+          // require — avoids per-call resolution cost and CJS/ESM hazard.
           // Phase 16: normalize stdev -> std for mathjs compatibility
           const normalizedQ = q.replace(/\bstdev\b/gi, 'std');
           const result = evaluate(trigToDeg(normalizedQ));

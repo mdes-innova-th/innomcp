@@ -48,7 +48,8 @@ function extractMathExpression(query: string): string {
     if (nums && nums.length > 0) return `mean([${nums.join(",")}])`;
   }
 
-  const safe = expr.match(/[0-9+\-*/%^().,\s\[\]]+/g)?.join(" ").trim();
+  const noCommas = expr.replace(/,(?=\d{3}(\D|$))/g, "");
+  const safe = noCommas.match(/[0-9+\-*/%^().\s\[\]]+/g)?.join(" ").trim();
   return safe && /\d/.test(safe) ? safe : expr;
 }
 
@@ -109,7 +110,9 @@ export function planToolCall(intent: ChatIntent, query: string): ToolPlan | null
   }
 
   // Weather — handled via NWP daily
-  if (intent === "weather" || /อากาศ|พยากรณ์|ฝน|อุณหภูมิ|forecast|weather/.test(lower)) {
+  // Phase C.07: trust classifier; OR-regex was hijacking knowledge queries
+  // like "พยากรณ์เศรษฐกิจ" → routed to NWP. Classifier considers wider context.
+  if (intent === "weather") {
     const province = extractThaiProvince(trimmed) || "กรุงเทพมหานคร";
     const hourly = needsHourlyWeather(trimmed);
     return {
@@ -262,10 +265,16 @@ async function callMcpTool(
     // MCP JSON-RPC response: {"result":{"content":[{"type":"text","text":"..."}]}}
     let parsed: any;
     try { parsed = JSON.parse(body); } catch { parsed = null; }
+    // Phase C.07: detect JSON-RPC error envelope before falling through to raw body,
+    // otherwise raw JSON gets emitted to the user as the tool answer.
+    if (parsed?.error?.message) {
+      return { ok: false, error: String(parsed.error.message), latencyMs: Date.now() - start };
+    }
     const text =
       parsed?.result?.content?.[0]?.text ||
       parsed?.content?.[0]?.text ||
-      body;
+      "";
+    if (!text) return { ok: false, error: "empty MCP response", latencyMs: Date.now() - start };
     return { ok: true, text: String(text).slice(0, 4000), latencyMs: Date.now() - start };
   } catch (err) {
     clearTimeout(timer);
