@@ -1,7 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { evaluate, create, all, mean, median, std, variance, min, max, sum } from "mathjs";
 import { z } from "zod";
 import { mcpLog, logBoth } from "../../utils/mcpLogger";
+
+const { create, all } = require("mathjs") as any;
 
 type CalculatorInput = {
   expression: string;
@@ -135,7 +136,7 @@ export function registerCalculatorTool(mcpserver: McpServer) {
       // ⚠️ CRITICAL: ต้องมี inputSchema ไม่งั้น MCP SDK จะไม่ส่ง args parameter!
       inputSchema: z.object({
         expression: z.string().describe("นิพจน์ทางคณิตศาสตร์ที่ต้องการคำนวณ"),
-      }),
+      }) as any,
     },
       async (args: any) => {
       const input = args as CalculatorInput;

@@ -377,7 +377,7 @@ function registerSimpleTmdTool(
       description: opts.description,
       // IMPORTANT: MCP SDK requires inputSchema to pass args correctly.
       // Without this, the request context (incl. `signal`) may be received as `args`.
-      inputSchema: EmptyArgsSchema,
+      inputSchema: EmptyArgsSchema as any,
     },
     async (args: unknown, extra: any) => {
       const signal: AbortSignal | undefined = extra?.signal;
@@ -456,7 +456,7 @@ function registerSimpleTmdTool(
       const { text, truncated } = safeStringify(result.data, 12000);
       const summary = result.ok
         ? `สำเร็จ: ${opts.title} (เวลา ${result.meta.durationMs}ms, HTTP ${result.meta.status})`
-        : `ล้มเหลว: ${opts.title} (เวลา ${result.meta.durationMs}ms) -> ${result.error}`;
+        : `ล้มเหลว: ${opts.title} (เวลา ${result.meta.durationMs}ms) -> ${(result as { error?: string }).error}`;
 
       return {
         isError: !result.ok,
@@ -470,7 +470,7 @@ function registerSimpleTmdTool(
           ok: result.ok,
           meta: result.meta,
           data: result.data,
-          ...(result.ok ? {} : { error: result.error }),
+          ...(result.ok ? {} : { error: (result as { error?: string }).error }),
         },
       };
     }

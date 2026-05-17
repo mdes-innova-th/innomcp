@@ -155,26 +155,26 @@ registerThaiReligionTool(mcpserver); // New Phase 5 Tools
 mcpserver.registerTool(archiveTool.name, {
   title: "Internet Archive Search Tool",
   description: archiveTool.description,
-  inputSchema: archiveTool.inputSchema,
+  inputSchema: archiveTool.inputSchema as any,
 }, archiveTool.execute);
 
 mcpserver.registerTool(nasaTool.name, {
   title: "NASA Open Data Tool",
   description: nasaTool.description,
-  inputSchema: nasaTool.inputSchema,
+  inputSchema: nasaTool.inputSchema as any,
 }, nasaTool.execute);
 
 mcpserver.registerTool(weatherTool.name, {
   title: "Weather Forecast Tool",
   description: weatherTool.description,
-  inputSchema: weatherTool.inputSchema,
+  inputSchema: weatherTool.inputSchema as any,
 }, weatherTool.execute);
 
 // Register worldBankTool
 mcpserver.registerTool(worldBankTool.name, {
   title: "World Bank Data Tool",
   description: worldBankTool.description,
-  inputSchema: worldBankTool.inputSchema
+  inputSchema: worldBankTool.inputSchema as any
 }, worldBankTool.execute);
   
 
@@ -182,124 +182,124 @@ mcpserver.registerTool(worldBankTool.name, {
 mcpserver.registerTool(govDataTool.name, {
   title: "US Government Data Tool",
   description: govDataTool.description,
-  inputSchema: govDataTool.inputSchema,
+  inputSchema: govDataTool.inputSchema as any,
 }, govDataTool.execute);
 
 mcpserver.registerTool(newtonTool.name, {
   title: "Newton Symbolic Math Tool",
   description: newtonTool.description,
-  inputSchema: newtonTool.inputSchema,
+  inputSchema: newtonTool.inputSchema as any,
 }, newtonTool.execute);
 
 // Register NEW World-Class Tools (2026-01-05)
 mcpserver.registerTool(currencyExchangeTool.name, {
   title: "Currency Exchange Tool",
   description: currencyExchangeTool.description,
-  inputSchema: currencyExchangeTool.inputSchema,
+  inputSchema: currencyExchangeTool.inputSchema as any,
 }, currencyExchangeTool.execute);
 
 mcpserver.registerTool(qrCodeTool.name, {
   title: "QR Code Generator Tool",
   description: qrCodeTool.description,
-  inputSchema: qrCodeTool.inputSchema,
+  inputSchema: qrCodeTool.inputSchema as any,
 }, qrCodeTool.execute);
 
 mcpserver.registerTool(translationTool.name, {
   title: "Translation Tool",
   description: translationTool.description,
-  inputSchema: translationTool.inputSchema,
+  inputSchema: translationTool.inputSchema as any,
 }, translationTool.execute);
 
 mcpserver.registerTool(rssFeedTool.name, {
   title: "RSS Feed Reader Tool",
   description: rssFeedTool.description,
-  inputSchema: rssFeedTool.inputSchema,
+  inputSchema: rssFeedTool.inputSchema as any,
 }, rssFeedTool.execute);
 
 mcpserver.registerTool(codeFormatterTool.name, {
   title: "Code Formatter Tool",
   description: codeFormatterTool.description,
-  inputSchema: codeFormatterTool.inputSchema,
+  inputSchema: codeFormatterTool.inputSchema as any,
 }, codeFormatterTool.execute);
 
 // Register Phase 2 Tools - Essential Free Tools
 mcpserver.registerTool(ocrTool.name, {
   title: "OCR Tool - อ่านข้อความจากภาพ",
   description: ocrTool.description,
-  inputSchema: ocrTool.inputSchema,
+  inputSchema: ocrTool.inputSchema as any,
 }, ocrTool.execute);
 
 mcpserver.registerTool(fileReaderTool.name, {
   title: "File Reader Tool - อ่าน PDF/Excel/Word",
   description: fileReaderTool.description,
-  inputSchema: fileReaderTool.inputSchema,
+  inputSchema: fileReaderTool.inputSchema as any,
 }, fileReaderTool.execute);
 
 mcpserver.registerTool(imageGeneratorTool.name, {
   title: "Image Generator Tool - สร้างรูปภาพ",
   description: imageGeneratorTool.description,
-  inputSchema: imageGeneratorTool.inputSchema,
+  inputSchema: imageGeneratorTool.inputSchema as any,
 }, imageGeneratorTool.execute);
 
 mcpserver.registerTool(storageTool.name, {
   title: "Workspace Storage - read/write/list files",
   description: storageTool.description,
-  inputSchema: storageTool.inputSchema,
+  inputSchema: storageTool.inputSchema as any,
 }, storageTool.execute);
 
 mcpserver.registerTool(keywordTool.name, {
   title: "Keyword Tool - smart query routing",
   description: keywordTool.description,
-  inputSchema: keywordTool.inputSchema,
+  inputSchema: keywordTool.inputSchema as any,
 }, keywordTool.execute);
 
 mcpserver.registerTool(audioTranscribeTool.name, {
   title: "Audio Transcribe Tool — ถอดเสียงเป็นข้อความ (Whisper STT)",
   description: audioTranscribeTool.description,
-  inputSchema: audioTranscribeTool.inputSchema,
+  inputSchema: audioTranscribeTool.inputSchema as any,
 }, audioTranscribeTool.execute);
 
 mcpserver.registerTool(docWriterTool.name, {
   title: "Document Writer — DOCX / PDF / Markdown generator",
   description: docWriterTool.description,
-  inputSchema: docWriterTool.inputSchema,
+  inputSchema: docWriterTool.inputSchema as any,
 }, docWriterTool.execute);
 
 // Register NWP Weather Forecast Tools (HPC)
 mcpserver.registerTool(nwpHourlyByLocationTool.name, {
   title: "NWP Hourly Forecast by Location",
   description: nwpHourlyByLocationTool.description,
-  inputSchema: nwpHourlyByLocationTool.inputSchema,
+  inputSchema: nwpHourlyByLocationTool.inputSchema as any,
 }, nwpHourlyByLocationTool.execute);
 
 mcpserver.registerTool(nwpHourlyByPlaceTool.name, {
   title: "NWP Hourly Forecast by Place",
   description: nwpHourlyByPlaceTool.description,
-  inputSchema: nwpHourlyByPlaceTool.inputSchema,
+  inputSchema: nwpHourlyByPlaceTool.inputSchema as any,
 }, nwpHourlyByPlaceTool.execute);
 
 mcpserver.registerTool(nwpHourlyByRegionTool.name, {
   title: "NWP Hourly Forecast by Region",
   description: nwpHourlyByRegionTool.description,
-  inputSchema: nwpHourlyByRegionTool.inputSchema,
+  inputSchema: nwpHourlyByRegionTool.inputSchema as any,
 }, nwpHourlyByRegionTool.execute);
 
 mcpserver.registerTool(nwpDailyByLocationTool.name, {
   title: "NWP Daily Forecast by Location",
   description: nwpDailyByLocationTool.description,
-  inputSchema: nwpDailyByLocationTool.inputSchema,
+  inputSchema: nwpDailyByLocationTool.inputSchema as any,
 }, nwpDailyByLocationTool.execute);
 
 mcpserver.registerTool(nwpDailyByPlaceTool.name, {
   title: "NWP Daily Forecast by Place",
   description: nwpDailyByPlaceTool.description,
-  inputSchema: nwpDailyByPlaceTool.inputSchema,
+  inputSchema: nwpDailyByPlaceTool.inputSchema as any,
 }, nwpDailyByPlaceTool.execute);
 
 mcpserver.registerTool(nwpDailyByRegionTool.name, {
   title: "NWP Daily Forecast by Region",
   description: nwpDailyByRegionTool.description,
-  inputSchema: nwpDailyByRegionTool.inputSchema,
+  inputSchema: nwpDailyByRegionTool.inputSchema as any,
 }, nwpDailyByRegionTool.execute);
 }
 

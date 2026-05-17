@@ -288,7 +288,7 @@ export function registerDocWriterTool(server: McpServer) {
     {
       title: "Document Writer — สร้างเอกสาร DOCX / PDF / Markdown",
       description: docWriterTool.description,
-      inputSchema: docWriterTool.inputSchema,
+      inputSchema: docWriterTool.inputSchema as any,
     },
     docWriterTool.execute,
   );
