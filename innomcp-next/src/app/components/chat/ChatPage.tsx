@@ -926,6 +926,9 @@ const ChatPage: React.FC = () => {
         uiMode: selectedToolType === "officer" ? "officer" : undefined
       };
 
+      // Phase C.06: stamp send time BEFORE socket.send so that if the first
+      // chunk arrives synchronously (localhost sub-ms), sentAt is already set.
+      lastSendAtRef.current = Date.now();
       console.log("[ChatMode]", chatMode, "→ mode:", derivedMode, "reasoning:", derivedReasoning);
       socket.send(JSON.stringify(message));
       // Phase 10.15: fire SSE channel for MultiAgentPanel
@@ -963,7 +966,7 @@ const ChatPage: React.FC = () => {
       setSelectedImage(null);
       setIsStopped(false);
       isStoppedRef.current = false;
-      lastSendAtRef.current = Date.now();
+      // lastSendAtRef already stamped above (before socket.send) — do not re-stamp here.
       // Phase 10.61 — guarantee ≥1500 ms of working-indicator visibility.
       stickyWorkingUntilRef.current = Date.now() + 1500;
       setStickyWorkingTick((t) => t + 1);

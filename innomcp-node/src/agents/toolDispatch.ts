@@ -455,6 +455,14 @@ function formatToolResult(toolName: string, rawText: string): string | null {
     return rawText.slice(0, 2000);
   }
 
+  // Phase C.06 fix: previously returned null for any tool not explicitly
+  // handled (currency, RSS, WorldBank, nasa, etc.) causing liveOutputs["__tool__"]
+  // to never be set → synthesizeAnswer skips tool path → blank/template answer.
+  // Now: return the raw text bounded to 2000 chars so the user always sees
+  // the tool result, even if we haven't built a pretty formatter for it yet.
+  if (rawText && rawText.trim().length > 5) {
+    return rawText.trim().slice(0, 2000);
+  }
   return null;
 }
 

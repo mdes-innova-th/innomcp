@@ -160,7 +160,9 @@ function composeWeatherAnswer(query: string, facts: string[]): string {
 }
 
 function composeCalcAnswer(query: string): string {
-  return `ผมคำนวณตามคำถาม "${query.trim()}" ให้ — เส้นทางนี้เป็นแบบกำหนดได้ (deterministic) จึงไม่ต้องใช้โมเดลภาษา ผลที่ได้จะแสดงในเซสชันถัดไปครับ`;
+  // Phase C.06: no more "แสดงในเซสชันถัดไป" — calculator tool returns in
+  // the SAME message. Template is brief; real answer comes from calculatorTool.
+  return `กำลังคำนวณ "${query.trim()}" ด้วย MathTool…`;
 }
 
 function composeCodeAnswer(query: string): string {
