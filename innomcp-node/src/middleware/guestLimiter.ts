@@ -80,8 +80,10 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 /**
  * Check if user exceeded rate limit
  */
-function checkRateLimit(userId: string | null, limits: GuestLimits): { allowed: boolean; remaining: number; resetAt: Date } {
-  const key = userId || 'guest';
+function checkRateLimit(userId: string | null, limits: GuestLimits, clientIp?: string): { allowed: boolean; remaining: number; resetAt: Date } {
+  // Use userId for authenticated users, IP for guests (prevents one guest from exhausting
+  // the shared 'guest' bucket and blocking all other unauthenticated users).
+  const key = userId || (clientIp ? `guest:${clientIp}` : 'guest');
   const now = new Date();
   
   let entry = rateLimitStore.get(key);
@@ -141,7 +143,8 @@ export function guestLimiterMiddleware(req: AuthRequest, res: Response, next: Ne
     const userId = user?.userId?.toString() || null;
     if (!smokeBypassEnabled) {
       // Check rate limit
-      const rateLimit = checkRateLimit(userId, limits);
+      const clientIp = req.ip ?? (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim();
+      const rateLimit = checkRateLimit(userId, limits, clientIp);
 
       if (!rateLimit.allowed) {
         res.status(429).json({
