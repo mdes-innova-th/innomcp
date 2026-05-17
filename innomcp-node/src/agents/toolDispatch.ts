@@ -264,7 +264,11 @@ async function callMcpTool(
     const body = await res.text();
     // MCP JSON-RPC response: {"result":{"content":[{"type":"text","text":"..."}]}}
     let parsed: any;
-    try { parsed = JSON.parse(body); } catch { parsed = null; }
+    try { parsed = JSON.parse(body); } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn(`[toolDispatch] ${toolName} JSON parse failed: ${msg}`);
+      parsed = null;
+    }
     // Phase C.07: detect JSON-RPC error envelope before falling through to raw body,
     // otherwise raw JSON gets emitted to the user as the tool answer.
     if (parsed?.error?.message) {

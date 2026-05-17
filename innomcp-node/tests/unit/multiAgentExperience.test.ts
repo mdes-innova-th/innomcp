@@ -52,7 +52,9 @@ describe("multi-agent thinking report UX contract", () => {
 
     expect(recovering.tone).toBe("recovering");
     expect(recovering.digest).toContain("ไม่แตกคำตอบหลัก");
-    expect(blocked.tone).toBe("blocked");
+    // C.14: error case uses "recovering" tone (amber) instead of "blocked" (red)
+    // to avoid alarming UX when agents simply hit MDES fallbacks (expected).
+    expect(blocked.tone).toBe("recovering");
     expect(blocked.digest).toContain("ตรวจสอบได้");
   });
 });

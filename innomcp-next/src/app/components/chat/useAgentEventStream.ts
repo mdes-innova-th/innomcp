@@ -216,6 +216,10 @@ export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
         return;
       }
 
+      if (!response.body) {
+        setState((s) => ({ ...s, status: "error", warnings: [...s.warnings, "no response body"] }));
+        return;
+      }
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let buffer = "";
