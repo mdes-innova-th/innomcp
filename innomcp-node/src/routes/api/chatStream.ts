@@ -86,6 +86,7 @@ function createStreamEventLimiter(limits: GuestLimits | undefined, isGuest: bool
 router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, res: Response) => {
   const body = (req.body || {}) as {
     message?: string;
+    messages?: Array<{ sender: string; text: string }>;
     sessionId?: string;
     preferredMode?: ChatMode;
     preferredProviderId?: string;
@@ -97,6 +98,9 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
   };
 
   const message = typeof body.message === "string" ? body.message.trim() : "";
+  const history: Array<{ sender: "user" | "ai"; text: string }> = Array.isArray(body.messages)
+    ? (body.messages as Array<{ sender: "user" | "ai"; text: string }>).slice(-20)
+    : [];
   if (message.length === 0) {
     res.status(400).json({ error: "message is required" });
     return;
@@ -155,6 +159,7 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
     await runConductor(
       {
         message,
+        history,
         sessionId: body.sessionId,
         preferredMode: body.preferredMode,
         preferredProviderId: body.preferredProviderId,

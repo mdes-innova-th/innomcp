@@ -1511,6 +1511,34 @@ export function MessageView({
               (Previously rendered below the body — caused panel-domination
               for short answers per mom's review.) */}
 
+          {/* Task completion banner — Manus-style UX */}
+          {message.sender === "ai" && message.isComplete && (
+            <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/8 px-3 py-2.5">
+              <div className="flex items-center gap-2 text-[12.5px] text-emerald-700 dark:text-emerald-300">
+                <span className="text-base">✅</span>
+                <span className="font-medium">Task completed</span>
+                {message.elapsedMs && message.elapsedMs > 0 && (
+                  <span className="text-emerald-600/70 dark:text-emerald-400/70">
+                    · completed in {Math.floor(message.elapsedMs / 60000)}:{String(Math.floor((message.elapsedMs % 60000) / 1000)).padStart(2, "0")}
+                  </span>
+                )}
+              </div>
+              <StarRating messageId={(message as any).id || ""} />
+            </div>
+          )}
+
+          {/* Follow-up suggestion cards */}
+          {message.sender === "ai" && message.isComplete && message.followUpSuggestions && message.followUpSuggestions.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {message.followUpSuggestions.map((suggestion, idx) => (
+                <button key={idx} onClick={() => onFollowUp?.(suggestion)}
+                  className="rounded-full border border-border/60 bg-background/80 px-3 py-1 text-[12px] text-foreground/80 transition-colors hover:border-primary/30 hover:bg-primary/8 hover:text-foreground">
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Metadata footer — Phase 10.49 tightened icons. */}
           <div
             className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-2 text-[11px] ${

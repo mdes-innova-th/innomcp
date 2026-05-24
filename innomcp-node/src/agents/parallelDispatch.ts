@@ -34,6 +34,7 @@ export interface AgentPlanItem extends AgentEndpoint {
 export interface AgentDispatchOptions {
   runMode?: AgentRunMode;
   preferredMode?: ChatMode;
+  history?: Array<{ sender: string; text: string }>;
 }
 
 export interface AgentPlanOptions extends AgentDispatchOptions {
@@ -247,19 +248,41 @@ export function selectAgentPlan(
   });
 }
 
-const AGENT_PROMPT: Record<string, (q: string) => string> = {
-  "weather-analyst": (q) => `คุณเป็นผู้เชี่ยวชาญด้านสภาพอากาศ วิเคราะห์และตอบ: "${q}"\n[ตอบตรงๆ เป็นภาษาไทย 2-3 ประโยค ไม่ต้องขึ้นต้นด้วย "ผม" หรือ "ขออนุญาต"]`,
-  "geo-planner":     (q) => `คุณเป็นผู้เชี่ยวชาญด้านภูมิศาสตร์และการเดินทาง วิเคราะห์และตอบ: "${q}"\n[ตอบตรงๆ เป็นภาษาไทย 2-3 ประโยค]`,
-  "rag-agent":       (q) => `ค้นหาและสรุปความรู้เกี่ยวกับ: "${q}"\n[ตอบเป็นภาษาไทย กระชับ ตรงประเด็น ถ้ามีหลายประเด็นให้ใช้ bullet points]`,
-  "concierge":       (q) => `ตอบคำถามต่อไปนี้ตรงประเด็น ห้ามใช้คำนำ เช่น "ขออนุญาต" หรือ "ผมจะ" — เริ่มตอบได้เลย:\n"${q}"\n[ตอบเป็นภาษาไทยมืออาชีพ ใช้ bullet points ถ้ามีหลายประเด็น ไม่เกิน 4 ประโยคหรือ 4 bullets]`,
-  "tool-scout":      (q) => `ระบุ tool และวิธีการที่เหมาะสมที่สุดสำหรับ: "${q}"\n[ชื่อ tool + เหตุผล 1-2 ประโยคภาษาไทย]`,
-  "critic":          (q) => `วิเคราะห์และตอบ: "${q}"\n→ ระบุประเด็นหลัก → ให้คำตอบที่ถูกต้องและครบถ้วน\n[ตอบเป็นภาษาไทย กระชับ ไม่เกิน 3 ประโยค]`,
-  "stylist":         (q) => `เรียบเรียงคำตอบสำหรับ: "${q}"\n[ตอบภาษาไทยที่เป็นธรรมชาติ อ่านง่าย มืออาชีพ ไม่ฟุ้มเฟ้อ ตรงประเด็น]`,
-  "thinker":         (q) => `คุณเป็นนักคิดเชิงวิเคราะห์ขั้นสูง วิเคราะห์อย่างรอบด้านก่อนตอบ:\n${q}\n\n[คิดเชิงระบบ หาสาเหตุและผล ตอบเป็นภาษาไทยที่ชัดเจน 2-4 ประโยค ห้ามเริ่มด้วย "ขออนุญาต"]`,
-  "researcher":      (q) => `ค้นหาข้อมูลและหลักฐานที่เกี่ยวข้องกับ: "${q}"\n[นำเสนอข้อเท็จจริงสำคัญ 3-5 ข้อ เป็นภาษาไทยที่กระชับและตรงประเด็น]`,
-  "fact-checker":    (q) => `ตรวจสอบความถูกต้องของข้อมูลเกี่ยวกับ: "${q}"\n[ระบุจุดที่แน่ใจและจุดที่ควรระวัง ตอบเป็นภาษาไทยที่ชัดเจน]`,
-  "linguist":        (q) => `เรียบเรียงคำตอบที่ดีที่สุดสำหรับ: "${q}"\n[ใช้ภาษาไทยที่เป็นธรรมชาติ มืออาชีพ อ่านง่าย ไม่ใช้คำศัพท์ฟุ้มเฟ้อ ตอบตรงประเด็น]`,
-  "domain-expert":   (q) => `ในฐานะผู้เชี่ยวชาญเฉพาะทาง ให้ความเห็นเชิงลึกเกี่ยวกับ: "${q}"\n[แชร์ insight ที่มีประโยชน์ ตอบเป็นภาษาไทยมืออาชีพ 2-3 ประโยค]`,
+function compressHistory(history: Array<{ sender: string; text: string }>, keepLast = 4): string {
+  if (!history || history.length === 0) return "";
+  const relevant = history.filter(m => m.text && m.text.trim().length > 5);
+  if (relevant.length === 0) return "";
+  if (relevant.length <= keepLast) {
+    return relevant.map(m =>
+      `${m.sender === "user" ? "ผู้ใช้" : "AI"}: ${m.text.slice(0, 250)}`
+    ).join("\n");
+  }
+  // Older messages: extract key phrases only (first 80 chars each)
+  const older = relevant.slice(0, relevant.length - keepLast);
+  const recent = relevant.slice(-keepLast);
+  const olderSummary = older
+    .filter(m => m.sender === "user")  // only user messages for summary
+    .map(m => m.text.slice(0, 80).replace(/\n/g, " "))
+    .join(", ");
+  const recentFmt = recent.map(m =>
+    `${m.sender === "user" ? "ผู้ใช้" : "AI"}: ${m.text.slice(0, 250)}`
+  ).join("\n");
+  return `[บริบทก่อนหน้า: ${olderSummary}]\n\nการสนทนาล่าสุด:\n${recentFmt}`;
+}
+
+const AGENT_PROMPT: Record<string, (q: string, ctx?: string) => string> = {
+  "weather-analyst": (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}คุณเป็นผู้เชี่ยวชาญด้านสภาพอากาศ วิเคราะห์และตอบ: "${q}"\n[ตอบตรงๆ เป็นภาษาไทย 2-3 ประโยค ไม่ต้องขึ้นต้นด้วย "ผม" หรือ "ขออนุญาต"]`,
+  "geo-planner":     (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}คุณเป็นผู้เชี่ยวชาญด้านภูมิศาสตร์และการเดินทาง วิเคราะห์และตอบ: "${q}"\n[ตอบตรงๆ เป็นภาษาไทย 2-3 ประโยค]`,
+  "rag-agent":       (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ค้นหาและสรุปความรู้เกี่ยวกับ: "${q}"\n[ตอบเป็นภาษาไทย กระชับ ตรงประเด็น ถ้ามีหลายประเด็นให้ใช้ bullet points]`,
+  "concierge":       (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ตอบคำถามต่อไปนี้ตรงประเด็น ห้ามใช้คำนำ เช่น "ขออนุญาต" หรือ "ผมจะ" — เริ่มตอบได้เลย:\n"${q}"\n[ตอบเป็นภาษาไทยมืออาชีพ ใช้ bullet points ถ้ามีหลายประเด็น ไม่เกิน 4 ประโยคหรือ 4 bullets]`,
+  "tool-scout":      (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ระบุ tool และวิธีการที่เหมาะสมที่สุดสำหรับ: "${q}"\n[ชื่อ tool + เหตุผล 1-2 ประโยคภาษาไทย]`,
+  "critic":          (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}วิเคราะห์และตอบ: "${q}"\n→ ระบุประเด็นหลัก → ให้คำตอบที่ถูกต้องและครบถ้วน\n[ตอบเป็นภาษาไทย กระชับ ไม่เกิน 3 ประโยค]`,
+  "stylist":         (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}เรียบเรียงคำตอบสำหรับ: "${q}"\n[ตอบภาษาไทยที่เป็นธรรมชาติ อ่านง่าย มืออาชีพ ไม่ฟุ้มเฟ้อ ตรงประเด็น]`,
+  "thinker":         (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}คุณเป็นนักคิดเชิงวิเคราะห์ขั้นสูง วิเคราะห์อย่างรอบด้านก่อนตอบ:\n${q}\n\n[คิดเชิงระบบ หาสาเหตุและผล ตอบเป็นภาษาไทยที่ชัดเจน 2-4 ประโยค ห้ามเริ่มด้วย "ขออนุญาต"]`,
+  "researcher":      (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ค้นหาข้อมูลและหลักฐานที่เกี่ยวข้องกับ: "${q}"\n[นำเสนอข้อเท็จจริงสำคัญ 3-5 ข้อ เป็นภาษาไทยที่กระชับและตรงประเด็น]`,
+  "fact-checker":    (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ตรวจสอบความถูกต้องของข้อมูลเกี่ยวกับ: "${q}"\n[ระบุจุดที่แน่ใจและจุดที่ควรระวัง ตอบเป็นภาษาไทยที่ชัดเจน]`,
+  "linguist":        (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}เรียบเรียงคำตอบที่ดีที่สุดสำหรับ: "${q}"\n[ใช้ภาษาไทยที่เป็นธรรมชาติ มืออาชีพ อ่านง่าย ไม่ใช้คำศัพท์ฟุ้มเฟ้อ ตอบตรงประเด็น]`,
+  "domain-expert":   (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ในฐานะผู้เชี่ยวชาญเฉพาะทาง ให้ความเห็นเชิงลึกเกี่ยวกับ: "${q}"\n[แชร์ insight ที่มีประโยชน์ ตอบเป็นภาษาไทยมืออาชีพ 2-3 ประโยค]`,
 };
 
 // ── Ollama (MDES) call ──────────────────────────────────────────────────────
@@ -446,7 +469,8 @@ async function runAgent(
   messageId: string,
   emit: EmitFn,
   endpoint: AgentEndpoint,
-  partialSink?: (agentId: AgentId, partialText: string) => void
+  partialSink?: (agentId: AgentId, partialText: string) => void,
+  ctx?: string
 ): Promise<{ agentId: AgentId; text: string }> {
   const model = endpoint.model;
 
@@ -459,7 +483,7 @@ async function runAgent(
   if (checkAgentEventSafe(startEv, { expectedToolUsage: false }).ok) emit(startEv);
   const safeQ = query.replace(/["\\\n\r]/g, " ").trim().slice(0, 500);
   const promptFn = AGENT_PROMPT[agentId];
-  const prompt = promptFn ? promptFn(safeQ) : `ช่วยตอบอย่างฉลาดและกระชับ: "${safeQ}"`;
+  const prompt = promptFn ? promptFn(safeQ, ctx) : `ช่วยตอบอย่างฉลาดและกระชับ: "${safeQ}"`;
 
   try {
     // Streaming callback: emit progressive agent_delta as tokens arrive
@@ -529,10 +553,11 @@ async function runAgentWithEscalation(
   messageId: string,
   emit: EmitFn,
   endpoint: AgentEndpoint,
-  partialSink?: (agentId: AgentId, partialText: string) => void
+  partialSink?: (agentId: AgentId, partialText: string) => void,
+  ctx?: string
 ): Promise<{ agentId: AgentId; text: string }> {
   // Attempt 1 — MDES (remote or local per endpoint config)
-  const r1 = await runAgent(agentId, query, runId, messageId, emit, endpoint, partialSink);
+  const r1 = await runAgent(agentId, query, runId, messageId, emit, endpoint, partialSink, ctx);
   if (r1.text) return r1;
 
   // Attempt 2:
@@ -554,7 +579,7 @@ async function runAgentWithEscalation(
         model: "gemma4:e4b",
         timeoutMs: MODEL_TIMEOUT_MS["gemma4:e4b"] ?? DEFAULT_TIMEOUT_MS,
       };
-  const r2 = await runAgent(agentId, query, runId, messageId, emit, fallbackEndpoint, partialSink);
+  const r2 = await runAgent(agentId, query, runId, messageId, emit, fallbackEndpoint, partialSink, ctx);
   if (r2.text) return r2;
 
   // Attempt 3+ — GPT fallback. Skipped when MDES_ONLY=1.
@@ -564,7 +589,7 @@ async function runAgentWithEscalation(
   if (process.env.OPENAI_FALLBACK_ENABLED !== "0" && openAiKey.trim()) {
     const safeQ = query.replace(/["\\\n\r]/g, " ").trim().slice(0, 500);
     const promptFn = AGENT_PROMPT[agentId];
-    const prompt = promptFn ? promptFn(safeQ) : `ช่วยตอบ: "${safeQ}"`;
+    const prompt = promptFn ? promptFn(safeQ, ctx) : `ช่วยตอบ: "${safeQ}"`;
     const baseUrl = process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
 
     for (const model of getGptFallbackModels()) {
@@ -619,6 +644,7 @@ export async function dispatchAgents(
   if (plan.length === 0) return {};
 
   const outputs: Record<string, string> = liveOutputs ?? {};
+  const ctxStr = options.history && options.history.length > 0 ? compressHistory(options.history) : undefined;
 
   // Fire all agents in parallel; capture each result the moment it settles
   // AND stream partial accumulated tokens into outputs so the conductor's
@@ -629,7 +655,7 @@ export async function dispatchAgents(
     }
   };
   const tasks = plan.map((item) =>
-    runAgentWithEscalation(item.agentId, query, runId, messageId, emit, item, partialSink)
+    runAgentWithEscalation(item.agentId, query, runId, messageId, emit, item, partialSink, ctxStr)
       .then((r) => {
         if (r.text) outputs[r.agentId] = r.text;
         return r;

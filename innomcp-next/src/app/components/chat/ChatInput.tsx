@@ -343,15 +343,22 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <span className="text-muted-foreground/85">คีย์ลัด</span>
           </span>
         </div>
-        {showCharCounter && (
-          <span
-            data-testid="char-counter"
-            className={`font-mono tabular-nums ${counterTone}`}
-            title={`${charCount.toLocaleString()} / ${CHAR_LIMIT.toLocaleString()} อักขระ`}
-          >
-            {charCount.toLocaleString()} / {CHAR_LIMIT.toLocaleString()}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {charCount > 0 && (
+            <span className="text-[10.5px] text-muted-foreground/50 tabular-nums">
+              {(() => { const t = Math.round(charCount / 4); return t > 1000 ? `~${(t/1000).toFixed(1)}k` : `~${t}`; })()} tokens
+            </span>
+          )}
+          {showCharCounter && (
+            <span
+              data-testid="char-counter"
+              className={`font-mono tabular-nums ${counterTone}`}
+              title={`${charCount.toLocaleString()} / ${CHAR_LIMIT.toLocaleString()} อักขระ`}
+            >
+              {charCount.toLocaleString()} / {CHAR_LIMIT.toLocaleString()}
+            </span>
+          )}
+        </div>
       </div>
 
       <input

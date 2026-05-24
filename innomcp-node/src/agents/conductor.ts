@@ -35,6 +35,7 @@ import { disambiguateWithSessionMemory } from "../services/memoryRagHook";
 
 export interface ConductorOptions {
   message: string;
+  history?: Array<{ sender: "user" | "ai"; text: string }>;
   sessionId?: string;
   clientMessageId?: string;
   preferredMode?: ChatMode;
@@ -176,7 +177,7 @@ function composeMapAnswer(query: string): string {
 }
 
 function composeGeneralAnswer(query: string): string {
-  return `ผมรับโจทย์ "${query.trim()}" แล้ว — ตอบเป็นภาษาไทยให้กระชับและตรงประเด็น หากต้องการละเอียดกว่านี้บอกได้ครับ`;
+  return `รับโจทย์ "${query.trim()}" แล้ว — หากต้องการคำตอบละเอียดกว่านี้บอกได้ครับ`;
 }
 
 /**
@@ -292,6 +293,7 @@ export async function runConductor(
     ? dispatchAgents(cls.intent, opts.message, runId, messageId, emit, liveOutputs, {
         runMode: responseMode,
         preferredMode: opts.preferredMode ?? "hybrid",
+        history: opts.history,
       })
     : Promise.resolve({} as Record<string, string>))
     .finally(() => {
@@ -547,6 +549,27 @@ export async function runConductor(
   finalEv.confidence = nat.ok ? 0.78 : 0.55;
   safeEmit(emit, finalEv, cls.expectedToolUsage);
 
+  // Generate follow-up suggestions asynchronously — fire-and-forget
+  if (provider?.baseUrl) {
+    const remoteEndpoint = provider.baseUrl;
+    const remoteToken = (provider.apiKeyRef ? process.env[provider.apiKeyRef] : undefined) ?? "";
+    generateFollowUps(opts.message, enrichedText, remoteEndpoint, remoteToken)
+      .then((suggs) => {
+        if (suggs.length > 0) {
+          const sugEv = newEnvelope({
+            runId,
+            messageId,
+            type: "follow_up_suggestions",
+            publicSummary: "คำถามต่อเนื่องที่แนะนำ",
+            agentId: "concierge",
+          });
+          (sugEv as any).suggestions = suggs;
+          emit(sugEv);
+        }
+      })
+      .catch(() => {});
+  }
+
   // Record turn to session memory so follow-up queries can carry context forward.
   if (opts.sessionId) {
     const domainMap: Record<string, MemoryDomain> = {
@@ -570,6 +593,28 @@ export async function runConductor(
     model,
     events: 0, // emitter side counts; not tracked here
   };
+}
+
+async function generateFollowUps(question: string, answer: string, endpoint: string, token: string): Promise<string[]> {
+  try {
+    const ac = new AbortController();
+    setTimeout(() => ac.abort(), 4000);
+    const res = await fetch(`${endpoint}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        model: "gemma3:12b",
+        messages: [{ role: "user", content: `จากคำถาม: "${question.slice(0, 100)}" และคำตอบ: "${answer.slice(0, 200)}" แนะนำ 3 คำถามต่อเนื่องที่น่าสนใจ ตอบเป็น JSON array ของ string เท่านั้น เช่น ["คำถาม1","คำถาม2","คำถาม3"]` }],
+        max_tokens: 200,
+      }),
+      signal: ac.signal,
+    });
+    const json = await res.json();
+    const text = json.choices?.[0]?.message?.content ?? "";
+    const match = text.match(/\[[\s\S]*\]/);
+    if (!match) return [];
+    return (JSON.parse(match[0]) as string[]).slice(0, 3);
+  } catch { return []; }
 }
 
 function routeSummaryFor(intent: ChatIntent): string {
