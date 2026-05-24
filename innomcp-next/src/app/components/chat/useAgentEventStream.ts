@@ -33,6 +33,7 @@ export type AgentEventType =
   | "critique"
   | "fallback"
   | "final_answer"
+  | "follow_up_suggestions"
   | "feedback_saved"
   | "error";
 
@@ -93,6 +94,7 @@ export interface AgentStreamState {
   status: StreamStatus;
   warnings: string[];
   activeMessageId?: string;
+  suggestions: string[];
 }
 
 const initialState: AgentStreamState = {
@@ -102,6 +104,7 @@ const initialState: AgentStreamState = {
   status: "idle",
   warnings: [],
   activeMessageId: undefined,
+  suggestions: [],
 };
 
 function parseSseChunk(buffer: string): { complete: string[]; remainder: string } {
@@ -175,6 +178,7 @@ export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
         finalText: "",
         status: "streaming",
         warnings: [],
+        suggestions: [],
         activeMessageId: opts.clientMessageId,
       });
 
@@ -276,6 +280,9 @@ export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
               if (ev!.type === "final_answer" && typeof ev!.finalText === "string") {
                 next.finalText = ev!.finalText;
                 next.status = "done";
+              }
+              if (ev!.type === "follow_up_suggestions" && Array.isArray((ev as any).suggestions)) {
+                next.suggestions = (ev as any).suggestions as string[];
               }
               if (ev!.type === "error") {
                 next.status = "error";

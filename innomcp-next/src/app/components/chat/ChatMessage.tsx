@@ -587,6 +587,9 @@ export type Message = {
   tokenCount?: number; // Number of tokens
   responseTime?: number; // Response time in ms
   toolsUsed?: string[]; // List of tools used by AI
+  isComplete?: boolean;
+  elapsedMs?: number;
+  followUpSuggestions?: string[];
 };
 
 type EnhancedProps = {
@@ -596,9 +599,40 @@ type EnhancedProps = {
   onUpdate: (index: number, msg: Message) => void;
   onDelete?: (index: number) => void;
   onRetry?: (index: number) => void;
+  onFollowUp?: (text: string) => void;
   /** Optional inline content rendered inside this bubble (e.g. MultiAgentPanel). */
   inlineExtras?: React.ReactNode;
 };
+
+function StarRating({ messageId }: { messageId: string }) {
+  const [rating, setRating] = React.useState(0);
+  const [hover, setHover] = React.useState(0);
+  const [submitted, setSubmitted] = React.useState(false);
+  const handleRate = async (stars: number) => {
+    setRating(stars);
+    setSubmitted(true);
+    try {
+      await fetch("/api/chat/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ rating: stars, messageId }),
+      });
+    } catch {}
+  };
+  if (submitted) return <p className="mt-1.5 text-[11px] text-muted-foreground">ขอบคุณสำหรับ feedback</p>;
+  return (
+    <div className="mt-2 flex items-center gap-1">
+      <span className="text-[11px] text-muted-foreground mr-1">คุณพอใจแค่ไหน?</span>
+      {[1,2,3,4,5].map((s) => (
+        <button key={s} onClick={() => handleRate(s)} onMouseEnter={() => setHover(s)} onMouseLeave={() => setHover(0)}
+          className={`text-base transition-colors ${s <= (hover || rating) ? "text-amber-400" : "text-muted-foreground/40"}`}>
+          ★
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export function MessageView({
   message,
@@ -607,6 +641,7 @@ export function MessageView({
   onUpdate,
   onDelete,
   onRetry,
+  onFollowUp,
   inlineExtras,
 }: EnhancedProps) {
   const [copied, setCopied] = React.useState(false);

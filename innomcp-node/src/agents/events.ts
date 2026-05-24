@@ -24,6 +24,7 @@ export type AgentEventType =
   | "fallback"
   | "final_answer"
   | "feedback_saved"
+  | "follow_up_suggestions"
   | "error";
 
 export type AgentId =
@@ -36,7 +37,12 @@ export type AgentId =
   | "critic"
   | "stylist"
   | "broker"
-  | "scribe";
+  | "scribe"
+  | "thinker"
+  | "researcher"
+  | "fact-checker"
+  | "linguist"
+  | "domain-expert";
 
 export const AGENT_ROLE_LABEL_TH: Record<AgentId, string> = {
   conductor: "ผู้กำกับงาน",
@@ -49,6 +55,11 @@ export const AGENT_ROLE_LABEL_TH: Record<AgentId, string> = {
   stylist: "ผู้ขัดเกลาภาษาไทย",
   broker: "ผู้คัดเลือกผู้ให้บริการ",
   scribe: "ผู้บันทึกความจำ",
+  thinker: "นักคิดวิเคราะห์",
+  researcher: "นักค้นคว้า",
+  "fact-checker": "ผู้ตรวจสอบข้อเท็จจริง",
+  linguist: "ผู้เชี่ยวชาญภาษา",
+  "domain-expert": "ผู้เชี่ยวชาญเฉพาะทาง",
 };
 
 export interface AgentEvent {
@@ -109,6 +120,7 @@ export function validateAgentEvent(ev: unknown): string | null {
     "fallback",
     "final_answer",
     "feedback_saved",
+    "follow_up_suggestions",
     "error",
   ];
   if (!allowedTypes.includes(e.type as AgentEventType)) {

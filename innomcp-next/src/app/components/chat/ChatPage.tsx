@@ -46,6 +46,9 @@ interface ChatMessage {
   mdesEnhanced?: boolean; // true when MDES agents upgraded this message
   // Phase 10.27 — wall-clock receipt + roundtrip latency (ms)
   timestamp?: number;
+  isComplete?: boolean;
+  elapsedMs?: number;
+  followUpSuggestions?: string[];
   responseTime?: number;
 }
 
@@ -237,6 +240,7 @@ const ChatPage: React.FC = () => {
   // Phase 10.27 — wall-clock timestamp captured when the user hits send.
   // Used to stamp responseTime onto the AI reply when it lands.
   const lastSendAtRef = useRef<number | null>(null);
+  const sendMessageRef = useRef<() => Promise<void>>(() => Promise.resolve());
   // Phase 10.61 — keep the working-indicator visible for ≥1500 ms after a send,
   // so fast-fallback models (e.g. qwen2.5:0.5b returning a cached acknowledgment
   // in <200 ms) still produce a visible "typing" affordance. Without this, the
@@ -838,6 +842,8 @@ const ChatPage: React.FC = () => {
         fullText: nextText,
         isAnimating: false,
         mdesEnhanced: true,
+        isComplete: true,
+        elapsedMs: lastSendAtRef.current ? Date.now() - lastSendAtRef.current : undefined,
       };
       return updated;
     });
@@ -891,6 +897,20 @@ const ChatPage: React.FC = () => {
       activeAgentStreamRequestRef.current = null;
     }
   }, [agentStreamState.activeMessageId, agentStreamState.finalText, agentStreamState.status]);
+
+  useEffect(() => {
+    const suggestions = agentStreamState.suggestions;
+    if (!suggestions || suggestions.length === 0) return;
+    setMessages((prev) => {
+      const lastAiIdx = prev.map((m, i) => ({ m, i }))
+        .filter(({ m }) => m.sender === "ai" && !m.isProgress)
+        .pop()?.i;
+      if (lastAiIdx === undefined) return prev;
+      const updated = [...prev];
+      updated[lastAiIdx] = { ...updated[lastAiIdx], followUpSuggestions: suggestions };
+      return updated;
+    });
+  }, [agentStreamState.suggestions]);
 
   const sendMessage = async () => {
     if (
@@ -990,6 +1010,7 @@ const ChatPage: React.FC = () => {
       );
     }
   };
+  sendMessageRef.current = sendMessage;
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -1675,6 +1696,10 @@ const ChatPage: React.FC = () => {
                           index={index}
                           onUpdate={updateMessage}
                           onRetry={handleRetry}
+                          onFollowUp={(text) => {
+                            setInput(text);
+                            setTimeout(() => sendMessageRef.current(), 50);
+                          }}
                           inlineExtras={inlinePanel}
                         />
                       );

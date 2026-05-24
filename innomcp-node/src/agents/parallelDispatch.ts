@@ -59,13 +59,13 @@ const INTENT_AGENTS_POOL: Record<string, AgentId[]> = {
   greeting:         ["concierge", "critic"],
   datetime:         ["concierge", "critic"],
   weather:          ["weather-analyst", "geo-planner", "critic"],
-  geo:              ["geo-planner", "weather-analyst", "rag-agent", "critic"],
-  knowledge:        ["rag-agent", "concierge", "critic", "stylist"],
-  evidence:         ["tool-scout", "critic", "concierge", "stylist"],
-  "planning-broad": ["weather-analyst", "geo-planner", "rag-agent", "concierge", "critic", "stylist", "tool-scout"],
   calc:             ["tool-scout", "critic"],
-  code:             ["tool-scout", "concierge", "critic", "stylist"],
-  general:          ["concierge", "critic", "stylist", "rag-agent"],
+  evidence:         ["tool-scout", "critic", "concierge", "stylist"],
+  geo:              ["thinker", "geo-planner", "weather-analyst", "rag-agent", "researcher", "critic", "domain-expert", "linguist"],
+  knowledge:        ["thinker", "rag-agent", "researcher", "concierge", "critic", "stylist", "fact-checker", "domain-expert", "linguist"],
+  "planning-broad": ["thinker", "weather-analyst", "geo-planner", "rag-agent", "researcher", "concierge", "critic", "stylist", "domain-expert", "fact-checker", "linguist"],
+  code:             ["thinker", "tool-scout", "researcher", "concierge", "critic", "stylist", "fact-checker", "domain-expert", "linguist", "rag-agent"],
+  general:          ["thinker", "concierge", "critic", "stylist", "rag-agent", "researcher", "linguist", "domain-expert", "fact-checker"],
 };
 
 // MDES Ollama model catalog — assign per role, largest where reasoning matters
@@ -77,6 +77,11 @@ const AGENT_MODEL_MDES: Record<string, string> = {
   "tool-scout":      "z-uo/qwen2.5vl_tools:7b", // tool-specific model
   "critic":          "gemma4:e4b",          // fast verifier
   "stylist":         "gemma4:e4b",          // fast polish
+  "thinker":         "gemma3:12b",          // deep analytical thinker
+  "researcher":      "gemma3:12b",          // fact/evidence researcher
+  "fact-checker":    "gemma3:12b",          // accuracy verifier
+  "linguist":        "gemma3:12b",          // natural language polisher
+  "domain-expert":   "gemma3:12b",          // domain-specific insight
 };
 
 // Per-model timeouts — larger models need more time for first token
@@ -174,20 +179,15 @@ function resolveEndpoint(kind: AgentEndpointKind, agentId: AgentId, runMode: Age
  * 8 → code (multi-tool reasoning + style + critic)
  */
 export function scoreComplexity(intent: string, query: string): number {
-  if (intent === "planning-broad") return 6;
-  if (intent === "code") return 8;
-  // greeting and datetime are always 2 agents (thinker + responder).
+  if (intent === "planning-broad") return 10;
+  if (intent === "code") return 10;
   if (["greeting", "datetime"].includes(intent)) return 2;
   const words = query.trim().split(/\s+/).length;
   const tokenEst = Math.max(words, Math.ceil(query.trim().length / 5));
-  // Short queries (≤ 25 tokens) → 2 agents regardless of intent. This is
-  // ~90% of chat traffic and the old "4 for short knowledge" rule was
-  // overkill — burned tokens, lit up the panel, and slowed first-token.
   if (tokenEst <= 25) return 2;
-  // Medium length → 3 agents (responder + critic + stylist).
-  if (tokenEst <= 50) return 3;
-  // Long form → 4 agents for general/knowledge depth.
-  return 4;
+  if (tokenEst <= 50) return 4;
+  if (tokenEst <= 100) return 6;
+  return 8;
 }
 
 export function selectAgentPlan(
@@ -251,10 +251,15 @@ const AGENT_PROMPT: Record<string, (q: string) => string> = {
   "weather-analyst": (q) => `คุณเป็นผู้เชี่ยวชาญด้านสภาพอากาศ วิเคราะห์และตอบ: "${q}"\n[ตอบตรงๆ เป็นภาษาไทย 2-3 ประโยค ไม่ต้องขึ้นต้นด้วย "ผม" หรือ "ขออนุญาต"]`,
   "geo-planner":     (q) => `คุณเป็นผู้เชี่ยวชาญด้านภูมิศาสตร์และการเดินทาง วิเคราะห์และตอบ: "${q}"\n[ตอบตรงๆ เป็นภาษาไทย 2-3 ประโยค]`,
   "rag-agent":       (q) => `ค้นหาและสรุปความรู้เกี่ยวกับ: "${q}"\n[ตอบเป็นภาษาไทย กระชับ ตรงประเด็น ถ้ามีหลายประเด็นให้ใช้ bullet points]`,
-  "concierge":       (q) => `ตอบคำถามต่อไปนี้อย่างฉลาดและตรงประเด็น ห้ามใช้คำสุภาพนำ เช่น "ขออนุญาต" หรือ "ผมจะ":\n"${q}"\n[กฎการตอบ: ตอบเป็นภาษาไทยมืออาชีพ ใช้ bullet points ถ้ามีหลายประเด็น คำตอบสั้น-กระชับ ไม่เกิน 4 ประโยคหรือ 4 bullets ห้ามเขียนพรรณนายาว]`,
+  "concierge":       (q) => `ตอบคำถามต่อไปนี้ตรงประเด็น ห้ามใช้คำนำ เช่น "ขออนุญาต" หรือ "ผมจะ" — เริ่มตอบได้เลย:\n"${q}"\n[ตอบเป็นภาษาไทยมืออาชีพ ใช้ bullet points ถ้ามีหลายประเด็น ไม่เกิน 4 ประโยคหรือ 4 bullets]`,
   "tool-scout":      (q) => `ระบุ tool และวิธีการที่เหมาะสมที่สุดสำหรับ: "${q}"\n[ชื่อ tool + เหตุผล 1-2 ประโยคภาษาไทย]`,
-  "critic":          (q) => `[THINK] วิเคราะห์คำถาม: "${q}"\n→ ระบุประเด็นหลัก\n→ คิดคำตอบที่ดีที่สุด\n[ANSWER] ตอบเป็นภาษาไทยที่ถูกต้อง ครบถ้วน กระชับ ไม่เกิน 3 ประโยค`,
-  "stylist":         (q) => `เรียบเรียงคำตอบสำหรับ: "${q}"\n[ตอบภาษาไทยที่เป็นธรรมชาติ อ่านง่าย มืออาชีพ ไม่ฟุ้มเฟ้อ]`,
+  "critic":          (q) => `วิเคราะห์และตอบ: "${q}"\n→ ระบุประเด็นหลัก → ให้คำตอบที่ถูกต้องและครบถ้วน\n[ตอบเป็นภาษาไทย กระชับ ไม่เกิน 3 ประโยค]`,
+  "stylist":         (q) => `เรียบเรียงคำตอบสำหรับ: "${q}"\n[ตอบภาษาไทยที่เป็นธรรมชาติ อ่านง่าย มืออาชีพ ไม่ฟุ้มเฟ้อ ตรงประเด็น]`,
+  "thinker":         (q) => `คุณเป็นนักคิดเชิงวิเคราะห์ขั้นสูง วิเคราะห์อย่างรอบด้านก่อนตอบ:\n${q}\n\n[คิดเชิงระบบ หาสาเหตุและผล ตอบเป็นภาษาไทยที่ชัดเจน 2-4 ประโยค ห้ามเริ่มด้วย "ขออนุญาต"]`,
+  "researcher":      (q) => `ค้นหาข้อมูลและหลักฐานที่เกี่ยวข้องกับ: "${q}"\n[นำเสนอข้อเท็จจริงสำคัญ 3-5 ข้อ เป็นภาษาไทยที่กระชับและตรงประเด็น]`,
+  "fact-checker":    (q) => `ตรวจสอบความถูกต้องของข้อมูลเกี่ยวกับ: "${q}"\n[ระบุจุดที่แน่ใจและจุดที่ควรระวัง ตอบเป็นภาษาไทยที่ชัดเจน]`,
+  "linguist":        (q) => `เรียบเรียงคำตอบที่ดีที่สุดสำหรับ: "${q}"\n[ใช้ภาษาไทยที่เป็นธรรมชาติ มืออาชีพ อ่านง่าย ไม่ใช้คำศัพท์ฟุ้มเฟ้อ ตอบตรงประเด็น]`,
+  "domain-expert":   (q) => `ในฐานะผู้เชี่ยวชาญเฉพาะทาง ให้ความเห็นเชิงลึกเกี่ยวกับ: "${q}"\n[แชร์ insight ที่มีประโยชน์ ตอบเป็นภาษาไทยมืออาชีพ 2-3 ประโยค]`,
 };
 
 // ── Ollama (MDES) call ──────────────────────────────────────────────────────
@@ -650,7 +655,7 @@ export function synthesizeAnswer(
   const toolText = agentOutputs["__tool__"];
 
   if (runMode === "thinking") {
-    const ordered = ["stylist", "concierge", "rag-agent", "weather-analyst", "geo-planner", "critic", "tool-scout"];
+    const ordered = ["linguist", "stylist", "thinker", "researcher", "concierge", "rag-agent", "weather-analyst", "geo-planner", "critic", "tool-scout", "fact-checker", "domain-expert"];
     const useful = ordered
       .map((id) => agentOutputs[id])
       .filter((text): text is string => typeof text === "string" && text.trim().length > 20);
@@ -671,7 +676,7 @@ export function synthesizeAnswer(
   // Ranked priority: prefer roles that polish/respond first, then the
   // domain analysts. This replaces insertion-order luck with a deterministic
   // quality ranking when no toolText/thinking-mode synthesis applies.
-  const RANKED = ["stylist", "concierge", "critic", "rag-agent", "weather-analyst", "geo-planner"];
+  const RANKED = ["linguist", "stylist", "thinker", "concierge", "researcher", "critic", "fact-checker", "domain-expert", "rag-agent", "weather-analyst", "geo-planner"];
   for (const key of RANKED) {
     if (agentOutputs[key] && agentOutputs[key].length > 20) return agentOutputs[key];
   }

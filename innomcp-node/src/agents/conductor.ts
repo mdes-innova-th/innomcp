@@ -123,7 +123,7 @@ function composeDateTimeAnswer(): string {
 }
 
 function composeGreetingAnswer(): string {
-  return "สวัสดีครับ! ยินดีต้อนรับสู่ INNOMCP 🤝 มีอะไรให้ช่วยไหมครับ?";
+  return "สวัสดีครับ! ถามมาได้เลย ไม่ว่าจะเป็นข้อมูล คำนวณ โค้ด หรืออยากคุย 😊";
 }
 
 function composePlanningBroadAnswer(query: string, facts: string[]): string {
@@ -135,27 +135,27 @@ function composePlanningBroadAnswer(query: string, facts: string[]): string {
       : "• กำลังดึงข้อมูลจากเครื่องมือหลายชุดพร้อมกัน";
   const trimQ = query.trim().slice(0, 120);
   return [
-    `รับโจทย์: "${trimQ}"`,
+    `โจทย์: "${trimQ}"`,
     "",
-    "**จะวิเคราะห์หลายปัจจัยพร้อมกัน:**",
+    "**กำลังวิเคราะห์หลายปัจจัยพร้อมกัน:**",
     "• สภาพอากาศ + พยากรณ์ฝนรายสัปดาห์ (กรมอุตุฯ / NWP)",
     "• ข้อมูลพื้นที่ + ระยะทางการเดินทาง (Thai Geo)",
-    "• ทีม MDES กำลังวิเคราะห์ตามโจทย์เฉพาะเจาะจงของท่าน",
+    "• MDES วิเคราะห์ตามโจทย์เฉพาะนี้",
     "",
     "**ข้อมูลที่ดึงมาแล้ว:**",
     factLine,
     "",
-    "ผลสรุปจะปรากฏเมื่อทีมตัวแทนรวบรวมข้อมูลครบ",
+    "ผลสรุปจะปรากฏเมื่อรวบรวมข้อมูลครบ",
   ].join("\n");
 }
 
 function composeWeatherAnswer(query: string, facts: string[]): string {
   const factLine = facts.length > 0 ? facts.map((f) => `• ${f}`).join("\n") : "";
   return [
-    "ขออนุญาตสรุปอากาศตามที่ถามครับ",
+    "สรุปอากาศตามที่ถามครับ",
     factLine,
     "",
-    "หากต้องการข้อมูลรายชั่วโมงหรือเฉพาะอำเภอ บอกผมเพิ่มได้นะครับ",
+    "ต้องการรายชั่วโมงหรือเฉพาะอำเภอ บอกเพิ่มได้เลยครับ",
   ]
     .filter(Boolean)
     .join("\n");
@@ -168,7 +168,7 @@ function composeCalcAnswer(query: string): string {
 }
 
 function composeCodeAnswer(query: string): string {
-  return `เริ่มแก้โจทย์โค้ดให้นะครับ จะใช้โมเดล qwen2.5-coder:7b เป็นหลัก เพราะอยู่ในเครื่องและพอกับงานนี้ — รบกวนแชร์โค้ดหรือ stack trace ที่เกี่ยวข้องด้วยครับ`;
+  return `รับโจทย์โค้ดแล้ว — ใช้ qwen2.5-coder:7b แชร์โค้ดหรือ stack trace มาได้เลยครับ`;
 }
 
 function composeMapAnswer(query: string): string {
