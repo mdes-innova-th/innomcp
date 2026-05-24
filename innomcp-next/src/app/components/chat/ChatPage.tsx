@@ -23,6 +23,7 @@ import {
   isQuotaExceededError,
 } from "../../../utils/chatStorage";
 import MultiAgentPanel from "@/app/components/chat/MultiAgentPanel";
+import AgentWorkspacePanel from "@/app/components/chat/AgentWorkspacePanel";
 import ThinkingModal from "@/app/components/chat/ThinkingModal";
 import { useAgentEventStream } from "@/app/components/chat/useAgentEventStream";
 import KeyboardShortcutsPanel, { useKeyboardShortcutsPanel } from "@/app/components/chat/KeyboardShortcutsPanel";
@@ -216,6 +217,7 @@ const ChatPage: React.FC = () => {
   const searchParams = useSearchParams();
   const [shortcutsOpen, setShortcutsOpen] = useKeyboardShortcutsPanel();
   const [thinkingModalOpen, setThinkingModalOpen] = useState(false);
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   // Stored compact chat summaries (keeps up to last 10)
@@ -1003,7 +1005,8 @@ const ChatPage: React.FC = () => {
       stickyWorkingUntilRef.current = Date.now() + 1500;
       setStickyWorkingTick((t) => t + 1);
       setTimeout(() => setStickyWorkingTick((t) => t + 1), 1500);
-      setIsWaitingForResponse(true); // Prevent sending new messages until a response is received
+      setIsWaitingForResponse(true);
+      setWorkspaceOpen(true);
     } else if (socket && !isSocketReady) {
       console.error(
         "WebSocket is not ready. Please wait for the connection to be established."
@@ -1363,6 +1366,21 @@ const ChatPage: React.FC = () => {
       <div className="pointer-events-none fixed inset-0 chat-workspace-bg" />
 
       <KeyboardShortcutsPanel open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+
+      {/* INNOMCP Computer — floating right-side live agent panel */}
+      {workspaceOpen && (
+        <div className="fixed right-4 top-20 z-40 w-80 max-h-[calc(100vh-6rem)] overflow-y-auto">
+          <AgentWorkspacePanel
+            events={agentStreamState.events}
+            isStreaming={isWaitingForResponse}
+          />
+          <button
+            onClick={() => setWorkspaceOpen(false)}
+            className="absolute right-2 top-2 text-muted-foreground/60 hover:text-foreground text-lg leading-none"
+            aria-label="ปิด"
+          >✕</button>
+        </div>
+      )}
 
       {/* Floating "?" button — power-users discover Ctrl+K, Ctrl+/, etc. */}
       <button
