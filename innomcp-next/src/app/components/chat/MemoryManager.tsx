@@ -22,19 +22,10 @@ export default function MemoryManager({
   onClose?: () => void;
 }) {
   const [memories, setMemories] = useState<Memory[]>([]);
-  const [searchQ, setSearchQ] = useState("");
-  const [searchResults, setSearchResults] = useState<Memory[] | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
   const [saving, setSaving] = useState(false);
-
-  const handleSearch = (q: string) => {
-    setSearchQ(q);
-    if (!q.trim()) { setSearchResults(null); return; }
-    const p = sessionId ? `&sessionId=${sessionId}` : "";
-    fetch(`${BACKEND}/api/memories/search?q=${encodeURIComponent(q)}${p}`, { credentials: "include" })
-      .then((r) => r.json()).then((d) => setSearchResults(d.memories ?? [])).catch(() => {});
-  };
 
   const load = () => {
     const params = sessionId ? `?scope=session&sessionId=${sessionId}` : "";
@@ -76,6 +67,12 @@ export default function MemoryManager({
     }).catch(() => {});
     setMemories((m) => m.filter((x) => x.id !== id));
   };
+
+  const filteredMemories = memories.filter(
+    (m) =>
+      m.key_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.value.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="flex flex-col gap-3 p-1">
@@ -123,23 +120,34 @@ export default function MemoryManager({
 
       {/* Search */}
       <div className="relative">
-        <input value={searchQ} onChange={(e) => handleSearch(e.target.value)}
+        <input
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
           placeholder="ค้นหาความจำ..."
-          className="w-full rounded border border-border/40 bg-background px-2 py-1 text-[11.5px] text-foreground placeholder-muted-foreground/40 focus:outline-none" />
-        {searchQ && (
-          <button onClick={() => { setSearchQ(""); setSearchResults(null); }}
-            className="absolute right-2 top-1.5 text-[10px] text-muted-foreground hover:text-foreground">✕</button>
+          className="text-[12px] border border-border/40 rounded-lg px-3 py-1.5 bg-background text-foreground w-full focus:outline-none focus:ring-1 focus:ring-primary/50 placeholder-muted-foreground/40"
+        />
+        {searchTerm && (
+          <button
+            onClick={() => setSearchTerm("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground"
+            aria-label="Clear search"
+          >
+            ×
+          </button>
         )}
       </div>
+      <p className="text-[10.5px] text-muted-foreground -mt-1">
+        {filteredMemories.length} / {memories.length} memories
+      </p>
 
       {/* Memory list */}
-      {(searchResults ?? memories).length === 0 ? (
+      {filteredMemories.length === 0 ? (
         <p className="text-center text-[11px] text-muted-foreground py-4">
-          {searchQ ? "ไม่พบผลลัพธ์" : "ยังไม่มีความจำ"}
+          {searchTerm ? "ไม่พบผลลัพธ์" : "ยังไม่มีความจำ"}
         </p>
       ) : (
         <div className="flex flex-col gap-1.5">
-          {(searchResults ?? memories).map((m) => (
+          {filteredMemories.map((m) => (
             <div
               key={m.id}
               className="flex items-start gap-2 rounded-lg border border-border/30 bg-background/60 p-2"
