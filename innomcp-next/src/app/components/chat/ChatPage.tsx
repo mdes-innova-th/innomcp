@@ -27,6 +27,7 @@ import AgentWorkspacePanel from "@/app/components/chat/AgentWorkspacePanel";
 import ThinkingModal from "@/app/components/chat/ThinkingModal";
 import { useAgentEventStream } from "@/app/components/chat/useAgentEventStream";
 import KeyboardShortcutsPanel, { useKeyboardShortcutsPanel } from "@/app/components/chat/KeyboardShortcutsPanel";
+import ArtifactPanel, { type Artifact } from "@/app/components/chat/ArtifactPanel";
 // icons are used in ChatInput; not needed here
 
 // Define the type for a chat message
@@ -151,6 +152,38 @@ function shouldForceCollapsedSidebar(): boolean {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 1279px)").matches;
 }
 
+function extractArtifacts(text: string, messageId: string): Artifact[] {
+  const arts: Artifact[] = [];
+  const codeBlockRegex = /```(\w+)?\n([\s\S]+?)```/g;
+  let match;
+  let idx = 0;
+  while ((match = codeBlockRegex.exec(text)) !== null) {
+    const lang = match[1] || "text";
+    const content = match[2].trim();
+    if (content.length > 100) {
+      arts.push({
+        id: `${messageId}-${idx++}`,
+        name: `artifact-${idx}.${lang === "markdown" || lang === "md" ? "md" : lang}`,
+        type:
+          lang === "markdown" || lang === "md"
+            ? "markdown"
+            : lang === "json"
+            ? "json"
+            : lang === "csv"
+            ? "csv"
+            : lang === "html"
+            ? "html"
+            : "code",
+        content,
+        language: lang,
+        createdAt: Date.now(),
+        taskId: messageId,
+      });
+    }
+  }
+  return arts;
+}
+
 function persistMessagesToLocalStorage(messages: ChatMessage[]): void {
   if (messages.length === 0) {
     localStorage.removeItem("chatMessages");
@@ -218,6 +251,8 @@ const ChatPage: React.FC = () => {
   const [shortcutsOpen, setShortcutsOpen] = useKeyboardShortcutsPanel();
   const [thinkingModalOpen, setThinkingModalOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+  const [artifactPanelOpen, setArtifactPanelOpen] = useState(false);
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   // Stored compact chat summaries (keeps up to last 10)
@@ -852,6 +887,19 @@ const ChatPage: React.FC = () => {
       return updated;
     });
     activeAgentStreamRequestRef.current = null;
+
+    // PAS-1: extract artifacts from final text
+    if (mdesText && mdesText.length > 0) {
+      const newArts = extractArtifacts(mdesText, activeMessageId ?? String(Date.now()));
+      if (newArts.length > 0) {
+        setArtifacts(prev => {
+          const existingIds = new Set(prev.map(a => a.id));
+          const deduplicated = newArts.filter(a => !existingIds.has(a.id));
+          return deduplicated.length > 0 ? [...prev, ...deduplicated] : prev;
+        });
+        setArtifactPanelOpen(true);
+      }
+    }
   }, [agentStreamState.activeMessageId, agentStreamState.finalText, agentStreamState.status]);
 
   // MDES streaming preview: show concierge/critic answer while other agents still running.
@@ -1393,6 +1441,16 @@ const ChatPage: React.FC = () => {
         </div>
       )}
 
+      {/* PAS-1: Artifact Panel — floats below agent workspace panel */}
+      {artifactPanelOpen && (
+        <div className="fixed right-4 top-[calc(20rem+1rem)] z-40 w-80 max-h-[calc(100vh-22rem)] overflow-y-auto rounded-xl border border-border/50 bg-background/95 shadow-xl backdrop-blur-sm p-3">
+          <ArtifactPanel
+            artifacts={artifacts}
+            onClose={() => setArtifactPanelOpen(false)}
+          />
+        </div>
+      )}
+
       {/* Floating "?" button — power-users discover Ctrl+K, Ctrl+/, etc. */}
       <button
         onClick={() => setShortcutsOpen(true)}
@@ -1475,6 +1533,16 @@ const ChatPage: React.FC = () => {
                   <span aria-hidden="true">·</span>
                   <span>{workspaceState.title}</span>
                 </span>
+                {artifacts.length > 0 && (
+                  <button
+                    onClick={() => setArtifactPanelOpen(v => !v)}
+                    className="ml-1 shrink-0 inline-flex items-center gap-1 rounded-md border border-border/50 bg-background/80 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
+                    title="เปิด/ปิด Artifact Panel"
+                  >
+                    <span>📄</span>
+                    <span>Artifacts ({artifacts.length})</span>
+                  </button>
+                )}
               </div>
             ) : null}
 
