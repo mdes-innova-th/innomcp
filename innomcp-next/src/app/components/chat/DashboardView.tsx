@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -94,6 +95,7 @@ export default function DashboardView({
 }: {
   onOpenChat?: () => void;
 }) {
+  const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -179,6 +181,7 @@ export default function DashboardView({
             {data.recentTasks.map((t) => (
               <div
                 key={t.id}
+                onClick={() => router.push(`/tasks/${t.id}`)}
                 className="flex items-center gap-3 rounded-lg border border-border/30 bg-background/60 px-3 py-2 hover:bg-muted/20 transition-colors cursor-pointer"
               >
                 <span

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 
 export interface Artifact {
   id: string;
@@ -14,6 +14,19 @@ export interface Artifact {
 interface Props {
   artifacts: Artifact[];
   onClose?: () => void;
+}
+
+/** Parse YAML frontmatter and extract source_url value, or return null. */
+function extractSourceUrl(content: string): string | null {
+  // Frontmatter must start at the very first line
+  if (!content.startsWith("---")) return null;
+  const secondDash = content.indexOf("\n---", 3);
+  if (secondDash === -1) return null;
+  const block = content.slice(3, secondDash);
+  const match = block.match(/^source_url:\s*(.+)$/m);
+  if (!match) return null;
+  const url = match[1].trim();
+  return url.length > 0 ? url : null;
 }
 
 function MarkdownPreview({ content }: { content: string }) {
@@ -50,6 +63,12 @@ export default function ArtifactPanel({ artifacts, onClose }: Props) {
   const [tab, setTab] = useState<"preview" | "raw" | "download">("preview");
 
   const current = artifacts.find(a => a.id === selected);
+
+  const sourceUrl = useMemo(
+    () =>
+      current?.type === "markdown" ? extractSourceUrl(current.content) : null,
+    [current]
+  );
 
   const handleDownload = () => {
     if (!current) return;
@@ -127,20 +146,32 @@ export default function ArtifactPanel({ artifacts, onClose }: Props) {
       {current && (
         <>
           {/* Tabs */}
-          <div className="flex gap-0.5 border-b border-border/40 pb-1">
-            {(["preview", "raw", "download"] as const).map(t => (
-              <button
-                key={t}
-                onClick={() => setTab(t)}
-                className={`px-3 py-1 text-[11px] transition-colors ${
-                  tab === t
-                    ? "border-b-2 border-primary text-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+          <div className="flex items-center justify-between border-b border-border/40 pb-1">
+            <div className="flex gap-0.5">
+              {(["preview", "raw", "download"] as const).map(t => (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className={`px-3 py-1 text-[11px] transition-colors ${
+                    tab === t
+                      ? "border-b-2 border-primary text-foreground font-medium"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t === "preview" ? "Preview" : t === "raw" ? "Raw" : "⬇ Download"}
+                </button>
+              ))}
+            </div>
+            {sourceUrl && (
+              <a
+                href={sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-[10.5px] text-blue-600 dark:text-blue-400 hover:underline cursor-pointer pr-1"
               >
-                {t === "preview" ? "Preview" : t === "raw" ? "Raw" : "⬇ Download"}
-              </button>
-            ))}
+                🔗 Source
+              </a>
+            )}
           </div>
 
           {/* Content */}
