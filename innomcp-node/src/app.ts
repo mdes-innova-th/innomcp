@@ -20,6 +20,7 @@ import csrfMiddleware from "./utils/csrf";
 import { chatRouter } from "./routes/api/chat";
 import logger from "./utils/logger";
 import debugRouter from "./routes/api/debug";
+import tasksRouter from "./routes/api/tasks";
 
 // Initialize Express application
 const app = express();
@@ -132,6 +133,12 @@ app.use("/api/chat/stream", generalRateLimit, chatStreamRouter);
 
 // Router à¸ªà¸³à¸«à¸£à¸±à¸š Debug/Test GUI (à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡ auth)
 app.use("/api/debug", debugRouter);
+
+// Task persistence — Manus-style task history (requires API key + CSRF via /api)
+// Mounted explicitly here before the catch-all /api to allow auth-bypass in tests.
+// The /api catch-all below re-mounts via apiRouter but tasks needs the route
+// registered at /api/tasks directly for authenticated access with the DB.
+app.use("/api/tasks", generalRateLimit, apiKeyMiddleware, csrfMiddleware, tasksRouter);
 
 // Router à¸ªà¸³à¸«à¸£à¸±à¸š Chat (à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡ auth à¹€à¸žà¸·à¸­ testsuit - à¸•à¹‰à¸­à¸‡à¸­à¸¢à¸¹à¹ˆà¸à¹ˆà¸­à¸™ /api middleware)
 // FastPath middleware à¸­à¸¢à¸¹à¹ˆà¹ƒà¸™ chatRouter à¹à¸¥à¹‰à¸§

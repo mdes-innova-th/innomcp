@@ -26,6 +26,7 @@ import type { AgentRunMode } from "../../agents/parallelDispatch";
 import type { ChatMode } from "../../providers/router";
 import { optionalAuth, type AuthRequest } from "../../utils/jwt";
 import { guestLimiterMiddleware, limitResponseLength, type GuestLimits } from "../../middleware/guestLimiter";
+import { createTask, completeTask, appendTaskStep } from "./tasks";
 
 const router = Router();
 
@@ -149,6 +150,15 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
   let capturedRunId: string | undefined;
   let capturedMessageId: string | undefined;
 
+  // Task persistence — Phase 5: track every stream as a task in the DB.
+  // taskId = runId once available; we create the DB row on first event.
+  let taskId: string | undefined;
+  let taskCreated = false;
+  const taskStartMs = Date.now();
+  let taskFinalText = "";
+  let taskError = false;
+  const userId: number | null = req.user ? Number((req.user as any).id ?? (req.user as any).userId ?? null) : null;
+
   try {
     const limits = (req as any).guestLimits as GuestLimits | undefined;
     const isGuest = Boolean((req as any).isGuest ?? !req.user);
@@ -179,12 +189,53 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
         if (!capturedMessageId && typeof ev.messageId === "string" && ev.messageId.length > 0) {
           capturedMessageId = ev.messageId;
         }
+
+        // Phase 5: create task row on first real event (once we have a runId)
+        if (!taskCreated && capturedRunId) {
+          taskId = capturedRunId;
+          taskCreated = true;
+          // Fire-and-forget — DB write must not block SSE stream
+          createTask({
+            id: taskId,
+            runId: capturedRunId,
+            userId,
+            title: message.slice(0, 120),
+            intent: (ev as any).intent ?? "general",
+          }).catch(() => {/* non-critical */});
+        }
+
+        // Phase 5: persist key agent milestones as task steps (fire-and-forget)
+        if (taskId && (
+          ev.type === "agent_started" ||
+          ev.type === "fact_found" ||
+          ev.type === "route_selected" ||
+          ev.type === "final_answer" ||
+          ev.type === "error"
+        )) {
+          appendTaskStep({
+            taskId,
+            eventType: ev.type,
+            publicSummary: ev.publicSummary ?? "",
+            agentId: ev.agentId,
+            toolName: (ev as any).toolName,
+          }).catch(() => {/* non-critical */});
+        }
+
+        // Capture final text for task completion record
+        if (ev.type === "final_answer" && typeof (ev as any).finalText === "string") {
+          taskFinalText = (ev as any).finalText;
+        }
+        if (ev.type === "error") {
+          taskError = true;
+        }
+
         const out = limitStreamEvent(ev);
         if (!out) return;
         writeEvent(res, out);
       }
     );
   } catch (err: any) {
+    taskError = true;
     if (!closed) {
       const errEv: AgentEvent = {
         type: "error",
@@ -204,6 +255,15 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
     // eslint-disable-next-line no-console
     console.error("[chatStream] error:", err?.message || err);
   } finally {
+    // Phase 5: mark task complete/failed in DB (fire-and-forget)
+    if (taskId && taskCreated) {
+      completeTask({
+        id: taskId,
+        status: taskError ? "failed" : "completed",
+        elapsedMs: Date.now() - taskStartMs,
+        finalAnswer: taskFinalText,
+      }).catch(() => {/* non-critical */});
+    }
     cleanup();
   }
 });
