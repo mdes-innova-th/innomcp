@@ -22,9 +22,19 @@ export default function MemoryManager({
   onClose?: () => void;
 }) {
   const [memories, setMemories] = useState<Memory[]>([]);
+  const [searchQ, setSearchQ] = useState("");
+  const [searchResults, setSearchResults] = useState<Memory[] | null>(null);
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const handleSearch = (q: string) => {
+    setSearchQ(q);
+    if (!q.trim()) { setSearchResults(null); return; }
+    const p = sessionId ? `&sessionId=${sessionId}` : "";
+    fetch(`${BACKEND}/api/memories/search?q=${encodeURIComponent(q)}${p}`, { credentials: "include" })
+      .then((r) => r.json()).then((d) => setSearchResults(d.memories ?? [])).catch(() => {});
+  };
 
   const load = () => {
     const params = sessionId ? `?scope=session&sessionId=${sessionId}` : "";
@@ -111,14 +121,25 @@ export default function MemoryManager({
         </button>
       </div>
 
+      {/* Search */}
+      <div className="relative">
+        <input value={searchQ} onChange={(e) => handleSearch(e.target.value)}
+          placeholder="ค้นหาความจำ..."
+          className="w-full rounded border border-border/40 bg-background px-2 py-1 text-[11.5px] text-foreground placeholder-muted-foreground/40 focus:outline-none" />
+        {searchQ && (
+          <button onClick={() => { setSearchQ(""); setSearchResults(null); }}
+            className="absolute right-2 top-1.5 text-[10px] text-muted-foreground hover:text-foreground">✕</button>
+        )}
+      </div>
+
       {/* Memory list */}
-      {memories.length === 0 ? (
+      {(searchResults ?? memories).length === 0 ? (
         <p className="text-center text-[11px] text-muted-foreground py-4">
-          ยังไม่มีความจำ
+          {searchQ ? "ไม่พบผลลัพธ์" : "ยังไม่มีความจำ"}
         </p>
       ) : (
         <div className="flex flex-col gap-1.5">
-          {memories.map((m) => (
+          {(searchResults ?? memories).map((m) => (
             <div
               key={m.id}
               className="flex items-start gap-2 rounded-lg border border-border/30 bg-background/60 p-2"
