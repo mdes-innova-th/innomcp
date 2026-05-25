@@ -94,10 +94,12 @@ Last updated: 2026-05-25 | Session: 10 iterations complete
 | 10 | 2026-05-25 | aria-live on LIVE badge, scope="col" on table headers, feedback field name fix (messageId camelCase), 400 input validation | (this commit) |
 
 | PAS-4 | 2026-05-25 | Model Settings panel — 6 provider presets + ad-hoc /test endpoint + sidebar SlideOver | 55e0e2d |
+| PAS-5 | 2026-05-25 | ApprovalGate dialog + riskDetector service (critical/high/medium/low patterns) | 1c36680 |
 
 ## PAS Status — Private Agent Studio
 **PAS-4: Model Settings page — DONE**
-**Tests: 745/745 Jest**
+**PAS-5: ApprovalGate + riskDetector — DONE (5/5 tests, TSC clean)**
+**Tests: 750/750 Jest**
 **TypeScript: Clean (both packages)**
 
 ## Final Status — Iter 10 + PAS (COMPLETE)
