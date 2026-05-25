@@ -21,6 +21,7 @@ import MemoryManager from "./MemoryManager";
 import DashboardView from "./DashboardView";
 import TaskDetailPanel from "./TaskDetailPanel";
 import WorkspaceFileBrowser from "@/app/components/tools/WorkspaceFileBrowser";
+import PluginPanel from "@/app/components/chat/PluginPanel";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -556,19 +557,7 @@ const ChatSidebar: React.FC<Props> = ({
   );
 
   // ─── Slide-over: Plugins ──────────────────────────────────────────────────
-  const PluginsPanelContent = () => (
-    <div className="grid grid-cols-3 gap-2">
-      {MCP_PLUGINS.map((p) => (
-        <div
-          key={p.id}
-          className="flex flex-col items-center gap-1.5 rounded-lg border border-border/50 bg-muted/30 p-3 text-center hover:border-primary/30 hover:bg-primary/5 cursor-default"
-        >
-          <span className="text-2xl leading-none">{p.icon}</span>
-          <span className="text-[11px] font-medium text-foreground leading-tight">{p.name}</span>
-        </div>
-      ))}
-    </div>
-  );
+  const PluginsPanelContent = () => <PluginPanel />;
 
   // ─── Slide-over: Library ──────────────────────────────────────────────────
   const LibraryPanelContent = () =>

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import type { AgentEvent } from "./useAgentEventStream";
 import ShellOutputView from "@/app/components/tools/ShellOutputView";
 import LiveTerminal from "@/app/components/tools/LiveTerminal";
+import AgentCoordinationView from "./AgentCoordinationView";
 
 /** Format seconds as MM:SS */
 function formatElapsed(seconds: number): string {
@@ -259,6 +260,9 @@ export default function AgentWorkspacePanel({ events, isStreaming, runId }: Prop
           })}
         </ul>
       )}
+
+      {/* Agent Coordination View — multi-agent dispatch status */}
+      <AgentCoordinationView events={events} isStreaming={isStreaming} />
 
       {/* Shell output view — live streaming when running, static when completed */}
       {lastShellEvent && (

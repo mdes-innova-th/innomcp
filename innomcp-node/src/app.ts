@@ -33,6 +33,7 @@ import dashboardRouter from "./routes/api/dashboard";
 import analyzeRouter from "./routes/api/analyze";
 import providerTestRouter from "./routes/api/providerTest";
 import providerHealthRouter from "./routes/api/providerHealth";
+import pluginsRouter from "./routes/api/plugins";
 
 // Initialize Express application
 const app = express();
@@ -176,6 +177,9 @@ app.use("/api/shell", generalRateLimit, shellRouter);
 
 // Web Fetch Tool — SSRF-safe URL fetcher + HTML→Markdown + workspace artifact
 app.use("/api/fetch", generalRateLimit, webFetchRouter);
+
+// Plugin Registry — list and toggle installed plugins
+app.use("/api/plugins", generalRateLimit, pluginsRouter);
 
 // Data Analysis Tool — CSV/JSON stats + bar chart SVG + workspace artifact
 app.use("/api/analyze", generalRateLimit, analyzeRouter);

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useRef, useContext, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -22,17 +22,38 @@ import {
   compactChatMessagesForStorage,
   isQuotaExceededError,
 } from "../../../utils/chatStorage";
+import dynamic from "next/dynamic";
 import MultiAgentPanel from "@/app/components/chat/MultiAgentPanel";
 import AgentWorkspacePanel from "@/app/components/chat/AgentWorkspacePanel";
-import ThinkingModal from "@/app/components/chat/ThinkingModal";
 import { useAgentEventStream } from "@/app/components/chat/useAgentEventStream";
 import KeyboardShortcutsPanel, { useKeyboardShortcutsPanel } from "@/app/components/chat/KeyboardShortcutsPanel";
-import ArtifactPanel, { type Artifact } from "@/app/components/chat/ArtifactPanel";
-import PlanViewer from "@/app/components/chat/PlanViewer";
+import type { Artifact } from "@/app/components/chat/ArtifactPanel";
 import { buildPlanFromEvents } from "../../../utils/planExtractor";
-import ApprovalGate, { type ApprovalRequest } from "@/app/components/chat/ApprovalGate";
+import type { ApprovalRequest } from "@/app/components/chat/ApprovalGate";
 import { useTaskNotifications } from "@/app/hooks/useTaskNotifications";
-import CommandPalette from "@/app/components/common/CommandPalette";
+import { ErrorBoundary } from "@/app/components/common/ErrorBoundary";
+
+// Phase 4 — lazy-load panel/modal components not needed on initial paint
+const ThinkingModal = dynamic(() => import("@/app/components/chat/ThinkingModal"), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">กำลังโหลด...</div>,
+});
+const ArtifactPanel = dynamic(() => import("@/app/components/chat/ArtifactPanel"), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">กำลังโหลด...</div>,
+});
+const PlanViewer = dynamic(() => import("@/app/components/chat/PlanViewer"), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">กำลังโหลด...</div>,
+});
+const ApprovalGate = dynamic(() => import("@/app/components/chat/ApprovalGate"), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">กำลังโหลด...</div>,
+});
+const CommandPalette = dynamic(() => import("@/app/components/common/CommandPalette"), {
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">กำลังโหลด...</div>,
+});
 // icons are used in ChatInput; not needed here
 
 // Define the type for a chat message
@@ -1498,10 +1519,12 @@ const ChatPage: React.FC = () => {
       {/* INNOMCP Computer — floating right-side live agent panel */}
       {workspaceOpen && (
         <div className="fixed inset-x-2 top-16 z-40 max-h-[50vh] overflow-y-auto sm:inset-x-auto sm:right-4 sm:top-20 sm:w-80 sm:max-h-[calc(100vh-6rem)]">
-          <AgentWorkspacePanel
-            events={agentStreamState.events}
-            isStreaming={isWaitingForResponse}
-          />
+          <ErrorBoundary componentName="AgentWorkspacePanel">
+            <AgentWorkspacePanel
+              events={agentStreamState.events}
+              isStreaming={isWaitingForResponse}
+            />
+          </ErrorBoundary>
           <button
             onClick={() => setWorkspaceOpen(false)}
             className="absolute right-2 top-2 text-muted-foreground/60 hover:text-foreground text-lg leading-none"
@@ -1513,10 +1536,12 @@ const ChatPage: React.FC = () => {
       {/* PAS-1: Artifact Panel — floats below agent workspace panel */}
       {artifactPanelOpen && (
         <div className="fixed inset-x-2 top-[calc(50vh+0.5rem)] z-40 max-h-[40vh] overflow-y-auto rounded-xl border border-border/50 bg-background/95 shadow-xl backdrop-blur-sm p-3 sm:inset-x-auto sm:right-4 sm:top-[calc(20rem+1rem)] sm:w-80 sm:max-h-[calc(100vh-22rem)]">
-          <ArtifactPanel
-            artifacts={artifacts}
-            onClose={() => setArtifactPanelOpen(false)}
-          />
+          <ErrorBoundary componentName="ArtifactPanel">
+            <ArtifactPanel
+              artifacts={artifacts}
+              onClose={() => setArtifactPanelOpen(false)}
+            />
+          </ErrorBoundary>
         </div>
       )}
 
@@ -1524,10 +1549,12 @@ const ChatPage: React.FC = () => {
       {planViewerOpen && (
         <div className="fixed inset-x-2 top-16 z-[39] max-h-[40vh] overflow-y-auto sm:inset-x-auto sm:right-[calc(1rem+20rem+0.5rem)] sm:top-20 sm:w-72 sm:max-h-[calc(100vh-6rem)]">
           <div className="rounded-xl border border-border/60 bg-background/95 p-3 shadow-sm backdrop-blur">
-            <PlanViewer
-              plan={buildPlanFromEvents(agentStreamState.events, agentStreamState.activeMessageId ?? "")}
-              onClose={() => setPlanViewerOpen(false)}
-            />
+            <ErrorBoundary componentName="PlanViewer">
+              <PlanViewer
+                plan={buildPlanFromEvents(agentStreamState.events, agentStreamState.activeMessageId ?? "")}
+                onClose={() => setPlanViewerOpen(false)}
+              />
+            </ErrorBoundary>
           </div>
         </div>
       )}
@@ -1872,14 +1899,16 @@ const ChatPage: React.FC = () => {
                     return visible.map((message, index) => {
                       const inlinePanel =
                         showInlinePanel && index === lastAiIdx ? (
-                          <MultiAgentPanel
-                            events={agentStreamState.events}
-                            status={agentStreamState.status}
-                            expandAll={expandAll}
-                            onToggleExpandAll={() => setExpandAll((v) => !v)}
-                            inline
-                            defaultCollapsed
-                          />
+                          <ErrorBoundary componentName="MultiAgentPanel">
+                            <MultiAgentPanel
+                              events={agentStreamState.events}
+                              status={agentStreamState.status}
+                              expandAll={expandAll}
+                              onToggleExpandAll={() => setExpandAll((v) => !v)}
+                              inline
+                              defaultCollapsed
+                            />
+                          </ErrorBoundary>
                         ) : null;
                       return (
                         <MessageView
@@ -1900,14 +1929,16 @@ const ChatPage: React.FC = () => {
                   {/* When no AI message yet but SSE is already streaming, anchor a compact panel at bottom */}
                   {(agentStreamState.status !== "idle" || agentStreamState.events.length > 0) &&
                     !messages.some((m) => m.sender === "ai") && (
-                      <MultiAgentPanel
-                        events={agentStreamState.events}
-                        status={agentStreamState.status}
-                        expandAll={expandAll}
-                        onToggleExpandAll={() => setExpandAll((v) => !v)}
-                        inline
-                        defaultCollapsed
-                      />
+                      <ErrorBoundary componentName="MultiAgentPanel">
+                        <MultiAgentPanel
+                          events={agentStreamState.events}
+                          status={agentStreamState.status}
+                          expandAll={expandAll}
+                          onToggleExpandAll={() => setExpandAll((v) => !v)}
+                          inline
+                          defaultCollapsed
+                        />
+                      </ErrorBoundary>
                     )}
                   {(isWaitingForResponse || isWorkingSticky) &&
                     (!messages.length ||
@@ -1989,7 +2020,7 @@ const ChatPage: React.FC = () => {
 
           {/* Sticky composer — viewport-sticky, single browser scrollbar */}
           {(hasMessages || isWaitingForResponse) && (
-            <div className="sticky bottom-4 z-30 mx-auto mt-3 w-full max-w-[50rem] rounded-xl bg-background/96 pb-1 pt-1 backdrop-blur-sm">
+            <div className="sticky bottom-20 md:bottom-4 z-30 mx-auto mt-3 w-full max-w-[50rem] rounded-xl bg-background/96 pb-1 pt-1 backdrop-blur-sm">
               {/* Phase 10.34 — soft fade above the composer so messages don't
                   clip into the textarea on a hard line. Pointer-events-none
                   so the user can still click through near the edge. */}

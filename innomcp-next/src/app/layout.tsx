@@ -11,6 +11,7 @@ import Header from "@/app/components/Header";
 import ModeStatusBar from "@/app/components/ModeStatusBar";
 import GlobalLoadingOverlay from "@/app/components/common/GlobalLoadingOverlay";
 import FooterWrapper from "@/app/components/FooterWrapper";
+import MobileNav from "@/app/components/common/MobileNav";
 import { config } from "@fortawesome/fontawesome-svg-core";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 
@@ -103,13 +104,14 @@ export default async function RootLayout({
               <Header />
               <ModeStatusBar />
               <GlobalLoadingOverlay />
-              <main className="relative flex-1 overflow-x-hidden pt-24">
+              <main className="relative flex-1 overflow-x-hidden pt-24 pb-16 md:pb-0">
                 {children}
               </main>
               <FooterWrapper />
             </ToastProvider>
           </ThemeProvider>
         </AuthProvider>
+        <MobileNav />
       </body>
     </html>
   );
