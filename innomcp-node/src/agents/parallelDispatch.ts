@@ -281,14 +281,21 @@ function compressHistory(history: Array<{ sender: string; text: string }>, keepL
 const AGENT_PROMPT: Record<string, (q: string, ctx?: string) => string> = {
   "weather-analyst": (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}คุณเป็นผู้เชี่ยวชาญด้านสภาพอากาศ วิเคราะห์และตอบ: "${q}"\n[ตอบตรงๆ เป็นภาษาไทย 2-3 ประโยค ไม่ต้องขึ้นต้นด้วย "ผม" หรือ "ขออนุญาต"]`,
   "geo-planner":     (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}คุณเป็นผู้เชี่ยวชาญด้านภูมิศาสตร์และการเดินทาง วิเคราะห์และตอบ: "${q}"\n[ตอบตรงๆ เป็นภาษาไทย 2-3 ประโยค]`,
-  "rag-agent":       (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ค้นหาและสรุปความรู้เกี่ยวกับ: "${q}"\n[ตอบเป็นภาษาไทย กระชับ ตรงประเด็น ถ้ามีหลายประเด็นให้ใช้ bullet points]`,
+  "rag-agent":       (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ค้นหาและสรุปความรู้เกี่ยวกับ: "${q}"
+หากพบข้อมูล: ตอบตรงๆ เป็นภาษาไทย 2-4 ประโยค ระบุแหล่งที่มาสั้นๆ ถ้าทราบ (เช่น "จากกฎหมาย PDPA...", "จากข้อมูลราชการ...", "จากหลักวิทยาศาสตร์...")
+หากไม่พบข้อมูลชัดเจน: บอกตรงๆว่า "ไม่มีข้อมูลเพียงพอ" แล้วแนะนำแหล่งที่น่าค้นหาต่อ
+ห้ามเดา ห้ามสร้างข้อมูลขึ้นมา`,
   "concierge":       (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ตอบคำถามต่อไปนี้ตรงประเด็น ห้ามใช้คำนำ เช่น "ขออนุญาต" หรือ "ผมจะ" — เริ่มตอบได้เลย:\n"${q}"\n[ตอบเป็นภาษาไทยมืออาชีพ ใช้ bullet points ถ้ามีหลายประเด็น ไม่เกิน 4 ประโยคหรือ 4 bullets]`,
   "tool-scout":      (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ระบุ tool และวิธีการที่เหมาะสมที่สุดสำหรับ: "${q}"\n[ชื่อ tool + เหตุผล 1-2 ประโยคภาษาไทย]`,
   "critic":          (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}วิเคราะห์และตอบ: "${q}"\n→ ระบุประเด็นหลัก → ให้คำตอบที่ถูกต้องและครบถ้วน\nตอบตรงๆ เป็นภาษาไทย ไม่เกิน 3 ประโยค ห้ามเกริ่นนำ`,
   "stylist":         (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ตอบเลย ไม่ต้องบอกว่าเป็น AI: "${q}"\nพูดแบบเพื่อนที่รู้เรื่องดี ภาษาไทยเป็นธรรมชาติ กระชับ ไม่เกิน 3 ประโยค ห้ามขึ้นต้นด้วย "ขออนุญาต" หรือ "แน่นอน"`,
   "thinker":         (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}คุณเป็นนักคิดเชิงวิเคราะห์ขั้นสูง วิเคราะห์อย่างรอบด้านก่อนตอบ:\n${q}\n\nคิดเชิงระบบ หาสาเหตุและผล แล้วตอบเป็นภาษาไทยที่ชัดเจน 2-4 ประโยค ห้ามเริ่มด้วย "ขออนุญาต"`,
   "researcher":      (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ค้นหาข้อมูลและหลักฐานที่เกี่ยวข้องกับ: "${q}"\n1. ข้อเท็จจริงหลัก\n2. แหล่งที่มาหรือบริบท\n3. ประเด็นที่ควรรู้เพิ่มเติม\nตอบเป็นภาษาไทยกระชับตรงประเด็น`,
-  "fact-checker":    (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ตรวจสอบความถูกต้องของข้อมูลเกี่ยวกับ: "${q}"\n1. ข้อเท็จจริงที่ยืนยันได้\n2. จุดที่ควรระวังหรือตรวจสอบเพิ่ม\n3. สรุปความน่าเชื่อถือโดยรวม\nตอบเป็นภาษาไทยที่ชัดเจน`,
+  "fact-checker":    (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ตรวจสอบข้อมูลเกี่ยวกับ: "${q}"
+1. ระบุว่าข้อมูลใดน่าเชื่อถือ (มีหลักฐานรองรับชัดเจน)
+2. ระบุข้อมูลที่ไม่แน่ใจหรือต้องการการตรวจสอบเพิ่มเติม
+3. ถ้าไม่มีข้อมูลเพียงพอ บอกตรงๆ อย่าเดา
+ตอบสั้น 2-3 ประโยค ห้ามปั้นข้อมูลขึ้นมา`,
   "linguist":        (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}สมมติเป็นผู้รู้เรื่องนี้ดี ตอบตรงๆ เลย: "${q}"\nภาษาไทยเหมือนคนจริงๆ คุย ไม่ต้องบอกที่มา ไม่ต้องขึ้นต้นด้วย "แน่นอน" หรือ "ดีใจที่ถาม" ตอบสั้นไม่เกิน 3 ประโยค`,
   "domain-expert":   (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}เป็นผู้เชี่ยวชาญเรื่องนี้ ตอบตรงโดยไม่ต้องแนะนำตัว: "${q}"\nให้ข้อมูลจากมุมมองผู้รู้จริง ภาษาไทยกระชับ ไม่เกิน 4 ประโยค ห้ามเกริ่นนำ`,
 };
@@ -703,7 +710,16 @@ export function synthesizeAnswer(
     // Return the single best answer — linguist/stylist already outrank raw thinker.
     // Stitching two answers creates a confusing "dual-voice" response; one polished
     // answer reads as a whole and feels natural to the user.
-    if (unique.length >= 1) return unique[0];
+    if (unique.length >= 1) {
+      const notFoundMarkers = ["ไม่พบข้อมูล", "ไม่มีข้อมูล", "not found", "cannot find", "ไม่มีข้อมูลเพียงพอ"];
+      const allNotFound = unique.every((t) =>
+        notFoundMarkers.some((m) => t.toLowerCase().includes(m.toLowerCase()))
+      );
+      if (allNotFound) {
+        return "ขออภัย ไม่พบข้อมูลที่ชัดเจนสำหรับคำถามนี้ ลองถามด้วยคำที่เฉพาะเจาะจงมากขึ้น หรือลองค้นหาจากแหล่งข้อมูลอื่นเพิ่มเติม";
+      }
+      return unique[0];
+    }
   }
 
   if (toolText && toolText.length > 20) return toolText;
@@ -718,5 +734,22 @@ export function synthesizeAnswer(
     .filter(([key]) => !key.startsWith("__partial_"))
     .map(([, text]) => text)
     .find((t) => t.length > 20);
+
+  // NOT_FOUND handling: if ALL non-partial outputs contain "not found" markers,
+  // return a helpful fallback instead of raw agent text or fallbackText.
+  if (first) {
+    const notFoundMarkers = ["ไม่พบข้อมูล", "ไม่มีข้อมูล", "not found", "cannot find", "ไม่มีข้อมูลเพียงพอ"];
+    const useful = Object.entries(agentOutputs)
+      .filter(([key]) => !key.startsWith("__partial_"))
+      .map(([, text]) => text)
+      .filter((t) => t.length > 20);
+    const allNotFound = useful.length > 0 && useful.every((t) =>
+      notFoundMarkers.some((m) => t.toLowerCase().includes(m.toLowerCase()))
+    );
+    if (allNotFound) {
+      return "ขออภัย ไม่พบข้อมูลที่ชัดเจนสำหรับคำถามนี้ ลองถามด้วยคำที่เฉพาะเจาะจงมากขึ้น หรือลองค้นหาจากแหล่งข้อมูลอื่นเพิ่มเติม";
+    }
+  }
+
   return first ?? fallbackText;
 }
