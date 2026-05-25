@@ -1,0 +1,116 @@
+"use client";
+import React, { useState } from "react";
+
+interface AgentEntry {
+  id: string;
+  name: string;
+  role: string;
+  provider: string;
+  model: string;
+  status: "active" | "standby";
+}
+
+const PROVIDER_COLORS: Record<string, string> = {
+  "MDES": "text-sky-600 dark:text-sky-400",
+  "ThaiLLM": "text-teal-600 dark:text-teal-400",
+  "Ollama Local": "text-amber-600 dark:text-amber-400",
+  "GPT": "text-green-600 dark:text-green-400",
+  "GitHub Copilot": "text-purple-600 dark:text-purple-400",
+  "Claude Haiku": "text-orange-600 dark:text-orange-400",
+  "Claude Sonnet": "text-rose-600 dark:text-rose-400",
+};
+
+const ALL_AGENTS: AgentEntry[] = [
+  { id: "concierge",     name: "Concierge",      role: "Thai Responder",        provider: "MDES",           model: "gemma3:12b",        status: "active"  },
+  { id: "critic",        name: "Critic",          role: "Quality Verifier",      provider: "MDES",           model: "gemma3:12b",        status: "active"  },
+  { id: "stylist",       name: "Stylist",         role: "Language Polish",       provider: "MDES",           model: "gemma3:12b",        status: "active"  },
+  { id: "thinker",       name: "Thinker",         role: "Deep Analyzer",         provider: "MDES",           model: "gemma3:12b",        status: "active"  },
+  { id: "researcher",    name: "Researcher",      role: "Fact Finder",           provider: "MDES",           model: "gemma3:12b",        status: "active"  },
+  { id: "fact-checker",  name: "Fact Checker",    role: "Accuracy Guard",        provider: "MDES",           model: "gemma3:12b",        status: "active"  },
+  { id: "linguist",      name: "Linguist",        role: "Thai Language Expert",  provider: "ThaiLLM",        model: "gemma3:12b",        status: "active"  },
+  { id: "domain-expert", name: "Domain Expert",   role: "Specialist Insight",    provider: "MDES",           model: "gemma3:12b",        status: "active"  },
+  { id: "weather",       name: "Weather Analyst", role: "Weather & Climate",     provider: "MDES",           model: "llama3.1:8b",       status: "active"  },
+  { id: "geo-planner",   name: "Geo Planner",     role: "Route & Geography",     provider: "MDES",           model: "llama3.1:8b",       status: "active"  },
+  { id: "rag-agent",     name: "RAG Agent",       role: "Knowledge Retrieval",   provider: "MDES",           model: "gemma3:12b",        status: "active"  },
+  { id: "tool-scout",    name: "Tool Scout",      role: "Tool Selector",         provider: "MDES",           model: "gemma3:12b",        status: "active"  },
+  { id: "gpt-advisor",   name: "GPT Advisor",     role: "External Fallback",     provider: "GPT",            model: "gpt-4o-mini",       status: "standby" },
+  { id: "copilot-coder", name: "Copilot Coder",   role: "Code Generation",       provider: "GitHub Copilot", model: "gpt-4o",            status: "standby" },
+  { id: "claude-haiku",  name: "Claude Haiku",    role: "Fast Thai Responder",   provider: "Claude Haiku",   model: "claude-haiku-4-5",  status: "standby" },
+  { id: "claude-sonnet", name: "Claude Sonnet",   role: "Complex Reasoning",     provider: "Claude Sonnet",  model: "claude-sonnet-4-6", status: "standby" },
+];
+
+export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) {
+  const [filter, setFilter] = useState<"all" | "active" | "standby">("all");
+  const providers = Array.from(new Set(ALL_AGENTS.map((a) => a.provider)));
+  const visible = filter === "all" ? ALL_AGENTS : ALL_AGENTS.filter((a) => a.status === filter);
+  const active = ALL_AGENTS.filter((a) => a.status === "active").length;
+  const standby = ALL_AGENTS.filter((a) => a.status === "standby").length;
+
+  return (
+    <div className="flex flex-col gap-3 p-1">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-[12px] font-semibold text-foreground">Agent Leaderboard</p>
+          <p className="text-[10.5px] text-muted-foreground">{active} active · {standby} standby · {ALL_AGENTS.length} total</p>
+        </div>
+        {onClose && <button onClick={onClose} className="text-muted-foreground/60 hover:text-foreground text-base leading-none">✕</button>}
+      </div>
+
+      {/* Provider legend */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {providers.map((p) => (
+          <span key={p} className={`text-[10px] font-medium ${PROVIDER_COLORS[p] ?? "text-muted-foreground"}`}>
+            ● {p}
+          </span>
+        ))}
+      </div>
+
+      {/* Filter tabs */}
+      <div className="flex gap-1">
+        {(["all", "active", "standby"] as const).map((f) => (
+          <button key={f} onClick={() => setFilter(f)}
+            className={`rounded px-2 py-0.5 text-[10.5px] transition-colors ${filter === f ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground"}`}>
+            {f === "all" ? `All (${ALL_AGENTS.length})` : f === "active" ? `Active (${active})` : `Standby (${standby})`}
+          </button>
+        ))}
+      </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto rounded-lg border border-border/40">
+        <table className="w-full min-w-[480px]">
+          <thead>
+            <tr className="border-b border-border/40 bg-muted/20 text-[10.5px] text-muted-foreground">
+              <th className="px-2.5 py-1.5 text-left font-medium">#</th>
+              <th className="px-2.5 py-1.5 text-left font-medium">Agent</th>
+              <th className="px-2.5 py-1.5 text-left font-medium">Provider</th>
+              <th className="px-2.5 py-1.5 text-left font-medium">Model</th>
+              <th className="px-2.5 py-1.5 text-left font-medium">Role</th>
+              <th className="px-2.5 py-1.5 text-center font-medium">Status</th>
+            </tr>
+          </thead>
+          <tbody className="text-[11px]">
+            {visible.map((agent, i) => (
+              <tr key={agent.id} className="border-b border-border/20 hover:bg-muted/20 transition-colors">
+                <td className="px-2.5 py-1.5 text-muted-foreground/50 tabular-nums">{i + 1}</td>
+                <td className="px-2.5 py-1.5 font-medium text-foreground">{agent.name}</td>
+                <td className={`px-2.5 py-1.5 font-medium text-[10.5px] ${PROVIDER_COLORS[agent.provider] ?? "text-muted-foreground"}`}>{agent.provider}</td>
+                <td className="px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground">{agent.model}</td>
+                <td className="px-2.5 py-1.5 text-muted-foreground">{agent.role}</td>
+                <td className="px-2.5 py-1.5 text-center">
+                  <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9.5px] font-medium ${
+                    agent.status === "active"
+                      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                      : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                  }`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${agent.status === "active" ? "bg-emerald-500" : "bg-amber-500"}`} />
+                    {agent.status}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

@@ -14,6 +14,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
+import AgentLeaderboard from "./AgentLeaderboard";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -467,58 +468,7 @@ const ChatSidebar: React.FC<Props> = ({
 
   // ─── Slide-over: Agent ────────────────────────────────────────────────────
   const AgentPanelContent = () => (
-    <div className="flex flex-col gap-4">
-      {/* Agents list */}
-      <ul className="flex flex-col gap-1">
-        {MDES_AGENTS.map((a) => (
-          <li key={a.id} className="flex items-center gap-3 rounded-md px-3 py-2.5 hover:bg-muted/60">
-            <span className="text-lg leading-none">{a.emoji}</span>
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-medium text-foreground">{a.name}</div>
-              <div className="text-[11px] text-muted-foreground">{a.role}</div>
-            </div>
-            <span className="flex items-center gap-1 text-[11px] text-emerald-500 dark:text-emerald-400">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              online
-            </span>
-          </li>
-        ))}
-      </ul>
-
-      {/* Providers section */}
-      <div>
-        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground px-1">
-          LLM Providers
-        </div>
-        <ul className="flex flex-col gap-1">
-          {PROVIDERS.map((prov) => (
-            <li
-              key={prov.id}
-              className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-muted/60"
-            >
-              <span className="text-base leading-none shrink-0">{prov.icon}</span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[13px] font-medium text-foreground">{prov.name}</div>
-                <div className="text-[10px] text-muted-foreground leading-tight truncate">
-                  {prov.alwaysActive ? "Always active" : prov.envHint}
-                </div>
-              </div>
-              {prov.alwaysActive ? (
-                <span className="flex items-center gap-1 text-[11px] text-emerald-500 dark:text-emerald-400 shrink-0">
-                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${prov.dotColor}`} />
-                  active
-                </span>
-              ) : (
-                <span className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
-                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${prov.dotColor} opacity-40`} />
-                  optional
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    <AgentLeaderboard />
   );
 
   // ─── Slide-over: Plugins ──────────────────────────────────────────────────
