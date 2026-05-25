@@ -63,3 +63,13 @@ Last updated: 2026-05-25T12:00:00Z
 | 3 | 2026-05-25 | Manus-style elapsed task timer in AgentWorkspacePanel (MM:SS, live tick, freeze on done, reset on runId) | 2009b1b |
 | 4 | 2026-05-25 | Sidebar fetches /api/tasks (DB) with status badges + project task count badge | 0baaca0 |
 | 5 | 2026-05-25 | Final 5% audit — all 5 Manus gaps confirmed closed (A-E: error boundary, typing indicator, timestamps, followUp edge cases, mobile sidebar) | — |
+| 6 | 2026-05-25 | Agent prompts: domain-expert (bare colon→role+guard), stylist (เพื่อนผู้รู้→3-sentence cap), linguist (persona+anti-preamble). Synthesis: drop dual-stitch, return single best answer. Intent: แนะนำร้านอาหาร→knowledge (no gap). 737/737 pass | 8aa7f23 |
+| 7 | 2026-05-25 | E2E Playwright tests for AgentLeaderboard (3 tests: panel open, filter tabs, count summary). Dead code sweep (TSC clean both packages). Build verified (Turbopack clean). 737/737 Jest | (this commit) |
+
+## Final Status — Iter 7
+**Manus Parity: 10/10**
+**Tests: 737/737 Jest + 3 Playwright E2E added (leaderboard panel)**
+**TypeScript: Clean (both innomcp-next + innomcp-node)**
+**Build: Next.js 16.2.6 Turbopack — compiled successfully in ~3s**
+**Loop: 7 iterations, 7 commits**
+**Dead code: 0 unused variable warnings**
