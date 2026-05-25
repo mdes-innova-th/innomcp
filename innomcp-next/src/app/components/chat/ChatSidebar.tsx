@@ -72,6 +72,58 @@ const MCP_PLUGINS = [
   { id: "analytics",      name: "Analytics",      icon: "📈" },
 ];
 
+/**
+ * LLM provider definitions shown in the Agent panel.
+ * "alwaysActive" providers are always shown as online.
+ * Others show as configurable (env-gated).
+ */
+const PROVIDERS = [
+  {
+    id: "mdes-ollama",
+    name: "MDES Ollama Cloud",
+    desc: "Primary remote LLM (always active)",
+    icon: "☁️",
+    dotColor: "bg-emerald-500",
+    alwaysActive: true,
+  },
+  {
+    id: "ollama-local",
+    name: "Ollama Local",
+    desc: "LOCAL_OLLAMA_BASE_URL or OLLAMA_BASE_URL",
+    icon: "🖥️",
+    dotColor: "bg-sky-400",
+    alwaysActive: false,
+    envHint: "Set LOCAL_OLLAMA_BASE_URL",
+  },
+  {
+    id: "thai-llm",
+    name: "ThaiLLM",
+    desc: "THAI_LLM_MODEL",
+    icon: "🇹🇭",
+    dotColor: "bg-amber-400",
+    alwaysActive: false,
+    envHint: "Set THAI_LLM_MODEL",
+  },
+  {
+    id: "gpt",
+    name: "GPT (OpenAI)",
+    desc: "OPENAI_API_KEY or GPT_API_KEY",
+    icon: "🤖",
+    dotColor: "bg-violet-400",
+    alwaysActive: false,
+    envHint: "Set OPENAI_API_KEY",
+  },
+  {
+    id: "github-copilot",
+    name: "GitHub Copilot",
+    desc: "GITHUB_COPILOT_TOKEN or COPILOT_API_KEY",
+    icon: "🐙",
+    dotColor: "bg-rose-400",
+    alwaysActive: false,
+    envHint: "Set GITHUB_COPILOT_TOKEN",
+  },
+];
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function relativeTime(ms: number): string {
@@ -415,21 +467,58 @@ const ChatSidebar: React.FC<Props> = ({
 
   // ─── Slide-over: Agent ────────────────────────────────────────────────────
   const AgentPanelContent = () => (
-    <ul className="flex flex-col gap-1">
-      {MDES_AGENTS.map((a) => (
-        <li key={a.id} className="flex items-center gap-3 rounded-md px-3 py-2.5 hover:bg-muted/60">
-          <span className="text-lg leading-none">{a.emoji}</span>
-          <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-medium text-foreground">{a.name}</div>
-            <div className="text-[11px] text-muted-foreground">{a.role}</div>
-          </div>
-          <span className="flex items-center gap-1 text-[11px] text-emerald-500 dark:text-emerald-400">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
-            online
-          </span>
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-4">
+      {/* Agents list */}
+      <ul className="flex flex-col gap-1">
+        {MDES_AGENTS.map((a) => (
+          <li key={a.id} className="flex items-center gap-3 rounded-md px-3 py-2.5 hover:bg-muted/60">
+            <span className="text-lg leading-none">{a.emoji}</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[13px] font-medium text-foreground">{a.name}</div>
+              <div className="text-[11px] text-muted-foreground">{a.role}</div>
+            </div>
+            <span className="flex items-center gap-1 text-[11px] text-emerald-500 dark:text-emerald-400">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              online
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {/* Providers section */}
+      <div>
+        <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground px-1">
+          LLM Providers
+        </div>
+        <ul className="flex flex-col gap-1">
+          {PROVIDERS.map((prov) => (
+            <li
+              key={prov.id}
+              className="flex items-center gap-3 rounded-md px-3 py-2 hover:bg-muted/60"
+            >
+              <span className="text-base leading-none shrink-0">{prov.icon}</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-[13px] font-medium text-foreground">{prov.name}</div>
+                <div className="text-[10px] text-muted-foreground leading-tight truncate">
+                  {prov.alwaysActive ? "Always active" : prov.envHint}
+                </div>
+              </div>
+              {prov.alwaysActive ? (
+                <span className="flex items-center gap-1 text-[11px] text-emerald-500 dark:text-emerald-400 shrink-0">
+                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${prov.dotColor}`} />
+                  active
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
+                  <span className={`inline-block h-1.5 w-1.5 rounded-full ${prov.dotColor} opacity-40`} />
+                  optional
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 
   // ─── Slide-over: Plugins ──────────────────────────────────────────────────

@@ -113,6 +113,44 @@ export function selectProvider(opts: SelectOptions): SelectionResult {
 }
 
 /**
+ * Return the list of provider IDs that are available given the current env vars.
+ * "mdes-ollama" is always included; the others require opt-in via env.
+ */
+export function getAvailableProviders(): string[] {
+  const providers = ["mdes-ollama"];
+  if (process.env.OPENAI_API_KEY || process.env.GPT_API_KEY) providers.push("gpt");
+  if (process.env.GITHUB_COPILOT_TOKEN || process.env.COPILOT_API_KEY) providers.push("github-copilot");
+  if (process.env.THAI_LLM_MODEL) providers.push("thai-llm");
+  if (process.env.LOCAL_OLLAMA_BASE_URL || process.env.OLLAMA_BASE_URL) providers.push("ollama-local");
+  return providers;
+}
+
+/**
+ * Resolve the endpoint config for an env-gated provider by ID.
+ * Returns null for unknown or registry-managed providers.
+ */
+export function resolveProviderEndpoint(
+  providerId: string
+): { url: string; key: string; model: string } | null {
+  switch (providerId) {
+    case "gpt":
+      return {
+        url: process.env.GPT_BASE_URL || "https://api.openai.com/v1",
+        key: process.env.OPENAI_API_KEY || process.env.GPT_API_KEY || "",
+        model: process.env.GPT_MODEL || "gpt-4o-mini",
+      };
+    case "github-copilot":
+      return {
+        url: process.env.GITHUB_COPILOT_BASE_URL || "https://api.githubcopilot.com",
+        key: process.env.GITHUB_COPILOT_TOKEN || process.env.COPILOT_API_KEY || "",
+        model: process.env.COPILOT_MODEL || "gpt-4o",
+      };
+    default:
+      return null;
+  }
+}
+
+/**
  * Preview the selection without committing — used by /api/ai/providers/route-preview.
  */
 export function previewSelection(opts: SelectOptions): {
