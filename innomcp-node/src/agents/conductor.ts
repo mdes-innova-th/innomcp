@@ -516,7 +516,7 @@ export async function runConductor(
   // 20s, so a tool that needs 5s was being prematurely cut off, leaving template.
   if (!hasFinalOutput(liveOutputs) && !hasAnyPartial(liveOutputs) && !liveOutputs["__tool__"]) {
     const toolRaceMs = responseMode === "thinking" ? 12_000 : 8_000;
-    await Promise.race([toolPromise, new Promise((r) => setTimeout(r, toolRaceMs))]);
+    await Promise.race([toolPromise, new Promise((r) => { const t = setTimeout(r, toolRaceMs); t.unref?.(); })]);
   }
 
   // Phase C.01b / C.02 — Only race agentResultPromise if agents haven't settled.
@@ -527,9 +527,10 @@ export async function runConductor(
     ? liveOutputs
     : await Promise.race([
         agentResultPromise.catch(() => liveOutputs),
-        new Promise<Record<string, string>>((resolve) =>
-          setTimeout(() => resolve(liveOutputs), extraWaitMs)
-        ),
+        new Promise<Record<string, string>>((resolve) => {
+          const t = setTimeout(() => resolve(liveOutputs), extraWaitMs);
+          t.unref?.();
+        }),
       ]);
   // Merge any keys the promise resolved with that weren't already in liveOutputs.
   // dispatchAgents normally writes directly into liveOutputs, but we merge
@@ -603,7 +604,8 @@ export async function runConductor(
 async function generateFollowUps(question: string, answer: string, endpoint: string, token: string): Promise<string[]> {
   try {
     const ac = new AbortController();
-    setTimeout(() => ac.abort(), 4000);
+    const abortTimer = setTimeout(() => ac.abort(), 4000);
+    abortTimer.unref?.();
     const res = await fetch(`${endpoint}/v1/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

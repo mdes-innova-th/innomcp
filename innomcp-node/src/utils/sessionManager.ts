@@ -350,9 +350,9 @@ class SessionManager {
 // Singleton instance
 export const sessionManager = new SessionManager();
 
-// Auto-prune every 1 hour
+// Auto-prune every 1 hour (unref so it doesn't keep Node alive in tests)
 setInterval(() => {
   sessionManager.pruneOldSessions();
-}, 60 * 60 * 1000);
+}, 60 * 60 * 1000).unref?.();
 
 export default sessionManager;
