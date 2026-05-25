@@ -77,9 +77,14 @@ export default function MemoryManager({
   return (
     <div className="flex flex-col gap-3 p-1">
       <div className="flex items-center justify-between">
-        <p className="text-[12px] font-semibold text-foreground">
-          🧠 Project Memory
-        </p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-[12px] font-semibold text-foreground">
+            🧠 Project Memory
+          </p>
+          <span className="bg-primary/10 text-primary rounded-full px-1.5 text-[10px]">
+            💬 0
+          </span>
+        </div>
         {onClose && (
           <button
             onClick={onClose}

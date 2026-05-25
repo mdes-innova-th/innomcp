@@ -237,6 +237,8 @@ const ChatSidebar: React.FC<Props> = ({
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [editingId, setEditingId]     = useState<string | null>(null); // TODO #45
   const [editTitle, setEditTitle]     = useState("");                  // TODO #45
+  const [sessionStart] = useState(Date.now());
+  const [elapsed, setElapsed]         = useState(0);
   const [activePanel, setActivePanel] = useState<PanelId>(null);
   const [sidebarRight, setSidebarRight] = useState<number>(240);
   const [dbTasks, setDbTasks] = useState<Array<{ id: string; title: string; status: string; created_at: string }>>([]);
@@ -274,6 +276,15 @@ const ChatSidebar: React.FC<Props> = ({
   const router = useRouter();
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Session timer — tick every minute
+  useEffect(() => {
+    const id = setInterval(
+      () => setElapsed(Math.floor((Date.now() - sessionStart) / 60_000)),
+      60_000
+    );
+    return () => clearInterval(id);
+  }, [sessionStart]);
 
   // Fetch recent tasks from DB — falls back to localStorage summaries if request fails or user is guest
   useEffect(() => {
@@ -977,6 +988,13 @@ const ChatSidebar: React.FC<Props> = ({
         {/* ── User / auth area ── */}
         {isLoggedIn ? (
           <div className="mt-auto border-t border-border/50" ref={userMenuRef}>
+            {elapsed > 0 && (
+              <div className="px-3 pt-1.5 pb-0">
+                <span className="text-[10px] text-muted-foreground/50">
+                  ⏱ {elapsed}m session
+                </span>
+              </div>
+            )}
             <div className="p-2">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}

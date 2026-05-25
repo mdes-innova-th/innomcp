@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -78,14 +78,21 @@ function StatCard({
   value,
   sub,
   icon,
+  onClick,
 }: {
   label: string;
   value: string | number;
   sub?: string;
   icon: string;
+  onClick?: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-border/40 bg-background/60 p-3">
+    <div
+      className={`rounded-xl border border-border/40 bg-background/60 p-3 ${
+        onClick ? "cursor-pointer hover:border-primary/40 transition-colors" : ""
+      }`}
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[10.5px] text-muted-foreground">{label}</p>
@@ -114,13 +121,19 @@ export default function DashboardView({
   const [loading, setLoading] = useState(true);
   const [taskSearch, setTaskSearch] = useState("");
   const [pinnedArtifacts, setPinnedArtifacts] = useState<PinnedArtifact[]>([]);
+  const pollRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
+  const fetchDashboard = useCallback(() => {
     fetch(`${BACKEND}/api/dashboard`, { credentials: "include" })
       .then((r) => r.json())
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false));
+  }, []);
+
+  // Initial load + pinned artifacts
+  useEffect(() => {
+    fetchDashboard();
 
     // Fetch pinned artifacts — degrade gracefully if API doesn't support filtering
     fetch(`${BACKEND}/api/files?pinned=true&limit=6`, { credentials: "include" })
@@ -137,7 +150,25 @@ export default function DashboardView({
       .catch(() => {
         // Silently ignore — section simply won't appear
       });
-  }, []);
+  }, [fetchDashboard]);
+
+  // Auto-refresh every 10s when there are running tasks
+  useEffect(() => {
+    if (!data?.stats?.runningTasks) {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+      return;
+    }
+    pollRef.current = setInterval(fetchDashboard, 10_000);
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [data?.stats?.runningTasks, fetchDashboard]);
 
   if (loading) {
     return (
@@ -168,12 +199,23 @@ export default function DashboardView({
       {/* Stats grid */}
       {s && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <StatCard label="งานทั้งหมด" value={s.totalTasks} icon="📋" />
-          <StatCard label="เสร็จสิ้น" value={s.completedTasks} icon="✅" />
+          <StatCard
+            label="งานทั้งหมด"
+            value={s.totalTasks}
+            icon="📋"
+            onClick={() => router.push("/task-history")}
+          />
+          <StatCard
+            label="เสร็จสิ้น"
+            value={s.completedTasks}
+            icon="✅"
+            onClick={() => router.push("/task-history?status=completed")}
+          />
           <StatCard
             label="กำลังทำงาน"
             value={s.runningTasks}
             icon={s.runningTasks > 0 ? "🔄" : "💤"}
+            onClick={() => router.push("/task-history?status=running")}
           />
           <StatCard
             label="คะแนนเฉลี่ย"
@@ -237,9 +279,17 @@ export default function DashboardView({
 
       {/* Recent tasks */}
       <div>
-        <p className="text-[12px] font-semibold text-foreground mb-2">
-          งานล่าสุด
-        </p>
+        <div className="flex items-center gap-2 mb-2">
+          <p className="text-[12px] font-semibold text-foreground">
+            งานล่าสุด
+          </p>
+          {s && s.runningTasks > 0 && (
+            <span className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+              <span className="animate-pulse">●</span>
+              LIVE
+            </span>
+          )}
+        </div>
         {!data?.recentTasks?.length ? (
           <div className="rounded-xl border border-border/30 bg-muted/10 p-6 text-center text-[12px] text-muted-foreground">
             <span className="text-2xl block mb-2">📭</span>
