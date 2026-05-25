@@ -13,6 +13,19 @@ import {
 import ChatModeSelector, { type ChatMode } from "./ChatModeSelector";
 import ToolsTypeSelector, { type ToolType } from "./ToolsTypeSelector";
 
+// Provider mode stored in localStorage so it survives page refreshes.
+export type ProviderMode = "remote" | "local";
+const PROVIDER_MODE_KEY = "innomcp.provider.mode";
+
+function readProviderMode(): ProviderMode {
+  if (typeof window === "undefined") return "remote";
+  return (localStorage.getItem(PROVIDER_MODE_KEY) as ProviderMode) ?? "remote";
+}
+
+function saveProviderMode(mode: ProviderMode): void {
+  if (typeof window !== "undefined") localStorage.setItem(PROVIDER_MODE_KEY, mode);
+}
+
 interface ChatInputProps {
   input: string;
   setInput: (value: string) => void;
@@ -37,6 +50,8 @@ interface ChatInputProps {
   onChatModeChange?: (mode: ChatMode) => void;
   onFocus?: () => void;
   onBlur?: () => void;
+  providerMode?: ProviderMode;
+  onProviderModeChange?: (mode: ProviderMode) => void;
 }
 
 function DotsAnimation() {
@@ -75,7 +90,25 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onChatModeChange,
   onFocus,
   onBlur,
+  providerMode: providerModeProp,
+  onProviderModeChange,
 }) => {
+  // Provider mode — read from localStorage on first render; sync back on toggle
+  const [providerMode, setProviderMode] = useState<ProviderMode>(() => providerModeProp ?? "remote");
+  useEffect(() => {
+    const stored = readProviderMode();
+    setProviderMode(stored);
+    onProviderModeChange?.(stored);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function toggleProviderMode() {
+    const next: ProviderMode = providerMode === "remote" ? "local" : "remote";
+    setProviderMode(next);
+    saveProviderMode(next);
+    onProviderModeChange?.(next);
+  }
+
   useEffect(() => {
     adjustTextarea();
     const handler = () => adjustTextarea();
@@ -259,8 +292,34 @@ const ChatInput: React.FC<ChatInputProps> = ({
             {stateLabel}
           </span>
 
-          {/* Right-aligned: model selector + send */}
+          {/* Right-aligned: provider badge + model selector + send */}
           <div className="ml-auto flex flex-1 items-center justify-end gap-2 sm:flex-none">
+            {/* Provider mode badge — MDES Cloud vs Ollama Local */}
+            <button
+              type="button"
+              onClick={toggleProviderMode}
+              disabled={isWaitingForResponse}
+              title={
+                providerMode === "remote"
+                  ? "ใช้ MDES Cloud Ollama — คลิกเพื่อเปลี่ยนเป็น Local"
+                  : "ใช้ Ollama Local (localhost:11434) — คลิกเพื่อเปลี่ยนเป็น MDES Cloud"
+              }
+              data-testid="provider-mode-toggle"
+              className={`hidden h-7 items-center gap-1 rounded-full border px-2.5 text-[11px] font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50 sm:inline-flex ${
+                providerMode === "local"
+                  ? "border-amber-500/45 bg-amber-500/10 text-amber-800 dark:text-amber-200 hover:bg-amber-500/16"
+                  : "border-sky-500/40 bg-sky-500/8 text-sky-800 dark:text-sky-200 hover:bg-sky-500/14"
+              }`}
+            >
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  providerMode === "local" ? "bg-amber-500" : "bg-sky-500"
+                }`}
+                aria-hidden="true"
+              />
+              <span>{providerMode === "local" ? "Ollama Local" : "MDES Cloud"}</span>
+            </button>
+
             <ChatModeSelector
               mode={chatMode}
               onChange={(m) => onChatModeChange?.(m)}

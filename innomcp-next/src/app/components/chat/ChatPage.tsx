@@ -9,7 +9,7 @@ import ChatMessage, {
 import ChatSidebar, {
   ChatSummary as SidebarSummary,
 } from "@/app/components/chat/ChatSidebar";
-import ChatInput from "./ChatInput";
+import ChatInput, { type ProviderMode } from "./ChatInput";
 import FileUploadProgress from "@/app/components/common/FileUploadProgress";
 import ThemeContext from "@/app/context/ThemeContext";
 import { useAuth } from "@/app/context/AuthContext";
@@ -300,6 +300,8 @@ const ChatPage: React.FC = () => {
   const [selectedToolType, setSelectedToolType] = useState<ToolType>("auto");
   // Phase 10.68 — single ChatMode drives both AI backend & agent count
   const [chatMode, setChatMode] = useState<ChatMode>("normal");
+  // Provider mode — "remote" = MDES Cloud Ollama, "local" = localhost:11434
+  const [providerMode, setProviderMode] = useState<ProviderMode>("remote");
   const activeToolMeta = TOOL_TYPE_META[selectedToolType] || TOOL_TYPE_META.auto;
 
   // Load data from localStorage on mount
@@ -947,7 +949,12 @@ const ChatPage: React.FC = () => {
         CHAT_HISTORY_CONTEXT_LIMIT
       );
       // Phase 10.68 — map ChatMode → conductor params
-      const derivedMode = chatMode === "multiagent" ? "hybrid" : "local";
+      // providerMode overrides the default local/hybrid selection:
+      //   "remote" → always use MDES Cloud, "local" → always use localhost
+      const derivedMode =
+        providerMode === "remote"
+          ? chatMode === "multiagent" ? "hybrid" : "remote"
+          : "local";
       const derivedReasoning = chatMode === "multiagent" ? "thinking" : "normal";
       const message = {
         text: input,
@@ -1269,11 +1276,15 @@ const ChatPage: React.FC = () => {
       messages as unknown as Array<Record<string, unknown>>,
       CHAT_HISTORY_CONTEXT_LIMIT
     );
-    const message = { 
-      text: userMessage.text, 
+    const retryDerivedMode =
+      providerMode === "remote"
+        ? chatMode === "multiagent" ? "hybrid" : "remote"
+        : "local";
+    const message = {
+      text: userMessage.text,
       messages: transportHistory.slice(0, Math.max(0, transportHistory.length - 1)),
       messageId,
-      preferredMode: chatMode === "multiagent" ? "hybrid" : "local",
+      preferredMode: retryDerivedMode,
       toolHint: selectedToolType,
       reasoningMode: chatMode === "multiagent" ? "thinking" : "normal",
       uiMode: selectedToolType === "officer" ? "officer" : undefined
@@ -1285,7 +1296,7 @@ const ChatPage: React.FC = () => {
     sendAgentStream({
       message: userMessage.text,
       sessionId: activeSummaryId ?? undefined,
-      preferredMode: chatMode === "multiagent" ? "hybrid" : "local",
+      preferredMode: retryDerivedMode,
       toolHint: selectedToolType,
       reasoningMode: chatMode === "multiagent" ? "thinking" : "normal",
       clientMessageId: messageId,
@@ -1567,6 +1578,8 @@ const ChatPage: React.FC = () => {
                     onChatModeChange={setChatMode}
                     onFocus={() => setIsChatActive(true)}
                     onBlur={() => setIsChatActive(false)}
+                    providerMode={providerMode}
+                    onProviderModeChange={setProviderMode}
                   />
 
                   {/* Starter prompts — premium card design with hover accent + arrow CTA */}
@@ -1903,6 +1916,8 @@ const ChatPage: React.FC = () => {
                 onChatModeChange={setChatMode}
                 onFocus={() => setIsChatActive(true)}
                 onBlur={() => setIsChatActive(false)}
+                providerMode={providerMode}
+                onProviderModeChange={setProviderMode}
               />
             </div>
           )}

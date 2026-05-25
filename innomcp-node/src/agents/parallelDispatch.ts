@@ -70,11 +70,15 @@ const INTENT_AGENTS_POOL: Record<string, AgentId[]> = {
   general:          ["thinker", "concierge", "critic", "stylist", "rag-agent", "researcher", "linguist", "domain-expert", "fact-checker"],
 };
 
+// Thai-specialized model — set THAI_LLM_MODEL=openthaigpt:7b (or similar) to override
+// rag-agent and linguist for Thai-heavy workloads. null = use default catalog.
+const thaiModel = process.env.THAI_LLM_MODEL || null;
+
 // MDES Ollama model catalog — assign per role, largest where reasoning matters
 const AGENT_MODEL_MDES: Record<string, string> = {
   "weather-analyst": "qwen3.6:27b",        // big reasoning for weather analysis
   "geo-planner":     "qwen3.5:27b",        // big reasoning for geo/planning
-  "rag-agent":       "qwen3.5:9b",         // medium — knowledge retrieval
+  "rag-agent":       thaiModel ?? "qwen3.5:9b",  // Thai model preferred for RAG
   "concierge":       "qwen3.5:9b",         // fast Thai responder
   "tool-scout":      "z-uo/qwen2.5vl_tools:7b", // tool-specific model
   "critic":          "gemma4:e4b",          // fast verifier
@@ -82,7 +86,7 @@ const AGENT_MODEL_MDES: Record<string, string> = {
   "thinker":         "gemma3:12b",          // deep analytical thinker
   "researcher":      "gemma3:12b",          // fact/evidence researcher
   "fact-checker":    "gemma3:12b",          // accuracy verifier
-  "linguist":        "gemma3:12b",          // natural language polisher
+  "linguist":        thaiModel ?? "gemma3:12b",  // Thai model preferred for NL polish
   "domain-expert":   "gemma3:12b",          // domain-specific insight
 };
 
