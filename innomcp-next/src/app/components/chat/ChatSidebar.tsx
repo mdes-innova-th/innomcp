@@ -18,6 +18,7 @@ import AgentLeaderboard from "./AgentLeaderboard";
 import ModelSettingsPanel from "./ModelSettingsPanel";
 import MemoryManager from "./MemoryManager";
 import DashboardView from "./DashboardView";
+import TaskDetailPanel from "./TaskDetailPanel";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -145,7 +146,7 @@ function relativeTime(ms: number): string {
 
 // ─── Slide-over Panel ─────────────────────────────────────────────────────────
 
-type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | "memory" | "dashboard" | null;
+type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | "memory" | "dashboard" | "task-detail" | null;
 
 interface SlideOverProps {
   open: boolean;
@@ -237,6 +238,7 @@ const ChatSidebar: React.FC<Props> = ({
   const [activePanel, setActivePanel] = useState<PanelId>(null);
   const [sidebarRight, setSidebarRight] = useState<number>(240);
   const [dbTasks, setDbTasks] = useState<Array<{ id: string; title: string; status: string; created_at: string }>>([]);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const sidebarRef  = useRef<HTMLElement | null>(null);
@@ -675,6 +677,11 @@ const ChatSidebar: React.FC<Props> = ({
       <SlideOver open={activePanel === "dashboard"} title="📊 Dashboard" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
         <DashboardView onOpenChat={() => { setActivePanel(null); onNewChat(); }} />
       </SlideOver>
+      <SlideOver open={activePanel === "task-detail"} title="📋 Task Detail" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        {selectedTaskId ? (
+          <TaskDetailPanel taskId={selectedTaskId} onClose={() => setActivePanel(null)} />
+        ) : null}
+      </SlideOver>
 
       <aside
         ref={sidebarRef}
@@ -836,7 +843,15 @@ const ChatSidebar: React.FC<Props> = ({
               {dbTasks.slice(0, 8).map((t) => (
                 <li
                   key={t.id}
-                  className="flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted/60"
+                  className={`flex items-center gap-2 rounded-md px-2 py-2 cursor-pointer hover:bg-muted/60 ${
+                    selectedTaskId === t.id && activePanel === "task-detail"
+                      ? "bg-primary/10 ring-1 ring-primary/20"
+                      : ""
+                  }`}
+                  onClick={() => {
+                    setSelectedTaskId(t.id);
+                    setActivePanel("task-detail");
+                  }}
                 >
                   <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground leading-tight">
                     {t.title}
