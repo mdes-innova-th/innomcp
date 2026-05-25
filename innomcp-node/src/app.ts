@@ -29,6 +29,7 @@ import memoriesRouter from "./routes/api/memories";
 import shellRouter from "./routes/api/shell";
 import webFetchRouter from "./routes/api/webFetch";
 import dashboardRouter from "./routes/api/dashboard";
+import analyzeRouter from "./routes/api/analyze";
 
 // Initialize Express application
 const app = express();
@@ -163,6 +164,9 @@ app.use("/api/shell", generalRateLimit, shellRouter);
 
 // Web Fetch Tool — SSRF-safe URL fetcher + HTML→Markdown + workspace artifact
 app.use("/api/fetch", generalRateLimit, webFetchRouter);
+
+// Data Analysis Tool — CSV/JSON stats + bar chart SVG + workspace artifact
+app.use("/api/analyze", generalRateLimit, analyzeRouter);
 
 // Router à¸ªà¸³à¸«à¸£à¸±à¸š Chat (à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡ auth à¹€à¸žà¸·à¸­ testsuit - à¸•à¹‰à¸­à¸‡à¸­à¸¢à¸¹à¹ˆà¸à¹ˆà¸­à¸™ /api middleware)
 // FastPath middleware à¸­à¸¢à¸¹à¹ˆà¹ƒà¸™ chatRouter à¹à¸¥à¹‰à¸§
