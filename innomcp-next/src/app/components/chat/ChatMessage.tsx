@@ -790,20 +790,23 @@ export function MessageView({
     }
   };
 
-  // TODO #43: Handle like/dislike feedback
+  // Like/dislike feedback — maps to star-rating endpoint (like=5, dislike=1).
+  // messageId is derived from position + timestamp so it is stable per message render.
+  const derivedMessageId = (message as any).id
+    ? String((message as any).id).slice(0, 64)
+    : `msg-${index}-${message.timestamp ?? 0}`;
+
   const handleLike = async () => {
     const newStatus = likeStatus === "like" ? "none" : "like";
     setLikeStatus(newStatus);
-    
+    if (newStatus === "none") return; // toggling off — no rating to record
     try {
       await fetch("/api/chat/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messageIndex: index,
-          messageText: message.text,
-          feedback: newStatus,
-          timestamp: Date.now(),
+          messageId: derivedMessageId,
+          rating: 5, // thumbs-up maps to max stars
         }),
       });
     } catch (error) {
@@ -814,16 +817,14 @@ export function MessageView({
   const handleDislike = async () => {
     const newStatus = likeStatus === "dislike" ? "none" : "dislike";
     setLikeStatus(newStatus);
-    
+    if (newStatus === "none") return; // toggling off — no rating to record
     try {
       await fetch("/api/chat/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          messageIndex: index,
-          messageText: message.text,
-          feedback: newStatus,
-          timestamp: Date.now(),
+          messageId: derivedMessageId,
+          rating: 1, // thumbs-down maps to min stars
         }),
       });
     } catch (error) {
