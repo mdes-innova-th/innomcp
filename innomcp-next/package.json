@@ -7,6 +7,7 @@
     "dev": "next dev -p 3000 -H localhost",
     "dev-mon": "nodemon --watch src --ext ts,tsx --exec \"next dev -p 3000 -H localhost --turbopack\"",
     "build": "cross-env NODE_ENV=production next build",
+    "analyze": "cross-env ANALYZE=true next build",
     "start": "next start -p 3000",
     "lint": "next lint",
     "e2e": "playwright test",
@@ -44,6 +45,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@next/bundle-analyzer": "^16.2.6",
     "@playwright/test": "^1.58.2",
     "@tailwindcss/postcss": "^4",
     "@types/bcrypt": "^5.0.2",

@@ -8,6 +8,7 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import { withDbConnection } from "../../utils/db";
+import { fireWebhook } from "../../services/webhookService";
 
 const router = Router();
 
@@ -230,6 +231,7 @@ export async function completeTask(params: {
   status: "completed" | "failed";
   elapsedMs?: number;
   finalAnswer?: string;
+  title?: string;
 }): Promise<void> {
   try {
     await withDbConnection(async (conn) => {
@@ -242,6 +244,14 @@ export async function completeTask(params: {
   } catch (err) {
     console.error("[tasks] completeTask error", err);
   }
+
+  // Fire webhook for task.completed or task.failed (fire-and-forget)
+  const webhookEvent = params.status === "completed" ? "task.completed" : "task.failed";
+  fireWebhook(webhookEvent, {
+    taskId: params.id,
+    title: params.title ?? "",
+    elapsedMs: params.elapsedMs ?? null,
+  }).catch(() => {/* non-critical */});
 }
 
 // ── Internal: append a step ───────────────────────────────────────────────────

@@ -108,6 +108,20 @@ const LOCATION_ALIASES: Record<string, string> = {
   "ปากช่อง": "นครราชสีมา",
 };
 
+// Phase 4: Thai digit → ASCII digit mapping
+const THAI_NUMBERS: Record<string, string> = {
+  '๐': '0', '๑': '1', '๒': '2', '๓': '3', '๔': '4',
+  '๕': '5', '๖': '6', '๗': '7', '๘': '8', '๙': '9',
+};
+
+// Phase 4: Thai informal question-word normalization
+const QUESTION_WORDS: Record<string, string> = {
+  'ยังไง': 'อย่างไร',
+  'ทำไม': 'เหตุใด',
+  'เพราะอะไร': 'สาเหตุ',
+  'ใครๆ': 'ทุกคน',
+};
+
 // Intention patterns (preserve these)
 const INTENT_PATTERNS = {
   compare: /(เทียบ|เปรียบเทียบ|ต่างกัน|vs|versus|กับ)/i,
@@ -221,6 +235,26 @@ export function normalizeThaiQuery(text: string): NormalizationResult {
 
   // Step 7: Clean up extra spaces from particle removal
   normalized = normalized.replace(/\s+/g, " ").trim();
+
+  // Step 7.1: Phase 4 — Thai numeral → ASCII digit conversion
+  const thaiDigitRegex = new RegExp(`[${Object.keys(THAI_NUMBERS).join('')}]`, 'g');
+  if (thaiDigitRegex.test(normalized)) {
+    const before = normalized;
+    normalized = normalized.replace(thaiDigitRegex, (ch) => THAI_NUMBERS[ch] ?? ch);
+    if (normalized !== before) {
+      substitutionsApplied.push('thai-numbers:๐-๙→0-9');
+    }
+  }
+
+  // Step 7.2: Phase 4 — informal question-word normalization
+  for (const [informal, formal] of Object.entries(QUESTION_WORDS)) {
+    const escaped = informal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(escaped, 'g');
+    if (regex.test(normalized)) {
+      normalized = normalized.replace(regex, formal);
+      substitutionsApplied.push(`question:${informal}→${formal}`);
+    }
+  }
 
   // Step 8: Handle specific query patterns
   // "วันศุกร์นี้" → normalize spacing

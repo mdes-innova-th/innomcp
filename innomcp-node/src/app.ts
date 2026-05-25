@@ -34,6 +34,7 @@ import analyzeRouter from "./routes/api/analyze";
 import providerTestRouter from "./routes/api/providerTest";
 import providerHealthRouter from "./routes/api/providerHealth";
 import pluginsRouter from "./routes/api/plugins";
+import webhooksRouter from "./routes/api/webhooks";
 
 // Initialize Express application
 const app = express();
@@ -98,7 +99,7 @@ app.use((req, res, next) => {
 app.use(
   cors({
     origin: corsOriginFn, // Dynamic origin checking
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "authorization", "X-API-Key"],
     credentials: true,
     preflightContinue: false,
@@ -180,6 +181,9 @@ app.use("/api/fetch", generalRateLimit, webFetchRouter);
 
 // Plugin Registry — list and toggle installed plugins
 app.use("/api/plugins", generalRateLimit, pluginsRouter);
+
+// Webhook Registry — register, toggle, and delete outbound webhooks (Phase 4)
+app.use("/api/webhooks", generalRateLimit, webhooksRouter);
 
 // Data Analysis Tool — CSV/JSON stats + bar chart SVG + workspace artifact
 app.use("/api/analyze", generalRateLimit, analyzeRouter);

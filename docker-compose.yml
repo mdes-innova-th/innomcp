@@ -1,0 +1,59 @@
+version: '3.9'
+
+services:
+  mariadb:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-innomcp_root}
+      MARIADB_DATABASE: ${DB_NAME:-innomcp-db}
+      MARIADB_USER: ${DB_USER:-jlapps}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-innomcp_pass}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - "3308:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./innomcp-node
+    restart: unless-stopped
+    ports:
+      - "3011:3011"
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_NAME=${DB_NAME:-innomcp-db}
+      - DB_USER=${DB_USER:-jlapps}
+      - DB_PASSWORD=${MARIADB_PASSWORD:-innomcp_pass}
+      - WORKSPACE_ROOT=/workspace
+      - OLLAMA_URL=${OLLAMA_URL:-https://ollama.mdes-innova.online}
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - INNOMCP_MODE=${INNOMCP_MODE:-online}
+      - PARALLEL_AGENTS=${PARALLEL_AGENTS:-0}
+    volumes:
+      - workspace:/workspace
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  web:
+    build: ./innomcp-next
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_BACKEND_URL=http://api:3011
+    depends_on:
+      - api
+
+volumes:
+  mariadb_data:
+  workspace:

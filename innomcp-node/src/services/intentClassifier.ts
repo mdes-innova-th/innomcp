@@ -19,6 +19,10 @@ export type ChatIntent =
   | "evidence"
   | "knowledge"
   | "factual"
+  | "data"
+  | "research"
+  | "shell"
+  | "write"
   | "general";
 
 export interface ClassifyResult {
@@ -252,6 +256,78 @@ const FACTUAL_KEYWORDS = [
   "music", "movie", "film", "series", "travel",
 ];
 
+// Phase 4: Thai NLP enhanced intent patterns
+// Data analysis intents
+const DATA_KEYWORDS = [
+  "วิเคราะห์",
+  "analyse",
+  "analyze",
+  "ข้อมูล",
+  "data",
+  "ตาราง",
+  "graph",
+  "chart",
+  "กราฟ",
+  "csv",
+  "excel",
+  "สถิติ",
+  "statistic",
+  "เปรียบเทียบ",
+  "compare",
+];
+
+// Research / information-lookup intents
+const RESEARCH_KEYWORDS = [
+  "ค้นหา",
+  "search",
+  "หา",
+  "find",
+  "research",
+  "ข้อมูลเกี่ยวกับ",
+  "เกี่ยวกับ",
+  "about",
+  "ช่วยอธิบาย",
+];
+
+// Shell / command execution intents
+const SHELL_KEYWORDS = [
+  "รัน",
+  "run",
+  "execute",
+  "install",
+  "npm",
+  "pip",
+  "git",
+  "bash",
+  "shell",
+  "command",
+  "ติดตั้ง",
+  "deploy",
+  "start",
+  "stop",
+  "restart",
+  "ls",
+  "mkdir",
+];
+
+// Document / writing intents
+const WRITE_KEYWORDS = [
+  "เขียน",
+  "write",
+  "draft",
+  "สรุป",
+  "summarize",
+  "report",
+  "รายงาน",
+  "document",
+  "proposal",
+  "email",
+  "อีเมล",
+  "จดหมาย",
+  "บทความ",
+  "article",
+];
+
 const GREETING_KEYWORDS = [
   "สวัสดี",
   "หวัดดี",
@@ -307,6 +383,11 @@ export function classifyIntent(message: string, toolHint?: string): ClassifyResu
   const map = containsAny(message, MAP_KEYWORDS);
   const calc = containsAny(message, CALC_KEYWORDS);
   const code = containsAny(message, CODE_KEYWORDS);
+  // Phase 4 lookups
+  const data = containsAny(message, DATA_KEYWORDS);
+  const research = containsAny(message, RESEARCH_KEYWORDS);
+  const shell = containsAny(message, SHELL_KEYWORDS);
+  const write = containsAny(message, WRITE_KEYWORDS);
   const hint = String(toolHint || "auto").toLowerCase();
 
   if (hint && hint !== "auto") {
@@ -360,6 +441,23 @@ export function classifyIntent(message: string, toolHint?: string): ClassifyResu
   if (code) {
     reasons.push(`code: ${code}`);
     return { intent: "code", expectedToolUsage: false, reasons };
+  }
+  // Phase 4: enhanced Thai NLP intents
+  if (data) {
+    reasons.push(`data: ${data}`);
+    return { intent: "data", expectedToolUsage: true, reasons };
+  }
+  if (shell) {
+    reasons.push(`shell: ${shell}`);
+    return { intent: "shell", expectedToolUsage: true, reasons };
+  }
+  if (write) {
+    reasons.push(`write: ${write}`);
+    return { intent: "write", expectedToolUsage: false, reasons };
+  }
+  if (research) {
+    reasons.push(`research: ${research}`);
+    return { intent: "research", expectedToolUsage: true, reasons };
   }
   if (knowledge) {
     reasons.push(`knowledge: ${knowledge}`);

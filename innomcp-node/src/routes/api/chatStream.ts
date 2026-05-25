@@ -160,6 +160,7 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
   const taskStartMs = Date.now();
   let taskFinalText = "";
   let taskError = false;
+  const taskTitle = message.slice(0, 120);
   const userId: number | null = req.user ? Number((req.user as any).id ?? (req.user as any).userId ?? null) : null;
 
   try {
@@ -284,6 +285,7 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
         status: taskError ? "failed" : "completed",
         elapsedMs: Date.now() - taskStartMs,
         finalAnswer: taskFinalText,
+        title: taskTitle,
       }).catch(() => {/* non-critical */});
     }
     cleanup();
