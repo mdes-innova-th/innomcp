@@ -149,9 +149,10 @@ interface SlideOverProps {
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  sidebarRight?: number;
 }
 
-const SlideOver: React.FC<SlideOverProps> = ({ open, title, onClose, children }) => (
+const SlideOver: React.FC<SlideOverProps> = ({ open, title, onClose, children, sidebarRight }) => (
   <>
     {/* Backdrop */}
     {open && (
@@ -163,9 +164,10 @@ const SlideOver: React.FC<SlideOverProps> = ({ open, title, onClose, children })
     )}
     {/* Panel — slides in from left, positioned next to the sidebar */}
     <div
-      className={`fixed top-0 left-[var(--sidebar-width,240px)] z-[60] flex h-full w-72 flex-col border-r border-border/50 bg-background shadow-xl transition-transform duration-300 ${
+      className={`fixed top-0 z-[60] flex h-full w-72 flex-col border-r border-border/50 bg-background shadow-xl transition-transform duration-300 ${
         open ? "translate-x-0" : "-translate-x-full"
       }`}
+      style={{ left: sidebarRight !== undefined ? `${sidebarRight}px` : "240px" }}
       aria-modal="true"
       role="dialog"
       aria-label={title}
@@ -230,12 +232,27 @@ const ChatSidebar: React.FC<Props> = ({
   const [editingId, setEditingId]     = useState<string | null>(null); // TODO #45
   const [editTitle, setEditTitle]     = useState("");                  // TODO #45
   const [activePanel, setActivePanel] = useState<PanelId>(null);
+  const [sidebarRight, setSidebarRight] = useState<number>(240);
 
   const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const sidebarRef  = useRef<HTMLElement | null>(null);
   const { isLoggedIn, userDispName, userRoleId, logout } = useAuth();
   const router = useRouter();
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Measure sidebar width whenever collapsed state changes or on mount
+  useEffect(() => {
+    const measure = () => {
+      if (sidebarRef.current) {
+        const rect = sidebarRef.current.getBoundingClientRect();
+        setSidebarRight(rect.right);
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [isCollapsed]);
 
   // Close user menu on outside click / Escape
   useEffect(() => {
@@ -604,24 +621,25 @@ const ChatSidebar: React.FC<Props> = ({
   return (
     <>
       {/* Slide-over panels */}
-      <SlideOver open={activePanel === "agent"}     title="🤖 Agent"     onClose={() => setActivePanel(null)}>
+      <SlideOver open={activePanel === "agent"}     title="🤖 Agent"     onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
         <AgentPanelContent />
       </SlideOver>
-      <SlideOver open={activePanel === "plugins"}   title="🔌 Plugins"   onClose={() => setActivePanel(null)}>
+      <SlideOver open={activePanel === "plugins"}   title="🔌 Plugins"   onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
         <PluginsPanelContent />
       </SlideOver>
-      <SlideOver open={activePanel === "scheduled"} title="📅 Scheduled" onClose={() => setActivePanel(null)}>
+      <SlideOver open={activePanel === "scheduled"} title="📅 Scheduled" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
           <span className="text-4xl leading-none">🚧</span>
           <div className="text-sm font-semibold text-foreground">Coming Soon</div>
           <div className="text-xs text-muted-foreground">Scheduled tasks will appear here.</div>
         </div>
       </SlideOver>
-      <SlideOver open={activePanel === "library"}   title="📚 Library"   onClose={() => setActivePanel(null)}>
+      <SlideOver open={activePanel === "library"}   title="📚 Library"   onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
         <LibraryPanelContent />
       </SlideOver>
 
       <aside
+        ref={sidebarRef}
         className="relative flex h-full w-full flex-col overflow-hidden border-r border-border/50 bg-background"
         data-testid="chat-sidebar"
       >
