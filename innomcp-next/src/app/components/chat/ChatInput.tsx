@@ -129,6 +129,34 @@ const ChatInput: React.FC<ChatInputProps> = ({
     onProviderModeChange?.(next);
   }
 
+  // Draft persistence
+  const DRAFT_KEY = "innomcp-chat-draft";
+  const [draftSaved, setDraftSaved] = useState(false);
+
+  // Load saved draft on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(DRAFT_KEY);
+    if (saved && saved.trim() && !input) {
+      setInput(saved);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Save draft on change (debounced 500ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (input.trim()) {
+        localStorage.setItem(DRAFT_KEY, input);
+        setDraftSaved(true);
+        setTimeout(() => setDraftSaved(false), 2000);
+      } else {
+        localStorage.removeItem(DRAFT_KEY);
+        setDraftSaved(false);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [input]);
+
   // Phase 3 CSV state
   const [csvMeta, setCsvMeta] = useState<CsvMeta | null>(null);
   const [csvAnalyzing, setCsvAnalyzing] = useState(false);
@@ -188,6 +216,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       setCsvMeta(null);
     }
     sendMessage();
+    localStorage.removeItem(DRAFT_KEY);
   };
 
   useEffect(() => {
@@ -487,6 +516,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Draft saved indicator */}
+        {draftSaved && (
+          <span className="text-[10px] text-muted-foreground/50 absolute bottom-1 right-2 pointer-events-none select-none">
+            📝 ดราฟท์บันทึกแล้ว
+          </span>
+        )}
       </div>
 
       {/* Phase 3 drag-and-drop hint — shown only when input is empty and no file attached */}

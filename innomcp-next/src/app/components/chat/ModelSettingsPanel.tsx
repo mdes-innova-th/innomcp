@@ -10,7 +10,7 @@
  * so they survive page reloads without hitting a DB.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const BACKEND =
   typeof window !== "undefined" && window.location.port === "3000"
@@ -32,6 +32,15 @@ interface TestResult {
   sample?: string;
 }
 
+type HealthStatus = "healthy" | "degraded" | "down" | "unknown";
+
+interface ProviderHealthResult {
+  id: string;
+  displayName: string;
+  healthStatus: HealthStatus;
+  latencyMs: number;
+}
+
 interface Props {
   onClose?: () => void;
 }
@@ -48,6 +57,38 @@ export default function ModelSettingsPanel({ onClose }: Props) {
   const [testingCall, setTestingCall] = useState(false);
   const [callResult, setCallResult] = useState<{ response: string; durationMs: number } | null>(null);
   const [callError, setCallError] = useState(false);
+  const [healthResults, setHealthResults] = useState<ProviderHealthResult[]>([]);
+  const [healthLoading, setHealthLoading] = useState(false);
+  const healthIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchHealth = useCallback(async () => {
+    setHealthLoading(true);
+    try {
+      const r = await fetch(`${BACKEND}/api/providers/health-check`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (r.ok) {
+        const data = (await r.json()) as { results: ProviderHealthResult[] };
+        setHealthResults(data.results ?? []);
+      }
+    } catch {
+      // silently ignore — health UI degrades gracefully
+    } finally {
+      setHealthLoading(false);
+    }
+  }, []);
+
+  // Fetch health on mount and refresh every 60 s
+  useEffect(() => {
+    fetchHealth();
+    healthIntervalRef.current = setInterval(fetchHealth, 60_000);
+    return () => {
+      if (healthIntervalRef.current !== null) {
+        clearInterval(healthIntervalRef.current);
+      }
+    };
+  }, [fetchHealth]);
 
   // Load presets from backend
   useEffect(() => {
@@ -151,6 +192,60 @@ export default function ModelSettingsPanel({ onClose }: Props) {
           >
             ✕
           </button>
+        )}
+      </div>
+
+      {/* Provider Health */}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-center justify-between">
+          <label className="text-[11px] font-medium text-muted-foreground">
+            Provider Health
+          </label>
+          <button
+            onClick={fetchHealth}
+            disabled={healthLoading}
+            data-testid="provider-health-refresh-btn"
+            className="rounded px-1.5 py-0.5 text-[10px] text-muted-foreground/60 transition-colors hover:text-foreground disabled:opacity-50"
+            aria-label="Refresh provider health"
+          >
+            {healthLoading ? "Checking..." : "Refresh"}
+          </button>
+        </div>
+        {healthResults.length === 0 ? (
+          <p className="text-[10.5px] text-muted-foreground/40">
+            {healthLoading ? "Checking providers…" : "No health data yet"}
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-0.5" data-testid="provider-health-list">
+            {healthResults.map((item) => {
+              const dotChar =
+                item.healthStatus === "unknown" ? "○" : "●";
+              const dotColor =
+                item.healthStatus === "healthy"
+                  ? "text-emerald-500"
+                  : item.healthStatus === "degraded"
+                  ? "text-amber-500"
+                  : item.healthStatus === "down"
+                  ? "text-rose-500"
+                  : "text-muted-foreground";
+              return (
+                <li
+                  key={item.id}
+                  className="flex items-center gap-1.5 text-[11px] text-foreground/80"
+                >
+                  <span className={`${dotColor} text-[10px] leading-none`} aria-hidden="true">
+                    {dotChar}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{item.displayName}</span>
+                  {item.latencyMs > 0 && (
+                    <span className="shrink-0 text-[10px] text-muted-foreground/60">
+                      {item.latencyMs}ms
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
 

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { AgentEvent } from "./useAgentEventStream";
 import ShellOutputView from "@/app/components/tools/ShellOutputView";
+import LiveTerminal from "@/app/components/tools/LiveTerminal";
 
 /** Format seconds as MM:SS */
 function formatElapsed(seconds: number): string {
@@ -148,9 +149,16 @@ export default function AgentWorkspacePanel({ events, isStreaming, runId }: Prop
   );
   const lastShellEvent = shellToolEvents.length > 0 ? shellToolEvents[shellToolEvents.length - 1] : null;
   const shellStatus = lastShellEvent?.type === "tool_call_started" ? "running" : "completed";
-  const shellCommand = lastShellEvent?.publicSummary && lastShellEvent.publicSummary !== lastShellEvent.type
-    ? lastShellEvent.publicSummary
-    : lastShellEvent?.toolName ?? "";
+  // Use publicSummary only when it looks like an actual command (not a generic Thai label)
+  const shellCommand = (() => {
+    const summary = lastShellEvent?.publicSummary ?? "";
+    const isGeneric =
+      !summary ||
+      summary === lastShellEvent?.type ||
+      summary === "เรียกใช้เครื่องมือ" ||
+      summary.trim().length === 0;
+    return isGeneric ? (lastShellEvent?.toolName ?? "shell") : summary;
+  })();
 
   if (collapsed) {
     return (
@@ -252,14 +260,22 @@ export default function AgentWorkspacePanel({ events, isStreaming, runId }: Prop
         </ul>
       )}
 
-      {/* Shell output view — shown when the most recent tool event is shell-related */}
+      {/* Shell output view — live streaming when running, static when completed */}
       {lastShellEvent && (
         <div className="mt-1">
-          <ShellOutputView
-            command={shellCommand}
-            stdout=""
-            status={shellStatus}
-          />
+          {isStreaming && lastShellEvent.type === "tool_call_started" ? (
+            <LiveTerminal
+              command={shellCommand}
+              autoRun={true}
+              onComplete={(_code) => { /* exit code handled by LiveTerminal internally */ }}
+            />
+          ) : (
+            <ShellOutputView
+              command={shellCommand}
+              stdout=""
+              status={shellStatus}
+            />
+          )}
         </div>
       )}
 
