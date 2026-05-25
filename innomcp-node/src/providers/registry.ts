@@ -63,6 +63,75 @@ function buildSeed(): ProviderRecord[] {
     });
   }
 
+  // GPT-4o-mini (OpenAI) — optional (only seeded if OPENAI_API_KEY is present)
+  if (process.env.OPENAI_API_KEY) {
+    seeds.push({
+      id: "seed-gpt-4o-mini",
+      displayName: "GPT-4o-mini (OpenAI)",
+      type: "openai-compatible",
+      baseUrl: (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, ""),
+      apiKeyRef: "OPENAI_API_KEY",
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+      capabilities: ["code", "tool-use", "fast-cheap"],
+      priority: 60,
+      enabled: true,
+      privacyLevel: "internal",
+      timeoutMs: 30_000,
+      healthStatus: "unknown",
+    });
+  }
+
+  // GitHub Copilot — optional (only seeded if GITHUB_COPILOT_TOKEN is present)
+  if (process.env.GITHUB_COPILOT_TOKEN) {
+    seeds.push({
+      id: "seed-github-copilot",
+      displayName: "GitHub Copilot",
+      type: "openai-compatible",
+      baseUrl: (process.env.COPILOT_BASE_URL || "https://api.githubcopilot.com").replace(/\/$/, ""),
+      apiKeyRef: "GITHUB_COPILOT_TOKEN",
+      model: process.env.COPILOT_MODEL || "gpt-4o",
+      capabilities: ["code", "tool-use", "hard-reasoning"],
+      priority: 65,
+      enabled: true,
+      privacyLevel: "internal",
+      timeoutMs: 45_000,
+      healthStatus: "unknown",
+    });
+  }
+
+  // Claude Haiku + Claude Sonnet — both seeded if ANTHROPIC_API_KEY is present
+  if (process.env.ANTHROPIC_API_KEY) {
+    seeds.push({
+      id: "seed-claude-haiku",
+      displayName: "Claude Haiku 4.5",
+      type: "anthropic-compatible",
+      baseUrl: (process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com").replace(/\/$/, ""),
+      apiKeyRef: "ANTHROPIC_API_KEY",
+      model: process.env.CLAUDE_HAIKU_MODEL || "claude-haiku-4-5-20251001",
+      capabilities: ["thai-naturalness", "fast-cheap", "tool-use"],
+      priority: 75,
+      enabled: true,
+      privacyLevel: "internal",
+      timeoutMs: 20_000,
+      healthStatus: "unknown",
+    });
+
+    seeds.push({
+      id: "seed-claude-sonnet",
+      displayName: "Claude Sonnet 4.6",
+      type: "anthropic-compatible",
+      baseUrl: (process.env.ANTHROPIC_BASE_URL || "https://api.anthropic.com").replace(/\/$/, ""),
+      apiKeyRef: "ANTHROPIC_API_KEY",
+      model: process.env.CLAUDE_SONNET_MODEL || "claude-sonnet-4-6",
+      capabilities: ["hard-reasoning", "long-context", "code", "tool-use"],
+      priority: 80,
+      enabled: true,
+      privacyLevel: "internal",
+      timeoutMs: 60_000,
+      healthStatus: "unknown",
+    });
+  }
+
   return seeds;
 }
 

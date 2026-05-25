@@ -7,8 +7,7 @@
 
 import { Router, Request, Response } from "express";
 import * as path from "node:path";
-import { spawn } from "node:child_process";
-import { executeShell } from "../../services/shellTool";
+import { executeShell, streamShell } from "../../services/shellTool";
 import { assessRisk } from "../../services/riskDetector";
 import { withDbConnection } from "../../utils/db";
 
@@ -60,45 +59,6 @@ router.post("/exec", async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/shell/stream — streams stdout/stderr line-by-line as SSE
-router.post("/stream", async (req: Request, res: Response) => {
-  const { command, workingDir, timeoutMs = 10_000 } = req.body as { command: string; workingDir?: string; timeoutMs?: number };
-  if (!command || typeof command !== "string") return res.status(400).json({ error: "command required" });
-
-  const risk = assessRisk(command);
-  if (risk.requiresApproval) return res.status(403).json({ error: "approval_required", riskLevel: risk.riskLevel, reason: risk.reason });
-
-  const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT
-    ? path.resolve(process.env.WORKSPACE_ROOT)
-    : path.resolve(process.cwd(), "../workspace");
-  const safeWd = workingDir ? path.resolve(WORKSPACE_ROOT, workingDir.replace(/^\/+/, "")) : WORKSPACE_ROOT;
-  if (!safeWd.startsWith(WORKSPACE_ROOT)) return res.status(400).json({ error: "Invalid working directory" });
-
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders?.();
-
-  const write = (type: string, data: Record<string, unknown>) => {
-    if (!res.writableEnded) res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
-  };
-
-  const MASKED = ["API_KEY", "SECRET", "TOKEN", "PASSWORD", "PRIVATE_KEY", "AUTH"];
-  const cleanEnv = Object.fromEntries(
-    Object.entries(process.env as Record<string, string>).filter(([k]) => !MASKED.some(m => k.toUpperCase().includes(m)))
-  );
-
-  const proc = spawn(command, [], { shell: true, cwd: safeWd, env: cleanEnv as NodeJS.ProcessEnv }) as import("node:child_process").ChildProcess;
-  const start = Date.now();
-  const timer = setTimeout(() => { proc.kill("SIGTERM"); write("timeout", { message: `Timed out after ${timeoutMs}ms` }); }, timeoutMs as number);
-  timer.unref?.();
-
-  proc.stdout?.on("data", (chunk: Buffer) => chunk.toString().split("\n").filter(Boolean).forEach(line => write("stdout", { line })));
-  proc.stderr?.on("data", (chunk: Buffer) => chunk.toString().split("\n").filter(Boolean).forEach(line => write("stderr", { line })));
-  proc.on("close", (code: number | null) => { clearTimeout(timer); write("done", { exitCode: code ?? -1, durationMs: Date.now() - start }); if (!res.writableEnded) res.end(); });
-  req.on("close", () => proc.kill("SIGTERM"));
-});
-
 // GET /api/shell/history
 router.get("/history", async (req: Request, res: Response) => {
   const { sessionId, taskId, limit = "20" } = req.query as Record<string, string>;
@@ -120,14 +80,13 @@ router.get("/history", async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/shell/stream  { command, workingDir?, timeoutMs?, taskId? }
-// Streams stdout line-by-line as SSE events
+// POST /api/shell/stream  { command, workingDir?, timeoutMs? }
+// Streams stdout/stderr as proper SSE events with named event types
 router.post("/stream", async (req: Request, res: Response) => {
-  const { command, workingDir, timeoutMs = 10_000, taskId } = req.body as {
+  const { command, workingDir, timeoutMs = 30_000 } = req.body as {
     command?: string;
     workingDir?: string;
     timeoutMs?: number;
-    taskId?: string;
   };
 
   if (!command || typeof command !== "string") {
@@ -135,7 +94,7 @@ router.post("/stream", async (req: Request, res: Response) => {
   }
 
   const risk = assessRisk(command);
-  if (risk.requiresApproval) {
+  if (risk.requiresApproval && (risk.riskLevel === "high" || risk.riskLevel === "critical")) {
     return res.status(403).json({
       error: "approval_required",
       riskLevel: risk.riskLevel,
@@ -143,66 +102,48 @@ router.post("/stream", async (req: Request, res: Response) => {
     });
   }
 
-  // Validate working dir
-  const safeWd = workingDir
-    ? path.resolve(WORKSPACE_ROOT, workingDir.replace(/^\/+/, ""))
-    : WORKSPACE_ROOT;
-  if (!safeWd.startsWith(WORKSPACE_ROOT)) {
-    return res.status(400).json({ error: "Invalid working dir" });
-  }
-
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   if (typeof (res as any).flushHeaders === "function") (res as any).flushHeaders();
 
-  const write = (type: string, data: Record<string, unknown>) => {
+  /** Emit a named SSE event. */
+  const writeEvent = (eventName: string, data: Record<string, unknown>) => {
     if (!res.writableEnded) {
-      res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
+      res.write(`event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`);
     }
   };
 
-  const { spawn } = await import("child_process");
-  const start = Date.now();
-  const proc = spawn(command, [], {
-    shell: true,
-    cwd: safeWd,
-    env: Object.fromEntries(
-      Object.entries(process.env).filter(
-        ([k]) =>
-          !["API_KEY", "SECRET", "TOKEN", "PASSWORD", "PRIVATE_KEY", "AUTH"].some((m) =>
-            k.toUpperCase().includes(m)
-          )
-      )
-    ) as NodeJS.ProcessEnv,
-  });
+  try {
+    const result = await streamShell(command, {
+      workspaceRoot: WORKSPACE_ROOT,
+      workingDir,
+      timeoutMs,
+      onStdout: (chunk) => writeEvent("stdout", { chunk }),
+      onStderr: (chunk) => writeEvent("stderr", { chunk }),
+    });
 
-  const timer = setTimeout(() => {
-    proc.kill("SIGTERM");
-    write("timeout", { message: `Timed out after ${timeoutMs}ms` });
-  }, timeoutMs);
-  if (typeof (timer as any).unref === "function") (timer as any).unref();
-
-  proc.stdout?.on("data", (chunk: Buffer) => {
-    chunk
-      .toString()
-      .split("\n")
-      .filter(Boolean)
-      .forEach((line) => write("stdout", { line }));
-  });
-  proc.stderr?.on("data", (chunk: Buffer) => {
-    chunk
-      .toString()
-      .split("\n")
-      .filter(Boolean)
-      .forEach((line) => write("stderr", { line }));
-  });
-  proc.on("close", (code: number | null) => {
-    clearTimeout(timer);
-    write("done", { exitCode: code ?? -1, durationMs: Date.now() - start });
+    writeEvent("exit", {
+      exitCode: result.exitCode,
+      durationMs: result.durationMs,
+      truncated: result.truncated,
+    });
     if (!res.writableEnded) res.end();
-  });
-  req.on("close", () => proc.kill("SIGTERM"));
+  } catch (err: unknown) {
+    // streamShell throws for blocked commands or spawn errors
+    const isBlocked = err instanceof Error && (err as any).blocked === true;
+    if (isBlocked) {
+      if (!res.writableEnded) {
+        res.write(`event: error\ndata: ${JSON.stringify({ error: "blocked", reason: (err as any).reason })}\n\n`);
+        res.end();
+      }
+    } else {
+      if (!res.writableEnded) {
+        res.write(`event: error\ndata: ${JSON.stringify({ error: String(err) })}\n\n`);
+        res.end();
+      }
+    }
+  }
 });
 
 export default router;

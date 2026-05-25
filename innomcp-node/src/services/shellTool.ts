@@ -10,7 +10,7 @@
  * - Audit log written to shell_executions via withDbConnection
  */
 
-import { exec, ExecException } from "node:child_process";
+import { exec, spawn, ExecException } from "node:child_process";
 import * as path from "node:path";
 import { assessRisk } from "./riskDetector";
 import { withDbConnection } from "../utils/db";
@@ -190,6 +190,122 @@ function runCommand(
     );
     // Ensure the timer doesn't keep the event loop alive
     child.unref?.();
+  });
+}
+
+// ── Streaming shell execution ─────────────────────────────────────────────────
+
+export interface StreamShellOptions {
+  workspaceRoot: string;
+  workingDir?: string;
+  timeoutMs?: number;
+  onStdout: (chunk: string) => void;
+  onStderr: (chunk: string) => void;
+}
+
+export interface StreamShellResult {
+  exitCode: number;
+  durationMs: number;
+  truncated: boolean;
+}
+
+/**
+ * streamShell — Run a command with live stdout/stderr callbacks.
+ *
+ * Applies the same blocklist / allowlist / workspace-containment checks as
+ * `executeShell`.  Returns exit code + timing; streaming output is delivered
+ * via `onStdout` / `onStderr` callbacks as data arrives.
+ *
+ * Throws with `{blocked: true, reason: string}` if the command is rejected
+ * before execution.
+ */
+export async function streamShell(
+  command: string,
+  opts: StreamShellOptions
+): Promise<StreamShellResult> {
+  const start = Date.now();
+  const timeoutMs = Math.min(opts.timeoutMs ?? 30_000, 30_000);
+  const cmdName = extractCommandName(command);
+
+  // ── 1. Blocklist check ───────────────────────────────────────────────────
+  if (COMMAND_BLOCKLIST.has(cmdName)) {
+    throw Object.assign(new Error(`Command '${cmdName}' is blocked`), {
+      blocked: true,
+      reason: `Command '${cmdName}' is blocked`,
+    });
+  }
+
+  // ── 2. Strict-mode allowlist + risk check ─────────────────────────────────
+  const risk = assessRisk(command);
+  if (!COMMAND_ALLOWLIST.has(cmdName)) {
+    if (risk.riskLevel === "critical" || risk.riskLevel === "high") {
+      throw Object.assign(new Error(risk.reason), {
+        blocked: true,
+        reason: risk.reason,
+      });
+    }
+  }
+
+  // ── 3. Approval gate ─────────────────────────────────────────────────────
+  if (risk.requiresApproval && (risk.riskLevel === "high" || risk.riskLevel === "critical")) {
+    throw Object.assign(new Error(risk.reason), {
+      blocked: true,
+      reason: risk.reason,
+    });
+  }
+
+  // ── 4. Workspace containment ──────────────────────────────────────────────
+  const normRoot = normalisePath(opts.workspaceRoot);
+  const rawWd = opts.workingDir
+    ? path.resolve(opts.workspaceRoot, opts.workingDir.replace(/^[/\\]+/, ""))
+    : opts.workspaceRoot;
+  const normWd = normalisePath(rawWd);
+  if (!normWd.startsWith(normRoot)) {
+    throw Object.assign(new Error("Working directory outside workspace"), {
+      blocked: true,
+      reason: "Working directory outside workspace",
+    });
+  }
+
+  // ── 5. Spawn ──────────────────────────────────────────────────────────────
+  const args = command.trim().split(/\s+/);
+  const bin = args.shift()!;
+
+  return new Promise<StreamShellResult>((resolve, reject) => {
+    const proc = spawn(bin, args, {
+      shell: false,
+      cwd: normWd,
+      env: sanitizeEnv(),
+    });
+
+    let truncated = false;
+    let killed = false;
+
+    const timer = setTimeout(() => {
+      truncated = true;
+      killed = true;
+      proc.kill("SIGTERM");
+    }, timeoutMs);
+    if (typeof (timer as NodeJS.Timeout & { unref?: () => void }).unref === "function") {
+      (timer as NodeJS.Timeout & { unref: () => void }).unref();
+    }
+
+    proc.stdout?.on("data", (chunk: Buffer) => opts.onStdout(chunk.toString()));
+    proc.stderr?.on("data", (chunk: Buffer) => opts.onStderr(chunk.toString()));
+
+    proc.on("error", (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+
+    proc.on("close", (code) => {
+      clearTimeout(timer);
+      resolve({
+        exitCode: code ?? -1,
+        durationMs: Date.now() - start,
+        truncated: killed,
+      });
+    });
   });
 }
 
