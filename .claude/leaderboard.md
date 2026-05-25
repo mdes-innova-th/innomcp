@@ -108,6 +108,21 @@ Last updated: 2026-05-25 | Session: 10 iterations complete
 **TypeScript: Clean (both packages)**
 **Loop: 10 iterations, 10 commits — CAPSTONE COMPLETE + PAS-4**
 
+## Phase 3 — Quality / Integration
+
+| Iter | Date | Fix | Commit |
+|------|------|-----|--------|
+| P3-1 | 2026-05-25 | Playwright dual-import fix (testIgnore + docs) + like/dislike 400 fix (rating 1/5 mapping) | c729c87 |
+
+## Phase 2 P1 Features — COMPLETE (5/5)
+| # | Feature | Commit | Tests |
+|---|---------|--------|-------|
+| P1-1 | Shell Tool (blocklist + sandbox + audit) | d4c0d16 | +13 |
+| P1-2 | Web Fetch Tool (SSRF + Markdown + cache) | b8aab5e | +41 |
+| P1-3 | Dashboard (/api/dashboard + DashboardView) | a8a16d2 | 0 regressions |
+| P1-4 | Task Detail (timeline + events + answer) | 9f54a12 | 0 regressions |
+| P1-5 | Multi-turn continuation | 880b466 | 0 regressions (950/950) |
+
 ### Beyond-Manus Features
 1. Thai AI (MDES Ollama gemma3:12b — local Thai LLM, no OpenAI dependency)
 2. Government data integration (TMD weather + Thai Geo MCP tools)
