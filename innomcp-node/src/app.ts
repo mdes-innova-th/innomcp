@@ -21,6 +21,7 @@ import { chatRouter } from "./routes/api/chat";
 import logger from "./utils/logger";
 import debugRouter from "./routes/api/debug";
 import tasksRouter from "./routes/api/tasks";
+import feedbackRouter from "./routes/api/feedback";
 
 // Initialize Express application
 const app = express();
@@ -139,6 +140,7 @@ app.use("/api/debug", debugRouter);
 // The /api catch-all below re-mounts via apiRouter but tasks needs the route
 // registered at /api/tasks directly for authenticated access with the DB.
 app.use("/api/tasks", generalRateLimit, apiKeyMiddleware, csrfMiddleware, tasksRouter);
+app.use("/api/chat/feedback", generalRateLimit, feedbackRouter);
 
 // Router à¸ªà¸³à¸«à¸£à¸±à¸š Chat (à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡ auth à¹€à¸žà¸·à¸­ testsuit - à¸•à¹‰à¸­à¸‡à¸­à¸¢à¸¹à¹ˆà¸à¹ˆà¸­à¸™ /api middleware)
 // FastPath middleware à¸­à¸¢à¸¹à¹ˆà¹ƒà¸™ chatRouter à¹à¸¥à¹‰à¸§
