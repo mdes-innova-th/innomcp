@@ -93,11 +93,18 @@ Last updated: 2026-05-25 | Session: 10 iterations complete
 
 | 10 | 2026-05-25 | aria-live on LIVE badge, scope="col" on table headers, feedback field name fix (messageId camelCase), 400 input validation | (this commit) |
 
-## Final Status — Iter 10 (COMPLETE)
-**Production hardening: accessibility, dark mode tokens verified, feedback DB bug fixed**
-**Tests: 737/737 Jest**
+| PAS-4 | 2026-05-25 | Model Settings panel — 6 provider presets + ad-hoc /test endpoint + sidebar SlideOver | 55e0e2d |
+
+## PAS Status — Private Agent Studio
+**PAS-4: Model Settings page — DONE**
+**Tests: 745/745 Jest**
 **TypeScript: Clean (both packages)**
-**Loop: 10 iterations, 10 commits — CAPSTONE COMPLETE**
+
+## Final Status — Iter 10 + PAS (COMPLETE)
+**Production hardening: accessibility, dark mode tokens verified, feedback DB bug fixed**
+**Tests: 745/745 Jest**
+**TypeScript: Clean (both packages)**
+**Loop: 10 iterations, 10 commits — CAPSTONE COMPLETE + PAS-4**
 
 ### Beyond-Manus Features
 1. Thai AI (MDES Ollama gemma3:12b — local Thai LLM, no OpenAI dependency)
