@@ -256,7 +256,7 @@ export function selectAgentPlan(
   });
 }
 
-function compressHistory(history: Array<{ sender: string; text: string }>, keepLast = 4): string {
+export function compressHistory(history: Array<{ sender: string; text: string }>, keepLast = 4): string {
   if (!history || history.length === 0) return "";
   const relevant = history.filter(m => m.text && m.text.trim().length > 5);
   if (relevant.length === 0) return "";

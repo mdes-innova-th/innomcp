@@ -39,6 +39,9 @@ innomcp-node/tests/*
 !innomcp-node/tests/query_coverage_v2.test.ts
 !innomcp-node/tests/jest.setup.ts
 !innomcp-node/tests/jest.preload.cjs
+# Allowlist: Q&A 100-question test suite
+!innomcp-node/tests/qa/
+!innomcp-node/tests/qa/*.test.ts
 
 # Database files
 mariadb/data/
