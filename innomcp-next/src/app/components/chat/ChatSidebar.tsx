@@ -15,6 +15,7 @@ import {
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
 import AgentLeaderboard from "./AgentLeaderboard";
+import ModelSettingsPanel from "./ModelSettingsPanel";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -142,7 +143,7 @@ function relativeTime(ms: number): string {
 
 // ─── Slide-over Panel ─────────────────────────────────────────────────────────
 
-type PanelId = "agent" | "plugins" | "scheduled" | "library" | null;
+type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | null;
 
 interface SlideOverProps {
   open: boolean;
@@ -601,6 +602,14 @@ const ChatSidebar: React.FC<Props> = ({
         >
           <span className="text-base leading-none">📚</span>
         </button>
+        <button
+          onClick={() => { onToggle(); }}
+          title="Model Settings"
+          data-testid="sidebar-nav-model-settings"
+          className="flex h-9 w-9 items-center justify-center rounded-md text-foreground/80 hover:bg-muted/60"
+        >
+          <span className="text-base leading-none">⚙️</span>
+        </button>
 
         {/* User avatar at bottom */}
         <div className="mt-auto">
@@ -646,6 +655,9 @@ const ChatSidebar: React.FC<Props> = ({
       </SlideOver>
       <SlideOver open={activePanel === "library"}   title="📚 Library"   onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
         <LibraryPanelContent />
+      </SlideOver>
+      <SlideOver open={activePanel === "model-settings"} title="⚙️ Model Settings" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <ModelSettingsPanel onClose={() => setActivePanel(null)} />
       </SlideOver>
 
       <aside
@@ -721,6 +733,13 @@ const ChatSidebar: React.FC<Props> = ({
             onClick={() => togglePanel("library")}
             active={activePanel === "library"}
             testId="sidebar-nav-library"
+          />
+          <NavBtn
+            icon="⚙️"
+            label="Model Settings"
+            onClick={() => togglePanel("model-settings")}
+            active={activePanel === "model-settings"}
+            testId="sidebar-nav-model-settings"
           />
         </div>
 
