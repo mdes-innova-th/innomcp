@@ -1458,7 +1458,7 @@ const ChatPage: React.FC = () => {
 
       {/* INNOMCP Computer — floating right-side live agent panel */}
       {workspaceOpen && (
-        <div className="fixed right-4 top-20 z-40 w-80 max-h-[calc(100vh-6rem)] overflow-y-auto">
+        <div className="fixed inset-x-2 top-16 z-40 max-h-[50vh] overflow-y-auto sm:inset-x-auto sm:right-4 sm:top-20 sm:w-80 sm:max-h-[calc(100vh-6rem)]">
           <AgentWorkspacePanel
             events={agentStreamState.events}
             isStreaming={isWaitingForResponse}
@@ -1473,7 +1473,7 @@ const ChatPage: React.FC = () => {
 
       {/* PAS-1: Artifact Panel — floats below agent workspace panel */}
       {artifactPanelOpen && (
-        <div className="fixed right-4 top-[calc(20rem+1rem)] z-40 w-80 max-h-[calc(100vh-22rem)] overflow-y-auto rounded-xl border border-border/50 bg-background/95 shadow-xl backdrop-blur-sm p-3">
+        <div className="fixed inset-x-2 top-[calc(50vh+0.5rem)] z-40 max-h-[40vh] overflow-y-auto rounded-xl border border-border/50 bg-background/95 shadow-xl backdrop-blur-sm p-3 sm:inset-x-auto sm:right-4 sm:top-[calc(20rem+1rem)] sm:w-80 sm:max-h-[calc(100vh-22rem)]">
           <ArtifactPanel
             artifacts={artifacts}
             onClose={() => setArtifactPanelOpen(false)}
@@ -1483,7 +1483,7 @@ const ChatPage: React.FC = () => {
 
       {/* PAS-2: Plan Viewer — vertical phase timeline, floats right side */}
       {planViewerOpen && (
-        <div className="fixed right-[calc(1rem+20rem+0.5rem)] top-20 z-40 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto">
+        <div className="fixed inset-x-2 top-16 z-[39] max-h-[40vh] overflow-y-auto sm:inset-x-auto sm:right-[calc(1rem+20rem+0.5rem)] sm:top-20 sm:w-72 sm:max-h-[calc(100vh-6rem)]">
           <div className="rounded-xl border border-border/60 bg-background/95 p-3 shadow-sm backdrop-blur">
             <PlanViewer
               plan={buildPlanFromEvents(agentStreamState.events, agentStreamState.activeMessageId ?? "")}
