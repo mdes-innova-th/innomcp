@@ -38,6 +38,23 @@ export default function ApprovalGate({ request, onApprove, onDeny }: Props) {
   if (!request) return null;
   const cfg = RISK_CONFIG[request.riskLevel];
 
+  // URL detection — search command, then action, then details
+  const urlMatch = (request.command || request.action || request.details || "")
+    .match(/https?:\/\/[^\s)]+/);
+  const detectedUrl = urlMatch ? urlMatch[0] : null;
+
+  // Tool type badge detection
+  const toolType = (() => {
+    const t = request.tool.toLowerCase();
+    if (t.includes("shell") || t.includes("exec"))
+      return { icon: "🖥️", label: "Shell Command", cls: "bg-amber-500/10 text-amber-700 dark:text-amber-400" };
+    if (t.includes("fetch") || t.includes("http") || t.includes("url"))
+      return { icon: "🌐", label: "Web Fetch", cls: "bg-blue-500/10 text-blue-700 dark:text-blue-400" };
+    if (t.includes("file") || t.includes("write") || t.includes("read"))
+      return { icon: "📄", label: "File Operation", cls: "bg-gray-500/10 text-gray-700 dark:text-gray-400" };
+    return { icon: "⚡", label: "Agent Action", cls: "bg-muted/40 text-muted-foreground" };
+  })();
+
   return (
     <>
       {/* Backdrop */}

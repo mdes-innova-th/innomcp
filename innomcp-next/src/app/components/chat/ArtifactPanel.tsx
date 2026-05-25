@@ -16,6 +16,15 @@ interface Props {
   onClose?: () => void;
 }
 
+/** Relative time string in Thai for artifact age display. */
+function relTime(ts: number): string {
+  const diff = Math.floor((Date.now() - ts) / 1000);
+  if (diff < 60) return "เมื่อกี้";
+  if (diff < 3600) return `${Math.floor(diff / 60)} นาทีที่แล้ว`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ชั่วโมงที่แล้ว`;
+  return `${Math.floor(diff / 86400)} วันที่แล้ว`;
+}
+
 /** Parse YAML frontmatter and extract source_url value, or return null. */
 function extractSourceUrl(content: string): string | null {
   // Frontmatter must start at the very first line

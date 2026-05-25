@@ -823,6 +823,15 @@ const ChatSidebar: React.FC<Props> = ({
               testId="sidebar-nav-projects"
             />
           )}
+          {isLoggedIn && (
+            <NavBtn
+              icon="🗂️"
+              label="Workspace"
+              onClick={() => togglePanel("workspace")}
+              active={activePanel === "workspace"}
+              testId="sidebar-nav-workspace"
+            />
+          )}
         </div>
 
         <div className="mx-3 border-t border-border/50" />
