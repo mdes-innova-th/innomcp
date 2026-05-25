@@ -4,7 +4,7 @@ import React, { useState, useMemo } from "react";
 export interface Artifact {
   id: string;
   name: string;
-  type: "markdown" | "code" | "json" | "csv" | "html" | "text";
+  type: "markdown" | "code" | "json" | "csv" | "html" | "text" | "chart";
   content: string;
   language?: string; // for code artifacts
   createdAt: number;
@@ -79,6 +79,7 @@ export default function ArtifactPanel({ artifacts, onClose }: Props) {
       csv: "csv",
       html: "html",
       text: "txt",
+      chart: "svg",
     }[current.type] ?? "txt";
     const blob = new Blob([current.content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -136,6 +137,8 @@ export default function ArtifactPanel({ artifacts, onClose }: Props) {
                 ? "🔧"
                 : a.type === "csv"
                 ? "📊"
+                : a.type === "chart"
+                ? "📈"
                 : "📄"}
             </span>
             <span className="max-w-[120px] truncate">{a.name}</span>
@@ -181,6 +184,11 @@ export default function ArtifactPanel({ artifacts, onClose }: Props) {
                 <MarkdownPreview content={current.content} />
               ) : current.type === "code" ? (
                 <CodePreview content={current.content} language={current.language} />
+              ) : current.type === "chart" ? (
+                <div
+                  className="overflow-x-auto p-3"
+                  dangerouslySetInnerHTML={{ __html: current.content }}
+                />
               ) : (
                 <pre className="p-3 text-[11.5px] font-mono text-foreground/80 whitespace-pre-wrap">
                   {current.content}

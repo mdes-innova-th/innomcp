@@ -36,15 +36,28 @@ export default function TaskDetailPage({
     return null;
   }
 
+  const backendUrl =
+    typeof window !== "undefined" && window.location.port === "3000"
+      ? "http://localhost:3011"
+      : "";
+  const exportUrl = `${backendUrl}/api/tasks/${params.id}/export`;
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
-      <div className="mb-4">
+      <div className="mb-4 flex items-center gap-3">
         <Link
           href="/dashboard"
           className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
         >
           ← Back to Dashboard
         </Link>
+        <a
+          href={exportUrl}
+          download
+          className="text-[11px] border border-border/40 rounded-md px-2.5 py-1 text-muted-foreground hover:text-foreground hover:border-border transition-colors"
+        >
+          📦 Export ZIP
+        </a>
       </div>
       <div className="rounded-xl border border-border/40 bg-background/60 p-4">
         <TaskDetailPanel

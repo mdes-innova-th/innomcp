@@ -26,6 +26,7 @@ import feedbackRouter from "./routes/api/feedback";
 import statsRouter from "./routes/api/stats";
 import modelSettingsRouter from "./routes/api/modelSettings";
 import memoriesRouter from "./routes/api/memories";
+import projectsRouter from "./routes/api/projects";
 import shellRouter from "./routes/api/shell";
 import webFetchRouter from "./routes/api/webFetch";
 import dashboardRouter from "./routes/api/dashboard";
@@ -158,6 +159,9 @@ app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);
 
 // Project Memory — key-value store for Private Agent Studio sessions
 app.use("/api/memories", generalRateLimit, memoriesRouter);
+
+// Projects — group tasks and memories into named projects
+app.use("/api/projects", generalRateLimit, projectsRouter);
 
 // Shell Tool — sandboxed command execution for Private Agent Studio
 app.use("/api/shell", generalRateLimit, shellRouter);
