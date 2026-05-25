@@ -136,12 +136,12 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
         <table className="w-full min-w-[480px]">
           <thead>
             <tr className="border-b border-border/40 bg-muted/20 text-[10.5px] text-muted-foreground">
-              <th className="px-2.5 py-1.5 text-left font-medium">#</th>
-              <th className="px-2.5 py-1.5 text-left font-medium">Agent</th>
-              <th className="px-2.5 py-1.5 text-left font-medium">Provider</th>
-              <th className="px-2.5 py-1.5 text-left font-medium">Model</th>
-              <th className="px-2.5 py-1.5 text-left font-medium">Role</th>
-              <th className="px-2.5 py-1.5 text-center font-medium">Status</th>
+              <th scope="col" className="px-2.5 py-1.5 text-left font-medium">#</th>
+              <th scope="col" className="px-2.5 py-1.5 text-left font-medium">Agent</th>
+              <th scope="col" className="px-2.5 py-1.5 text-left font-medium">Provider</th>
+              <th scope="col" className="px-2.5 py-1.5 text-left font-medium">Model</th>
+              <th scope="col" className="px-2.5 py-1.5 text-left font-medium">Role</th>
+              <th scope="col" className="px-2.5 py-1.5 text-center font-medium">Status</th>
             </tr>
           </thead>
           <tbody className="text-[11px]">

@@ -114,7 +114,11 @@ export default function AgentWorkspacePanel({ events, isStreaming, runId }: Prop
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-foreground">INNOMCP&apos;s Computer</span>
           {isStreaming && !isDone && (
-            <span className="flex items-center gap-1 text-xs text-emerald-500 font-medium">
+            <span
+              className="flex items-center gap-1 text-xs text-emerald-500 font-medium"
+              aria-live="polite"
+              aria-label="Task in progress"
+            >
               <span className="animate-pulse">●</span>
               LIVE
             </span>

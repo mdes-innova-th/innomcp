@@ -8,21 +8,33 @@ import { withDbConnection } from "../../utils/db";
 
 const router = Router();
 
-// POST /api/chat/feedback  { message_id, rating, session_id? }
+// POST /api/chat/feedback  { messageId, rating, sessionId? }
+// Also accepts snake_case aliases for backwards compatibility.
 router.post("/", async (req: Request, res: Response) => {
-  const { message_id, rating, session_id } = req.body as {
+  const body = req.body as {
+    messageId?: string;
     message_id?: string;
     rating?: number;
+    sessionId?: string;
     session_id?: string;
   };
 
+  // Accept both camelCase (frontend) and snake_case (legacy)
+  const message_id = body.messageId ?? body.message_id;
+  const session_id = body.sessionId ?? body.session_id;
+  const { rating } = body;
+
+  // Validate input — return 400 on bad data so callers can detect misuse
+  if (!message_id || typeof message_id !== "string") {
+    return res.status(400).json({ error: "Invalid messageId" });
+  }
+  const r = Number(rating);
+  if (!Number.isInteger(r) || r < 1 || r > 5) {
+    return res.status(400).json({ error: "Invalid rating: must be integer 1–5" });
+  }
+
   // Respond immediately — don't block on DB
   res.json({ ok: true });
-
-  // Validate before writing
-  if (!message_id || typeof message_id !== "string") return;
-  const r = Number(rating);
-  if (!Number.isInteger(r) || r < 1 || r > 5) return;
 
   // Fire-and-forget insert
   withDbConnection(async (conn) => {
