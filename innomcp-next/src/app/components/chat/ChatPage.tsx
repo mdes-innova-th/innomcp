@@ -28,6 +28,8 @@ import ThinkingModal from "@/app/components/chat/ThinkingModal";
 import { useAgentEventStream } from "@/app/components/chat/useAgentEventStream";
 import KeyboardShortcutsPanel, { useKeyboardShortcutsPanel } from "@/app/components/chat/KeyboardShortcutsPanel";
 import ArtifactPanel, { type Artifact } from "@/app/components/chat/ArtifactPanel";
+import PlanViewer from "@/app/components/chat/PlanViewer";
+import { buildPlanFromEvents } from "../../../utils/planExtractor";
 // icons are used in ChatInput; not needed here
 
 // Define the type for a chat message
@@ -253,6 +255,7 @@ const ChatPage: React.FC = () => {
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [artifactPanelOpen, setArtifactPanelOpen] = useState(false);
+  const [planViewerOpen, setPlanViewerOpen] = useState(false);
   const [socket, setSocket] = useState<WebSocket | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   // Stored compact chat summaries (keeps up to last 10)
@@ -1062,6 +1065,7 @@ const ChatPage: React.FC = () => {
       setTimeout(() => setStickyWorkingTick((t) => t + 1), 1500);
       setIsWaitingForResponse(true);
       setWorkspaceOpen(true);
+      setPlanViewerOpen(true);
     } else if (socket && !isSocketReady) {
       console.error(
         "WebSocket is not ready. Please wait for the connection to be established."
@@ -1451,6 +1455,18 @@ const ChatPage: React.FC = () => {
         </div>
       )}
 
+      {/* PAS-2: Plan Viewer — vertical phase timeline, floats right side */}
+      {planViewerOpen && (
+        <div className="fixed right-[calc(1rem+20rem+0.5rem)] top-20 z-40 w-72 max-h-[calc(100vh-6rem)] overflow-y-auto">
+          <div className="rounded-xl border border-border/60 bg-background/95 p-3 shadow-sm backdrop-blur">
+            <PlanViewer
+              plan={buildPlanFromEvents(agentStreamState.events, agentStreamState.activeMessageId ?? "")}
+              onClose={() => setPlanViewerOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Floating "?" button — power-users discover Ctrl+K, Ctrl+/, etc. */}
       <button
         onClick={() => setShortcutsOpen(true)}
@@ -1541,6 +1557,16 @@ const ChatPage: React.FC = () => {
                   >
                     <span>📄</span>
                     <span>Artifacts ({artifacts.length})</span>
+                  </button>
+                )}
+                {agentStreamState.events.length > 0 && (
+                  <button
+                    onClick={() => setPlanViewerOpen(p => !p)}
+                    className="ml-1 shrink-0 inline-flex items-center gap-1 rounded-md border border-border/50 bg-background/80 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
+                    title="เปิด/ปิด Plan Viewer"
+                  >
+                    <span>📋</span>
+                    <span>Plan</span>
                   </button>
                 )}
               </div>
