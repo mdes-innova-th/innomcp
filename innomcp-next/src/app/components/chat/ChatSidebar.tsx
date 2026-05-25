@@ -233,6 +233,7 @@ const ChatSidebar: React.FC<Props> = ({
   const [editTitle, setEditTitle]     = useState("");                  // TODO #45
   const [activePanel, setActivePanel] = useState<PanelId>(null);
   const [sidebarRight, setSidebarRight] = useState<number>(240);
+  const [dbTasks, setDbTasks] = useState<Array<{ id: string; title: string; status: string; created_at: string }>>([]);
 
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const sidebarRef  = useRef<HTMLElement | null>(null);
@@ -240,6 +241,14 @@ const ChatSidebar: React.FC<Props> = ({
   const router = useRouter();
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Fetch recent tasks from DB — falls back to localStorage summaries if request fails or user is guest
+  useEffect(() => {
+    fetch("/api/tasks?limit=8", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => { if (data?.tasks?.length) setDbTasks(data.tasks); })
+      .catch(() => {}); // silently fall back to summaries
+  }, []);
 
   // Measure sidebar width whenever collapsed state changes or on mount
   useEffect(() => {
@@ -275,7 +284,8 @@ const ChatSidebar: React.FC<Props> = ({
   const togglePanel = (id: PanelId) =>
     setActivePanel((prev) => (prev === id ? null : id));
 
-  // ─── Tasks list (max 8) ────────────────────────────────────────────────────
+  // ─── Tasks list (max 8) — DB tasks when available, else localStorage summaries ──
+  const usingDbTasks = dbTasks.length > 0;
   const taskList = summaries.slice(0, 8);
 
   // ─── Task row ─────────────────────────────────────────────────────────────
@@ -732,7 +742,14 @@ const ChatSidebar: React.FC<Props> = ({
           <ul className="flex flex-col gap-0.5">
             <li className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60 cursor-default">
               <span className="h-2 w-2 rounded-full bg-sky-500 shrink-0" />
-              <span className="truncate text-[13px] text-foreground">MDES Operations</span>
+              <div className="flex flex-1 items-center justify-between min-w-0">
+                <span className="truncate text-[13px] text-foreground">MDES Operations</span>
+                {(usingDbTasks ? dbTasks.length : taskList.length) > 0 && (
+                  <span className="ml-1.5 shrink-0 text-[10px] text-muted-foreground tabular-nums">
+                    {usingDbTasks ? dbTasks.length : taskList.length}
+                  </span>
+                )}
+              </div>
             </li>
             <li className="flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer hover:bg-muted/60 text-muted-foreground/70">
               <span className="h-2 w-2 rounded-full border border-border/80 shrink-0" />
@@ -749,19 +766,57 @@ const ChatSidebar: React.FC<Props> = ({
             <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               All Tasks
             </span>
-            {summaries.length > 8 && (
-              <span className="text-[11px] text-muted-foreground/70">{summaries.length}</span>
+            {/* Show count from whichever source is active */}
+            {(usingDbTasks ? dbTasks.length : summaries.length) > 8 && (
+              <span className="text-[11px] text-muted-foreground/70">
+                {usingDbTasks ? dbTasks.length : summaries.length}
+              </span>
             )}
           </div>
 
-          {taskList.length === 0 ? (
+          {(usingDbTasks ? dbTasks.length : taskList.length) === 0 ? (
             <div className="rounded-md border border-dashed border-border/60 px-3 py-5 text-center">
               <div className="text-[12.5px] font-medium text-foreground">No tasks yet</div>
               <div className="mt-1 text-[11.5px] text-muted-foreground">
                 Start a new task to get going
               </div>
             </div>
+          ) : usingDbTasks ? (
+            /* DB tasks — read-only display (title + status badge + time) */
+            <ul className="flex flex-col gap-0.5 overflow-y-auto pb-2">
+              {dbTasks.slice(0, 8).map((t) => (
+                <li
+                  key={t.id}
+                  className="flex items-center gap-2 rounded-md px-2 py-2 hover:bg-muted/60"
+                >
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground leading-tight">
+                    {t.title}
+                  </span>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {t.status === "completed" && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                        done
+                      </span>
+                    )}
+                    {t.status === "running" && (
+                      <span className="inline-flex items-center rounded-full bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600 dark:text-sky-400">
+                        running
+                      </span>
+                    )}
+                    {t.status === "failed" && (
+                      <span className="inline-flex items-center rounded-full bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600 dark:text-rose-400">
+                        failed
+                      </span>
+                    )}
+                    <span className="text-[11px] text-muted-foreground/70 whitespace-nowrap">
+                      {relativeTime(new Date(t.created_at).getTime())}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
           ) : (
+            /* localStorage summaries fallback */
             <ul className="flex flex-col gap-0.5 overflow-y-auto pb-2">
               {taskList.map((s) => (
                 <TaskRow key={s.id} s={s} />
