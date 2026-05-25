@@ -66,6 +66,7 @@ const INTENT_AGENTS_POOL: Record<string, AgentId[]> = {
   knowledge:        ["thinker", "rag-agent", "researcher", "concierge", "critic", "stylist", "fact-checker", "domain-expert", "linguist"],
   "planning-broad": ["thinker", "weather-analyst", "geo-planner", "rag-agent", "researcher", "concierge", "critic", "stylist", "domain-expert", "fact-checker", "linguist"],
   code:             ["thinker", "tool-scout", "researcher", "concierge", "critic", "stylist", "fact-checker", "domain-expert", "linguist", "rag-agent"],
+  factual:          ["thinker", "rag-agent", "researcher", "concierge", "critic", "fact-checker", "domain-expert", "linguist"],
   general:          ["thinker", "concierge", "critic", "stylist", "rag-agent", "researcher", "linguist", "domain-expert", "fact-checker"],
 };
 
@@ -206,7 +207,10 @@ export function selectAgentPlan(
     // hybrid mode when MDES is reachable. Thinking mode expands beyond this.
     let agents: AgentId[];
     if (pool.length >= 2) {
-      const head = pool[0];
+      // In normal mode, slot-1 should be a domain responder, not a meta-agent.
+      // Skip thinker/researcher/fact-checker/linguist/domain-expert as the primary slot.
+      const NORMAL_SKIP = new Set(["thinker", "researcher", "fact-checker", "linguist", "domain-expert"]);
+      let head = pool.find(a => !NORMAL_SKIP.has(a)) ?? pool[0];
       // C.09: ถ้า pool มี critic, ให้ critic เป็นตัวที่ 2 (เพื่อให้ synthesizeAnswer
       // มี polished output เสมอ). ถ้าไม่มี critic, ใช้ slice(0,2) เดิม
       if (head !== "critic" && pool.includes("critic")) {
@@ -276,13 +280,13 @@ const AGENT_PROMPT: Record<string, (q: string, ctx?: string) => string> = {
   "rag-agent":       (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ค้นหาและสรุปความรู้เกี่ยวกับ: "${q}"\n[ตอบเป็นภาษาไทย กระชับ ตรงประเด็น ถ้ามีหลายประเด็นให้ใช้ bullet points]`,
   "concierge":       (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ตอบคำถามต่อไปนี้ตรงประเด็น ห้ามใช้คำนำ เช่น "ขออนุญาต" หรือ "ผมจะ" — เริ่มตอบได้เลย:\n"${q}"\n[ตอบเป็นภาษาไทยมืออาชีพ ใช้ bullet points ถ้ามีหลายประเด็น ไม่เกิน 4 ประโยคหรือ 4 bullets]`,
   "tool-scout":      (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ระบุ tool และวิธีการที่เหมาะสมที่สุดสำหรับ: "${q}"\n[ชื่อ tool + เหตุผล 1-2 ประโยคภาษาไทย]`,
-  "critic":          (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}วิเคราะห์และตอบ: "${q}"\n→ ระบุประเด็นหลัก → ให้คำตอบที่ถูกต้องและครบถ้วน\n[ตอบเป็นภาษาไทย กระชับ ไม่เกิน 3 ประโยค]`,
-  "stylist":         (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}เรียบเรียงคำตอบสำหรับ: "${q}"\n[ตอบภาษาไทยที่เป็นธรรมชาติ อ่านง่าย มืออาชีพ ไม่ฟุ้มเฟ้อ ตรงประเด็น]`,
-  "thinker":         (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}คุณเป็นนักคิดเชิงวิเคราะห์ขั้นสูง วิเคราะห์อย่างรอบด้านก่อนตอบ:\n${q}\n\n[คิดเชิงระบบ หาสาเหตุและผล ตอบเป็นภาษาไทยที่ชัดเจน 2-4 ประโยค ห้ามเริ่มด้วย "ขออนุญาต"]`,
-  "researcher":      (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ค้นหาข้อมูลและหลักฐานที่เกี่ยวข้องกับ: "${q}"\n[นำเสนอข้อเท็จจริงสำคัญ 3-5 ข้อ เป็นภาษาไทยที่กระชับและตรงประเด็น]`,
-  "fact-checker":    (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ตรวจสอบความถูกต้องของข้อมูลเกี่ยวกับ: "${q}"\n[ระบุจุดที่แน่ใจและจุดที่ควรระวัง ตอบเป็นภาษาไทยที่ชัดเจน]`,
-  "linguist":        (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}เรียบเรียงคำตอบที่ดีที่สุดสำหรับ: "${q}"\n[ใช้ภาษาไทยที่เป็นธรรมชาติ มืออาชีพ อ่านง่าย ไม่ใช้คำศัพท์ฟุ้มเฟ้อ ตอบตรงประเด็น]`,
-  "domain-expert":   (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ในฐานะผู้เชี่ยวชาญเฉพาะทาง ให้ความเห็นเชิงลึกเกี่ยวกับ: "${q}"\n[แชร์ insight ที่มีประโยชน์ ตอบเป็นภาษาไทยมืออาชีพ 2-3 ประโยค]`,
+  "critic":          (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}วิเคราะห์และตอบ: "${q}"\n→ ระบุประเด็นหลัก → ให้คำตอบที่ถูกต้องและครบถ้วน\nตอบตรงๆ เป็นภาษาไทย ไม่เกิน 3 ประโยค ห้ามเกริ่นนำ`,
+  "stylist":         (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}เรียบเรียงคำตอบสำหรับ: "${q}"\nเขียนสั้นๆ มืออาชีพ`,
+  "thinker":         (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}คุณเป็นนักคิดเชิงวิเคราะห์ขั้นสูง วิเคราะห์อย่างรอบด้านก่อนตอบ:\n${q}\n\nคิดเชิงระบบ หาสาเหตุและผล แล้วตอบเป็นภาษาไทยที่ชัดเจน 2-4 ประโยค ห้ามเริ่มด้วย "ขออนุญาต"`,
+  "researcher":      (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ค้นหาข้อมูลและหลักฐานที่เกี่ยวข้องกับ: "${q}"\n1. ข้อเท็จจริงหลัก\n2. แหล่งที่มาหรือบริบท\n3. ประเด็นที่ควรรู้เพิ่มเติม\nตอบเป็นภาษาไทยกระชับตรงประเด็น`,
+  "fact-checker":    (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ตรวจสอบความถูกต้องของข้อมูลเกี่ยวกับ: "${q}"\n1. ข้อเท็จจริงที่ยืนยันได้\n2. จุดที่ควรระวังหรือตรวจสอบเพิ่ม\n3. สรุปความน่าเชื่อถือโดยรวม\nตอบเป็นภาษาไทยที่ชัดเจน`,
+  "linguist":        (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}เรียบเรียงคำตอบที่ดีที่สุดสำหรับ: "${q}"\nใช้ภาษาไทยที่เป็นธรรมชาติ มืออาชีพ อ่านง่าย ตอบตรงประเด็น`,
+  "domain-expert":   (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}ในฐานะผู้เชี่ยวชาญเฉพาะทาง ให้ความเห็นเชิงลึกเกี่ยวกับ: "${q}":\n`,
 };
 
 // ── Ollama (MDES) call ──────────────────────────────────────────────────────

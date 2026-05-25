@@ -83,9 +83,11 @@ function composeAnswer(ctx: ComposeContext): string {
     case "map":
       return composeMapAnswer(ctx.query);
     case "evidence":
-      return "ผมจะตรวจจากฐานข้อมูลหลักฐานก่อน แล้วสรุปเฉพาะสิ่งที่ยืนยันได้ หากระบบหลักฐานไม่พร้อมจะแจ้งสถานะให้ตรงๆ";
+      return "";
     case "knowledge":
-      return "ผมจะค้นข้อมูลไทยที่เกี่ยวข้องก่อน แล้วสรุปคำตอบพร้อมขอบเขตความมั่นใจให้ชัดเจน";
+      return "";
+    case "factual":
+      return "";
     default:
       return composeGeneralAnswer(ctx.query);
   }
@@ -124,7 +126,12 @@ function composeDateTimeAnswer(): string {
 }
 
 function composeGreetingAnswer(): string {
-  return "สวัสดีครับ! ถามมาได้เลย ไม่ว่าจะเป็นข้อมูล คำนวณ โค้ด หรืออยากคุย 😊";
+  const greetings = [
+    "สวัสดีครับ มีอะไรให้ช่วยไหม?",
+    "สวัสดีครับ วันนี้ต้องการทราบอะไรเป็นพิเศษ?",
+    "ยินดีช่วยเสมอครับ บอกได้เลย",
+  ];
+  return greetings[Math.floor(Math.random() * greetings.length)];
 }
 
 function composePlanningBroadAnswer(query: string, facts: string[]): string {
@@ -162,22 +169,20 @@ function composeWeatherAnswer(query: string, facts: string[]): string {
     .join("\n");
 }
 
-function composeCalcAnswer(query: string): string {
-  // Phase C.06: no more "แสดงในเซสชันถัดไป" — calculator tool returns in
-  // the SAME message. Template is brief; real answer comes from calculatorTool.
-  return `กำลังคำนวณ "${query.trim()}" ด้วย MathTool…`;
+function composeCalcAnswer(_query: string): string {
+  return "";
 }
 
-function composeCodeAnswer(query: string): string {
-  return `รับโจทย์โค้ดแล้ว — ใช้ qwen2.5-coder:7b แชร์โค้ดหรือ stack trace มาได้เลยครับ`;
+function composeCodeAnswer(_query: string): string {
+  return "";
 }
 
-function composeMapAnswer(query: string): string {
-  return "สำหรับคำขอเกี่ยวกับแผนที่ ผมจะแสดงในส่วนคอมโพเนนต์แผนที่โดยตรง — ส่งพิกัดหรือชื่อพื้นที่มาได้เลยครับ";
+function composeMapAnswer(_query: string): string {
+  return "";
 }
 
-function composeGeneralAnswer(query: string): string {
-  return `รับโจทย์ "${query.trim()}" แล้ว — หากต้องการคำตอบละเอียดกว่านี้บอกได้ครับ`;
+function composeGeneralAnswer(_query: string): string {
+  return "";
 }
 
 /**

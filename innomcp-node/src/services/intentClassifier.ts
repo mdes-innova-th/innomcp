@@ -18,6 +18,7 @@ export type ChatIntent =
   | "map"
   | "evidence"
   | "knowledge"
+  | "factual"
   | "general";
 
 export interface ClassifyResult {
@@ -213,6 +214,20 @@ const KNOWLEDGE_KEYWORDS = [
   "ดาวเทียม",
 ];
 
+const FACTUAL_KEYWORDS = [
+  // Thai
+  "กีฬา", "ฟุตบอล", "บาสเกตบอล", "เทนนิส", "กีฬาโอลิมปิก",
+  "ภาพยนตร์", "หนัง", "ซีรีส์", "เพลง", "ดนตรี", "ศิลปิน", "นักร้อง",
+  "ท่องเที่ยว", "สถานที่ท่องเที่ยว", "โรงแรม", "ต่างประเทศ",
+  "ประวัติศาสตร์", "วิทยาศาสตร์", "เศรษฐกิจ", "หุ้น", "ตลาดหุ้น",
+  "สุขภาพ", "โภชนาการ", "อาหารการกิน",
+  // English
+  "sport", "football", "basketball", "tennis", "olympic",
+  "food", "health", "nutrition",
+  "history", "science", "finance", "stock market", "investment",
+  "music", "movie", "film", "series", "travel",
+];
+
 const GREETING_KEYWORDS = [
   "สวัสดี",
   "หวัดดี",
@@ -258,6 +273,7 @@ export function classifyIntent(message: string, toolHint?: string): ClassifyResu
   }
 
   const greeting = containsAny(message, GREETING_KEYWORDS);
+  const factual = containsAny(message, FACTUAL_KEYWORDS);
   const planning = containsAny(message, PLANNING_KEYWORDS);
   const weather = containsAny(message, WEATHER_KEYWORDS);
   const datetime = containsAny(message, DATETIME_KEYWORDS);
@@ -324,6 +340,10 @@ export function classifyIntent(message: string, toolHint?: string): ClassifyResu
   if (knowledge) {
     reasons.push(`knowledge: ${knowledge}`);
     return { intent: "knowledge", expectedToolUsage: true, reasons };
+  }
+  if (factual) {
+    reasons.push(`factual: ${factual}`);
+    return { intent: "factual", expectedToolUsage: false, reasons };
   }
 
   reasons.push("general (no keywords matched)");
