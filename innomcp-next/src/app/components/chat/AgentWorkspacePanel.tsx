@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { AgentEvent } from "./useAgentEventStream";
+import ShellOutputView from "@/app/components/tools/ShellOutputView";
 
 /** Format seconds as MM:SS */
 function formatElapsed(seconds: number): string {
@@ -33,6 +34,53 @@ const EVENT_LABEL: Record<string, string> = {
   fact_found: "พบข้อมูล",
   final_answer: "สรุปคำตอบ",
 };
+
+/** Detect if an event is shell/exec-related */
+function isShellEvent(event: AgentEvent): boolean {
+  const name = event.toolName?.toLowerCase() ?? "";
+  const summary = event.publicSummary?.toLowerCase() ?? "";
+  return (
+    name.includes("shell") ||
+    name.includes("exec") ||
+    name.includes("bash") ||
+    name.includes("cmd") ||
+    summary.includes("shell") ||
+    summary.includes("exec") ||
+    summary.includes("รัน") ||
+    summary.includes("bash")
+  );
+}
+
+/** Return a tool type badge label + emoji for a given event, or null */
+function getToolBadge(event: AgentEvent): string | null {
+  const name = event.toolName?.toLowerCase() ?? "";
+  const summary = event.publicSummary?.toLowerCase() ?? "";
+  if (
+    name.includes("shell") || name.includes("exec") || name.includes("bash") || name.includes("cmd") ||
+    summary.includes("shell") || summary.includes("exec") || summary.includes("รัน") || summary.includes("bash")
+  ) {
+    return "🖥️ Terminal";
+  }
+  if (
+    name.includes("web") || name.includes("fetch") || name.includes("http") || name.includes("url") ||
+    summary.includes("fetch") || summary.includes("web") || summary.includes("url") || summary.includes("ดาวน์โหลด")
+  ) {
+    return "🌐 Web Fetch";
+  }
+  if (
+    name.includes("file") || name.includes("read") || name.includes("write") || name.includes("fs") ||
+    summary.includes("file") || summary.includes("อ่าน") || summary.includes("เขียน")
+  ) {
+    return "📄 File";
+  }
+  if (
+    name.includes("analys") || name.includes("data") || name.includes("chart") || name.includes("stat") ||
+    summary.includes("วิเคราะห์") || summary.includes("data") || summary.includes("สถิติ")
+  ) {
+    return "📊 Analysis";
+  }
+  return null;
+}
 
 function getStepLabel(event: AgentEvent): string {
   const base = EVENT_LABEL[event.type] ?? event.type;
@@ -91,6 +139,18 @@ export default function AgentWorkspacePanel({ events, isStreaming, runId }: Prop
   const lastActiveIndex = isStreaming && !isDone ? activeStepIdx : -1;
 
   const progressPct = total === 0 ? 0 : isDone ? 100 : Math.round(((total - 1) / Math.max(total, 3)) * 100);
+
+  // Find the most recent shell-related tool event for the ShellOutputView
+  const shellToolEvents = events.filter(
+    (e) =>
+      (e.type === "tool_call_started" || e.type === "tool_call_finished") &&
+      isShellEvent(e)
+  );
+  const lastShellEvent = shellToolEvents.length > 0 ? shellToolEvents[shellToolEvents.length - 1] : null;
+  const shellStatus = lastShellEvent?.type === "tool_call_started" ? "running" : "completed";
+  const shellCommand = lastShellEvent?.publicSummary && lastShellEvent.publicSummary !== lastShellEvent.type
+    ? lastShellEvent.publicSummary
+    : lastShellEvent?.toolName ?? "";
 
   if (collapsed) {
     return (
@@ -181,14 +241,30 @@ export default function AgentWorkspacePanel({ events, isStreaming, runId }: Prop
                 >
                   {getStepLabel(step)}
                 </span>
+                {isActive && getToolBadge(step) && (
+                  <span className="ml-1.5 inline-flex items-center rounded-full bg-primary/10 border border-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary shrink-0">
+                    {getToolBadge(step)}
+                  </span>
+                )}
               </li>
             );
           })}
         </ul>
       )}
 
-      {/* Active tool block */}
-      {activeToolEvent && isStreaming && !isDone && (
+      {/* Shell output view — shown when the most recent tool event is shell-related */}
+      {lastShellEvent && (
+        <div className="mt-1">
+          <ShellOutputView
+            command={shellCommand}
+            stdout=""
+            status={shellStatus}
+          />
+        </div>
+      )}
+
+      {/* Active tool block — shown for non-shell tool events only */}
+      {activeToolEvent && isStreaming && !isDone && !isShellEvent(activeToolEvent) && (
         <div className="bg-muted/60 rounded-lg p-2 font-mono text-xs space-y-0.5">
           <div className="text-foreground font-semibold">
             {activeToolEvent.toolName ?? "tool"}

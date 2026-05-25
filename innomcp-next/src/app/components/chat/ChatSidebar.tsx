@@ -803,6 +803,22 @@ const ChatSidebar: React.FC<Props> = ({
             active={activePanel === "dashboard"}
             testId="sidebar-nav-dashboard"
           />
+          {isLoggedIn && (
+            <NavBtn
+              icon="📊"
+              label="Dashboard"
+              onClick={() => router.push("/dashboard")}
+              testId="sidebar-nav-dashboard-page"
+            />
+          )}
+          {isLoggedIn && (
+            <NavBtn
+              icon="📁"
+              label="Projects"
+              onClick={() => router.push("/projects")}
+              testId="sidebar-nav-projects"
+            />
+          )}
         </div>
 
         <div className="mx-3 border-t border-border/50" />
@@ -883,8 +899,7 @@ const ChatSidebar: React.FC<Props> = ({
                       : ""
                   }`}
                   onClick={() => {
-                    setSelectedTaskId(t.id);
-                    setActivePanel("task-detail");
+                    router.push(`/tasks/${t.id}`);
                   }}
                 >
                   <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground leading-tight">
