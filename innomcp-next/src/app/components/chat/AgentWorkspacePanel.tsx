@@ -46,11 +46,14 @@ export default function AgentWorkspacePanel({ events, isStreaming, runId }: Prop
   const isDone = events.some((e) => e.type === "final_answer");
   const total = steps.length;
 
-  // Determine current step index: last step that is tool_call_started without a matching finished
+  // Determine current step index: first incomplete step after the last completed one
   const activeToolEvent = isStreaming
     ? [...events].reverse().find((e) => e.type === "tool_call_started")
     : undefined;
-  const lastActiveIndex = isStreaming && !isDone ? total - 1 : -1;
+  const lastDoneIdx = steps.reduce((acc, ev, i) =>
+    (ev.type === "tool_call_finished" || ev.type === "agent_finished" || ev.type === "fact_found") ? i : acc, -1);
+  const activeStepIdx = lastDoneIdx >= 0 ? Math.min(lastDoneIdx + 1, steps.length - 1) : 0;
+  const lastActiveIndex = isStreaming && !isDone ? activeStepIdx : -1;
 
   const progressPct = total === 0 ? 0 : isDone ? 100 : Math.round(((total - 1) / Math.max(total, 3)) * 100);
 
