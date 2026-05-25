@@ -144,6 +144,9 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
   // cleanup that drops everything after the first event.
   res.on("close", cleanup);
 
+  // Latency tracking — capture wall-clock start before any async work.
+  const requestStart = Date.now();
+
   // Capture runId/messageId from the first event emitted by the conductor so
   // that any error event we synthesize in the catch block carries the real
   // identifiers instead of a hardcoded "0".
@@ -234,6 +237,25 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
         writeEvent(res, out);
       }
     );
+
+    // Emit a timing event so the frontend can display total latency.
+    if (!closed && capturedRunId && capturedMessageId) {
+      const totalMs = Date.now() - requestStart;
+      const timingEv: AgentEvent = {
+        type: "timing",
+        runId: capturedRunId,
+        messageId: capturedMessageId,
+        publicSummary: `total ${totalMs}ms`,
+        isSafeForUser: true,
+        timestamp: new Date().toISOString(),
+        totalMs,
+      };
+      try {
+        writeEvent(res, timingEv);
+      } catch {
+        /* ignore */
+      }
+    }
   } catch (err: any) {
     taskError = true;
     if (!closed) {

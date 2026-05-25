@@ -35,6 +35,7 @@ export type AgentEventType =
   | "final_answer"
   | "follow_up_suggestions"
   | "feedback_saved"
+  | "timing"
   | "error";
 
 export interface AgentEvent {
@@ -54,6 +55,7 @@ export interface AgentEvent {
   deltaText?: string;
   finalText?: string;
   fallbackReason?: string;
+  totalMs?: number;
 }
 
 export type StreamStatus = "idle" | "streaming" | "done" | "error";

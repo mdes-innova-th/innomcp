@@ -200,8 +200,19 @@ export default function AgentWorkspacePanel({ events, isStreaming, runId }: Prop
 
       {/* Done banner */}
       {isDone && (
-        <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 rounded-lg px-3 py-2 text-sm font-medium text-center">
-          ✅ เสร็จสิ้น
+        <div className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 rounded-lg px-3 py-2 text-sm font-medium text-center flex items-center justify-center gap-2">
+          <span>✅ เสร็จสิ้น</span>
+          {(() => {
+            const timingEvent = events.find((e) => e.type === "timing");
+            if (!timingEvent?.totalMs) return null;
+            const ms = timingEvent.totalMs;
+            const label = ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`;
+            return (
+              <span className="text-[10px] font-normal text-emerald-600/70 dark:text-emerald-400/70 tabular-nums">
+                {label}
+              </span>
+            );
+          })()}
         </div>
       )}
 

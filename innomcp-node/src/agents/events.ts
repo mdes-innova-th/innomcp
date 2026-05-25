@@ -25,6 +25,7 @@ export type AgentEventType =
   | "final_answer"
   | "feedback_saved"
   | "follow_up_suggestions"
+  | "timing"
   | "error";
 
 export type AgentId =
@@ -82,6 +83,7 @@ export interface AgentEvent {
   deltaText?: string;
   finalText?: string;
   fallbackReason?: string;
+  totalMs?: number;
 }
 
 export const SCHEMA_VERSION = "1.0.0";
@@ -121,6 +123,7 @@ export function validateAgentEvent(ev: unknown): string | null {
     "final_answer",
     "feedback_saved",
     "follow_up_suggestions",
+    "timing",
     "error",
   ];
   if (!allowedTypes.includes(e.type as AgentEventType)) {

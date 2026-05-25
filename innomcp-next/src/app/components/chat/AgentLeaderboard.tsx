@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
 interface AgentEntry {
   id: string;
@@ -19,6 +19,28 @@ const PROVIDER_COLORS: Record<string, string> = {
   "Claude Haiku": "text-orange-600 dark:text-orange-400",
   "Claude Sonnet": "text-rose-600 dark:text-rose-400",
 };
+
+/** Resolve backend URL the same way as useAgentEventStream (Next.js :3000 → Express :3011 in dev) */
+function resolveBackendUrl(path: string): string {
+  const envUrl =
+    typeof process !== "undefined" && process.env && process.env.NEXT_PUBLIC_BACKEND_URL
+      ? String(process.env.NEXT_PUBLIC_BACKEND_URL).replace(/\/$/, "")
+      : "";
+  if (envUrl) return `${envUrl}${path}`;
+  if (typeof window !== "undefined" && window.location) {
+    const { protocol, hostname, port } = window.location;
+    if (hostname === "localhost" && port === "3000") {
+      return `${protocol}//${hostname}:3011${path}`;
+    }
+    return `${protocol}//${window.location.host}${path}`;
+  }
+  return `http://localhost:3011${path}`;
+}
+
+interface LiveStats {
+  totalTasks: number;
+  avgRating: number | null;
+}
 
 const ALL_AGENTS: AgentEntry[] = [
   { id: "concierge",     name: "Concierge",      role: "Thai Responder",        provider: "MDES",           model: "gemma3:12b",        status: "active"  },
@@ -41,6 +63,24 @@ const ALL_AGENTS: AgentEntry[] = [
 
 export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) {
   const [filter, setFilter] = useState<"all" | "active" | "standby">("all");
+  const [liveStats, setLiveStats] = useState<LiveStats>({ totalTasks: 0, avgRating: null });
+
+  useEffect(() => {
+    const url = resolveBackendUrl("/api/stats");
+    fetch(url, { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        const completed = (d.tasks as Array<{ status: string; count: number }> ?? [])
+          .find((t) => t.status === "completed");
+        setLiveStats({
+          totalTasks: completed ? Number(completed.count) : 0,
+          avgRating: d.feedback?.avg_rating != null ? Number(d.feedback.avg_rating) : null,
+        });
+      })
+      .catch(() => {/* non-critical */});
+  }, []);
+
   const providers = Array.from(new Set(ALL_AGENTS.map((a) => a.provider)));
   const visible = filter === "all" ? ALL_AGENTS : ALL_AGENTS.filter((a) => a.status === filter);
   const active = ALL_AGENTS.filter((a) => a.status === "active").length;
@@ -64,6 +104,22 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
           </span>
         ))}
       </div>
+
+      {/* Live stats bar */}
+      {(liveStats.totalTasks > 0 || liveStats.avgRating != null) && (
+        <div className="flex gap-3 text-[10.5px] text-muted-foreground border border-border/30 rounded-lg px-2.5 py-1.5 bg-muted/20">
+          {liveStats.totalTasks > 0 && (
+            <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+              {liveStats.totalTasks} tasks completed
+            </span>
+          )}
+          {liveStats.avgRating != null && (
+            <span className="text-amber-600 dark:text-amber-400 font-medium tabular-nums">
+              ★ {liveStats.avgRating.toFixed(1)} avg rating
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="flex gap-1">

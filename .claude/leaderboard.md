@@ -66,10 +66,23 @@ Last updated: 2026-05-25T12:00:00Z
 | 6 | 2026-05-25 | Agent prompts: domain-expert (bare colon→role+guard), stylist (เพื่อนผู้รู้→3-sentence cap), linguist (persona+anti-preamble). Synthesis: drop dual-stitch, return single best answer. Intent: แนะนำร้านอาหาร→knowledge (no gap). 737/737 pass | 8aa7f23 |
 | 7 | 2026-05-25 | E2E Playwright tests for AgentLeaderboard (3 tests: panel open, filter tabs, count summary). Dead code sweep (TSC clean both packages). Build verified (Turbopack clean). 737/737 Jest | (this commit) |
 
-## Final Status — Iter 7
-**Manus Parity: 10/10**
-**Tests: 737/737 Jest + 3 Playwright E2E added (leaderboard panel)**
+### Iter-8 (2026-05-25)
+**Feature: Response latency tracking + /api/stats + leaderboard live stats**
+
+- **Latency tracking**: `chatStream.ts` now emits a `"timing"` SSE event at the end of every stream with `totalMs` (wall-clock ms from request received to conductor complete). `AgentEvent` type extended with `totalMs?: number` in both backend (`events.ts`) and frontend (`useAgentEventStream.ts`).
+- **AgentWorkspacePanel**: Done banner now shows elapsed time (e.g. `1.4s`) sourced from the `timing` event — real server-side latency, not just client timer.
+- **`GET /api/stats`**: New endpoint returning task count by status, avg feedback rating, and agent summary. Mounted without auth (before catch-all `/api`) so the leaderboard can fetch it as a guest.
+- **AgentLeaderboard live stats bar**: On mount, fetches `/api/stats` (backend URL resolved via same dev-port logic as the SSE hook). Shows "X tasks completed" and "★ X.X avg rating" when data is available.
+
+**Test result**: 737/737 Jest, TypeScript clean (both packages)
+**Commit**: (this iter)
+
+| Iter | Date | Fix | Commit |
+|------|------|-----|--------|
+| 8 | 2026-05-25 | Latency tracking (timing SSE event), /api/stats endpoint, leaderboard live stats bar | (this commit) |
+
+## Final Status — Iter 8
+**Beyond Manus: latency visibility + live DB stats in leaderboard**
+**Tests: 737/737 Jest**
 **TypeScript: Clean (both innomcp-next + innomcp-node)**
-**Build: Next.js 16.2.6 Turbopack — compiled successfully in ~3s**
-**Loop: 7 iterations, 7 commits**
-**Dead code: 0 unused variable warnings**
+**Loop: 8 iterations, 8 commits**
