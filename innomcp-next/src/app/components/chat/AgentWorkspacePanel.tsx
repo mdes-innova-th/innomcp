@@ -1,7 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { AgentEvent } from "./useAgentEventStream";
+
+/** Format seconds as MM:SS */
+function formatElapsed(seconds: number): string {
+  const mm = Math.floor(seconds / 60).toString().padStart(2, "0");
+  const ss = (seconds % 60).toString().padStart(2, "0");
+  return `${mm}:${ss}`;
+}
 
 interface Props {
   events: AgentEvent[];
@@ -42,9 +49,37 @@ function getStepLabel(event: AgentEvent): string {
 export default function AgentWorkspacePanel({ events, isStreaming, runId }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
+  // Elapsed timer — starts when isStreaming becomes true, freezes when done
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const startTimeRef = useRef<number | null>(null);
+
+  // Reset timer when a new run starts (runId changes)
+  const prevRunIdRef = useRef<string | undefined>(runId);
+  useEffect(() => {
+    if (runId !== prevRunIdRef.current) {
+      prevRunIdRef.current = runId;
+      setElapsedSec(0);
+      startTimeRef.current = null;
+    }
+  }, [runId]);
+
   const steps = events.filter((e) => STEP_TYPES.has(e.type));
   const isDone = events.some((e) => e.type === "final_answer");
   const total = steps.length;
+
+  // Start/tick/stop timer: ticks every second while streaming and not done
+  useEffect(() => {
+    if (isStreaming && !isDone) {
+      if (startTimeRef.current === null) {
+        startTimeRef.current = Date.now() - elapsedSec * 1000;
+      }
+      const id = setInterval(() => {
+        setElapsedSec(Math.floor((Date.now() - startTimeRef.current!) / 1000));
+      }, 1000);
+      return () => clearInterval(id);
+    }
+    // Freeze on done — keep last elapsed value, no interval
+  }, [isStreaming, isDone, elapsedSec]);
 
   // Determine current step index: first incomplete step after the last completed one
   const activeToolEvent = isStreaming
@@ -78,10 +113,15 @@ export default function AgentWorkspacePanel({ events, isStreaming, runId }: Prop
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-foreground">INNOMCP&apos;s Computer</span>
-          {isStreaming && (
+          {isStreaming && !isDone && (
             <span className="flex items-center gap-1 text-xs text-emerald-500 font-medium">
               <span className="animate-pulse">●</span>
               LIVE
+            </span>
+          )}
+          {(isStreaming || elapsedSec > 0) && (
+            <span className="font-mono text-xs text-muted-foreground tabular-nums">
+              {formatElapsed(elapsedSec)}
             </span>
           )}
         </div>
