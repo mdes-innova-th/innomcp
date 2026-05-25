@@ -19,6 +19,7 @@ import ModelSettingsPanel from "./ModelSettingsPanel";
 import MemoryManager from "./MemoryManager";
 import DashboardView from "./DashboardView";
 import TaskDetailPanel from "./TaskDetailPanel";
+import WorkspaceFileBrowser from "@/app/components/tools/WorkspaceFileBrowser";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -146,7 +147,7 @@ function relativeTime(ms: number): string {
 
 // ─── Slide-over Panel ─────────────────────────────────────────────────────────
 
-type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | "memory" | "dashboard" | "task-detail" | null;
+type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | "memory" | "dashboard" | "task-detail" | "workspace" | null;
 
 interface SlideOverProps {
   open: boolean;
@@ -706,6 +707,9 @@ const ChatSidebar: React.FC<Props> = ({
         {selectedTaskId ? (
           <TaskDetailPanel taskId={selectedTaskId} onClose={() => setActivePanel(null)} />
         ) : null}
+      </SlideOver>
+      <SlideOver open={activePanel === "workspace"} title="🗂️ Workspace Files" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <WorkspaceFileBrowser />
       </SlideOver>
 
       <aside

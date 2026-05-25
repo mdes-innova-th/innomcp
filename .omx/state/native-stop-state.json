@@ -1,0 +1,264 @@
+{
+  "sessions": {
+    "019e4113-d177-70a2-b874-06496aa185e6": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|**read-only ux brief** **aesthetic direction:** refined institutional workbench. manus-inspired structure, but innomcp-native tone: light, thai-first, precise, calm teal/green signals, sarabun body + chakra petch display, no neon/dark/purple-gradient treatment. **framework:** next.js 16 + react 19 + tailwind 4. **current anchors** - `chatpage.tsx` already owns `chatmode`, websocket answer stream, sse agent stream, sticky composer, inline panel, and `xl` right rail. - `useagenteventstream.ts` already exposes public-safe `agentevent`, `drafttext`, `finaltext`, `status`, `warnings`, and forbidden-key filtering. - `multiagentpanel.tsx` already groups events per agent, but it is mostly a collapsible summary, not yet a true clickable log/workbench. - `chatmessage.tsx` already places `inlineextras` above the answer, which is the right boundary for “thinking strip first, answer remains primary.” - `thinkingpanel.tsx` is older/public-safe transcript ui; avoid duplicating it into the main chat unless preserving living-chat routes requires it. **component boundaries** - `chatpage.tsx`: orchestration only. add state such as `selectedworkbenchagentid`, `workbenchopen`, and pass `chatmode`, `selectedagentid`, `onselectagent`, `variant`. - `useagenteventstream.ts`: keep as the event source. add derived helpers/types only if needed, not ui logic. - `multiagentpanel.tsx`: split internally into reusable pieces: - `agentrunheader` - `agentworklist` - `agentworkitem` - `agentlogdrawer` or detail pane - `workbenchpanel` - `chatmessage.tsx`: keep answer rendering. it should receive a compact inline work strip only; no right-rail concerns. - `thinkingpanel.tsx`: either leave for `/living-chat` or gradually replace with the same public-safe work item renderer to avoid two log uis. **exact data model** use existing `agentevent` as the source: ```ts type agentworkitem = { id: string; // `${runid}:${agentid ?? \"run\"}:${type}:${timestamp}:${index}` runid: string; messageid: string; agentid: string; role?: string; type: agenteventtype; status: \"queued\" | \"active\" | \"done\" | \"recovering\" | \"error\"; title: string; // thai label from type/agent role summary: string; // publicsummary only timestamp: string; model?: string; provider?: string; toolname?: string; confidence?: number; sourceids?: string[]; latencyms?: number; isclickable: boolean; }; ``` do not introduce private reasoning fields. never render `privatethought`, `hiddenreasoning`, `chainofthought`, `rawthought`, `innermonologue`, secrets, api keys, or raw payload dumps. **mode behavior** - normal mode: - backend contract stays `preferredmode: \"remote\"`, `reasoningmode: \"normal\"`. - show one progressive answer bubble. - show a collapsed inline “work tape” above the answer only when sse events exist. - no right-side workbench by default. - keep the agent count visually restrained; memory says normal mode should preserve the two-agent contract. - thinking mode / current `multiagent`: - backend contract stays `preferredmode: \"hybrid\"`, `reasoningmode: \"thinking\"`. - still one progressive answer, never multiple competing answer bubbles. - inline strip stays collapsed by default above the answer. - right-side live workbench appears on `xl+`, open by default, showing active agents, tools, status, timing, and selected log details. - thinking mode may show more than two agents. **clickable log behavior** - every agent row/work item is a real `<button>` with `aria-expanded` or `aria-selected`. - click agent row in inline strip: opens/focuses right workbench on `xl+`; on smaller screens opens an inline drawer below the strip. - click a work item: reveals public-safe event detail: thai status label, `publicsummary`, `toolname`, `model`, `provider`, `confidence`, timestamp, sources. - keyboard: - `enter`/`space` opens selected item. - `escape` closes mobile drawer. - existing `ctrl+o` can expand/collapse all, but `multiagentpanel` should actually consume the passed `ontoggleexpandall` or remove that prop. - no raw event json in the ui. **responsive behavior** - `< xl`: no right rail. workbench becomes an inline drawer inside the latest assistant bubble, below the compact strip and above source chips/answer text. - `xl+`: two-column document flow: main answer max width remains around `50rem`; right workbench sticky at `top-20`, width `18rem-22rem`. - normal mode: no empty right rail. - thinking mode: workbench visible even before agents start, using dormant/warming states. - composer stays sticky and must not overlap the last answer; preserve current natural document scroll. **acceptance tests** - add/update playwright around existing `multiagent-panel.spec.ts` and `acceptance.spec.ts`. - normal mode: - `inno-workspace-sidebar` is not attached. - sending a message renders exactly one latest assistant answer surface. - inline work strip may appear, collapsed, above answer text. - thinking mode: - clicking `chat-mode-multiagent` attaches `inno-workspace-sidebar` at `1400x900`. - sending a prompt reaches `multiagent-expand-all` or equivalent active workbench selector. - clicking an agent row opens public-safe log detail. - security: - dom and `/api/chat/stream` response text contain no forbidden private reasoning keys. - responsive: - at mobile/tablet widths, sidebar is absent and clicking the inline strip opens an inline/mobile drawer. - regression: - final answer remains monotonic: sse preview/final cannot replace a longer websocket structured answer. - weather/chart structured content is not overwritten by mdes final text. stop condition for executor: code compiles, targeted playwright tests pass, and screenshots show one progressive answer plus clickable public-safe logs without overpowering the answer.",
+        "first_seen_at": "2026-05-19T16:33:10.640Z",
+        "last_seen_at": "2026-05-19T16:33:10.640Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e4113-d1b7-75a3-b8c6-0a7ff5a3b04e",
+        "last_thread_id": null
+      }
+    },
+    "019e4115-73e7-71a1-b16a-d9d5624ca642": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"draft chat ux brief\"}",
+        "first_seen_at": "2026-05-19T16:33:11.988Z",
+        "last_seen_at": "2026-05-19T16:33:11.988Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e4115-7420-70f2-8982-a97de966a406",
+        "last_thread_id": null
+      }
+    },
+    "019e4116-9674-72c1-9bac-1c00d6de8353": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"prepare qa verification plan\"}",
+        "first_seen_at": "2026-05-19T16:34:26.871Z",
+        "last_seen_at": "2026-05-19T16:34:26.871Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e4116-96e6-7bd3-af4f-4d80d6446101",
+        "last_thread_id": null
+      }
+    },
+    "019e4116-9684-7c23-8b3f-b6c75b273176": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"add mdes fallback tiers\"}",
+        "first_seen_at": "2026-05-19T16:34:28.550Z",
+        "last_seen_at": "2026-05-19T16:34:28.550Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e4116-96e6-7bd3-af4f-4d9f53895dd4",
+        "last_thread_id": null
+      }
+    },
+    "019e4116-968a-74e2-9833-4f43c47824a1": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"add agent workbench\"}",
+        "first_seen_at": "2026-05-19T16:34:29.272Z",
+        "last_seen_at": "2026-05-19T16:34:29.272Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e4116-9719-72e3-bf12-278b46b5693e",
+        "last_thread_id": null
+      }
+    },
+    "019e4114-32b0-7f73-979a-86c5aeb9b1e8": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|## test report ### summary **test health**: needs attention **coverage added**: new mdes fallback policy unit coverage in [mdesfallbackpolicy.test.ts](c:/users/user-nt/dev/innomcp/innomcp-node/tests/unit/mdesfallbackpolicy.test.ts:1). ### tests written - [mdesfallbackpolicy.test.ts](c:/users/user-nt/dev/innomcp/innomcp-node/tests/unit/mdesfallbackpolicy.test.ts:52) - verifies gpt fallback is used only after each normal-mode agent has 2 failed mdes attempts. - verifies gpt fallback is not called when second mdes attempt succeeds. ### current blocker `innomcp-node` currently fails typecheck/build because [paralleldispatch.ts](c:/users/user-nt/dev/innomcp/innomcp-node/src/agents/paralleldispatch.ts:629) still references old names: - `getgptfallbackmodels` - `callgptfallback` the same file now contains newer external fallback helpers (`buildexternalfallbackplan`, `callopenaicompatiblefallback`), so this looks like an in-progress orchestration executor edit. i did not touch that source file. ### verification run - `pnpm --filter innomcp-node exec jest tests/unit/mdesfallbackpolicy.test.ts --runinband` - initially passed from cache: 2 passed. - `pnpm --filter innomcp-node exec jest ... --no-cache` - failed before running tests due the source ts errors above. - `pnpm --filter innomcp-node run build` - failed with the same unresolved names. - `pnpm --filter innomcp-server-node run build` - passed. - `pnpm --filter innomcp-server-node run typecheck:weather` - passed. - live smoke: - `localhost:3000` timed out. - `localhost:3011/health` not reachable. - `localhost:3012/health` ok. - `localhost:3012/mcp tools/list` ok with `56` tools when using `accept='application/json, text/event-stream'`. ### smallest 100% proof set after blocker fix run these in order: ```powershell pnpm --filter innomcp-node exec jest tests/unit/conductor.test.ts tests/unit/paralleldispatch.test.ts tests/unit/mdesfallbackpolicy.test.ts tests/unit/providerrouter.test.ts --runinband --no-cache pnpm --filter innomcp-node run build pnpm --filter innomcp-server-node run build pnpm --filter innomcp-server-node run typecheck:weather pnpm run dev ``` then smoke the running stack: ```powershell invoke-webrequest -usebasicparsing http://localhost:3000 invoke-restmethod http://localhost:3011/health invoke-restmethod http://localhost:3012/health invoke-restmethod -uri http://localhost:3012/mcp -method post -headers @{accept='application/json, text/event-stream'} -contenttype 'application/json' -body '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}' ``` frontend/browser proof: ```powershell pnpm --filter innomcp-next exec playwright test e2e/multiagent-panel.spec.ts e2e/living-agent-chat.spec.ts --project=chromium ``` there is no frontend jest/vitest helper-test script in `innomcp-next`; current frontend proof is playwright-based.",
+        "first_seen_at": "2026-05-19T16:35:38.844Z",
+        "last_seen_at": "2026-05-19T16:35:38.844Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e4114-32dc-7842-90d5-62a4ac0ff4e8",
+        "last_thread_id": null
+      }
+    },
+    "019e4113-f14d-75c0-b5d3-040a54a6cbf7": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|implemented the manus-inspired innomcp workbench in the requested scope. **changes made** - [agentworkspacemodel.ts](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/agentworkspacemodel.ts:131>) — added pure `buildagentworkspacesnapshot()` helper for importing in tests. - [agentworkspacepanel.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/agentworkspacepanel.tsx:125>) — added light thai-first right-rail workbench with per-agent clickable logs and `data-testid=\"agent-workbench-root\"` / `agent-workbench-toggle-*`. - [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1422>) — removed inline `multiagentpanel` rendering from the central answer flow and wired the new right rail for normal/thinking mode. `multiagentpanel.tsx` was not changed. **verification** - `npx tsc --noemit --pretty false` → passed. - `npx eslint src/app/components/chat/agentworkspacepanel.tsx src/app/components/chat/agentworkspacemodel.ts` → passed. - `npm run build` → passed; next build completed with one existing turbopack warning about `next.config.ts` tracing. - `invoke-webrequest http://localhost:3000` → `http 200 ok`. note: `npm run lint` is currently not usable as configured with next 16 here: `next lint` treats `lint` as a project directory. targeting `chatpage.tsx` with `npx eslint` also hits an existing config issue for `react-hooks/exhaustive-deps` not being registered.",
+        "first_seen_at": "2026-05-19T16:36:37.822Z",
+        "last_seen_at": "2026-05-19T16:36:37.822Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e4113-f179-7291-a97e-904c8a191889",
+        "last_thread_id": null
+      }
+    },
+    "019e43b6-51df-7ad0-ab1b-6111ffc31b9c": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"fix gpt fallback policy\"}",
+        "first_seen_at": "2026-05-20T04:48:10.557Z",
+        "last_seen_at": "2026-05-20T04:48:10.557Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e43b6-520c-72c2-ba31-79c0e0a5269d",
+        "last_thread_id": null
+      }
+    },
+    "019e43b5-7c43-74c0-89e3-3d6154a9fbe7": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|implemented the backend fallback remediation within the assigned scope. **changes made** - [paralleldispatch.ts](c:/users/user-nt/dev/innomcp/innomcp-node/src/agents/paralleldispatch.ts:21) — replaced claude-era fallback tier names with `gpt-5.3-codex`, `gpt-5.4`, and `gpt-5.5-advisor`. - [paralleldispatch.ts](c:/users/user-nt/dev/innomcp/innomcp-node/src/agents/paralleldispatch.ts:392) — external fallback plan now defaults to 5 rounds of gpt-5.3-codex, then 5 rounds of gpt-5.4, then gpt-5.5 advisor-only. - [paralleldispatch.ts](c:/users/user-nt/dev/innomcp/innomcp-node/src/agents/paralleldispatch.ts:640) — fallback events now include public-safe tier/model/round labels and no secrets. - [paralleldispatch.ts](c:/users/user-nt/dev/innomcp/innomcp-node/src/agents/paralleldispatch.ts:651) — gpt-5.5 advisor-only emits/logs advisory completion but never returns worker output. - [mdesfallbackpolicy.test.ts](c:/users/user-nt/dev/innomcp/innomcp-node/tests/unit/mdesfallbackpolicy.test.ts:70) — added coverage for env gate, gpt-5.3 first, gpt-5.4 after 5 gpt-5.3 failures, and gpt-5.5 advisor-only no-output behavior. **verification** - search: `rg \"getgptfallbackmodels|callgptfallback|openaikey|haiku|sonnet|opus|haiku|sonnet|opus\" ...` -> no matches. - tests: `npm test -- --runtestsbypath tests/unit/mdesfallbackpolicy.test.ts` -> 5 passed. - typecheck: `npx tsc --noemit --pretty false` -> passed. i left unrelated existing dirty files untouched. only the two assigned files are modified.",
+        "first_seen_at": "2026-05-20T04:51:05.838Z",
+        "last_seen_at": "2026-05-20T04:51:05.838Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e43b5-7c88-7280-9c5f-2e112a60ba2d",
+        "last_thread_id": null
+      }
+    },
+    "019e43b9-fb93-7780-a5ff-01a7fc15e097": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"force remote model routing\"}",
+        "first_seen_at": "2026-05-20T04:52:12.117Z",
+        "last_seen_at": "2026-05-20T04:52:12.117Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e43b9-fbd9-71d0-8707-d9de405778c3",
+        "last_thread_id": null
+      }
+    },
+    "019e43b9-5185-7a92-b591-a4d46caf235c": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|updated [chatpage.tsx](c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:918) only. changes: - initial send path now sets `derivedmode = \"remote\"` for all chat modes. - retry path now uses the same `derivedmode = \"remote\"` for both `socket.send(...)` and `sendagentstream(...)`. - `reasoningmode` still switches `normal` vs `thinking`, so multiagent behavior remains selected by reasoning mode instead of `preferredmode='hybrid'`. verification: - `rg -n \"preferredmode|derivedmode|reasoningmode|hybrid\" innomcp-next/src/app/components/chat/chatpage.tsx` confirms all payload `preferredmode` values use `derivedmode`; `hybrid` remains only in ui display text. - `npx tsc --noemit --pretty false` in `innomcp-next` passed with exit code 0.",
+        "first_seen_at": "2026-05-20T04:52:24.546Z",
+        "last_seen_at": "2026-05-20T04:52:24.546Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e43b9-51ff-7fa3-888f-90821b10670f",
+        "last_thread_id": null
+      }
+    },
+    "019e360a-80c1-7392-96f8-7ab652552fd0": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|ไปต่อให้แล้วครับ รอบนี้เราเก็บ “ความนิ่งและความเป็นมืออาชีพ” ของหน้า chat ได้ตรงที่ user บ่นเลย สิ่งที่เปลี่ยนหลัก ๆ: - `inno workspace` ฝั่ง desktop ถูกทำให้เป็นแถบเปิดแบบเงียบขึ้น ไม่แย่งสายตาหน้า chat แล้ว และพอเปิดจะมีปุ่มปิดอยู่ในหัว panel เองใน [chatpage.tsx](/c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1529) กับ [agentworkspacepanel.tsx](/c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/agentworkspacepanel.tsx:487) - panel ขวาถูกลดน้ำหนักให้เป็น inspector มากขึ้น: แคบลง, เงาลดลง, และ `run brief / phases / specialist lanes / artifacts` ถูกพับเป็น progressive disclosure ใน [agentworkspacepanel.tsx](/c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/agentworkspacepanel.tsx:540) - คอลัมน์คำตอบหลักกับ composer ถูกขยายให้หายใจขึ้นใน [chatpage.tsx](/c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1795) และ [chatpage.tsx](/c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1964) - bubble ของ ai ตอนนี้ให้ “คำตอบ” นำจริง ๆ แล้ว ส่วน tool/meta/guidance/source ถูกย้ายลงหลัง body ใน [chatmessage.tsx](/c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatmessage.tsx:1226) และ [chatmessage.tsx](/c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatmessage.tsx:1424) เทสที่ผ่านรอบนี้: - `npx.cmd tsc --noemit --pretty false` - `npx.cmd playwright test e2e/multiagent-panel.spec.ts --reporter=line` -> `5/5` - `npx.cmd playwright test e2e/acceptance.spec.ts --grep m3 --reporter=line` - `npx.cmd playwright test e2e/acceptance.spec.ts --grep m4 --reporter=line` - `npx.cmd playwright test e2e/acceptance.spec.ts --grep m5 --reporter=line` ผมเพิ่มหลักฐานใหม่ด้วย: - `m5` ล็อกว่าเมื่อเปิด workspace อยู่ คำตอบหลักยังอยู่คนละโซนและไม่โดน rail ทับใน [acceptance.spec.ts](/c:/users/user-nt/dev/innomcp/innomcp-next/e2e/acceptance.spec.ts:1417) - workbench smoke ถูกอัปเดตให้รู้จัก section แบบพับ/กางใน [multiagent-panel.spec.ts](/c:/users/user-nt/dev/innomcp/innomcp-next/e2e/multiagent-panel.spec.ts:19) ผมคุยกับลูกแบบ review-first ด้วยนะ: ใช้ `avicenna` ช่วยส่อง ux แบบ read-only แล้วเอาข้อสังเกตมาแปลงเป็น patch รอบนี้ จากนั้น append รีวิวให้ innova-bot แล้วที่ [mother-broadcast.md](/c:/users/user-nt/dev/innova-bot-template/docs/innomcp-mdes-loop/mother-broadcast.md:11421) commit ที่ออกแล้ว: - `innomcp`: `9ad5f66` - `innova-bot-template`: `3b419ef` มีของที่ผมตั้งใจไม่แตะ: - ไฟล์ dirty เก่าพวก screenshots/payloads ใน `innomcp-next/docs/...` - ไฟล์ dirty/untracked อื่นใน `innova-bot-template` เช่น `devtools/...`, `.omx/`, `active-plan.md` ก้าวถัดไปที่คุ้มมากคือแยก phase เรื่อง `manus computer` แบบ unix sandbox ต่อเป็นสถาปัตยกรรมจริง: per-user isolated workspace, broker, quota, file policy, audit trail. อันนั้นทำได้ แต่ควรเป็น slice แยกชัด ๆ ครับ",
+        "first_seen_at": "2026-05-23T17:50:38.671Z",
+        "last_seen_at": "2026-05-23T17:50:38.671Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e55e2-e1b0-71b0-9d35-9299424dd2b0",
+        "last_thread_id": null
+      }
+    },
+    "019e4407-d1f1-7851-9558-5989e53b436b": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"update mdes loop notifications\"}",
+        "first_seen_at": "2026-05-20T06:17:17.166Z",
+        "last_seen_at": "2026-05-20T06:17:17.166Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e4407-d21f-7610-8066-12ec607349fd",
+        "last_thread_id": null
+      }
+    },
+    "019e4407-5e94-7423-af95-eb5cf7a42281": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|updated [innomcp-mdes-loop.ps1](</c:/users/user-nt/dev/innova-bot-template/scripts/innomcp-mdes-loop.ps1:21>) only. changes made: - default cadence is now `240` seconds. - added small `write-motherbroadcast` helper that appends timestamped events to `traceroot\\mother-broadcast.md`. - broadcasts now fire after child dispatches, validation steps, summary/verification/remediation/changelog writes, and loop tick completion. - preserved the gpt-tier policy text: `mdesx2 -> gpt-5.3-codexx5 -> gpt-5.4x5 -> gpt-5.5 advisor-only`. - kept the helper ascii-safe and did not add any secret-printing behavior. validation: - powershell parser check: `parser ok` - ascii byte check: `ascii ok` - static checks confirmed the new `240` cadence, broadcast calls, and gpt-tier policy text are present. i did not run a live one-shot loop because the script’s one-shot path dispatches mdes child calls and runs product validation commands. no `innomcp` product feature files were edited by me.",
+        "first_seen_at": "2026-05-20T06:18:27.311Z",
+        "last_seen_at": "2026-05-20T06:18:27.311Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e4407-5ecf-7803-a2d4-2b245630a6e0",
+        "last_thread_id": null
+      }
+    },
+    "019e443b-fa97-7283-9de2-e6b7cffb5a6b": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"diagnose mdes oom failures\"}",
+        "first_seen_at": "2026-05-20T07:14:08.295Z",
+        "last_seen_at": "2026-05-20T07:14:08.295Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e443b-face-73d2-949a-0cb3a56cc154",
+        "last_thread_id": null
+      }
+    },
+    "019e443b-faf0-7870-bcd7-7eb9e136b4b1": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"fix mdes child oom dispatch\"}",
+        "first_seen_at": "2026-05-20T07:14:09.905Z",
+        "last_seen_at": "2026-05-20T07:14:09.905Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e443b-fb1e-7c22-913c-64a8f1332320",
+        "last_thread_id": null
+      }
+    },
+    "019e443b-32df-7960-abe5-7d12903c9aa0": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|## bug report **symptom**: a1/a2/s1 dispatch artifacts repeatedly contain only `exception of type 'system.outofmemoryexception' was thrown.` **root cause**: the mdes delegate is trying to append to `docs/reports/skill-usage-log.md`, but that log is corrupted/oversized: `get-item` reports `10.29gb`, and a read-only `get-content` measurement itself reproduced `system.outofmemoryexception`. the helper reads the entire log into memory before every append at [delegate-to-mdes.ps1:86](</c:/users/user-nt/dev/innomcp/scripts/delegate-to-mdes.ps1:86>) and rewrites it at [delegate-to-mdes.ps1:107](</c:/users/user-nt/dev/innomcp/scripts/delegate-to-mdes.ps1:107>). the loop calls the helper without disabling logging at [innomcp-mdes-loop.ps1:102](</c:/users/user-nt/dev/innova-bot-template/scripts/innomcp-mdes-loop.ps1:102>). **reproduction**: read-only repro was `get-content c:\\users\\user-nt\\dev\\innomcp\\docs\\reports\\skill-usage-log.md`; it throws `system.outofmemoryexception`. recent artifacts corroborate the repeated dispatch failure, e.g. [summary.md:12](</c:/users/user-nt/dev/innova-bot-template/docs/innomcp-mdes-loop/loop-20260520-140736/summary.md:12>) through [summary.md:14](</c:/users/user-nt/dev/innova-bot-template/docs/innomcp-mdes-loop/loop-20260520-140736/summary.md:14>). **ranked causes**: 1. **high confidence**: oversized/corrupted `skill-usage-log.md` plus whole-file read/write logging. this is the only cause i directly reproduced locally. 2. **medium confidence**: earlier request shape could have contributed: uncapped, non-streaming dispatches and heavier model choices. current uncommitted changes now add prompt/output caps at [delegate-to-mdes.ps1:180](</c:/users/user-nt/dev/innomcp/scripts/delegate-to-mdes.ps1:180>) and [delegate-to-mdes.ps1:186](</c:/users/user-nt/dev/innomcp/scripts/delegate-to-mdes.ps1:186>), and a1/a2 are now `gemma4:e4b` at [innomcp-mdes-loop.ps1:78](</c:/users/user-nt/dev/innova-bot-template/scripts/innomcp-mdes-loop.ps1:78>) and [innomcp-mdes-loop.ps1:79](</c:/users/user-nt/dev/innova-bot-template/scripts/innomcp-mdes-loop.ps1:79>). 3. **lower confidence / amplifier**: the loop buffers full child output through `out-string` at [innomcp-mdes-loop.ps1:103](</c:/users/user-nt/dev/innova-bot-template/scripts/innomcp-mdes-loop.ps1:103>), and watch mode repeats failures every tick at [innomcp-mdes-loop.ps1:295](</c:/users/user-nt/dev/innova-bot-template/scripts/innomcp-mdes-loop.ps1:295>). **smallest safe fix plan**: 1. for this loop, pass `-log $false` at [innomcp-mdes-loop.ps1:102](</c:/users/user-nt/dev/innova-bot-template/scripts/innomcp-mdes-loop.ps1:102>) so dispatch no longer touches the 10gb log. 2. in the helper, replace whole-file log insertion with bounded append or skip logging when the file exceeds a small cap, around [delegate-to-mdes.ps1:69](</c:/users/user-nt/dev/innomcp/scripts/delegate-to-mdes.ps1:69>). 3. quarantine/rotate the corrupted `skill-usage-log.md` before re-enabling helper logging. i did not edit or revert anything. similar pattern check found only this mdes helper doing the `skill-usage-log.md` write path; `out-string` buffering also exists in the loop but is secondary until the log issue is removed.",
+        "first_seen_at": "2026-05-20T07:17:58.208Z",
+        "last_seen_at": "2026-05-20T07:17:58.208Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e443b-3318-7af2-b032-ff5a2b8bd109",
+        "last_thread_id": null
+      }
+    },
+    "019e443b-3338-7ca0-9d52-2b30e9868f2c": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|read-only verification only. i did not edit files. **high-value gaps** 1. artifact preview is only smoke-tested, not content-tested. existing e2e checks `agent-artifact-section` is visible and contains “artifacts” in [multiagent-panel.spec.ts](c:/users/user-nt/dev/innomcp/innomcp-next/e2e/multiagent-panel.spec.ts:39), but it does not assert an `agent-artifact-card` appears, that preview text is substantive, or that `artifactpreview/finaltext/publicsummary` sanitizer behavior in [agentworkspacemodel.ts](c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/agentworkspacemodel.ts:181) hides secret/raw-reasoning-like preview content. 2. mdes endpoint request contract is implemented but not tightly asserted. [paralleldispatch.ts](c:/users/user-nt/dev/innomcp/innomcp-node/src/agents/paralleldispatch.ts:303) posts to `/v1/chat/completions` with `stream` and `max_tokens`, but current tests mainly assert planning/fallback model order. i did not see assertions that mdes calls include `stream:false` when `ollama_stream=0`, bounded `max_tokens`, expected headers, and no key leakage in events. **commands to run** ```powershell cd c:\\users\\user-nt\\dev\\innomcp\\innomcp-node npm test -- --runtestsbypath tests/unit/paralleldispatch.test.ts tests/unit/mdesfallbackpolicy.test.ts tests/unit/agentevents.test.ts --runinband --no-cache ``` ```powershell cd c:\\users\\user-nt\\dev\\innomcp\\innomcp-next npx playwright test e2e/multiagent-panel.spec.ts e2e/living-agent-chat.spec.ts --reporter=line ``` these avoid the unrelated dirty screenshots/payloads and target normal mode, thinking mode, workbench, raw reasoning leak prevention, and mdes contract-adjacent coverage.",
+        "first_seen_at": "2026-05-20T19:38:23.395Z",
+        "last_seen_at": "2026-05-20T19:38:23.395Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e46e4-84d6-7302-9c55-989900dc1f3f",
+        "last_thread_id": null
+      }
+    },
+    "019e45be-b342-7a53-a3c7-dc86b990d243": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"audit chat runtime defaults\"}",
+        "first_seen_at": "2026-05-20T14:16:36.354Z",
+        "last_seen_at": "2026-05-20T14:16:36.354Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e45be-b384-7a41-b292-8cd4bbaecacb",
+        "last_thread_id": null
+      }
+    },
+    "019e46e4-867a-7190-80af-2458bb24e6a9": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"review chat workbench regressions\"}",
+        "first_seen_at": "2026-05-20T19:37:29.046Z",
+        "last_seen_at": "2026-05-20T19:37:29.046Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e46e4-86b2-7182-8e6c-83a18d54ce58",
+        "last_thread_id": null
+      }
+    },
+    "019e46e4-5628-77b2-9514-36149e75c53c": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|use a **mobile “agent activity sheet”**: a compact bottom sheet that only exists below `xl`, while desktop keeps the current right rail unchanged. **trigger:** show a small sticky pill above the composer when a run is idle/active: `mdes activity · 2 active` with a status dot and chevron. it should also appear in normal mode, because normal mode still has the mdes 2-agent contract. **content:** first screen should be dense and safe: current phase, active agents, tool calls, public summaries, artifacts count, and final status. use thai-first labels like `บันทึกการทำงาน`, `เครื่องมือที่ใช้`, `แหล่งข้อมูล`, `คำตอบพร้อมแล้ว`. keep logs to approved `publicsummary` style text only. **close behavior:** swipe down, esc, backdrop tap, and a visible close button. persist closed state only for the current response; reopen automatically for the next new run if activity starts. **avoid:** no raw reasoning, no “thinking transcript”, no manus-style workspace cloning, no full-screen takeover, no purple/glow/consumer-chat treatment, and no hiding the main answer behind the sheet. the sheet supports trust; the answer remains primary.",
+        "first_seen_at": "2026-05-21T04:33:39.166Z",
+        "last_seen_at": "2026-05-21T04:33:39.166Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e48cf-2b53-7653-b8d3-ea7064e9015b",
+        "last_thread_id": null
+      }
+    },
+    "019e50b7-3879-7800-aa79-bc1bbb46c869": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"inspect 5-minute mdes loop\"}",
+        "first_seen_at": "2026-05-22T17:24:14.323Z",
+        "last_seen_at": "2026-05-22T17:24:14.323Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e50b7-38de-7861-a4af-d0ed022be7a8",
+        "last_thread_id": null
+      }
+    },
+    "019e50d4-355c-7f42-85ce-34b219956639": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|read-only only. i inspected the three requested files and did not run tests. **findings** - **p1: workbench tests conflict with the new collapsed-default ux.** [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:310>) defaults `desktopworkbenchopen` to `false`, and the desktop panel only renders when that state is true at [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1877>). but [multiagent-panel.spec.ts](</c:/users/user-nt/dev/innomcp/innomcp-next/e2e/multiagent-panel.spec.ts:18>) and [acceptance.spec.ts](</c:/users/user-nt/dev/innomcp/innomcp-next/e2e/acceptance.spec.ts:1303>) still expect `[data-testid=\"agent-workbench-root\"]` to be visible without opening the toggle. - **p1: the “one progressive assistant message” contract is not protected.** the ws path can create a progress ai message at [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:696>) and then append a real ai message when the last one is progress at [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:656>). the mdes draft/final merge updates the last non-progress ai message at [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:950>), but tests mostly read only the last assistant text via [acceptance.spec.ts](</c:/users/user-nt/dev/innomcp/innomcp-next/e2e/acceptance.spec.ts:111>), so duplicate assistant bubbles or leaked progress text could pass. - **p2: localstorage can hide collapsed-default regressions.** the workbench open state is restored from `innomcp.desktopworkbenchopen` at [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:370>). in [multiagent-panel.spec.ts](</c:/users/user-nt/dev/innomcp/innomcp-next/e2e/multiagent-panel.spec.ts:13>), localstorage is cleared after `goto`, which is too late to guarantee first-render collapsed state. - **p2: the collapsed desktop toggle may still read too loud.** the fixed right toggle includes label, status summary, and idle agent count at [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1517>). that risks feeling like a secondary dashboard rather than a quiet inspectable workbench. - **p3: empty-state declutter lacks direct acceptance coverage.** the simplified home is centered and narrower, but still renders four prompt cards with icons/descriptions at [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1725>). the current acceptance helper only waits for the input at [acceptance.spec.ts](</c:/users/user-nt/dev/innomcp/innomcp-next/e2e/acceptance.spec.ts:45>), so clutter can creep back in unnoticed. **recommended acceptance checks** - fresh desktop load with cleared storage before navigation: composer visible, `desktop-workbench-toggle` visible with `aria-expanded=false`, `agent-workbench-root` absent/hidden. - clicking desktop toggle: `aria-expanded=true`, `desktop-workbench-panel` and `agent-workbench-root` visible; clicking again hides it without moving the centered composer. - multiagent send: main transcript contains one non-progress assistant answer for one user turn; no visible progress placeholder remains as a separate assistant answer. - during multiagent streaming: assistant answer text is non-empty and grows or stays monotonic; final text is not replaced by shorter draft text. - workspace inspectability: thinking/agent activity appears only inside opened workbench or mobile sheet, not inside the main assistant answer. - mobile viewport: collapsed toggle visible, sheet opens/closes with escape, and the sheet contains the workbench while the main composer remains reachable after close. - empty desktop home: no right-rail panel, no feature/trust strip, prompt suggestions stay capped and compact, with the composer as the dominant element.",
+        "first_seen_at": "2026-05-22T18:02:58.373Z",
+        "last_seen_at": "2026-05-22T18:02:58.373Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e50d9-2940-7e03-84e4-f6bf13f52f78",
+        "last_thread_id": null
+      }
+    },
+    "019e50d9-2996-7d60-9f77-66f9c3b77d84": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"declutter chat home screen\"}",
+        "first_seen_at": "2026-05-22T18:01:18.509Z",
+        "last_seen_at": "2026-05-22T18:01:18.509Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e50d9-29ce-7521-bd9e-db36ec9bff7a",
+        "last_thread_id": null
+      }
+    },
+    "019e55e4-b29f-7d71-a643-956271000e14": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|{\"title\":\"review chat workspace ux\"}",
+        "first_seen_at": "2026-05-23T17:31:59.523Z",
+        "last_seen_at": "2026-05-23T17:31:59.523Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e55e4-b2d5-7ce2-9cba-98c5d3f50efa",
+        "last_thread_id": null
+      }
+    },
+    "019e55e3-5637-7342-a569-a93c0a0c3c9a": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|read-only ux review, scoped to the three requested files. framework confirmed: next.js 16 / react 19. **findings** 1. **p1: desktop workbench has enough visual weight to compete with the answer.** the chat column stays capped at `max-w-[50rem]`, while opening the workbench adds large right padding and renders a fixed `22rem-24rem` panel with `shadow-2xl`, dense white cards, counters, progress, brief, phases, lanes, activity, agents, and artifacts all visible by default. evidence: [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1643>), [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1807>), [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1899>), [agentworkspacepanel.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/agentworkspacepanel.tsx:425>). **refinement:** make desktop workspace behave more like a quiet inspector: show status + latest activity by default, collapse brief/phases/lanes/artifacts, reduce elevation, and reserve strong motion/color for active failures or streaming. 2. **p1: ai bubble still puts status/meta before the answer body.** inside `messageview`, `tooltypebadge`, collapsed tool metadata, guidance, optional inline extras, and source chips all render before `assistant-message-content`. for short answers, the user’s first scan can hit provenance/status before the actual answer, especially redundant when the workspace is open. evidence: [chatmessage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatmessage.tsx:1189>), [chatmessage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatmessage.tsx:1318>), [chatmessage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatmessage.tsx:1395>). **refinement:** render answer text first; move provenance/tools/sources into a compact footer or single collapsed “sources/tools” row after the answer. 3. **p2: desktop workbench toggle likely overlays the open panel.** the trigger is fixed at `right-4 top-[6.75rem] z-30`; the open panel is also `right-4 top-[6.75rem]` but lower `z-20`. that means the “hide panel” control sits over the panel header rather than becoming part of it. evidence: [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1532>), [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1575>), [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1899>). **refinement:** when open, move close/collapse into `agentworkspacepanel` header or offset the trigger outside the panel edge. 4. **p2: the answer-primary inline strip path exists but is not wired here.** `chatmessage.tsx` has an `inlineextras` slot explicitly documented for keeping thinking above the answer and collapsed, but `chatpage.tsx` maps messages without passing `inlineextras`. evidence: [chatmessage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatmessage.tsx:598>), [chatmessage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatmessage.tsx:1326>), [chatpage.tsx](</c:/users/user-nt/dev/innomcp/innomcp-next/src/app/components/chat/chatpage.tsx:1813>). **refinement:** either remove the dormant path, or wire it as a tiny latest-activity strip only when the side workspace is closed. avoid showing the same agent state in both places. no live render or tests run; this was source-only per request.",
+        "first_seen_at": "2026-05-23T17:32:39.273Z",
+        "last_seen_at": "2026-05-23T17:32:39.273Z",
+        "repeat_count": 1,
+        "last_turn_id": "019e55e3-5681-73e3-80ad-0e7dfbce0e6a",
+        "last_thread_id": null
+      }
+    }
+  }
+}
