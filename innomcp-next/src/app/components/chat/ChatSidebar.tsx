@@ -239,6 +239,31 @@ const ChatSidebar: React.FC<Props> = ({
   const [sidebarRight, setSidebarRight] = useState<number>(240);
   const [dbTasks, setDbTasks] = useState<Array<{ id: string; title: string; status: string; created_at: string }>>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [projects, setProjects] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("innomcp.projects") ?? '["MDES Operations"]'); }
+    catch { return ["MDES Operations"]; }
+  });
+  const [activeProject, setActiveProject] = useState<string>(() =>
+    localStorage.getItem("innomcp.activeProject") ?? "MDES Operations"
+  );
+  const [newProjectName, setNewProjectName] = useState("");
+  const [showNewProject, setShowNewProject] = useState(false);
+
+  const createProject = (name: string) => {
+    if (!name.trim() || projects.includes(name.trim())) return;
+    const updated = [...projects, name.trim()];
+    setProjects(updated);
+    setActiveProject(name.trim());
+    localStorage.setItem("innomcp.projects", JSON.stringify(updated));
+    localStorage.setItem("innomcp.activeProject", name.trim());
+    setShowNewProject(false);
+    setNewProjectName("");
+  };
+
+  const switchProject = (name: string) => {
+    setActiveProject(name);
+    localStorage.setItem("innomcp.activeProject", name);
+  };
 
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const sidebarRef  = useRef<HTMLElement | null>(null);
@@ -790,27 +815,36 @@ const ChatSidebar: React.FC<Props> = ({
             </span>
             <button
               title="New project"
+              onClick={() => setShowNewProject(true)}
               className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:bg-muted/60 hover:text-foreground text-sm leading-none"
             >
               +
             </button>
           </div>
           <ul className="flex flex-col gap-0.5">
-            <li className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/60 cursor-default">
-              <span className="h-2 w-2 rounded-full bg-sky-500 shrink-0" />
-              <div className="flex flex-1 items-center justify-between min-w-0">
-                <span className="truncate text-[13px] text-foreground">MDES Operations</span>
-                {(usingDbTasks ? dbTasks.length : taskList.length) > 0 && (
-                  <span className="ml-1.5 shrink-0 text-[10px] text-muted-foreground tabular-nums">
-                    {usingDbTasks ? dbTasks.length : taskList.length}
-                  </span>
-                )}
-              </div>
-            </li>
-            <li className="flex items-center gap-2 rounded-md px-2 py-1.5 cursor-pointer hover:bg-muted/60 text-muted-foreground/70">
-              <span className="h-2 w-2 rounded-full border border-border/80 shrink-0" />
-              <span className="text-[13px] italic">+ New Project</span>
-            </li>
+            {projects.map(p => (
+              <li key={p} onClick={() => switchProject(p)}
+                className={`flex items-center justify-between rounded-md px-2 py-1 text-[11.5px] cursor-pointer transition-colors ${
+                  p === activeProject ? "bg-primary/8 text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                }`}>
+                <span className="truncate">{p}</span>
+                {p === activeProject && <span className="text-[9px] text-primary/60">●</span>}
+              </li>
+            ))}
+            {showNewProject ? (
+              <li className="flex items-center gap-1 px-1">
+                <input autoFocus value={newProjectName} onChange={e => setNewProjectName(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") createProject(newProjectName); if (e.key === "Escape") setShowNewProject(false); }}
+                  placeholder="ชื่อโปรเจกต์..."
+                  className="flex-1 rounded border border-border/40 bg-background px-1.5 py-0.5 text-[11px] text-foreground focus:outline-none" />
+                <button onClick={() => createProject(newProjectName)} className="text-[10px] text-primary">✓</button>
+              </li>
+            ) : (
+              <li onClick={() => setShowNewProject(true)}
+                className="flex items-center gap-1 px-2 py-1 text-[11px] text-muted-foreground/60 hover:text-muted-foreground cursor-pointer rounded">
+                <span>＋</span><span>โปรเจกต์ใหม่</span>
+              </li>
+            )}
           </ul>
         </div>
 
