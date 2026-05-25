@@ -132,6 +132,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   // Phase 3 CSV state
   const [csvMeta, setCsvMeta] = useState<CsvMeta | null>(null);
   const [csvAnalyzing, setCsvAnalyzing] = useState(false);
+  // Phase 3 drag-and-drop state
+  const [isDragging, setIsDragging] = useState(false);
   // Clear CSV badge when parent removes the file attachment
   useEffect(() => {
     if (!selectedFile) setCsvMeta(null);
@@ -318,7 +320,27 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       )}
 
-      <div className="group/composer relative rounded-xl border border-border/70 bg-card shadow-[0_1px_2px_oklch(0_0_0/0.04)] transition-all duration-200 focus-within:border-primary/45 focus-within:shadow-[0_4px_18px_-4px_oklch(0.65_0.18_265/0.18)] focus-within:ring-1 focus-within:ring-primary/15">
+      <div
+        className="group/composer relative rounded-xl border border-border/70 bg-card shadow-[0_1px_2px_oklch(0_0_0/0.04)] transition-all duration-200 focus-within:border-primary/45 focus-within:shadow-[0_4px_18px_-4px_oklch(0.65_0.18_265/0.18)] focus-within:ring-1 focus-within:ring-primary/15"
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false); }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          const file = e.dataTransfer.files[0];
+          if (file) handleFileChange({ target: { files: e.dataTransfer.files } } as any);
+        }}
+      >
+        {/* Phase 3 drag-and-drop overlay */}
+        {isDragging && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-primary/60 bg-primary/[0.05] backdrop-blur-sm">
+            <div className="text-center">
+              <span className="text-2xl block">📎</span>
+              <p className="text-[12px] text-primary font-medium mt-1">วางไฟล์ที่นี่</p>
+              <p className="text-[10.5px] text-muted-foreground">รองรับ CSV, JSON, รูปภาพ, PDF</p>
+            </div>
+          </div>
+        )}
         {/* Phase 10.26 — focus-glow halo */}
         <span
           aria-hidden="true"
@@ -466,6 +488,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Phase 3 drag-and-drop hint — shown only when input is empty and no file attached */}
+      {!hasAttachment && !isDragging && input.length === 0 && (
+        <p className="text-[10px] text-muted-foreground/40 text-center mt-0.5">
+          ลากไฟล์มาวางได้เลย
+        </p>
+      )}
 
       {/* Helper line — keys on left, character counter on right when relevant.
           Phase 10.36 — kbds upgraded with a faint inner bevel + tight gap so the

@@ -1454,6 +1454,25 @@ const ChatPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Phase 3 iter 1 — global navigation shortcuts: Ctrl+D, Ctrl+P, Ctrl+H
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (!ctrl || e.shiftKey) return;
+      // Skip if user is typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      switch (e.key.toLowerCase()) {
+        case 'd': e.preventDefault(); router.push('/dashboard'); break;
+        case 'p': e.preventDefault(); router.push('/projects'); break;
+        case 'h': e.preventDefault(); router.push('/task-history'); break;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [router]);
+
   // Add debug logs to check WebSocket and waiting state
   useEffect(() => {
     console.log("isSocketReady:", isSocketReady);

@@ -153,6 +153,38 @@ router.post("/append", async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
+// PATCH /api/files/:id/pin  { pinned: boolean }
+// ---------------------------------------------------------------------------
+router.patch("/:id/pin", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { pinned } = req.body as { pinned: boolean };
+
+  if (typeof pinned !== "boolean") {
+    return res.status(400).json({ error: "pinned (boolean) is required" });
+  }
+
+  // Lazy-import DB so this route still works even if DB is not wired up
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { getDb } = require("../../db") as { getDb: () => { prepare: (sql: string) => { run: (...args: unknown[]) => void } } };
+    const db = getDb();
+    db.prepare("UPDATE files SET pinned = ? WHERE id = ?").run(pinned ? 1 : 0, id);
+    return res.json({ id, pinned });
+  } catch (err: unknown) {
+    // Column doesn't exist yet (migration pending) or DB not available — degrade gracefully
+    const msg = err instanceof Error ? err.message : String(err);
+    if (
+      msg.includes("no column named pinned") ||
+      msg.includes("no such column") ||
+      msg.includes("Cannot find module")
+    ) {
+      return res.json({ id, pinned: false, note: "pinned column not yet migrated" });
+    }
+    return res.status(500).json({ error: "Failed to update pin state" });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // DELETE /api/files/delete?path=projects/old.md
 // ---------------------------------------------------------------------------
 router.delete("/delete", async (req: Request, res: Response) => {

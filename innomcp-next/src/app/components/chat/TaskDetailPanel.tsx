@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 interface TaskStep {
   id: number;
@@ -20,6 +20,7 @@ interface TaskDetail {
   final_answer: string | null;
   created_at: string;
   completed_at: string | null;
+  rating?: number | null;
 }
 
 const BACKEND =
@@ -67,6 +68,23 @@ export default function TaskDetailPanel({
   const [continueMsg, setContinueMsg] = useState("");
   const [continuing, setContinuing] = useState(false);
   const [continuationChunks, setContinuationChunks] = useState<string[]>([]);
+  const [localRating, setLocalRating] = useState<number | null>(null);
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
+  const [submittingRating, setSubmittingRating] = useState(false);
+
+  const handleRate = useCallback(async (rating: number) => {
+    if (submittingRating || !task) return;
+    setSubmittingRating(true);
+    setLocalRating(rating);
+    try {
+      await fetch(`${BACKEND}/api/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ taskId: task.id, rating, comment: "" }),
+      });
+    } catch {} finally { setSubmittingRating(false); }
+  }, [submittingRating, task]);
 
   const handleContinue = async () => {
     if (!continueMsg.trim() || continuing) return;
@@ -116,6 +134,7 @@ export default function TaskDetailPanel({
       .then((d) => {
         setTask(d.task);
         setSteps(d.steps ?? []);
+        setLocalRating(d.task?.rating ?? null);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -166,6 +185,32 @@ export default function TaskDetailPanel({
             )}
           </div>
         </div>
+        {/* Export Events JSON button — only shown when steps are loaded */}
+        {steps.length > 0 && (
+          <button
+            onClick={() => {
+              const blob = new Blob([JSON.stringify({ task, steps }, null, 2)], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `task-${task.id.slice(0, 8)}-events.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="text-[11px] border border-border/40 rounded-md px-2.5 py-1 text-muted-foreground hover:text-foreground hover:border-border transition-colors shrink-0"
+          >
+            ⬇ Events JSON
+          </button>
+        )}
+        {/* Full view link — opens task standalone page in new tab */}
+        <a
+          href={`/tasks/${taskId}`}
+          target="_blank"
+          rel="noopener"
+          className="text-[10.5px] text-blue-500 hover:underline shrink-0"
+        >
+          ↗ Full view
+        </a>
         {onClose && (
           <button
             onClick={onClose}
@@ -176,6 +221,40 @@ export default function TaskDetailPanel({
           </button>
         )}
       </div>
+
+      {/* Star rating */}
+      {(() => {
+        const displayRating = localRating ?? task.rating ?? null;
+        const activeRating = hoverRating ?? displayRating;
+        return (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-0.5">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  disabled={submittingRating}
+                  onClick={() => handleRate(star)}
+                  onMouseEnter={() => !displayRating && setHoverRating(star)}
+                  onMouseLeave={() => setHoverRating(null)}
+                  aria-label={`Rate ${star} stars`}
+                  className="text-amber-400 cursor-pointer text-[18px] leading-none disabled:opacity-50 transition-transform hover:scale-110"
+                >
+                  {activeRating !== null && star <= activeRating ? "★" : "☆"}
+                </button>
+              ))}
+            </div>
+            {displayRating !== null ? (
+              <span className="text-[11px] text-muted-foreground tabular-nums">
+                {displayRating}/5
+              </span>
+            ) : (
+              <span className="text-[10.5px] text-muted-foreground/50">
+                ให้คะแนน
+              </span>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Progress bar for running tasks */}
       {task.status === "running" && (

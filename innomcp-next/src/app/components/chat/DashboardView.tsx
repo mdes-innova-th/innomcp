@@ -29,6 +29,13 @@ interface DashboardData {
   generatedAt: string;
 }
 
+interface PinnedArtifact {
+  id: string;
+  name: string;
+  type: string;
+  taskId?: string;
+}
+
 // ─── Backend URL — matches pattern used in MemoryManager / ModelSettingsPanel ──
 
 const BACKEND =
@@ -55,6 +62,13 @@ function relTime(iso: string): string {
   if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} นาทีที่แล้ว`;
   if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)} ชม.ที่แล้ว`;
   return `${Math.floor(diff / 86_400_000)} วันที่แล้ว`;
+}
+
+function artifactEmoji(type: string): string {
+  if (type === "markdown" || type === "md") return "📝";
+  if (type === "csv") return "📊";
+  if (type === "code") return "💻";
+  return "📄";
 }
 
 // ─── StatCard ─────────────────────────────────────────────────────────────────
@@ -99,6 +113,7 @@ export default function DashboardView({
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [taskSearch, setTaskSearch] = useState("");
+  const [pinnedArtifacts, setPinnedArtifacts] = useState<PinnedArtifact[]>([]);
 
   useEffect(() => {
     fetch(`${BACKEND}/api/dashboard`, { credentials: "include" })
@@ -106,6 +121,22 @@ export default function DashboardView({
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    // Fetch pinned artifacts — degrade gracefully if API doesn't support filtering
+    fetch(`${BACKEND}/api/files?pinned=true&limit=6`, { credentials: "include" })
+      .then((r) => r.json())
+      .then((result) => {
+        // API may return { files: [...] } or an array directly
+        const list: PinnedArtifact[] = Array.isArray(result)
+          ? result
+          : Array.isArray(result?.files)
+          ? result.files
+          : [];
+        setPinnedArtifacts(list);
+      })
+      .catch(() => {
+        // Silently ignore — section simply won't appear
+      });
   }, []);
 
   if (loading) {
@@ -163,7 +194,10 @@ export default function DashboardView({
         >
           ➕ งานใหม่
         </button>
-        <button className="rounded-lg border border-border/50 px-4 py-2 text-[12.5px] text-foreground hover:bg-muted/30 transition-colors">
+        <button
+          onClick={() => router.push("/task-history")}
+          className="rounded-lg border border-border/50 px-4 py-2 text-[12.5px] text-foreground hover:bg-muted/30 transition-colors"
+        >
           📋 ดูงานทั้งหมด
         </button>
         {s && s.shellExecutions24h > 0 && (
@@ -172,6 +206,34 @@ export default function DashboardView({
           </span>
         )}
       </div>
+
+      {/* Pinned Artifacts — only shown when there are pinned items */}
+      {pinnedArtifacts.length > 0 && (
+        <div>
+          <p className="text-[12px] font-semibold text-foreground mb-2">
+            📌 Pinned Artifacts
+          </p>
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
+            {pinnedArtifacts.map((artifact) => (
+              <div
+                key={artifact.id}
+                onClick={() => router.push(`/tasks/${artifact.taskId || ""}`)}
+                className="w-24 h-20 shrink-0 rounded-lg border border-border/40 p-2 flex flex-col gap-1 cursor-pointer hover:bg-muted/20 transition-colors bg-background/60"
+              >
+                <span className="text-lg leading-none">
+                  {artifactEmoji(artifact.type)}
+                </span>
+                <p className="text-[10px] text-foreground leading-tight line-clamp-2 flex-1 min-w-0 break-words">
+                  {artifact.name}
+                </p>
+                <span className="text-[9px] text-muted-foreground/60 truncate">
+                  {artifact.type}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Recent tasks */}
       <div>

@@ -13,6 +13,7 @@ import {
   faKey,
 } from "@fortawesome/free-solid-svg-icons";
 import { useAuth } from "@/app/context/AuthContext";
+import { useTheme } from "@/app/context/ThemeContext";
 import { useRouter } from "next/navigation";
 import AgentLeaderboard from "./AgentLeaderboard";
 import ModelSettingsPanel from "./ModelSettingsPanel";
@@ -269,6 +270,7 @@ const ChatSidebar: React.FC<Props> = ({
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const sidebarRef  = useRef<HTMLElement | null>(null);
   const { isLoggedIn, userDispName, userRoleId, logout } = useAuth();
+  const { toggleTheme } = useTheme();
   const router = useRouter();
 
   useEffect(() => { setMounted(true); }, []);
@@ -309,6 +311,19 @@ const ChatSidebar: React.FC<Props> = ({
       window.removeEventListener("keydown", onKey);
     };
   }, [showUserMenu]);
+
+  // Ctrl+Shift+T — toggle theme
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      if (ctrl && e.shiftKey && e.key.toLowerCase() === "t") {
+        e.preventDefault();
+        toggleTheme();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [toggleTheme]);
 
   const safeTheme = mounted ? theme : "light";
 
@@ -727,6 +742,14 @@ const ChatSidebar: React.FC<Props> = ({
             </svg>
           </div>
           <span className="flex-1 text-sm font-bold tracking-wide text-foreground">INNOMCP</span>
+          <button
+            onClick={toggleTheme}
+            className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+            aria-label="Toggle theme"
+            title={safeTheme === "dark" ? "Switch to Light (Ctrl+Shift+T)" : "Switch to Dark (Ctrl+Shift+T)"}
+          >
+            {safeTheme === "dark" ? "☀️" : "🌙"}
+          </button>
           <button
             onClick={onToggle}
             aria-label="Collapse sidebar"

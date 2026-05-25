@@ -15,6 +15,7 @@ interface Task {
   elapsed_ms: number | null;
   created_at: string;
   completed_at: string | null;
+  rating?: number | null;
 }
 
 type FilterTab = "all" | "completed" | "running" | "failed";
@@ -265,6 +266,14 @@ export default function TaskHistoryPage() {
                   <span className="text-[10px] text-muted-foreground/60 tabular-nums">
                     {fmtElapsed(t.elapsed_ms)}
                   </span>
+                )}
+                {/* Rating column */}
+                {t.rating ? (
+                  <span className="text-amber-500 text-[11px] tabular-nums">
+                    ★ {t.rating}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/40 text-[11px]">–</span>
                 )}
                 <span className="text-[10px] text-muted-foreground/50">
                   {relTime(t.created_at)}

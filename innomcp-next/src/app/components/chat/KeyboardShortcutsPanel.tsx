@@ -32,6 +32,15 @@ const SHORTCUTS: { group: string; items: Shortcut[] }[] = [
       { keys: ["Ctrl", "O"], description: "ดู/ซ่อน เบื้องหลังการคิด (multi-agent)" },
     ],
   },
+  {
+    group: "Navigation",
+    items: [
+      { keys: ["Ctrl", "D"], description: "ไปหน้า Dashboard" },
+      { keys: ["Ctrl", "P"], description: "ไปหน้า Projects" },
+      { keys: ["Ctrl", "H"], description: "ดูประวัติงาน (Task History)" },
+      { keys: ["Ctrl", "K"], description: "เปิด Command / ค้นหา" },
+    ],
+  },
 ];
 
 function isMac() {
