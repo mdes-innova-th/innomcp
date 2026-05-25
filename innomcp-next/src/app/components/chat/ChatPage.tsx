@@ -277,6 +277,19 @@ const ChatPage: React.FC = () => {
   const { state: agentStreamState, send: sendAgentStream, reset: resetAgentStream } = useAgentEventStream();
   // Phase 3 — browser notifications when agent task completes
   useTaskNotifications(agentStreamState.events, isWaitingForResponse);
+
+  // Phase 3 — in-page toast when agent task completes (complements browser notification)
+  const prevIsStreamingForToastRef = useRef<boolean>(false);
+  useEffect(() => {
+    const wasStreaming = prevIsStreamingForToastRef.current;
+    prevIsStreamingForToastRef.current = isWaitingForResponse;
+    // Only fire once per completion: wasStreaming=true → isWaitingForResponse=false
+    if (!wasStreaming || isWaitingForResponse) return;
+    const hasFinalAnswer = agentStreamState.events.some((e) => e.type === "final_answer");
+    if (!hasFinalAnswer) return;
+    notify("งานเสร็จแล้ว ✓", "success");
+  }, [agentStreamState.events, isWaitingForResponse, notify]);
+
   const activeAgentStreamRequestRef = useRef<string | null>(null);
   const [isSocketReady, setIsSocketReady] = useState(false);
   const [isStopped, setIsStopped] = useState(false);

@@ -1,8 +1,117 @@
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
+import * as fsPromises from 'node:fs/promises';
+import * as path from 'node:path';
+import { existsSync } from 'node:fs';
 import { withDbConnection } from '../../../utils/db';
 import { authenticateToken, AuthRequest } from '../../../utils/jwt';
+import { WORKSPACE_ROOT, safePath } from '../files';
 
 const router = Router();
+
+// ---------------------------------------------------------------------------
+// File Browser — public (no auth required, sandbox-enforced)
+// ---------------------------------------------------------------------------
+
+const MAX_FILES = 200;
+const MAX_DEPTH = 3;
+
+interface FileMeta {
+  name: string;
+  path: string;
+  size: number;
+  mtime: string;
+  type: 'file' | 'dir';
+}
+
+/**
+ * Recursively collect entries under `dir`, relative to `WORKSPACE_ROOT`.
+ * `depth` counts remaining levels (0 = stop recursing).
+ */
+async function collectFiles(
+  dir: string,
+  relBase: string,
+  depth: number,
+  acc: FileMeta[]
+): Promise<void> {
+  if (acc.length >= MAX_FILES) return;
+  let entries: string[];
+  try {
+    entries = await fsPromises.readdir(dir);
+  } catch {
+    return;
+  }
+  for (const name of entries) {
+    if (acc.length >= MAX_FILES) break;
+    const absEntry = path.join(dir, name);
+    const relEntry = relBase ? `${relBase}/${name}` : name;
+    let stat;
+    try {
+      stat = await fsPromises.stat(absEntry);
+    } catch {
+      continue;
+    }
+    const isDir = stat.isDirectory();
+    acc.push({
+      name,
+      path: relEntry,
+      size: isDir ? 0 : stat.size,
+      mtime: stat.mtime.toISOString(),
+      type: isDir ? 'dir' : 'file',
+    });
+    if (isDir && depth > 1) {
+      await collectFiles(absEntry, relEntry, depth - 1, acc);
+    }
+  }
+}
+
+/**
+ * GET /api/workspace/files
+ * List workspace files recursively (max depth 3, max 200 entries).
+ */
+router.get('/files', async (_req: Request, res: Response) => {
+  try {
+    if (!existsSync(WORKSPACE_ROOT)) {
+      return res.json({ files: [] });
+    }
+    const files: FileMeta[] = [];
+    await collectFiles(WORKSPACE_ROOT, '', MAX_DEPTH, files);
+    res.json({ files });
+  } catch (err) {
+    console.error('[Workspace] File listing error:', err);
+    res.status(500).json({ error: 'Failed to list workspace files' });
+  }
+});
+
+/**
+ * GET /api/workspace/files/*
+ * Read a single file's content.
+ */
+router.get('/files/*', async (req: Request, res: Response) => {
+  const userPath = (req.params as Record<string, string>)[0] || '';
+  const safe = safePath(userPath);
+  if (!safe) {
+    return res.status(400).json({ error: 'Invalid path' });
+  }
+  try {
+    const stat = await fsPromises.stat(safe);
+    if (stat.isDirectory()) {
+      return res.status(400).json({ error: 'Path is a directory' });
+    }
+    // Cap content preview at 512 KB
+    if (stat.size > 512 * 1024) {
+      return res.status(413).json({ error: 'File too large for preview' });
+    }
+    const content = await fsPromises.readFile(safe, 'utf-8');
+    const ext = path.extname(userPath).slice(1).toLowerCase();
+    res.json({ content, path: userPath, size: stat.size, ext });
+  } catch {
+    res.status(404).json({ error: 'File not found' });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Apply authentication to all workspace routes below this line
+// ---------------------------------------------------------------------------
 
 // Apply authentication to all workspace routes
 router.use(authenticateToken);

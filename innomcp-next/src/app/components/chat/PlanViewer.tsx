@@ -1,5 +1,7 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import type { AgentEvent } from "./useAgentEventStream";
+import { buildPlanFromEvents } from "@/utils/planExtractor";
 
 export type PhaseStatus = "pending" | "running" | "completed" | "failed" | "blocked";
 
@@ -24,7 +26,8 @@ export interface Plan {
 }
 
 interface Props {
-  plan: Plan | null;
+  plan?: Plan | null;
+  events?: AgentEvent[];
   onClose?: () => void;
 }
 
@@ -98,19 +101,28 @@ function PhaseCard({ phase, index }: { phase: PlanPhase; index: number }) {
   );
 }
 
-export default function PlanViewer({ plan, onClose }: Props) {
-  if (!plan) {
+export default function PlanViewer({ plan, events, onClose }: Props) {
+  // Derive a plan from events when no plan prop is provided
+  const derivedPlan = useMemo(() => {
+    if (!events || events.length === 0) return null;
+    return buildPlanFromEvents(events, events[0]?.runId ?? "");
+  }, [events]);
+
+  // plan prop takes precedence (backward compat with ChatPage.tsx); fall back to derived
+  const effectivePlan = plan ?? derivedPlan;
+
+  if (!effectivePlan) {
     return (
       <div className="flex flex-col items-center justify-center gap-2 p-8 text-center text-muted-foreground">
         <span className="text-2xl">📋</span>
         <p className="text-[12.5px]">ยังไม่มีแผนงาน</p>
-        <p className="text-[11px]">เมื่อ agent วางแผน จะแสดงที่นี่</p>
+        <p className="text-[11px]">ยังไม่มีแผนงาน — เริ่มงานใหม่เพื่อดูแผน</p>
       </div>
     );
   }
 
-  const done = plan.phases.filter(p => p.status === "completed").length;
-  const total = plan.phases.length;
+  const done = effectivePlan.phases.filter(p => p.status === "completed").length;
+  const total = effectivePlan.phases.length;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
   return (
@@ -118,7 +130,7 @@ export default function PlanViewer({ plan, onClose }: Props) {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[12px] font-semibold text-foreground">📋 {plan.title}</p>
+          <p className="text-[12px] font-semibold text-foreground">📋 {effectivePlan.title}</p>
           <p className="text-[10.5px] text-muted-foreground">{done}/{total} phases · {pct}%</p>
         </div>
         {onClose && (
@@ -134,7 +146,7 @@ export default function PlanViewer({ plan, onClose }: Props) {
 
       {/* Phase timeline */}
       <div className="flex flex-col gap-0 ml-[9px]">
-        {plan.phases.map((phase, i) => (
+        {effectivePlan.phases.map((phase, i) => (
           <PhaseCard key={phase.id} phase={phase} index={i} />
         ))}
       </div>

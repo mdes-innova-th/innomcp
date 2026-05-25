@@ -45,6 +45,9 @@ export default function ModelSettingsPanel({ onClose }: Props) {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
   const [saved, setSaved] = useState(false);
+  const [testingCall, setTestingCall] = useState(false);
+  const [callResult, setCallResult] = useState<{ response: string; durationMs: number } | null>(null);
+  const [callError, setCallError] = useState(false);
 
   // Load presets from backend
   useEffect(() => {
@@ -100,6 +103,29 @@ export default function ModelSettingsPanel({ onClose }: Props) {
       setResult({ success: false, latencyMs: 0, error: "Cannot reach backend" });
     }
     setTesting(false);
+  };
+
+  const handleTestCall = async () => {
+    setTestingCall(true);
+    setCallResult(null);
+    setCallError(false);
+    try {
+      const r = await fetch(`${BACKEND}/api/providers/test-call`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          providerId: selectedId || "seed-mdes-ollama",
+          message: "สวัสดี ทดสอบการเชื่อมต่อ",
+        }),
+      });
+      if (!r.ok) throw new Error("Non-OK response");
+      const data = (await r.json()) as { response: string; durationMs: number };
+      setCallResult(data);
+    } catch {
+      setCallError(true);
+    }
+    setTestingCall(false);
   };
 
   const handleSave = () => {
@@ -201,6 +227,14 @@ export default function ModelSettingsPanel({ onClose }: Props) {
           {testing ? "Testing..." : "Test Connection"}
         </button>
         <button
+          onClick={handleTestCall}
+          disabled={testingCall}
+          data-testid="model-settings-test-call-btn"
+          className="flex-1 rounded-lg border border-border/60 py-1.5 text-[12px] text-foreground transition-colors hover:bg-muted/30 disabled:opacity-50"
+        >
+          {testingCall ? "กำลังทดสอบ..." : "🤖 Test AI Call"}
+        </button>
+        <button
           onClick={handleSave}
           data-testid="model-settings-save-btn"
           className="flex-1 rounded-lg bg-primary py-1.5 text-[12px] font-medium text-primary-foreground hover:bg-primary/90"
@@ -231,6 +265,22 @@ export default function ModelSettingsPanel({ onClose }: Props) {
               {result.error ?? "Connection failed"} ({result.latencyMs}ms)
             </p>
           )}
+        </div>
+      )}
+
+      {/* Test AI Call result */}
+      {(callResult || callError) && (
+        <div
+          data-testid="model-settings-call-result"
+          className={`rounded-lg border px-3 py-2 text-[11.5px] mt-2 ${
+            callResult
+              ? "border-emerald-500/30 bg-emerald-500/[0.08] text-emerald-700 dark:text-emerald-400"
+              : "border-rose-500/20 bg-rose-500/8 text-rose-700 dark:text-rose-400"
+          }`}
+        >
+          {callResult
+            ? `✅ ${callResult.durationMs}ms — "${callResult.response.slice(0, 100)}"`
+            : "❌ ไม่สามารถเชื่อมต่อได้"}
         </div>
       )}
 

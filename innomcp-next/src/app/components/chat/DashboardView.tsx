@@ -98,6 +98,7 @@ export default function DashboardView({
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [taskSearch, setTaskSearch] = useState("");
 
   useEffect(() => {
     fetch(`${BACKEND}/api/dashboard`, { credentials: "include" })
@@ -116,6 +117,12 @@ export default function DashboardView({
   }
 
   const s = data?.stats;
+  const filteredTasks = (data?.recentTasks ?? []).filter(
+    (t) =>
+      !taskSearch ||
+      t.title.toLowerCase().includes(taskSearch.toLowerCase()) ||
+      t.intent.toLowerCase().includes(taskSearch.toLowerCase())
+  );
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 flex flex-col gap-5">
@@ -177,37 +184,70 @@ export default function DashboardView({
             ยังไม่มีงาน — เริ่มต้นด้วยการพิมพ์คำสั่งในช่องแชท
           </div>
         ) : (
-          <div className="flex flex-col gap-1.5">
-            {data.recentTasks.map((t) => (
-              <div
-                key={t.id}
-                onClick={() => router.push(`/tasks/${t.id}`)}
-                className="flex items-center gap-3 rounded-lg border border-border/30 bg-background/60 px-3 py-2 hover:bg-muted/20 transition-colors cursor-pointer"
-              >
-                <span
-                  className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9.5px] font-medium ${
-                    STATUS_STYLE[t.status] ??
-                    "bg-muted/40 text-muted-foreground"
-                  }`}
+          <>
+            {/* Search input */}
+            <div className="relative mb-2">
+              <input
+                type="text"
+                value={taskSearch}
+                onChange={(e) => setTaskSearch(e.target.value)}
+                placeholder="ค้นหางาน..."
+                className="text-[12px] border border-border/40 rounded-lg px-3 py-1.5 w-full bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50 pr-7"
+              />
+              {taskSearch && (
+                <button
+                  onClick={() => setTaskSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground text-[13px] leading-none"
+                  aria-label="ล้างการค้นหา"
                 >
-                  {t.status}
-                </span>
-                <p className="flex-1 truncate text-[12px] text-foreground">
-                  {t.title}
-                </p>
-                <div className="flex items-center gap-2 shrink-0">
-                  {t.elapsed_ms && (
-                    <span className="text-[10px] text-muted-foreground/60 tabular-nums">
-                      {(t.elapsed_ms / 1000).toFixed(1)}s
-                    </span>
-                  )}
-                  <span className="text-[10px] text-muted-foreground/50">
-                    {relTime(t.created_at)}
-                  </span>
-                </div>
+                  ×
+                </button>
+              )}
+            </div>
+            {/* Result count when searching */}
+            {taskSearch && (
+              <p className="text-[11px] text-muted-foreground mb-1.5">
+                {filteredTasks.length} งาน
+              </p>
+            )}
+            {filteredTasks.length === 0 ? (
+              <div className="rounded-xl border border-border/30 bg-muted/10 p-4 text-center text-[12px] text-muted-foreground">
+                ไม่พบงานที่ตรงกับการค้นหา
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                {filteredTasks.map((t) => (
+                  <div
+                    key={t.id}
+                    onClick={() => router.push(`/tasks/${t.id}`)}
+                    className="flex items-center gap-3 rounded-lg border border-border/30 bg-background/60 px-3 py-2 hover:bg-muted/20 transition-colors cursor-pointer"
+                  >
+                    <span
+                      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[9.5px] font-medium ${
+                        STATUS_STYLE[t.status] ??
+                        "bg-muted/40 text-muted-foreground"
+                      }`}
+                    >
+                      {t.status}
+                    </span>
+                    <p className="flex-1 truncate text-[12px] text-foreground">
+                      {t.title}
+                    </p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {t.elapsed_ms && (
+                        <span className="text-[10px] text-muted-foreground/60 tabular-nums">
+                          {(t.elapsed_ms / 1000).toFixed(1)}s
+                        </span>
+                      )}
+                      <span className="text-[10px] text-muted-foreground/50">
+                        {relTime(t.created_at)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 

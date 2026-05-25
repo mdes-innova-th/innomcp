@@ -24,6 +24,8 @@ import {
 } from "./events";
 import { checkAgentEventSafe } from "./eventGuard";
 import { selectProvider, type ChatMode } from "../providers/router";
+import { callProvider } from "../services/providerAdapter";
+import { listProviders } from "../providers/registry";
 import {
   classifyIntent,
   type ChatIntent,
@@ -521,6 +523,15 @@ export async function runConductor(
     await Promise.race([toolPromise, new Promise((r) => { const t = setTimeout(r, toolRaceMs); t.unref?.(); })]);
   }
 
+  // Fallback: build messages for provider calls (used below and potentially by fallback)
+  const adapterMessages: import("../services/providerAdapter").ChatMessage[] = [
+    ...(opts.history ?? []).map((h) => ({
+      role: h.sender === "user" ? ("user" as const) : ("assistant" as const),
+      content: h.text,
+    })),
+    { role: "user" as const, content: opts.message },
+  ];
+
   // Phase C.01b / C.02 — Only race agentResultPromise if agents haven't settled.
   // If agentsSettled=true they already wrote to liveOutputs (no extra wait needed).
   // Cap: 3s for normal (was 8s, additive!), 6s for thinking.
@@ -544,6 +555,25 @@ export async function runConductor(
       }
     }
   }
+  // Provider fallback: if no usable output yet, try alternative providers in priority order.
+  if (!hasFinalOutput(liveOutputs) && !liveOutputs["__tool__"]) {
+    const fallbacks = listProviders().filter(
+      (p) => p.enabled && p.id !== (providerId ?? "") && p.type !== "custom"
+    );
+    for (const fb of fallbacks.slice(0, 2)) {
+      try {
+        console.log("[conductor] falling back to:", fb.displayName);
+        const response = await callProvider(fb, { messages: adapterMessages, maxTokens: 1000 });
+        if (response && response.length > 0) {
+          liveOutputs["fallback"] = response;
+          break;
+        }
+      } catch {
+        continue;
+      }
+    }
+  }
+
   const enrichedText = synthesizeAnswer(liveOutputs, draft, { runMode: responseMode });
 
   const finalEv = newEnvelope({
