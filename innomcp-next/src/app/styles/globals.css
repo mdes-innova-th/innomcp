@@ -650,11 +650,19 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   animation: skeleton-sweep 2.2s linear infinite;
 }
 
+/* Phase 10.66 — streaming cursor blink for AI response in-progress */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.animate-blink { animation: blink 1s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
   .animate-pulse-soft,
   .animate-bubble-in,
   .animate-float-orbit,
   .agent-shimmer-active,
   .animate-radar-ping { animation: none; }
+  .animate-blink { animation: none; opacity: 1; }
   .skeleton-shimmer::after { animation: none; opacity: 0; }
 }

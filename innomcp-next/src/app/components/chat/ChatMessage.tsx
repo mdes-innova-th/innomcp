@@ -15,6 +15,8 @@ type Props = {
   html: string;
   className?: string;
   structuredContent?: any;
+  /** When true, renders a blinking cursor at the end of the streamed text */
+  isAnimating?: boolean;
 };
 
 const schema = {
@@ -29,6 +31,7 @@ export default function ChatMessage({
   html,
   className,
   structuredContent,
+  isAnimating,
 }: Props) {
   const [copiedChart, setCopiedChart] = React.useState(false);
   // Phase 10.62 — APOD lazy-load shimmer + onError fallback.
@@ -571,6 +574,14 @@ export default function ChatMessage({
         >
           {html}
         </ReactMarkdown>
+        {/* Phase 10.66 — blinking cursor appended after streamed text */}
+        {isAnimating && (
+          <span
+            className="inline-block h-[1em] w-0.5 translate-y-[2px] rounded-sm bg-foreground/60 animate-blink align-middle"
+            aria-hidden="true"
+            data-testid="streaming-cursor"
+          />
+        )}
       </div>
     </div>
   );
@@ -1445,6 +1456,7 @@ export function MessageView({
                   <ChatMessage
                     html={message.fullText || message.text}
                     structuredContent={message.structuredContent}
+                    isAnimating={message.isAnimating}
                   />
                 ) : (
                   message.text
