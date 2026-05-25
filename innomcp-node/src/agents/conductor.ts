@@ -14,6 +14,8 @@
  */
 
 import { randomUUID } from "node:crypto";
+import * as fsPromises from "node:fs/promises";
+import * as nodePath from "node:path";
 import {
   newEnvelope,
   type AgentEvent,
@@ -555,6 +557,11 @@ export async function runConductor(
   finalEv.confidence = nat.ok ? 0.78 : 0.55;
   safeEmit(emit, finalEv, cls.expectedToolUsage);
 
+  // Persist long answers as workspace artifacts (fire-and-forget, non-blocking)
+  if (enrichedText.length > 200) {
+    saveArtifactToWorkspace(`task-${runId.slice(0, 8)}`, enrichedText, "md").catch(() => {});
+  }
+
   // Generate follow-up suggestions asynchronously — fire-and-forget
   if (provider?.baseUrl) {
     const remoteEndpoint = provider.baseUrl;
@@ -599,6 +606,28 @@ export async function runConductor(
     model,
     events: 0, // emitter side counts; not tracked here
   };
+}
+
+/**
+ * saveArtifactToWorkspace — non-blocking fire-and-forget artifact persistence.
+ * Saves long final answers to workspace/artifacts/ for later retrieval via /api/files.
+ */
+async function saveArtifactToWorkspace(
+  name: string,
+  content: string,
+  ext: string = "md"
+): Promise<void> {
+  try {
+    const workspaceRoot = process.env.WORKSPACE_ROOT
+      ? nodePath.resolve(process.env.WORKSPACE_ROOT)
+      : nodePath.resolve(process.cwd(), "../workspace");
+    const safeName = name.replace(/[^a-zA-Z0-9฀-๿\-_.]/g, "_") + "." + ext;
+    const artifactsDir = nodePath.join(workspaceRoot, "artifacts");
+    await fsPromises.mkdir(artifactsDir, { recursive: true });
+    await fsPromises.writeFile(nodePath.join(artifactsDir, safeName), content, "utf-8");
+  } catch {
+    // Non-blocking — never crash the conductor for artifact saves
+  }
 }
 
 async function generateFollowUps(question: string, answer: string, endpoint: string, token: string): Promise<string[]> {

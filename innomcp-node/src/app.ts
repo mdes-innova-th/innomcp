@@ -14,6 +14,7 @@ import metricsRouter from "./routes/api/metrics";
 import { healthRouter } from "./routes/api/health";
 import authRouter from "./routes/api/auth";
 import workspaceRouter from "./routes/api/workspace";
+import filesRouter from "./routes/api/files";
 import adminRouter from "./routes/api/admin";
 import { apiKeyMiddleware } from "./utils/apikey";
 import csrfMiddleware from "./utils/csrf";
@@ -154,6 +155,9 @@ app.use("/api/auth", authRateLimit, authRouter);
 
 // Router à¸ªà¸³à¸«à¸£à¸±à¸š Workspace (requires authentication)
 app.use("/api/workspace", workspaceRouter);
+
+// File Tool — sandboxed read/write/append/list/delete for Private Agent Studio
+app.use("/api/files", generalRateLimit, filesRouter);
 
 // Router à¸ªà¸³à¸«à¸£à¸±à¸š Admin (requires authentication + admin role)
 app.use("/api/admin", adminRouter);
