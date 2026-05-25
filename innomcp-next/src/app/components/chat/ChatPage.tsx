@@ -31,6 +31,7 @@ import ArtifactPanel, { type Artifact } from "@/app/components/chat/ArtifactPane
 import PlanViewer from "@/app/components/chat/PlanViewer";
 import { buildPlanFromEvents } from "../../../utils/planExtractor";
 import ApprovalGate, { type ApprovalRequest } from "@/app/components/chat/ApprovalGate";
+import { useTaskNotifications } from "@/app/hooks/useTaskNotifications";
 // icons are used in ChatInput; not needed here
 
 // Define the type for a chat message
@@ -274,6 +275,8 @@ const ChatPage: React.FC = () => {
   // Phase 10.15: MultiAgent Panel state
   const [expandAll, setExpandAll] = useState(false);
   const { state: agentStreamState, send: sendAgentStream, reset: resetAgentStream } = useAgentEventStream();
+  // Phase 3 — browser notifications when agent task completes
+  useTaskNotifications(agentStreamState.events, isWaitingForResponse);
   const activeAgentStreamRequestRef = useRef<string | null>(null);
   const [isSocketReady, setIsSocketReady] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
@@ -282,6 +285,8 @@ const ChatPage: React.FC = () => {
   // Used to stamp responseTime onto the AI reply when it lands.
   const lastSendAtRef = useRef<number | null>(null);
   const sendMessageRef = useRef<() => Promise<void>>(() => Promise.resolve());
+  // Phase 3 CSV — prefix injected by ChatInput before sendMessage fires
+  const csvPrefixRef = useRef<string>("");
   // Phase 10.61 — keep the working-indicator visible for ≥1500 ms after a send,
   // so fast-fallback models (e.g. qwen2.5:0.5b returning a cached acknowledgment
   // in <200 ms) still produce a visible "typing" affordance. Without this, the
@@ -973,10 +978,16 @@ const ChatPage: React.FC = () => {
   }, [agentStreamState.suggestions]);
 
   const sendMessage = async () => {
+    // Phase 3 CSV — prepend any CSV attachment summary to the user text
+    const effectiveInput = csvPrefixRef.current
+      ? `${csvPrefixRef.current}\n${input}`
+      : input;
+    csvPrefixRef.current = "";
+
     if (
       socket &&
       isSocketReady && // Ensure WebSocket is ready
-      input.trim() !== "" &&
+      effectiveInput.trim() !== "" &&
       !isWaitingForResponse
     ) {
       // include a unique messageId to allow server-side deduplication
@@ -1013,7 +1024,7 @@ const ChatPage: React.FC = () => {
           : "local";
       const derivedReasoning = chatMode === "multiagent" ? "thinking" : "normal";
       const message = {
-        text: input,
+        text: effectiveInput,
         messages: transportHistory,
         messageId,
         file: fileData,
@@ -1032,7 +1043,7 @@ const ChatPage: React.FC = () => {
       resetAgentStream();
       activeAgentStreamRequestRef.current = messageId;
       sendAgentStream({
-        message: input,
+        message: effectiveInput,
         sessionId: activeSummaryId ?? undefined,
         preferredMode: derivedMode,
         toolHint: selectedToolType,
@@ -1041,9 +1052,9 @@ const ChatPage: React.FC = () => {
       });
       
       // Add user message to UI (include file indicator)
-      const userMessage: ChatMessage = { 
-        sender: "user", 
-        text: input,
+      const userMessage: ChatMessage = {
+        sender: "user",
+        text: effectiveInput,
         ...(selectedFile && { 
           fileInfo: { 
             name: selectedFile.name, 
@@ -1700,6 +1711,8 @@ const ChatPage: React.FC = () => {
                     onBlur={() => setIsChatActive(false)}
                     providerMode={providerMode}
                     onProviderModeChange={setProviderMode}
+                    onAddArtifact={(a) => { setArtifacts(prev => [...prev, a]); setArtifactPanelOpen(true); }}
+                    setCsvPrefix={(s) => { csvPrefixRef.current = s; }}
                   />
 
                   {/* Starter prompts — premium card design with hover accent + arrow CTA */}
@@ -2038,6 +2051,8 @@ const ChatPage: React.FC = () => {
                 onBlur={() => setIsChatActive(false)}
                 providerMode={providerMode}
                 onProviderModeChange={setProviderMode}
+                onAddArtifact={(a) => { setArtifacts(prev => [...prev, a]); setArtifactPanelOpen(true); }}
+                setCsvPrefix={(s) => { csvPrefixRef.current = s; }}
               />
             </div>
           )}

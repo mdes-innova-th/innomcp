@@ -31,6 +31,7 @@ import shellRouter from "./routes/api/shell";
 import webFetchRouter from "./routes/api/webFetch";
 import dashboardRouter from "./routes/api/dashboard";
 import analyzeRouter from "./routes/api/analyze";
+import providerTestRouter from "./routes/api/providerTest";
 
 // Initialize Express application
 const app = express();
@@ -137,6 +138,9 @@ app.use("/api/ai-mode", aiModeRouter);
 
 // Phase C: Provider registry CRUD + route-preview (no auth, public)
 app.use("/api/ai/providers", providersRouter);
+
+// Phase 3: Provider test-call — fire a real API call through a registered provider
+app.use("/api/providers/test-call", generalRateLimit, providerTestRouter);
 
 // Phase C: SSE streaming chat (additive â€” does not replace /api/chat)
 app.use("/api/chat/stream", generalRateLimit, chatStreamRouter);

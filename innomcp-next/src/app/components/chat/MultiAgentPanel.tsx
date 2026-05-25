@@ -401,6 +401,15 @@ export default function MultiAgentPanel({
                       {AGENT_LABEL_TH[agent.agentId] ?? agent.agentId}
                     </span>
                     <span className={statusTone}>
+                      {agent.status === "active" && (
+                        <span className="mr-1 animate-pulse text-blue-500" aria-hidden="true">●</span>
+                      )}
+                      {agent.status === "done" && (
+                        <span className="mr-1 text-emerald-500" aria-hidden="true">✓</span>
+                      )}
+                      {agent.status !== "active" && agent.status !== "done" && (
+                        <span className="mr-1 text-muted-foreground/50" aria-hidden="true">–</span>
+                      )}
                       {getStatusLabel(agent.status)}
                       {paragraph.live && <span className="ml-0.5 animate-pulse">...</span>}
                     </span>

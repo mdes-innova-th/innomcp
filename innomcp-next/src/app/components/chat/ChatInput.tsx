@@ -12,6 +12,20 @@ import {
 // Phase 10.68 — AIModelSelector + ThinkingModeToggle merged into ChatModeSelector
 import ChatModeSelector, { type ChatMode } from "./ChatModeSelector";
 import ToolsTypeSelector, { type ToolType } from "./ToolsTypeSelector";
+import type { Artifact } from "./ArtifactPanel";
+
+// Phase 3 CSV — backend base URL
+const BACKEND =
+  typeof window !== "undefined" && window.location.port === "3000"
+    ? "http://localhost:3011"
+    : "";
+
+interface CsvMeta {
+  name: string;
+  rowCount: number;
+  colCount: number;
+  content: string;
+}
 
 // Provider mode stored in localStorage so it survives page refreshes.
 export type ProviderMode = "remote" | "local";
@@ -52,6 +66,10 @@ interface ChatInputProps {
   onBlur?: () => void;
   providerMode?: ProviderMode;
   onProviderModeChange?: (mode: ProviderMode) => void;
+  /** Phase 3 CSV — called after /api/analyze succeeds so parent can add to ArtifactPanel */
+  onAddArtifact?: (artifact: Artifact) => void;
+  /** Phase 3 CSV — set a prefix string that sendMessage in parent will prepend to user text */
+  setCsvPrefix?: (val: string) => void;
 }
 
 function DotsAnimation() {
@@ -92,6 +110,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onBlur,
   providerMode: providerModeProp,
   onProviderModeChange,
+  onAddArtifact,
+  setCsvPrefix,
 }) => {
   // Provider mode — read from localStorage on first render; sync back on toggle
   const [providerMode, setProviderMode] = useState<ProviderMode>(() => providerModeProp ?? "remote");
@@ -108,6 +128,65 @@ const ChatInput: React.FC<ChatInputProps> = ({
     saveProviderMode(next);
     onProviderModeChange?.(next);
   }
+
+  // Phase 3 CSV state
+  const [csvMeta, setCsvMeta] = useState<CsvMeta | null>(null);
+  const [csvAnalyzing, setCsvAnalyzing] = useState(false);
+  // Clear CSV badge when parent removes the file attachment
+  useEffect(() => {
+    if (!selectedFile) setCsvMeta(null);
+  }, [selectedFile]);
+
+  // Intercept file input change: also parse CSV meta
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    handleFileUpload(event);
+    if (file && /\.csv$/i.test(file.name)) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const text = reader.result as string;
+        const lines = text.split(/\r?\n/).filter(Boolean);
+        const rowCount = Math.max(0, lines.length - 1); // exclude header
+        const colCount = lines[0] ? lines[0].split(",").length : 0;
+        setCsvMeta({ name: file.name, rowCount, colCount, content: text });
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  // Send handler: POST CSV to /api/analyze, emit artifact, set prefix, then call sendMessage
+  const handleSendWithCsv = async () => {
+    if (csvMeta) {
+      setCsvAnalyzing(true);
+      try {
+        const res = await fetch(`${BACKEND}/api/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ csv: csvMeta.content }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const artifact: Artifact = {
+            id: Date.now().toString(),
+            name: csvMeta.name.replace(/\.csv$/i, ""),
+            type: "chart",
+            content: data.chartSvg ?? "",
+            createdAt: Date.now(),
+          };
+          onAddArtifact?.(artifact);
+        }
+      } catch {
+        // silent — still send the message
+      } finally {
+        setCsvAnalyzing(false);
+      }
+      setCsvPrefix?.(
+        `[Attached: ${csvMeta.name} — ${csvMeta.rowCount} rows, ${csvMeta.colCount} cols]`
+      );
+      setCsvMeta(null);
+    }
+    sendMessage();
+  };
 
   useEffect(() => {
     adjustTextarea();
@@ -225,6 +304,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       )}
 
+      {/* Phase 3 CSV badge — shows parsed row/col counts after file pick */}
+      {csvMeta && (
+        <div
+          data-testid="csv-badge"
+          className="mb-2 flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-50/70 px-3 py-1.5 text-[12px] text-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-100"
+        >
+          <span aria-hidden="true">📊</span>
+          <span>
+            {csvMeta.name} — {csvMeta.rowCount} rows, {csvMeta.colCount} cols
+            {csvAnalyzing && <span className="ml-1 opacity-70">กำลังวิเคราะห์…</span>}
+          </span>
+        </div>
+      )}
+
       <div className="group/composer relative rounded-xl border border-border/70 bg-card shadow-[0_1px_2px_oklch(0_0_0/0.04)] transition-all duration-200 focus-within:border-primary/45 focus-within:shadow-[0_4px_18px_-4px_oklch(0.65_0.18_265/0.18)] focus-within:ring-1 focus-within:ring-primary/15">
         {/* Phase 10.26 — focus-glow halo */}
         <span
@@ -249,8 +342,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.altKey) {
                 e.preventDefault();
-                if (input.trim() && isSocketReady && !isWaitingForResponse) {
-                  sendMessage();
+                if ((input.trim() || csvMeta) && isSocketReady && !isWaitingForResponse) {
+                  handleSendWithCsv();
                 }
               }
             }}
@@ -327,8 +420,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
             />
 
             <button
-              onClick={isWaitingForResponse ? handleStop : sendMessage}
-              disabled={!isSocketReady || (!isWaitingForResponse && !input.trim())}
+              onClick={isWaitingForResponse ? handleStop : handleSendWithCsv}
+              disabled={!isSocketReady || (!isWaitingForResponse && !input.trim() && !csvMeta)}
               className={`relative inline-flex h-9 items-center justify-center gap-1.5 overflow-hidden rounded-md px-3.5 text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-all hover:scale-[1.02] active:scale-[0.98] ${
                 isWaitingForResponse
                   ? "bg-rose-600 hover:bg-rose-700"
@@ -423,7 +516,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
       <input
         type="file"
         ref={fileInputRef}
-        onChange={handleFileUpload}
+        onChange={handleFileChange}
+        accept=".csv,.json,image/*,application/pdf,audio/*"
         className="hidden"
       />
     </div>

@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 
 interface AgentEntry {
   id: string;
@@ -61,11 +61,26 @@ const ALL_AGENTS: AgentEntry[] = [
   { id: "claude-sonnet", name: "Claude Sonnet",   role: "Complex Reasoning",     provider: "Claude Sonnet",  model: "claude-sonnet-4-6", status: "standby" },
 ];
 
+/** Compute score for an agent. Per-agent stats not available from /api/stats,
+ *  so tasks=0 and avgMs=0 are used, making score purely status-driven. */
+function agentScore(agent: AgentEntry): number {
+  const tasks = 0;
+  const avgMs = 0;
+  return tasks * 10 + (agent.status === "active" ? 50 : 0) - avgMs / 100;
+}
+
+/** Format a Date as HH:MM:SS */
+function formatTime(d: Date): string {
+  return d.toTimeString().slice(0, 8);
+}
+
 export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) {
   const [filter, setFilter] = useState<"all" | "active" | "standby">("all");
   const [liveStats, setLiveStats] = useState<LiveStats>({ totalTasks: 0, avgRating: null });
+  const [sortByScore, setSortByScore] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  useEffect(() => {
+  const fetchStats = useCallback(() => {
     const url = resolveBackendUrl("/api/stats");
     fetch(url, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
@@ -77,14 +92,51 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
           totalTasks: completed ? Number(completed.count) : 0,
           avgRating: d.feedback?.avg_rating != null ? Number(d.feedback.avg_rating) : null,
         });
+        setLastUpdated(new Date());
       })
       .catch(() => {/* non-critical */});
   }, []);
 
+  useEffect(() => {
+    fetchStats();
+    const id = setInterval(() => fetchStats(), 30_000);
+    return () => clearInterval(id);
+  }, [fetchStats]);
+
   const providers = Array.from(new Set(ALL_AGENTS.map((a) => a.provider)));
-  const visible = filter === "all" ? ALL_AGENTS : ALL_AGENTS.filter((a) => a.status === filter);
   const active = ALL_AGENTS.filter((a) => a.status === "active").length;
   const standby = ALL_AGENTS.filter((a) => a.status === "standby").length;
+
+  const filtered = filter === "all" ? ALL_AGENTS : ALL_AGENTS.filter((a) => a.status === filter);
+  const visible = sortByScore
+    ? [...filtered].sort((a, b) => agentScore(b) - agentScore(a))
+    : filtered;
+
+  /** Export the current visible list as a CSV download */
+  function exportCSV() {
+    const header = "#,Agent,Provider,Model,Role,Tasks,Avg ms,Score,Status";
+    const rows = visible.map((agent, i) =>
+      [
+        i + 1,
+        `"${agent.name}"`,
+        `"${agent.provider}"`,
+        `"${agent.model}"`,
+        `"${agent.role}"`,
+        "–",
+        "–",
+        Math.round(agentScore(agent)),
+        agent.status,
+      ].join(",")
+    );
+    const csv = [header, ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `agent-leaderboard-${Date.now()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   return (
     <div className="flex flex-col gap-3 p-1">
@@ -121,25 +173,42 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
         </div>
       )}
 
-      {/* Filter tabs */}
-      <div className="flex gap-1">
+      {/* Filter tabs + Sort + Export */}
+      <div className="flex items-center gap-1 flex-wrap">
         {(["all", "active", "standby"] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
             className={`rounded px-2 py-0.5 text-[10.5px] transition-colors ${filter === f ? "bg-primary/10 text-primary font-medium" : "text-muted-foreground hover:text-foreground"}`}>
             {f === "all" ? `All (${ALL_AGENTS.length})` : f === "active" ? `Active (${active})` : `Standby (${standby})`}
           </button>
         ))}
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            onClick={() => setSortByScore((s) => !s)}
+            className={`rounded px-2 py-0.5 text-[10.5px] transition-colors border ${sortByScore ? "border-primary/40 bg-primary/10 text-primary font-medium" : "border-border/40 text-muted-foreground hover:text-foreground"}`}
+          >
+            Sort by score
+          </button>
+          <button
+            onClick={exportCSV}
+            className="rounded px-2 py-0.5 text-[10.5px] border border-border/40 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ⬇ CSV
+          </button>
+        </div>
       </div>
 
       {/* Table */}
       <div className="overflow-x-auto rounded-lg border border-border/40">
-        <table className="w-full min-w-[480px]">
+        <table className="w-full min-w-[700px]">
           <thead>
             <tr className="border-b border-border/40 bg-muted/20 text-[10.5px] text-muted-foreground">
               <th scope="col" className="px-2.5 py-1.5 text-left font-medium">#</th>
               <th scope="col" className="px-2.5 py-1.5 text-left font-medium">Agent</th>
               <th scope="col" className="px-2.5 py-1.5 text-left font-medium">Provider</th>
               <th scope="col" className="px-2.5 py-1.5 text-left font-medium">Model</th>
+              <th scope="col" className="px-2.5 py-1.5 text-right font-medium">Tasks</th>
+              <th scope="col" className="px-2.5 py-1.5 text-right font-medium">Avg ms</th>
+              <th scope="col" className="px-2.5 py-1.5 text-right font-medium">Score</th>
               <th scope="col" className="px-2.5 py-1.5 text-left font-medium">Role</th>
               <th scope="col" className="px-2.5 py-1.5 text-center font-medium">Status</th>
             </tr>
@@ -151,22 +220,40 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
                 <td className="px-2.5 py-1.5 font-medium text-foreground">{agent.name}</td>
                 <td className={`px-2.5 py-1.5 font-medium text-[10.5px] ${PROVIDER_COLORS[agent.provider] ?? "text-muted-foreground"}`}>{agent.provider}</td>
                 <td className="px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground">{agent.model}</td>
+                {/* Tasks — no per-agent breakdown available */}
+                <td className="px-2.5 py-1.5 text-right tabular-nums text-muted-foreground/60">–</td>
+                {/* Avg ms — no per-agent breakdown available */}
+                <td className="px-2.5 py-1.5 text-right tabular-nums text-muted-foreground/60">–</td>
+                {/* Score */}
+                <td className="px-2.5 py-1.5 text-right tabular-nums font-medium text-foreground">
+                  {Math.round(agentScore(agent))}
+                </td>
                 <td className="px-2.5 py-1.5 text-muted-foreground">{agent.role}</td>
                 <td className="px-2.5 py-1.5 text-center">
-                  <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9.5px] font-medium ${
-                    agent.status === "active"
-                      ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
-                      : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
-                  }`}>
-                    <span className={`h-1.5 w-1.5 rounded-full ${agent.status === "active" ? "bg-emerald-500" : "bg-amber-500"}`} />
-                    {agent.status}
-                  </span>
+                  {agent.status === "active" ? (
+                    <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9.5px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Active
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9.5px] font-medium bg-muted/40 text-muted-foreground">
+                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+                      Standby
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Last updated timestamp */}
+      {lastUpdated && (
+        <p className="text-[10px] text-muted-foreground text-right">
+          Last updated: {formatTime(lastUpdated)}
+        </p>
+      )}
     </div>
   );
 }
