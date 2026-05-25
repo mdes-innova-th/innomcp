@@ -59,6 +59,53 @@ router.get("/:id", async (req: Request, res: Response) => {
   }
 });
 
+// ── Continue a task with a follow-up message (SSE stream) ────────────────────
+router.post("/:id/messages", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { message, sessionId } = req.body as { message: string; sessionId?: string };
+  if (!message?.trim()) return res.status(400).json({ error: "message required" });
+
+  // Load task context
+  let taskContext = "";
+  try {
+    const [rows] = await withDbConnection(async (conn) =>
+      conn.query("SELECT title, intent, final_answer FROM tasks WHERE id = ? LIMIT 1", [id])
+    ) as any[];
+    if (!rows[0]) return res.status(404).json({ error: "Task not found" });
+    const task = rows[0];
+    taskContext = `[Continuing task: "${task.title}"]\n`;
+    if (task.final_answer) {
+      taskContext += `[Previous answer summary: ${String(task.final_answer).slice(0, 300)}]\n`;
+    }
+  } catch { /* proceed without context */ }
+
+  // Set up SSE
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+
+  const emit = (ev: import("../../agents/events").AgentEvent) => {
+    if (!res.writableEnded) res.write(`data: ${JSON.stringify(ev)}\n\n`);
+  };
+
+  try {
+    const { runConductor } = await import("../../agents/conductor");
+    await runConductor({
+      message: taskContext + message,
+      sessionId: sessionId ?? id,
+      emit,
+    });
+  } catch (err: any) {
+    const { newEnvelope } = await import("../../agents/events");
+    const errEv = newEnvelope("error", "continuation", "continuation");
+    (errEv as any).error = err?.message ?? "Continuation failed";
+    emit(errEv);
+  } finally {
+    if (!res.writableEnded) res.end();
+  }
+});
+
 // ── Internal: create task when stream starts ──────────────────────────────────
 export async function createTask(params: {
   id: string;

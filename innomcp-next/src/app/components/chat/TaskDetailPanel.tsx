@@ -64,6 +64,49 @@ export default function TaskDetailPanel({
   const [steps, setSteps]     = useState<TaskStep[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [continueMsg, setContinueMsg] = useState("");
+  const [continuing, setContinuing] = useState(false);
+  const [continuationChunks, setContinuationChunks] = useState<string[]>([]);
+
+  const handleContinue = async () => {
+    if (!continueMsg.trim() || continuing) return;
+    setContinuing(true);
+    setContinuationChunks([]);
+    try {
+      const res = await fetch(`${BACKEND}/api/tasks/${taskId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ message: continueMsg }),
+      });
+      setContinueMsg("");
+      const reader = res.body!.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop() ?? "";
+        for (const part of parts) {
+          const line = part.replace(/^data:\s*/, "");
+          if (!line) continue;
+          try {
+            const ev = JSON.parse(line);
+            if (ev.type === "final_answer" && ev.finalText) {
+              setContinuationChunks(c => [...c, ev.finalText]);
+            } else if (ev.type === "draft_delta" && ev.deltaText) {
+              setContinuationChunks(c => {
+                const last = c[c.length - 1] ?? "";
+                return [...c.slice(0, -1), last + ev.deltaText];
+              });
+            }
+          } catch {}
+        }
+      }
+    } catch {} finally { setContinuing(false); }
+  };
 
   useEffect(() => {
     if (!taskId) return;
@@ -211,6 +254,35 @@ export default function TaskDetailPanel({
               {task.final_answer.length > 2000 ? "..." : ""}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Continue chat bar — shown when task is completed */}
+      {task.status === "completed" && (
+        <div className="mt-2 border-t border-border/30 pt-3">
+          <p className="text-[10.5px] font-medium text-muted-foreground mb-2">💬 ถามต่อ</p>
+          {continuationChunks.length > 0 && (
+            <div className="mb-2 rounded-lg border border-border/30 bg-muted/20 p-2.5 text-[11.5px] text-foreground/80 whitespace-pre-wrap">
+              {continuationChunks.join("")}
+            </div>
+          )}
+          <div className="flex gap-2">
+            <input
+              value={continueMsg}
+              onChange={e => setContinueMsg(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleContinue()}
+              placeholder="ถามต่อจากงานนี้..."
+              disabled={continuing}
+              className="flex-1 rounded-lg border border-border/50 bg-background px-3 py-1.5 text-[12px] text-foreground placeholder-muted-foreground/40 focus:border-primary/40 focus:outline-none disabled:opacity-50"
+            />
+            <button
+              onClick={handleContinue}
+              disabled={continuing || !continueMsg.trim()}
+              className="rounded-lg bg-primary px-3 py-1.5 text-[12px] font-medium text-primary-foreground disabled:opacity-50 hover:bg-primary/90"
+            >
+              {continuing ? "⟳" : "→"}
+            </button>
+          </div>
         </div>
       )}
 
