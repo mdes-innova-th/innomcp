@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useContext } from "react";
+import React, { useState, useEffect, useRef, useContext, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ChatMessage, {
   MessageView,
@@ -30,6 +30,7 @@ import KeyboardShortcutsPanel, { useKeyboardShortcutsPanel } from "@/app/compone
 import ArtifactPanel, { type Artifact } from "@/app/components/chat/ArtifactPanel";
 import PlanViewer from "@/app/components/chat/PlanViewer";
 import { buildPlanFromEvents } from "../../../utils/planExtractor";
+import ApprovalGate, { type ApprovalRequest } from "@/app/components/chat/ApprovalGate";
 // icons are used in ChatInput; not needed here
 
 // Define the type for a chat message
@@ -341,6 +342,10 @@ const ChatPage: React.FC = () => {
   // Provider mode — "remote" = MDES Cloud Ollama, "local" = localhost:11434
   const [providerMode, setProviderMode] = useState<ProviderMode>("remote");
   const activeToolMeta = TOOL_TYPE_META[selectedToolType] || TOOL_TYPE_META.auto;
+
+  // PAS-5: Approval gate state — risky tool actions require user confirmation
+  const [pendingApproval, setPendingApproval] = useState<ApprovalRequest | null>(null);
+  const approvalCallbacks = useRef<Map<string, (approved: boolean) => void>>(new Map());
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -1073,6 +1078,27 @@ const ChatPage: React.FC = () => {
     }
   };
   sendMessageRef.current = sendMessage;
+
+  // PAS-5: Approval gate — call this to request user confirmation for risky actions
+  const requestApproval = useCallback((req: Omit<ApprovalRequest, "id" | "requestedAt">): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const id = `approval-${Date.now()}`;
+      approvalCallbacks.current.set(id, resolve);
+      setPendingApproval({ ...req, id, requestedAt: Date.now() });
+    });
+  }, []);
+
+  const handleApprove = (id: string) => {
+    approvalCallbacks.current.get(id)?.(true);
+    approvalCallbacks.current.delete(id);
+    setPendingApproval(null);
+  };
+
+  const handleDeny = (id: string) => {
+    approvalCallbacks.current.get(id)?.(false);
+    approvalCallbacks.current.delete(id);
+    setPendingApproval(null);
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -2036,6 +2062,13 @@ const ChatPage: React.FC = () => {
       <ThinkingModal
         open={thinkingModalOpen}
         onClose={() => setThinkingModalOpen(false)}
+      />
+
+      {/* PAS-5: Approval Gate — intercepts risky tool actions for user confirmation */}
+      <ApprovalGate
+        request={pendingApproval}
+        onApprove={handleApprove}
+        onDeny={handleDeny}
       />
     </div>
   );
