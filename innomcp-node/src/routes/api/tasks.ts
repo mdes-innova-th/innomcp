@@ -190,15 +190,13 @@ router.post("/:id/messages", async (req: Request, res: Response) => {
 
   try {
     const { runConductor } = await import("../../agents/conductor");
-    await runConductor({
-      message: taskContext + message,
-      sessionId: sessionId ?? id,
-      emit,
-    });
+    await runConductor(
+      { message: taskContext + message, sessionId: sessionId ?? id },
+      emit
+    );
   } catch (err: any) {
     const { newEnvelope } = await import("../../agents/events");
-    const errEv = newEnvelope("error", "continuation", "continuation");
-    (errEv as any).error = err?.message ?? "Continuation failed";
+    const errEv = newEnvelope({ type: "error", runId: id, messageId: id, publicSummary: err?.message ?? "Continuation failed" });
     emit(errEv);
   } finally {
     if (!res.writableEnded) res.end();
