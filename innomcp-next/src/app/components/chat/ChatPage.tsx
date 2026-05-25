@@ -32,6 +32,7 @@ import PlanViewer from "@/app/components/chat/PlanViewer";
 import { buildPlanFromEvents } from "../../../utils/planExtractor";
 import ApprovalGate, { type ApprovalRequest } from "@/app/components/chat/ApprovalGate";
 import { useTaskNotifications } from "@/app/hooks/useTaskNotifications";
+import CommandPalette from "@/app/components/common/CommandPalette";
 // icons are used in ChatInput; not needed here
 
 // Define the type for a chat message
@@ -255,6 +256,7 @@ const ChatPage: React.FC = () => {
   const [shortcutsOpen, setShortcutsOpen] = useKeyboardShortcutsPanel();
   const [thinkingModalOpen, setThinkingModalOpen] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [artifactPanelOpen, setArtifactPanelOpen] = useState(false);
   const [planViewerOpen, setPlanViewerOpen] = useState(false);
@@ -1429,15 +1431,8 @@ const ChatPage: React.FC = () => {
     const h = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
-      const t = e.target as HTMLElement | null;
-      const tag = t?.tagName?.toLowerCase();
-      const inField = tag === "input" || tag === "textarea" || (t && t.isContentEditable);
 
-      if (e.key === "k" || e.key === "K") {
-        if (inField) return;
-        e.preventDefault();
-        handleNewChat();
-      } else if (e.key === "/") {
+      if (e.key === "/") {
         // Always allow — power users hit it from anywhere to jump back.
         e.preventDefault();
         const el = textareaRef.current;
@@ -1467,6 +1462,7 @@ const ChatPage: React.FC = () => {
         case 'd': e.preventDefault(); router.push('/dashboard'); break;
         case 'p': e.preventDefault(); router.push('/projects'); break;
         case 'h': e.preventDefault(); router.push('/task-history'); break;
+        case 'k': e.preventDefault(); setCmdPaletteOpen(true); break;
       }
     };
     window.addEventListener('keydown', handler);
@@ -2117,6 +2113,9 @@ const ChatPage: React.FC = () => {
         onApprove={handleApprove}
         onDeny={handleDeny}
       />
+
+      {/* Command Palette — Ctrl+K opens quick navigation and task search */}
+      <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
     </div>
   );
 };

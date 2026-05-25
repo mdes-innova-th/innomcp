@@ -282,19 +282,17 @@ export default function ProjectsPage() {
         </div>
       ) : projects.length === 0 ? (
         /* Empty state */
-        <div className="flex flex-col items-center justify-center h-56 gap-4 text-center">
-          <span className="text-5xl">📁</span>
-          <div>
-            <p className="text-[14px] font-medium">ยังไม่มีโปรเจกต์</p>
-            <p className="text-[12px] text-muted-foreground mt-1">
-              สร้างโปรเจกต์แรกเพื่อเริ่มต้นจัดการงานของคุณ
-            </p>
-          </div>
+        <div className="text-center py-16">
+          <div className="text-6xl mb-4">📁</div>
+          <h2 className="text-[16px] font-semibold text-foreground mb-2">ยังไม่มีโปรเจกต์</h2>
+          <p className="text-[13px] text-muted-foreground mb-6 max-w-sm mx-auto">
+            สร้างโปรเจกต์เพื่อจัดกลุ่มงาน ไฟล์ และ memory ของคุณ
+          </p>
           <button
             onClick={() => setShowForm(true)}
-            className="text-[13px] px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            className="rounded-lg bg-primary text-primary-foreground px-5 py-2 text-[13px] font-medium hover:opacity-90 transition-opacity"
           >
-            สร้างโปรเจกต์แรก
+            + สร้างโปรเจกต์แรก
           </button>
         </div>
       ) : (

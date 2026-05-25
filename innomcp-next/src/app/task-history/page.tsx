@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
 
@@ -77,13 +77,16 @@ const PAGE_SIZE = 20;
 
 export default function TaskHistoryPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isLoggedIn, isAuthLoading } = useAuth();
+
+  const initialStatus = (searchParams.get("status") as FilterTab) || "all";
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [filter, setFilter] = useState<FilterTab>("all");
+  const [filter, setFilter] = useState<FilterTab>(initialStatus);
 
   // ── set page title ──────────────────────────────────────────────────────────
   useEffect(() => {
