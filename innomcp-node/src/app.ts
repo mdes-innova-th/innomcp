@@ -28,6 +28,7 @@ import modelSettingsRouter from "./routes/api/modelSettings";
 import memoriesRouter from "./routes/api/memories";
 import shellRouter from "./routes/api/shell";
 import webFetchRouter from "./routes/api/webFetch";
+import dashboardRouter from "./routes/api/dashboard";
 
 // Initialize Express application
 const app = express();
@@ -146,6 +147,7 @@ app.use("/api/debug", debugRouter);
 // The /api catch-all below re-mounts via apiRouter but tasks needs the route
 // registered at /api/tasks directly for authenticated access with the DB.
 app.use("/api/tasks", generalRateLimit, apiKeyMiddleware, csrfMiddleware, tasksRouter);
+app.use("/api/dashboard", generalRateLimit, apiKeyMiddleware, csrfMiddleware, dashboardRouter);
 app.use("/api/chat/feedback", generalRateLimit, feedbackRouter);
 // Live aggregate stats — no auth required (leaderboard panel fetches as guest)
 app.use("/api/stats", generalRateLimit, statsRouter);

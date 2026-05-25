@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import AgentLeaderboard from "./AgentLeaderboard";
 import ModelSettingsPanel from "./ModelSettingsPanel";
 import MemoryManager from "./MemoryManager";
+import DashboardView from "./DashboardView";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -144,7 +145,7 @@ function relativeTime(ms: number): string {
 
 // ─── Slide-over Panel ─────────────────────────────────────────────────────────
 
-type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | "memory" | null;
+type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | "memory" | "dashboard" | null;
 
 interface SlideOverProps {
   open: boolean;
@@ -611,6 +612,14 @@ const ChatSidebar: React.FC<Props> = ({
         >
           <span className="text-base leading-none">⚙️</span>
         </button>
+        <button
+          onClick={() => { onToggle(); }}
+          title="Dashboard"
+          data-testid="sidebar-nav-dashboard"
+          className="flex h-9 w-9 items-center justify-center rounded-md text-foreground/80 hover:bg-muted/60"
+        >
+          <span className="text-base leading-none">📊</span>
+        </button>
 
         {/* User avatar at bottom */}
         <div className="mt-auto">
@@ -662,6 +671,9 @@ const ChatSidebar: React.FC<Props> = ({
       </SlideOver>
       <SlideOver open={activePanel === "memory"} title="🧠 Memory" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
         <MemoryManager sessionId={activeId ?? undefined} onClose={() => setActivePanel(null)} />
+      </SlideOver>
+      <SlideOver open={activePanel === "dashboard"} title="📊 Dashboard" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <DashboardView onOpenChat={() => { setActivePanel(null); onNewChat(); }} />
       </SlideOver>
 
       <aside
@@ -751,6 +763,13 @@ const ChatSidebar: React.FC<Props> = ({
             onClick={() => togglePanel("memory")}
             active={activePanel === "memory"}
             testId="sidebar-nav-memory"
+          />
+          <NavBtn
+            icon="📊"
+            label="Dashboard"
+            onClick={() => togglePanel("dashboard")}
+            active={activePanel === "dashboard"}
+            testId="sidebar-nav-dashboard"
           />
         </div>
 
