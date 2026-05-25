@@ -25,6 +25,7 @@ import tasksRouter from "./routes/api/tasks";
 import feedbackRouter from "./routes/api/feedback";
 import statsRouter from "./routes/api/stats";
 import modelSettingsRouter from "./routes/api/modelSettings";
+import memoriesRouter from "./routes/api/memories";
 
 // Initialize Express application
 const app = express();
@@ -149,6 +150,9 @@ app.use("/api/stats", generalRateLimit, statsRouter);
 
 // Model Settings — ad-hoc connection test + provider presets (no auth, public)
 app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);
+
+// Project Memory — key-value store for Private Agent Studio sessions
+app.use("/api/memories", generalRateLimit, memoriesRouter);
 
 // Router à¸ªà¸³à¸«à¸£à¸±à¸š Chat (à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡ auth à¹€à¸žà¸·à¸­ testsuit - à¸•à¹‰à¸­à¸‡à¸­à¸¢à¸¹à¹ˆà¸à¹ˆà¸­à¸™ /api middleware)
 // FastPath middleware à¸­à¸¢à¸¹à¹ˆà¹ƒà¸™ chatRouter à¹à¸¥à¹‰à¸§

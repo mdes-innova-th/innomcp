@@ -16,6 +16,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
 import AgentLeaderboard from "./AgentLeaderboard";
 import ModelSettingsPanel from "./ModelSettingsPanel";
+import MemoryManager from "./MemoryManager";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -143,7 +144,7 @@ function relativeTime(ms: number): string {
 
 // ─── Slide-over Panel ─────────────────────────────────────────────────────────
 
-type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | null;
+type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | "memory" | null;
 
 interface SlideOverProps {
   open: boolean;
@@ -659,6 +660,9 @@ const ChatSidebar: React.FC<Props> = ({
       <SlideOver open={activePanel === "model-settings"} title="⚙️ Model Settings" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
         <ModelSettingsPanel onClose={() => setActivePanel(null)} />
       </SlideOver>
+      <SlideOver open={activePanel === "memory"} title="🧠 Memory" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <MemoryManager sessionId={activeId ?? undefined} onClose={() => setActivePanel(null)} />
+      </SlideOver>
 
       <aside
         ref={sidebarRef}
@@ -740,6 +744,13 @@ const ChatSidebar: React.FC<Props> = ({
             onClick={() => togglePanel("model-settings")}
             active={activePanel === "model-settings"}
             testId="sidebar-nav-model-settings"
+          />
+          <NavBtn
+            icon="🧠"
+            label="Memory"
+            onClick={() => togglePanel("memory")}
+            active={activePanel === "memory"}
+            testId="sidebar-nav-memory"
           />
         </div>
 
