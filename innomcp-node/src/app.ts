@@ -37,6 +37,7 @@ import pluginsRouter from "./routes/api/plugins";
 import webhooksRouter from "./routes/api/webhooks";
 import { cacheResponse, getCacheStats, clearCache as clearAllCache } from "./middleware/cacheMiddleware";
 import templatesRouter from "./routes/api/templates";
+import preferencesRouter from "./routes/api/preferences";
 
 // Initialize Express application
 const app = express();
@@ -192,6 +193,9 @@ app.use("/api/webhooks", generalRateLimit, webhooksRouter);
 
 // Saved Prompt Templates — list, create, use, delete (Phase 5)
 app.use("/api/templates", generalRateLimit, cacheResponse(300_000), templatesRouter);
+
+// User Preferences — per-user display/chat settings (Phase 6)
+app.use("/api/preferences", generalRateLimit, preferencesRouter);
 
 // Data Analysis Tool — CSV/JSON stats + bar chart SVG + workspace artifact
 app.use("/api/analyze", generalRateLimit, analyzeRouter);

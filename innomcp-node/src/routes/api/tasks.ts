@@ -184,24 +184,60 @@ function buildContinuationHistory(
 router.get("/", async (req: Request, res: Response) => {
   const userId = (req as any).user?.id ?? null;
   const limit = Math.min(Number(req.query.limit) || 20, 50);
+  const offset = Math.max(Number(req.query.offset) || 0, 0);
 
   try {
     const rows = await withDbConnection(async (conn) => {
       if (userId) {
         const [r] = await conn.query(
           `SELECT id, title, intent, status, elapsed_ms, created_at, completed_at
-           FROM tasks WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`,
-          [userId, limit]
+           FROM tasks WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+          [userId, limit, offset]
         );
         return r;
       }
       // Guest: no persistent tasks — return empty
       return [];
     });
-    res.json({ tasks: rows });
+    const hasMore = (rows as any[]).length === limit;
+    res.json({ tasks: rows, hasMore, offset, limit });
   } catch (err) {
     console.error("[tasks] list error", err);
-    res.json({ tasks: [] });
+    res.json({ tasks: [], hasMore: false, offset, limit });
+  }
+});
+
+// ── Full-text search across tasks ────────────────────────────────────────────
+router.get("/search", async (req: Request, res: Response) => {
+  const q = String(req.query.q || "").trim();
+  if (!q || q.length < 2) return res.json({ results: [] });
+
+  const limit = Math.min(Number(req.query.limit) || 10, 50);
+  const type = String(req.query.type || "all");
+
+  try {
+    const results = await withDbConnection(async (conn) => {
+      const items: any[] = [];
+
+      // Search tasks by title + intent
+      if (type === "tasks" || type === "all") {
+        const [rows] = await conn.query(
+          `SELECT id, title, intent, status, created_at, 'task' as result_type
+           FROM tasks
+           WHERE title LIKE ? OR intent LIKE ?
+           ORDER BY created_at DESC LIMIT ?`,
+          [`%${q}%`, `%${q}%`, limit]
+        ) as any[];
+        items.push(...(rows as any[] || []));
+      }
+
+      return items;
+    });
+
+    res.json({ results, query: q, total: results.length });
+  } catch (err) {
+    console.error("[tasks] search error", err);
+    res.json({ results: [], query: q, total: 0 });
   }
 });
 

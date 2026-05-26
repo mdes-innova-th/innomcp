@@ -11,11 +11,14 @@ const router = Router();
 // GET /api/dashboard
 router.get("/", async (_req: Request, res: Response) => {
   try {
-    const [taskStatsRows, recentTasksRows, feedbackRows, shellRows] =
+    const [taskStatsRows, totalCountRows, recentTasksRows, feedbackRows, shellRows] =
       await withDbConnection(async (conn) => {
         return Promise.all([
           conn.query(
             "SELECT status, COUNT(*) as count FROM tasks GROUP BY status"
+          ),
+          conn.query(
+            "SELECT COUNT(*) as total FROM tasks"
           ),
           conn.query(
             "SELECT id, title, intent, status, elapsed_ms, created_at FROM tasks ORDER BY created_at DESC LIMIT 8"
@@ -30,6 +33,7 @@ router.get("/", async (_req: Request, res: Response) => {
       });
 
     const taskStats = (taskStatsRows[0] as any[]) ?? [];
+    const totalTasks = Number(((totalCountRows[0] as any[])[0])?.total ?? 0);
     const recentTasks = (recentTasksRows[0] as any[]) ?? [];
     const feedbackRow = ((feedbackRows[0] as any[])[0]) ?? null;
     const shellCount = ((shellRows[0] as any[])[0])?.count ?? 0;
@@ -41,7 +45,7 @@ router.get("/", async (_req: Request, res: Response) => {
 
     res.json({
       stats: {
-        totalTasks: Object.values(statusMap).reduce((a, b) => a + b, 0),
+        totalTasks,
         completedTasks: statusMap["completed"] ?? 0,
         runningTasks: statusMap["running"] ?? 0,
         failedTasks: statusMap["failed"] ?? 0,

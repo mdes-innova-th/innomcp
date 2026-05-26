@@ -1,0 +1,87 @@
+/**
+ * routes/api/preferences.ts — User Preferences API (Phase 6)
+ *
+ * GET /api/preferences → return user prefs (from store or defaults)
+ * PUT /api/preferences → partial update, merge with existing
+ *
+ * Mounted in app.ts at: app.use("/api/preferences", generalRateLimit, preferencesRouter)
+ */
+
+import { Router, Request, Response } from "express";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface UserPreferences {
+  userId: string;
+  theme: "light" | "dark" | "system";
+  language: "th" | "en";
+  fontSize: "sm" | "md" | "lg";
+  chatMode: "local" | "remote" | "hybrid";
+  showTimestamps: boolean;
+  compactMode: boolean;
+  updatedAt: string;
+}
+
+// ─── In-memory store (same pattern as plugins/webhooks/templates) ─────────────
+
+const store = new Map<string, UserPreferences>();
+
+function getDefaults(userId: string): UserPreferences {
+  return {
+    userId,
+    theme: "system",
+    language: "th",
+    fontSize: "md",
+    chatMode: "remote",
+    showTimestamps: false,
+    compactMode: false,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+// ─── Router ───────────────────────────────────────────────────────────────────
+
+const router = Router();
+
+// Use "default" as the single key — userId is carried for forward-compatibility
+// when auth middleware is added in a future phase.
+const DEFAULT_USER_ID = "default";
+
+// GET /api/preferences
+router.get("/", (_req: Request, res: Response) => {
+  const prefs = store.get(DEFAULT_USER_ID) ?? getDefaults(DEFAULT_USER_ID);
+  res.json({ preferences: prefs });
+});
+
+// PUT /api/preferences
+router.put("/", (req: Request, res: Response) => {
+  const body = req.body as Partial<Omit<UserPreferences, "userId" | "updatedAt">>;
+
+  const existing = store.get(DEFAULT_USER_ID) ?? getDefaults(DEFAULT_USER_ID);
+
+  // Validate allowed values for enum fields
+  if (body.theme !== undefined && !["light", "dark", "system"].includes(body.theme)) {
+    return res.status(400).json({ error: "theme must be light | dark | system" });
+  }
+  if (body.language !== undefined && !["th", "en"].includes(body.language)) {
+    return res.status(400).json({ error: "language must be th | en" });
+  }
+  if (body.fontSize !== undefined && !["sm", "md", "lg"].includes(body.fontSize)) {
+    return res.status(400).json({ error: "fontSize must be sm | md | lg" });
+  }
+  if (body.chatMode !== undefined && !["local", "remote", "hybrid"].includes(body.chatMode)) {
+    return res.status(400).json({ error: "chatMode must be local | remote | hybrid" });
+  }
+
+  const updated: UserPreferences = {
+    ...existing,
+    ...body,
+    userId: DEFAULT_USER_ID,
+    updatedAt: new Date().toISOString(),
+  };
+
+  store.set(DEFAULT_USER_ID, updated);
+  res.json({ preferences: updated });
+});
+
+export default router;

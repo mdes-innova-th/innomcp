@@ -6,6 +6,7 @@ import {
   StatCardSkeleton,
   TaskRowSkeleton,
 } from "@/app/components/common/LoadingSkeleton";
+import SearchBar from "@/app/components/common/SearchBar";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -213,6 +214,9 @@ export default function DashboardView({
           ภาพรวมระบบ INNOMCP Agent Studio
         </p>
       </div>
+
+      {/* Global search — searches all tasks, not just the 8 shown below */}
+      <SearchBar onNavigate={(result) => router.push(`/tasks/${result.id}`)} />
 
       {/* Stats grid */}
       {s && (

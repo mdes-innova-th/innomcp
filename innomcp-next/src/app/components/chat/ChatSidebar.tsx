@@ -24,6 +24,7 @@ import WorkspaceFileBrowser from "@/app/components/tools/WorkspaceFileBrowser";
 import PluginPanel from "@/app/components/chat/PluginPanel";
 import NotificationCenter, { getUnreadCount } from "@/app/components/common/NotificationCenter";
 import PromptTemplatesPanel from "@/app/components/chat/PromptTemplatesPanel";
+import PreferencesPanel from "./PreferencesPanel";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -151,7 +152,7 @@ function relativeTime(ms: number): string {
 
 // ─── Slide-over Panel ─────────────────────────────────────────────────────────
 
-type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | "memory" | "dashboard" | "task-detail" | "workspace" | null;
+type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | "memory" | "dashboard" | "task-detail" | "workspace" | "preferences" | null;
 
 interface SlideOverProps {
   open: boolean;
@@ -685,6 +686,14 @@ const ChatSidebar: React.FC<Props> = ({
         >
           <span className="text-base leading-none">📊</span>
         </button>
+        <button
+          onClick={() => { onToggle(); }}
+          title="Preferences"
+          data-testid="sidebar-nav-preferences"
+          className="flex h-9 w-9 items-center justify-center rounded-md text-foreground/80 hover:bg-muted/60"
+        >
+          <span className="text-base leading-none">⚙️</span>
+        </button>
 
         {/* User avatar at bottom */}
         <div className="mt-auto">
@@ -747,6 +756,9 @@ const ChatSidebar: React.FC<Props> = ({
       </SlideOver>
       <SlideOver open={activePanel === "workspace"} title="🗂️ Workspace Files" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
         <WorkspaceFileBrowser />
+      </SlideOver>
+      <SlideOver open={activePanel === "preferences"} title="⚙️ การตั้งค่า" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <PreferencesPanel onClose={() => setActivePanel(null)} />
       </SlideOver>
 
       <aside
@@ -899,6 +911,13 @@ const ChatSidebar: React.FC<Props> = ({
               </span>
             )}
           </div>
+          <NavBtn
+            icon="⚙️"
+            label="Preferences"
+            onClick={() => togglePanel("preferences")}
+            active={activePanel === "preferences"}
+            testId="sidebar-nav-preferences"
+          />
         </div>
 
         {notifOpen && (
