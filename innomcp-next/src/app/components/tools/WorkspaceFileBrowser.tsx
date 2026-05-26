@@ -287,6 +287,8 @@ export default function WorkspaceFileBrowser() {
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchFiles = useCallback(async () => {
     setLoading(true);
@@ -310,6 +312,26 @@ export default function WorkspaceFileBrowser() {
   useEffect(() => {
     fetchFiles();
   }, [fetchFiles]);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      await fetch(`${backendBase()}/api/workspace/upload`, {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+      await fetchFiles(); // refresh file list
+    } catch { /* silent */ } finally {
+      setUploading(false);
+      // Reset input so the same file can be re-uploaded if needed
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleClickFile = useCallback(async (filePath: string) => {
     setPreview({ path: filePath, content: null, error: null, loading: true });
@@ -360,6 +382,21 @@ export default function WorkspaceFileBrowser() {
                 {relativeTime(lastRefresh.toISOString())}
               </span>
             )}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading || loading}
+              className="rounded px-2 py-0.5 text-[10px] bg-[#1f2937] text-[#9ca3af] hover:bg-[#374151] disabled:opacity-40 transition-colors"
+              aria-label="Upload file"
+            >
+              {uploading ? "กำลังอัพโหลด..." : "⬆ Upload"}
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleUpload}
+              className="hidden"
+              accept=".csv,.json,.txt,.md,.pdf,.png,.jpg,.jpeg,.gif,.svg"
+            />
             <button
               onClick={fetchFiles}
               disabled={loading}

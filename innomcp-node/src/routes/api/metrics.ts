@@ -51,6 +51,20 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/metrics/performance
+ * Returns in-memory per-route call counts, latency stats, and error rates.
+ * Must be declared before /:name so Express does not swallow the literal path.
+ */
+router.get('/performance', (_req, res) => {
+  const { getMetrics, getSlowRoutes } = require('../../middleware/performanceTracking');
+  res.json({
+    routes: getMetrics(),
+    slowRoutes: getSlowRoutes(500), // routes with avg > 500 ms
+    generatedAt: new Date().toISOString(),
+  });
+});
+
+/**
  * GET /api/metrics/:name
  * Get specific metric by name
  */

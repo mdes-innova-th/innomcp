@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import { correlationIdMiddleware } from "./middleware/correlationId";
-import { performanceTrackingMiddleware } from "./middleware/performanceTracking";
+import { performanceTrackingMiddleware, trackPerformance } from "./middleware/performanceTracking";
 import { generalRateLimit, authRateLimit } from "./middleware/rateLimiter";
 import apiRouter from "./routes/api";
 import apiCsrfRouter from "./routes/api/csrf";
@@ -117,6 +117,9 @@ app.use(correlationIdMiddleware);
 
 // â±ï¸ Performance Tracking Middleware (records latency metrics)
 app.use(performanceTrackingMiddleware);
+
+// In-memory per-route stats (feeds GET /api/metrics/performance)
+app.use(trackPerformance);
 
 // Default route
 app.get("/", (req, res) => {

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { withDbConnection } from '../../../utils/db';
 import { hashPassword, comparePassword, validatePasswordStrength } from '../../../utils/password';
-import { generateAccessToken, generateRefreshToken, setTokenCookie, clearTokenCookies } from '../../../utils/jwt';
+import { generateAccessToken, generateRefreshToken, setTokenCookie, clearTokenCookies, verifyToken, authenticateToken, AuthRequest } from '../../../utils/jwt';
 import crypto from 'crypto';
 
 const router = Router();
@@ -266,6 +266,9 @@ router.post('/login', async (req: Request, res: Response) => {
       });
     } catch (_e) { console.log('[Auth] Session/activity_log write skipped (tables may not exist)'); }
 
+    res.setHeader('X-Token-Expires-In', '604800'); // 7 days in seconds
+    res.setHeader('X-Token-Type', 'Bearer');
+
     res.json({
       success: true,
       message: 'Login successful',
@@ -481,6 +484,69 @@ router.post('/reset-password', async (req: Request, res: Response) => {
       success: false,
       error: 'Failed to reset password'
     });
+  }
+});
+
+/**
+ * POST /api/auth/refresh
+ * Issue a new access token using the refresh token from httpOnly cookie or Authorization header
+ */
+router.post('/refresh', async (req: Request, res: Response) => {
+  const token = req.cookies?.refreshToken ||
+                req.headers.authorization?.replace('Bearer ', '');
+
+  if (!token) {
+    return res.status(401).json({ success: false, error: 'No refresh token provided' });
+  }
+
+  const payload = verifyToken(token);
+
+  if (!payload) {
+    return res.status(401).json({ success: false, error: 'Invalid or expired refresh token' });
+  }
+
+  // Issue new access token (15-minute expiry for refreshed tokens)
+  const newAccessToken = generateAccessToken({
+    userId: payload.userId,
+    userEmail: payload.userEmail,
+    userRoleId: payload.userRoleId,
+    userDispName: payload.userDispName
+  });
+
+  // Update the httpOnly cookie with the new access token
+  setTokenCookie(res, newAccessToken, false);
+
+  res.json({
+    success: true,
+    token: newAccessToken,
+    expiresIn: 604800 // 7 days in seconds (matches JWT_EXPIRES_IN)
+  });
+});
+
+/**
+ * GET /api/auth/me
+ * Return current user info from JWT (fetches fresh data from DB when possible)
+ */
+router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
+  const user = req.user;
+
+  if (!user) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+
+  try {
+    const userRow = await withDbConnection(async (conn) => {
+      const [rows] = await conn.query(
+        'SELECT user_id, user_email, user_dispname, created_at FROM `user` WHERE user_id = ? LIMIT 1',
+        [user.userId]
+      );
+      return (rows as any[])[0] || null;
+    });
+
+    res.json({ success: true, user: userRow || user });
+  } catch {
+    // Fallback to JWT payload if DB query fails
+    res.json({ success: true, user });
   }
 });
 

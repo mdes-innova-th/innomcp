@@ -131,3 +131,77 @@ export async function trackWebSocketMessage(
     });
   }
 }
+
+// ---------------------------------------------------------------------------
+// In-memory per-route metrics (feeds GET /api/metrics/performance)
+// ---------------------------------------------------------------------------
+
+interface RouteMetric {
+  route: string;
+  method: string;
+  count: number;
+  totalMs: number;
+  minMs: number;
+  maxMs: number;
+  errorCount: number;
+  lastCalledAt: string;
+}
+
+const routeMetrics = new Map<string, RouteMetric>();
+
+/**
+ * Express middleware — accumulates per-route call counts, latency stats, and
+ * error rates in memory. Also attaches an X-Response-Time header to every
+ * response. Designed to be mounted globally after cors/json/correlationId.
+ */
+export function trackPerformance(req: Request, res: Response, next: NextFunction): void {
+  const start = Date.now();
+
+  res.on('finish', () => {
+    const ms = Date.now() - start;
+    const isError = res.statusCode >= 400;
+    const key = `${req.method}:${req.route?.path ?? req.path}`;
+
+    const existing: RouteMetric = routeMetrics.get(key) ?? {
+      route: req.route?.path ?? req.path,
+      method: req.method,
+      count: 0,
+      totalMs: 0,
+      minMs: Infinity,
+      maxMs: 0,
+      errorCount: 0,
+      lastCalledAt: '',
+    };
+
+    routeMetrics.set(key, {
+      ...existing,
+      count: existing.count + 1,
+      totalMs: existing.totalMs + ms,
+      minMs: Math.min(existing.minMs, ms),
+      maxMs: Math.max(existing.maxMs, ms),
+      errorCount: existing.errorCount + (isError ? 1 : 0),
+      lastCalledAt: new Date().toISOString(),
+    });
+
+    // Best-effort header — may be a no-op if headers already sent
+    try {
+      res.setHeader('X-Response-Time', `${ms}ms`);
+    } catch { /* ignore */ }
+  });
+
+  next();
+}
+
+/**
+ * Return all accumulated route metrics sorted by call count (descending).
+ */
+export function getMetrics(): RouteMetric[] {
+  return Array.from(routeMetrics.values()).sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Return routes whose average latency exceeds `thresholdMs` (default 1 000 ms).
+ */
+export function getSlowRoutes(thresholdMs = 1000): RouteMetric[] {
+  return getMetrics().filter((m) => m.count > 0 && m.totalMs / m.count > thresholdMs);
+}

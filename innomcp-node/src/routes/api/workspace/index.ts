@@ -5,6 +5,9 @@ import { existsSync } from 'node:fs';
 import { withDbConnection } from '../../../utils/db';
 import { authenticateToken, AuthRequest } from '../../../utils/jwt';
 import { WORKSPACE_ROOT, safePath } from '../files';
+// NOTE: `multer` must be installed — run: npm install multer
+// @types/multer is already in devDependencies
+import multer from 'multer';
 
 const router = Router();
 
@@ -107,6 +110,50 @@ router.get('/files/*', async (req: Request, res: Response) => {
   } catch {
     res.status(404).json({ error: 'File not found' });
   }
+});
+
+// ---------------------------------------------------------------------------
+// File Upload — multer-based, no auth required (sandbox-enforced)
+// ---------------------------------------------------------------------------
+
+const _multerStorage = multer.diskStorage({
+  destination: async (_req, _file, cb) => {
+    const uploadDir = path.join(WORKSPACE_ROOT, 'uploads');
+    await fsPromises.mkdir(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+  filename: (_req, file, cb) => {
+    const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+    cb(null, `${Date.now()}_${safe}`);
+  },
+});
+
+const upload = multer({
+  storage: _multerStorage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  fileFilter: (_req, file, cb) => {
+    // Allow: csv, json, txt, md, pdf, images
+    const allowed = /\.(csv|json|txt|md|pdf|png|jpg|jpeg|gif|svg)$/i;
+    cb(null, allowed.test(file.originalname));
+  },
+});
+
+/**
+ * POST /api/workspace/upload
+ * Upload a single file into WORKSPACE_ROOT/uploads/.
+ * Accepts: csv, json, txt, md, pdf, png, jpg, jpeg, gif, svg (max 10 MB).
+ */
+router.post('/upload', upload.single('file'), (req: Request, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'no file or unsupported type' });
+  }
+  res.json({
+    name: req.file.originalname,
+    path: path.relative(WORKSPACE_ROOT, req.file.path),
+    size: req.file.size,
+    mimetype: req.file.mimetype,
+    uploadedAt: new Date().toISOString(),
+  });
 });
 
 // ---------------------------------------------------------------------------

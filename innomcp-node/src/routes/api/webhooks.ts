@@ -1,8 +1,9 @@
 /**
- * routes/api/webhooks.ts — Webhook registry CRUD (Phase 4)
+ * routes/api/webhooks.ts — Webhook registry CRUD (Phase 4) + test endpoint (Phase 5)
  *
  *   GET    /api/webhooks        → list webhooks (secret masked as hasSecret)
  *   POST   /api/webhooks        → create webhook
+ *   POST   /api/webhooks/:id/test → fire a test event to a specific webhook
  *   PATCH  /api/webhooks/:id    → toggle enabled/disabled
  *   DELETE /api/webhooks/:id    → remove webhook
  */
@@ -10,9 +11,11 @@
 import { Router, Request, Response } from "express";
 import {
   listWebhooks,
+  getWebhook,
   createWebhook,
   deleteWebhook,
   toggleWebhook,
+  fireWebhookById,
   type Webhook,
   type WebhookEvent,
 } from "../../services/webhookService";
@@ -77,6 +80,28 @@ router.post("/", (req: Request, res: Response) => {
   });
 
   res.status(201).json({ webhook: maskSecret(webhook) });
+});
+
+// ── POST /api/webhooks/:id/test ───────────────────────────────────────────────
+router.post("/:id/test", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const webhook = getWebhook(id);
+  if (!webhook) {
+    return res.status(404).json({ error: "webhook not found" });
+  }
+
+  // Bypass enabled/event-subscription filters — always delivers to this webhook.
+  const testPayload: Record<string, unknown> = {
+    title: "Test from INNOMCP",
+    message: "Webhook connection test",
+  };
+
+  try {
+    await fireWebhookById(id, "task.completed", testPayload);
+    res.json({ ok: true, webhookId: id, event: "task.completed" });
+  } catch (err: unknown) {
+    res.status(500).json({ error: (err as Error)?.message ?? "delivery failed" });
+  }
 });
 
 // ── PATCH /api/webhooks/:id ───────────────────────────────────────────────────

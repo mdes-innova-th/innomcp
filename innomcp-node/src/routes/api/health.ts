@@ -11,6 +11,9 @@ import { createHealthResponse } from '../../utils/monitoring';
 import { getSystemMetrics } from '../../utils/monitoring';
 import { getRedisHealthSnapshot } from '../../utils/redis';
 
+/** Unix-ms timestamp captured once when this module is first loaded. */
+const startTime = Date.now();
+
 const healthRouter = Router();
 
 function getMcpInventory(chatModule: any) {
@@ -95,6 +98,9 @@ healthRouter.get('/', async (req: Request, res: Response) => {
       remote_tools: mcpInventory.remoteTools,
       total_tools: mcpInventory.totalTools,
       notes,
+      uptime: Math.floor((Date.now() - startTime) / 1000),
+      memory: process.memoryUsage(),
+      version: process.env.npm_package_version || '1.0.0',
     });
   } catch (error) {
     console.error('[Health] Error checking health:', error);
