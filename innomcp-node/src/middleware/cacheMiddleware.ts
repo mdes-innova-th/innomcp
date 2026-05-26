@@ -14,7 +14,8 @@ export function cacheResponse(ttlMs: number = 30_000) {
     // Only cache GET requests
     if (req.method !== "GET") return next();
 
-    const key = `${req.path}?${JSON.stringify(req.query)}`;
+    const userId = (req as any).user?.id ?? (req as any).apiKeyData?.apikey_id ?? "anon";
+    const key = `${req.path}?${JSON.stringify(req.query)}:${userId}`;
     const hit = cache.get(key);
 
     if (hit && Date.now() - hit.cachedAt < hit.ttlMs) {

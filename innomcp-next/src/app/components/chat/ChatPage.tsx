@@ -1526,11 +1526,6 @@ const ChatPage: React.FC = () => {
     return () => window.removeEventListener("innomcp-use-template", handler as EventListener);
   }, []);
 
-  // Add debug logs to check WebSocket and waiting state
-  useEffect(() => {
-    console.log("isSocketReady:", isSocketReady);
-    console.log("isWaitingForResponse:", isWaitingForResponse);
-  }, [isSocketReady, isWaitingForResponse]);
 
   // Hydration guard: prevent SSR/client mismatch when localStorage has messages
   if (!mounted) {
