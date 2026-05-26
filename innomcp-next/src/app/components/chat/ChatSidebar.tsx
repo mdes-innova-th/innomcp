@@ -23,6 +23,7 @@ import TaskDetailPanel from "./TaskDetailPanel";
 import WorkspaceFileBrowser from "@/app/components/tools/WorkspaceFileBrowser";
 import PluginPanel from "@/app/components/chat/PluginPanel";
 import NotificationCenter, { getUnreadCount } from "@/app/components/common/NotificationCenter";
+import PromptTemplatesPanel from "@/app/components/chat/PromptTemplatesPanel";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -347,6 +348,16 @@ const ChatSidebar: React.FC<Props> = ({
     return () => window.removeEventListener("keydown", onKey);
   }, [toggleTheme]);
 
+  // Phase 5 — open a sidebar panel via custom event (e.g. from CommandPalette)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const panel = (e as CustomEvent).detail?.panel;
+      if (panel) setActivePanel(panel as PanelId);
+    };
+    window.addEventListener("innomcp-open-panel", handler);
+    return () => window.removeEventListener("innomcp-open-panel", handler);
+  }, []);
+
   const safeTheme = mounted ? theme : "light";
 
   const togglePanel = (id: PanelId) =>
@@ -569,25 +580,17 @@ const ChatSidebar: React.FC<Props> = ({
   // ─── Slide-over: Plugins ──────────────────────────────────────────────────
   const PluginsPanelContent = () => <PluginPanel />;
 
-  // ─── Slide-over: Library ──────────────────────────────────────────────────
-  const LibraryPanelContent = () =>
-    summaries.length === 0 ? (
-      <div className="mt-4 text-center text-sm text-muted-foreground">No saved tasks yet.</div>
-    ) : (
-      <ul className="flex flex-col gap-0.5">
-        {summaries.map((s) => (
-          <li key={s.id}>
-            <button
-              onClick={() => { onLoad(s); setActivePanel(null); }}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-muted/60"
-            >
-              <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">{s.title}</span>
-              <span className="shrink-0 text-[11px] text-muted-foreground">{relativeTime(s.time)}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    );
+  // ─── Slide-over: Library (Prompt Templates) ───────────────────────────────
+  const LibraryPanelContent = () => (
+    <PromptTemplatesPanel
+      onUseTemplate={(prompt) => {
+        window.dispatchEvent(
+          new CustomEvent("innomcp-use-template", { detail: { prompt } })
+        );
+        setActivePanel(null);
+      }}
+    />
+  );
 
   // ─── Collapsed strip ─────────────────────────────────────────────────────
 

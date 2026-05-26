@@ -4,6 +4,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
+import { TaskRowSkeleton } from "@/app/components/common/LoadingSkeleton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -55,20 +56,6 @@ function fmtElapsed(ms: number | null): string {
   if (!ms) return "";
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
-}
-
-// ─── Skeleton row ─────────────────────────────────────────────────────────────
-
-function SkeletonRow() {
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-border/30 bg-background/60 px-3 py-2.5 animate-pulse">
-      <div className="h-4 w-14 rounded-full bg-muted/40" />
-      <div className="flex-1 h-3.5 rounded bg-muted/40" />
-      <div className="h-3 w-10 rounded bg-muted/30" />
-      <div className="h-3 w-16 rounded bg-muted/30" />
-      <div className="h-3 w-8 rounded bg-muted/20" />
-    </div>
-  );
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -234,14 +221,20 @@ export default function TaskHistoryPage() {
       <div className="flex flex-col gap-1.5">
         {loading ? (
           <>
-            <SkeletonRow />
-            <SkeletonRow />
-            <SkeletonRow />
+            {[0, 1, 2, 3, 4].map((i) => (
+              <TaskRowSkeleton key={i} />
+            ))}
           </>
         ) : filteredTasks.length === 0 ? (
-          <div className="rounded-xl border border-border/30 bg-muted/10 p-8 text-center text-[12px] text-muted-foreground">
-            <span className="text-2xl block mb-2">📭</span>
-            ยังไม่มีประวัติงาน
+          <div className="text-center py-16">
+            <div className="text-5xl mb-4">📭</div>
+            <h2 className="text-[15px] font-semibold text-foreground mb-2">ยังไม่มีประวัติงาน</h2>
+            <p className="text-[12.5px] text-muted-foreground mb-5 max-w-xs mx-auto">
+              เริ่มสนทนากับ AI เพื่อสร้างงานแรกของคุณ
+            </p>
+            <a href="/" className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-[13px] font-medium hover:opacity-90 transition-opacity">
+              ➕ เริ่มงานใหม่
+            </a>
           </div>
         ) : (
           filteredTasks.map((t) => (

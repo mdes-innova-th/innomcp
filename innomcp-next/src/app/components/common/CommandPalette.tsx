@@ -120,6 +120,17 @@ export default function CommandPalette({
       category: "action",
       action: () => { router.push("/"); onClose(); },
     },
+    {
+      id: "templates",
+      icon: "📋",
+      label: "Prompt Templates",
+      description: "เปิด template ที่บันทึกไว้",
+      category: "action" as const,
+      action: () => {
+        window.dispatchEvent(new CustomEvent("innomcp-open-panel", { detail: { panel: "library" } }));
+        onClose();
+      },
+    },
   ];
 
   // Build task commands from search results

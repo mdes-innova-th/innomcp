@@ -35,7 +35,8 @@ import providerTestRouter from "./routes/api/providerTest";
 import providerHealthRouter from "./routes/api/providerHealth";
 import pluginsRouter from "./routes/api/plugins";
 import webhooksRouter from "./routes/api/webhooks";
-import { cacheResponse, getCacheStats } from "./middleware/cacheMiddleware";
+import { cacheResponse, getCacheStats, clearCache as clearAllCache } from "./middleware/cacheMiddleware";
+import templatesRouter from "./routes/api/templates";
 
 // Initialize Express application
 const app = express();
@@ -186,6 +187,9 @@ app.use("/api/plugins", generalRateLimit, cacheResponse(300_000), pluginsRouter)
 // Webhook Registry — register, toggle, and delete outbound webhooks (Phase 4)
 app.use("/api/webhooks", generalRateLimit, webhooksRouter);
 
+// Saved Prompt Templates — list, create, use, delete (Phase 5)
+app.use("/api/templates", generalRateLimit, cacheResponse(300_000), templatesRouter);
+
 // Data Analysis Tool — CSV/JSON stats + bar chart SVG + workspace artifact
 app.use("/api/analyze", generalRateLimit, analyzeRouter);
 
@@ -204,6 +208,10 @@ app.use("/api/files", generalRateLimit, filesRouter);
 
 // Router à¸ªà¸³à¸«à¸£à¸±à¸š Admin (requires authentication + admin role)
 app.use("/api/admin", adminRouter);
+
+// Cache management endpoints (no auth — monitoring use)
+app.get("/api/cache/stats", (_req, res) => res.json(getCacheStats()));
+app.post("/api/cache/clear", (_req, res) => { clearAllCache(); res.json({ cleared: true }); });
 
 // Router à¸ªà¸³à¸«à¸£à¸±à¸š API endpoint à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”à¸—à¸µà¹ˆà¸•à¹‰à¸­à¸‡à¸à¸²à¸£ API key â€” 60 rpm general rate limit
 app.use("/api", generalRateLimit, apiKeyMiddleware, csrfMiddleware, apiRouter);

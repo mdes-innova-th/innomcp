@@ -1506,6 +1506,26 @@ const ChatPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [router]);
 
+  // Phase 5 — Prompt Templates: listen for template selections from ChatSidebar library panel
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      const prompt = e.detail?.prompt;
+      if (prompt) {
+        setInput(prompt);
+        // Focus the textarea so the user can review/send immediately
+        setTimeout(() => {
+          try {
+            textareaRef.current?.focus();
+          } catch {
+            // ignore focus errors
+          }
+        }, 50);
+      }
+    };
+    window.addEventListener("innomcp-use-template", handler as EventListener);
+    return () => window.removeEventListener("innomcp-use-template", handler as EventListener);
+  }, []);
+
   // Add debug logs to check WebSocket and waiting state
   useEffect(() => {
     console.log("isSocketReady:", isSocketReady);

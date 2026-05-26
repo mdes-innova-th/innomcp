@@ -1,6 +1,11 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import {
+  SkeletonBlock,
+  StatCardSkeleton,
+  TaskRowSkeleton,
+} from "@/app/components/common/LoadingSkeleton";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -172,8 +177,21 @@ export default function DashboardView({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground text-[12px]">
-        <span className="animate-pulse">กำลังโหลด...</span>
+      <div className="mx-auto max-w-3xl px-4 py-6 flex flex-col gap-5">
+        <div>
+          <SkeletonBlock className="h-6 w-32 mb-1" />
+          <SkeletonBlock className="h-3 w-48" />
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <StatCardSkeleton key={i} />
+          ))}
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {[0, 1, 2, 3].map((i) => (
+            <TaskRowSkeleton key={i} />
+          ))}
+        </div>
       </div>
     );
   }

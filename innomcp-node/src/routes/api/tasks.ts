@@ -9,6 +9,7 @@ import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import { withDbConnection } from "../../utils/db";
 import { fireWebhook } from "../../services/webhookService";
+import { clearCache } from "../../middleware/cacheMiddleware";
 
 const router = Router();
 
@@ -220,6 +221,8 @@ export async function createTask(params: {
         [params.id, params.runId, params.userId, params.title.slice(0, 254), params.intent]
       );
     });
+    clearCache("/api/dashboard");
+    clearCache("/api/stats");
   } catch (err) {
     console.error("[tasks] createTask error", err);
   }
@@ -241,6 +244,8 @@ export async function completeTask(params: {
         [params.status, params.elapsedMs ?? null, (params.finalAnswer ?? "").slice(0, 2000), params.id]
       );
     });
+    clearCache("/api/dashboard");
+    clearCache("/api/stats");
   } catch (err) {
     console.error("[tasks] completeTask error", err);
   }

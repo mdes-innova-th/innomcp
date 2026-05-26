@@ -9,6 +9,7 @@
 
 import { Router, Request, Response } from "express";
 import { withDbConnection } from "../../utils/db";
+import { clearCache } from "../../middleware/cacheMiddleware";
 
 const router = Router();
 
@@ -74,6 +75,7 @@ router.post("/", async (req: Request, res: Response) => {
         ]
       );
     });
+    clearCache("/api/dashboard");
     res.status(201).json({ id, name: name.trim() });
   } catch (err: any) {
     // If table missing, create it and retry once
@@ -87,6 +89,7 @@ router.post("/", async (req: Request, res: Response) => {
             [id, userId ?? null, name.trim(), description ?? null, color ?? "#3b82f6", icon ?? "📁"]
           );
         });
+        clearCache("/api/dashboard");
         return res.status(201).json({ id, name: name.trim() });
       } catch {
         return res.status(500).json({ error: "Could not create project" });
