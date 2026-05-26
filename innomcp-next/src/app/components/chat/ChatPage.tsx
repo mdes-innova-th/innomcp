@@ -171,6 +171,13 @@ const STARTER_PROMPTS = [
   },
 ] as const;
 
+const QUICK_ACTIONS = [
+  { icon: "📊", label: "วิเคราะห์ข้อมูล", prompt: "วิเคราะห์ข้อมูลนี้แล้วสร้างกราฟให้หน่อย" },
+  { icon: "💻", label: "เขียนโค้ด", prompt: "ช่วยเขียนโค้ดสำหรับ [อธิบาย feature ที่ต้องการ]" },
+  { icon: "🔍", label: "ค้นคว้าข้อมูล", prompt: "ค้นหาข้อมูลเกี่ยวกับ [หัวข้อ] แล้วสรุปให้" },
+  { icon: "📝", label: "เขียนรายงาน", prompt: "เขียนรายงานเรื่อง [หัวข้อ] ให้หน่อย" },
+] as const;
+
 const WORKSPACE_PILLARS = [
   "โฟลว์สนทนาที่วางภาษาไทยเป็นหลัก",
   "คำตอบที่รู้จักเลือกเครื่องมือให้เหมาะกับงาน",
@@ -1878,6 +1885,33 @@ const ChatPage: React.FC = () => {
                               {prompt.description}
                             </span>
                           </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Quick action cards — 2×2 grid */}
+                  <div className="mt-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        เริ่มต้นเร็ว
+                      </h2>
+                      <button
+                        onClick={() => window.dispatchEvent(new CustomEvent("innomcp-open-panel", { detail: { panel: "library" } }))}
+                        className="text-[11.5px] text-primary hover:underline"
+                      >
+                        📋 ดู Templates →
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 max-w-md mx-auto">
+                      {QUICK_ACTIONS.map((action) => (
+                        <button
+                          key={action.label}
+                          onClick={() => setInput(action.prompt)}
+                          className="rounded-xl border border-border/40 bg-background/60 p-3.5 text-left hover:bg-muted/30 transition-all"
+                        >
+                          <span className="text-lg leading-none" aria-hidden="true">{action.icon}</span>
+                          <span className="mt-1.5 block text-[12.5px] font-medium text-foreground">{action.label}</span>
                         </button>
                       ))}
                     </div>
