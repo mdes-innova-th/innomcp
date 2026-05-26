@@ -22,6 +22,7 @@ import DashboardView from "./DashboardView";
 import TaskDetailPanel from "./TaskDetailPanel";
 import WorkspaceFileBrowser from "@/app/components/tools/WorkspaceFileBrowser";
 import PluginPanel from "@/app/components/chat/PluginPanel";
+import NotificationCenter, { getUnreadCount } from "@/app/components/common/NotificationCenter";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -241,6 +242,8 @@ const ChatSidebar: React.FC<Props> = ({
   const [sessionStart] = useState(Date.now());
   const [elapsed, setElapsed]         = useState(0);
   const [activePanel, setActivePanel] = useState<PanelId>(null);
+  const [notifOpen, setNotifOpen]     = useState(false);
+  const [unread, setUnread]           = useState(0);
   const [sidebarRight, setSidebarRight] = useState<number>(240);
   const [dbTasks, setDbTasks] = useState<Array<{ id: string; title: string; status: string; created_at: string }>>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -277,6 +280,13 @@ const ChatSidebar: React.FC<Props> = ({
   const router = useRouter();
 
   useEffect(() => { setMounted(true); }, []);
+
+  // Poll unread notification count every 5 seconds
+  useEffect(() => {
+    setUnread(getUnreadCount());
+    const id = setInterval(() => setUnread(getUnreadCount()), 5000);
+    return () => clearInterval(id);
+  }, []);
 
   // Session timer — tick every minute
   useEffect(() => {
@@ -855,7 +865,25 @@ const ChatSidebar: React.FC<Props> = ({
               testId="sidebar-nav-workspace"
             />
           )}
+          <div className="relative">
+            <NavBtn
+              icon="🔔"
+              label="Notifications"
+              onClick={() => setNotifOpen(!notifOpen)}
+              active={notifOpen}
+              testId="sidebar-nav-notifications"
+            />
+            {unread > 0 && (
+              <span className="absolute -top-1 -right-1 bg-rose-500 text-white rounded-full text-[9px] w-4 h-4 flex items-center justify-center font-bold pointer-events-none">
+                {unread > 9 ? "9+" : unread}
+              </span>
+            )}
+          </div>
         </div>
+
+        {notifOpen && (
+          <NotificationCenter onClose={() => setNotifOpen(false)} />
+        )}
 
         <div className="mx-3 border-t border-border/50" />
 

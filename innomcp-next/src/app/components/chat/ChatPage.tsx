@@ -32,6 +32,7 @@ import { buildPlanFromEvents } from "../../../utils/planExtractor";
 import type { ApprovalRequest } from "@/app/components/chat/ApprovalGate";
 import { useTaskNotifications } from "@/app/hooks/useTaskNotifications";
 import { ErrorBoundary } from "@/app/components/common/ErrorBoundary";
+import OnboardingModal from "@/app/components/common/OnboardingModal";
 
 // Phase 4 — lazy-load panel/modal components not needed on initial paint
 const ThinkingModal = dynamic(() => import("@/app/components/chat/ThinkingModal"), {
@@ -276,6 +277,7 @@ const ChatPage: React.FC = () => {
   const searchParams = useSearchParams();
   const [shortcutsOpen, setShortcutsOpen] = useKeyboardShortcutsPanel();
   const [thinkingModalOpen, setThinkingModalOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
@@ -439,6 +441,20 @@ const ChatPage: React.FC = () => {
     } catch {
       // ignore
     }
+  }, []);
+
+  // Phase 5 — first-time user onboarding: show modal after 500ms if not yet seen
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        if (!localStorage.getItem("innomcp-onboarding-done")) {
+          setShowOnboarding(true);
+        }
+      } catch {
+        // ignore localStorage errors (e.g. private browsing restrictions)
+      }
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -2147,6 +2163,19 @@ const ChatPage: React.FC = () => {
 
       {/* Command Palette — Ctrl+K opens quick navigation and task search */}
       <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
+
+      {/* Phase 5 — first-time user onboarding modal */}
+      <OnboardingModal
+        open={showOnboarding}
+        onClose={() => {
+          try {
+            localStorage.setItem("innomcp-onboarding-done", "true");
+          } catch {
+            // ignore
+          }
+          setShowOnboarding(false);
+        }}
+      />
     </div>
   );
 };

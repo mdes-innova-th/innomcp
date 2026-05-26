@@ -35,6 +35,7 @@ import providerTestRouter from "./routes/api/providerTest";
 import providerHealthRouter from "./routes/api/providerHealth";
 import pluginsRouter from "./routes/api/plugins";
 import webhooksRouter from "./routes/api/webhooks";
+import { cacheResponse, getCacheStats } from "./middleware/cacheMiddleware";
 
 // Initialize Express application
 const app = express();
@@ -159,10 +160,10 @@ app.use("/api/debug", debugRouter);
 // The /api catch-all below re-mounts via apiRouter but tasks needs the route
 // registered at /api/tasks directly for authenticated access with the DB.
 app.use("/api/tasks", generalRateLimit, apiKeyMiddleware, csrfMiddleware, tasksRouter);
-app.use("/api/dashboard", generalRateLimit, apiKeyMiddleware, csrfMiddleware, dashboardRouter);
+app.use("/api/dashboard", generalRateLimit, apiKeyMiddleware, csrfMiddleware, cacheResponse(30_000), dashboardRouter);
 app.use("/api/chat/feedback", generalRateLimit, feedbackRouter);
 // Live aggregate stats — no auth required (leaderboard panel fetches as guest)
-app.use("/api/stats", generalRateLimit, statsRouter);
+app.use("/api/stats", generalRateLimit, cacheResponse(60_000), statsRouter);
 
 // Model Settings — ad-hoc connection test + provider presets (no auth, public)
 app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);
@@ -180,7 +181,7 @@ app.use("/api/shell", generalRateLimit, shellRouter);
 app.use("/api/fetch", generalRateLimit, webFetchRouter);
 
 // Plugin Registry — list and toggle installed plugins
-app.use("/api/plugins", generalRateLimit, pluginsRouter);
+app.use("/api/plugins", generalRateLimit, cacheResponse(300_000), pluginsRouter);
 
 // Webhook Registry — register, toggle, and delete outbound webhooks (Phase 4)
 app.use("/api/webhooks", generalRateLimit, webhooksRouter);

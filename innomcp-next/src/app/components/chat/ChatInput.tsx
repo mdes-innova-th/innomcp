@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -217,6 +217,41 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
     sendMessage();
     localStorage.removeItem(DRAFT_KEY);
+  };
+
+  // Phase 5 — Thai voice input via Web Speech API
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
+  const toggleVoice = () => {
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return; // silently skip if not supported
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'th-TH';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results)
+        .map((r: any) => r[0].transcript)
+        .join('');
+      setInput(transcript);
+    };
+
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
   };
 
   useEffect(() => {
@@ -463,6 +498,23 @@ const ChatInput: React.FC<ChatInputProps> = ({
               />
               <span>{providerMode === "local" ? "Ollama Local" : "MDES Cloud"}</span>
             </button>
+
+            {/* Phase 5 — Thai voice input button (browser check at runtime, SSR-safe) */}
+            {typeof window !== 'undefined' && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) && (
+              <button
+                onClick={toggleVoice}
+                type="button"
+                title={isListening ? 'หยุดฟัง' : 'พูดได้เลย (ภาษาไทย)'}
+                className={`rounded-lg p-2 transition-colors ${
+                  isListening
+                    ? 'bg-rose-500/20 text-rose-500 animate-pulse'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                }`}
+                aria-label={isListening ? 'หยุดฟัง' : 'เริ่มฟังเสียง'}
+              >
+                {isListening ? '🔴' : '🎙️'}
+              </button>
+            )}
 
             <ChatModeSelector
               mode={chatMode}

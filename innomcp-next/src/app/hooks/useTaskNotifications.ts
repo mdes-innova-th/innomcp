@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import type { AgentEvent } from "@/app/components/chat/useAgentEventStream";
+import { addNotification } from "@/app/components/common/NotificationCenter";
 
 /**
  * useTaskNotifications — Phase 3 browser notification hook
@@ -32,6 +33,16 @@ export function useTaskNotifications(
 
     const finalAnswerEvent = events.find((e) => e.type === "final_answer");
     if (!finalAnswerEvent) return;
+
+    // Persist to in-app notification center
+    addNotification({
+      type: "task_complete",
+      title: "งานเสร็จแล้ว",
+      body:
+        finalAnswerEvent.publicSummary?.slice(0, 80) ||
+        "Agent ทำงานเสร็จแล้ว",
+      taskId: events[0]?.runId,
+    });
 
     if (
       "Notification" in window &&
