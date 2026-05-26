@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback } from "react";
+import TagBadge from "../common/TagBadge";
 
 interface TaskStep {
   id: number;
@@ -21,6 +22,7 @@ interface TaskDetail {
   created_at: string;
   completed_at: string | null;
   rating?: number | null;
+  tags?: string | null;
 }
 
 const BACKEND =
@@ -75,6 +77,8 @@ export default function TaskDetailPanel({
   const [localRating, setLocalRating] = useState<number | null>(null);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [submittingRating, setSubmittingRating] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
 
   const handleRate = useCallback(async (rating: number) => {
     if (submittingRating || !task) return;
@@ -139,6 +143,11 @@ export default function TaskDetailPanel({
         setTask(d.task);
         setSteps(d.steps ?? []);
         setLocalRating(d.task?.rating ?? null);
+        try {
+          setTags(JSON.parse(d.task?.tags ?? "[]"));
+        } catch {
+          setTags([]);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -229,6 +238,58 @@ export default function TaskDetailPanel({
             ✕
           </button>
         )}
+      </div>
+
+      {/* Tag input row */}
+      <div className="flex flex-wrap gap-1 items-center">
+        {tags.map((tag) => (
+          <TagBadge
+            key={tag}
+            tag={tag}
+            onRemove={() => {
+              const next = tags.filter((t) => t !== tag);
+              setTags(next);
+              fetch(`${BACKEND}/api/tasks/${taskId}/tags`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ tags: next }),
+              }).catch(() => {});
+            }}
+          />
+        ))}
+        <input
+          value={tagInput}
+          onChange={(e) => setTagInput(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
+              e.preventDefault();
+              const newTag = tagInput.trim().replace(/,$/, "");
+              if (newTag && !tags.includes(newTag)) {
+                const next = [...tags, newTag];
+                setTags(next);
+                fetch(`${BACKEND}/api/tasks/${taskId}/tags`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({ tags: next }),
+                }).catch(() => {});
+              }
+              setTagInput("");
+            } else if (e.key === "Backspace" && !tagInput && tags.length > 0) {
+              const next = tags.slice(0, -1);
+              setTags(next);
+              fetch(`${BACKEND}/api/tasks/${taskId}/tags`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ tags: next }),
+              }).catch(() => {});
+            }
+          }}
+          placeholder={tags.length === 0 ? "เพิ่ม tag..." : ""}
+          className="text-[10.5px] bg-transparent border-none outline-none text-foreground placeholder-muted-foreground/40 min-w-[60px] flex-1"
+        />
       </div>
 
       {/* Star rating */}
