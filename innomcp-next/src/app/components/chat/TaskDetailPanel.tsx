@@ -57,9 +57,13 @@ function stepTime(ts: string): string {
 export default function TaskDetailPanel({
   taskId,
   onClose,
+  replayMode,
+  replayUpToStep,
 }: {
   taskId: string;
   onClose?: () => void;
+  replayMode?: boolean;
+  replayUpToStep?: number;
 }) {
   const [task, setTask]       = useState<TaskDetail | null>(null);
   const [steps, setSteps]     = useState<TaskStep[]>([]);
@@ -154,6 +158,11 @@ export default function TaskDetailPanel({
   const elapsed = task.elapsed_ms
     ? `${(task.elapsed_ms / 1000).toFixed(1)}s`
     : null;
+
+  const displayedSteps =
+    replayMode && replayUpToStep !== undefined
+      ? steps.slice(0, replayUpToStep)
+      : steps;
 
   return (
     <div className="flex flex-col gap-3 p-1 h-full overflow-y-auto">
@@ -264,16 +273,16 @@ export default function TaskDetailPanel({
       )}
 
       {/* Steps timeline */}
-      {steps.length > 0 && (
+      {displayedSteps.length > 0 && (
         <div>
           <p className="text-[10.5px] font-medium text-muted-foreground mb-2">
-            Timeline ({steps.length} events)
+            Timeline ({replayMode ? `${displayedSteps.length}/` : ""}{steps.length} events)
           </p>
           <div className="flex flex-col">
-            {steps.map((step, i) => (
+            {displayedSteps.map((step, i) => (
               <div key={step.id ?? i} className="relative pl-6 pb-2">
                 {/* Connector line */}
-                {i < steps.length - 1 && (
+                {i < displayedSteps.length - 1 && (
                   <div className="absolute left-[9px] top-4 bottom-0 w-px bg-border/40" />
                 )}
                 {/* Event dot */}

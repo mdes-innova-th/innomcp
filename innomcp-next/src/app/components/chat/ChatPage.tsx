@@ -34,6 +34,7 @@ import { useTaskNotifications } from "@/app/hooks/useTaskNotifications";
 import { ErrorBoundary } from "@/app/components/common/ErrorBoundary";
 import OnboardingModal from "@/app/components/common/OnboardingModal";
 import GuidedTour from "@/app/components/common/GuidedTour";
+import ActiveModelBadge from "@/app/components/chat/ActiveModelBadge";
 
 // Phase 4 — lazy-load panel/modal components not needed on initial paint
 const ThinkingModal = dynamic(() => import("@/app/components/chat/ThinkingModal"), {
@@ -629,6 +630,12 @@ const ChatPage: React.FC = () => {
           if (message.type === "done") {
              console.log("Received DONE signal");
              setIsWaitingForResponse(false);
+             // Phase 6 — dispatch response time for ActiveModelBadge
+             if (lastSendAtRef.current) {
+               window.dispatchEvent(new CustomEvent("innomcp-response-time", {
+                 detail: { ms: Date.now() - lastSendAtRef.current }
+               }));
+             }
              return;
           }
            
@@ -1093,6 +1100,8 @@ const ChatPage: React.FC = () => {
       lastSendAtRef.current = Date.now();
       console.log("[ChatMode]", chatMode, "→ mode:", derivedMode, "reasoning:", derivedReasoning);
       socket.send(JSON.stringify(message));
+      // Phase 6 — notify RateLimitIndicator that a request was sent
+      window.dispatchEvent(new CustomEvent("innomcp-request-sent"));
       // Phase 10.15: fire SSE channel for MultiAgentPanel
       resetAgentStream();
       activeAgentStreamRequestRef.current = messageId;
@@ -1681,6 +1690,8 @@ const ChatPage: React.FC = () => {
                   <span aria-hidden="true">·</span>
                   <span>{workspaceState.title}</span>
                 </span>
+                {/* Phase 6 — Model Router status: active provider + last response latency */}
+                <ActiveModelBadge />
                 {artifacts.length > 0 && (
                   <button
                     onClick={() => setArtifactPanelOpen(v => !v)}

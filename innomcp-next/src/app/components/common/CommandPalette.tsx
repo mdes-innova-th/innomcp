@@ -19,7 +19,17 @@ interface CommandItem {
 interface TaskResult {
   id: string;
   title: string;
+  status: string;
+  created_at: string;
   [key: string]: unknown;
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 60000) return "เมื่อสักครู่";
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h`;
+  return `${Math.floor(diff / 86400000)}d`;
 }
 
 export default function CommandPalette({
@@ -64,18 +74,20 @@ export default function CommandPalette({
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`${BACKEND}/api/tasks?limit=10`, {
-          signal: controller.signal,
-        });
+        const res = await fetch(
+          `${BACKEND}/api/search?q=${encodeURIComponent(query.trim())}&type=all&limit=8`,
+          { signal: controller.signal }
+        );
         if (!res.ok) return;
         const data = await res.json();
         const tasks: TaskResult[] = Array.isArray(data)
           ? data
+          : Array.isArray(data?.results)
+          ? data.results
           : Array.isArray(data?.tasks)
           ? data.tasks
           : [];
-        const q = query.toLowerCase();
-        setTaskResults(tasks.filter((t) => t.title?.toLowerCase().includes(q)));
+        setTaskResults(tasks);
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
           console.error("[CommandPalette] fetch error:", err);
@@ -137,17 +149,23 @@ export default function CommandPalette({
   const taskCommands: CommandItem[] = taskResults.map((t) => ({
     id: `task-${t.id}`,
     label: t.title,
-    icon: "📌",
+    icon:
+      t.status === "completed"
+        ? "✅"
+        : t.status === "failed"
+        ? "❌"
+        : "🔄",
+    description: `${t.status} · ${relativeTime(t.created_at)}`,
     category: "task" as const,
-    action: () => { router.push(`/task-history`); onClose(); },
+    action: () => { router.push(`/tasks/${t.id}`); onClose(); },
   }));
 
-  // All items flat list for keyboard nav
+  // All items flat list for keyboard nav — order must match renderItems exactly
   const showStatic = !query.trim();
   const allItems: CommandItem[] = showStatic
     ? staticCommands
     : taskCommands.length > 0
-    ? taskCommands
+    ? [...taskCommands, ...staticCommands]
     : staticCommands;
 
   // Keyboard navigation
@@ -191,47 +209,70 @@ export default function CommandPalette({
   // Build rendered sections
   const renderItems = () => {
     if (!showStatic) {
-      // Search mode: show task results or fallback to static
-      if (taskCommands.length > 0) {
-        return (
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-4 py-1.5">
-              Tasks
-            </div>
-            {taskCommands.map((item, idx) => (
+      // Search mode: search results first, then static commands
+      let runningIdx = 0;
+
+      const searchSection = taskCommands.length > 0 ? (
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-4 py-1.5">
+            🔍 ผลการค้นหา
+          </div>
+          {taskCommands.map((item) => {
+            const idx = runningIdx++;
+            return (
               <ItemRow
                 key={item.id}
                 item={item}
                 isSelected={idx === selectedIndex}
                 onClick={item.action}
               />
-            ))}
-          </div>
-        );
-      }
-      // No task results — fall through to show static with filter
-      const filtered = staticCommands.filter(
-        (c) =>
-          c.label.toLowerCase().includes(query.toLowerCase()) ||
-          (c.description?.toLowerCase().includes(query.toLowerCase()) ?? false)
+            );
+          })}
+        </div>
+      ) : (
+        <div className="px-4 py-3 text-[13px] text-muted-foreground/60">
+          ไม่พบผลลัพธ์สำหรับ &apos;{query}&apos;
+        </div>
       );
-      if (filtered.length === 0) {
-        return (
-          <div className="px-4 py-6 text-center text-[13px] text-muted-foreground/60">
-            ไม่พบผลลัพธ์
+
+      // Static commands always shown below search results when query is active
+      const staticSection = (
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-4 py-1.5 mt-1">
+            Navigation
           </div>
-        );
-      }
+          {navItems.map((item) => {
+            const idx = runningIdx++;
+            return (
+              <ItemRow
+                key={item.id}
+                item={item}
+                isSelected={idx === selectedIndex}
+                onClick={item.action}
+              />
+            );
+          })}
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 px-4 py-1.5 mt-1">
+            Actions
+          </div>
+          {actionItems.map((item) => {
+            const idx = runningIdx++;
+            return (
+              <ItemRow
+                key={item.id}
+                item={item}
+                isSelected={idx === selectedIndex}
+                onClick={item.action}
+              />
+            );
+          })}
+        </div>
+      );
+
       return (
         <div>
-          {filtered.map((item, idx) => (
-            <ItemRow
-              key={item.id}
-              item={item}
-              isSelected={idx === selectedIndex}
-              onClick={item.action}
-            />
-          ))}
+          {searchSection}
+          {staticSection}
         </div>
       );
     }

@@ -26,6 +26,7 @@ import NotificationCenter, { getUnreadCount } from "@/app/components/common/Noti
 import PromptTemplatesPanel from "@/app/components/chat/PromptTemplatesPanel";
 import PreferencesPanel from "./PreferencesPanel";
 import WebhookPanel from "@/app/components/chat/WebhookPanel";
+import RateLimitIndicator from "@/app/components/common/RateLimitIndicator";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -1062,6 +1063,7 @@ const ChatSidebar: React.FC<Props> = ({
                 </span>
               </div>
             )}
+            <RateLimitIndicator />
             <div className="p-2">
               <button
                 onClick={() => setShowUserMenu(!showUserMenu)}
