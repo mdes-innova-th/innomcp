@@ -15,13 +15,13 @@ router.get("/", async (_req: Request, res: Response) => {
       await withDbConnection(async (conn) => {
         return Promise.all([
           conn.query(
-            "SELECT status, COUNT(*) as count FROM tasks GROUP BY status"
+            "SELECT status, COUNT(*) as count FROM tasks WHERE status <> 'archived' GROUP BY status"
           ),
           conn.query(
-            "SELECT COUNT(*) as total FROM tasks"
+            "SELECT COUNT(*) as total FROM tasks WHERE status <> 'archived'"
           ),
           conn.query(
-            "SELECT id, title, intent, status, elapsed_ms, created_at FROM tasks ORDER BY created_at DESC LIMIT 8"
+            "SELECT id, title, intent, status, elapsed_ms, created_at FROM tasks WHERE status <> 'archived' ORDER BY created_at DESC LIMIT 8"
           ),
           conn.query(
             "SELECT AVG(rating) as avg_rating, COUNT(*) as total FROM feedback"

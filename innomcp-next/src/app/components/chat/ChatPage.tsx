@@ -414,11 +414,11 @@ const ChatPage: React.FC = () => {
     // Load sidebar collapsed state
     try {
       const forceCollapsed = shouldForceCollapsedSidebar();
-      const savedCollapsed = localStorage.getItem("isSidebarCollapsed");
+      const savedCollapsed = localStorage.getItem("innomcp-sidebar-state");
       if (savedCollapsed !== null && !forceCollapsed) {
-        setIsSidebarCollapsed(savedCollapsed === "true");
+        setIsSidebarCollapsed(savedCollapsed === "collapsed");
       } else {
-        setIsSidebarCollapsed(forceCollapsed || savedCollapsed === "true");
+        setIsSidebarCollapsed(forceCollapsed || savedCollapsed === "collapsed");
       }
     } catch (e) {
       // ignore localStorage errors
@@ -500,8 +500,8 @@ const ChatPage: React.FC = () => {
     if (mounted) {
       try {
         localStorage.setItem(
-          "isSidebarCollapsed",
-          isSidebarCollapsed ? "true" : "false"
+          "innomcp-sidebar-state",
+          isSidebarCollapsed ? "collapsed" : "expanded"
         );
       } catch (e) {
         // ignore

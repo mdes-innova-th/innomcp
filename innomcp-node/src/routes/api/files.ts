@@ -14,12 +14,24 @@ import { existsSync } from "node:fs";
 
 const router = Router();
 
+type PinnedArtifactRecord = {
+  id: string;
+  path: string;
+  pinnedAt: string;
+};
+
 // ---------------------------------------------------------------------------
 // Sandbox root — resolved once at startup
 // ---------------------------------------------------------------------------
 export const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT
   ? path.resolve(process.env.WORKSPACE_ROOT)
   : path.resolve(process.cwd(), "../workspace");
+
+const PINNED_ARTIFACTS_PATH = path.join(
+  WORKSPACE_ROOT,
+  ".metadata",
+  "pinned-artifacts.json"
+);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -44,7 +56,15 @@ export function safePath(userPath: string): string | null {
 }
 
 const BLOCKED_EXTENSIONS = [
-  ".exe", ".bat", ".cmd", ".sh", ".ps1", ".msi", ".dll", ".so", ".bin",
+  ".exe",
+  ".bat",
+  ".cmd",
+  ".sh",
+  ".ps1",
+  ".msi",
+  ".dll",
+  ".so",
+  ".bin",
 ];
 
 function isSafeExtension(name: string): boolean {
@@ -53,33 +73,156 @@ function isSafeExtension(name: string): boolean {
 }
 
 function detectType(ext: string): string {
-  const code = ["js", "ts", "tsx", "jsx", "py", "json", "yaml", "yml", "toml", "css", "html", "xml"];
+  const code = [
+    "js",
+    "ts",
+    "tsx",
+    "jsx",
+    "py",
+    "json",
+    "yaml",
+    "yml",
+    "toml",
+    "css",
+    "html",
+    "xml",
+  ];
   if (ext === "md") return "markdown";
   if (code.includes(ext)) return "code";
   if (ext === "csv") return "csv";
   return "text";
 }
 
+function normalizeRelativePath(filePath: string): string {
+  return filePath.replace(/\\/g, "/").replace(/^\/+/, "");
+}
+
+function artifactIdFromPath(filePath: string): string {
+  return Buffer.from(normalizeRelativePath(filePath), "utf-8").toString("base64url");
+}
+
+function artifactPathFromId(id: string): string | null {
+  try {
+    return normalizeRelativePath(Buffer.from(id, "base64url").toString("utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+function inferTaskIdFromPath(filePath: string): string | undefined {
+  const normalized = normalizeRelativePath(filePath);
+  const match = normalized.match(/(?:^|\/)(?:task-|tasks\/)?([0-9a-f]{8}-[0-9a-f-]{27,}|task-[A-Za-z0-9_-]+)/i);
+  if (match) return match[1];
+  return undefined;
+}
+
+async function readPinnedStore(): Promise<PinnedArtifactRecord[]> {
+  try {
+    const content = await fsPromises.readFile(PINNED_ARTIFACTS_PATH, "utf-8");
+    const parsed = JSON.parse(content);
+    return Array.isArray(parsed)
+      ? parsed.filter(
+          (record): record is PinnedArtifactRecord =>
+            !!record &&
+            typeof record.id === "string" &&
+            typeof record.path === "string" &&
+            typeof record.pinnedAt === "string"
+        )
+      : [];
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException)?.code === "ENOENT") {
+      return [];
+    }
+    return [];
+  }
+}
+
+async function writePinnedStore(records: PinnedArtifactRecord[]): Promise<void> {
+  await fsPromises.mkdir(path.dirname(PINNED_ARTIFACTS_PATH), { recursive: true });
+  await fsPromises.writeFile(
+    PINNED_ARTIFACTS_PATH,
+    `${JSON.stringify(records, null, 2)}\n`,
+    "utf-8"
+  );
+}
+
+async function listDirectoryEntries(userPath: string) {
+  const safe = safePath(userPath);
+  if (!safe) return null;
+  if (!existsSync(safe)) return [];
+
+  const entries = await fsPromises.readdir(safe, { withFileTypes: true });
+  return entries.map((entry) => {
+    const relativePath = normalizeRelativePath(path.join(userPath, entry.name));
+    return {
+      id: artifactIdFromPath(relativePath),
+      name: entry.name,
+      type: entry.isDirectory() ? "directory" : "file",
+      path: relativePath,
+    };
+  });
+}
+
+async function collectPinnedArtifacts(limit?: number) {
+  const records = await readPinnedStore();
+  const items = await Promise.all(
+    records.map(async (record) => {
+      const safe = safePath(record.path);
+      if (!safe || !existsSync(safe)) return null;
+
+      const stat = await fsPromises.stat(safe);
+      if (!stat.isFile()) return null;
+
+      const ext = path.extname(record.path).slice(1).toLowerCase();
+      return {
+        id: record.id,
+        name: path.basename(record.path),
+        path: normalizeRelativePath(record.path),
+        type: detectType(ext || "txt"),
+        taskId: inferTaskIdFromPath(record.path),
+        pinnedAt: record.pinnedAt,
+      };
+    })
+  );
+
+  const filtered = items
+    .filter((item): item is NonNullable<typeof item> => item !== null)
+    .sort((a, b) => b.pinnedAt.localeCompare(a.pinnedAt));
+
+  return typeof limit === "number" ? filtered.slice(0, limit) : filtered;
+}
+
+// ---------------------------------------------------------------------------
+// GET /api/files?pinned=true&limit=6
+// GET /api/files?path=projects/
+// ---------------------------------------------------------------------------
+router.get("/", async (req: Request, res: Response) => {
+  if (String(req.query.pinned || "").toLowerCase() === "true") {
+    const rawLimit = Number(req.query.limit);
+    const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : undefined;
+
+    try {
+      const files = await collectPinnedArtifacts(limit);
+      return res.json({ files });
+    } catch {
+      return res.status(500).json({ error: "Cannot load pinned artifacts" });
+    }
+  }
+
+  const userPath = String(req.query.path || "");
+  const files = await listDirectoryEntries(userPath);
+  if (files === null) return res.status(400).json({ error: "Invalid path" });
+  return res.json({ files, root: userPath });
+});
+
 // ---------------------------------------------------------------------------
 // GET /api/files/list?path=projects/
 // ---------------------------------------------------------------------------
 router.get("/list", async (req: Request, res: Response) => {
   const userPath = String(req.query.path || "");
-  const safe = safePath(userPath);
-  if (!safe) return res.status(400).json({ error: "Invalid path" });
-
-  try {
-    if (!existsSync(safe)) return res.json({ files: [], root: userPath });
-    const entries = await fsPromises.readdir(safe, { withFileTypes: true });
-    const files = entries.map((e) => ({
-      name: e.name,
-      type: e.isDirectory() ? "directory" : "file",
-      path: path.join(userPath, e.name).replace(/\\/g, "/"),
-    }));
-    res.json({ files, root: userPath });
-  } catch {
-    res.status(500).json({ error: "Cannot list directory" });
-  }
+  const files = await listDirectoryEntries(userPath);
+  if (files === null) return res.status(400).json({ error: "Invalid path" });
+  res.json({ files, root: userPath });
 });
 
 // ---------------------------------------------------------------------------
@@ -153,33 +296,43 @@ router.post("/append", async (req: Request, res: Response) => {
 });
 
 // ---------------------------------------------------------------------------
-// PATCH /api/files/:id/pin  { pinned: boolean }
+// PATCH /api/files/:id/pin  { pinned: boolean, path?: string }
 // ---------------------------------------------------------------------------
 router.patch("/:id/pin", async (req: Request, res: Response) => {
   const { id } = req.params;
-  const { pinned } = req.body as { pinned: boolean };
+  const { pinned, path: requestedPath } = req.body as {
+    pinned: boolean;
+    path?: string;
+  };
 
   if (typeof pinned !== "boolean") {
     return res.status(400).json({ error: "pinned (boolean) is required" });
   }
 
-  // Lazy-import DB so this route still works even if DB is not wired up
+  const resolvedPath = requestedPath
+    ? normalizeRelativePath(requestedPath)
+    : artifactPathFromId(id);
+  if (!resolvedPath) {
+    return res.status(400).json({ error: "path is required when id is not decodable" });
+  }
+
+  const safe = safePath(resolvedPath);
+  if (!safe) return res.status(400).json({ error: "Invalid path" });
+  if (!existsSync(safe)) return res.status(404).json({ error: "File not found" });
+
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { getDb } = require("../../db") as { getDb: () => { prepare: (sql: string) => { run: (...args: unknown[]) => void } } };
-    const db = getDb();
-    db.prepare("UPDATE files SET pinned = ? WHERE id = ?").run(pinned ? 1 : 0, id);
-    return res.json({ id, pinned });
-  } catch (err: unknown) {
-    // Column doesn't exist yet (migration pending) or DB not available — degrade gracefully
-    const msg = err instanceof Error ? err.message : String(err);
-    if (
-      msg.includes("no column named pinned") ||
-      msg.includes("no such column") ||
-      msg.includes("Cannot find module")
-    ) {
-      return res.json({ id, pinned: false, note: "pinned column not yet migrated" });
+    const records = await readPinnedStore();
+    const nextRecords = records.filter((record) => record.id !== id);
+    if (pinned) {
+      nextRecords.push({
+        id,
+        path: resolvedPath,
+        pinnedAt: new Date().toISOString(),
+      });
     }
+    await writePinnedStore(nextRecords);
+    return res.json({ id, path: resolvedPath, pinned });
+  } catch {
     return res.status(500).json({ error: "Failed to update pin state" });
   }
 });
@@ -194,6 +347,10 @@ router.delete("/delete", async (req: Request, res: Response) => {
 
   try {
     await fsPromises.unlink(safe);
+    const normalizedPath = normalizeRelativePath(userPath);
+    const artifactId = artifactIdFromPath(normalizedPath);
+    const records = await readPinnedStore();
+    await writePinnedStore(records.filter((record) => record.id !== artifactId));
     res.json({ success: true });
   } catch {
     res.status(500).json({ error: "Cannot delete file" });

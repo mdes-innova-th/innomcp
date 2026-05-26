@@ -35,12 +35,14 @@ function maskSecret(wh: Webhook): Omit<Webhook, "secret"> & { hasSecret: boolean
 }
 
 // ── GET /api/webhooks ─────────────────────────────────────────────────────────
-router.get("/", (_req: Request, res: Response) => {
-  res.json({ webhooks: listWebhooks().map(maskSecret) });
+router.get("/", (req: Request, res: Response) => {
+  const userId = (req as any).user?.id ?? (req as any).apiKeyData?.apikey_id?.toString() ?? "default";
+  res.json({ webhooks: listWebhooks(userId).map(maskSecret) });
 });
 
 // ── POST /api/webhooks ────────────────────────────────────────────────────────
 router.post("/", (req: Request, res: Response) => {
+  const userId = (req as any).user?.id ?? (req as any).apiKeyData?.apikey_id?.toString() ?? "default";
   const { name, url, events, secret } = req.body as {
     name?: string;
     url?: string;
@@ -72,6 +74,7 @@ router.post("/", (req: Request, res: Response) => {
   }
 
   const webhook = createWebhook({
+    userId,
     name: name.trim(),
     url,
     events: events as WebhookEvent[],

@@ -43,21 +43,21 @@ function getDefaults(userId: string): UserPreferences {
 
 const router = Router();
 
-// Use "default" as the single key — userId is carried for forward-compatibility
-// when auth middleware is added in a future phase.
-const DEFAULT_USER_ID = "default";
-
 // GET /api/preferences
-router.get("/", (_req: Request, res: Response) => {
-  const prefs = store.get(DEFAULT_USER_ID) ?? getDefaults(DEFAULT_USER_ID);
+router.get("/", (req: Request, res: Response) => {
+  const userId = (req as any).user?.id ?? (req as any).apiKeyData?.apikey_id?.toString() ?? "default";
+  const key = `user:${userId}`;
+  const prefs = store.get(key) ?? getDefaults(userId);
   res.json({ preferences: prefs });
 });
 
 // PUT /api/preferences
 router.put("/", (req: Request, res: Response) => {
+  const userId = (req as any).user?.id ?? (req as any).apiKeyData?.apikey_id?.toString() ?? "default";
+  const key = `user:${userId}`;
   const body = req.body as Partial<Omit<UserPreferences, "userId" | "updatedAt">>;
 
-  const existing = store.get(DEFAULT_USER_ID) ?? getDefaults(DEFAULT_USER_ID);
+  const existing = store.get(key) ?? getDefaults(userId);
 
   // Validate allowed values for enum fields
   if (body.theme !== undefined && !["light", "dark", "system"].includes(body.theme)) {
@@ -76,11 +76,11 @@ router.put("/", (req: Request, res: Response) => {
   const updated: UserPreferences = {
     ...existing,
     ...body,
-    userId: DEFAULT_USER_ID,
+    userId,
     updatedAt: new Date().toISOString(),
   };
 
-  store.set(DEFAULT_USER_ID, updated);
+  store.set(key, updated);
   res.json({ preferences: updated });
 });
 

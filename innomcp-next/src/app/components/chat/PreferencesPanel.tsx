@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useTheme } from "@/app/context/ThemeContext";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,12 +48,56 @@ export default function PreferencesPanel({ onClose }: Props) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const { theme: contextTheme, toggleTheme } = useTheme();
+
+  // ── Apply theme to ThemeContext (handles binary toggle + system) ──────────
+  const applyThemeToContext = useCallback(
+    (value: "light" | "dark" | "system") => {
+      const target =
+        value === "system"
+          ? window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light"
+          : value;
+      if (target !== contextTheme) toggleTheme();
+    },
+    [contextTheme, toggleTheme]
+  );
+
+  // ── Apply font size to documentElement ───────────────────────────────────
+  const applyFontSize = useCallback((value: "sm" | "md" | "lg") => {
+    document.documentElement.classList.remove(
+      "text-sm-base",
+      "text-md-base",
+      "text-lg-base"
+    );
+    document.documentElement.classList.add(`text-${value}-base`);
+    localStorage.setItem("innomcp-font-size", value);
+  }, []);
+
+  // ── Restore font size from localStorage immediately on mount ─────────────
+  useEffect(() => {
+    const saved = localStorage.getItem("innomcp-font-size") as
+      | "sm"
+      | "md"
+      | "lg"
+      | null;
+    if (saved) applyFontSize(saved);
+  }, [applyFontSize]);
+
   // ── Load on mount ────────────────────────────────────────────────────────
   useEffect(() => {
     fetch(`${BACKEND}/api/preferences`, { credentials: "include" })
       .then((r) => r.json())
-      .then((d) => { if (d.preferences) setPrefs(d.preferences); })
+      .then((d) => {
+        if (d.preferences) {
+          setPrefs(d.preferences);
+          applyThemeToContext(d.preferences.theme);
+          applyFontSize(d.preferences.fontSize);
+        }
+      })
       .catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Auto-save (debounced 500ms) ──────────────────────────────────────────
@@ -87,8 +132,15 @@ export default function PreferencesPanel({ onClose }: Props) {
         persist({ [key]: value });
         return next;
       });
+      // Apply side effects immediately (outside setPrefs to keep updater pure)
+      if (key === "theme") {
+        applyThemeToContext(value as "light" | "dark" | "system");
+      }
+      if (key === "fontSize") {
+        applyFontSize(value as "sm" | "md" | "lg");
+      }
     },
-    [persist]
+    [persist, applyThemeToContext, applyFontSize]
   );
 
   // Cleanup timers on unmount

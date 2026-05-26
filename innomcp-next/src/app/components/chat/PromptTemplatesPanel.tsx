@@ -57,8 +57,13 @@ const PromptTemplatesPanel: React.FC<Props> = ({ onUseTemplate }) => {
   const fetchTemplates = useCallback(async () => {
     try {
       const res = await fetch(`${BACKEND}/api/templates`);
-      const data: PromptTemplate[] = res.ok ? await res.json() : [];
-      setTemplates(data);
+      const data = res.ok ? await res.json() : [];
+      const templatesData: PromptTemplate[] = Array.isArray(data)
+        ? data
+        : Array.isArray((data as any).templates)
+        ? (data as any).templates
+        : [];
+      setTemplates(templatesData);
     } catch {
       setTemplates([]);
     } finally {

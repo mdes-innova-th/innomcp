@@ -15,6 +15,7 @@ export type WebhookEvent =
 
 export interface Webhook {
   id: string;
+  userId?: string;
   name: string;
   url: string;
   events: WebhookEvent[];
@@ -30,8 +31,10 @@ const webhooks = new Map<string, Webhook>();
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
-export function listWebhooks(): Webhook[] {
-  return Array.from(webhooks.values());
+export function listWebhooks(userId?: string): Webhook[] {
+  const all = Array.from(webhooks.values());
+  if (userId === undefined) return all;
+  return all.filter((w) => !w.userId || w.userId === userId);
 }
 
 export function getWebhook(id: string): Webhook | undefined {

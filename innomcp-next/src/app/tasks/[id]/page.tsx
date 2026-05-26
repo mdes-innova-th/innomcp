@@ -22,6 +22,7 @@ export default function TaskDetailPage({
   const [replaying, setReplaying] = useState(false);
   const [replayStep, setReplayStep] = useState(0);
   const [totalSteps, setTotalSteps] = useState(0);
+  const [archiving, setArchiving] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -71,6 +72,32 @@ export default function TaskDetailPage({
     setReplaying(false);
   };
 
+  const archiveTask = async () => {
+    if (archiving) return;
+    if (!window.confirm("Archive this task? It will disappear from the dashboard but remain available by direct link.")) {
+      return;
+    }
+
+    setArchiving(true);
+    try {
+      const res = await fetch(`${BACKEND}/api/tasks/${params.id}/archive`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error("archive_failed");
+      }
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      window.alert("Could not archive this task right now.");
+    } finally {
+      setArchiving(false);
+    }
+  };
+
   if (isAuthLoading) {
     return (
       <div className="flex items-center justify-center h-64 text-muted-foreground text-[12px]">
@@ -101,6 +128,13 @@ export default function TaskDetailPage({
         >
           📦 Export ZIP
         </a>
+        <button
+          onClick={archiveTask}
+          disabled={archiving}
+          className="text-[11px] border border-rose-400/40 rounded-md px-2.5 py-1 text-rose-600 dark:text-rose-400 hover:text-foreground disabled:opacity-50 transition-colors"
+        >
+          {archiving ? "Archiving..." : "Archive"}
+        </button>
         {!replaying ? (
           <button
             onClick={startReplay}

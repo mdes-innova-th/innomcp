@@ -32,12 +32,14 @@ async function ensureTable(): Promise<void> {
   });
 }
 
-// GET /api/projects — list all non-archived projects
+// GET /api/projects — list non-archived projects scoped to current user
 router.get("/", async (req: Request, res: Response) => {
+  const userId = (req as any).user?.id ?? null;
   try {
     const rows = await withDbConnection(async (conn) => {
       const [r] = await conn.query(
-        "SELECT * FROM projects WHERE archived_at IS NULL ORDER BY created_at DESC LIMIT 50"
+        "SELECT * FROM projects WHERE (user_id = ? OR user_id IS NULL) AND archived_at IS NULL ORDER BY created_at DESC LIMIT 50",
+        [userId]
       ) as any[];
       return r;
     });
@@ -55,7 +57,8 @@ router.get("/", async (req: Request, res: Response) => {
 
 // POST /api/projects — create a new project
 router.post("/", async (req: Request, res: Response) => {
-  const { name, description, color, icon, userId } = req.body;
+  const userId = (req as any).user?.id ?? null;
+  const { name, description, color, icon } = req.body;
   if (!name?.trim()) {
     return res.status(400).json({ error: "name is required" });
   }
@@ -67,7 +70,7 @@ router.post("/", async (req: Request, res: Response) => {
          VALUES (?, ?, ?, ?, ?, ?)`,
         [
           id,
-          userId ?? null,
+          userId,
           name.trim(),
           description ?? null,
           color ?? "#3b82f6",
@@ -86,7 +89,7 @@ router.post("/", async (req: Request, res: Response) => {
           await conn.query(
             `INSERT INTO projects (id, user_id, name, description, color, icon)
              VALUES (?, ?, ?, ?, ?, ?)`,
-            [id, userId ?? null, name.trim(), description ?? null, color ?? "#3b82f6", icon ?? "📁"]
+            [id, userId, name.trim(), description ?? null, color ?? "#3b82f6", icon ?? "📁"]
           );
         });
         clearCache("/api/dashboard");

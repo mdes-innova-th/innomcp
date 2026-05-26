@@ -185,14 +185,19 @@ router.get("/", async (req: Request, res: Response) => {
   const userId = (req as any).user?.id ?? null;
   const limit = Math.min(Number(req.query.limit) || 20, 50);
   const offset = Math.max(Number(req.query.offset) || 0, 0);
+  const includeArchived = String(req.query.includeArchived || "").toLowerCase() === "true";
 
   try {
     const rows = await withDbConnection(async (conn) => {
       if (userId) {
         const [r] = await conn.query(
           `SELECT id, title, intent, status, elapsed_ms, created_at, completed_at
-           FROM tasks WHERE user_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-          [userId, limit, offset]
+           FROM tasks
+           WHERE user_id = ?
+             AND (? = 1 OR status <> 'archived')
+           ORDER BY created_at DESC
+           LIMIT ? OFFSET ?`,
+          [userId, includeArchived ? 1 : 0, limit, offset]
         );
         return r;
       }
@@ -214,6 +219,7 @@ router.get("/search", async (req: Request, res: Response) => {
 
   const limit = Math.min(Number(req.query.limit) || 10, 50);
   const type = String(req.query.type || "all");
+  const includeArchived = String(req.query.includeArchived || "").toLowerCase() === "true";
 
   try {
     const results = await withDbConnection(async (conn) => {
@@ -224,9 +230,10 @@ router.get("/search", async (req: Request, res: Response) => {
         const [rows] = await conn.query(
           `SELECT id, title, intent, status, created_at, 'task' as result_type
            FROM tasks
-           WHERE title LIKE ? OR intent LIKE ?
+           WHERE (title LIKE ? OR intent LIKE ?)
+             AND (? = 1 OR status <> 'archived')
            ORDER BY created_at DESC LIMIT ?`,
-          [`%${q}%`, `%${q}%`, limit]
+          [`%${q}%`, `%${q}%`, includeArchived ? 1 : 0, limit]
         ) as any[];
         items.push(...(rows as any[] || []));
       }
@@ -247,7 +254,7 @@ router.get("/:id", async (req: Request, res: Response) => {
   try {
     const [task, steps] = await withDbConnection(async (conn) => {
       const [taskRows] = await conn.query(
-        `SELECT * FROM tasks WHERE id = ? LIMIT 1`,
+        `SELECT *, COALESCE(tags, '[]') as tags FROM tasks WHERE id = ? LIMIT 1`,
         [id]
       );
       const [stepRows] = await conn.query(
@@ -264,6 +271,23 @@ router.get("/:id", async (req: Request, res: Response) => {
   } catch (err) {
     console.error("[tasks] get error", err);
     res.status(500).json({ error: "internal" });
+  }
+});
+
+// ── Update task tags ──────────────────────────────────────────────────────────
+router.patch("/:id/tags", async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { tags } = req.body as { tags: string[] };
+  if (!Array.isArray(tags)) return res.status(400).json({ error: "tags must be array" });
+
+  try {
+    await withDbConnection(async (conn) => {
+      await conn.query("UPDATE tasks SET tags = ? WHERE id = ?", [JSON.stringify(tags), id]);
+    });
+    res.json({ id, tags });
+  } catch (err: any) {
+    // tags column might not exist yet — return graceful response
+    res.json({ id, tags, note: "tags column not yet migrated" });
   }
 });
 
@@ -470,6 +494,51 @@ router.post("/:id/messages", async (req: Request, res: Response) => {
     emit(errEv);
   } finally {
     if (!res.writableEnded) res.end();
+  }
+});
+
+// ── Archive a task without deleting its history or artifacts ──────────────────
+router.post("/:id/archive", async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const rows = await withDbConnection(async (conn) => {
+      const [result] = await conn.query(
+        `UPDATE tasks
+         SET status = 'archived', completed_at = COALESCE(completed_at, NOW())
+         WHERE id = ? AND status <> 'archived'`,
+        [id]
+      ) as any[];
+
+      const [taskRows] = await conn.query(
+        `SELECT id, status, completed_at
+         FROM tasks
+         WHERE id = ?
+         LIMIT 1`,
+        [id]
+      ) as any[];
+
+      return {
+        updated: Number(result?.affectedRows ?? 0),
+        task: (taskRows as any[])[0] ?? null,
+      };
+    }) as { updated: number; task: { id: string; status: string; completed_at: string | null } | null };
+
+    if (!rows.task) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+
+    clearCache("/api/dashboard");
+    clearCache("/api/stats");
+    return res.json({
+      success: true,
+      archived: rows.task.status === "archived",
+      alreadyArchived: rows.updated === 0,
+      task: rows.task,
+    });
+  } catch (err) {
+    console.error("[tasks] archive error", err);
+    return res.status(500).json({ error: "Could not archive task" });
   }
 });
 

@@ -89,8 +89,9 @@ router.get('/files', async (_req: Request, res: Response) => {
  * GET /api/workspace/files/*
  * Read a single file's content.
  */
-router.get('/files/*', async (req: Request, res: Response) => {
-  const userPath = (req.params as Record<string, string>)[0] || '';
+router.get('/files{/*path}', async (req: Request, res: Response) => {
+  const rawPath = (req.params as any).path;
+  const userPath = Array.isArray(rawPath) ? rawPath.join('/') : rawPath || '';
   const safe = safePath(userPath);
   if (!safe) {
     return res.status(400).json({ error: 'Invalid path' });

@@ -116,7 +116,7 @@ const router = Router();
 
 // ── GET /api/templates ────────────────────────────────────────────────────────
 router.get("/", (_req: Request, res: Response) => {
-  res.json({ templates: getAllTemplates() });
+  res.json(getAllTemplates());
 });
 
 // ── POST /api/templates ───────────────────────────────────────────────────────
