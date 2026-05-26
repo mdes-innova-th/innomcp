@@ -33,6 +33,7 @@ import type { ApprovalRequest } from "@/app/components/chat/ApprovalGate";
 import { useTaskNotifications } from "@/app/hooks/useTaskNotifications";
 import { ErrorBoundary } from "@/app/components/common/ErrorBoundary";
 import OnboardingModal from "@/app/components/common/OnboardingModal";
+import GuidedTour from "@/app/components/common/GuidedTour";
 
 // Phase 4 — lazy-load panel/modal components not needed on initial paint
 const ThinkingModal = dynamic(() => import("@/app/components/chat/ThinkingModal"), {
@@ -278,6 +279,7 @@ const ChatPage: React.FC = () => {
   const [shortcutsOpen, setShortcutsOpen] = useKeyboardShortcutsPanel();
   const [thinkingModalOpen, setThinkingModalOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [tourActive, setTourActive] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
@@ -1506,6 +1508,13 @@ const ChatPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [router]);
 
+  // Phase 6 — open keyboard shortcuts panel via custom event (from ChatSidebar ? button / Ctrl+/)
+  useEffect(() => {
+    const handler = () => setShortcutsOpen(true);
+    window.addEventListener("innomcp-open-shortcuts", handler);
+    return () => window.removeEventListener("innomcp-open-shortcuts", handler);
+  }, [setShortcutsOpen]);
+
   // Phase 5 — Prompt Templates: listen for template selections from ChatSidebar library panel
   useEffect(() => {
     const handler = (e: CustomEvent) => {
@@ -2190,7 +2199,11 @@ const ChatPage: React.FC = () => {
           }
           setShowOnboarding(false);
         }}
+        onStartTour={() => setTourActive(true)}
       />
+
+      {/* Phase 6 — guided tour overlay */}
+      <GuidedTour active={tourActive} onComplete={() => setTourActive(false)} />
     </div>
   );
 };

@@ -37,9 +37,16 @@ function resolveBackendUrl(path: string): string {
   return `http://localhost:3011${path}`;
 }
 
+interface AgentActivity {
+  agentId: string;
+  activations: number;
+  lastActive: string;
+}
+
 interface LiveStats {
   totalTasks: number;
   avgRating: number | null;
+  agentActivity: AgentActivity[];
 }
 
 const ALL_AGENTS: AgentEntry[] = [
@@ -61,12 +68,9 @@ const ALL_AGENTS: AgentEntry[] = [
   { id: "claude-sonnet", name: "Claude Sonnet",   role: "Complex Reasoning",     provider: "Claude Sonnet",  model: "claude-sonnet-4-6", status: "standby" },
 ];
 
-/** Compute score for an agent. Per-agent stats not available from /api/stats,
- *  so tasks=0 and avgMs=0 are used, making score purely status-driven. */
-function agentScore(agent: AgentEntry): number {
-  const tasks = 0;
-  const avgMs = 0;
-  return tasks * 10 + (agent.status === "active" ? 50 : 0) - avgMs / 100;
+/** Compute score for an agent using real activations when available. */
+function agentScore(agent: AgentEntry, activations: number): number {
+  return activations * 10 + (agent.status === "active" ? 50 : 0);
 }
 
 /** Format a Date as HH:MM:SS */
@@ -76,7 +80,7 @@ function formatTime(d: Date): string {
 
 export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) {
   const [filter, setFilter] = useState<"all" | "active" | "standby">("all");
-  const [liveStats, setLiveStats] = useState<LiveStats>({ totalTasks: 0, avgRating: null });
+  const [liveStats, setLiveStats] = useState<LiveStats>({ totalTasks: 0, avgRating: null, agentActivity: [] });
   const [sortByScore, setSortByScore] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
@@ -88,9 +92,13 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
         if (!d) return;
         const completed = (d.tasks as Array<{ status: string; count: number }> ?? [])
           .find((t) => t.status === "completed");
+        const agentActivity: AgentActivity[] = Array.isArray(d.agentActivity)
+          ? (d.agentActivity as AgentActivity[])
+          : [];
         setLiveStats({
           totalTasks: completed ? Number(completed.count) : 0,
           avgRating: d.feedback?.avg_rating != null ? Number(d.feedback.avg_rating) : null,
+          agentActivity,
         });
         setLastUpdated(new Date());
       })
@@ -107,27 +115,38 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
   const active = ALL_AGENTS.filter((a) => a.status === "active").length;
   const standby = ALL_AGENTS.filter((a) => a.status === "standby").length;
 
+  /** Build a map of agentId → activations for O(1) lookup */
+  const activityMap = new Map<string, number>(
+    liveStats.agentActivity.map((a) => [a.agentId, a.activations])
+  );
+
+  /** Find the top agent id (highest activations > 0) */
+  const topAgentId = liveStats.agentActivity.length > 0 && liveStats.agentActivity[0].activations > 0
+    ? liveStats.agentActivity[0].agentId
+    : null;
+
   const filtered = filter === "all" ? ALL_AGENTS : ALL_AGENTS.filter((a) => a.status === filter);
   const visible = sortByScore
-    ? [...filtered].sort((a, b) => agentScore(b) - agentScore(a))
+    ? [...filtered].sort((a, b) => agentScore(b, activityMap.get(b.id) ?? 0) - agentScore(a, activityMap.get(a.id) ?? 0))
     : filtered;
 
   /** Export the current visible list as a CSV download */
   function exportCSV() {
     const header = "#,Agent,Provider,Model,Role,Tasks,Avg ms,Score,Status";
-    const rows = visible.map((agent, i) =>
-      [
+    const rows = visible.map((agent, i) => {
+      const activations = activityMap.get(agent.id) ?? 0;
+      return [
         i + 1,
         `"${agent.name}"`,
         `"${agent.provider}"`,
         `"${agent.model}"`,
         `"${agent.role}"`,
+        activations > 0 ? activations : "–",
         "–",
-        "–",
-        Math.round(agentScore(agent)),
+        Math.round(agentScore(agent, activations)),
         agent.status,
-      ].join(",")
-    );
+      ].join(",");
+    });
     const csv = [header, ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -214,19 +233,26 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
             </tr>
           </thead>
           <tbody className="text-[11px]">
-            {visible.map((agent, i) => (
+            {visible.map((agent, i) => {
+              const activations = activityMap.get(agent.id) ?? 0;
+              const isTopAgent = topAgentId === agent.id;
+              return (
               <tr key={agent.id} className="border-b border-border/20 hover:bg-muted/20 transition-colors">
                 <td className="px-2.5 py-1.5 text-muted-foreground/50 tabular-nums">{i + 1}</td>
-                <td className="px-2.5 py-1.5 font-medium text-foreground">{agent.name}</td>
+                <td className="px-2.5 py-1.5 font-medium text-foreground">
+                  {isTopAgent ? "🏆 " : ""}{agent.name}
+                </td>
                 <td className={`px-2.5 py-1.5 font-medium text-[10.5px] ${PROVIDER_COLORS[agent.provider] ?? "text-muted-foreground"}`}>{agent.provider}</td>
                 <td className="px-2.5 py-1.5 font-mono text-[10px] text-muted-foreground">{agent.model}</td>
-                {/* Tasks — no per-agent breakdown available */}
-                <td className="px-2.5 py-1.5 text-right tabular-nums text-muted-foreground/60">–</td>
-                {/* Avg ms — no per-agent breakdown available */}
+                {/* Tasks — real per-agent activations from task_steps */}
+                <td className="px-2.5 py-1.5 text-right tabular-nums text-muted-foreground/60">
+                  {activations > 0 ? <span className="text-foreground font-medium">{activations}</span> : "–"}
+                </td>
+                {/* Avg ms — not available */}
                 <td className="px-2.5 py-1.5 text-right tabular-nums text-muted-foreground/60">–</td>
                 {/* Score */}
                 <td className="px-2.5 py-1.5 text-right tabular-nums font-medium text-foreground">
-                  {Math.round(agentScore(agent))}
+                  {Math.round(agentScore(agent, activations))}
                 </td>
                 <td className="px-2.5 py-1.5 text-muted-foreground">{agent.role}</td>
                 <td className="px-2.5 py-1.5 text-center">
@@ -243,7 +269,8 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
                   )}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

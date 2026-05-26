@@ -335,13 +335,22 @@ const ChatSidebar: React.FC<Props> = ({
     };
   }, [showUserMenu]);
 
-  // Ctrl+Shift+T — toggle theme
+  // Ctrl+Shift+T — toggle theme | Ctrl+/ — keyboard shortcuts panel
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
       if (ctrl && e.shiftKey && e.key.toLowerCase() === "t") {
         e.preventDefault();
         toggleTheme();
+        return;
+      }
+      switch (e.key) {
+        case '/':
+          if (ctrl) {
+            e.preventDefault();
+            window.dispatchEvent(new CustomEvent("innomcp-open-shortcuts"));
+          }
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
@@ -762,6 +771,14 @@ const ChatSidebar: React.FC<Props> = ({
             title={safeTheme === "dark" ? "Switch to Light (Ctrl+Shift+T)" : "Switch to Dark (Ctrl+Shift+T)"}
           >
             {safeTheme === "dark" ? "☀️" : "🌙"}
+          </button>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("innomcp-open-shortcuts"))}
+            title="Keyboard shortcuts (Ctrl+/)"
+            className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors text-[14px]"
+            data-testid="sidebar-help-btn"
+          >
+            ?
           </button>
           <button
             onClick={onToggle}

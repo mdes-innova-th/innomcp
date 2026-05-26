@@ -24,6 +24,68 @@ LOG_FILE="$LOG_DIR/precommit-$TS.log"
 
 mkdir -p "$LOG_DIR" 2>/dev/null || true
 
+# ---------------------------------------------------------------------------
+# Cold-start safety checks (Phase 6 post-mortem: multer missing-package bug)
+# These run BEFORE static checks so startup crashes are caught early.
+# Both checks are skipped when there is no build yet.
+# ---------------------------------------------------------------------------
+
+echo ""
+echo "Cold-start dependency check..."
+
+if [ -f "$NODE_DIR/dist/app.js" ]; then
+  # 1) Missing runtime packages — catches "multer not installed" class of bugs
+  node --max-old-space-size=512 -e "
+    var pkg = require('$NODE_DIR/package.json');
+    var fs = require('fs');
+    var path = require('path');
+    var deps = Object.keys(pkg.dependencies || {});
+    // Skip @types/* (type-only, not runtime modules) and scoped packages that are
+    // declaration-only — check by directory existence in node_modules instead of
+    // require.resolve (which fails for ESM-only and type-only packages).
+    var missing = deps.filter(function(d) {
+      if (d.startsWith('@types/')) return false; // type-only, never runtime
+      var dir = path.join('$NODE_DIR', 'node_modules', d);
+      return !fs.existsSync(dir);
+    });
+    if (missing.length > 0) {
+      console.error('Missing runtime packages: ' + missing.join(', '));
+      console.error('Fix: cd innomcp-node && npm install');
+      process.exit(1);
+    }
+    console.log('All runtime dependencies installed');
+  " 2>&1
+  DEP_RC=$?
+
+  if [ $DEP_RC -ne 0 ]; then
+    echo ""
+    echo "ERROR: Server would crash on startup. Run npm install in innomcp-node/"
+    exit 1
+  fi
+
+  # 2) Module resolution dry-run — catches missing dist files, broken requires
+  echo "Cold-start module resolution check..."
+  node --max-old-space-size=512 -e "
+    try {
+      require('$NODE_DIR/dist/app.js');
+      console.log('✅ Module resolution OK');
+      process.exit(0);
+    } catch(e) {
+      console.error('❌ Module resolution FAILED: ' + e.message);
+      process.exit(1);
+    }
+  " 2>&1
+  MOD_RC=$?
+
+  if [ $MOD_RC -ne 0 ]; then
+    echo ""
+    echo "ERROR: Server would crash on startup. Run npm install in innomcp-node/"
+    exit 1
+  fi
+else
+  echo "⚠️  dist/app.js not found — cold-start checks skipped (run npm run build first)"
+fi
+
 # Optional healthcheck (ignored on failure). Default is offline.
 if [ -n "${HOOK_HEALTHCHECK_URL:-}" ] && [ "${SKIP_HOOK_HEALTHCHECK:-0}" != "1" ]; then
   echo "Healthcheck: $HOOK_HEALTHCHECK_URL"

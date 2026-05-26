@@ -10,8 +10,175 @@ import * as fsp from "node:fs/promises";
 import { withDbConnection } from "../../utils/db";
 import { fireWebhook } from "../../services/webhookService";
 import { clearCache } from "../../middleware/cacheMiddleware";
+import { compressHistory } from "../../agents/parallelDispatch";
 
 const router = Router();
+
+const CONTINUATION_STEP_LIMIT = 12;
+const CONTINUATION_ARTIFACT_LIMIT = 6;
+
+type ContinuationTaskRow = {
+  title: string;
+  intent: string | null;
+  final_answer: string | null;
+  status: string | null;
+  created_at: string | null;
+  completed_at: string | null;
+};
+
+type ContinuationStepRow = {
+  event_type: string;
+  public_summary: string | null;
+  agent_id: string | null;
+  tool_name: string | null;
+  ts: string | null;
+};
+
+type ContinuationArtifact = {
+  name: string;
+  path: string;
+};
+
+function resolveWorkspaceRoot(): string {
+  return process.env.WORKSPACE_ROOT
+    ? path.resolve(process.env.WORKSPACE_ROOT)
+    : path.resolve(process.cwd(), "../workspace");
+}
+
+function truncateInline(text: string, max = 240): string {
+  return text.replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+function normalizeSearchTokens(input: string): string[] {
+  return Array.from(
+    new Set(
+      input
+        .toLowerCase()
+        .split(/[^a-z0-9ก-๙]+/u)
+        .map((token) => token.trim())
+        .filter((token) => token.length >= 3)
+    )
+  ).slice(0, 8);
+}
+
+function formatContinuationStep(step: ContinuationStepRow): string {
+  const labels = [step.event_type];
+  if (step.agent_id) labels.push(`agent ${step.agent_id}`);
+  if (step.tool_name) labels.push(`tool ${step.tool_name}`);
+  const summary = truncateInline(step.public_summary ?? "", 180) || "No summary recorded";
+  return `- ${labels.join(" / ")}: ${summary}`;
+}
+
+async function loadRelevantArtifacts(
+  taskId: string,
+  taskTitle: string,
+  createdAt: string | null,
+  completedAt: string | null,
+  limit = CONTINUATION_ARTIFACT_LIMIT
+): Promise<ContinuationArtifact[]> {
+  const workspaceRoot = resolveWorkspaceRoot();
+  const artifactsDir = path.join(workspaceRoot, "artifacts");
+  const titleTokens = normalizeSearchTokens(taskTitle);
+  const taskPrefix = taskId.slice(0, 8).toLowerCase();
+  const createdAtMs = createdAt ? Date.parse(createdAt) : Number.NaN;
+  const completedAtMs = completedAt ? Date.parse(completedAt) : Number.NaN;
+
+  try {
+    const allFiles = await fsp.readdir(artifactsDir, { recursive: true } as any);
+    const ranked: Array<ContinuationArtifact & { score: number; mtimeMs: number }> = [];
+
+    for (const relative of allFiles as string[]) {
+      const full = path.join(artifactsDir, relative);
+      let stat;
+      try {
+        stat = await fsp.stat(full);
+      } catch {
+        continue;
+      }
+      if (!stat.isFile()) continue;
+
+      const relativePath = path.relative(workspaceRoot, full).replace(/\\/g, "/");
+      const lowerName = path.basename(relative).toLowerCase();
+      let score = 0;
+
+      if (lowerName.includes(taskPrefix)) score += 5;
+      if (titleTokens.some((token) => lowerName.includes(token))) score += 3;
+      if (!Number.isNaN(createdAtMs) && stat.mtimeMs >= createdAtMs - 30 * 60_000) score += 1;
+      if (!Number.isNaN(completedAtMs) && stat.mtimeMs <= completedAtMs + 12 * 60 * 60_000) score += 1;
+
+      ranked.push({
+        name: path.basename(relative),
+        path: relativePath,
+        score,
+        mtimeMs: stat.mtimeMs,
+      });
+    }
+
+    const relevant = ranked
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score || b.mtimeMs - a.mtimeMs)
+      .slice(0, limit);
+
+    if (relevant.length > 0) {
+      return relevant.map(({ name, path: relPath }) => ({ name, path: relPath }));
+    }
+
+    return ranked
+      .sort((a, b) => b.mtimeMs - a.mtimeMs)
+      .slice(0, Math.min(limit, 3))
+      .map(({ name, path: relPath }) => ({ name, path: relPath }));
+  } catch {
+    return [];
+  }
+}
+
+function buildContinuationHistory(
+  task: ContinuationTaskRow,
+  steps: ContinuationStepRow[],
+  artifacts: ContinuationArtifact[]
+): Array<{ sender: "user" | "ai"; text: string }> {
+  const history: Array<{ sender: "user" | "ai"; text: string }> = [];
+
+  if (task.intent?.trim()) {
+    history.push({
+      sender: "user",
+      text: `Original task request: ${truncateInline(task.intent, 700)}`,
+    });
+  }
+
+  if (task.final_answer?.trim()) {
+    history.push({
+      sender: "ai",
+      text: `Previous final answer summary: ${truncateInline(task.final_answer, 900)}`,
+    });
+  }
+
+  if (steps.length > 0) {
+    history.push({
+      sender: "ai",
+      text: `Recent execution timeline:\n${steps.map(formatContinuationStep).join("\n")}`,
+    });
+  }
+
+  if (artifacts.length > 0) {
+    history.push({
+      sender: "ai",
+      text: `Available artifacts in workspace:\n${artifacts
+        .map((artifact) => `- ${artifact.name} (${artifact.path})`)
+        .join("\n")}`,
+    });
+  }
+
+  if (history.length <= 4) return history;
+
+  return [
+    {
+      sender: "ai",
+      text: `Earlier context summary:\n${compressHistory(history, 3)}`,
+    },
+    ...history.slice(-3),
+  ];
+}
 
 // ── List recent tasks (authenticated user or guest by session) ────────────────
 router.get("/", async (req: Request, res: Response) => {
@@ -67,9 +234,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 // ── Export task artifacts as ZIP ─────────────────────────────────────────────
 router.get("/:id/export", async (req: Request, res: Response) => {
   const { id } = req.params;
-  const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT
-    ? path.resolve(process.env.WORKSPACE_ROOT)
-    : path.resolve(process.cwd(), "../workspace");
+  const WORKSPACE_ROOT = resolveWorkspaceRoot();
 
   try {
     const [rows] = await withDbConnection(async (conn) =>
@@ -166,19 +331,63 @@ router.post("/:id/messages", async (req: Request, res: Response) => {
   const { message, sessionId } = req.body as { message: string; sessionId?: string };
   if (!message?.trim()) return res.status(400).json({ error: "message required" });
 
-  // Load task context
-  let taskContext = "";
+  let continuationMessage = message.trim();
+  let continuationHistory: Array<{ sender: "user" | "ai"; text: string }> = [];
+  let resumedSummary = "";
   try {
-    const [rows] = await withDbConnection(async (conn) =>
-      conn.query("SELECT title, intent, final_answer FROM tasks WHERE id = ? LIMIT 1", [id])
-    ) as any[];
-    if (!rows[0]) return res.status(404).json({ error: "Task not found" });
-    const task = rows[0];
-    taskContext = `[Continuing task: "${task.title}"]\n`;
-    if (task.final_answer) {
-      taskContext += `[Previous answer summary: ${String(task.final_answer).slice(0, 300)}]\n`;
+    const { task, steps } = await withDbConnection(async (conn) => {
+      const [taskRows] = await conn.query(
+        `SELECT title, intent, final_answer, status, created_at, completed_at
+         FROM tasks WHERE id = ? LIMIT 1`,
+        [id]
+      );
+      const taskRow = (taskRows as ContinuationTaskRow[])[0];
+      if (!taskRow) return { task: null, steps: [] as ContinuationStepRow[] };
+
+      const [stepRows] = await conn.query(
+        `SELECT event_type, public_summary, agent_id, tool_name, ts
+         FROM task_steps WHERE task_id = ? ORDER BY id DESC LIMIT ?`,
+        [id, CONTINUATION_STEP_LIMIT]
+      );
+      const recentSteps = (stepRows as ContinuationStepRow[]).slice().reverse();
+
+      if (taskRow.status === "archived") {
+        return { task: taskRow, steps: recentSteps };
+      }
+
+      if (taskRow.status !== "running") {
+        await conn.query(
+          `UPDATE tasks
+           SET status = 'running', completed_at = NULL
+           WHERE id = ?`,
+          [id]
+        );
+      }
+
+      return { task: taskRow, steps: recentSteps };
+    }) as { task: ContinuationTaskRow | null; steps: ContinuationStepRow[] };
+
+    if (!task) return res.status(404).json({ error: "Task not found" });
+    if (task.status === "archived") {
+      return res.status(409).json({ error: "Task is archived" });
     }
-  } catch { /* proceed without context */ }
+
+    const artifacts = await loadRelevantArtifacts(
+      id,
+      task.title,
+      task.created_at,
+      task.completed_at
+    );
+    continuationHistory = buildContinuationHistory(task, steps, artifacts);
+    const artifactHint =
+      artifacts.length > 0
+        ? `[Prefer reusing artifacts: ${artifacts.map((artifact) => artifact.name).join(", ")}]\n`
+        : "";
+    continuationMessage = `[Continuing task "${task.title}"]\n${artifactHint}${message.trim()}`;
+    resumedSummary = `Resuming "${task.title}" with ${steps.length} recent steps and ${artifacts.length} related artifacts`;
+  } catch {
+    // Best effort: continue even when context loading fails.
+  }
 
   // Set up SSE
   res.setHeader("Content-Type", "text/event-stream");
@@ -191,9 +400,32 @@ router.post("/:id/messages", async (req: Request, res: Response) => {
   };
 
   try {
+    if (resumedSummary) {
+      const { newEnvelope } = await import("../../agents/events");
+      emit(
+        newEnvelope({
+          type: "fact_found",
+          runId: id,
+          messageId: id,
+          publicSummary: resumedSummary,
+          agentId: "conductor",
+        })
+      );
+      void appendTaskStep({
+        taskId: id,
+        eventType: "task_resumed",
+        publicSummary: resumedSummary,
+        agentId: "conductor",
+      });
+    }
+
     const { runConductor } = await import("../../agents/conductor");
     await runConductor(
-      { message: taskContext + message, sessionId: sessionId ?? id },
+      {
+        message: continuationMessage,
+        history: continuationHistory,
+        sessionId: sessionId ?? id,
+      },
       emit
     );
   } catch (err: any) {

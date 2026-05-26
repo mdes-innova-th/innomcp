@@ -40,9 +40,10 @@ const STEPS: OnboardingStep[] = [
 interface OnboardingModalProps {
   open: boolean;
   onClose: () => void;
+  onStartTour?: () => void;
 }
 
-export default function OnboardingModal({ open, onClose }: OnboardingModalProps) {
+export default function OnboardingModal({ open, onClose, onStartTour }: OnboardingModalProps) {
   const [step, setStep] = useState(0);
 
   if (!open) return null;
@@ -114,17 +115,27 @@ export default function OnboardingModal({ open, onClose }: OnboardingModalProps)
             ข้าม
           </button>
 
-          <button
-            onClick={handleNext}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2 text-[14px] font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          >
-            {isLast ? (current.action?.label ?? "เสร็จแล้ว") : "ถัดไป"}
-            {!isLast && (
-              <span aria-hidden="true" className="text-[13px]">
-                →
-              </span>
+          <div className="flex items-center gap-2">
+            {isLast && onStartTour && (
+              <button
+                onClick={() => { onStartTour(); onClose(); }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-4 py-2 text-[13px] font-medium text-foreground shadow-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                🗺️ เริ่ม Guided Tour
+              </button>
             )}
-          </button>
+            <button
+              onClick={handleNext}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2 text-[14px] font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              {isLast ? (current.action?.label ?? "เสร็จแล้ว") : "ถัดไป"}
+              {!isLast && (
+                <span aria-hidden="true" className="text-[13px]">
+                  →
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Progress bar */}
