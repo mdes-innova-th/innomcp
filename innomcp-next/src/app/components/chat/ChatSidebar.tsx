@@ -25,6 +25,7 @@ import PluginPanel from "@/app/components/chat/PluginPanel";
 import NotificationCenter, { getUnreadCount } from "@/app/components/common/NotificationCenter";
 import PromptTemplatesPanel from "@/app/components/chat/PromptTemplatesPanel";
 import PreferencesPanel from "./PreferencesPanel";
+import WebhookPanel from "@/app/components/chat/WebhookPanel";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -152,7 +153,7 @@ function relativeTime(ms: number): string {
 
 // ─── Slide-over Panel ─────────────────────────────────────────────────────────
 
-type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | "memory" | "dashboard" | "task-detail" | "workspace" | "preferences" | null;
+type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | "memory" | "dashboard" | "task-detail" | "workspace" | "preferences" | "webhooks" | null;
 
 interface SlideOverProps {
   open: boolean;
@@ -760,6 +761,9 @@ const ChatSidebar: React.FC<Props> = ({
       <SlideOver open={activePanel === "preferences"} title="⚙️ การตั้งค่า" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
         <PreferencesPanel onClose={() => setActivePanel(null)} />
       </SlideOver>
+      <SlideOver open={activePanel === "webhooks"} title="🔔 Webhooks" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <WebhookPanel />
+      </SlideOver>
 
       <aside
         ref={sidebarRef}
@@ -897,6 +901,13 @@ const ChatSidebar: React.FC<Props> = ({
               testId="sidebar-nav-workspace"
             />
           )}
+          <NavBtn
+            icon="🔔"
+            label="Webhooks"
+            onClick={() => togglePanel("webhooks")}
+            active={activePanel === "webhooks"}
+            testId="sidebar-nav-webhooks"
+          />
           <div className="relative">
             <NavBtn
               icon="🔔"
