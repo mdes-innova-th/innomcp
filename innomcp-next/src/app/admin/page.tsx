@@ -152,15 +152,30 @@ export default function AdminPage() {
       .catch(() => null);
   }, [isLoggedIn, userRoleId]);
 
-  // System health — fetch on tab switch
+  // System health — fetch on tab switch (overview tab)
   useEffect(() => {
-    if (activeTab !== 'system' || !isLoggedIn || userRoleId !== 0) return;
+    if (activeTab !== 'overview' || !isLoggedIn || userRoleId !== 0) return;
     setHealthLoading(true);
     fetch('/api/health?detailed=true', { credentials: 'include' })
       .then(r => r.json())
       .then((d: HealthData) => setHealth(d))
       .catch(() => null)
       .finally(() => setHealthLoading(false));
+  }, [activeTab, isLoggedIn, userRoleId]);
+
+  // Sessions — fetch on tab switch
+  useEffect(() => {
+    if (activeTab !== 'sessions' || !isLoggedIn || userRoleId !== 0) return;
+    setSessionsLoading(true);
+    setRevokeMsg(''); setRevokeError('');
+    fetch('/api/admin/sessions', { credentials: 'include' })
+      .then(r => r.json())
+      .then((d: { success: boolean; data?: SessionRow[]; error?: string }) => {
+        if (d.success && d.data) setSessions(d.data);
+        else setRevokeError(d.error || 'Failed to load sessions');
+      })
+      .catch(() => setRevokeError('Network error'))
+      .finally(() => setSessionsLoading(false));
   }, [activeTab, isLoggedIn, userRoleId]);
 
   // Stats / logs — fetch on tab switch
@@ -212,6 +227,40 @@ export default function AdminPage() {
         setError(d.error || 'Update failed');
       }
     } catch { setError('Network error'); }
+  }
+
+  async function revokeSession(jti: string) {
+    setRevokeMsg(''); setRevokeError('');
+    try {
+      const r = await fetch(`/api/admin/sessions/${encodeURIComponent(jti)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const d = await r.json();
+      if (d.success) {
+        setSessions(prev => prev.filter(s => s.jti !== jti));
+        setRevokeMsg(`Session ${jti.slice(0, 8)}… revoked`);
+      } else {
+        setRevokeError(d.error || 'Revoke failed');
+      }
+    } catch { setRevokeError('Network error'); }
+  }
+
+  async function revokeAllForUser(userId: number) {
+    setRevokeMsg(''); setRevokeError('');
+    try {
+      const r = await fetch(`/api/admin/sessions/user/${userId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const d = await r.json();
+      if (d.success) {
+        setSessions(prev => prev.filter(s => s.userId !== userId));
+        setRevokeMsg(`All sessions for user ${userId} revoked`);
+      } else {
+        setRevokeError(d.error || 'Revoke failed');
+      }
+    } catch { setRevokeError('Network error'); }
   }
 
   // ── Early return ──────────────────────────────────────────────────────────────
@@ -410,8 +459,8 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ─── System Tab ─────────────────────────────────────────────────────── */}
-        {activeTab === 'system' && (
+        {/* ─── Overview Tab ───────────────────────────────────────────────────── */}
+        {activeTab === 'overview' && (
           <div className="space-y-6">
             <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
