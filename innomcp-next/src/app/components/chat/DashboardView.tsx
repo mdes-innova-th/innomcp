@@ -9,6 +9,7 @@ import {
 import SearchBar from "@/app/components/common/SearchBar";
 import AgentLeaderboard from "@/app/components/chat/AgentLeaderboard";
 import ProviderHealthPanel from "@/app/components/chat/ProviderHealthPanel";
+import LiveActivityFeed from "@/app/components/chat/LiveActivityFeed";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -402,6 +403,14 @@ export default function DashboardView({
 
       {/* Provider Health */}
       <ProviderHealthPanel />
+
+      {/* Live Activity */}
+      <div>
+        <p className="text-[12px] font-semibold text-foreground mb-2">
+          🔴 Live Activity
+        </p>
+        <LiveActivityFeed />
+      </div>
 
       {data?.generatedAt && (
         <p className="text-[10px] text-muted-foreground/40 text-right">

@@ -1,8 +1,8 @@
 /**
- * Unit tests for src/services/sessionRegistry.ts (Phase 8)
+ * Unit tests for src/services/sessionRegistry.ts (Phase 9)
  *
- * Each describe block reloads the module via jest.resetModules() + require()
- * to get fresh in-memory Maps/Sets, preventing cross-test pollution.
+ * Each describe block calls loadModule() which resets the module registry,
+ * giving every test a fresh in-memory Map and Set — no cross-test pollution.
  * No HTTP, no DB, no network required.
  */
 
@@ -34,7 +34,9 @@ function loadModule() {
   return mod;
 }
 
-function makeSessionData(overrides: Partial<Omit<SessionEntry, "jti" | "loginAt" | "lastSeen">> = {}) {
+function makeSessionData(
+  overrides: Partial<Omit<SessionEntry, "jti" | "loginAt" | "lastSeen">> = {}
+) {
   return {
     userId: 1,
     email: "user@example.com",
@@ -50,7 +52,7 @@ describe("sessionRegistry", () => {
   // ── register + isRevoked ─────────────────────────────────────────────────
 
   describe("register + isRevoked", () => {
-    it("registers a new session without marking it as revoked", () => {
+    it("registers a new session and confirms it is NOT revoked", () => {
       const { register, isRevoked } = loadModule();
 
       register("jti-001", makeSessionData());
@@ -77,10 +79,13 @@ describe("sessionRegistry", () => {
       expect(session.lastSeen.getTime()).toBeGreaterThanOrEqual(before.getTime());
     });
 
-    it("stores the provided fields correctly", () => {
+    it("stores all provided fields correctly on the session entry", () => {
       const { register, listAll } = loadModule();
 
-      register("jti-003", makeSessionData({ userId: 99, email: "admin@example.com", ip: "10.0.0.1" }));
+      register(
+        "jti-003",
+        makeSessionData({ userId: 99, email: "admin@example.com", ip: "10.0.0.1" })
+      );
 
       const [session] = listAll() as SessionEntry[];
       expect(session.jti).toBe("jti-003");
@@ -93,7 +98,7 @@ describe("sessionRegistry", () => {
   // ── revoke + isRevoked ───────────────────────────────────────────────────
 
   describe("revoke + isRevoked", () => {
-    it("marks a session as revoked", () => {
+    it("revokes a session and confirms it IS revoked", () => {
       const { register, revoke, isRevoked } = loadModule();
 
       register("jti-010", makeSessionData());
@@ -111,12 +116,11 @@ describe("sessionRegistry", () => {
       expect(result).toBe(true);
     });
 
-    it("returns false from revoke() when the session did not exist", () => {
+    it("revoke unknown jti — returns false gracefully without throwing", () => {
       const { revoke } = loadModule();
 
-      const result = revoke("jti-nonexistent");
-
-      expect(result).toBe(false);
+      expect(() => revoke("jti-nonexistent")).not.toThrow();
+      expect(revoke("jti-nonexistent-2")).toBe(false);
     });
 
     it("removes the session from listAll() after revoking", () => {
@@ -128,15 +132,14 @@ describe("sessionRegistry", () => {
       expect(listAll()).toHaveLength(0);
     });
 
-    it("persists revoked status across calls (cannot re-register)", () => {
+    it("persists revoked status — re-registering same jti stays revoked", () => {
       const { register, revoke, isRevoked } = loadModule();
 
       register("jti-013", makeSessionData());
       revoke("jti-013");
-      // Re-register same jti — should still appear revoked
+      // Re-register same jti — revokedSet persists
       register("jti-013", makeSessionData());
 
-      // The revokedSet persists even after re-register
       expect(isRevoked("jti-013")).toBe(true);
     });
   });
@@ -144,37 +147,37 @@ describe("sessionRegistry", () => {
   // ── touch ────────────────────────────────────────────────────────────────
 
   describe("touch", () => {
-    it("updates lastSeen for an existing session", async () => {
+    it("touch updates lastSeen — register, wait 1ms, touch, lastSeen changes", async () => {
       const { register, touch, listAll } = loadModule();
 
       register("jti-020", makeSessionData());
-      const [before] = listAll() as SessionEntry[];
-      const originalLastSeen = before.lastSeen;
+      const [snapshot] = listAll() as SessionEntry[];
+      const originalLastSeen = snapshot.lastSeen.getTime();
 
       await new Promise((r) => setTimeout(r, 5));
 
       touch("jti-020");
-      const [after] = listAll() as SessionEntry[];
+      const [updated] = listAll() as SessionEntry[];
 
-      expect(after.lastSeen.getTime()).toBeGreaterThanOrEqual(originalLastSeen.getTime());
+      expect(updated.lastSeen.getTime()).toBeGreaterThan(originalLastSeen);
     });
 
-    it("does not modify loginAt when touching", async () => {
+    it("touch does not modify loginAt", async () => {
       const { register, touch, listAll } = loadModule();
 
       register("jti-021", makeSessionData());
       const [before] = listAll() as SessionEntry[];
-      const originalLoginAt = before.loginAt;
+      const originalLoginAt = before.loginAt.getTime();
 
       await new Promise((r) => setTimeout(r, 5));
 
       touch("jti-021");
       const [after] = listAll() as SessionEntry[];
 
-      expect(after.loginAt.getTime()).toBe(originalLoginAt.getTime());
+      expect(after.loginAt.getTime()).toBe(originalLoginAt);
     });
 
-    it("is a no-op for an unknown jti (does not throw)", () => {
+    it("touch is a no-op for an unknown jti — does not throw", () => {
       const { touch } = loadModule();
       expect(() => touch("jti-unknown")).not.toThrow();
     });
@@ -183,7 +186,7 @@ describe("sessionRegistry", () => {
   // ── listForUser ──────────────────────────────────────────────────────────
 
   describe("listForUser", () => {
-    it("returns only sessions belonging to the specified user", () => {
+    it("listForUser returns only that user — registers 2 users, filters to userId1 only", () => {
       const { register, listForUser } = loadModule();
 
       register("jti-030", makeSessionData({ userId: 1 }));
@@ -218,7 +221,7 @@ describe("sessionRegistry", () => {
   // ── listAll ───────────────────────────────────────────────────────────────
 
   describe("listAll", () => {
-    it("returns all active sessions across all users", () => {
+    it("listAll — registers 3 sessions and confirms all 3 are returned", () => {
       const { register, listAll } = loadModule();
 
       register("jti-040", makeSessionData({ userId: 1 }));
@@ -233,7 +236,7 @@ describe("sessionRegistry", () => {
       expect(listAll()).toEqual([]);
     });
 
-    it("excludes revoked sessions", () => {
+    it("excludes revoked sessions from the result", () => {
       const { register, revoke, listAll } = loadModule();
 
       register("jti-043", makeSessionData({ userId: 1 }));
@@ -249,7 +252,7 @@ describe("sessionRegistry", () => {
   // ── revokeAllForUser ──────────────────────────────────────────────────────
 
   describe("revokeAllForUser", () => {
-    it("revokes all sessions for the specified user", () => {
+    it("revokeAllForUser — registers 2 sessions for same user, both are revoked after", () => {
       const { register, revokeAllForUser, isRevoked } = loadModule();
 
       register("jti-050", makeSessionData({ userId: 7 }));
@@ -276,9 +279,7 @@ describe("sessionRegistry", () => {
     it("returns 0 when the user has no active sessions", () => {
       const { revokeAllForUser } = loadModule();
 
-      const count = revokeAllForUser(9999);
-
-      expect(count).toBe(0);
+      expect(revokeAllForUser(9999)).toBe(0);
     });
 
     it("does not revoke sessions belonging to other users", () => {
@@ -294,7 +295,7 @@ describe("sessionRegistry", () => {
       expect(remaining[0].jti).toBe("jti-056");
     });
 
-    it("clears all sessions for user so listForUser returns empty", () => {
+    it("clears all sessions for user so listForUser returns empty array", () => {
       const { register, revokeAllForUser, listForUser } = loadModule();
 
       register("jti-057", makeSessionData({ userId: 12 }));
