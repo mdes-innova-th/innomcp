@@ -40,6 +40,7 @@ import { cacheResponse, getCacheStats, clearCache as clearAllCache } from "./mid
 import templatesRouter from "./routes/api/templates";
 import preferencesRouter from "./routes/api/preferences";
 import agentLeaderboardRouter from "./routes/api/agentLeaderboard";
+import presenceRouter from "./routes/api/presence";
 
 // Initialize Express application
 const app = express();
@@ -201,6 +202,9 @@ app.use("/api/templates", generalRateLimit, cacheResponse(300_000), templatesRou
 
 // User Preferences — per-user display/chat settings (Phase 6)
 app.use("/api/preferences", generalRateLimit, preferencesRouter);
+
+// Multi-user Presence — who is active in a project room (Phase 8)
+app.use("/api/presence", generalRateLimit, presenceRouter);
 
 // Data Analysis Tool — CSV/JSON stats + bar chart SVG + workspace artifact
 app.use("/api/analyze", generalRateLimit, analyzeRouter);
