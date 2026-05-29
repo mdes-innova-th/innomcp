@@ -327,8 +327,7 @@ router.post('/logout', async (req: Request, res: Response) => {
     try {
       const token = extractToken(req);
       if (token) {
-        const { verifyToken: vt } = await import('../../../utils/jwt');
-        const payload = vt(token);
+        const payload = verifyToken(token);
         if (payload?.jti) {
           sessionRegistry.revoke(payload.jti);
         }
