@@ -562,6 +562,24 @@ router.post('/refresh', async (req: Request, res: Response) => {
 });
 
 /**
+ * GET /api/auth/ws-token
+ * Return the access token (from httpOnly cookie) as JSON so the browser can
+ * attach it as a ?token= query param on WebSocket upgrade requests.
+ * Only works when the caller already holds a valid session cookie.
+ */
+router.get('/ws-token', (req: Request, res: Response) => {
+  const token = req.cookies?.token;
+  if (!token) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+  const payload = verifyToken(token);
+  if (!payload) {
+    return res.status(401).json({ success: false, error: 'Invalid or expired token' });
+  }
+  return res.json({ success: true, token });
+});
+
+/**
  * GET /api/auth/me
  * Return current user info from JWT (fetches fresh data from DB when possible)
  */

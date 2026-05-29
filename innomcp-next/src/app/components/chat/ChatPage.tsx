@@ -293,7 +293,8 @@ const ChatPage: React.FC = () => {
   const [shortcutsOpen, setShortcutsOpen] = useKeyboardShortcutsPanel();
   const [thinkingModalOpen, setThinkingModalOpen] = useState(false);
   const numericProjectId = activeProjectId ? parseInt(activeProjectId, 10) || null : null;
-  const { typingUsers, sendTypingStart, sendTypingStop } = useRoomWebSocket({ projectId: numericProjectId, token: null });
+  const [wsToken, setWsToken] = useState<string | null>(null);
+  const { typingUsers, sendTypingStart, sendTypingStop } = useRoomWebSocket({ projectId: numericProjectId, token: wsToken });
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [tourActive, setTourActive] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
