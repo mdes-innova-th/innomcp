@@ -8,6 +8,7 @@ import {
 } from "@/app/components/common/LoadingSkeleton";
 import SearchBar from "@/app/components/common/SearchBar";
 import AgentLeaderboard from "@/app/components/chat/AgentLeaderboard";
+import ProviderHealthPanel from "@/app/components/chat/ProviderHealthPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -398,6 +399,9 @@ export default function DashboardView({
         </p>
         <AgentLeaderboard />
       </div>
+
+      {/* Provider Health */}
+      <ProviderHealthPanel />
 
       {data?.generatedAt && (
         <p className="text-[10px] text-muted-foreground/40 text-right">

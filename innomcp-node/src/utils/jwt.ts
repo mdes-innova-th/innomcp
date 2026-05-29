@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
+import * as sessionRegistry from '../services/sessionRegistry';
 
 // JWT configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'innomcp-secret-key-change-in-production';
@@ -11,6 +13,8 @@ export interface JWTPayload {
   userEmail: string;
   userRoleId: number;
   userDispName: string;
+  /** JWT ID — unique per token, used for session tracking and revocation */
+  jti?: string;
   iat?: number;
   exp?: number;
 }
@@ -20,12 +24,14 @@ export interface AuthRequest extends Request {
 }
 
 /**
- * Generate access token
+ * Generate access token.
+ * Embeds a unique `jti` (JWT ID) for session tracking and force-logout support.
  * @param payload User data to encode in token
  * @returns JWT token string
  */
 export function generateAccessToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
-  return jwt.sign(payload, JWT_SECRET, {
+  const jti = payload.jti ?? crypto.randomUUID();
+  return jwt.sign({ ...payload, jti }, JWT_SECRET, {
     expiresIn: JWT_EXPIRES_IN as string,
     issuer: 'innomcp',
     audience: 'innomcp-client'
@@ -90,8 +96,10 @@ export function extractToken(req: Request): string | null {
 }
 
 /**
- * Middleware to protect routes requiring authentication
- * Attaches user data to req.user if token is valid
+ * Middleware to protect routes requiring authentication.
+ * Attaches user data to req.user if token is valid.
+ * Also checks the session registry for revoked tokens (force-logout support)
+ * and updates lastSeen on every authenticated request.
  */
 export function authenticateToken(req: AuthRequest, res: Response, next: NextFunction): void {
   const token = extractToken(req);
@@ -114,6 +122,21 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
       message: 'Please login again'
     });
     return;
+  }
+
+  // Check if this session has been force-revoked
+  if (user.jti && sessionRegistry.isRevoked(user.jti)) {
+    res.status(401).json({
+      success: false,
+      error: 'Session revoked',
+      message: 'Your session has been terminated. Please login again'
+    });
+    return;
+  }
+
+  // Update lastSeen for active session tracking
+  if (user.jti) {
+    sessionRegistry.touch(user.jti);
   }
 
   // Attach user data to request

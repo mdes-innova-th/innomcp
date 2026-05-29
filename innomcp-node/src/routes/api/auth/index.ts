@@ -1,7 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { withDbConnection } from '../../../utils/db';
 import { hashPassword, comparePassword, validatePasswordStrength } from '../../../utils/password';
-import { generateAccessToken, generateRefreshToken, setTokenCookie, clearTokenCookies, verifyToken, authenticateToken, AuthRequest } from '../../../utils/jwt';
+import { generateAccessToken, generateRefreshToken, setTokenCookie, clearTokenCookies, verifyToken, authenticateToken, AuthRequest, extractToken } from '../../../utils/jwt';
+import * as sessionRegistry from '../../../services/sessionRegistry';
 import crypto from 'crypto';
 
 const router = Router();
@@ -97,6 +98,19 @@ router.post('/register', async (req: Request, res: Response) => {
     // Set cookies
     setTokenCookie(res, accessToken, false);
     setTokenCookie(res, refreshToken, true);
+
+    // Register session in the in-memory registry (Phase 8: session management)
+    try {
+      const decoded = verifyToken(accessToken);
+      if (decoded?.jti) {
+        sessionRegistry.register(decoded.jti, {
+          userId,
+          email,
+          userAgent: req.headers['user-agent'] || 'unknown',
+          ip: req.ip || 'unknown',
+        });
+      }
+    } catch (_e) { /* non-fatal */ }
 
     // Log registration
     await withDbConnection(async (conn) => {
@@ -226,14 +240,27 @@ router.post('/login', async (req: Request, res: Response) => {
 
     const accessToken = generateAccessToken(tokenPayload);
     const refreshToken = generateRefreshToken(tokenPayload);
-    
+
     console.log(`🎫 Tokens generated (Access + Refresh)`);
 
     // Set cookies
     setTokenCookie(res, accessToken, false);
     setTokenCookie(res, refreshToken, true);
-    
+
     console.log(`🍪 Cookies set successfully`);
+
+    // Register session in the in-memory registry (Phase 8: session management)
+    try {
+      const decoded = verifyToken(accessToken);
+      if (decoded?.jti) {
+        sessionRegistry.register(decoded.jti, {
+          userId: user.user_id,
+          email: user.user_email,
+          userAgent: req.headers['user-agent'] || 'unknown',
+          ip: req.ip || 'unknown',
+        });
+      }
+    } catch (_e) { /* non-fatal — session tracking is best-effort */ }
 
     // Create session and log login (tables may not exist)
     try {
@@ -296,6 +323,18 @@ router.post('/login', async (req: Request, res: Response) => {
  */
 router.post('/logout', async (req: Request, res: Response) => {
   try {
+    // Revoke session from in-memory registry (Phase 8: session management)
+    try {
+      const token = extractToken(req);
+      if (token) {
+        const { verifyToken: vt } = await import('../../../utils/jwt');
+        const payload = vt(token);
+        if (payload?.jti) {
+          sessionRegistry.revoke(payload.jti);
+        }
+      }
+    } catch (_e) { /* non-fatal */ }
+
     // Clear cookies
     clearTokenCookies(res);
 
