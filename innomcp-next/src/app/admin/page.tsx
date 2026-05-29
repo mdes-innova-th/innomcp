@@ -59,6 +59,15 @@ interface SessionRow {
   ip: string;
 }
 
+interface AuditLogRow {
+  id: number;
+  timestamp: string;
+  adminEmail: string;
+  action: string;
+  targetId: string | number | null;
+  details: string | null;
+}
+
 type Tab = 'overview' | 'users' | 'sessions' | 'providers' | 'logs';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
@@ -114,6 +123,11 @@ export default function AdminPage() {
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [revokeMsg, setRevokeMsg] = useState('');
   const [revokeError, setRevokeError] = useState('');
+
+  // Audit log state (loaded alongside sessions tab)
+  const [auditLog, setAuditLog] = useState<AuditLogRow[]>([]);
+  const [auditLogLoading, setAuditLogLoading] = useState(false);
+  const [auditLogEndpointMissing, setAuditLogEndpointMissing] = useState(false);
 
   // Logs tab state
   const [stats, setStats] = useState<StatsData | null>(null);
