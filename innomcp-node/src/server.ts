@@ -11,6 +11,7 @@ import { initializeDatabaseSchema } from "./utils/db";
 
 import app from "./app";
 import { wss as chatWSS, mcpClient, toolHealthChecker } from "./routes/api/chat";
+import { roomWSS } from "./routes/api/roomWss";
 import { assertProductionJwtSecret } from "./utils/config/security";
 
 dotenv.config();
@@ -95,6 +96,10 @@ server.on("upgrade", (request: http.IncomingMessage, socket: net.Socket, head: B
   if (pathname === "/chat") {
     chatWSS.handleUpgrade(request, socket, head, (ws) => {
       chatWSS.emit("connection", ws, request);
+    });
+  } else if (pathname === "/room") {
+    roomWSS.handleUpgrade(request, socket, head, (ws) => {
+      roomWSS.emit("connection", ws, request);
     });
   } else {
     socket.destroy();

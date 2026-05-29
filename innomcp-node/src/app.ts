@@ -41,6 +41,7 @@ import templatesRouter from "./routes/api/templates";
 import preferencesRouter from "./routes/api/preferences";
 import agentLeaderboardRouter from "./routes/api/agentLeaderboard";
 import presenceRouter from "./routes/api/presence";
+import activityRouter from "./routes/api/activity";
 
 // Initialize Express application
 const app = express();
@@ -205,6 +206,9 @@ app.use("/api/preferences", generalRateLimit, preferencesRouter);
 
 // Multi-user Presence — who is active in a project room (Phase 8)
 app.use("/api/presence", generalRateLimit, presenceRouter);
+
+// Live Activity Feed — recent events across tasks, agents, and projects (Phase 9)
+app.use("/api/activity", generalRateLimit, cacheResponse(5000), activityRouter);
 
 // Data Analysis Tool — CSV/JSON stats + bar chart SVG + workspace artifact
 app.use("/api/analyze", generalRateLimit, analyzeRouter);
