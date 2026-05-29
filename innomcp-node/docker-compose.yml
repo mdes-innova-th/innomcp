@@ -1,22 +1,54 @@
 version: '3.8'
 
 services:
-  innomcp-node:
-    container_name: innomcp-node
+  backend:
+    container_name: innomcp-backend
     build:
       context: .
       dockerfile: Dockerfile
     restart: always
     expose:
-      - "3010"
+      - "3011"
     env_file:
       - .env
     environment:
-      - SERVER_HOST=innomcp-node
-      - SERVER_PORT=3010
-      # Container mode: connect to MariaDB over Docker network.
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=3011
       - DB_HOST=mariadb
       - DB_PORT=3306
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3011/api/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - innomcp_network
+
+  frontend:
+    container_name: innomcp-frontend
+    build:
+      context: ../innomcp-next
+      dockerfile: Dockerfile
+    restart: always
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+    networks:
+      - innomcp_network
+
+  nginx:
+    container_name: innomcp-nginx
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+      - frontend
     networks:
       - innomcp_network
 
