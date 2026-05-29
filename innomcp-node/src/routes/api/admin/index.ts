@@ -2,11 +2,15 @@ import { Router, Response } from 'express';
 import { authenticateToken, requireRole, AuthRequest } from '../../../utils/jwt';
 import { withDbConnection } from '../../../utils/db';
 import { logAdminAction } from '../../../utils/adminAuditLog';
+import sessionsRouter from './sessions';
 
 const adminRouter = Router();
 
 // All admin routes require authentication + admin role (role ID 0)
 adminRouter.use(authenticateToken, requireRole(0));
+
+// Phase 8: Session management routes
+adminRouter.use('/sessions', sessionsRouter);
 
 /**
  * GET /api/admin/users
