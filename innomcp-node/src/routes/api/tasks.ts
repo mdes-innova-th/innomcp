@@ -11,8 +11,10 @@ import { withDbConnection } from "../../utils/db";
 import { fireWebhook } from "../../services/webhookService";
 import { clearCache } from "../../middleware/cacheMiddleware";
 import { compressHistory } from "../../agents/parallelDispatch";
+import { optionalAuth } from "../../middleware/auth";
 
 const router = Router();
+router.use(optionalAuth);
 let tasksProjectColumnEnsured = false;
 
 async function ensureTasksProjectColumn(): Promise<void> {

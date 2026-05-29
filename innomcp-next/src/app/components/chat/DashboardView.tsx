@@ -7,6 +7,7 @@ import {
   TaskRowSkeleton,
 } from "@/app/components/common/LoadingSkeleton";
 import SearchBar from "@/app/components/common/SearchBar";
+import AgentLeaderboard from "@/app/components/chat/AgentLeaderboard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -388,6 +389,14 @@ export default function DashboardView({
             )}
           </>
         )}
+      </div>
+
+      {/* Agent Leaderboard */}
+      <div>
+        <p className="text-[12px] font-semibold text-foreground mb-2">
+          🏆 Agent Leaderboard
+        </p>
+        <AgentLeaderboard />
       </div>
 
       {data?.generatedAt && (

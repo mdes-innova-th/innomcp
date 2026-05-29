@@ -35,11 +35,17 @@ router.get("/", async (req: AuthRequest, res: Response) => {
     return res.status(403).json({ error: "Project access denied" });
   }
 
+  const userId = req.user?.userId ?? null;
+
   try {
     const rows = await withDbConnection(async (conn) => {
       let query =
         "SELECT id, scope, key_name, value, created_at, updated_at FROM memories WHERE 1=1";
       const params: any[] = [];
+      if (userId !== null) {
+        query += " AND user_id = ?";
+        params.push(userId);
+      }
       if (scope) {
         query += " AND scope = ?";
         params.push(scope);
@@ -70,10 +76,13 @@ router.get("/search", async (req: AuthRequest, res: Response) => {
   if (projectId && !hasProjectAccess) {
     return res.status(403).json({ error: "Project access denied" });
   }
+  const searchUserId = req.user?.userId ?? null;
+
   try {
     const rows = await withDbConnection(async (conn) => {
       let query = "SELECT id, scope, key_name AS keyName, value, tag, created_at AS createdAt, updated_at AS updatedAt FROM memories WHERE (key_name LIKE ? OR value LIKE ?)";
       const params: any[] = [`%${q}%`, `%${q}%`];
+      if (searchUserId !== null) { query += " AND user_id = ?"; params.push(searchUserId); }
       if (scope) { query += " AND scope = ?"; params.push(scope); }
       if (sessionId) { query += " AND session_id = ?"; params.push(sessionId); }
       if (projectId) { query += " AND project_id = ?"; params.push(projectId); }
