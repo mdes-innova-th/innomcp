@@ -34,6 +34,7 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@playwright/test": "^1.45.0",
     "@jest/globals": "^30.4.0",
     "@types/multer": "^2.0.0",
     "@types/node": "^22.15.3",
