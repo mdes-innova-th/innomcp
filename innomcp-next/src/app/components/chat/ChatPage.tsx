@@ -15,7 +15,7 @@ import ThemeContext from "@/app/context/ThemeContext";
 import { useAuth } from "@/app/context/AuthContext";
 import { useToast } from "@/app/context/ToastContext";
 import type { ToolType } from "./ToolsTypeSelector";
-// Phase 10.68 — unified ChatMode replaces AIMode + ReasoningMode
+// Phase 10.68 ï¿½ unified ChatMode replaces AIMode + ReasoningMode
 import { type ChatMode } from "./ChatModeSelector";
 import {
   buildChatTransportHistory,
@@ -31,12 +31,14 @@ import type { Artifact } from "@/app/components/chat/ArtifactPanel";
 import { buildPlanFromEvents } from "../../../utils/planExtractor";
 import type { ApprovalRequest } from "@/app/components/chat/ApprovalGate";
 import { useTaskNotifications } from "@/app/hooks/useTaskNotifications";
+import { useRoomWebSocket } from "@/app/hooks/useRoomWebSocket";
+import TypingIndicator from "@/app/components/chat/TypingIndicator";
 import { ErrorBoundary } from "@/app/components/common/ErrorBoundary";
 import OnboardingModal from "@/app/components/common/OnboardingModal";
 import GuidedTour from "@/app/components/common/GuidedTour";
 import ActiveModelBadge from "@/app/components/chat/ActiveModelBadge";
 
-// Phase 4 — lazy-load panel/modal components not needed on initial paint
+// Phase 4 ï¿½ lazy-load panel/modal components not needed on initial paint
 const ThinkingModal = dynamic(() => import("@/app/components/chat/ThinkingModal"), {
   ssr: false,
   loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">?????????...</div>,
@@ -75,7 +77,7 @@ interface ChatMessage {
   progressStage?: string;
   elapsedTime?: number;
   mdesEnhanced?: boolean; // true when MDES agents upgraded this message
-  // Phase 10.27 — wall-clock receipt + roundtrip latency (ms)
+  // Phase 10.27 ï¿½ wall-clock receipt + roundtrip latency (ms)
   timestamp?: number;
   isComplete?: boolean;
   elapsedMs?: number;
@@ -290,6 +292,8 @@ const ChatPage: React.FC = () => {
     undefined;
   const [shortcutsOpen, setShortcutsOpen] = useKeyboardShortcutsPanel();
   const [thinkingModalOpen, setThinkingModalOpen] = useState(false);
+  const numericProjectId = activeProjectId ? parseInt(activeProjectId, 10) || null : null;
+  const { typingUsers, sendTypingStart, sendTypingStop } = useRoomWebSocket({ projectId: numericProjectId, token: null });
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [tourActive, setTourActive] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
@@ -314,10 +318,10 @@ const ChatPage: React.FC = () => {
   // Phase 10.15: MultiAgent Panel state
   const [expandAll, setExpandAll] = useState(false);
   const { state: agentStreamState, send: sendAgentStream, reset: resetAgentStream } = useAgentEventStream();
-  // Phase 3 — browser notifications when agent task completes
+  // Phase 3 ï¿½ browser notifications when agent task completes
   useTaskNotifications(agentStreamState.events, isWaitingForResponse);
 
-  // Phase 3 — in-page toast when agent task completes (complements browser notification)
+  // Phase 3 ï¿½ in-page toast when agent task completes (complements browser notification)
   const prevIsStreamingForToastRef = useRef<boolean>(false);
   useEffect(() => {
     const wasStreaming = prevIsStreamingForToastRef.current;
@@ -333,13 +337,13 @@ const ChatPage: React.FC = () => {
   const [isSocketReady, setIsSocketReady] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const isStoppedRef = useRef(false);
-  // Phase 10.27 — wall-clock timestamp captured when the user hits send.
+  // Phase 10.27 ï¿½ wall-clock timestamp captured when the user hits send.
   // Used to stamp responseTime onto the AI reply when it lands.
   const lastSendAtRef = useRef<number | null>(null);
   const sendMessageRef = useRef<() => Promise<void>>(() => Promise.resolve());
-  // Phase 3 CSV — prefix injected by ChatInput before sendMessage fires
+  // Phase 3 CSV ï¿½ prefix injected by ChatInput before sendMessage fires
   const csvPrefixRef = useRef<string>("");
-  // Phase 10.61 — keep the working-indicator visible for =1500 ms after a send,
+  // Phase 10.61 ï¿½ keep the working-indicator visible for =1500 ms after a send,
   // so fast-fallback models (e.g. qwen2.5:0.5b returning a cached acknowledgment
   // in <200 ms) still produce a visible "typing" affordance. Without this, the
   // working-indicator can flicker off before the user perceives any feedback,
@@ -389,18 +393,18 @@ const ChatPage: React.FC = () => {
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(true);
-  // Count messages added while user is scrolled up — badge on the floating button.
+  // Count messages added while user is scrolled up ï¿½ badge on the floating button.
   const [unreadCount, setUnreadCount] = useState(0);
   const prevMessagesLenRef = useRef(0);
   const [, setIsChatActive] = useState(false); // tracks composer focus for future hooks
   const [selectedToolType, setSelectedToolType] = useState<ToolType>("auto");
-  // Phase 10.68 — single ChatMode drives both AI backend & agent count
+  // Phase 10.68 ï¿½ single ChatMode drives both AI backend & agent count
   const [chatMode, setChatMode] = useState<ChatMode>("normal");
-  // Provider mode — "remote" = MDES Cloud Ollama, "local" = localhost:11434
+  // Provider mode ï¿½ "remote" = MDES Cloud Ollama, "local" = localhost:11434
   const [providerMode, setProviderMode] = useState<ProviderMode>("remote");
   const activeToolMeta = TOOL_TYPE_META[selectedToolType] || TOOL_TYPE_META.auto;
 
-  // PAS-5: Approval gate state — risky tool actions require user confirmation
+  // PAS-5: Approval gate state ï¿½ risky tool actions require user confirmation
   const [pendingApproval, setPendingApproval] = useState<ApprovalRequest | null>(null);
   const approvalCallbacks = useRef<Map<string, (approved: boolean) => void>>(new Map());
 
@@ -457,7 +461,7 @@ const ChatPage: React.FC = () => {
     }
   }, []);
 
-  // Phase 5 — first-time user onboarding: show modal after 500ms if not yet seen
+  // Phase 5 ï¿½ first-time user onboarding: show modal after 500ms if not yet seen
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
@@ -641,7 +645,7 @@ const ChatPage: React.FC = () => {
           if (message.type === "done") {
              console.log("Received DONE signal");
              setIsWaitingForResponse(false);
-             // Phase 6 — dispatch response time for ActiveModelBadge
+             // Phase 6 ï¿½ dispatch response time for ActiveModelBadge
              if (lastSendAtRef.current) {
                window.dispatchEvent(new CustomEvent("innomcp-response-time", {
                  detail: { ms: Date.now() - lastSendAtRef.current }
@@ -669,7 +673,7 @@ const ChatPage: React.FC = () => {
               const lastMsg = prevMessages[prevMessages.length - 1];
               // Phase C.01 fix: if the last AI message is a *progress* placeholder
               // (isProgress:true), append the real chunk as a NEW message instead
-              // of concatenating — prevents "????????..." bleeding into the answer.
+              // of concatenating ï¿½ prevents "????????..." bleeding into the answer.
               if (
                 prevMessages.length > 0 &&
                 lastMsg.sender === "ai" &&
@@ -815,7 +819,7 @@ const ChatPage: React.FC = () => {
           } else if (message.error) {
             console.error("[Frontend] Server error:", message.error);
             // Phase C.01 fix: insert a visible error bubble so the user doesn't
-            // see an empty response — silent drops are worse than a clear message.
+            // see an empty response ï¿½ silent drops are worse than a clear message.
             setMessages((prev) => [
               ...prev,
               {
@@ -954,7 +958,7 @@ const ChatPage: React.FC = () => {
         lastAi.structuredContent?.chartSvg
       ) return prev;
       // Monotonic: final text must not be shorter than what's already shown.
-      // If WS already produced a longer answer, keep WS text — only annotate mdesEnhanced.
+      // If WS already produced a longer answer, keep WS text ï¿½ only annotate mdesEnhanced.
       const existing = String(lastAi.fullText || lastAi.text || "");
       const nextText = shouldUseMdesFinal(existing, mdesText, lastAi.isProgress)
         ? mdesText
@@ -1050,7 +1054,7 @@ const ChatPage: React.FC = () => {
   }, [agentStreamState.suggestions]);
 
   const sendMessage = async () => {
-    // Phase 3 CSV — prepend any CSV attachment summary to the user text
+    // Phase 3 CSV ï¿½ prepend any CSV attachment summary to the user text
     const effectiveInput = csvPrefixRef.current
       ? `${csvPrefixRef.current}\n${input}`
       : input;
@@ -1087,7 +1091,7 @@ const ChatPage: React.FC = () => {
         messages as unknown as Array<Record<string, unknown>>,
         CHAT_HISTORY_CONTEXT_LIMIT
       );
-      // Phase 10.68 — map ChatMode ? conductor params
+      // Phase 10.68 ï¿½ map ChatMode ? conductor params
       // providerMode overrides the default local/hybrid selection:
       //   "remote" ? always use MDES Cloud, "local" ? always use localhost
       const derivedMode =
@@ -1111,7 +1115,7 @@ const ChatPage: React.FC = () => {
       lastSendAtRef.current = Date.now();
       console.log("[ChatMode]", chatMode, "? mode:", derivedMode, "reasoning:", derivedReasoning);
       socket.send(JSON.stringify(message));
-      // Phase 6 — notify RateLimitIndicator that a request was sent
+      // Phase 6 ï¿½ notify RateLimitIndicator that a request was sent
       window.dispatchEvent(new CustomEvent("innomcp-request-sent"));
       // Phase 10.15: fire SSE channel for MultiAgentPanel
       resetAgentStream();
@@ -1149,8 +1153,8 @@ const ChatPage: React.FC = () => {
       setSelectedImage(null);
       setIsStopped(false);
       isStoppedRef.current = false;
-      // lastSendAtRef already stamped above (before socket.send) — do not re-stamp here.
-      // Phase 10.61 — guarantee =1500 ms of working-indicator visibility.
+      // lastSendAtRef already stamped above (before socket.send) ï¿½ do not re-stamp here.
+      // Phase 10.61 ï¿½ guarantee =1500 ms of working-indicator visibility.
       stickyWorkingUntilRef.current = Date.now() + 1500;
       setStickyWorkingTick((t) => t + 1);
       setTimeout(() => setStickyWorkingTick((t) => t + 1), 1500);
@@ -1165,7 +1169,7 @@ const ChatPage: React.FC = () => {
   };
   sendMessageRef.current = sendMessage;
 
-  // PAS-5: Approval gate — call this to request user confirmation for risky actions
+  // PAS-5: Approval gate ï¿½ call this to request user confirmation for risky actions
   const requestApproval = useCallback((req: Omit<ApprovalRequest, "id" | "requestedAt">): Promise<boolean> => {
     return new Promise((resolve) => {
       const id = `approval-${Date.now()}`;
@@ -1199,7 +1203,7 @@ const ChatPage: React.FC = () => {
       
       // Check file size
       if (file.size > maxFileSize) {
-        notify(`?????????????? — ?????????? ${maxFileSize / (1024 * 1024)} MB`, "error", 5000);
+        notify(`?????????????? ï¿½ ?????????? ${maxFileSize / (1024 * 1024)} MB`, "error", 5000);
         setIsUploading(false);
         return;
       }
@@ -1493,7 +1497,7 @@ const ChatPage: React.FC = () => {
       if (!mod) return;
 
       if (e.key === "/") {
-        // Always allow — power users hit it from anywhere to jump back.
+        // Always allow ï¿½ power users hit it from anywhere to jump back.
         e.preventDefault();
         const el = textareaRef.current;
         if (el) {
@@ -1509,7 +1513,7 @@ const ChatPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Phase 3 iter 1 — global navigation shortcuts: Ctrl+D, Ctrl+P, Ctrl+H
+  // Phase 3 iter 1 ï¿½ global navigation shortcuts: Ctrl+D, Ctrl+P, Ctrl+H
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
@@ -1529,14 +1533,14 @@ const ChatPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [router]);
 
-  // Phase 6 — open keyboard shortcuts panel via custom event (from ChatSidebar ? button / Ctrl+/)
+  // Phase 6 ï¿½ open keyboard shortcuts panel via custom event (from ChatSidebar ? button / Ctrl+/)
   useEffect(() => {
     const handler = () => setShortcutsOpen(true);
     window.addEventListener("innomcp-open-shortcuts", handler);
     return () => window.removeEventListener("innomcp-open-shortcuts", handler);
   }, [setShortcutsOpen]);
 
-  // Phase 5 — Prompt Templates: listen for template selections from ChatSidebar library panel
+  // Phase 5 ï¿½ Prompt Templates: listen for template selections from ChatSidebar library panel
   useEffect(() => {
     const handler = (e: CustomEvent) => {
       const prompt = e.detail?.prompt;
@@ -1577,7 +1581,7 @@ const ChatPage: React.FC = () => {
 
       <KeyboardShortcutsPanel open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
-      {/* INNOMCP Computer — floating right-side live agent panel */}
+      {/* INNOMCP Computer ï¿½ floating right-side live agent panel */}
       {workspaceOpen && (
         <div className="fixed inset-x-2 top-16 z-40 max-h-[50vh] overflow-y-auto sm:inset-x-auto sm:right-4 sm:top-20 sm:w-80 sm:max-h-[calc(100vh-6rem)]">
           <ErrorBoundary componentName="AgentWorkspacePanel">
@@ -1594,7 +1598,7 @@ const ChatPage: React.FC = () => {
         </div>
       )}
 
-      {/* PAS-1: Artifact Panel — floats below agent workspace panel */}
+      {/* PAS-1: Artifact Panel ï¿½ floats below agent workspace panel */}
       {artifactPanelOpen && (
         <div className="fixed inset-x-2 top-[calc(50vh+0.5rem)] z-40 max-h-[40vh] overflow-y-auto rounded-xl border border-border/50 bg-background/95 shadow-xl backdrop-blur-sm p-3 sm:inset-x-auto sm:right-4 sm:top-[calc(20rem+1rem)] sm:w-80 sm:max-h-[calc(100vh-22rem)]">
           <ErrorBoundary componentName="ArtifactPanel">
@@ -1606,7 +1610,7 @@ const ChatPage: React.FC = () => {
         </div>
       )}
 
-      {/* PAS-2: Plan Viewer — vertical phase timeline, floats right side */}
+      {/* PAS-2: Plan Viewer ï¿½ vertical phase timeline, floats right side */}
       {planViewerOpen && (
         <div className="fixed inset-x-2 top-16 z-[39] max-h-[40vh] overflow-y-auto sm:inset-x-auto sm:right-[calc(1rem+20rem+0.5rem)] sm:top-20 sm:w-72 sm:max-h-[calc(100vh-6rem)]">
           <div className="rounded-xl border border-border/60 bg-background/95 p-3 shadow-sm backdrop-blur">
@@ -1620,13 +1624,13 @@ const ChatPage: React.FC = () => {
         </div>
       )}
 
-      {/* Floating "?" button — power-users discover Ctrl+K, Ctrl+/, etc. */}
+      {/* Floating "?" button ï¿½ power-users discover Ctrl+K, Ctrl+/, etc. */}
       <button
         onClick={() => setShortcutsOpen(true)}
         data-testid="open-shortcuts-btn"
         className="fixed bottom-4 right-4 z-40 hidden h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background/95 text-muted-foreground shadow-md transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-foreground lg:flex"
         aria-label="????????? (?? ? ?????????)"
-        title="??????? — ?? ?"
+        title="??????? ï¿½ ?? ?"
       >
         <span className="font-mono text-sm font-semibold">?</span>
       </button>
@@ -1680,7 +1684,7 @@ const ChatPage: React.FC = () => {
         />
       </div>
 
-      {/* Main content area — natural page flow, no inner scroll */}
+      {/* Main content area ï¿½ natural page flow, no inner scroll */}
       <div className={`relative flex-1 transition-all duration-300 ${
         isSidebarCollapsed ? 'ml-0 lg:ml-14' : 'ml-0 lg:ml-72'
       }`}>
@@ -1697,12 +1701,12 @@ const ChatPage: React.FC = () => {
                   title={workspaceState.detail}
                 >
                   <span>{activeToolMeta.label}</span>
-                  <span aria-hidden="true">·</span>
+                  <span aria-hidden="true">ï¿½</span>
                   <span>{chatSummaries.length} ??????</span>
-                  <span aria-hidden="true">·</span>
+                  <span aria-hidden="true">ï¿½</span>
                   <span>{workspaceState.title}</span>
                 </span>
-                {/* Phase 6 — Model Router status: active provider + last response latency */}
+                {/* Phase 6 ï¿½ Model Router status: active provider + last response latency */}
                 <ActiveModelBadge />
                 {artifacts.length > 0 && (
                   <button
@@ -1730,9 +1734,9 @@ const ChatPage: React.FC = () => {
             {!hasMessages && !isWaitingForResponse ? (
               <div className="flex min-h-0 flex-1 flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(16rem,1fr)] lg:items-start">
                 <section className="flex flex-col gap-4">
-                  {/* Hero — single statement, not two restating ones (req 2: reduce duplicated copy) */}
+                  {/* Hero ï¿½ single statement, not two restating ones (req 2: reduce duplicated copy) */}
                   <div className="relative">
-                    {/* Soft accent gradient ring behind the headline — gives the page a premium feel
+                    {/* Soft accent gradient ring behind the headline ï¿½ gives the page a premium feel
                         without competing with content. Pointer-events-none + aria-hidden. */}
                     <div
                       aria-hidden="true"
@@ -1747,7 +1751,7 @@ const ChatPage: React.FC = () => {
                         <span className={`h-1.5 w-1.5 rounded-full ${workspaceState.dot}`} aria-hidden="true" />
                         {workspaceState.title}
                       </span>
-                      <span className="text-[11.5px] text-muted-foreground/70">·</span>
+                      <span className="text-[11.5px] text-muted-foreground/70">ï¿½</span>
                       <span className="text-[11.5px] text-muted-foreground">
                         {activeToolMeta.icon} {activeToolMeta.label}
                       </span>
@@ -1762,11 +1766,11 @@ const ChatPage: React.FC = () => {
                     </h1>
 
                     <p className="relative mt-2 max-w-2xl text-[13.5px] leading-relaxed text-muted-foreground">
-                      INNOMCP ??????????????????????????????????????????? — ????? TMD/NWP, ????? World Bank,
+                      INNOMCP ??????????????????????????????????????????? ï¿½ ????? TMD/NWP, ????? World Bank,
                       ??? AI, ??????????? PDF/DOCX, ???????, ???? RSS ???????????????
                     </p>
 
-                    {/* Phase 10.54 — sales-grade trust strip: shows scale at a glance. */}
+                    {/* Phase 10.54 ï¿½ sales-grade trust strip: shows scale at a glance. */}
                     <div className="relative mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11.5px] text-muted-foreground">
                       <span className="inline-flex items-center gap-1.5">
                         <span className="font-mono font-semibold text-foreground/85 tabular-nums">56+</span>
@@ -1799,10 +1803,11 @@ const ChatPage: React.FC = () => {
                         <span className="absolute inline-flex h-3 w-3 animate-radar-ping rounded-full bg-amber-500/70" />
                         <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
                       </span>
-                      <span>?????????????????? AI — ????????????????????????????????????????</span>
+                      <span>?????????????????? AI ï¿½ ????????????????????????????????????????</span>
                     </div>
                   )}
 
+                  <TypingIndicator typingUsers={typingUsers} />
                   <ChatInput
                     input={input}
                     setInput={setInput}
@@ -1833,7 +1838,7 @@ const ChatPage: React.FC = () => {
                     setCsvPrefix={(s) => { csvPrefixRef.current = s; }}
                   />
 
-                  {/* Starter prompts — premium card design with hover accent + arrow CTA */}
+                  {/* Starter prompts ï¿½ premium card design with hover accent + arrow CTA */}
                   <div className="mt-1">
                     <div className="mb-2 flex items-center justify-between">
                       <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -1847,7 +1852,7 @@ const ChatPage: React.FC = () => {
                           key={prompt.query}
                           onClick={() => {
                             setInput(prompt.query);
-                            // Phase 10.35 — focus composer + scroll into view so the
+                            // Phase 10.35 ï¿½ focus composer + scroll into view so the
                             // user's next move is obviously "press Enter".
                             requestAnimationFrame(() => {
                               const el = textareaRef.current;
@@ -1863,7 +1868,7 @@ const ChatPage: React.FC = () => {
                           data-testid="starter-prompt"
                           className={`group relative flex min-w-0 items-start gap-3 overflow-hidden rounded-lg border border-border/70 bg-card p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md`}
                         >
-                          {/* Soft accent wash unique to the prompt — sits behind everything */}
+                          {/* Soft accent wash unique to the prompt ï¿½ sits behind everything */}
                           <span
                             aria-hidden="true"
                             className={`pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b ${prompt.accent} opacity-0 transition-opacity duration-300 group-hover:opacity-100`}
@@ -1895,7 +1900,7 @@ const ChatPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Quick action cards — 2×2 grid */}
+                  {/* Quick action cards ï¿½ 2ï¿½2 grid */}
                   <div className="mt-3">
                     <div className="mb-2 flex items-center justify-between">
                       <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -1923,7 +1928,7 @@ const ChatPage: React.FC = () => {
                   </div>
                 </section>
 
-                {/* Right rail — single tips card; hidden on small (req 1: hide non-critical) */}
+                {/* Right rail ï¿½ single tips card; hidden on small (req 1: hide non-critical) */}
                 <aside className="hidden lg:block">
                   <div className="rounded-xl border border-border/70 bg-card p-4">
                     <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -1945,13 +1950,13 @@ const ChatPage: React.FC = () => {
                         <span aria-hidden="true">??</span>
                         ?????????????????
                       </h2>
-                      {/* Phase 10.55 — image prompt recipe as labeled rows
+                      {/* Phase 10.55 ï¿½ image prompt recipe as labeled rows
                           instead of bullet dots. Easier to scan and looks
                           like a checklist users can mentally tick off. */}
                       <ul className="mt-2.5 space-y-1.5 text-[12.5px] leading-5">
                         <li className="flex gap-2">
                           <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-wider text-primary/80">subject</span>
-                          <span className="text-muted-foreground">?? · ????? · ???????</span>
+                          <span className="text-muted-foreground">?? ï¿½ ????? ï¿½ ???????</span>
                         </li>
                         <li className="flex gap-2">
                           <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-wider text-primary/80">style</span>
@@ -1963,7 +1968,7 @@ const ChatPage: React.FC = () => {
                         </li>
                         <li className="flex gap-2">
                           <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-wider text-primary/80">focus</span>
-                          <span className="text-muted-foreground">?? · ??? · ????????</span>
+                          <span className="text-muted-foreground">?? ï¿½ ??? ï¿½ ????????</span>
                         </li>
                       </ul>
                     </div>
@@ -1971,7 +1976,7 @@ const ChatPage: React.FC = () => {
                 </aside>
               </div>
             ) : (
-              /* Messages — natural document flow, no inner scroll container */
+              /* Messages ï¿½ natural document flow, no inner scroll container */
               <div ref={messagesRef} className="mx-auto max-w-[50rem] pb-36 pt-1">
                 <div className="flex flex-col gap-4">
                   {(() => {
@@ -2053,8 +2058,8 @@ const ChatPage: React.FC = () => {
                     const mdesCount = mdesAgents.size;
                     const isMdesStreaming = agentStreamState.status === "streaming";
                     const capabilityLine = isGuestMode
-                      ? `Guest ${capabilityLevel}% · ??????????/??????????`
-                      : `User ${capabilityLevel}% · ??????????????????`;
+                      ? `Guest ${capabilityLevel}% ï¿½ ??????????/??????????`
+                      : `User ${capabilityLevel}% ï¿½ ??????????????????`;
                     const mdesLine = isMdesStreaming && mdesCount >= 1
                       ? `? MDES ????????... (${mdesCount} ??????)`
                       : "??????????????????????????????????";
@@ -2108,10 +2113,10 @@ const ChatPage: React.FC = () => {
             )}
           </div>
 
-          {/* Sticky composer — viewport-sticky, single browser scrollbar */}
+          {/* Sticky composer ï¿½ viewport-sticky, single browser scrollbar */}
           {(hasMessages || isWaitingForResponse) && (
             <div className="sticky bottom-20 md:bottom-4 z-30 mx-auto mt-3 w-full max-w-[50rem] rounded-xl bg-background/96 pb-1 pt-1 backdrop-blur-sm">
-              {/* Phase 10.34 — soft fade above the composer so messages don't
+              {/* Phase 10.34 ï¿½ soft fade above the composer so messages don't
                   clip into the textarea on a hard line. Pointer-events-none
                   so the user can still click through near the edge. */}
               <span
@@ -2127,7 +2132,7 @@ const ChatPage: React.FC = () => {
                   }`}
                   title={
                     unreadCount > 0
-                      ? `?????????????? • ${unreadCount} ???????????`
+                      ? `?????????????? ï¿½ ${unreadCount} ???????????`
                       : "??????????????"
                   }
                   aria-label="Scroll to bottom"
@@ -2170,10 +2175,11 @@ const ChatPage: React.FC = () => {
                     <span className="absolute inline-flex h-2.5 w-2.5 animate-radar-ping rounded-full bg-amber-500/70" />
                     <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
                   </span>
-                  <span>?????????????????? — ???????????????????????</span>
+                  <span>?????????????????? ï¿½ ???????????????????????</span>
                 </div>
               )}
 
+              <TypingIndicator typingUsers={typingUsers} />
               <ChatInput
                 input={input}
                 setInput={setInput}
@@ -2222,23 +2228,23 @@ const ChatPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ThinkingModal — popup opens from ?thinkingMode=true or /living-chat redirect */}
+      {/* ThinkingModal ï¿½ popup opens from ?thinkingMode=true or /living-chat redirect */}
       <ThinkingModal
         open={thinkingModalOpen}
         onClose={() => setThinkingModalOpen(false)}
       />
 
-      {/* PAS-5: Approval Gate — intercepts risky tool actions for user confirmation */}
+      {/* PAS-5: Approval Gate ï¿½ intercepts risky tool actions for user confirmation */}
       <ApprovalGate
         request={pendingApproval}
         onApprove={handleApprove}
         onDeny={handleDeny}
       />
 
-      {/* Command Palette — Ctrl+K opens quick navigation and task search */}
+      {/* Command Palette ï¿½ Ctrl+K opens quick navigation and task search */}
       <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
 
-      {/* Phase 5 — first-time user onboarding modal */}
+      {/* Phase 5 ï¿½ first-time user onboarding modal */}
       <OnboardingModal
         open={showOnboarding}
         onClose={() => {
@@ -2252,7 +2258,7 @@ const ChatPage: React.FC = () => {
         onStartTour={() => setTourActive(true)}
       />
 
-      {/* Phase 6 — guided tour overlay */}
+      {/* Phase 6 ï¿½ guided tour overlay */}
       <GuidedTour active={tourActive} onComplete={() => setTourActive(false)} />
     </div>
   );
