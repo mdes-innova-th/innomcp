@@ -49,15 +49,26 @@ interface StatsData {
   agentActivity: { agentId: string; activations: number; lastActive: string }[];
 }
 
-type Tab = 'users' | 'system' | 'providers' | 'logs';
+interface SessionRow {
+  jti: string;
+  userId: number;
+  email: string;
+  loginAt: string;
+  lastSeen: string;
+  userAgent: string;
+  ip: string;
+}
+
+type Tab = 'overview' | 'users' | 'sessions' | 'providers' | 'logs';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const ROLE_LABELS: Record<number, string> = { 0: 'Admin', 1: 'Moderator', 2: 'User' };
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'overview',  label: 'Overview' },
   { id: 'users',     label: 'Users' },
-  { id: 'system',    label: 'System' },
+  { id: 'sessions',  label: 'Sessions' },
   { id: 'providers', label: 'Providers' },
   { id: 'logs',      label: 'Logs & Stats' },
 ];
@@ -85,7 +96,7 @@ export default function AdminPage() {
   const router = useRouter();
   const { isLoggedIn, isAuthLoading, userRoleId } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<Tab>('users');
+  const [activeTab, setActiveTab] = useState<Tab>('overview');
 
   // Users tab state
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -97,6 +108,12 @@ export default function AdminPage() {
   // System tab state
   const [health, setHealth] = useState<HealthData | null>(null);
   const [healthLoading, setHealthLoading] = useState(false);
+
+  // Sessions tab state
+  const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [revokeMsg, setRevokeMsg] = useState('');
+  const [revokeError, setRevokeError] = useState('');
 
   // Logs tab state
   const [stats, setStats] = useState<StatsData | null>(null);
