@@ -39,6 +39,7 @@ import webhooksRouter from "./routes/api/webhooks";
 import { cacheResponse, getCacheStats, clearCache as clearAllCache } from "./middleware/cacheMiddleware";
 import templatesRouter from "./routes/api/templates";
 import preferencesRouter from "./routes/api/preferences";
+import agentLeaderboardRouter from "./routes/api/agentLeaderboard";
 
 // Initialize Express application
 const app = express();
@@ -170,6 +171,9 @@ app.use("/api/dashboard", generalRateLimit, authenticateToken, cacheResponse(30_
 app.use("/api/chat/feedback", generalRateLimit, feedbackRouter);
 // Live aggregate stats — no auth required (leaderboard panel fetches as guest)
 app.use("/api/stats", generalRateLimit, cacheResponse(60_000), statsRouter);
+
+// Phase 7: Agent leaderboard — no auth required, short cache (10 s)
+app.use("/api/agent-leaderboard", generalRateLimit, cacheResponse(10_000), agentLeaderboardRouter);
 
 // Model Settings — ad-hoc connection test + provider presets (no auth, public)
 app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);
