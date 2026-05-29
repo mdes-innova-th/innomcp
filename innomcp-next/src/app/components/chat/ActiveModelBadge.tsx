@@ -34,7 +34,11 @@ export default function ActiveModelBadge() {
           {activeProvider}
         </span>
       )}
-      {latencyMs && <span className="tabular-nums">{latencyMs}ms</span>}
+      {latencyMs && (
+        latencyMs > 5000
+          ? <span className="text-amber-500 tabular-nums">⚠️ {latencyMs}ms</span>
+          : <span className="tabular-nums">{latencyMs}ms</span>
+      )}
     </div>
   );
 }

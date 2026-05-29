@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/app/context/AuthContext";
@@ -17,6 +17,7 @@ interface Task {
   created_at: string;
   completed_at: string | null;
   rating?: number | null;
+  tags?: string;
 }
 
 type FilterTab = "all" | "completed" | "running" | "failed";
@@ -74,6 +75,7 @@ export default function TaskHistoryPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [filter, setFilter] = useState<FilterTab>(initialStatus);
+  const [activeTag, setActiveTag] = useState<string | null>(null);
 
   // ── set page title ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -139,8 +141,24 @@ export default function TaskHistoryPage() {
   const running = tasks.filter((t) => t.status === "running").length;
   const failed = tasks.filter((t) => t.status === "failed").length;
 
-  const filteredTasks =
-    filter === "all" ? tasks : tasks.filter((t) => t.status === filter);
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    tasks.forEach(t => {
+      try { JSON.parse(t.tags || "[]").forEach((tag: string) => tagSet.add(tag)); } catch {}
+    });
+    return Array.from(tagSet).sort();
+  }, [tasks]);
+
+  const filteredTasks = tasks.filter(t => {
+    if (filter !== "all" && t.status !== filter) return false;
+    if (activeTag) {
+      try {
+        const tags = JSON.parse(t.tags || "[]");
+        return tags.includes(activeTag);
+      } catch { return false; }
+    }
+    return true;
+  });
 
   const tabs: { key: FilterTab; label: string }[] = [
     { key: "all", label: "ทั้งหมด" },
@@ -190,31 +208,50 @@ export default function TaskHistoryPage() {
       )}
 
       {/* Filter tabs */}
-      <div className="flex gap-1">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setFilter(tab.key)}
-            className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${
-              filter === tab.key
-                ? "bg-foreground/10 text-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
-            }`}
-          >
-            {tab.label}
-            {tab.key !== "all" && !loading && (
-              <span className="ml-1 text-[10px] opacity-60">
-                (
-                {tab.key === "completed"
-                  ? completed
-                  : tab.key === "running"
-                  ? running
-                  : failed}
-                )
-              </span>
-            )}
-          </button>
-        ))}
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setFilter(tab.key)}
+              className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${
+                filter === tab.key
+                  ? "bg-foreground/10 text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/20"
+              }`}
+            >
+              {tab.label}
+              {tab.key !== "all" && !loading && (
+                <span className="ml-1 text-[10px] opacity-60">
+                  (
+                  {tab.key === "completed"
+                    ? completed
+                    : tab.key === "running"
+                    ? running
+                    : failed}
+                  )
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        {allTags.length > 0 && (
+          <div className="flex gap-1 flex-wrap">
+            {allTags.map(tag => (
+              <button
+                key={tag}
+                onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                className={`rounded-full px-2 py-0.5 text-[10.5px] transition-colors ${
+                  activeTag === tag
+                    ? "bg-primary/20 text-primary"
+                    : "bg-muted/30 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                #{tag}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Task list */}
@@ -263,6 +300,17 @@ export default function TaskHistoryPage() {
                     {fmtElapsed(t.elapsed_ms)}
                   </span>
                 )}
+                {/* Tag count badge */}
+                {(() => {
+                  try {
+                    const tagCount = JSON.parse(t.tags || "[]").length;
+                    return tagCount > 0 ? (
+                      <span className="rounded-full bg-muted/40 px-1.5 py-0.5 text-[9.5px] text-muted-foreground tabular-nums">
+                        #{tagCount}
+                      </span>
+                    ) : null;
+                  } catch { return null; }
+                })()}
                 {/* Rating column */}
                 {t.rating ? (
                   <span className="text-amber-500 text-[11px] tabular-nums">

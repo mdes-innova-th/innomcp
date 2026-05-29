@@ -7,11 +7,16 @@
  * The `projects` table is created on first access if it does not exist.
  */
 
-import { Router, Request, Response } from "express";
+import { Router, Response } from "express";
 import { withDbConnection } from "../../utils/db";
 import { clearCache } from "../../middleware/cacheMiddleware";
+import {
+  authenticateToken,
+  type AuthRequest,
+} from "../../utils/jwt";
 
 const router = Router();
+router.use(authenticateToken);
 
 const CREATE_TABLE_SQL = `
   CREATE TABLE IF NOT EXISTS projects (
@@ -33,12 +38,12 @@ async function ensureTable(): Promise<void> {
 }
 
 // GET /api/projects — list non-archived projects scoped to current user
-router.get("/", async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id ?? null;
+router.get("/", async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.userId ?? null;
   try {
     const rows = await withDbConnection(async (conn) => {
       const [r] = await conn.query(
-        "SELECT * FROM projects WHERE (user_id = ? OR user_id IS NULL) AND archived_at IS NULL ORDER BY created_at DESC LIMIT 50",
+        "SELECT * FROM projects WHERE user_id = ? AND archived_at IS NULL ORDER BY created_at DESC LIMIT 50",
         [userId]
       ) as any[];
       return r;
@@ -56,8 +61,8 @@ router.get("/", async (req: Request, res: Response) => {
 });
 
 // POST /api/projects — create a new project
-router.post("/", async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id ?? null;
+router.post("/", async (req: AuthRequest, res: Response) => {
+  const userId = req.user?.userId ?? null;
   const { name, description, color, icon } = req.body;
   if (!name?.trim()) {
     return res.status(400).json({ error: "name is required" });
@@ -103,12 +108,12 @@ router.post("/", async (req: Request, res: Response) => {
 });
 
 // GET /api/projects/:id — get a single project
-router.get("/:id", async (req: Request, res: Response) => {
+router.get("/:id", async (req: AuthRequest, res: Response) => {
   try {
     const rows = await withDbConnection(async (conn) => {
       const [r] = await conn.query(
-        "SELECT * FROM projects WHERE id = ? LIMIT 1",
-        [req.params.id]
+        "SELECT * FROM projects WHERE id = ? AND user_id = ? AND archived_at IS NULL LIMIT 1",
+        [req.params.id, req.user?.userId ?? null]
       ) as any[];
       return r;
     });
@@ -122,7 +127,7 @@ router.get("/:id", async (req: Request, res: Response) => {
 });
 
 // PATCH /api/projects/:id — update name / description / color / icon
-router.patch("/:id", async (req: Request, res: Response) => {
+router.patch("/:id", async (req: AuthRequest, res: Response) => {
   const { name, description, color, icon } = req.body;
   const fields: string[] = [];
   const params: any[] = [];
@@ -136,15 +141,19 @@ router.patch("/:id", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "No fields to update" });
   }
 
-  params.push(req.params.id);
+  params.push(req.params.id, req.user?.userId ?? null);
 
   try {
-    await withDbConnection(async (conn) => {
-      await conn.query(
-        `UPDATE projects SET ${fields.join(", ")} WHERE id = ?`,
+    const affectedRows = await withDbConnection(async (conn) => {
+      const [result] = await conn.query(
+        `UPDATE projects SET ${fields.join(", ")} WHERE id = ? AND user_id = ?`,
         params
-      );
+      ) as any[];
+      return Number(result?.affectedRows ?? 0);
     });
+    if (affectedRows === 0) {
+      return res.status(404).json({ error: "Project not found" });
+    }
     res.json({ success: true });
   } catch {
     res.status(500).json({ error: "Could not update project" });

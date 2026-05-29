@@ -68,7 +68,7 @@ const localOllama = new Ollama({
   host: localOllamaHostUrl,
 });
 const localModel = process.env.LOCAL_OLLAMA_MODEL || process.env.OLLAMA_MODEL || "qwen2.5:14b";
-const fastModel = process.env.FAST_OLLAMA_MODEL || "qwen2.5:0.5b";  // For fast routing/classification
+const fastModel = process.env.FAST_OLLAMA_MODEL || process.env.LOCAL_FAST_OLLAMA_MODEL || "qwen2.5-coder:7b";  // For fast routing/classification
 const heavyModel = process.env.HEAVY_OLLAMA_MODEL || "deepseek-r1:32b";  // For heavy tasks (optional)
 logBoth("info", `💚 Local AI: ${localOllamaHostUrl} (${localModel})`);
 logBoth("info", `⚡ Fast Model: ${fastModel} | 🧠 Heavy Model: ${heavyModel}`);
@@ -79,7 +79,10 @@ let remoteModel: string | undefined;  // Primary model for main responses
 let remoteFastModel: string | undefined;  // Fast model for routing
 
 if (AI_MODE === 'remote' || AI_MODE === 'hybrid') {
-  const remoteRawHost = process.env.REMOTE_OLLAMA_BASE_URL;
+  const remoteRawHost =
+    process.env.REMOTE_OLLAMA_BASE_URL ||
+    process.env.OLLAMA_REMOTE_URL ||
+    process.env.OLLAMA_URL;
   if (remoteRawHost) {
     let remoteOllamaHostUrl = remoteRawHost;
     try {
@@ -91,19 +94,19 @@ if (AI_MODE === 'remote' || AI_MODE === 'hybrid') {
     } catch (e) {
       remoteOllamaHostUrl = remoteRawHost.replace(/\/$/, "");
     }
-    
-    const remoteToken = process.env.REMOTE_OLLAMA_TOKEN;
+
+    const remoteToken = process.env.REMOTE_OLLAMA_TOKEN || process.env.OLLAMA_API_KEY;
     remoteOllama = new Ollama({
       host: remoteOllamaHostUrl,
       ...(remoteToken ? { headers: { Authorization: `Bearer ${remoteToken}` } } : {}),
     });
-    remoteModel = process.env.REMOTE_OLLAMA_MODEL || localModel;  // gemma3:4b
-    remoteFastModel = process.env.REMOTE_FAST_OLLAMA_MODEL || process.env.REMOTE_OLLAMA_MODEL || fastModel;
-    logBoth("info", `🎯 Remote AI: ${remoteOllamaHostUrl}${remoteToken ? ' (auth ✓)' : ''}`);
-    logBoth("info", `  📦 Primary: ${remoteModel} | ⚡ Fast: ${remoteFastModel}`);
+    remoteModel = process.env.REMOTE_OLLAMA_MODEL || process.env.MDES_PRIMARY_MODEL || localModel;
+    remoteFastModel = process.env.REMOTE_FAST_OLLAMA_MODEL || process.env.REMOTE_OLLAMA_MODEL || remoteModel || fastModel;
+    logBoth("info", `???? Remote AI: ${remoteOllamaHostUrl}${remoteToken ? ' (auth ???)' : ''}`);
+    logBoth("info", `  ???? Primary: ${remoteModel} | ??? Fast: ${remoteFastModel}`);
   } else {
-    logBoth("warn", `⚠️  ${AI_MODE} mode selected but REMOTE_OLLAMA_BASE_URL not configured`);
-    logBoth("warn", `⚠️  Falling back to local AI only`);
+    logBoth("warn", `??????  ${AI_MODE} mode selected but no remote URL configured (checked REMOTE_OLLAMA_BASE_URL / OLLAMA_REMOTE_URL / OLLAMA_URL)`);
+    logBoth("warn", `??????  Falling back to local AI only`);
   }
 }
 
@@ -1609,21 +1612,19 @@ function renderGeneralSmokeAnswer(userText: string): string {
 async function answerGeneralWithFastModel(userText: string, budgetMs: number, ragContext?: string): Promise<{ text: string; fallback: boolean; reason: string; durMs: number; model: string }> {
   const start = Date.now();
   const model = String(ollamaFastModel || "");
+  const localFallbackModel = String(process.env.LOCAL_FAST_OLLAMA_MODEL || fastModel || "qwen2.5-coder:7b");
 
   const deterministicAnswer = renderGeneralSmokeAnswer(userText);
-  const isDefaultDeterministic = deterministicAnswer.startsWith("ได้ครับ คำถามนี้เป็นคำถามทั่วไป");
+  const isDefaultDeterministic = true;
   const isLowConfidenceDeterministic = deterministicAnswer === LOW_CONFIDENCE_FALLBACK_TEXT;
 
-  // PS1: Identity/capability queries are ALWAYS deterministic regardless of RAG context
   const tCheck = String(userText || "").trim();
-  const isCriticalDeterministic = /(ชื่ออะไร|คือใคร|เป็นใคร|who are you|what is your name)/i.test(tCheck)
-    || /(ทำอะไรได้|ช่วยอะไรได้|ความสามารถ|what can you do)/i.test(tCheck);
+  const isCriticalDeterministic = false;
+
   if (isCriticalDeterministic && !isDefaultDeterministic && !isLowConfidenceDeterministic) {
     return { text: deterministicAnswer, fallback: false, reason: "KNOWN_DETERMINISTIC", durMs: Date.now() - start, model };
   }
 
-  // PS2: Any known-good deterministic answer (not default/low-confidence) should be returned
-  // immediately, even when RAG context exists. RAG should only enhance unknown queries.
   if (!isDefaultDeterministic && !isLowConfidenceDeterministic) {
     return { text: deterministicAnswer, fallback: false, reason: "KNOWN_DETERMINISTIC", durMs: Date.now() - start, model };
   }
@@ -1637,43 +1638,31 @@ async function answerGeneralWithFastModel(userText: string, budgetMs: number, ra
     return { text, fallback: true, reason: "FORCED_TIMEOUT_TEST", durMs: Date.now() - start, model };
   }
 
-  // Pre-check: use deterministic smoke answers for patterns where LLM quality is unreliable
-  // Only apply when SMOKE_MODE=1 — with live LLM mode this gate must be skipped
-  if (process.env.SMOKE_MODE === "1") {
-    if (!isDefaultDeterministic) {
-      return { text: deterministicAnswer, fallback: false, reason: "SMOKE_DETERMINISTIC", durMs: Date.now() - start, model };
-    }
+  const promptLines = [
+    "Answer in natural Thai, concise and useful.",
+    "Keep the response to 2-5 sentences unless the user explicitly asks for more detail.",
+    "Do not mention tools, MCP, or internal system details.",
+    "If the user request is still too broad, ask exactly one short follow-up question.",
+  ];
+  if (ragContext) {
+    promptLines.push("", "Reference context:", ragContext, "---", "Use the reference context as the primary source when it is relevant.");
   }
+  promptLines.push("", `User question: ${String(userText || "").trim()}`);
+  const prompt = promptLines.join("\n");
 
-  const timeoutPromise = new Promise<{ message: { content: string } }>((_resolve, reject) => {
-    const t = setTimeout(() => reject(new Error("GENERAL_FAST_TIMEOUT")), budgetMs);
-    // @ts-ignore
-    if (typeof (t as any).unref === "function") (t as any).unref();
-  });
 
-  try {
-    const promptLines = [
-      "ตอบเป็นภาษาไทยที่เป็นธรรมชาติ สุภาพ กระชับ 2-5 ประโยค",
-      "ให้เนื้อหาที่เป็นประโยชน์จริง ไม่ตอบกว้างเกินไป",
-      "ถ้ามีข้อมูลอ้างอิง ให้สรุปจากข้อมูลนั้นเป็นหลัก",
-      "ถ้าไม่มีข้อมูลอ้างอิง ให้ตอบจากความรู้ทั่วไปที่ถูกต้อง",
-      "ห้ามเดาตัวเลข/สถิติ/เหตุการณ์ปัจจุบันที่ไม่ชัวร์",
-      "ห้ามเอ่ยถึง tool/MCP/ระบบภายใน",
-      "ถ้าคำถามกว้างเกินไปจริงๆ เท่านั้น ให้ถามกลับ 1 คำถามสั้นๆ",
-    ];
-    if (ragContext) {
-      promptLines.push("", "ข้อมูลอ้างอิงจากฐานความรู้:", ragContext, "---", "ให้ใช้ข้อมูลอ้างอิงข้างต้นเป็นหลักในการตอบ ห้ามแต่งเติมสิ่งที่ไม่มีในข้อมูล");
-    }
-    promptLines.push("", `คำถาม: ${String(userText || "").trim()}`);
-    const prompt = promptLines.join("\n");
+  const systemContent = ragContext
+    ? "You are a concise Thai assistant. Prefer the provided reference context when it is relevant, and never invent details outside it."
+    : "You are a concise Thai assistant. Answer directly, clearly, and helpfully in Thai.";
 
-    const systemContent = ragContext
-      ? "คุณเป็นผู้ช่วยภาษาไทยที่ตอบเร็วและแม่นยำ ใช้ข้อมูลอ้างอิงที่ให้มาเป็นหลักในการตอบ สรุปให้กระชับและเป็นประโยชน์"
-      : "คุณเป็นผู้ช่วยภาษาไทยที่ตอบเร็วและแม่นยำ ให้ข้อมูลที่เป็นประโยชน์จริง ตอบตรงประเด็น";
-
-    const resp = await Promise.race([
-      ollama.chat({
-        model: ollamaFastModel,
+  const runChat = async (client: Ollama, targetModel: string, timeoutMs: number) => {
+    const timeoutPromise = new Promise<{ message: { content: string } }>((_resolve, reject) => {
+      const t = setTimeout(() => reject(new Error("GENERAL_FAST_TIMEOUT")), timeoutMs);
+      if (typeof (t as any).unref === "function") (t as any).unref();
+    });
+    return Promise.race([
+      client.chat({
+        model: targetModel,
         messages: [
           { role: "system", content: systemContent },
           { role: "user", content: prompt },
@@ -1682,52 +1671,70 @@ async function answerGeneralWithFastModel(userText: string, budgetMs: number, ra
       }) as any,
       timeoutPromise,
     ]);
+  };
 
-    let text = String((resp as any)?.message?.content || "").trim();
-    if (!text) {
-      return { text: renderGeneralFallbackMessage(), fallback: true, reason: "EMPTY_RESPONSE", durMs: Date.now() - start, model };
+  const isGarbage = (t: string): boolean => {
+    if (t.length < 5) return true;
+    const thaiOrEnglishRatio = (t.match(/[\u0E00-\u0E7Fa-zA-Z0-9\s.,!?:;()\-]/g) || []).length / t.length;
+    if (thaiOrEnglishRatio < 0.5) return true;
+    if (/[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]{3,}/.test(t)) return true;
+    if (/^\d+\s*$/.test(t)) return true;
+    if (/^[?\s]{5,}$/.test(t)) return true;
+    return false;
+  };
+
+  let usedModel = model;
+  let usedClient = ollama;
+  let text = "";
+
+  try {
+    const primaryResp = await runChat(ollama, ollamaFastModel, budgetMs);
+    text = String((primaryResp as any)?.message?.content || "").trim();
+  } catch (primaryErr) {
+    const canRetryLocal = AI_MODE !== "local" && !!localOllama;
+    if (!canRetryLocal) {
+      const reason = String((primaryErr as any)?.message || "ERROR");
+      return { text: renderGeneralFallbackMessage(), fallback: true, reason: reason.includes("TIMEOUT") ? "TIMEOUT" : "ERROR", durMs: Date.now() - start, model };
     }
-    // Output validator: detect garbage / malformed responses from fast model
-    const isGarbage = (t: string): boolean => {
-      if (t.length < 5) return true;
-      // Mostly non-Thai/non-English gibberish
-      const thaiOrEnglishRatio = (t.match(/[\u0E00-\u0E7Fa-zA-Z0-9\s.,!?:;()\-]/g) || []).length / t.length;
-      if (thaiOrEnglishRatio < 0.5) return true;
-      // Contains Chinese/Japanese characters (model confusion)
-      if (/[\u4E00-\u9FFF\u3040-\u309F\u30A0-\u30FF]{3,}/.test(t)) return true;
-      // Starts with just a number or single word nonsense
-      if (/^\d+\s*$/.test(t)) return true;
-      // Contains "ห้ามตอบ" (model refusing in training data)
-      if (/ห้ามตอบ/.test(t)) return true;
-      return false;
-    };
-    if (isGarbage(text)) {
-      logBoth("warn", `[GeneralGate] garbage detected from ${model}: "${text.slice(0, 80)}"`);
-      // Retry with safer prompt
-      try {
-        const retry = await ollama.chat({
-          model: ollamaFastModel,
-          messages: [
-            { role: "system", content: "ตอบภาษาไทยสั้นๆ 1-3 ประโยค" },
-            { role: "user", content: String(userText || "").trim() },
-          ],
-          stream: false,
-        });
-        const retryText = String(retry?.message?.content || "").trim();
-        if (retryText && !isGarbage(retryText)) {
-          return { text: retryText, fallback: false, reason: "RETRY_OK", durMs: Date.now() - start, model };
-        }
-      } catch { /* ignore retry failure */ }
-      // Final fallback: use smoke answer or generic safe response
-      const smoke = renderGeneralSmokeAnswer(userText);
-      const isDefaultSmoke = smoke.startsWith("ได้ครับ คำถามนี้เป็นคำถามทั่วไป");
-      return { text: isDefaultSmoke ? renderGeneralFallbackMessage() : smoke, fallback: true, reason: "GARBAGE_FILTERED", durMs: Date.now() - start, model };
+    usedModel = localFallbackModel;
+    usedClient = localOllama;
+    logBoth("warn", `[GeneralGate] primary fast model failed (${model}) -> retry local ${localFallbackModel}`);
+    try {
+      const localResp = await runChat(localOllama, localFallbackModel, Math.max(budgetMs, 35000));
+      text = String((localResp as any)?.message?.content || "").trim();
+    } catch (localErr) {
+      const reason = String((localErr as any)?.message || (primaryErr as any)?.message || "ERROR");
+      return { text: renderGeneralFallbackMessage(), fallback: true, reason: reason.includes("TIMEOUT") ? "TIMEOUT" : "ERROR", durMs: Date.now() - start, model: usedModel };
     }
-    return { text, fallback: false, reason: "OK", durMs: Date.now() - start, model };
-  } catch (e: any) {
-    const reason = String(e?.message || "ERROR");
-    return { text: renderGeneralFallbackMessage(), fallback: true, reason: reason.includes("TIMEOUT") ? "TIMEOUT" : "ERROR", durMs: Date.now() - start, model };
   }
+
+  if (!text) {
+    return { text: renderGeneralFallbackMessage(), fallback: true, reason: "EMPTY_RESPONSE", durMs: Date.now() - start, model: usedModel };
+  }
+
+  if (isGarbage(text)) {
+    logBoth("warn", `[GeneralGate] garbage detected from ${usedModel}: "${text.slice(0, 80)}"`);
+    try {
+      const retry = await usedClient.chat({
+        model: usedModel,
+        messages: [
+          { role: "system", content: "Answer briefly in Thai in 1-3 sentences." },
+          { role: "user", content: String(userText || "").trim() },
+        ],
+        stream: false,
+      });
+      const retryText = String(retry?.message?.content || "").trim();
+      if (retryText && !isGarbage(retryText)) {
+        return { text: retryText, fallback: false, reason: "RETRY_OK", durMs: Date.now() - start, model: usedModel };
+      }
+    } catch { /* ignore retry failure */ }
+
+    const smoke = renderGeneralSmokeAnswer(userText);
+    const isDefaultSmoke = smoke === LOW_CONFIDENCE_FALLBACK_TEXT;
+    return { text: isDefaultSmoke ? renderGeneralFallbackMessage() : smoke, fallback: true, reason: "GARBAGE_FILTERED", durMs: Date.now() - start, model: usedModel };
+  }
+
+  return { text, fallback: false, reason: "OK", durMs: Date.now() - start, model: usedModel };
 }
 
 /** Returns true if query is an injection attempt or an explain-only mention of a tool name
@@ -2793,7 +2800,7 @@ export function updateChatAIMode() {
       });
       // Pick a sensible MDES default if no explicit remote model is set.
       remoteModel = process.env.REMOTE_OLLAMA_MODEL || process.env.MDES_PRIMARY_MODEL || "qwen3.5:9b";
-      remoteFastModel = process.env.REMOTE_FAST_OLLAMA_MODEL || process.env.REMOTE_OLLAMA_MODEL || "gemma4:e4b";
+      remoteFastModel = process.env.REMOTE_FAST_OLLAMA_MODEL || process.env.REMOTE_OLLAMA_MODEL || remoteModel || "gemma4:e4b";
       logBoth('info', `[Chat AI] 🌐 Initializing Remote Ollama: ${remoteOllamaHostUrl}${remoteToken ? ' (auth ✓)' : ''}`);
       logBoth('info', `[Chat AI] 📦 Primary Model: ${remoteModel}`);
       logBoth('info', `[Chat AI] ⚡ Fast Model: ${remoteFastModel}`);
@@ -8190,4 +8197,5 @@ chatRouter.post("/tools/health/check", async (req, res) => {
 });
 
 export { chatRouter, wss, mcpClient, toolHealthChecker };
+
 

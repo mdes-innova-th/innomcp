@@ -18,6 +18,7 @@ import filesRouter from "./routes/api/files";
 import adminRouter from "./routes/api/admin";
 import { apiKeyMiddleware } from "./utils/apikey";
 import csrfMiddleware from "./utils/csrf";
+import { authenticateToken } from "./utils/jwt";
 import { chatRouter } from "./routes/api/chat";
 import logger from "./utils/logger";
 import debugRouter from "./routes/api/debug";
@@ -165,7 +166,7 @@ app.use("/api/debug", debugRouter);
 // The /api catch-all below re-mounts via apiRouter but tasks needs the route
 // registered at /api/tasks directly for authenticated access with the DB.
 app.use("/api/tasks", generalRateLimit, apiKeyMiddleware, csrfMiddleware, tasksRouter);
-app.use("/api/dashboard", generalRateLimit, apiKeyMiddleware, csrfMiddleware, cacheResponse(30_000), dashboardRouter);
+app.use("/api/dashboard", generalRateLimit, authenticateToken, cacheResponse(30_000), dashboardRouter);
 app.use("/api/chat/feedback", generalRateLimit, feedbackRouter);
 // Live aggregate stats — no auth required (leaderboard panel fetches as guest)
 app.use("/api/stats", generalRateLimit, cacheResponse(60_000), statsRouter);

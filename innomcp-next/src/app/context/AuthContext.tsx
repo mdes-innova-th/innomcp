@@ -5,6 +5,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useCallback,
   ReactNode,
 } from "react";
 
@@ -42,6 +43,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [userRoleId, setUserRoleId] = useState<number | null>(null);
   const [hostname, setHostname] = useState("localhost");
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const BACKEND =
+    typeof window !== "undefined" && window.location.port === "3000"
+      ? "http://localhost:3011"
+      : "";
   
   // Guest mode: users can use chat without login (50% capability by default)
   // Authenticated users get 100% capability
@@ -49,14 +54,66 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const capabilityLevel = isLoggedIn ? 100 : 50;
 
   // Exported checkAuth function
-  const checkAuth = async () => {
+  const clearAuthState = useCallback(() => {
+    setIsLoggedIn(false);
+    setUserEmail(null);
+    setUserDispName(null);
+    setUserId(null);
+    setUserRoleId(null);
+  }, []);
+
+  const applyUser = useCallback((user: Record<string, unknown> | null | undefined) => {
+    if (!user) {
+      clearAuthState();
+      return;
+    }
+
+    const rawId = user.user_id ?? user.userId;
+    const numericId =
+      typeof rawId === "number"
+        ? rawId
+        : typeof rawId === "string"
+        ? Number(rawId)
+        : null;
+    const rawRole = user.userrole_id ?? user.userRoleId ?? null;
+    const numericRole =
+      typeof rawRole === "number"
+        ? rawRole
+        : typeof rawRole === "string"
+        ? Number(rawRole)
+        : null;
+
+    setUserEmail((user.user_email as string) ?? (user.userEmail as string) ?? null);
+    setUserDispName(
+      (user.user_dispname as string) ?? (user.userDispName as string) ?? null
+    );
+    setUserId(numericId !== null && !Number.isNaN(numericId) ? numericId : null);
+    setUserRoleId(
+      numericRole !== null && !Number.isNaN(numericRole) ? numericRole : null
+    );
+    setIsLoggedIn(true);
+  }, [clearAuthState]);
+
+  const refreshAuth = useCallback(async (): Promise<boolean> => {
+    try {
+      const response = await fetch(`${BACKEND}/api/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+      });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }, [BACKEND]);
+
+  const checkAuth = useCallback(async () => {
     if (typeof window !== "undefined") {
       setHostname(window.location.hostname);
     }
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch("/api/user/login/auth", {
+      const response = await fetch(`${BACKEND}/api/auth/me`, {
         method: "GET",
         credentials: "include",
         signal: controller.signal,
@@ -64,36 +121,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       clearTimeout(timeoutId);
       if (response.ok) {
         const data = await response.json();
-        setUserEmail(data.user?.user_email || null);
-        setUserDispName(data.user?.user_dispname || null);
-        if (data.user && typeof data.user.user_id !== "undefined") {
-          const id = Number(data.user.user_id);
-          setUserId(!isNaN(id) ? id : null);
+        applyUser(data.user);
+      } else if (response.status === 401 || response.status === 403) {
+        const refreshed = await refreshAuth();
+        if (refreshed) {
+          const retryResponse = await fetch(`${BACKEND}/api/auth/me`, {
+            method: "GET",
+            credentials: "include",
+          });
+          if (retryResponse.ok) {
+            const retryData = await retryResponse.json();
+            applyUser(retryData.user);
+          } else {
+            clearAuthState();
+          }
         } else {
-          setUserId(null);
+          clearAuthState();
         }
-        if (data.user && typeof data.user.userrole_id !== "undefined") {
-          setUserRoleId(data.user.userrole_id);
-        } else {
-          setUserRoleId(null);
-        }
-        setIsLoggedIn(true);
       } else {
-        setIsLoggedIn(false);
-        setUserEmail(null);
-        setUserDispName(null);
-        setUserId(null);
-        setUserRoleId(null);
+        clearAuthState();
       }
     } catch {
-      setIsLoggedIn(false);
-      setUserDispName(null);
-      setUserId(null);
-      setUserRoleId(null);
+      clearAuthState();
     } finally {
       setIsAuthLoading(false);
     }
-  };
+  }, [BACKEND, applyUser, clearAuthState, refreshAuth]);
 
   useEffect(() => {
     // Check if auth is optional (for demo/chat-only mode)
@@ -105,7 +158,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
     checkAuth();
-  }, []);
+  }, [checkAuth]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void checkAuth();
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === "visible" && isLoggedIn) {
+        void refreshAuth();
+      }
+    }, 10 * 60 * 1000);
+
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(intervalId);
+    };
+  }, [checkAuth, isLoggedIn, refreshAuth]);
 
   // Login function
   const login = async (userData: { userId: number; email: string; displayName: string; roleId: number }) => {
@@ -127,10 +202,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Logout function
-  const logout = async () => {
+  const logout = useCallback(async () => {
     console.log('🚪 [AuthContext] Logout called');
     try {
-      await fetch('http://localhost:3011/api/auth/logout', {
+      await fetch(`${BACKEND}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include'
       });
@@ -138,14 +213,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error('❌ [AuthContext] Logout error:', error);
     } finally {
-      setIsLoggedIn(false);
-      setUserId(null);
-      setUserEmail(null);
-      setUserDispName(null);
-      setUserRoleId(null);
+      clearAuthState();
       console.log('🔓 [AuthContext] User state cleared (now Guest - 50% capability)');
     }
-  };
+  }, [BACKEND, clearAuthState]);
 
   return (
     <AuthContext.Provider

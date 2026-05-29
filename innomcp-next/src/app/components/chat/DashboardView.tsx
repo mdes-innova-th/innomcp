@@ -119,8 +119,10 @@ function StatCard({
 
 export default function DashboardView({
   onOpenChat,
+  projectId,
 }: {
   onOpenChat?: () => void;
+  projectId?: string;
 }) {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -130,12 +132,15 @@ export default function DashboardView({
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchDashboard = useCallback(() => {
-    fetch(`${BACKEND}/api/dashboard`, { credentials: "include" })
+    const params = new URLSearchParams();
+    if (projectId) params.set("projectId", projectId);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    fetch(`${BACKEND}/api/dashboard${suffix}`, { credentials: "include" })
       .then((r) => r.json())
       .then(setData)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [projectId]);
 
   // Initial load + pinned artifacts
   useEffect(() => {
@@ -225,19 +230,19 @@ export default function DashboardView({
             label="งานทั้งหมด"
             value={s.totalTasks}
             icon="📋"
-            onClick={() => router.push("/task-history")}
+            onClick={() => router.push(projectId ? `/task-history?projectId=${encodeURIComponent(projectId)}` : "/task-history")}
           />
           <StatCard
             label="เสร็จสิ้น"
             value={s.completedTasks}
             icon="✅"
-            onClick={() => router.push("/task-history?status=completed")}
+            onClick={() => router.push(projectId ? `/task-history?status=completed&projectId=${encodeURIComponent(projectId)}` : "/task-history?status=completed")}
           />
           <StatCard
             label="กำลังทำงาน"
             value={s.runningTasks}
             icon={s.runningTasks > 0 ? "🔄" : "💤"}
-            onClick={() => router.push("/task-history?status=running")}
+            onClick={() => router.push(projectId ? `/task-history?status=running&projectId=${encodeURIComponent(projectId)}` : "/task-history?status=running")}
           />
           <StatCard
             label="คะแนนเฉลี่ย"
@@ -259,7 +264,7 @@ export default function DashboardView({
           ➕ งานใหม่
         </button>
         <button
-          onClick={() => router.push("/task-history")}
+          onClick={() => router.push(projectId ? `/task-history?projectId=${encodeURIComponent(projectId)}` : "/task-history")}
           className="rounded-lg border border-border/50 px-4 py-2 text-[12.5px] text-foreground hover:bg-muted/30 transition-colors"
         >
           📋 ดูงานทั้งหมด
@@ -393,3 +398,4 @@ export default function DashboardView({
     </div>
   );
 }
+

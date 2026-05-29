@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useRef, useContext, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -15,7 +15,7 @@ import ThemeContext from "@/app/context/ThemeContext";
 import { useAuth } from "@/app/context/AuthContext";
 import { useToast } from "@/app/context/ToastContext";
 import type { ToolType } from "./ToolsTypeSelector";
-// Phase 10.68 — unified ChatMode replaces AIMode + ReasoningMode
+// Phase 10.68 � unified ChatMode replaces AIMode + ReasoningMode
 import { type ChatMode } from "./ChatModeSelector";
 import {
   buildChatTransportHistory,
@@ -36,26 +36,26 @@ import OnboardingModal from "@/app/components/common/OnboardingModal";
 import GuidedTour from "@/app/components/common/GuidedTour";
 import ActiveModelBadge from "@/app/components/chat/ActiveModelBadge";
 
-// Phase 4 — lazy-load panel/modal components not needed on initial paint
+// Phase 4 � lazy-load panel/modal components not needed on initial paint
 const ThinkingModal = dynamic(() => import("@/app/components/chat/ThinkingModal"), {
   ssr: false,
-  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">กำลังโหลด...</div>,
+  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">?????????...</div>,
 });
 const ArtifactPanel = dynamic(() => import("@/app/components/chat/ArtifactPanel"), {
   ssr: false,
-  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">กำลังโหลด...</div>,
+  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">?????????...</div>,
 });
 const PlanViewer = dynamic(() => import("@/app/components/chat/PlanViewer"), {
   ssr: false,
-  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">กำลังโหลด...</div>,
+  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">?????????...</div>,
 });
 const ApprovalGate = dynamic(() => import("@/app/components/chat/ApprovalGate"), {
   ssr: false,
-  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">กำลังโหลด...</div>,
+  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">?????????...</div>,
 });
 const CommandPalette = dynamic(() => import("@/app/components/common/CommandPalette"), {
   ssr: false,
-  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">กำลังโหลด...</div>,
+  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">?????????...</div>,
 });
 // icons are used in ChatInput; not needed here
 
@@ -75,7 +75,7 @@ interface ChatMessage {
   progressStage?: string;
   elapsedTime?: number;
   mdesEnhanced?: boolean; // true when MDES agents upgraded this message
-  // Phase 10.27 — wall-clock receipt + roundtrip latency (ms)
+  // Phase 10.27 � wall-clock receipt + roundtrip latency (ms)
   timestamp?: number;
   isComplete?: boolean;
   elapsedMs?: number;
@@ -104,84 +104,84 @@ const TOOL_TYPE_META: Record<ToolType, {
   icon: string;
 }> = {
   auto: {
-    label: "อัตโนมัติ",
-    description: "ให้ AI เลือกเครื่องมือที่เหมาะเอง",
-    icon: "🤖",
+    label: "?????????",
+    description: "??? AI ??????????????????????????",
+    icon: "??",
   },
   weather: {
-    label: "สภาพอากาศ",
-    description: "เน้นข้อมูลอุตุนิยมวิทยาและพยากรณ์",
-    icon: "🌤️",
+    label: "?????????",
+    description: "?????????????????????????????????",
+    icon: "???",
   },
   calculation: {
-    label: "คำนวณ",
-    description: "เหมาะกับสูตร ตัวเลข และการวิเคราะห์เชิงตรรกะ",
-    icon: "🔢",
+    label: "?????",
+    description: "???????????? ?????? ????????????????????????",
+    icon: "??",
   },
   art: {
-    label: "ภาพและกราฟ",
-    description: "สร้างภาพ กราฟ และผลลัพธ์เชิงภาพ",
-    icon: "🎨",
+    label: "??????????",
+    description: "???????? ???? ?????????????????",
+    icon: "??",
   },
   data: {
-    label: "ข้อมูลอ้างอิง",
-    description: "ดึงข้อมูลจากแหล่งความรู้และ APIs ภายนอก",
-    icon: "📊",
+    label: "?????????????",
+    description: "??????????????????????????? APIs ??????",
+    icon: "??",
   },
   datetime: {
-    label: "วันและเวลา",
-    description: "งานที่เกี่ยวกับเวลา ปฏิทิน และช่วงเวลา",
-    icon: "⏰",
+    label: "??????????",
+    description: "??????????????????? ?????? ???????????",
+    icon: "?",
   },
   officer: {
-    label: "เจ้าหน้าที่",
-    description: "โหมดงานราชการและข้อมูลภายในเจ้าหน้าที่",
-    icon: "🧑‍💼",
+    label: "???????????",
+    description: "??????????????????????????????????????",
+    icon: "?????",
   },
 };
 
 const STARTER_PROMPTS = [
   {
-    icon: "🌦️",
-    title: "อากาศวันนี้",
-    description: "ถามแบบได้คำตอบพร้อมใช้งาน เช่น พกอะไร เดินทางช่วงไหนดี ฝนจะตกไหม",
-    query: "ช่วยสรุปอากาศกรุงเทพฯ วันนี้แบบอ่านเร็ว พร้อมคำแนะนำก่อนออกจากบ้าน",
+    icon: "???",
+    title: "???????????",
+    description: "????????????????????????? ???? ?????? ???????????????? ?????????",
+    query: "????????????????????? ????????????????? ??????????????????????????",
     accent: "from-sky-500/16 via-sky-500/8 to-transparent",
   },
   {
-    icon: "📚",
-    title: "สรุปหลายแหล่งให้จบในครั้งเดียว",
-    description: "รวมข้อมูลหลายเครื่องมือแล้วเรียบเรียงเป็นคำตอบภาษาไทยที่อ่านง่าย",
-    query: "ช่วยสรุปสาระสำคัญของพระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคลแบบเข้าใจง่ายและใช้ได้จริง",
+    icon: "??",
+    title: "??????????????????????????????",
+    description: "????????????????????????????????????????????????????????????????",
+    query: "??????????????????????????????????????????????????????????????????????????????????",
     accent: "from-emerald-500/16 via-emerald-500/8 to-transparent",
   },
   {
-    icon: "🎨",
-    title: "สั่งสร้างภาพเป็นภาษาไทย",
-    description: "พิมพ์ concept, style, บรรยากาศ และอารมณ์ภาพเป็นไทยได้เลย",
-    query: "สร้างภาพนักบินอวกาศยืนกลางทุ่งนาไทยตอนพระอาทิตย์ตก โทนภาพ cinematic สมจริง",
+    icon: "??",
+    title: "???????????????????????",
+    description: "????? concept, style, ???????? ?????????????????????????",
+    query: "?????????????????????????????????????????????????? ?????? cinematic ??????",
     accent: "from-pink-500/16 via-pink-500/8 to-transparent",
   },
   {
-    icon: "🧭",
-    title: "วิเคราะห์ต่อจากโจทย์คลุมเครือ",
-    description: "เริ่มต้นสั้น ๆ แล้วค่อยให้ระบบช่วยขยายโจทย์ คัด route และถามต่อเมื่อจำเป็น",
-    query: "ช่วยวางแผนค้นหาข้อมูลจังหวัดที่เหมาะจะจัดงานสัมมนาช่วงหน้าฝน โดยดูทั้งอากาศและการเดินทาง",
+    icon: "??",
+    title: "?????????????????????????????",
+    description: "???????????? ? ???????????????????????????? ??? route ????????????????????",
+    query: "???????????????????????????????????????????????????????????? ???????????????????????????",
     accent: "from-amber-500/16 via-amber-500/8 to-transparent",
   },
 ] as const;
 
 const QUICK_ACTIONS = [
-  { icon: "📊", label: "วิเคราะห์ข้อมูล", prompt: "วิเคราะห์ข้อมูลนี้แล้วสร้างกราฟให้หน่อย" },
-  { icon: "💻", label: "เขียนโค้ด", prompt: "ช่วยเขียนโค้ดสำหรับ [อธิบาย feature ที่ต้องการ]" },
-  { icon: "🔍", label: "ค้นคว้าข้อมูล", prompt: "ค้นหาข้อมูลเกี่ยวกับ [หัวข้อ] แล้วสรุปให้" },
-  { icon: "📝", label: "เขียนรายงาน", prompt: "เขียนรายงานเรื่อง [หัวข้อ] ให้หน่อย" },
+  { icon: "??", label: "???????????????", prompt: "???????????????????????????????????????" },
+  { icon: "??", label: "?????????", prompt: "??????????????????? [?????? feature ??????????]" },
+  { icon: "??", label: "?????????????", prompt: "???????????????????? [??????] ???????????" },
+  { icon: "??", label: "???????????", prompt: "????????????????? [??????] ????????" },
 ] as const;
 
 const WORKSPACE_PILLARS = [
-  "โฟลว์สนทนาที่วางภาษาไทยเป็นหลัก",
-  "คำตอบที่รู้จักเลือกเครื่องมือให้เหมาะกับงาน",
-  "รองรับทั้งข้อมูล ภาพ และงานต่อเนื่องในบทสนทนาเดียว",
+  "???????????????????????????????",
+  "???????????????????????????????????????????",
+  "???????????????? ??? ?????????????????????????????",
 ] as const;
 
 function shouldForceCollapsedSidebar(): boolean {
@@ -284,6 +284,10 @@ const ChatPage: React.FC = () => {
   const { notify } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const activeProjectId =
+    searchParams.get("projectId") ||
+    searchParams.get("project_id") ||
+    undefined;
   const [shortcutsOpen, setShortcutsOpen] = useKeyboardShortcutsPanel();
   const [thinkingModalOpen, setThinkingModalOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -310,32 +314,32 @@ const ChatPage: React.FC = () => {
   // Phase 10.15: MultiAgent Panel state
   const [expandAll, setExpandAll] = useState(false);
   const { state: agentStreamState, send: sendAgentStream, reset: resetAgentStream } = useAgentEventStream();
-  // Phase 3 — browser notifications when agent task completes
+  // Phase 3 � browser notifications when agent task completes
   useTaskNotifications(agentStreamState.events, isWaitingForResponse);
 
-  // Phase 3 — in-page toast when agent task completes (complements browser notification)
+  // Phase 3 � in-page toast when agent task completes (complements browser notification)
   const prevIsStreamingForToastRef = useRef<boolean>(false);
   useEffect(() => {
     const wasStreaming = prevIsStreamingForToastRef.current;
     prevIsStreamingForToastRef.current = isWaitingForResponse;
-    // Only fire once per completion: wasStreaming=true → isWaitingForResponse=false
+    // Only fire once per completion: wasStreaming=true ? isWaitingForResponse=false
     if (!wasStreaming || isWaitingForResponse) return;
     const hasFinalAnswer = agentStreamState.events.some((e) => e.type === "final_answer");
     if (!hasFinalAnswer) return;
-    notify("งานเสร็จแล้ว ✓", "success");
+    notify("???????????? ?", "success");
   }, [agentStreamState.events, isWaitingForResponse, notify]);
 
   const activeAgentStreamRequestRef = useRef<string | null>(null);
   const [isSocketReady, setIsSocketReady] = useState(false);
   const [isStopped, setIsStopped] = useState(false);
   const isStoppedRef = useRef(false);
-  // Phase 10.27 — wall-clock timestamp captured when the user hits send.
+  // Phase 10.27 � wall-clock timestamp captured when the user hits send.
   // Used to stamp responseTime onto the AI reply when it lands.
   const lastSendAtRef = useRef<number | null>(null);
   const sendMessageRef = useRef<() => Promise<void>>(() => Promise.resolve());
-  // Phase 3 CSV — prefix injected by ChatInput before sendMessage fires
+  // Phase 3 CSV � prefix injected by ChatInput before sendMessage fires
   const csvPrefixRef = useRef<string>("");
-  // Phase 10.61 — keep the working-indicator visible for ≥1500 ms after a send,
+  // Phase 10.61 � keep the working-indicator visible for =1500 ms after a send,
   // so fast-fallback models (e.g. qwen2.5:0.5b returning a cached acknowledgment
   // in <200 ms) still produce a visible "typing" affordance. Without this, the
   // working-indicator can flicker off before the user perceives any feedback,
@@ -353,25 +357,25 @@ const ChatPage: React.FC = () => {
 
   const hasMessages = messages.length > 0;
   const activeConversationTitle = activeSummaryId
-    ? chatSummaries.find((summary) => summary.id === activeSummaryId)?.title || "บทสนทนาปัจจุบัน"
-    : "การสนทนาใหม่";
+    ? chatSummaries.find((summary) => summary.id === activeSummaryId)?.title || "???????????????"
+    : "????????????";
   const workspaceState = !isSocketReady
     ? {
         title: "Backend offline",
-        detail: "ยังเชื่อมต่อ websocket ไม่ได้",
+        detail: "???????????? websocket ??????",
         tone: "bg-rose-500/12 text-rose-800 dark:bg-rose-400/16 dark:text-rose-200",
         dot: "bg-rose-500",
       }
     : isWaitingForResponse
     ? {
-        title: "กำลังตอบกลับ",
-        detail: "ระบบกำลังประมวลผลคำตอบล่าสุด",
+        title: "????????????",
+        detail: "????????????????????????????",
         tone: "bg-amber-500/12 text-amber-800 dark:bg-amber-400/16 dark:text-amber-200",
         dot: "bg-amber-500",
       }
     : {
-        title: "พร้อมใช้งาน",
-        detail: "เครื่องมือและ AI พร้อมรับคำสั่ง",
+        title: "???????????",
+        detail: "????????????? AI ??????????????",
         tone: "bg-emerald-500/12 text-emerald-800 dark:bg-emerald-400/16 dark:text-emerald-200",
         dot: "bg-emerald-500",
       };
@@ -385,18 +389,18 @@ const ChatPage: React.FC = () => {
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [isNearBottom, setIsNearBottom] = useState(true);
-  // Count messages added while user is scrolled up — badge on the floating button.
+  // Count messages added while user is scrolled up � badge on the floating button.
   const [unreadCount, setUnreadCount] = useState(0);
   const prevMessagesLenRef = useRef(0);
   const [, setIsChatActive] = useState(false); // tracks composer focus for future hooks
   const [selectedToolType, setSelectedToolType] = useState<ToolType>("auto");
-  // Phase 10.68 — single ChatMode drives both AI backend & agent count
+  // Phase 10.68 � single ChatMode drives both AI backend & agent count
   const [chatMode, setChatMode] = useState<ChatMode>("normal");
-  // Provider mode — "remote" = MDES Cloud Ollama, "local" = localhost:11434
+  // Provider mode � "remote" = MDES Cloud Ollama, "local" = localhost:11434
   const [providerMode, setProviderMode] = useState<ProviderMode>("remote");
   const activeToolMeta = TOOL_TYPE_META[selectedToolType] || TOOL_TYPE_META.auto;
 
-  // PAS-5: Approval gate state — risky tool actions require user confirmation
+  // PAS-5: Approval gate state � risky tool actions require user confirmation
   const [pendingApproval, setPendingApproval] = useState<ApprovalRequest | null>(null);
   const approvalCallbacks = useRef<Map<string, (approved: boolean) => void>>(new Map());
 
@@ -453,7 +457,7 @@ const ChatPage: React.FC = () => {
     }
   }, []);
 
-  // Phase 5 — first-time user onboarding: show modal after 500ms if not yet seen
+  // Phase 5 � first-time user onboarding: show modal after 500ms if not yet seen
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
@@ -637,7 +641,7 @@ const ChatPage: React.FC = () => {
           if (message.type === "done") {
              console.log("Received DONE signal");
              setIsWaitingForResponse(false);
-             // Phase 6 — dispatch response time for ActiveModelBadge
+             // Phase 6 � dispatch response time for ActiveModelBadge
              if (lastSendAtRef.current) {
                window.dispatchEvent(new CustomEvent("innomcp-response-time", {
                  detail: { ms: Date.now() - lastSendAtRef.current }
@@ -665,7 +669,7 @@ const ChatPage: React.FC = () => {
               const lastMsg = prevMessages[prevMessages.length - 1];
               // Phase C.01 fix: if the last AI message is a *progress* placeholder
               // (isProgress:true), append the real chunk as a NEW message instead
-              // of concatenating — prevents "กำลังคิด..." bleeding into the answer.
+              // of concatenating � prevents "????????..." bleeding into the answer.
               if (
                 prevMessages.length > 0 &&
                 lastMsg.sender === "ai" &&
@@ -705,7 +709,7 @@ const ChatPage: React.FC = () => {
             console.log("[Frontend] Progress update:", message.text, message.stage);
             setMessages((prevMessages) => {
               const lastMsg = prevMessages[prevMessages.length - 1];
-              // ถ้ามี AI message อยู่แล้วแต่ยังไม่มีเนื้อหา แสดงว่ากำลังรอ
+              // ????? AI message ?????????????????????????? ??????????????
               if (lastMsg && lastMsg.sender === "ai" && !lastMsg.fullText) {
                 const updatedMessages = [...prevMessages];
                 updatedMessages[updatedMessages.length - 1] = {
@@ -717,7 +721,7 @@ const ChatPage: React.FC = () => {
                 };
                 return updatedMessages;
               } else if (!lastMsg || lastMsg.sender !== "ai") {
-                // สร้าง placeholder message สำหรับ progress
+                // ????? placeholder message ?????? progress
                 return [
                   ...prevMessages,
                   {
@@ -811,18 +815,18 @@ const ChatPage: React.FC = () => {
           } else if (message.error) {
             console.error("[Frontend] Server error:", message.error);
             // Phase C.01 fix: insert a visible error bubble so the user doesn't
-            // see an empty response — silent drops are worse than a clear message.
+            // see an empty response � silent drops are worse than a clear message.
             setMessages((prev) => [
               ...prev,
               {
                 sender: "ai" as const,
-                text: `⚠️ ขออภัย ระบบพบปัญหา: ${String(message.error).slice(0, 200)}`,
-                fullText: `⚠️ ขออภัย ระบบพบปัญหา: ${String(message.error).slice(0, 200)}`,
+                text: `?? ?????? ???????????: ${String(message.error).slice(0, 200)}`,
+                fullText: `?? ?????? ???????????: ${String(message.error).slice(0, 200)}`,
                 isAnimating: false,
                 timestamp: Date.now(),
               },
             ]);
-            notify("ระบบพบข้อผิดพลาด กรุณาลองใหม่อีกครั้ง", "error");
+            notify("???????????????? ????????????????????", "error");
             setIsWaitingForResponse(false);
           }
         } catch (error) {
@@ -950,7 +954,7 @@ const ChatPage: React.FC = () => {
         lastAi.structuredContent?.chartSvg
       ) return prev;
       // Monotonic: final text must not be shorter than what's already shown.
-      // If WS already produced a longer answer, keep WS text — only annotate mdesEnhanced.
+      // If WS already produced a longer answer, keep WS text � only annotate mdesEnhanced.
       const existing = String(lastAi.fullText || lastAi.text || "");
       const nextText = shouldUseMdesFinal(existing, mdesText, lastAi.isProgress)
         ? mdesText
@@ -1000,7 +1004,7 @@ const ChatPage: React.FC = () => {
       deltas.find((ev) => ev.agentId === "critic");
     if (!pick?.publicSummary) return;
 
-    const previewText = pick.publicSummary.replace(/\.\.\.$/, "") + " ⋯";
+    const previewText = pick.publicSummary.replace(/\.\.\.$/, "") + " ?";
     setMessages((prev) => {
       const lastAiIdx = prev.map((m, i) => ({ m, i }))
         .filter(({ m }) => m.sender === "ai" && !m.isProgress)
@@ -1010,9 +1014,9 @@ const ChatPage: React.FC = () => {
       if (last.structuredContent?.weatherPipeline || last.structuredContent?.chartSvg) return prev;
       const existing = String(last.fullText || last.text || "");
       // Forward-only: skip if preview wouldn't extend the visible answer.
-      // Strip trailing "⋯" before comparing so the cursor isn't counted as growth.
-      const prevCore = existing.replace(/\s*⋯\s*$/, "");
-      const nextCore = previewText.replace(/\s*⋯\s*$/, "");
+      // Strip trailing "?" before comparing so the cursor isn't counted as growth.
+      const prevCore = existing.replace(/\s*?\s*$/, "");
+      const nextCore = previewText.replace(/\s*?\s*$/, "");
       if (nextCore.length <= prevCore.length) return prev;
       const updated = [...prev];
       updated[lastAiIdx] = { ...last, text: previewText, fullText: previewText, isAnimating: false };
@@ -1046,7 +1050,7 @@ const ChatPage: React.FC = () => {
   }, [agentStreamState.suggestions]);
 
   const sendMessage = async () => {
-    // Phase 3 CSV — prepend any CSV attachment summary to the user text
+    // Phase 3 CSV � prepend any CSV attachment summary to the user text
     const effectiveInput = csvPrefixRef.current
       ? `${csvPrefixRef.current}\n${input}`
       : input;
@@ -1061,7 +1065,7 @@ const ChatPage: React.FC = () => {
       // include a unique messageId to allow server-side deduplication
       const messageId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
       
-      // 🔧 FIX: Send file attachment with message
+      // ?? FIX: Send file attachment with message
       let fileData = null;
       if (selectedFile) {
         // Convert file to base64 for WebSocket transmission
@@ -1083,9 +1087,9 @@ const ChatPage: React.FC = () => {
         messages as unknown as Array<Record<string, unknown>>,
         CHAT_HISTORY_CONTEXT_LIMIT
       );
-      // Phase 10.68 — map ChatMode → conductor params
+      // Phase 10.68 � map ChatMode ? conductor params
       // providerMode overrides the default local/hybrid selection:
-      //   "remote" → always use MDES Cloud, "local" → always use localhost
+      //   "remote" ? always use MDES Cloud, "local" ? always use localhost
       const derivedMode =
         providerMode === "remote"
           ? chatMode === "multiagent" ? "hybrid" : "remote"
@@ -1105,9 +1109,9 @@ const ChatPage: React.FC = () => {
       // Phase C.06: stamp send time BEFORE socket.send so that if the first
       // chunk arrives synchronously (localhost sub-ms), sentAt is already set.
       lastSendAtRef.current = Date.now();
-      console.log("[ChatMode]", chatMode, "→ mode:", derivedMode, "reasoning:", derivedReasoning);
+      console.log("[ChatMode]", chatMode, "? mode:", derivedMode, "reasoning:", derivedReasoning);
       socket.send(JSON.stringify(message));
-      // Phase 6 — notify RateLimitIndicator that a request was sent
+      // Phase 6 � notify RateLimitIndicator that a request was sent
       window.dispatchEvent(new CustomEvent("innomcp-request-sent"));
       // Phase 10.15: fire SSE channel for MultiAgentPanel
       resetAgentStream();
@@ -1115,6 +1119,7 @@ const ChatPage: React.FC = () => {
       sendAgentStream({
         message: effectiveInput,
         sessionId: activeSummaryId ?? undefined,
+        projectId: activeProjectId,
         preferredMode: derivedMode,
         toolHint: selectedToolType,
         reasoningMode: derivedReasoning,
@@ -1144,8 +1149,8 @@ const ChatPage: React.FC = () => {
       setSelectedImage(null);
       setIsStopped(false);
       isStoppedRef.current = false;
-      // lastSendAtRef already stamped above (before socket.send) — do not re-stamp here.
-      // Phase 10.61 — guarantee ≥1500 ms of working-indicator visibility.
+      // lastSendAtRef already stamped above (before socket.send) � do not re-stamp here.
+      // Phase 10.61 � guarantee =1500 ms of working-indicator visibility.
       stickyWorkingUntilRef.current = Date.now() + 1500;
       setStickyWorkingTick((t) => t + 1);
       setTimeout(() => setStickyWorkingTick((t) => t + 1), 1500);
@@ -1160,7 +1165,7 @@ const ChatPage: React.FC = () => {
   };
   sendMessageRef.current = sendMessage;
 
-  // PAS-5: Approval gate — call this to request user confirmation for risky actions
+  // PAS-5: Approval gate � call this to request user confirmation for risky actions
   const requestApproval = useCallback((req: Omit<ApprovalRequest, "id" | "requestedAt">): Promise<boolean> => {
     return new Promise((resolve) => {
       const id = `approval-${Date.now()}`;
@@ -1194,7 +1199,7 @@ const ChatPage: React.FC = () => {
       
       // Check file size
       if (file.size > maxFileSize) {
-        notify(`ไฟล์ใหญ่เกินไป — ขนาดสูงสุด ${maxFileSize / (1024 * 1024)} MB`, "error", 5000);
+        notify(`?????????????? � ?????????? ${maxFileSize / (1024 * 1024)} MB`, "error", 5000);
         setIsUploading(false);
         return;
       }
@@ -1227,7 +1232,7 @@ const ChatPage: React.FC = () => {
     }
   };
 
-  // ลบ unused drag/drop handler
+  // ?? unused drag/drop handler
 
   const handleRemoveImage = () => {
     setSelectedImage(null);
@@ -1255,7 +1260,7 @@ const ChatPage: React.FC = () => {
         const raw =
           (firstUser && firstUser.text) ||
           (firstAI && (firstAI.fullText || firstAI.text)) ||
-          "การแชท";
+          "??????";
         // single-line, limit length
         const single = raw.replace(/\s+/g, " ").trim();
         return single.length > 40 ? single.slice(0, 37) + "..." : single;
@@ -1480,15 +1485,15 @@ const ChatPage: React.FC = () => {
   }, []);
 
   // Phase 10.21: power-user hotkeys.
-  //   Ctrl/Cmd + K → start new chat (matches Slack/Linear pattern)
-  //   Ctrl/Cmd + /  → focus the composer textarea
+  //   Ctrl/Cmd + K ? start new chat (matches Slack/Linear pattern)
+  //   Ctrl/Cmd + /  ? focus the composer textarea
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
 
       if (e.key === "/") {
-        // Always allow — power users hit it from anywhere to jump back.
+        // Always allow � power users hit it from anywhere to jump back.
         e.preventDefault();
         const el = textareaRef.current;
         if (el) {
@@ -1504,7 +1509,7 @@ const ChatPage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Phase 3 iter 1 — global navigation shortcuts: Ctrl+D, Ctrl+P, Ctrl+H
+  // Phase 3 iter 1 � global navigation shortcuts: Ctrl+D, Ctrl+P, Ctrl+H
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const ctrl = e.ctrlKey || e.metaKey;
@@ -1524,14 +1529,14 @@ const ChatPage: React.FC = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [router]);
 
-  // Phase 6 — open keyboard shortcuts panel via custom event (from ChatSidebar ? button / Ctrl+/)
+  // Phase 6 � open keyboard shortcuts panel via custom event (from ChatSidebar ? button / Ctrl+/)
   useEffect(() => {
     const handler = () => setShortcutsOpen(true);
     window.addEventListener("innomcp-open-shortcuts", handler);
     return () => window.removeEventListener("innomcp-open-shortcuts", handler);
   }, [setShortcutsOpen]);
 
-  // Phase 5 — Prompt Templates: listen for template selections from ChatSidebar library panel
+  // Phase 5 � Prompt Templates: listen for template selections from ChatSidebar library panel
   useEffect(() => {
     const handler = (e: CustomEvent) => {
       const prompt = e.detail?.prompt;
@@ -1557,9 +1562,9 @@ const ChatPage: React.FC = () => {
     return (
       <div className="chat-workspace-bg flex min-h-[calc(100vh-6rem)] items-center justify-center px-6">
         <div className="chat-elevated-panel max-w-md rounded-2xl px-6 py-6 text-center">
-          <div className="font-display text-2xl text-foreground">กำลังเปิดพื้นที่สนทนา</div>
+          <div className="font-display text-2xl text-foreground">?????????????????????</div>
           <div className="mt-2 text-sm leading-6 text-muted-foreground">
-            โหลดประวัติการสนทนา โมเดลที่เลือก และสถานะเครื่องมือก่อนเริ่มงาน
+            ??????????????????? ????????????? ??????????????????????????????
           </div>
         </div>
       </div>
@@ -1572,7 +1577,7 @@ const ChatPage: React.FC = () => {
 
       <KeyboardShortcutsPanel open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
-      {/* INNOMCP Computer — floating right-side live agent panel */}
+      {/* INNOMCP Computer � floating right-side live agent panel */}
       {workspaceOpen && (
         <div className="fixed inset-x-2 top-16 z-40 max-h-[50vh] overflow-y-auto sm:inset-x-auto sm:right-4 sm:top-20 sm:w-80 sm:max-h-[calc(100vh-6rem)]">
           <ErrorBoundary componentName="AgentWorkspacePanel">
@@ -1584,12 +1589,12 @@ const ChatPage: React.FC = () => {
           <button
             onClick={() => setWorkspaceOpen(false)}
             className="absolute right-2 top-2 text-muted-foreground/60 hover:text-foreground text-lg leading-none"
-            aria-label="ปิด"
-          >✕</button>
+            aria-label="???"
+          >?</button>
         </div>
       )}
 
-      {/* PAS-1: Artifact Panel — floats below agent workspace panel */}
+      {/* PAS-1: Artifact Panel � floats below agent workspace panel */}
       {artifactPanelOpen && (
         <div className="fixed inset-x-2 top-[calc(50vh+0.5rem)] z-40 max-h-[40vh] overflow-y-auto rounded-xl border border-border/50 bg-background/95 shadow-xl backdrop-blur-sm p-3 sm:inset-x-auto sm:right-4 sm:top-[calc(20rem+1rem)] sm:w-80 sm:max-h-[calc(100vh-22rem)]">
           <ErrorBoundary componentName="ArtifactPanel">
@@ -1601,7 +1606,7 @@ const ChatPage: React.FC = () => {
         </div>
       )}
 
-      {/* PAS-2: Plan Viewer — vertical phase timeline, floats right side */}
+      {/* PAS-2: Plan Viewer � vertical phase timeline, floats right side */}
       {planViewerOpen && (
         <div className="fixed inset-x-2 top-16 z-[39] max-h-[40vh] overflow-y-auto sm:inset-x-auto sm:right-[calc(1rem+20rem+0.5rem)] sm:top-20 sm:w-72 sm:max-h-[calc(100vh-6rem)]">
           <div className="rounded-xl border border-border/60 bg-background/95 p-3 shadow-sm backdrop-blur">
@@ -1615,13 +1620,13 @@ const ChatPage: React.FC = () => {
         </div>
       )}
 
-      {/* Floating "?" button — power-users discover Ctrl+K, Ctrl+/, etc. */}
+      {/* Floating "?" button � power-users discover Ctrl+K, Ctrl+/, etc. */}
       <button
         onClick={() => setShortcutsOpen(true)}
         data-testid="open-shortcuts-btn"
         className="fixed bottom-4 right-4 z-40 hidden h-9 w-9 items-center justify-center rounded-full border border-border/60 bg-background/95 text-muted-foreground shadow-md transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-foreground lg:flex"
-        aria-label="ดูคีย์ลัด (กด ? เพื่อเปิด)"
-        title="คีย์ลัด — กด ?"
+        aria-label="????????? (?? ? ?????????)"
+        title="??????? � ?? ?"
       >
         <span className="font-mono text-sm font-semibold">?</span>
       </button>
@@ -1629,7 +1634,7 @@ const ChatPage: React.FC = () => {
       {!isSidebarCollapsed && (
         <button
           className="fixed inset-0 z-[54] bg-black/20 lg:hidden"
-          aria-label="ปิด sidebar"
+          aria-label="??? sidebar"
           onClick={() => setIsSidebarCollapsed(true)}
         />
       )}
@@ -1639,7 +1644,7 @@ const ChatPage: React.FC = () => {
           isSidebarCollapsed ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={() => setIsSidebarCollapsed(false)}
-        aria-label="เปิดเมนูประวัติการสนทนา"
+        aria-label="???????????????????????"
         data-testid="open-sidebar-btn"
       >
         <svg className="h-5 w-5 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1649,7 +1654,7 @@ const ChatPage: React.FC = () => {
           <span
             data-testid="sidebar-unread-count"
             className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary/12 px-1.5 font-mono text-[11px] font-semibold text-primary"
-            title={`${chatSummaries.length} บทสนทนาในประวัติ`}
+            title={`${chatSummaries.length} ????????????????`}
           >
             {chatSummaries.length > 99 ? "99+" : chatSummaries.length}
           </span>
@@ -1675,7 +1680,7 @@ const ChatPage: React.FC = () => {
         />
       </div>
 
-      {/* Main content area — natural page flow, no inner scroll */}
+      {/* Main content area � natural page flow, no inner scroll */}
       <div className={`relative flex-1 transition-all duration-300 ${
         isSidebarCollapsed ? 'ml-0 lg:ml-14' : 'ml-0 lg:ml-72'
       }`}>
@@ -1692,20 +1697,20 @@ const ChatPage: React.FC = () => {
                   title={workspaceState.detail}
                 >
                   <span>{activeToolMeta.label}</span>
-                  <span aria-hidden="true">·</span>
-                  <span>{chatSummaries.length} เซสชัน</span>
-                  <span aria-hidden="true">·</span>
+                  <span aria-hidden="true">�</span>
+                  <span>{chatSummaries.length} ??????</span>
+                  <span aria-hidden="true">�</span>
                   <span>{workspaceState.title}</span>
                 </span>
-                {/* Phase 6 — Model Router status: active provider + last response latency */}
+                {/* Phase 6 � Model Router status: active provider + last response latency */}
                 <ActiveModelBadge />
                 {artifacts.length > 0 && (
                   <button
                     onClick={() => setArtifactPanelOpen(v => !v)}
                     className="ml-1 shrink-0 inline-flex items-center gap-1 rounded-md border border-border/50 bg-background/80 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
-                    title="เปิด/ปิด Artifact Panel"
+                    title="????/??? Artifact Panel"
                   >
-                    <span>📄</span>
+                    <span>??</span>
                     <span>Artifacts ({artifacts.length})</span>
                   </button>
                 )}
@@ -1713,9 +1718,9 @@ const ChatPage: React.FC = () => {
                   <button
                     onClick={() => setPlanViewerOpen(p => !p)}
                     className="ml-1 shrink-0 inline-flex items-center gap-1 rounded-md border border-border/50 bg-background/80 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
-                    title="เปิด/ปิด Plan Viewer"
+                    title="????/??? Plan Viewer"
                   >
-                    <span>📋</span>
+                    <span>??</span>
                     <span>Plan</span>
                   </button>
                 )}
@@ -1725,9 +1730,9 @@ const ChatPage: React.FC = () => {
             {!hasMessages && !isWaitingForResponse ? (
               <div className="flex min-h-0 flex-1 flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(16rem,1fr)] lg:items-start">
                 <section className="flex flex-col gap-4">
-                  {/* Hero — single statement, not two restating ones (req 2: reduce duplicated copy) */}
+                  {/* Hero � single statement, not two restating ones (req 2: reduce duplicated copy) */}
                   <div className="relative">
-                    {/* Soft accent gradient ring behind the headline — gives the page a premium feel
+                    {/* Soft accent gradient ring behind the headline � gives the page a premium feel
                         without competing with content. Pointer-events-none + aria-hidden. */}
                     <div
                       aria-hidden="true"
@@ -1735,52 +1740,52 @@ const ChatPage: React.FC = () => {
                     />
                     <div className="relative flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center gap-1.5 rounded-md bg-gradient-to-r from-emerald-500/15 via-primary/15 to-sky-500/15 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-primary/85">
-                        <span aria-hidden="true">✨</span>
-                        การสนทนาใหม่
+                        <span aria-hidden="true">?</span>
+                        ????????????
                       </span>
                       <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[11.5px] font-medium text-muted-foreground">
                         <span className={`h-1.5 w-1.5 rounded-full ${workspaceState.dot}`} aria-hidden="true" />
                         {workspaceState.title}
                       </span>
-                      <span className="text-[11.5px] text-muted-foreground/70">·</span>
+                      <span className="text-[11.5px] text-muted-foreground/70">�</span>
                       <span className="text-[11.5px] text-muted-foreground">
                         {activeToolMeta.icon} {activeToolMeta.label}
                       </span>
                     </div>
 
                     <h1 className="font-display relative mt-3 max-w-3xl text-[1.65rem] font-semibold leading-tight text-foreground sm:text-[2rem]">
-                      สวัสดี{" "}
+                      ??????{" "}
                       <span className="bg-gradient-to-r from-emerald-500 via-primary to-sky-500 bg-clip-text text-transparent dark:from-emerald-300 dark:via-primary dark:to-sky-300">
-                        ถาม วิเคราะห์ หรือสั่งงาน
+                        ??? ????????? ???????????
                       </span>
-                      {" "}เป็นภาษาไทยได้เลย
+                      {" "}?????????????????
                     </h1>
 
                     <p className="relative mt-2 max-w-2xl text-[13.5px] leading-relaxed text-muted-foreground">
-                      INNOMCP เลือกเครื่องมือที่เหมาะกับคำถามให้อัตโนมัติ — อากาศ TMD/NWP, สถิติ World Bank,
-                      ภาพ AI, สร้างเอกสาร PDF/DOCX, ค่าเงิน, ข่าว RSS และอีกหลายแหล่ง
+                      INNOMCP ??????????????????????????????????????????? � ????? TMD/NWP, ????? World Bank,
+                      ??? AI, ??????????? PDF/DOCX, ???????, ???? RSS ???????????????
                     </p>
 
-                    {/* Phase 10.54 — sales-grade trust strip: shows scale at a glance. */}
+                    {/* Phase 10.54 � sales-grade trust strip: shows scale at a glance. */}
                     <div className="relative mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11.5px] text-muted-foreground">
                       <span className="inline-flex items-center gap-1.5">
                         <span className="font-mono font-semibold text-foreground/85 tabular-nums">56+</span>
-                        <span>เครื่องมือ MCP</span>
+                        <span>?????????? MCP</span>
                       </span>
                       <span className="h-3 w-px bg-border/60" aria-hidden="true" />
                       <span className="inline-flex items-center gap-1.5">
                         <span className="font-mono font-semibold text-foreground/85 tabular-nums">3</span>
-                        <span>โหมด AI (local / cloud / hybrid)</span>
+                        <span>???? AI (local / cloud / hybrid)</span>
                       </span>
                       <span className="h-3 w-px bg-border/60" aria-hidden="true" />
                       <span className="inline-flex items-center gap-1.5">
-                        <span aria-hidden="true">⚡</span>
+                        <span aria-hidden="true">?</span>
                         <span>MDES multi-agent</span>
                       </span>
                       <span className="h-3 w-px bg-border/60" aria-hidden="true" />
                       <span className="inline-flex items-center gap-1.5">
-                        <span aria-hidden="true">🇹🇭</span>
-                        <span>ภาษาไทยเป็นหลัก</span>
+                        <span aria-hidden="true">????</span>
+                        <span>???????????????</span>
                       </span>
                     </div>
                   </div>
@@ -1794,7 +1799,7 @@ const ChatPage: React.FC = () => {
                         <span className="absolute inline-flex h-3 w-3 animate-radar-ping rounded-full bg-amber-500/70" />
                         <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
                       </span>
-                      <span>กำลังเชื่อมต่อระบบ AI — เมื่อพร้อมแล้วช่องส่งข้อความจะเปิดให้ใช้</span>
+                      <span>?????????????????? AI � ????????????????????????????????????????</span>
                     </div>
                   )}
 
@@ -1828,13 +1833,13 @@ const ChatPage: React.FC = () => {
                     setCsvPrefix={(s) => { csvPrefixRef.current = s; }}
                   />
 
-                  {/* Starter prompts — premium card design with hover accent + arrow CTA */}
+                  {/* Starter prompts � premium card design with hover accent + arrow CTA */}
                   <div className="mt-1">
                     <div className="mb-2 flex items-center justify-between">
                       <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                        ตัวอย่างคำถาม
+                        ?????????????
                       </h2>
-                      <span className="text-[11.5px] text-muted-foreground/85">กดเพื่อเริ่มทันที</span>
+                      <span className="text-[11.5px] text-muted-foreground/85">?????????????????</span>
                     </div>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {STARTER_PROMPTS.map((prompt) => (
@@ -1842,7 +1847,7 @@ const ChatPage: React.FC = () => {
                           key={prompt.query}
                           onClick={() => {
                             setInput(prompt.query);
-                            // Phase 10.35 — focus composer + scroll into view so the
+                            // Phase 10.35 � focus composer + scroll into view so the
                             // user's next move is obviously "press Enter".
                             requestAnimationFrame(() => {
                               const el = textareaRef.current;
@@ -1858,7 +1863,7 @@ const ChatPage: React.FC = () => {
                           data-testid="starter-prompt"
                           className={`group relative flex min-w-0 items-start gap-3 overflow-hidden rounded-lg border border-border/70 bg-card p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md`}
                         >
-                          {/* Soft accent wash unique to the prompt — sits behind everything */}
+                          {/* Soft accent wash unique to the prompt � sits behind everything */}
                           <span
                             aria-hidden="true"
                             className={`pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b ${prompt.accent} opacity-0 transition-opacity duration-300 group-hover:opacity-100`}
@@ -1878,7 +1883,7 @@ const ChatPage: React.FC = () => {
                                 aria-hidden="true"
                                 className="opacity-0 transition-opacity text-primary text-[12px] group-hover:opacity-100"
                               >
-                                →
+                                ?
                               </span>
                             </span>
                             <span className="mt-0.5 line-clamp-2 block text-[12.5px] leading-5 text-muted-foreground">
@@ -1890,17 +1895,17 @@ const ChatPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Quick action cards — 2×2 grid */}
+                  {/* Quick action cards � 2�2 grid */}
                   <div className="mt-3">
                     <div className="mb-2 flex items-center justify-between">
                       <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                        เริ่มต้นเร็ว
+                        ????????????
                       </h2>
                       <button
                         onClick={() => window.dispatchEvent(new CustomEvent("innomcp-open-panel", { detail: { panel: "library" } }))}
                         className="text-[11.5px] text-primary hover:underline"
                       >
-                        📋 ดู Templates →
+                        ?? ?? Templates ?
                       </button>
                     </div>
                     <div className="grid grid-cols-2 gap-2 max-w-md mx-auto">
@@ -1918,11 +1923,11 @@ const ChatPage: React.FC = () => {
                   </div>
                 </section>
 
-                {/* Right rail — single tips card; hidden on small (req 1: hide non-critical) */}
+                {/* Right rail � single tips card; hidden on small (req 1: hide non-critical) */}
                 <aside className="hidden lg:block">
                   <div className="rounded-xl border border-border/70 bg-card p-4">
                     <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                      เคล็ดลับการใช้งาน
+                      ?????????????????
                     </h2>
                     <ul className="mt-3 space-y-2.5 text-[13.5px] leading-6 text-foreground/85">
                       {WORKSPACE_PILLARS.slice(0, 3).map((pillar, index) => (
@@ -1937,16 +1942,16 @@ const ChatPage: React.FC = () => {
 
                     <div className="mt-5 border-t border-border/60 pt-4">
                       <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                        <span aria-hidden="true">🎨</span>
-                        สั่งสร้างภาพให้ดี
+                        <span aria-hidden="true">??</span>
+                        ?????????????????
                       </h2>
-                      {/* Phase 10.55 — image prompt recipe as labeled rows
+                      {/* Phase 10.55 � image prompt recipe as labeled rows
                           instead of bullet dots. Easier to scan and looks
                           like a checklist users can mentally tick off. */}
                       <ul className="mt-2.5 space-y-1.5 text-[12.5px] leading-5">
                         <li className="flex gap-2">
                           <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-wider text-primary/80">subject</span>
-                          <span className="text-muted-foreground">คน · สัตว์ · สถานที่</span>
+                          <span className="text-muted-foreground">?? � ????? � ???????</span>
                         </li>
                         <li className="flex gap-2">
                           <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-wider text-primary/80">style</span>
@@ -1954,11 +1959,11 @@ const ChatPage: React.FC = () => {
                         </li>
                         <li className="flex gap-2">
                           <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-wider text-primary/80">scene</span>
-                          <span className="text-muted-foreground">เช่น ทุ่งนาไทยตอนเย็น</span>
+                          <span className="text-muted-foreground">???? ????????????????</span>
                         </li>
                         <li className="flex gap-2">
                           <span className="shrink-0 font-mono text-[10.5px] uppercase tracking-wider text-primary/80">focus</span>
-                          <span className="text-muted-foreground">สี · แสง · มุมกล้อง</span>
+                          <span className="text-muted-foreground">?? � ??? � ????????</span>
                         </li>
                       </ul>
                     </div>
@@ -1966,7 +1971,7 @@ const ChatPage: React.FC = () => {
                 </aside>
               </div>
             ) : (
-              /* Messages — natural document flow, no inner scroll container */
+              /* Messages � natural document flow, no inner scroll container */
               <div ref={messagesRef} className="mx-auto max-w-[50rem] pb-36 pt-1">
                 <div className="flex flex-col gap-4">
                   {(() => {
@@ -2048,11 +2053,11 @@ const ChatPage: React.FC = () => {
                     const mdesCount = mdesAgents.size;
                     const isMdesStreaming = agentStreamState.status === "streaming";
                     const capabilityLine = isGuestMode
-                      ? `Guest ${capabilityLevel}% · จำกัดบริบท/เครื่องมือ`
-                      : `User ${capabilityLevel}% · เปิดความสามารถเต็ม`;
+                      ? `Guest ${capabilityLevel}% � ??????????/??????????`
+                      : `User ${capabilityLevel}% � ??????????????????`;
                     const mdesLine = isMdesStreaming && mdesCount >= 1
-                      ? `⚡ MDES กำลังคิด... (${mdesCount} ตัวแทน)`
-                      : "กำลังสรุปและจัดรูปคำตอบให้อ่านง่าย";
+                      ? `? MDES ????????... (${mdesCount} ??????)`
+                      : "??????????????????????????????????";
 
                     return (
                       <div
@@ -2073,14 +2078,14 @@ const ChatPage: React.FC = () => {
                         </span>
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-display text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-                            ระบบกำลังทำงาน
+                            ??????????????
                           </span>
                           {isMdesStreaming && mdesCount > 0 && (
                             <span
                               className="rounded-full bg-emerald-500/10 px-2 py-0.5 font-mono text-[10px] text-emerald-700 dark:text-emerald-300"
                               title={`${mdesCount} MDES agents in flight`}
                             >
-                              ⚡ {mdesCount}
+                              ? {mdesCount}
                             </span>
                           )}
                         </div>
@@ -2103,10 +2108,10 @@ const ChatPage: React.FC = () => {
             )}
           </div>
 
-          {/* Sticky composer — viewport-sticky, single browser scrollbar */}
+          {/* Sticky composer � viewport-sticky, single browser scrollbar */}
           {(hasMessages || isWaitingForResponse) && (
             <div className="sticky bottom-20 md:bottom-4 z-30 mx-auto mt-3 w-full max-w-[50rem] rounded-xl bg-background/96 pb-1 pt-1 backdrop-blur-sm">
-              {/* Phase 10.34 — soft fade above the composer so messages don't
+              {/* Phase 10.34 � soft fade above the composer so messages don't
                   clip into the textarea on a hard line. Pointer-events-none
                   so the user can still click through near the edge. */}
               <span
@@ -2122,8 +2127,8 @@ const ChatPage: React.FC = () => {
                   }`}
                   title={
                     unreadCount > 0
-                      ? `กลับไปด้านล่าง • ${unreadCount} ข้อความใหม่`
-                      : "กลับไปด้านล่าง"
+                      ? `?????????????? � ${unreadCount} ???????????`
+                      : "??????????????"
                   }
                   aria-label="Scroll to bottom"
                 >
@@ -2165,7 +2170,7 @@ const ChatPage: React.FC = () => {
                     <span className="absolute inline-flex h-2.5 w-2.5 animate-radar-ping rounded-full bg-amber-500/70" />
                     <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
                   </span>
-                  <span>กำลังเชื่อมต่อระบบ — รอสักครู่ก่อนส่งข้อความ</span>
+                  <span>?????????????????? � ???????????????????????</span>
                 </div>
               )}
 
@@ -2217,23 +2222,23 @@ const ChatPage: React.FC = () => {
         </div>
       </div>
 
-      {/* ThinkingModal — popup opens from ?thinkingMode=true or /living-chat redirect */}
+      {/* ThinkingModal � popup opens from ?thinkingMode=true or /living-chat redirect */}
       <ThinkingModal
         open={thinkingModalOpen}
         onClose={() => setThinkingModalOpen(false)}
       />
 
-      {/* PAS-5: Approval Gate — intercepts risky tool actions for user confirmation */}
+      {/* PAS-5: Approval Gate � intercepts risky tool actions for user confirmation */}
       <ApprovalGate
         request={pendingApproval}
         onApprove={handleApprove}
         onDeny={handleDeny}
       />
 
-      {/* Command Palette — Ctrl+K opens quick navigation and task search */}
+      {/* Command Palette � Ctrl+K opens quick navigation and task search */}
       <CommandPalette open={cmdPaletteOpen} onClose={() => setCmdPaletteOpen(false)} />
 
-      {/* Phase 5 — first-time user onboarding modal */}
+      {/* Phase 5 � first-time user onboarding modal */}
       <OnboardingModal
         open={showOnboarding}
         onClose={() => {
@@ -2247,7 +2252,7 @@ const ChatPage: React.FC = () => {
         onStartTour={() => setTourActive(true)}
       />
 
-      {/* Phase 6 — guided tour overlay */}
+      {/* Phase 6 � guided tour overlay */}
       <GuidedTour active={tourActive} onComplete={() => setTourActive(false)} />
     </div>
   );

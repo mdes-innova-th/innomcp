@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import logger from "./utils/logger";
 import { logBoth } from "./utils/mcpLogger";
 import { initMemoryRag } from "./services/memoryRagHook";
+import { initializeDatabaseSchema } from "./utils/db";
 
 import app from "./app";
 import { wss as chatWSS, mcpClient, toolHealthChecker } from "./routes/api/chat";
@@ -36,42 +37,56 @@ server.on("error", (err: any) => {
   process.exit(1);
 });
 
-server.listen(port, host, () => {
-  logger.info(`🚀 Backend Server running on http://${host}:${port}`);
-  logger.info(`🔌 WebSocket server listening on ws://${host}:${port}/chat`);
-  logBoth("info", `Server is running on http://${host}:${port}`);
+const startServer = async () => {
+  try {
+    await initializeDatabaseSchema();
+    logger.info("🛠️ Database schema initialization complete");
+  } catch (err: any) {
+    logger.warn(`⚠️ Database schema initialization failed: ${err?.message ?? err}`);
+  }
 
-  // Memory + RAG: Initialize cold retriever corpus
-  initMemoryRag().then((r) => {
-    logBoth("info", `📚 Cold RAG ready: ${r.docCount} docs, ${r.chunkCount} chunks`);
-  }).catch((err) => {
-    logBoth("warn", `⚠️ Cold RAG init failed: ${err.message}`);
-  });
+  server.listen(port, host, () => {
+    logger.info(`🚀 Backend Server running on http://${host}:${port}`);
+    logger.info(`🔌 WebSocket server listening on ws://${host}:${port}/chat`);
+    logBoth("info", `Server is running on http://${host}:${port}`);
 
-  // Phase 24: Preflight dependency check — warn engineers about missing services
-  const preflightCheck = async () => {
-    const deps = [
-      { name: "MCP Server", port: parseInt(process.env.MCP_SERVER_PORT || "3012", 10), critical: true },
-      { name: "Detect-Evidence-API", port: parseInt(process.env.EVIDENCE_API_PORT || "3013", 10), critical: false },
-      { name: "Webd-API", port: parseInt(process.env.WEBD_API_PORT || "3014", 10), critical: false },
-    ];
-    for (const dep of deps) {
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 3000);
-        await fetch(`http://localhost:${dep.port}/health`, { signal: controller.signal }).catch(() =>
-          fetch(`http://localhost:${dep.port}/`, { signal: controller.signal })
-        );
-        clearTimeout(timer);
-        logBoth("info", `✅ Preflight: ${dep.name} (port ${dep.port}) — reachable`);
-      } catch {
-        const level = dep.critical ? "error" : "warn";
-        const icon = dep.critical ? "❌" : "⚠️";
-        logBoth(level, `${icon} Preflight: ${dep.name} (port ${dep.port}) — NOT reachable${dep.critical ? " (CRITICAL — MCP-dependent routes will fail)" : ""}`);
+    // Memory + RAG: Initialize cold retriever corpus
+    initMemoryRag().then((r) => {
+      logBoth("info", `📚 Cold RAG ready: ${r.docCount} docs, ${r.chunkCount} chunks`);
+    }).catch((err) => {
+      logBoth("warn", `⚠️ Cold RAG init failed: ${err.message}`);
+    });
+
+    // Phase 24: Preflight dependency check — warn engineers about missing services
+    const preflightCheck = async () => {
+      const deps = [
+        { name: "MCP Server", port: parseInt(process.env.MCP_SERVER_PORT || "3012", 10), critical: true },
+        { name: "Detect-Evidence-API", port: parseInt(process.env.EVIDENCE_API_PORT || "3013", 10), critical: false },
+        { name: "Webd-API", port: parseInt(process.env.WEBD_API_PORT || "3014", 10), critical: false },
+      ];
+      for (const dep of deps) {
+        try {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), 3000);
+          await fetch(`http://localhost:${dep.port}/health`, { signal: controller.signal }).catch(() =>
+            fetch(`http://localhost:${dep.port}/`, { signal: controller.signal })
+          );
+          clearTimeout(timer);
+          logBoth("info", `✅ Preflight: ${dep.name} (port ${dep.port}) — reachable`);
+        } catch {
+          const level = dep.critical ? "error" : "warn";
+          const icon = dep.critical ? "❌" : "⚠️";
+          logBoth(level, `${icon} Preflight: ${dep.name} (port ${dep.port}) — NOT reachable${dep.critical ? " (CRITICAL — MCP-dependent routes will fail)" : ""}`);
+        }
       }
-    }
-  };
-  preflightCheck().catch(() => {});
+    };
+    preflightCheck().catch(() => {});
+  });
+};
+
+startServer().catch((err) => {
+  console.error("Failed to start server:", err);
+  process.exit(1);
 });
 
 server.on("upgrade", (request: http.IncomingMessage, socket: net.Socket, head: Buffer) => {

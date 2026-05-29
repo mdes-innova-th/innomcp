@@ -5,7 +5,7 @@
  *
  * Body: { message: string, sessionId?: string, preferredMode?: "local"|"remote"|"hybrid",
  *         preferredProviderId?: string, responseMode?: "normal"|"thinking", reasoningMode?: "normal"|"thinking",
- *         thinkingMode?: boolean, toolHint?: string, clientMessageId?: string }
+ *         thinkingMode?: boolean, toolHint?: string, clientMessageId?: string, projectId?: string }
  *
  * Response: text/event-stream where each message is one AgentEvent.
  *
@@ -96,6 +96,7 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
     thinkingMode?: boolean;
     toolHint?: string;
     clientMessageId?: string;
+    projectId?: string;
   };
 
   const message = typeof body.message === "string" ? body.message.trim() : "";
@@ -205,6 +206,7 @@ router.post("/", optionalAuth, guestLimiterMiddleware, async (req: AuthRequest, 
             userId,
             title: message.slice(0, 120),
             intent: (ev as any).intent ?? "general",
+            projectId: typeof body.projectId === "string" ? body.projectId : null,
           }).catch(() => {/* non-critical */});
         }
 

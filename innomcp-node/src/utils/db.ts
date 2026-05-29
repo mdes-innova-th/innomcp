@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import mysql, { Connection, Pool } from "mysql2/promise";
 import "dotenv/config";
 
@@ -126,5 +128,39 @@ export async function pingDatabase(): Promise<void> {
     await connection.ping();
   } finally {
     connection.release();
+  }
+}
+
+export async function initializeDatabaseSchema(): Promise<void> {
+  const initDir = path.resolve(__dirname, "../../database/init");
+  let files: string[];
+  try {
+    files = await fs.promises.readdir(initDir);
+  } catch (err) {
+    console.warn(`[db-init] Could not read init directory: ${initDir}`);
+    return;
+  }
+
+  const sqlFiles = files.filter((file) => file.endsWith(".sql")).sort();
+  if (sqlFiles.length === 0) {
+    console.log(`[db-init] No SQL files found in ${initDir}`);
+    return;
+  }
+
+  const connection = await mysql.createConnection({
+    ...buildDbConfig(),
+    multipleStatements: true,
+  });
+
+  try {
+    for (const file of sqlFiles) {
+      const filePath = path.join(initDir, file);
+      const sql = await fs.promises.readFile(filePath, "utf8");
+      if (!sql.trim()) continue;
+      console.log(`[db-init] Executing ${file}`);
+      await connection.query(sql);
+    }
+  } finally {
+    await connection.end();
   }
 }

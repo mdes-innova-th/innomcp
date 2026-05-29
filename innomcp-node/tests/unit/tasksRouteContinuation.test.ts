@@ -21,6 +21,10 @@ const mockWithDb = withDbConnection as jest.Mock;
 function makeApp(router: typeof import("../../src/routes/api/tasks").default) {
   const app = express();
   app.use(express.json());
+  app.use((req: any, _res, next) => {
+    req.user = { userId: 7 };
+    next();
+  });
   app.use("/api/tasks", router);
   return app;
 }
@@ -118,7 +122,7 @@ describe("tasks continuation route", () => {
 
       expect(queryMock).toHaveBeenCalledWith(
         expect.stringContaining("UPDATE tasks"),
-        ["task-1234"]
+        ["task-1234", 7]
       );
       expect(response.text).toContain('"type":"fact_found"');
       expect(response.text).toContain('"type":"final_answer"');

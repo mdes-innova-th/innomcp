@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faGear,
@@ -42,6 +42,13 @@ export interface ChatSummary {
   title: string;
   time: number;
   messages: ChatMessage[];
+}
+
+interface SidebarProject {
+  id: string;
+  name: string;
+  icon?: string;
+  color?: string;
 }
 
 type Props = {
@@ -251,39 +258,144 @@ const ChatSidebar: React.FC<Props> = ({
   const [sidebarRight, setSidebarRight] = useState<number>(240);
   const [dbTasks, setDbTasks] = useState<Array<{ id: string; title: string; status: string; created_at: string }>>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [projects, setProjects] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem("innomcp.projects") ?? '["MDES Operations"]'); }
-    catch { return ["MDES Operations"]; }
+  const [projects, setProjects] = useState<SidebarProject[]>(() => {
+    if (typeof window === "undefined") {
+      return [{ id: "guest-default", name: "MDES Operations", icon: "📁" }];
+    }
+    try {
+      const stored = JSON.parse(localStorage.getItem("innomcp.projects") ?? "[]");
+      if (Array.isArray(stored) && stored.length > 0) {
+        if (typeof stored[0] === "string") {
+          return stored.map((name: string, index: number) => ({
+            id: `guest-${index}`,
+            name,
+            icon: "📁",
+          }));
+        }
+        return stored as SidebarProject[];
+      }
+    } catch {}
+    return [{ id: "guest-default", name: "MDES Operations", icon: "📁" }];
   });
-  const [activeProject, setActiveProject] = useState<string>(() =>
-    localStorage.getItem("innomcp.activeProject") ?? "MDES Operations"
+  const [activeProjectId, setActiveProjectId] = useState<string>(() =>
+    typeof window !== "undefined"
+      ? localStorage.getItem("innomcp.activeProjectId") ?? "guest-default"
+      : "guest-default"
   );
   const [newProjectName, setNewProjectName] = useState("");
   const [showNewProject, setShowNewProject] = useState(false);
 
-  const createProject = (name: string) => {
-    if (!name.trim() || projects.includes(name.trim())) return;
-    const updated = [...projects, name.trim()];
-    setProjects(updated);
-    setActiveProject(name.trim());
-    localStorage.setItem("innomcp.projects", JSON.stringify(updated));
-    localStorage.setItem("innomcp.activeProject", name.trim());
-    setShowNewProject(false);
-    setNewProjectName("");
-  };
-
-  const switchProject = (name: string) => {
-    setActiveProject(name);
-    localStorage.setItem("innomcp.activeProject", name);
-  };
-
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const sidebarRef  = useRef<HTMLElement | null>(null);
-  const { isLoggedIn, userDispName, userRoleId, logout } = useAuth();
+  const { isLoggedIn, userDispName, userRoleId, userId, logout } = useAuth();
   const { toggleTheme } = useTheme();
   const router = useRouter();
+  const projectStorageKey = userId ? `innomcp.projects.user.${userId}` : "innomcp.projects.guest";
+  const activeProjectStorageKey = userId
+    ? `innomcp.activeProjectId.user.${userId}`
+    : "innomcp.activeProjectId.guest";
+
+  const persistGuestProjects = useCallback((nextProjects: SidebarProject[], nextActiveProjectId?: string) => {
+    localStorage.setItem(projectStorageKey, JSON.stringify(nextProjects));
+    localStorage.setItem(
+      activeProjectStorageKey,
+      nextActiveProjectId ?? nextProjects[0]?.id ?? "guest-default"
+    );
+  }, [activeProjectStorageKey, projectStorageKey]);
+
+  const createProject = useCallback(async (name: string) => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+
+    if (isLoggedIn) {
+      const response = await fetch("/api/projects", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: trimmed }),
+      }).catch(() => null);
+      if (!response?.ok) return;
+
+      const created = await response.json().catch(() => null);
+      if (!created?.id) return;
+
+      const nextProject: SidebarProject = { id: created.id, name: created.name ?? trimmed, icon: "📁" };
+      setProjects((current) => [nextProject, ...current]);
+      setActiveProjectId(nextProject.id);
+      localStorage.setItem(activeProjectStorageKey, nextProject.id);
+      router.push(`/projects/${nextProject.id}`);
+    } else {
+      if (projects.some((project) => project.name === trimmed)) return;
+      const nextProject: SidebarProject = {
+        id: `guest-${Date.now()}`,
+        name: trimmed,
+        icon: "📁",
+      };
+      const updated = [...projects, nextProject];
+      setProjects(updated);
+      setActiveProjectId(nextProject.id);
+      persistGuestProjects(updated, nextProject.id);
+    }
+
+    setShowNewProject(false);
+    setNewProjectName("");
+  }, [activeProjectStorageKey, isLoggedIn, persistGuestProjects, projects, router]);
+
+  const switchProject = useCallback((project: SidebarProject) => {
+    setActiveProjectId(project.id);
+    localStorage.setItem(activeProjectStorageKey, project.id);
+    if (isLoggedIn) {
+      router.push(`/projects/${project.id}`);
+    }
+  }, [activeProjectStorageKey, isLoggedIn, router]);
 
   useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    if (!isLoggedIn) {
+      try {
+        const stored = JSON.parse(localStorage.getItem(projectStorageKey) ?? "[]");
+        const guestProjects = Array.isArray(stored) && stored.length > 0
+          ? stored
+          : [{ id: "guest-default", name: "MDES Operations", icon: "📁" }];
+        setProjects(guestProjects);
+        setActiveProjectId(
+          localStorage.getItem(activeProjectStorageKey) ?? guestProjects[0]?.id ?? "guest-default"
+        );
+      } catch {
+        setProjects([{ id: "guest-default", name: "MDES Operations", icon: "📁" }]);
+        setActiveProjectId("guest-default");
+      }
+      return;
+    }
+
+    fetch("/api/projects", { credentials: "include" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        const fetchedProjects = Array.isArray(data?.projects) ? data.projects : [];
+        const normalized = fetchedProjects.map((project: SidebarProject) => ({
+          id: project.id,
+          name: project.name,
+          icon: project.icon ?? "📁",
+          color: project.color,
+        }));
+        setProjects(normalized);
+        if (normalized.length === 0) {
+          setActiveProjectId("");
+          return;
+        }
+        const storedActiveProjectId = localStorage.getItem(activeProjectStorageKey);
+        const activeExists = normalized.some((project: SidebarProject) => project.id === storedActiveProjectId);
+        const nextActiveProjectId = activeExists
+          ? storedActiveProjectId!
+          : normalized[0].id;
+        setActiveProjectId(nextActiveProjectId);
+        localStorage.setItem(activeProjectStorageKey, nextActiveProjectId);
+      })
+      .catch(() => {});
+  }, [activeProjectStorageKey, isLoggedIn, projectStorageKey]);
 
   // Poll unread notification count every 5 seconds
   useEffect(() => {
@@ -953,13 +1065,15 @@ const ChatSidebar: React.FC<Props> = ({
             </button>
           </div>
           <ul className="flex flex-col gap-0.5">
-            {projects.map(p => (
-              <li key={p} onClick={() => switchProject(p)}
+            {projects.map((project) => (
+              <li key={project.id} onClick={() => switchProject(project)}
                 className={`flex items-center justify-between rounded-md px-2 py-1 text-[11.5px] cursor-pointer transition-colors ${
-                  p === activeProject ? "bg-primary/8 text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                  project.id === activeProjectId ? "bg-primary/8 text-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
                 }`}>
-                <span className="truncate">{p}</span>
-                {p === activeProject && <span className="text-[9px] text-primary/60">●</span>}
+                <span className="truncate">
+                  {project.icon ? `${project.icon} ` : ""}{project.name}
+                </span>
+                {project.id === activeProjectId && <span className="text-[9px] text-primary/60">●</span>}
               </li>
             ))}
             {showNewProject ? (

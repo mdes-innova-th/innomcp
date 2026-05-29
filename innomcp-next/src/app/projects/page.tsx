@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useAuth } from "@/app/context/AuthContext";
+import { useProtectedRoute } from "@/app/hooks/useProtectedRoute";
 
 const BACKEND =
   typeof window !== "undefined" && window.location.port === "3000"
@@ -32,7 +32,7 @@ const PRESET_ICONS = ["📁", "📊", "🔬", "💡", "🎯"];
 
 export default function ProjectsPage() {
   const router = useRouter();
-  const { isLoggedIn, isAuthLoading } = useAuth();
+  const { isLoggedIn, isAuthLoading } = useProtectedRoute();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,12 +50,6 @@ export default function ProjectsPage() {
   useEffect(() => {
     document.title = "Projects — INNOMCP";
   }, []);
-
-  useEffect(() => {
-    if (!isAuthLoading && !isLoggedIn) {
-      router.replace("/login");
-    }
-  }, [isAuthLoading, isLoggedIn, router]);
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -301,7 +295,7 @@ export default function ProjectsPage() {
           {projects.map((project) => (
             <Link
               key={project.id}
-              href={`/dashboard?project_id=${project.id}`}
+              href={`/projects/${project.id}`}
               className="rounded-xl border border-border/40 bg-background/60 hover:bg-muted/20 transition-colors p-4 cursor-pointer block"
             >
               {/* Color accent bar */}

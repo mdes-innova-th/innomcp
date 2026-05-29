@@ -23,6 +23,7 @@ interface TaskDetail {
   completed_at: string | null;
   rating?: number | null;
   tags?: string | null;
+  project_id?: string | null;
 }
 
 const BACKEND =
@@ -172,6 +173,9 @@ export default function TaskDetailPanel({
     replayMode && replayUpToStep !== undefined
       ? steps.slice(0, replayUpToStep)
       : steps;
+  const projectSuffix = task.project_id
+    ? `?projectId=${encodeURIComponent(task.project_id)}`
+    : "";
 
   return (
     <div className="flex flex-col gap-3 p-1 h-full overflow-y-auto">
@@ -222,7 +226,7 @@ export default function TaskDetailPanel({
         )}
         {/* Full view link — opens task standalone page in new tab */}
         <a
-          href={`/tasks/${taskId}`}
+          href={`/tasks/${taskId}${projectSuffix}`}
           target="_blank"
           rel="noopener"
           className="text-[10.5px] text-blue-500 hover:underline shrink-0"

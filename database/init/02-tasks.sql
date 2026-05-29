@@ -4,6 +4,7 @@
 CREATE TABLE IF NOT EXISTS tasks (
   id            VARCHAR(64)   NOT NULL,
   user_id       INT           NULL,
+  project_id    VARCHAR(36)   NULL,
   run_id        VARCHAR(64)   NOT NULL DEFAULT '',
   title         VARCHAR(255)  NOT NULL DEFAULT '',
   intent        VARCHAR(64)   NOT NULL DEFAULT 'general',
@@ -14,6 +15,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   completed_at  DATETIME      NULL,
   PRIMARY KEY (id),
   INDEX idx_tasks_user_created (user_id, created_at DESC),
+  INDEX idx_tasks_project_created (project_id, created_at DESC),
   INDEX idx_tasks_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

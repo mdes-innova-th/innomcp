@@ -13,6 +13,20 @@ import { clearCache } from "../../middleware/cacheMiddleware";
 import { compressHistory } from "../../agents/parallelDispatch";
 
 const router = Router();
+let tasksProjectColumnEnsured = false;
+
+async function ensureTasksProjectColumn(): Promise<void> {
+  if (tasksProjectColumnEnsured) return;
+  await withDbConnection(async (conn) => {
+    try {
+      await conn.query("ALTER TABLE tasks ADD COLUMN project_id VARCHAR(36) NULL");
+    } catch {}
+    try {
+      await conn.query("CREATE INDEX idx_tasks_project_created ON tasks (project_id, created_at DESC)");
+    } catch {}
+  });
+  tasksProjectColumnEnsured = true;
+}
 
 const CONTINUATION_STEP_LIMIT = 12;
 const CONTINUATION_ARTIFACT_LIMIT = 6;
@@ -38,6 +52,26 @@ type ContinuationArtifact = {
   name: string;
   path: string;
 };
+
+function resolveTaskUserId(req: Request): string | number | null {
+  const authUser = (req as any).user;
+  if (authUser?.userId != null) return authUser.userId;
+  if (authUser?.id != null) return authUser.id;
+  return null;
+}
+
+function buildTaskOwnership(userId: string | number | null): {
+  clause: string;
+  params: Array<string | number>;
+} {
+  if (userId == null) {
+    return { clause: "", params: [] };
+  }
+  return {
+    clause: " AND user_id = ?",
+    params: [userId],
+  };
+}
 
 function resolveWorkspaceRoot(): string {
   return process.env.WORKSPACE_ROOT
@@ -182,22 +216,27 @@ function buildContinuationHistory(
 
 // ── List recent tasks (authenticated user or guest by session) ────────────────
 router.get("/", async (req: Request, res: Response) => {
-  const userId = (req as any).user?.id ?? null;
+  const userId = resolveTaskUserId(req);
   const limit = Math.min(Number(req.query.limit) || 20, 50);
   const offset = Math.max(Number(req.query.offset) || 0, 0);
   const includeArchived = String(req.query.includeArchived || "").toLowerCase() === "true";
+  const projectId = String(req.query.projectId || req.query.project_id || "").trim();
 
   try {
+    if (projectId) {
+      await ensureTasksProjectColumn();
+    }
     const rows = await withDbConnection(async (conn) => {
       if (userId) {
         const [r] = await conn.query(
-          `SELECT id, title, intent, status, elapsed_ms, created_at, completed_at
+          `SELECT id, title, intent, status, elapsed_ms, created_at, completed_at, project_id
            FROM tasks
            WHERE user_id = ?
+             AND (? = '' OR project_id = ?)
              AND (? = 1 OR status <> 'archived')
            ORDER BY created_at DESC
            LIMIT ? OFFSET ?`,
-          [userId, includeArchived ? 1 : 0, limit, offset]
+          [userId, projectId, projectId, includeArchived ? 1 : 0, limit, offset]
         );
         return r;
       }
@@ -216,6 +255,8 @@ router.get("/", async (req: Request, res: Response) => {
 router.get("/search", async (req: Request, res: Response) => {
   const q = String(req.query.q || "").trim();
   if (!q || q.length < 2) return res.json({ results: [] });
+  const userId = resolveTaskUserId(req);
+  if (userId == null) return res.json({ results: [], query: q, total: 0 });
 
   const limit = Math.min(Number(req.query.limit) || 10, 50);
   const type = String(req.query.type || "all");
@@ -230,10 +271,11 @@ router.get("/search", async (req: Request, res: Response) => {
         const [rows] = await conn.query(
           `SELECT id, title, intent, status, created_at, 'task' as result_type
            FROM tasks
-           WHERE (title LIKE ? OR intent LIKE ?)
+           WHERE user_id = ?
+             AND (title LIKE ? OR intent LIKE ?)
              AND (? = 1 OR status <> 'archived')
            ORDER BY created_at DESC LIMIT ?`,
-          [`%${q}%`, `%${q}%`, includeArchived ? 1 : 0, limit]
+          [userId, `%${q}%`, `%${q}%`, includeArchived ? 1 : 0, limit]
         ) as any[];
         items.push(...(rows as any[] || []));
       }
@@ -251,11 +293,12 @@ router.get("/search", async (req: Request, res: Response) => {
 // ── Get single task with steps ────────────────────────────────────────────────
 router.get("/:id", async (req: Request, res: Response) => {
   const { id } = req.params;
+  const ownership = buildTaskOwnership(resolveTaskUserId(req));
   try {
     const [task, steps] = await withDbConnection(async (conn) => {
       const [taskRows] = await conn.query(
-        `SELECT *, COALESCE(tags, '[]') as tags FROM tasks WHERE id = ? LIMIT 1`,
-        [id]
+        `SELECT *, COALESCE(tags, '[]') as tags FROM tasks WHERE id = ?${ownership.clause} LIMIT 1`,
+        [id, ...ownership.params]
       );
       const [stepRows] = await conn.query(
         `SELECT event_type, public_summary, agent_id, tool_name, ts FROM task_steps WHERE task_id = ? ORDER BY id ASC`,
@@ -278,12 +321,26 @@ router.get("/:id", async (req: Request, res: Response) => {
 router.patch("/:id/tags", async (req: Request, res: Response) => {
   const { id } = req.params;
   const { tags } = req.body as { tags: string[] };
+  const ownership = buildTaskOwnership(resolveTaskUserId(req));
   if (!Array.isArray(tags)) return res.status(400).json({ error: "tags must be array" });
 
   try {
-    await withDbConnection(async (conn) => {
-      await conn.query("UPDATE tasks SET tags = ? WHERE id = ?", [JSON.stringify(tags), id]);
+    const updated = await withDbConnection(async (conn) => {
+      const [existsRows] = await conn.query(
+        `SELECT id FROM tasks WHERE id = ?${ownership.clause} LIMIT 1`,
+        [id, ...ownership.params]
+      ) as any[];
+      if (!(existsRows as any[])?.length) return 0;
+
+      const [result] = await conn.query(
+        `UPDATE tasks SET tags = ? WHERE id = ?${ownership.clause}`,
+        [JSON.stringify(tags), id, ...ownership.params]
+      ) as any[];
+      return Number(result?.affectedRows ?? 0);
     });
+    if (updated === 0) {
+      return res.status(404).json({ error: "task not found" });
+    }
     res.json({ id, tags });
   } catch (err: any) {
     // tags column might not exist yet — return graceful response
@@ -294,11 +351,15 @@ router.patch("/:id/tags", async (req: Request, res: Response) => {
 // ── Export task artifacts as ZIP ─────────────────────────────────────────────
 router.get("/:id/export", async (req: Request, res: Response) => {
   const { id } = req.params;
+  const ownership = buildTaskOwnership(resolveTaskUserId(req));
   const WORKSPACE_ROOT = resolveWorkspaceRoot();
 
   try {
     const [rows] = await withDbConnection(async (conn) =>
-      conn.query("SELECT title, final_answer FROM tasks WHERE id = ?", [id])
+      conn.query(
+        `SELECT title, final_answer FROM tasks WHERE id = ?${ownership.clause}`,
+        [id, ...ownership.params]
+      )
     ) as any[];
     if (!rows[0]) return res.status(404).json({ error: "Task not found" });
     const task = rows[0];
@@ -389,6 +450,7 @@ router.get("/:id/export", async (req: Request, res: Response) => {
 router.post("/:id/messages", async (req: Request, res: Response) => {
   const { id } = req.params;
   const { message, sessionId } = req.body as { message: string; sessionId?: string };
+  const ownership = buildTaskOwnership(resolveTaskUserId(req));
   if (!message?.trim()) return res.status(400).json({ error: "message required" });
 
   let continuationMessage = message.trim();
@@ -398,8 +460,8 @@ router.post("/:id/messages", async (req: Request, res: Response) => {
     const { task, steps } = await withDbConnection(async (conn) => {
       const [taskRows] = await conn.query(
         `SELECT title, intent, final_answer, status, created_at, completed_at
-         FROM tasks WHERE id = ? LIMIT 1`,
-        [id]
+         FROM tasks WHERE id = ?${ownership.clause} LIMIT 1`,
+        [id, ...ownership.params]
       );
       const taskRow = (taskRows as ContinuationTaskRow[])[0];
       if (!taskRow) return { task: null, steps: [] as ContinuationStepRow[] };
@@ -419,8 +481,8 @@ router.post("/:id/messages", async (req: Request, res: Response) => {
         await conn.query(
           `UPDATE tasks
            SET status = 'running', completed_at = NULL
-           WHERE id = ?`,
-          [id]
+           WHERE id = ?${ownership.clause}`,
+          [id, ...ownership.params]
         );
       }
 
@@ -500,22 +562,23 @@ router.post("/:id/messages", async (req: Request, res: Response) => {
 // ── Archive a task without deleting its history or artifacts ──────────────────
 router.post("/:id/archive", async (req: Request, res: Response) => {
   const { id } = req.params;
+  const ownership = buildTaskOwnership(resolveTaskUserId(req));
 
   try {
     const rows = await withDbConnection(async (conn) => {
       const [result] = await conn.query(
         `UPDATE tasks
          SET status = 'archived', completed_at = COALESCE(completed_at, NOW())
-         WHERE id = ? AND status <> 'archived'`,
-        [id]
+         WHERE id = ?${ownership.clause} AND status <> 'archived'`,
+        [id, ...ownership.params]
       ) as any[];
 
       const [taskRows] = await conn.query(
         `SELECT id, status, completed_at
          FROM tasks
-         WHERE id = ?
+         WHERE id = ?${ownership.clause}
          LIMIT 1`,
-        [id]
+        [id, ...ownership.params]
       ) as any[];
 
       return {
@@ -549,13 +612,17 @@ export async function createTask(params: {
   userId: number | null;
   title: string;
   intent: string;
+  projectId?: string | null;
 }): Promise<void> {
   try {
+    if (params.projectId) {
+      await ensureTasksProjectColumn();
+    }
     await withDbConnection(async (conn) => {
       await conn.query(
-        `INSERT IGNORE INTO tasks (id, run_id, user_id, title, intent, status, created_at)
-         VALUES (?, ?, ?, ?, ?, 'running', NOW())`,
-        [params.id, params.runId, params.userId, params.title.slice(0, 254), params.intent]
+        `INSERT IGNORE INTO tasks (id, run_id, user_id, project_id, title, intent, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'running', NOW())`,
+        [params.id, params.runId, params.userId, params.projectId ?? null, params.title.slice(0, 254), params.intent]
       );
     });
     clearCache("/api/dashboard");

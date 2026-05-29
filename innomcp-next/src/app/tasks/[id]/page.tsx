@@ -22,6 +22,7 @@ export default function TaskDetailPage({
   const [replaying, setReplaying] = useState(false);
   const [replayStep, setReplayStep] = useState(0);
   const [totalSteps, setTotalSteps] = useState(0);
+  const [projectId, setProjectId] = useState<string | null>(null);
   const [archiving, setArchiving] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -40,7 +41,10 @@ export default function TaskDetailPage({
     if (!params.id) return;
     fetch(`${BACKEND}/api/tasks/${params.id}`, { credentials: "include" })
       .then((r) => r.json())
-      .then((d) => setTotalSteps((d.steps ?? []).length))
+      .then((d) => {
+        setTotalSteps((d.steps ?? []).length);
+        setProjectId(d.task?.project_id ?? null);
+      })
       .catch(() => {});
   }, [params.id]);
 
@@ -89,7 +93,7 @@ export default function TaskDetailPage({
         throw new Error("archive_failed");
       }
 
-      router.push("/dashboard");
+      router.push(projectId ? `/dashboard?projectId=${encodeURIComponent(projectId)}` : "/dashboard");
       router.refresh();
     } catch {
       window.alert("Could not archive this task right now.");
@@ -111,12 +115,15 @@ export default function TaskDetailPage({
   }
 
   const exportUrl = `${BACKEND}/api/tasks/${params.id}/export`;
+  const dashboardHref = projectId
+    ? `/dashboard?projectId=${encodeURIComponent(projectId)}`
+    : "/dashboard";
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
       <div className="mb-4 flex items-center gap-3 flex-wrap">
         <Link
-          href="/dashboard"
+          href={dashboardHref}
           className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground transition-colors"
         >
           ← Back to Dashboard
@@ -165,7 +172,7 @@ export default function TaskDetailPage({
       <div className="rounded-xl border border-border/40 bg-background/60 p-4">
         <TaskDetailPanel
           taskId={params.id}
-          onClose={() => router.push("/dashboard")}
+          onClose={() => router.push(dashboardHref)}
           replayMode={replaying}
           replayUpToStep={replayStep}
         />

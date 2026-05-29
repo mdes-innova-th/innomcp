@@ -7,7 +7,8 @@
  * Mounted in app.ts at: app.use("/api/preferences", generalRateLimit, preferencesRouter)
  */
 
-import { Router, Request, Response } from "express";
+import { Router, Response } from "express";
+import { optionalAuth, type AuthRequest } from "../../utils/jwt";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,18 +43,27 @@ function getDefaults(userId: string): UserPreferences {
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 const router = Router();
+router.use(optionalAuth);
+
+function resolvePreferenceUserId(req: AuthRequest): string {
+  if (req.user?.userId != null) return String(req.user.userId);
+  if ((req as any).apiKeyData?.apikey_id != null) {
+    return `api:${String((req as any).apiKeyData.apikey_id)}`;
+  }
+  return "guest";
+}
 
 // GET /api/preferences
-router.get("/", (req: Request, res: Response) => {
-  const userId = (req as any).user?.id ?? (req as any).apiKeyData?.apikey_id?.toString() ?? "default";
+router.get("/", (req: AuthRequest, res: Response) => {
+  const userId = resolvePreferenceUserId(req);
   const key = `user:${userId}`;
   const prefs = store.get(key) ?? getDefaults(userId);
   res.json({ preferences: prefs });
 });
 
 // PUT /api/preferences
-router.put("/", (req: Request, res: Response) => {
-  const userId = (req as any).user?.id ?? (req as any).apiKeyData?.apikey_id?.toString() ?? "default";
+router.put("/", (req: AuthRequest, res: Response) => {
+  const userId = resolvePreferenceUserId(req);
   const key = `user:${userId}`;
   const body = req.body as Partial<Omit<UserPreferences, "userId" | "updatedAt">>;
 

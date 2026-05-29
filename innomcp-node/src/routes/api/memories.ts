@@ -5,14 +5,36 @@
  * Mounted at: /api/memories
  */
 
-import { Router, Request, Response } from "express";
+import { Router, Response } from "express";
 import { withDbConnection } from "../../utils/db";
+import { optionalAuth, type AuthRequest } from "../../utils/jwt";
 
 const router = Router();
+router.use(optionalAuth);
+
+async function ensureProjectAccess(projectId: string | undefined, userId: number | null): Promise<boolean> {
+  if (!projectId) return true;
+  if (!userId) return false;
+
+  const rows = await withDbConnection(async (conn) => {
+    const [result] = await conn.query(
+      "SELECT id FROM projects WHERE id = ? AND user_id = ? AND archived_at IS NULL LIMIT 1",
+      [projectId, userId]
+    ) as any[];
+    return result as any[];
+  });
+
+  return Array.isArray(rows) && rows.length > 0;
+}
 
 // GET /api/memories?scope=session&sessionId=xxx&projectId=yyy
-router.get("/", async (req: Request, res: Response) => {
+router.get("/", async (req: AuthRequest, res: Response) => {
   const { scope, sessionId, projectId } = req.query as Record<string, string>;
+  const hasProjectAccess = await ensureProjectAccess(projectId, req.user?.userId ?? null).catch(() => false);
+  if (projectId && !hasProjectAccess) {
+    return res.status(403).json({ error: "Project access denied" });
+  }
+
   try {
     const rows = await withDbConnection(async (conn) => {
       let query =
@@ -41,15 +63,20 @@ router.get("/", async (req: Request, res: Response) => {
 });
 
 // GET /api/memories/search?q=keyword&scope=session&sessionId=xxx
-router.get("/search", async (req: Request, res: Response) => {
-  const { q, scope, sessionId } = req.query as Record<string, string>;
+router.get("/search", async (req: AuthRequest, res: Response) => {
+  const { q, scope, sessionId, projectId } = req.query as Record<string, string>;
   if (!q?.trim()) return res.status(400).json({ error: "q required" });
+  const hasProjectAccess = await ensureProjectAccess(projectId, req.user?.userId ?? null).catch(() => false);
+  if (projectId && !hasProjectAccess) {
+    return res.status(403).json({ error: "Project access denied" });
+  }
   try {
     const rows = await withDbConnection(async (conn) => {
       let query = "SELECT id, scope, key_name AS keyName, value, tag, created_at AS createdAt, updated_at AS updatedAt FROM memories WHERE (key_name LIKE ? OR value LIKE ?)";
       const params: any[] = [`%${q}%`, `%${q}%`];
       if (scope) { query += " AND scope = ?"; params.push(scope); }
       if (sessionId) { query += " AND session_id = ?"; params.push(sessionId); }
+      if (projectId) { query += " AND project_id = ?"; params.push(projectId); }
       query += " ORDER BY updated_at DESC LIMIT 20";
       const [result] = await conn.query(query, params) as any[];
       return result;
@@ -59,10 +86,14 @@ router.get("/search", async (req: Request, res: Response) => {
 });
 
 // POST /api/memories  { scope, keyName, value, sessionId?, projectId?, tag? }
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", async (req: AuthRequest, res: Response) => {
   const { scope = "session", keyName, value, sessionId, projectId, tag } = req.body;
   if (!keyName || value === undefined) {
     return res.status(400).json({ error: "keyName and value required" });
+  }
+  const hasProjectAccess = await ensureProjectAccess(projectId, req.user?.userId ?? null).catch(() => false);
+  if (projectId && !hasProjectAccess) {
+    return res.status(403).json({ error: "Project access denied" });
   }
   try {
     await withDbConnection(async (conn) => {
@@ -80,7 +111,7 @@ router.post("/", async (req: Request, res: Response) => {
 });
 
 // DELETE /api/memories/:id
-router.delete("/:id", async (req: Request, res: Response) => {
+router.delete("/:id", async (req: AuthRequest, res: Response) => {
   try {
     await withDbConnection(async (conn) => {
       await conn.query("DELETE FROM memories WHERE id = ?", [req.params.id]);

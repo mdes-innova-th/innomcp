@@ -1,23 +1,22 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import DashboardView from "@/app/components/chat/DashboardView";
-import { useAuth } from "@/app/context/AuthContext";
+import { useProtectedRoute } from "@/app/hooks/useProtectedRoute";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { isLoggedIn, isAuthLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const { isLoggedIn, isAuthLoading } = useProtectedRoute();
+  const projectId =
+    searchParams.get("projectId") ||
+    searchParams.get("project_id") ||
+    undefined;
 
   useEffect(() => {
     document.title = "Dashboard — INNOMCP";
   }, []);
-
-  useEffect(() => {
-    if (!isAuthLoading && !isLoggedIn) {
-      router.replace("/login");
-    }
-  }, [isAuthLoading, isLoggedIn, router]);
 
   if (isAuthLoading) {
     return (
@@ -33,7 +32,12 @@ export default function DashboardPage() {
 
   return (
     <div className="w-full">
-      <DashboardView onOpenChat={() => router.push("/")} />
+      <DashboardView
+        projectId={projectId}
+        onOpenChat={() =>
+          router.push(projectId ? `/?projectId=${encodeURIComponent(projectId)}` : "/")
+        }
+      />
     </div>
   );
 }

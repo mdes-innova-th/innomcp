@@ -82,6 +82,7 @@ function rawHasForbiddenKey(raw: string): string | null {
 export interface SendOptions {
   message: string;
   sessionId?: string;
+  projectId?: string;
   preferredMode?: "local" | "remote" | "hybrid";
   preferredProviderId?: string;
   toolHint?: string;
@@ -193,6 +194,7 @@ export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
           body: JSON.stringify({
             message: opts.message,
             sessionId: opts.sessionId,
+            projectId: opts.projectId,
             preferredMode: opts.preferredMode,
             preferredProviderId: opts.preferredProviderId,
             toolHint: opts.toolHint,
