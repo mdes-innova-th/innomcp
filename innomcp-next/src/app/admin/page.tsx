@@ -548,6 +548,100 @@ export default function AdminPage() {
           </div>
         )}
 
+        {/* ─── Sessions Tab ───────────────────────────────────────────────────── */}
+        {activeTab === 'sessions' && (
+          <div className="space-y-4">
+            {revokeError && (
+              <div className="rounded-lg bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 p-3 text-sm text-red-700 dark:text-red-300">
+                {revokeError}
+              </div>
+            )}
+            {revokeMsg && (
+              <div className="rounded-lg bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 p-3 text-sm text-green-700 dark:text-green-300">
+                {revokeMsg}
+              </div>
+            )}
+            <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <h2 className="font-semibold text-gray-800 dark:text-gray-100">
+                  Active Sessions ({sessions.length})
+                </h2>
+                <button
+                  onClick={() => {
+                    setSessionsLoading(true);
+                    setRevokeMsg(''); setRevokeError('');
+                    fetch('/api/admin/sessions', { credentials: 'include' })
+                      .then(r => r.json())
+                      .then((d: { success: boolean; data?: SessionRow[]; error?: string }) => {
+                        if (d.success && d.data) setSessions(d.data);
+                        else setRevokeError(d.error || 'Failed to load sessions');
+                      })
+                      .catch(() => setRevokeError('Network error'))
+                      .finally(() => setSessionsLoading(false));
+                  }}
+                  className="text-xs px-3 py-1 rounded border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                >
+                  Refresh
+                </button>
+              </div>
+              {sessionsLoading ? (
+                <div className="p-8 text-center text-gray-400">Loading sessions…</div>
+              ) : sessions.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">No active sessions found.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 dark:bg-gray-700/50 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-4 py-3">JTI</th>
+                        <th className="px-4 py-3">User ID</th>
+                        <th className="px-4 py-3">Email</th>
+                        <th className="px-4 py-3">Login At</th>
+                        <th className="px-4 py-3">Last Seen</th>
+                        <th className="px-4 py-3">IP</th>
+                        <th className="px-4 py-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {sessions.map(s => (
+                        <tr key={s.jti} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
+                          <td className="px-4 py-3 font-mono text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                            {s.jti.slice(0, 8)}…
+                          </td>
+                          <td className="px-4 py-3 text-gray-600 dark:text-gray-300 font-mono">{s.userId}</td>
+                          <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{s.email}</td>
+                          <td className="px-4 py-3 text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                            {new Date(s.loginAt).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+                            {new Date(s.lastSeen).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-400 dark:text-gray-500 font-mono">{s.ip}</td>
+                          <td className="px-4 py-3 text-right flex gap-2 justify-end">
+                            <button
+                              onClick={() => revokeSession(s.jti)}
+                              className="text-xs px-3 py-1 rounded font-medium bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-900/30 dark:hover:bg-red-900/50 dark:text-red-300 transition-colors"
+                            >
+                              Revoke
+                            </button>
+                            <button
+                              onClick={() => revokeAllForUser(s.userId)}
+                              className="text-xs px-3 py-1 rounded font-medium bg-orange-100 hover:bg-orange-200 text-orange-700 dark:bg-orange-900/30 dark:hover:bg-orange-900/50 dark:text-orange-300 transition-colors"
+                              title={`Revoke all sessions for user ${s.userId}`}
+                            >
+                              All
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ─── Providers Tab ──────────────────────────────────────────────────── */}
         {activeTab === 'providers' && (
           <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">

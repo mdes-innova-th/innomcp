@@ -27,6 +27,7 @@ import PromptTemplatesPanel from "@/app/components/chat/PromptTemplatesPanel";
 import PreferencesPanel from "./PreferencesPanel";
 import WebhookPanel from "@/app/components/chat/WebhookPanel";
 import RateLimitIndicator from "@/app/components/common/RateLimitIndicator";
+import UserPresence from "@/app/components/chat/UserPresence";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -484,6 +485,12 @@ const ChatSidebar: React.FC<Props> = ({
 
   const safeTheme = mounted ? theme : "light";
 
+  // Derive numeric project id for UserPresence — null for guest/non-numeric ids
+  const numericProjectId: number | null =
+    isLoggedIn && activeProjectId && /^\d+$/.test(activeProjectId)
+      ? Number(activeProjectId)
+      : null;
+
   const togglePanel = (id: PanelId) =>
     setActivePanel((prev) => (prev === id ? null : id));
 
@@ -893,6 +900,7 @@ const ChatSidebar: React.FC<Props> = ({
             </svg>
           </div>
           <span className="flex-1 text-sm font-bold tracking-wide text-foreground">INNOMCP</span>
+          <UserPresence projectId={numericProjectId} />
           <button
             onClick={toggleTheme}
             className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
@@ -1012,6 +1020,14 @@ const ChatSidebar: React.FC<Props> = ({
               onClick={() => togglePanel("workspace")}
               active={activePanel === "workspace"}
               testId="sidebar-nav-workspace"
+            />
+          )}
+          {isLoggedIn && userRoleId === 0 && (
+            <NavBtn
+              icon="🛡️"
+              label="Admin"
+              onClick={() => router.push("/admin")}
+              testId="sidebar-nav-admin"
             />
           )}
           <NavBtn
