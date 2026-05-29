@@ -134,4 +134,61 @@ adminRouter.patch('/users/:id/active', async (req: AuthRequest, res: Response) =
   }
 });
 
+/**
+ * GET /api/admin/audit-log?limit=20&offset=0
+ * Retrieve paginated admin audit log entries (admin only)
+ */
+adminRouter.get('/audit-log', async (req: AuthRequest, res: Response) => {
+  try {
+    const limit = Math.min(parseInt((req.query.limit as string) ?? '20', 10) || 20, 100);
+    const offset = parseInt((req.query.offset as string) ?? '0', 10) || 0;
+
+    const { entries, total } = await withDbConnection(async (conn) => {
+      const [rows] = await conn.query(
+        `SELECT
+           a.id,
+           a.created_at,
+           a.admin_user_id,
+           u.user_email   AS admin_email,
+           a.action,
+           a.target_user_id AS target_id,
+           a.meta         AS details
+         FROM admin_audit_log a
+         LEFT JOIN \`user\` u ON u.user_id = a.admin_user_id
+         ORDER BY a.created_at DESC
+         LIMIT ? OFFSET ?`,
+        [limit, offset]
+      );
+
+      const [[countRow]] = await conn.query(
+        'SELECT COUNT(*) AS total FROM admin_audit_log'
+      ) as any;
+
+      return { entries: rows, total: (countRow as any).total as number };
+    });
+
+    const mapped = (entries as any[]).map((row) => ({
+      id:         row.id,
+      timestamp:  row.created_at,
+      adminEmail: row.admin_email ?? null,
+      adminUserId: row.admin_user_id,
+      action:     row.action,
+      targetId:   row.target_id ?? null,
+      details:    typeof row.details === 'string'
+                    ? (() => { try { return JSON.parse(row.details); } catch { return row.details; } })()
+                    : row.details ?? null,
+    }));
+
+    res.json({
+      success: true,
+      entries: mapped,
+      total,
+      hasMore: offset + limit < total,
+    });
+  } catch (error) {
+    console.error('[Admin] GET /audit-log error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch audit log' });
+  }
+});
+
 export default adminRouter;
