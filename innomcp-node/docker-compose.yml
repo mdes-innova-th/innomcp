@@ -17,7 +17,7 @@ services:
       - DB_HOST=mariadb
       - DB_PORT=3306
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3011/api/health", "||", "exit", "1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3011/api/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
