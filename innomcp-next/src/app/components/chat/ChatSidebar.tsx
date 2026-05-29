@@ -815,6 +815,16 @@ const ChatSidebar: React.FC<Props> = ({
         >
           <span className="text-base leading-none">⚙️</span>
         </button>
+        {isLoggedIn && userRoleId === 0 && (
+          <button
+            onClick={() => router.push("/admin")}
+            title="Admin"
+            data-testid="sidebar-nav-admin"
+            className="flex h-9 w-9 items-center justify-center rounded-md text-foreground/80 hover:bg-muted/60"
+          >
+            <span className="text-base leading-none">🛡️</span>
+          </button>
+        )}
 
         {/* User avatar at bottom */}
         <div className="mt-auto">
