@@ -100,3 +100,157 @@ describe("logAdminAction (utility)", () => {
     consoleErr.mockRestore();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Route tests: GET /api/admin/audit-log
+// ---------------------------------------------------------------------------
+
+jest.mock("../../src/utils/jwt", () => ({
+  authenticateToken: (req: any, _res: any, next: Function) => {
+    req.user = { userId: 1, role: 0 };
+    next();
+  },
+  requireRole: (_role: number) => (_req: any, _res: any, next: Function) => {
+    next();
+  },
+}));
+
+jest.mock("../../src/routes/api/admin/sessions", () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const router = require("express").Router();
+  return { __esModule: true, default: router };
+});
+
+import express from "express";
+import request from "supertest";
+import { withDbConnection } from "../../src/utils/db";
+
+const mockWithDb = withDbConnection as jest.Mock;
+
+describe("GET /api/admin/audit-log (route)", () => {
+  let app: express.Express;
+
+  beforeAll(async () => {
+    const { default: adminRouter } = await import("../../src/routes/api/admin/index");
+    app = express();
+    app.use(express.json());
+    app.use("/api/admin", adminRouter);
+  });
+
+  beforeEach(() => {
+    mockWithDb.mockReset();
+  });
+
+  it("returns 200 with entries array and total", async () => {
+    const fakeRows = [
+      {
+        id: 1,
+        created_at: "2026-05-29T10:00:00.000Z",
+        admin_user_id: 1,
+        admin_email: "admin@example.com",
+        action: "user_role_change",
+        target_id: 2,
+        details: JSON.stringify({ roleId: 1 }),
+      },
+      {
+        id: 2,
+        created_at: "2026-05-29T09:00:00.000Z",
+        admin_user_id: 1,
+        admin_email: "admin@example.com",
+        action: "user_active_change",
+        target_id: 3,
+        details: JSON.stringify({ active: false }),
+      },
+    ];
+
+    mockWithDb.mockImplementation(async (fn: Function) => {
+      const queryMock = jest
+        .fn()
+        .mockResolvedValueOnce([fakeRows])
+        .mockResolvedValueOnce([[{ total: 2 }]]);
+      return fn({ query: queryMock });
+    });
+
+    const response = await request(app).get("/api/admin/audit-log");
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(Array.isArray(response.body.entries)).toBe(true);
+    expect(response.body.entries).toHaveLength(2);
+    expect(typeof response.body.total).toBe("number");
+    expect(response.body.total).toBe(2);
+  });
+
+  it("each entry has id, timestamp, adminEmail, and action", async () => {
+    const fakeRows = [
+      {
+        id: 42,
+        created_at: "2026-05-29T12:00:00.000Z",
+        admin_user_id: 1,
+        admin_email: "superadmin@example.com",
+        action: "user_role_change",
+        target_id: 5,
+        details: null,
+      },
+    ];
+
+    mockWithDb.mockImplementation(async (fn: Function) => {
+      const queryMock = jest
+        .fn()
+        .mockResolvedValueOnce([fakeRows])
+        .mockResolvedValueOnce([[{ total: 1 }]]);
+      return fn({ query: queryMock });
+    });
+
+    const response = await request(app).get("/api/admin/audit-log");
+
+    expect(response.status).toBe(200);
+    const entry = response.body.entries[0];
+    expect(entry).toHaveProperty("id", 42);
+    expect(entry).toHaveProperty("timestamp", "2026-05-29T12:00:00.000Z");
+    expect(entry).toHaveProperty("adminEmail", "superadmin@example.com");
+    expect(entry).toHaveProperty("action", "user_role_change");
+  });
+
+  it("respects limit query param", async () => {
+    const fakeRows = [
+      {
+        id: 10,
+        created_at: "2026-05-29T08:00:00.000Z",
+        admin_user_id: 1,
+        admin_email: "admin@example.com",
+        action: "user_active_change",
+        target_id: 9,
+        details: null,
+      },
+    ];
+
+    const capturedArgs: any[][] = [];
+
+    mockWithDb.mockImplementation(async (fn: Function) => {
+      const queryMock = jest.fn().mockImplementation((...args: any[]) => {
+        capturedArgs.push(args);
+        if (capturedArgs.length === 1) return Promise.resolve([fakeRows]);
+        return Promise.resolve([[{ total: 50 }]]);
+      });
+      return fn({ query: queryMock });
+    });
+
+    const response = await request(app).get("/api/admin/audit-log?limit=5&offset=0");
+
+    expect(response.status).toBe(200);
+    // First query call params array should contain limit=5
+    const firstCallParams = capturedArgs[0][1] as number[];
+    expect(firstCallParams).toContain(5);
+  });
+
+  it("returns 500 with error on DB error (graceful — no crash)", async () => {
+    mockWithDb.mockRejectedValue(new Error("DB connection failed"));
+
+    const response = await request(app).get("/api/admin/audit-log");
+
+    expect(response.status).toBe(500);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBeDefined();
+  });
+});

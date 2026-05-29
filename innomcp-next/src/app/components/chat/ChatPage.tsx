@@ -462,6 +462,24 @@ const ChatPage: React.FC = () => {
     }
   }, []);
 
+  // Phase 10 — fetch a WS-compatible JWT for the room WebSocket (httpOnly cookie
+  // cannot be read by JS, so we ask the backend to echo it as JSON).
+  useEffect(() => {
+    const BACKEND =
+      typeof window !== 'undefined' && window.location.port === '3000'
+        ? 'http://localhost:3011'
+        : '';
+    fetch(BACKEND + '/api/auth/ws-token', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.token) setWsToken(data.token);
+      })
+      .catch(() => {
+        // Silently ignore — guests and unauthenticated users won't get a token,
+        // and the hook will simply stay disconnected.
+      });
+  }, []);
+
   // Phase 5 � first-time user onboarding: show modal after 500ms if not yet seen
   useEffect(() => {
     const timer = setTimeout(() => {
