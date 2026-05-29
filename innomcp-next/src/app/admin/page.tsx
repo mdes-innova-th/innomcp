@@ -192,6 +192,23 @@ export default function AdminPage() {
       .finally(() => setSessionsLoading(false));
   }, [activeTab, isLoggedIn, userRoleId]);
 
+  // Audit log — fetch when sessions tab is active
+  useEffect(() => {
+    if (activeTab !== 'sessions' || !isLoggedIn || userRoleId !== 0) return;
+    setAuditLogLoading(true);
+    setAuditLogEndpointMissing(false);
+    fetch('/api/admin/audit-log?limit=20', { credentials: 'include' })
+      .then(async r => {
+        if (r.status === 404) { setAuditLogEndpointMissing(true); return null; }
+        const d = await r.json();
+        if (d.success && Array.isArray(d.data)) setAuditLog(d.data);
+        else setAuditLogEndpointMissing(true);
+        return d;
+      })
+      .catch(() => setAuditLogEndpointMissing(true))
+      .finally(() => setAuditLogLoading(false));
+  }, [activeTab, isLoggedIn, userRoleId]);
+
   // Stats / logs — fetch on tab switch
   useEffect(() => {
     if (activeTab !== 'logs' || !isLoggedIn || userRoleId !== 0) return;
@@ -645,6 +662,80 @@ export default function AdminPage() {
                             >
                               All
                             </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* ── Audit Log sub-section ────────────────────────────────────────── */}
+            <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                <h2 className="font-semibold text-gray-800 dark:text-gray-100">Recent Admin Actions</h2>
+                <button
+                  onClick={() => {
+                    setAuditLogLoading(true);
+                    setAuditLogEndpointMissing(false);
+                    fetch('/api/admin/audit-log?limit=20', { credentials: 'include' })
+                      .then(async r => {
+                        if (r.status === 404) { setAuditLogEndpointMissing(true); return null; }
+                        const d = await r.json();
+                        if (d.success && Array.isArray(d.data)) setAuditLog(d.data);
+                        else setAuditLogEndpointMissing(true);
+                        return d;
+                      })
+                      .catch(() => setAuditLogEndpointMissing(true))
+                      .finally(() => setAuditLogLoading(false));
+                  }}
+                  className="text-xs px-3 py-1 rounded border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                >
+                  Refresh
+                </button>
+              </div>
+
+              {auditLogLoading ? (
+                <div className="p-8 text-center text-gray-400">Loading audit log…</div>
+              ) : auditLogEndpointMissing ? (
+                <div className="p-6">
+                  <div className="rounded-lg border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4 text-sm text-amber-700 dark:text-amber-300">
+                    <p className="font-semibold mb-1">Audit log endpoint not yet configured</p>
+                    <p className="font-mono text-xs">Wire <span className="font-bold">GET /api/admin/audit-log</span> in the backend to enable this section.</p>
+                  </div>
+                </div>
+              ) : auditLog.length === 0 ? (
+                <div className="p-8 text-center text-gray-400">No audit log entries found.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 dark:bg-gray-700/50 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-4 py-3">Timestamp</th>
+                        <th className="px-4 py-3">Admin</th>
+                        <th className="px-4 py-3">Action</th>
+                        <th className="px-4 py-3">Target ID</th>
+                        <th className="px-4 py-3">Details</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {auditLog.map(row => (
+                        <tr key={row.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
+                          <td className="px-4 py-3 text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap font-mono">
+                            {new Date(row.timestamp).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 text-gray-600 dark:text-gray-300 text-xs">{row.adminEmail}</td>
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                              {row.action}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 font-mono">
+                            {row.targetId ?? '–'}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 max-w-xs truncate" title={row.details ?? ''}>
+                            {row.details ?? '–'}
                           </td>
                         </tr>
                       ))}
