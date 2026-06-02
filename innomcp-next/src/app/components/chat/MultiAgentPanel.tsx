@@ -111,6 +111,25 @@ function cleanAgentText(text: string): string {
   return trimmed.length > 520 ? `${trimmed.slice(0, 520).trimEnd()}...` : trimmed;
 }
 
+function getMotherProviderBadge(provider: string | undefined): { label: string; color: string } | null {
+  if (!provider) return null;
+  const map: Record<string, { label: string; color: string }> = {
+    "mdes-cloud":      { label: "MDES",      color: "bg-orange-500/20 text-orange-300" },
+    "thai-llm":        { label: "ThaiLLM",   color: "bg-orange-400/20 text-orange-200" },
+    "ollama-local":    { label: "Local",     color: "bg-gray-500/20 text-gray-300" },
+    "openai-gpt":      { label: "GPT",       color: "bg-green-600/20 text-green-300" },
+    "claude-haiku":    { label: "Claude",    color: "bg-purple-500/20 text-purple-300" },
+    "copilot":         { label: "Copilot",   color: "bg-gray-800/40 text-gray-200" },
+    "gemini-pro":      { label: "Gemini",    color: "bg-blue-500/20 text-blue-300" },
+    "mistral-large":   { label: "Mistral",   color: "bg-red-700/20 text-red-300" },
+    "deepseek-r1":     { label: "DeepSeek",  color: "bg-teal-500/20 text-teal-300" },
+    "groq-llama":      { label: "Groq",      color: "bg-orange-600/20 text-orange-300" },
+    "together-llama":  { label: "Together",  color: "bg-violet-500/20 text-violet-300" },
+    "mother":          { label: "🧠 Mother", color: "bg-yellow-400/20 text-yellow-300" },
+  };
+  return map[provider] ?? null;
+}
+
 function getAgentParagraph(agent: AgentState): { text: string; live: boolean } {
   const roleDesc = AGENT_ROLE_DESC[agent.agentId];
   if (agent.status === "recovering" && agent.lastFallback) {
@@ -364,6 +383,71 @@ export default function MultiAgentPanel({
               unified answer
             </span>
           </header>
+
+          {/* Mother dispatch conductor events — filtered out of agentMap, rendered separately */}
+          {(() => {
+            const conductorEvs = events.filter(
+              (ev) => ev.agentId === "conductor" && ev.publicSummary
+            );
+            if (conductorEvs.length === 0) return null;
+            return (
+              <div className="mb-3 space-y-1 border-b border-border/35 pb-3">
+                {conductorEvs.map((ev, i) => {
+                  const badge = getMotherProviderBadge(ev.provider);
+                  const isMotherIteration = ev.publicSummary?.startsWith("🧠 Mother iteration");
+                  const isCircuitOpen =
+                    ev.type === "fallback" && ev.publicSummary?.includes("circuit open");
+
+                  if (isMotherIteration) {
+                    return (
+                      <div
+                        key={`conductor-${i}`}
+                        className="flex flex-wrap items-center gap-1.5 rounded-md bg-yellow-400/10 px-2 py-1 text-[11px] ring-1 ring-inset ring-yellow-400/20"
+                      >
+                        {badge && (
+                          <span className={`text-[9px] px-1 rounded ${badge.color}`}>
+                            {badge.label}
+                          </span>
+                        )}
+                        <strong className="font-semibold text-yellow-200/90">{ev.publicSummary}</strong>
+                      </div>
+                    );
+                  }
+
+                  if (isCircuitOpen) {
+                    return (
+                      <div
+                        key={`conductor-${i}`}
+                        className="flex flex-wrap items-center gap-1.5 px-2 py-0.5 text-[11px] text-rose-400/70"
+                      >
+                        <span aria-hidden="true">⚠️</span>
+                        {badge && (
+                          <span className={`text-[9px] px-1 rounded ${badge.color}`}>
+                            {badge.label}
+                          </span>
+                        )}
+                        <span>{ev.publicSummary}</span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={`conductor-${i}`}
+                      className="flex flex-wrap items-center gap-1.5 px-2 py-0.5 text-[11px] text-muted-foreground/75"
+                    >
+                      {badge && (
+                        <span className={`text-[9px] px-1 rounded ${badge.color}`}>
+                          {badge.label}
+                        </span>
+                      )}
+                      <span>{ev.publicSummary}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
           <div className="space-y-4">
             {agents.map((agent) => {
