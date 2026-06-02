@@ -15,6 +15,7 @@ interface RawStats {
   totalLatency: number;
   successes: number;
   latencySamples: number[];
+  wins: number;
 }
 
 export interface ProviderStats {
@@ -22,6 +23,7 @@ export interface ProviderStats {
   avgLatency: number;
   successRate: number;
   p95Latency: number;
+  wins: number;
 }
 
 const store = new Map<string, RawStats>();
@@ -58,6 +60,7 @@ export function recordProviderCall(
       totalLatency: latencyMs,
       successes: success ? 1 : 0,
       latencySamples: [latencyMs],
+      wins: 0,
     });
   }
 
@@ -91,9 +94,29 @@ export function getProviderStats(): Map<string, ProviderStats> {
       avgLatency: Math.round(raw.totalLatency / raw.requests),
       successRate: Math.round((raw.successes / raw.requests) * 100),
       p95Latency: computeP95(raw.latencySamples),
+      wins: raw.wins,
     });
   }
   return result;
+}
+
+/**
+ * Record that a provider's response was selected as the synthesis winner
+ * (fastest successful response chosen for the final answer).
+ */
+export function recordProviderWin(providerId: string): void {
+  const existing = store.get(providerId);
+  if (existing) {
+    existing.wins += 1;
+  } else {
+    store.set(providerId, {
+      requests: 0,
+      totalLatency: 0,
+      successes: 0,
+      latencySamples: [],
+      wins: 1,
+    });
+  }
 }
 
 /**
@@ -154,9 +177,10 @@ export async function getDbStats(): Promise<
   return result;
 }
 
-/** Singleton instance exposing all four methods. */
+/** Singleton instance exposing all five methods. */
 export const leaderboardMetrics = {
   recordProviderCall,
+  recordProviderWin,
   getProviderStats,
   getDbStats,
   resetStats,

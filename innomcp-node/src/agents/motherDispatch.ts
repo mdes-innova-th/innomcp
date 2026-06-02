@@ -20,7 +20,7 @@
 import { newEnvelope } from "./events";
 import { checkAgentEventSafe } from "./eventGuard";
 import type { EmitFn } from "./conductor";
-import { recordProviderCall } from "../services/leaderboardMetrics";
+import { recordProviderCall, recordProviderWin } from "../services/leaderboardMetrics";
 import type { AgentDispatchOptions } from "./parallelDispatch";
 import { pushRun } from "../services/motherHistory";
 import type { MotherRunProvider } from "../services/motherHistory";
@@ -551,7 +551,7 @@ async function synthesizeResults(
   runId: string,
   messageId: string,
   responseMode?: string,
-): Promise<string> {
+): Promise<{ text: string; winnerId: string | null }> {
   // Score each result by in-run quality: fast + successful > slow + failed.
   // score = 1 / (1 + latencyMs/1000)  →  range (0, 1], faster = higher
   // Avoids cold-start problem of historical stats: works from iteration 1.
@@ -565,12 +565,12 @@ async function synthesizeResults(
     .sort((a, b) => inRunScore(b) - inRunScore(a))
     .slice(0, 3);
 
-  if (successful.length === 0) return "";
-  if (successful.length === 1) return successful[0].text;
+  if (successful.length === 0) return { text: "", winnerId: null };
+  if (successful.length === 1) return { text: successful[0].text, winnerId: successful[0].providerId };
 
   // For normal mode: return fastest-successful response (top of score-ranked list)
   if (responseMode !== "thinking") {
-    return successful[0].text;
+    return { text: successful[0].text, winnerId: successful[0].providerId };
   }
 
   // ── LLM synthesis path (thinking mode, 2-3 responses) ───────────────────
@@ -645,7 +645,7 @@ async function synthesizeResults(
     }
 
     if (synthesized.trim().length > 0) {
-      return synthesized.trim();
+      return { text: synthesized.trim(), winnerId: successful[0].providerId };
     }
     // Empty synthesis — fall through to longest-wins
   } catch {
@@ -665,7 +665,7 @@ async function synthesizeResults(
   }
 
   // Fallback: fastest-successful (already sorted by inRunScore)
-  return successful[0].text;
+  return { text: successful[0].text, winnerId: successful[0].providerId };
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -758,7 +758,8 @@ export async function dispatchMother(
   });
 
   const successCount = results.filter((r) => r.success).length;
-  const synthesis = await synthesizeResults(results, intent, query, emit, runId, messageId, options.responseMode);
+  const { text: synthesis, winnerId } = await synthesizeResults(results, intent, query, emit, runId, messageId, options.responseMode);
+  if (winnerId) recordProviderWin(winnerId);
   const totalEstimatedCostUsd = results.reduce(
     (sum, r) => sum + (r.estimatedCostUsd ?? 0),
     0

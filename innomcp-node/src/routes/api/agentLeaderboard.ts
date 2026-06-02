@@ -38,6 +38,7 @@ export interface AgentEntry {
   p95Latency?: number;
   role: string;
   score?: number;
+  wins?: number;
 }
 
 /**
@@ -266,11 +267,11 @@ const AGENT_CATALOGUE: AgentEntry[] = [
 
 /** Attempt to pull live request counts and latency from task_steps. */
 async function fetchLiveStats(): Promise<
-  Map<string, { requests: number; avgLatency: number; successRate: number; p95Latency?: number }>
+  Map<string, { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number }>
 > {
   const result = new Map<
     string,
-    { requests: number; avgLatency: number; successRate: number; p95Latency?: number }
+    { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number }
   >();
 
   try {
@@ -375,6 +376,7 @@ router.get("/", async (_req: Request, res: Response) => {
           avgLatency: live.avgLatency,
           successRate: live.successRate,
           p95Latency: live.p95Latency,
+          wins: live.wins,
         }
       : { ...entry };
   });
