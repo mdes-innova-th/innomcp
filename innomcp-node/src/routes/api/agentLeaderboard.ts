@@ -17,6 +17,11 @@ import {
   recordProviderCall,
   getProviderStats,
 } from "../../services/leaderboardMetrics";
+import {
+  runProbe,
+  getProbeStatus,
+  getAll as getAllProbeResults,
+} from "../../services/providerHealthProbe";
 
 const router = Router();
 
@@ -257,6 +262,30 @@ async function fetchLiveStats(): Promise<
 }
 
 /**
+ * Maps AGENT_CATALOGUE IDs to providerHealthProbe provider IDs.
+ * Used to look up probe results when enriching agent status.
+ * Where probe ID == catalogue ID the entry is still listed explicitly for clarity.
+ */
+const CATALOGUE_ID_TO_PROBE_ID: Record<string, string> = {
+  "mdes": "mdes-cloud",
+  "claude-sonnet": "claude-haiku", // no dedicated sonnet probe; share anthropic reachability
+  "claude-haiku": "claude-haiku",
+  "gpt4o": "openai-gpt",
+  "copilot": "copilot",
+  "ollama-local": "ollama-local",
+  "ollama-cloud": "mdes-cloud",
+  "gemini": "gemini-pro",
+  "mistral": "mistral-large",
+  "llama": "ollama-local",
+  "deepseek": "deepseek-r1",
+  "gemini-pro": "gemini-pro",
+  "mistral-large": "mistral-large",
+  "deepseek-r1": "deepseek-r1",
+  "groq-llama": "groq-llama",
+  "together-llama": "together-llama",
+};
+
+/**
  * Maps motherDispatch provider IDs to AGENT_CATALOGUE IDs.
  * In-memory stats use motherDispatch IDs; the catalogue uses its own IDs.
  */
@@ -299,13 +328,26 @@ router.get("/", async (_req: Request, res: Response) => {
       : { ...entry };
   });
 
+  // Override status with probe result when probe has data
+  const enrichedAgents: AgentEntry[] = agents.map((agent) => {
+    const probeId = CATALOGUE_ID_TO_PROBE_ID[agent.id];
+    if (probeId !== undefined) {
+      const probeResult = getProbeStatus(probeId);
+      // Only override if probe ran (not "checking")
+      if (probeResult !== "checking") {
+        return { ...agent, status: probeResult };
+      }
+    }
+    return agent;
+  });
+
   // Sort by request count descending so the most-used agents appear first.
-  agents.sort((a, b) => b.requests - a.requests);
+  enrichedAgents.sort((a, b) => b.requests - a.requests);
 
   res.json({
-    agents,
+    agents: enrichedAgents,
     timestamp: new Date().toISOString(),
-    totalAgents: agents.length,
+    totalAgents: enrichedAgents.length,
   });
 });
 
@@ -338,5 +380,15 @@ router.post(
     res.json({ ok: true });
   }
 );
+
+/**
+ * GET /api/agent-leaderboard/probe
+ * Triggers a fresh probe run and returns all cached probe results.
+ * Useful for debugging or forcing a status refresh from the dashboard.
+ */
+router.get("/probe", async (_req: Request, res: Response) => {
+  await runProbe();
+  return res.json({ results: getAllProbeResults(), timestamp: new Date().toISOString() });
+});
 
 export default router;

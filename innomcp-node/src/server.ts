@@ -13,6 +13,7 @@ import app from "./app";
 import { wss as chatWSS, mcpClient, toolHealthChecker } from "./routes/api/chat";
 import { roomWSS } from "./routes/api/roomWss";
 import { assertProductionJwtSecret } from "./utils/config/security";
+import { runProbe } from "./services/providerHealthProbe";
 
 dotenv.config();
 
@@ -82,6 +83,13 @@ const startServer = async () => {
       }
     };
     preflightCheck().catch(() => {});
+
+    // Fire provider health probe after 3s to let DB and other services init first
+    setTimeout(() => {
+      runProbe().catch((err) => {
+        console.warn("[providerHealthProbe] startup probe failed:", err instanceof Error ? err.message : String(err));
+      });
+    }, 3000);
   });
 };
 
