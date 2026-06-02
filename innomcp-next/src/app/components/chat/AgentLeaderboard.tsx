@@ -129,6 +129,7 @@ export default function AgentLeaderboard({
   const [countdown, setCountdown] = useState(activeInterval);
   const [filter, setFilter] = useState<"all" | "online" | "configured" | "checking" | "offline">("all");
   const [sortBy, setSortBy] = useState<"requests" | "latency" | "success">("requests");
+  const [rosterEligible, setRosterEligible] = useState<number | null>(null);
 
   // ── Fetch leaderboard data ──────────────────────────────────────────────────
   const fetchLeaderboard = useCallback(() => {
@@ -144,6 +145,12 @@ export default function AgentLeaderboard({
         setLastUpdated(new Date());
         setError(null);
         setCountdown(activeInterval);
+        // Also fetch roster key-availability count
+        const rosterUrl = url.replace("agent-leaderboard", "mother/roster");
+        fetch(rosterUrl, { credentials: "include" })
+          .then((r) => r.ok ? r.json() : null)
+          .then((d) => { if (d?.eligibleCount != null) setRosterEligible(d.eligibleCount); })
+          .catch(() => {});
       })
       .catch((e) => {
         setError(e instanceof Error ? e.message : "Failed to load");
@@ -233,6 +240,11 @@ export default function AgentLeaderboard({
         <div>
           <p className="text-[12px] font-semibold text-foreground leading-tight">
             Agent Leaderboard
+            {rosterEligible !== null && (
+              <span className="ml-2 text-xs bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 rounded-full px-2 py-0.5 font-medium">
+                {rosterEligible}/13 ready
+              </span>
+            )}
           </p>
           <p className="text-[10.5px] text-muted-foreground mt-0.5">
             {totalAgents > 0 ? `${totalAgents} agents` : "Loading…"}

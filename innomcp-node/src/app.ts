@@ -42,6 +42,7 @@ import preferencesRouter from "./routes/api/preferences";
 import agentLeaderboardRouter from "./routes/api/agentLeaderboard";
 import motherHistoryRouter from "./routes/api/motherHistory";
 import motherStatsRouter from "./routes/api/motherStats";
+import motherRosterRouter from "./routes/api/motherRoster";
 import presenceRouter from "./routes/api/presence";
 import activityRouter from "./routes/api/activity";
 
@@ -184,6 +185,8 @@ app.use("/api/mother/history", generalRateLimit, motherHistoryRouter);
 
 // Phase 14-C: Mother dispatch aggregate stats — no auth required, 5 s cache
 app.use("/api/mother/stats", generalRateLimit, cacheResponse(5_000), motherStatsRouter);
+
+app.use("/api/mother/roster", generalRateLimit, motherRosterRouter);
 
 // Model Settings — ad-hoc connection test + provider presets (no auth, public)
 app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);
