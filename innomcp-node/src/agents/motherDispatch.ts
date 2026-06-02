@@ -37,6 +37,8 @@ export interface MotherResult {
   latencyMs: number;
   success: boolean;
   errorMsg?: string;
+  /** Estimated cost of this provider call in USD (rough input-token estimate) */
+  estimatedCostUsd?: number;
 }
 
 export interface MotherDispatchResult {
@@ -45,6 +47,8 @@ export interface MotherDispatchResult {
   synthesis: string;
   totalAgents: number;
   successCount: number;
+  /** Sum of per-provider estimated costs across all non-skipped providers (USD) */
+  totalEstimatedCostUsd: number;
 }
 
 // ── Provider config ───────────────────────────────────────────────────────────
@@ -194,6 +198,32 @@ function buildProviderConfigs(): ProviderConfig[] {
       isMdes: false,
     },
   ];
+}
+
+// ── Cost estimation ───────────────────────────────────────────────────────────
+
+/** Cost per 1K input tokens (USD), rough estimates. Self-hosted providers = $0. */
+const PROVIDER_COST_PER_1K: Record<string, number> = {
+  "mdes-cloud":     0.000,   // self-hosted, no direct cost
+  "thai-llm":       0.000,   // self-hosted
+  "ollama-local":   0.000,   // local
+  "openai-gpt":     0.0015,  // gpt-4o-mini ~$0.15/1M input
+  "claude-haiku":   0.00025, // Haiku: $0.25/1M input
+  "copilot":        0.000,   // subscription-based, no per-call cost
+  "gemini-pro":     0.00015, // gemini-1.5-flash: $0.075/1M
+  "mistral-large":  0.002,   // mistral-large: $2/1M
+  "deepseek-r1":    0.00055, // deepseek-reasoner: $0.55/1M
+  "groq-llama":     0.00006, // llama3.3-70b on groq: $0.059/1M
+  "together-llama": 0.0009,  // llama3-70b on together: $0.9/1M
+};
+
+/** Conservative per-call input token estimate (prompt + system context) */
+const ESTIMATED_INPUT_TOKENS = 200;
+
+/** Return the estimated USD cost for one call to the given provider. */
+function estimateCost(providerId: string): number {
+  const rate = PROVIDER_COST_PER_1K[providerId] ?? 0;
+  return rate * (ESTIMATED_INPUT_TOKENS / 1000);
 }
 
 // ── Prompt builder ────────────────────────────────────────────────────────────
@@ -413,6 +443,7 @@ async function runProvider(
       text,
       latencyMs,
       success: true,
+      estimatedCostUsd: estimateCost(cfg.id),
     };
   } catch (err) {
     clearTimeout(timer);
@@ -441,6 +472,7 @@ async function runProvider(
         latencyMs,
         success: false,
         errorMsg: "circuit-open",
+        estimatedCostUsd: 0,
       };
     }
 
@@ -467,6 +499,7 @@ async function runProvider(
       latencyMs,
       success: false,
       errorMsg,
+      estimatedCostUsd: estimateCost(cfg.id),
     };
   }
 }
@@ -521,7 +554,7 @@ export async function dispatchMother(
   });
 
   if (eligible.length === 0) {
-    return { results: [], synthesis: "", totalAgents: 0, successCount: 0 };
+    return { results: [], synthesis: "", totalAgents: 0, successCount: 0, totalEstimatedCostUsd: 0 };
   }
 
   // Emit iteration counter event (fires once per dispatchMother call, after filtering)
@@ -561,6 +594,10 @@ export async function dispatchMother(
 
   const successCount = results.filter((r) => r.success).length;
   const synthesis = synthesizeResults(results);
+  const totalEstimatedCostUsd = results.reduce(
+    (sum, r) => sum + (r.estimatedCostUsd ?? 0),
+    0
+  );
 
   // Record this run in history
   const runProviders: MotherRunProvider[] = results.map((r) => ({
@@ -586,6 +623,7 @@ export async function dispatchMother(
     slowestMs: Math.max(...results.map((r) => r.latencyMs), 0),
     synthesis: synthesis.slice(0, 200),
     providers: runProviders,
+    totalEstimatedCostUsd,
   });
 
   return {
@@ -593,5 +631,6 @@ export async function dispatchMother(
     synthesis,
     totalAgents: results.length,
     successCount,
+    totalEstimatedCostUsd,
   };
 }

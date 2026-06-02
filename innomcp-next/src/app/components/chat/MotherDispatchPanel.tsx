@@ -24,6 +24,7 @@ interface MotherRun {
   slowestMs: number;
   synthesis: string;
   providers: MotherRunProvider[];
+  totalEstimatedCostUsd?: number;
 }
 
 interface HistoryResponse {
@@ -126,6 +127,7 @@ function RunRow({ run }: { run: MotherRun }) {
             <span className="text-[10.5px] font-semibold text-foreground/90 shrink-0">
               #{run.iteration}
             </span>
+            <span className="text-[9px] font-mono text-gray-500 ml-1">#{run.runId.slice(0, 8)}</span>
             <span className="text-[10px] text-muted-foreground/60 truncate flex-1 min-w-0">
               {run.intent || run.query}
             </span>
@@ -150,6 +152,14 @@ function RunRow({ run }: { run: MotherRun }) {
                     {" "}({run.providers.find((p) => p.providerId === run.fastestProvider || p.providerName === run.fastestProvider)!.latencyMs}ms)
                   </span>
                 )}
+              </span>
+            )}
+            {run.totalEstimatedCostUsd != null && run.totalEstimatedCostUsd > 0 && (
+              <span
+                className="text-[9.5px] text-amber-600 dark:text-amber-400 font-mono shrink-0"
+                title="Estimated input cost for this dispatch run"
+              >
+                💰 ${run.totalEstimatedCostUsd.toFixed(5)}
               </span>
             )}
           </div>

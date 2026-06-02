@@ -25,6 +25,8 @@ export interface MotherRun {
   slowestMs: number;
   synthesis: string;       // first 200 chars of final synthesized answer
   providers: MotherRunProvider[];
+  /** Sum of per-provider estimated input costs in USD for this run */
+  totalEstimatedCostUsd?: number;
 }
 
 const MAX_RUNS = 50;
@@ -50,15 +52,23 @@ export function getHistory(limit = 10): MotherRun[] {
 }
 
 /**
+ * Look up a single run by its runId. Returns null if not found.
+ */
+export function getRunById(runId: string): MotherRun | null {
+  return HISTORY.find((r) => r.runId === runId) ?? null;
+}
+
+/**
  * Clear all stored runs. Primarily for use in tests.
  */
 export function clearHistory(): void {
   HISTORY.length = 0;
 }
 
-/** Singleton object exposing all three operations. */
+/** Singleton object exposing all operations. */
 export const motherHistory = {
   push: pushRun,
   get: getHistory,
+  getById: getRunById,
   clear: clearHistory,
 };
