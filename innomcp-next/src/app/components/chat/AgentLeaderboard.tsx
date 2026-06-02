@@ -265,7 +265,11 @@ export default function AgentLeaderboard({
     return p !== "anthropic" && p !== "openai" && p !== "github" && p !== "mdes-cloud" && p !== "ollama-local" && p !== "innova-bot";
   });
 
-  const visible = [...filtered].sort((a, b) => {
+  const active = motherActive && filter === "all" && filtered.some(a => a.requests > 0)
+    ? filtered.filter(a => a.requests > 0 || (a.wins ?? 0) > 0)
+    : filtered;
+
+  const visible = [...active].sort((a, b) => {
     if (sortBy === "latency") return (a.avgLatency || Infinity) - (b.avgLatency || Infinity);
     if (sortBy === "success") return b.successRate - a.successRate;
     if (sortBy === "score") return (b.score ?? 0) - (a.score ?? 0);
@@ -275,7 +279,7 @@ export default function AgentLeaderboard({
     return b.requests - a.requests; // default: most requests first
   });
 
-  const activeCount = visible.filter(a => a.requests > 0).length;
+  const activeCount = agents.filter(a => a.requests > 0).length;
   const fastestAgent = visible.filter(a => a.requests > 0 && a.avgLatency > 0)
     .sort((a, b) => a.avgLatency - b.avgLatency)[0];
   const topWinner = visible.filter(a => (a.wins ?? 0) > 0)

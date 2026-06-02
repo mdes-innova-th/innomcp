@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import type { AgentEvent } from "./useAgentEventStream";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -173,6 +173,20 @@ export default function MotherRaceView({ events, hideWhenEmpty = true }: Props) 
   const doneCount = sorted.filter((e) => e.done).length;
   const totalCount = sorted.length;
 
+  // Flash the winner for 3 seconds when a new first-place is detected
+  const [flashWinner, setFlashWinner] = useState<string | null>(null);
+  const currentWinner = sorted.find(e => e.isFirst)?.providerId ?? null;
+  const prevWinnerRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    if (currentWinner && currentWinner !== prevWinnerRef.current) {
+      prevWinnerRef.current = currentWinner;
+      setFlashWinner(currentWinner);
+      const t = setTimeout(() => setFlashWinner(null), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [currentWinner]);
+
   return (
     <div className="rounded-lg border border-border/50 bg-muted/30 p-2 mb-2">
       <div className="flex items-center justify-between mb-1.5 px-1">
@@ -188,6 +202,14 @@ export default function MotherRaceView({ events, hideWhenEmpty = true }: Props) 
           </span>
         )}
       </div>
+      {flashWinner && (
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-yellow-400/10 border border-yellow-400/30 animate-pulse mb-1">
+          <span className="text-sm">🏆</span>
+          <span className="text-[11px] font-semibold text-yellow-600 dark:text-yellow-400">
+            {(entries.find(e => e.providerId === flashWinner)?.label) ?? flashWinner} responded first!
+          </span>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
         {sorted.map((entry) => (
           <div key={entry.providerId}>

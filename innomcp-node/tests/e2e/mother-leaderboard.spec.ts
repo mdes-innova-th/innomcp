@@ -534,3 +534,21 @@ test.describe('GET /api/mother/summary', () => {
     expect(Array.isArray(body.recentRuns)).toBe(true);
   });
 });
+
+test.describe('GET /api/mother/providers/:id/stats', () => {
+  test('returns 200 with shape for known provider', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/providers/groq-llama/stats`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body.providerId).toBe('groq-llama');
+    expect(body).toHaveProperty('enabled');
+    expect(body).toHaveProperty('sparkline');
+    expect(body).toHaveProperty('timestamp');
+  });
+
+  test('returns 404 for unknown provider', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/providers/fake-provider/stats`);
+    expect(response.status()).toBe(404);
+  });
+});

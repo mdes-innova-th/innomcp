@@ -64,4 +64,41 @@ router.post("/:providerId/toggle", (req: Request, res: Response): void => {
   res.json({ ok: true, providerId, enabled: newState });
 });
 
+/**
+ * GET /api/mother/providers/:providerId/stats
+ * Returns detailed per-provider metrics from leaderboardMetrics.
+ */
+router.get("/:providerId/stats", (req: Request, res: Response): void => {
+  const { providerId } = req.params;
+  if (!ALL_PROVIDER_IDS.includes(providerId)) {
+    res.status(404).json({ ok: false, error: "Unknown provider" });
+    return;
+  }
+
+  const { getProviderStats, getSparklineData } = require("../../services/leaderboardMetrics") as typeof import("../../services/leaderboardMetrics");
+  const stats = getProviderStats();
+  const s = stats.get(providerId);
+  const sparkline = getSparklineData(providerId, 20);
+
+  res.json({
+    providerId,
+    enabled: isProviderEnabled(providerId),
+    stats: s
+      ? {
+          requests: s.requests,
+          avgLatency: s.avgLatency,
+          p95Latency: s.p95Latency,
+          successRate: s.successRate,
+          wins: s.wins,
+          winRate: s.winRate,
+          avgResponseLength: s.avgResponseLength,
+          avgQuality: s.avgQuality,
+          topIntent: s.topIntent,
+        }
+      : null,
+    sparkline,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 export default router;
