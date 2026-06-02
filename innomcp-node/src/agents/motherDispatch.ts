@@ -506,18 +506,134 @@ async function runProvider(
 
 // ── Synthesis ────────────────────────────────────────────────────────────────
 
+const SYNTHESIS_TIMEOUT_MS = 10_000;
+const SYNTHESIS_MIN_CHARS = 30;
+const SYNTHESIS_MODEL = process.env.MDES_SYNTHESIS_MODEL || "gemma4:e4b";
+
 /**
  * Pick the best answer from all successful results.
- * Strategy: longest successful response wins (indicates most complete answer).
- * Falls back to first non-empty response if all are short.
+ *
+ * When responseMode === "thinking" and at least 2 valid responses exist, this
+ * calls the MDES fast model (gemma4:e4b) to produce a merged Thai answer.
+ * Falls back to longest-wins if the synthesis call fails or the condition
+ * isn't met.
  */
-function synthesizeResults(results: MotherResult[]): string {
-  const successful = results.filter((r) => r.success && r.text.trim().length > 0);
-  if (successful.length === 0) return "";
+async function synthesizeResults(
+  results: MotherResult[],
+  intent: string,
+  query: string,
+  emit: EmitFn,
+  runId: string,
+  messageId: string,
+  responseMode?: string,
+): Promise<string> {
+  // Collect successful responses above minimum length, prefer longest ones
+  const successful = results
+    .filter((r) => r.success && r.text.trim().length >= SYNTHESIS_MIN_CHARS)
+    .sort((a, b) => b.text.length - a.text.length)
+    .slice(0, 3);
 
-  // Sort by text length descending — longest = most complete answer
-  const sorted = successful.slice().sort((a, b) => b.text.length - a.text.length);
-  return sorted[0].text;
+  if (successful.length === 0) return "";
+  if (successful.length === 1) return successful[0].text;
+
+  // For normal mode or fewer than 2 valid responses: longest-wins
+  if (responseMode !== "thinking") {
+    return successful[0].text;
+  }
+
+  // ── LLM synthesis path (thinking mode, 2-3 responses) ───────────────────
+  const count = successful.length;
+
+  // Emit synthesis started event
+  const startEv = newEnvelope({
+    runId,
+    messageId,
+    type: "agent_started",
+    publicSummary: `🧬 Synthesizing ${count} provider responses...`,
+    agentId: "conductor",
+  });
+  startEv.provider = "mother";
+  if (checkAgentEventSafe(startEv, { expectedToolUsage: false }).ok) {
+    emit(startEv);
+  }
+
+  // Build the synthesis prompt
+  const agentLines = successful
+    .map((r, i) => `[Agent ${i + 1}]: ${r.text.trim()}`)
+    .join("\n");
+  const safeQuery = query.replace(/["\\\n\r]/g, " ").trim().slice(0, 300);
+  const synthesisPrompt =
+    `คุณเป็น AI synthesizer รวมคำตอบจากหลาย AI agents ดังนี้:\n` +
+    `${agentLines}\n` +
+    `คำถามเดิม: ${safeQuery}\n` +
+    `สรุปและรวมเข้าด้วยกัน ให้คำตอบที่ดีที่สุด ภาษาไทย กระชับ ไม่เกิน 5 ประโยค`;
+
+  // Resolve MDES endpoint config (same env vars as mdes-cloud provider)
+  const mdesUrl =
+    process.env.REMOTE_OLLAMA_BASE_URL ||
+    process.env.OLLAMA_REMOTE_BASE_URL ||
+    process.env.OLLAMA_REMOTE_URL ||
+    "https://ollama.mdes-innova.online";
+  const mdesKey =
+    process.env.REMOTE_OLLAMA_TOKEN ||
+    process.env.OLLAMA_REMOTE_API_KEY ||
+    process.env.OLLAMA_API_KEY ||
+    "";
+
+  const synthCfg: ProviderConfig = {
+    id: "mdes-synthesis",
+    name: "MDES Synthesis",
+    kind: "ollama",
+    baseUrl: mdesUrl,
+    model: SYNTHESIS_MODEL,
+    apiKey: mdesKey,
+    isMdes: true,
+  };
+
+  try {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), SYNTHESIS_TIMEOUT_MS);
+    let synthesized: string;
+    try {
+      synthesized = await callOllamaCompat(synthCfg, synthesisPrompt, ac.signal);
+    } finally {
+      clearTimeout(timer);
+    }
+
+    const doneEv = newEnvelope({
+      runId,
+      messageId,
+      type: "agent_finished",
+      publicSummary: `🧬 Synthesis complete`,
+      agentId: "conductor",
+    });
+    doneEv.provider = "mother";
+    if (checkAgentEventSafe(doneEv, { expectedToolUsage: false }).ok) {
+      emit(doneEv);
+    }
+
+    if (synthesized.trim().length > 0) {
+      return synthesized.trim();
+    }
+    // Empty synthesis — fall through to longest-wins
+  } catch {
+    // Synthesis failed — emit fallback event and fall through to longest-wins
+    const fbEv = newEnvelope({
+      runId,
+      messageId,
+      type: "fallback",
+      publicSummary: `🧬 Synthesis failed — using longest response`,
+      agentId: "conductor",
+    });
+    fbEv.provider = "mother";
+    fbEv.fallbackReason = "synthesis-timeout-or-error";
+    if (checkAgentEventSafe(fbEv, { expectedToolUsage: false }).ok) {
+      emit(fbEv);
+    }
+  }
+
+  // Fallback: longest-wins
+  return successful[0].text;
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -593,7 +709,7 @@ export async function dispatchMother(
   });
 
   const successCount = results.filter((r) => r.success).length;
-  const synthesis = synthesizeResults(results);
+  const synthesis = await synthesizeResults(results, intent, query, emit, runId, messageId, options.responseMode);
   const totalEstimatedCostUsd = results.reduce(
     (sum, r) => sum + (r.estimatedCostUsd ?? 0),
     0
