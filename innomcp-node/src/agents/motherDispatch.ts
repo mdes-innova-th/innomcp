@@ -22,6 +22,8 @@ import { checkAgentEventSafe } from "./eventGuard";
 import type { EmitFn } from "./conductor";
 import { recordProviderCall } from "../services/leaderboardMetrics";
 import type { AgentDispatchOptions } from "./parallelDispatch";
+import { pushRun } from "../services/motherHistory";
+import type { MotherRunProvider } from "../services/motherHistory";
 
 // ── Public interfaces ─────────────────────────────────────────────────────────
 
@@ -471,7 +473,7 @@ export async function dispatchMother(
   runId: string,
   messageId: string,
   emit: EmitFn,
-  _options: AgentDispatchOptions = {}
+  options: AgentDispatchOptions = {}
 ): Promise<MotherDispatchResult> {
   const mdesOnly = process.env.MDES_ONLY === "1";
   const prompt = buildMotherPrompt(intent, query);
@@ -528,6 +530,32 @@ export async function dispatchMother(
 
   const successCount = results.filter((r) => r.success).length;
   const synthesis = synthesizeResults(results);
+
+  // Record this run in history
+  const runProviders: MotherRunProvider[] = results.map((r) => ({
+    providerId: r.providerId,
+    providerName: r.providerName,
+    latencyMs: r.latencyMs,
+    success: r.success,
+    preview: r.text.slice(0, 80),
+    errorMsg: r.errorMsg,
+  }));
+  const fastest = results
+    .filter((r) => r.success)
+    .sort((a, b) => a.latencyMs - b.latencyMs)[0];
+  pushRun({
+    runId,
+    timestamp: new Date().toISOString(),
+    intent: options?.intent ?? "general",
+    query: query.slice(0, 120),
+    iteration: motherIteration,
+    totalProviders: results.length,
+    successCount: results.filter((r) => r.success).length,
+    fastestProvider: fastest?.providerId ?? "",
+    slowestMs: Math.max(...results.map((r) => r.latencyMs), 0),
+    synthesis: synthesis.slice(0, 200),
+    providers: runProviders,
+  });
 
   return {
     results,

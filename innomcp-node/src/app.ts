@@ -40,6 +40,7 @@ import { cacheResponse, getCacheStats, clearCache as clearAllCache } from "./mid
 import templatesRouter from "./routes/api/templates";
 import preferencesRouter from "./routes/api/preferences";
 import agentLeaderboardRouter from "./routes/api/agentLeaderboard";
+import motherHistoryRouter from "./routes/api/motherHistory";
 import presenceRouter from "./routes/api/presence";
 import activityRouter from "./routes/api/activity";
 
@@ -176,6 +177,9 @@ app.use("/api/stats", generalRateLimit, cacheResponse(60_000), statsRouter);
 
 // Phase 7: Agent leaderboard — no auth required, short cache (3 s)
 app.use("/api/agent-leaderboard", generalRateLimit, cacheResponse(3_000), agentLeaderboardRouter);
+
+// Phase 13-A: Mother dispatch run history — no auth required (read-only metrics)
+app.use("/api/mother/history", generalRateLimit, motherHistoryRouter);
 
 // Model Settings — ad-hoc connection test + provider presets (no auth, public)
 app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);

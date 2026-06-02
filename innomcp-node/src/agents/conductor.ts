@@ -317,6 +317,7 @@ export async function runConductor(
     ? dispatchMother(cls.intent, opts.message, runId, messageId, emit, {
         history: opts.history,
         preferredMode: opts.preferredMode,
+        intent: cls.intent,
       }).then((r) => {
         // Inject successful mother results into liveOutputs so synthesizeAnswer
         // can consider them alongside the normal parallel-agent outputs.

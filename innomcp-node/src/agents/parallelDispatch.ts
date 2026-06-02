@@ -35,6 +35,7 @@ export interface AgentDispatchOptions {
   runMode?: AgentRunMode;
   preferredMode?: ChatMode;
   history?: Array<{ sender: string; text: string }>;
+  intent?: string;
 }
 
 export interface AgentPlanOptions extends AgentDispatchOptions {
