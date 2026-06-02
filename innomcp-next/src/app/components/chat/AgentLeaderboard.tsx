@@ -49,6 +49,8 @@ function getProviderBadge(provider: string): { label: string; cls: string } {
     return { label: "Together", cls: "bg-violet-500/15 text-violet-700 dark:text-violet-300" };
   if (provider === "meta")
     return { label: "Meta",     cls: "bg-slate-500/15 text-slate-700 dark:text-slate-300" };
+  if (provider === "innova-bot")
+    return { label: "Innova",   cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" };
   return { label: provider,     cls: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-300" };
 }
 
@@ -65,6 +67,7 @@ const PROVIDER_COLORS: Record<string, string> = {
   "mistral":       "text-orange-600 dark:text-orange-400",
   "meta":          "text-indigo-600 dark:text-indigo-400",
   "deepseek":      "text-cyan-600 dark:text-cyan-400",
+  "innova-bot":    "text-emerald-600 dark:text-emerald-400",
 };
 
 // ─── Status indicator ─────────────────────────────────────────────────────────

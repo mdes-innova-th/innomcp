@@ -240,6 +240,28 @@ const AGENT_CATALOGUE: AgentEntry[] = [
     successRate: 100,
     role: "Open-source inference",
   },
+  {
+    id: "thai-llm",
+    name: "Thai LLM (qwen3.5:9b)",
+    provider: "mdes-cloud",
+    model: "qwen3.5:9b",
+    status: "online",
+    requests: 0,
+    avgLatency: 0,
+    successRate: 100,
+    role: "Thai language specialist",
+  },
+  {
+    id: "innova-bot",
+    name: "Innova-Bot",
+    provider: "ollama-local",
+    model: "qwen2.5:0.5b",
+    status: "checking",
+    requests: 0,
+    avgLatency: 0,
+    successRate: 100,
+    role: "Local agent (Jit organ)",
+  },
 ];
 
 /** Attempt to pull live request counts and latency from task_steps. */
@@ -307,6 +329,8 @@ const CATALOGUE_ID_TO_PROBE_ID: Record<string, string> = {
   "deepseek-r1": "deepseek-r1",
   "groq-llama": "groq-llama",
   "together-llama": "together-llama",
+  "thai-llm": "mdes-cloud",
+  "innova-bot": "ollama-local",
 };
 
 /**
@@ -315,11 +339,13 @@ const CATALOGUE_ID_TO_PROBE_ID: Record<string, string> = {
  */
 const DISPATCH_ID_TO_CATALOGUE_ID: Record<string, string> = {
   "mdes-cloud": "mdes",
-  "thai-llm": "mdes",
+  "thai-llm": "thai-llm",
   "openai-gpt": "gpt4o",
+  "claude-sonnet": "claude-sonnet",
   "claude-haiku": "claude-haiku",
   copilot: "copilot",
   "ollama-local": "ollama-local",
+  "innova-bot": "innova-bot",
   "gemini-pro": "gemini-pro",
   "mistral-large": "mistral-large",
   "deepseek-r1": "deepseek-r1",

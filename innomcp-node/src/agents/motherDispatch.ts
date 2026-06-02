@@ -197,6 +197,28 @@ function buildProviderConfigs(): ProviderConfig[] {
       apiKey: process.env.TOGETHER_API_KEY || "",
       isMdes: false,
     },
+    {
+      id: "claude-sonnet",
+      name: "Claude Sonnet 4.6",
+      kind: "anthropic",
+      baseUrl: "https://api.anthropic.com/v1",
+      model: process.env.CLAUDE_SONNET_MODEL || "claude-sonnet-4-6",
+      apiKey: process.env.ANTHROPIC_API_KEY || "",
+      isMdes: false,
+    },
+    {
+      id: "innova-bot",
+      name: "Innova-Bot (Local)",
+      kind: "ollama",
+      baseUrl:
+        process.env.INNOVA_BOT_BASE_URL ||
+        process.env.LOCAL_OLLAMA_BASE_URL ||
+        process.env.OLLAMA_LOCAL_BASE_URL ||
+        "http://localhost:11434",
+      model: process.env.INNOVA_BOT_MODEL || "qwen2.5:0.5b",
+      apiKey: "",
+      isMdes: false,
+    },
   ];
 }
 
@@ -662,8 +684,8 @@ export async function dispatchMother(
 
   // Filter: skip providers with no key; enforce MDES_ONLY
   const eligible = allConfigs.filter((cfg) => {
-    // Local Ollama has no required key — always include unless MDES_ONLY
-    const keyRequired = cfg.kind !== "ollama" || cfg.id !== "ollama-local";
+    // Local Ollama providers have no required key — always include unless MDES_ONLY
+    const keyRequired = cfg.kind !== "ollama" || (cfg.id !== "ollama-local" && cfg.id !== "innova-bot");
     if (keyRequired && cfg.apiKey.trim() === "") return false;
     if (mdesOnly && !MDES_PROVIDER_IDS.has(cfg.id)) return false;
     return true;
