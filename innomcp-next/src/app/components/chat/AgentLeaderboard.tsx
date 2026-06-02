@@ -22,6 +22,24 @@ interface LeaderboardResponse {
   totalAgents: number;
 }
 
+// ─── Provider type badge ──────────────────────────────────────────────────────
+
+function getProviderBadge(provider: string): { label: string; cls: string } {
+  if (provider === "anthropic")
+    return { label: "Claude",   cls: "bg-purple-500/15 text-purple-700 dark:text-purple-300" };
+  if (provider === "openai")
+    return { label: "GPT",      cls: "bg-emerald-800/15 text-emerald-800 dark:text-emerald-300" };
+  if (provider === "mdes-cloud" || provider === "ollama-cloud")
+    return { label: "MDES",     cls: "bg-orange-500/15 text-orange-700 dark:text-orange-300" };
+  if (provider === "ollama-local")
+    return { label: "Local",    cls: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-300" };
+  if (provider === "github" || provider === "copilot")
+    return { label: "Copilot",  cls: "bg-zinc-900/10 text-zinc-800 dark:text-zinc-200" };
+  if (provider === "google")
+    return { label: "Gemini",   cls: "bg-blue-500/15 text-blue-700 dark:text-blue-300" };
+  return { label: provider,     cls: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-300" };
+}
+
 // ─── Provider colour map (consistent with previous component) ─────────────────
 
 const PROVIDER_COLORS: Record<string, string> = {
@@ -77,17 +95,23 @@ function formatTime(d: Date): string {
   return d.toTimeString().slice(0, 8);
 }
 
-const REFRESH_INTERVAL = 30;
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) {
+export default function AgentLeaderboard({
+  onClose,
+  motherActive = false,
+}: {
+  onClose?: () => void;
+  motherActive?: boolean;
+}) {
+  const activeInterval = motherActive ? 5 : 30;
+
   const [agents, setAgents] = useState<AgentEntry[]>([]);
   const [totalAgents, setTotalAgents] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [countdown, setCountdown] = useState(REFRESH_INTERVAL);
+  const [countdown, setCountdown] = useState(activeInterval);
   const [filter, setFilter] = useState<"all" | "online" | "configured" | "checking" | "offline">("all");
   const [sortBy, setSortBy] = useState<"requests" | "latency" | "success">("requests");
 
@@ -104,28 +128,29 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
         setTotalAgents(data.totalAgents ?? data.agents?.length ?? 0);
         setLastUpdated(new Date());
         setError(null);
-        setCountdown(REFRESH_INTERVAL);
+        setCountdown(activeInterval);
       })
       .catch((e) => {
         setError(e instanceof Error ? e.message : "Failed to load");
       })
       .finally(() => setLoading(false));
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeInterval]);
 
-  // Initial fetch + 30-second auto-refresh
+  // Initial fetch + auto-refresh (5s when motherActive, 30s otherwise)
   useEffect(() => {
     fetchLeaderboard();
-    const id = setInterval(() => fetchLeaderboard(), REFRESH_INTERVAL * 1000);
+    const id = setInterval(() => fetchLeaderboard(), activeInterval * 1000);
     return () => clearInterval(id);
-  }, [fetchLeaderboard]);
+  }, [fetchLeaderboard, activeInterval]);
 
   // Countdown tick (every second)
   useEffect(() => {
     const id = setInterval(() => {
-      setCountdown((c) => (c <= 1 ? REFRESH_INTERVAL : c - 1));
+      setCountdown((c) => (c <= 1 ? activeInterval : c - 1));
     }, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [activeInterval]);
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
@@ -140,6 +165,9 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
     if (sortBy === "success") return b.successRate - a.successRate;
     return b.requests - a.requests; // default: most requests first
   });
+
+  // Top performer: first agent (in sort order) with at least one request
+  const topAgent = visible.find((a) => a.requests > 0);
 
   // ── Export CSV ────────────────────────────────────────────────────────────
 
@@ -172,6 +200,18 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
 
   return (
     <div className="flex flex-col gap-2 p-1">
+      {/* Mother Mode banner */}
+      {motherActive && (
+        <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5">
+          <span
+            className="inline-block h-2 w-2 rounded-full bg-emerald-500 animate-pulse"
+            aria-hidden="true"
+          />
+          <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+            🧠 Mother dispatch active — fanning out to all providers
+          </span>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -306,7 +346,9 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
                 return (
                   <tr
                     key={agent.id}
-                    className="border-b border-border/20 last:border-0 hover:bg-muted/20 transition-colors"
+                    className={`border-b border-border/20 last:border-0 hover:bg-muted/20 transition-colors${
+                      topAgent && agent.id === topAgent.id ? " border-l-2 border-yellow-400" : ""
+                    }`}
                   >
                     {/* # */}
                     <td className="px-2 py-1.5 text-muted-foreground/50 tabular-nums">
@@ -322,7 +364,19 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
                         PROVIDER_COLORS[agent.provider] ?? "text-muted-foreground"
                       }`}
                     >
-                      {agent.provider}
+                      <span className="flex items-center gap-1">
+                        {agent.provider}
+                        {(() => {
+                          const badge = getProviderBadge(agent.provider);
+                          return (
+                            <span
+                              className={`rounded px-1 py-0.5 text-[8.5px] font-semibold leading-none ${badge.cls}`}
+                            >
+                              {badge.label}
+                            </span>
+                          );
+                        })()}
+                      </span>
                     </td>
                     {/* Model */}
                     <td className="px-2 py-1.5 font-mono text-[9.5px] text-muted-foreground whitespace-nowrap">
@@ -350,11 +404,11 @@ export default function AgentLeaderboard({ onClose }: { onClose?: () => void }) 
                     </td>
                     {/* Success% */}
                     <td className="px-2 py-1.5 text-right tabular-nums">
-                      {agent.successRate >= 90 ? (
+                      {agent.successRate >= 95 ? (
                         <span className="text-emerald-600 dark:text-emerald-400 font-medium">
                           {agent.successRate}%
                         </span>
-                      ) : agent.successRate >= 70 ? (
+                      ) : agent.successRate >= 80 ? (
                         <span className="text-yellow-600 dark:text-yellow-400">
                           {agent.successRate}%
                         </span>
