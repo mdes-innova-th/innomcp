@@ -117,6 +117,20 @@ export function recordProviderWin(providerId: string): void {
       wins: 1,
     });
   }
+
+  // Persist win to DB async (fire-and-forget — same pattern as recordProviderCall)
+  setImmediate(() => {
+    withDbConnection(async (conn) => {
+      await conn.query(
+        `INSERT INTO provider_stats (provider_id, wins)
+         VALUES (?, 1)
+         ON DUPLICATE KEY UPDATE wins = wins + 1`,
+        [providerId]
+      );
+    }).catch(() => {
+      // DB unavailable — in-memory stays authoritative
+    });
+  });
 }
 
 /**
@@ -135,16 +149,16 @@ export function resetStats(providerId?: string): void {
  * Returns an empty Map when the DB is unavailable — in-memory remains authoritative.
  */
 export async function getDbStats(): Promise<
-  Map<string, { requests: number; avgLatency: number; successRate: number }>
+  Map<string, { requests: number; avgLatency: number; successRate: number; wins?: number }>
 > {
   const result = new Map<
     string,
-    { requests: number; avgLatency: number; successRate: number }
+    { requests: number; avgLatency: number; successRate: number; wins?: number }
   >();
   try {
     await withDbConnection(async (conn) => {
       const [rows] = (await conn.query(
-        `SELECT provider_id, requests, successes, total_latency
+        `SELECT provider_id, requests, successes, total_latency, COALESCE(wins, 0) AS wins
          FROM provider_stats
          WHERE requests > 0`
       )) as [
@@ -153,6 +167,7 @@ export async function getDbStats(): Promise<
           requests: unknown;
           successes: unknown;
           total_latency: unknown;
+          wins: unknown;
         }>,
         unknown
       ];
@@ -168,6 +183,7 @@ export async function getDbStats(): Promise<
             reqs > 0
               ? Math.round((Number(row.successes) / reqs) * 100)
               : 100,
+          wins: Number(row.wins ?? 0),
         });
       }
     });

@@ -60,3 +60,19 @@ describe("recordProviderWin", () => {
     expect(stats.get("together-llama")!.wins).toBe(0);
   });
 });
+
+describe("recordProviderWin DB persistence (fire-and-forget)", () => {
+  it("does not throw when called with no DB available", async () => {
+    // DB is not available in unit tests — the setImmediate/withDbConnection
+    // silently catches the error; this verifies no synchronous throw
+    expect(() => recordProviderWin("test-provider")).not.toThrow();
+  });
+
+  it("can be called rapidly without errors (setImmediate queuing)", async () => {
+    for (let i = 0; i < 10; i++) {
+      recordProviderWin("rapid-provider");
+    }
+    const stats = getProviderStats();
+    expect(stats.get("rapid-provider")!.wins).toBe(10);
+  });
+});

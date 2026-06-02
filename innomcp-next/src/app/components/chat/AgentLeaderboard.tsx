@@ -129,7 +129,7 @@ export default function AgentLeaderboard({
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(activeInterval);
   const [filter, setFilter] = useState<"all" | "online" | "configured" | "checking" | "offline">("all");
-  const [sortBy, setSortBy] = useState<"requests" | "latency" | "success" | "score">("requests");
+  const [sortBy, setSortBy] = useState<"requests" | "latency" | "success" | "score" | "wins">("requests");
   const [rosterEligible, setRosterEligible] = useState<number | null>(null);
 
   // ── Fetch leaderboard data ──────────────────────────────────────────────────
@@ -187,6 +187,7 @@ export default function AgentLeaderboard({
     if (sortBy === "latency") return (a.avgLatency || Infinity) - (b.avgLatency || Infinity);
     if (sortBy === "success") return b.successRate - a.successRate;
     if (sortBy === "score") return (b.score ?? 0) - (a.score ?? 0);
+    if (sortBy === "wins") return (b.wins ?? 0) - (a.wins ?? 0);
     return b.requests - a.requests; // default: most requests first
   });
 
@@ -310,7 +311,7 @@ export default function AgentLeaderboard({
           );
         })}
         <div className="ml-auto flex items-center gap-1">
-          {(["score", "requests", "latency", "success"] as const).map((s) => (
+          {(["wins", "score", "requests", "latency", "success"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setSortBy(s)}
@@ -320,7 +321,7 @@ export default function AgentLeaderboard({
                   : "border-border/40 text-muted-foreground hover:text-foreground"
               }`}
             >
-              {s === "score" ? "↓ Score" : s === "requests" ? "↓ Req" : s === "latency" ? "↑ Lat" : "↓ Succ"}
+              {s === "wins" ? "🏆 Wins" : s === "score" ? "↓ Score" : s === "requests" ? "↓ Req" : s === "latency" ? "↑ Lat" : "↓ Succ"}
             </button>
           ))}
           <button
