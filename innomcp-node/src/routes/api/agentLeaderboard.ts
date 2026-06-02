@@ -41,6 +41,7 @@ export interface AgentEntry {
   score?: number;
   sparkline?: number[];
   wins?: number;
+  avgResponseLength?: number;  // avg chars per response from this provider
 }
 
 /**
@@ -391,6 +392,7 @@ router.get("/", async (_req: Request, res: Response) => {
           successRate: live.successRate,
           p95Latency: live.p95Latency,
           wins: live.wins,
+          avgResponseLength: live.avgResponseLength,
         }
       : { ...entry };
   });

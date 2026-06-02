@@ -500,7 +500,7 @@ async function runProvider(
     clearTimeout(timer);
     const latencyMs = Date.now() - t0;
 
-    recordProviderCall(cfg.id, latencyMs, true);
+    recordProviderCall(cfg.id, latencyMs, true, text.length);
 
     const doneEv = newEnvelope({
       runId,
@@ -556,7 +556,7 @@ async function runProvider(
       };
     }
 
-    recordProviderCall(cfg.id, latencyMs, false);
+    recordProviderCall(cfg.id, latencyMs, false, 0);
 
     const fbEv = newEnvelope({
       runId,

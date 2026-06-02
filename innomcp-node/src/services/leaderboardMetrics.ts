@@ -16,6 +16,8 @@ interface RawStats {
   successes: number;
   latencySamples: number[];
   wins: number;
+  totalResponseChars: number;
+  responseSamples: number[];
 }
 
 export interface ProviderStats {
@@ -24,6 +26,7 @@ export interface ProviderStats {
   successRate: number;
   p95Latency: number;
   wins: number;
+  avgResponseLength: number;
 }
 
 const store = new Map<string, RawStats>();
@@ -42,7 +45,8 @@ function computeP95(samples: number[]): number {
 export function recordProviderCall(
   providerId: string,
   latencyMs: number,
-  success: boolean
+  success: boolean,
+  responseChars?: number
 ): void {
   const existing = store.get(providerId);
   if (existing) {
@@ -54,6 +58,11 @@ export function recordProviderCall(
     if (existing.latencySamples.length > 100) {
       existing.latencySamples.shift();
     }
+    if (responseChars != null) {
+      existing.totalResponseChars += responseChars;
+      existing.responseSamples.push(responseChars);
+      if (existing.responseSamples.length > 50) existing.responseSamples.shift();
+    }
   } else {
     store.set(providerId, {
       requests: 1,
@@ -61,6 +70,8 @@ export function recordProviderCall(
       successes: success ? 1 : 0,
       latencySamples: [latencyMs],
       wins: 0,
+      totalResponseChars: responseChars ?? 0,
+      responseSamples: responseChars != null ? [responseChars] : [],
     });
   }
 
@@ -95,6 +106,9 @@ export function getProviderStats(): Map<string, ProviderStats> {
       successRate: Math.round((raw.successes / raw.requests) * 100),
       p95Latency: computeP95(raw.latencySamples),
       wins: raw.wins,
+      avgResponseLength: raw.responseSamples.length > 0
+        ? Math.round(raw.totalResponseChars / raw.responseSamples.length)
+        : 0,
     });
   }
   return result;
@@ -125,6 +139,8 @@ export function recordProviderWin(providerId: string): void {
       successes: 0,
       latencySamples: [],
       wins: 1,
+      totalResponseChars: 0,
+      responseSamples: [],
     });
   }
 
