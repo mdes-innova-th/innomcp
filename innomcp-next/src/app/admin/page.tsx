@@ -1152,6 +1152,11 @@ export default function AdminPage() {
                       {circuitOpenCount} OPEN
                     </span>
                   )}
+                  {motherProviders.length > 0 && (
+                    <span className="ml-1 text-xs text-muted-foreground">
+                      ({motherProviders.filter(p => p.enabled).length}/{motherProviders.length} enabled)
+                    </span>
+                  )}
                 </div>
                 <div className="p-4 flex flex-wrap gap-2">
                   {motherCircuits.map(c => {

@@ -111,3 +111,35 @@ describe("POST /api/mother/providers/:id/toggle", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("enabledCount reflects toggle state", () => {
+  it("enabledCount starts at 14", async () => {
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/providers");
+    expect(res.body.enabledCount).toBe(14);
+  });
+
+  it("enabledCount drops after disable", async () => {
+    disableProvider("groq-llama");
+    disableProvider("deepseek-r1");
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/providers");
+    expect(res.body.enabledCount).toBe(12);
+  });
+
+  it("POST /disable returns enabled: false", async () => {
+    const app = buildApp();
+    const res = await request(app).post("/api/mother/providers/mdes-cloud/disable");
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.enabled).toBe(false);
+  });
+
+  it("POST /enable returns enabled: true after disable", async () => {
+    disableProvider("thai-llm");
+    const app = buildApp();
+    const res = await request(app).post("/api/mother/providers/thai-llm/enable");
+    expect(res.status).toBe(200);
+    expect(res.body.enabled).toBe(true);
+  });
+});

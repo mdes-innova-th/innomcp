@@ -95,6 +95,9 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
           <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5 text-muted-foreground">
             {run.successCount}/{run.providers.length} responded
           </span>
+          <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5 text-muted-foreground">
+            iter #{run.iteration}
+          </span>
         </div>
         <button
           onClick={fetchLatest}

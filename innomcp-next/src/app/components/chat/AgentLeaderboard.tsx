@@ -157,6 +157,7 @@ export default function AgentLeaderboard({
     motherActive ? "wins" : "requests"
   );
   const [rosterEligible, setRosterEligible] = useState<number | null>(null);
+  const [providerEnabled, setProviderEnabled] = useState<Record<string, boolean>>({});
 
   // ── Fetch leaderboard data ──────────────────────────────────────────────────
   const fetchLeaderboard = useCallback(() => {
@@ -178,6 +179,18 @@ export default function AgentLeaderboard({
           .then((r) => r.ok ? r.json() : null)
           .then((d) => { if (d?.eligibleCount != null) setRosterEligible(d.eligibleCount); })
           .catch(() => {});
+        // Fetch provider enable/disable state
+        const providersUrl = resolveBackendUrl("/api/mother/providers");
+        fetch(providersUrl, { credentials: "include" })
+          .then((r) => r.ok ? r.json() : null)
+          .then((d) => {
+            if (d?.providers) {
+              const map: Record<string, boolean> = {};
+              for (const p of d.providers) map[p.providerId] = p.enabled;
+              setProviderEnabled(map);
+            }
+          })
+          .catch(() => {});
       })
       .catch((e) => {
         setError(e instanceof Error ? e.message : "Failed to load");
@@ -185,6 +198,16 @@ export default function AgentLeaderboard({
       .finally(() => setLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeInterval]);
+
+  const handleToggleProvider = useCallback((dispatchId: string) => {
+    const url = resolveBackendUrl(`/api/mother/providers/${dispatchId}/toggle`);
+    fetch(url, { method: "POST", credentials: "include" })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (d?.ok) setProviderEnabled((prev) => ({ ...prev, [dispatchId]: d.enabled }));
+      })
+      .catch(() => {});
+  }, []);
 
   // Initial fetch + auto-refresh (5s when motherActive, 30s otherwise)
   useEffect(() => {
@@ -442,7 +465,7 @@ export default function AgentLeaderboard({
                     key={agent.id}
                     className={`border-b border-border/20 last:border-0 hover:bg-muted/20 transition-colors${
                       topAgent && agent.id === topAgent.id ? " border-l-2 border-yellow-400" : ""
-                    }`}
+                    }${providerEnabled[agent.id] === false ? ' opacity-40' : ''}`}
                   >
                     {/* # */}
                     <td className="px-2 py-1.5 text-muted-foreground/50 tabular-nums">
@@ -536,6 +559,19 @@ export default function AgentLeaderboard({
                         </span>
                       ) : (
                         <span className="text-muted-foreground/50">—</span>
+                      )}
+                      {providerEnabled[agent.id] !== undefined && (
+                        <button
+                          onClick={() => handleToggleProvider(agent.id)}
+                          className={`ml-1 text-[9px] px-1 py-0.5 rounded border transition-colors ${
+                            providerEnabled[agent.id]
+                              ? 'border-emerald-400/30 text-emerald-600 dark:text-emerald-400 hover:border-red-400/30 hover:text-red-500'
+                              : 'border-red-400/30 text-red-500 hover:border-emerald-400/30 hover:text-emerald-500'
+                          }`}
+                          title={providerEnabled[agent.id] ? 'Disable this provider' : 'Enable this provider'}
+                        >
+                          {providerEnabled[agent.id] ? '✓' : '✗'}
+                        </button>
                       )}
                     </td>
                     {/* Wins */}

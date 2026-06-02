@@ -12,6 +12,7 @@
 
 import { Router, Request, Response } from "express";
 import { getProviderStats, getSparklineData } from "../../services/leaderboardMetrics";
+import { isProviderEnabled } from "../../services/motherProviderToggle";
 
 const router = Router();
 
@@ -27,6 +28,7 @@ interface RosterEntry {
   requests?: number;       // total calls recorded
   wins?: number;
   sparkline?: number[];
+  enabled?: boolean;
 }
 
 const ROSTER: Omit<RosterEntry, "keyAvailable">[] = [
@@ -62,6 +64,7 @@ router.get("/", (_req: Request, res: Response): void => {
       requests: s?.requests,
       wins: s?.wins,
       sparkline: getSparklineData(p.id, 10),
+      enabled: isProviderEnabled(p.id),
     };
   });
 
@@ -70,6 +73,7 @@ router.get("/", (_req: Request, res: Response): void => {
     totalProviders: providers.length,
     alwaysOnCount: providers.filter((p) => p.alwaysOn).length,
     eligibleCount: providers.filter((p) => p.keyAvailable).length,
+    enabledCount: providers.filter((p) => p.enabled).length,
   });
 });
 

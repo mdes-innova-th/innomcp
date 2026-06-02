@@ -15,6 +15,7 @@ interface AgentCardEntry {
   score?: number;
   wins?: number;
   sparkline?: number[];
+  enabled?: boolean;
 }
 
 interface Props {
@@ -29,7 +30,7 @@ export default function LeaderboardCard({ agent, rank, badge, statusDot = "🔵"
   const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null;
 
   return (
-    <div className={`rounded-lg border ${isTop ? "border-yellow-200/60 dark:border-yellow-800/40 bg-yellow-50/20 dark:bg-yellow-900/5" : "border-border/50 bg-card"} p-3 space-y-1.5`}>
+    <div className={`rounded-lg border ${isTop ? "border-yellow-200/60 dark:border-yellow-800/40 bg-yellow-50/20 dark:bg-yellow-900/5" : "border-border/50 bg-card"} p-3 space-y-1.5 ${agent.enabled === false ? 'opacity-40' : ''}`}>
       {/* Header row */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
@@ -47,6 +48,9 @@ export default function LeaderboardCard({ agent, rank, badge, statusDot = "🔵"
             </span>
           )}
           <span className="text-xs">{statusDot}</span>
+          {agent.enabled === false && (
+            <span className="text-[9px] text-red-500 font-medium">OFF</span>
+          )}
         </div>
       </div>
 
