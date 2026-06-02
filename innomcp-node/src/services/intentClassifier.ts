@@ -280,7 +280,6 @@ const DATA_KEYWORDS = [
 const RESEARCH_KEYWORDS = [
   "ค้นหา",
   "search",
-  "หา",
   "find",
   "research",
   "ข้อมูลเกี่ยวกับ",
@@ -443,7 +442,7 @@ export function classifyIntent(message: string, toolHint?: string): ClassifyResu
     return { intent: "code", expectedToolUsage: false, reasons };
   }
   // Phase 4: enhanced Thai NLP intents
-  if (data) {
+  if (data && !knowledge) {
     reasons.push(`data: ${data}`);
     return { intent: "data", expectedToolUsage: true, reasons };
   }
