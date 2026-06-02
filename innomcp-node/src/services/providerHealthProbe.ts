@@ -1,5 +1,5 @@
 /**
- * services/providerHealthProbe.ts — Startup health probe for all 11 mother dispatch providers
+ * services/providerHealthProbe.ts — Startup health probe for all 13 mother dispatch providers
  *
  * Pings each provider with a lightweight request on app startup and caches the
  * result in an in-memory map. agentLeaderboard reads this to display "online" /
@@ -149,6 +149,23 @@ function buildProbeTargets(): ProbeTarget[] {
       model: process.env.TOGETHER_MODEL || "meta-llama/Llama-3-70b-chat-hf",
       apiKey: process.env.TOGETHER_API_KEY || "",
     },
+    {
+      id: "claude-sonnet",
+      kind: "anthropic" as const,
+      baseUrl: "https://api.anthropic.com/v1",
+      model: process.env.CLAUDE_SONNET_MODEL || "claude-sonnet-4-6",
+      apiKey: process.env.ANTHROPIC_API_KEY || "",
+    },
+    {
+      id: "innova-bot",
+      kind: "ollama" as const,
+      baseUrl:
+        process.env.INNOVA_BOT_BASE_URL ||
+        process.env.LOCAL_OLLAMA_BASE_URL ||
+        "http://localhost:11434",
+      model: process.env.INNOVA_BOT_MODEL || "qwen2.5:0.5b",
+      apiKey: "",
+    },
   ];
 }
 
@@ -269,7 +286,7 @@ async function runSingleProbe(target: ProbeTarget): Promise<ProviderProbeResult>
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Fire all 11 provider probes concurrently.
+ * Fire all 13 provider probes concurrently.
  * Uses Promise.allSettled so one failure never blocks the others.
  * Populates the in-memory `probeStatus` map on completion.
  */

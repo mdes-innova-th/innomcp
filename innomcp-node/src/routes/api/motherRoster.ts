@@ -11,6 +11,7 @@
  */
 
 import { Router, Request, Response } from "express";
+import { getProviderStats } from "../../services/leaderboardMetrics";
 
 const router = Router();
 
@@ -22,6 +23,8 @@ interface RosterEntry {
   alwaysOn: boolean;
   keyAvailable: boolean;
   envVar: string;
+  score?: number;          // composite score from leaderboard (0–100), undefined if no calls yet
+  requests?: number;       // total calls recorded
 }
 
 const ROSTER: Omit<RosterEntry, "keyAvailable">[] = [
@@ -41,10 +44,21 @@ const ROSTER: Omit<RosterEntry, "keyAvailable">[] = [
 ];
 
 router.get("/", (_req: Request, res: Response): void => {
-  const providers: RosterEntry[] = ROSTER.map((p) => ({
-    ...p,
-    keyAvailable: p.alwaysOn || (p.envVar !== "" && !!process.env[p.envVar]?.trim()),
-  }));
+  const stats = getProviderStats();
+
+  const providers: RosterEntry[] = ROSTER.map((p) => {
+    const keyAvailable = p.alwaysOn || (p.envVar !== "" && !!process.env[p.envVar]?.trim());
+    const s = stats.get(p.id);
+    const score = s
+      ? Math.round(s.successRate * 0.5 + (1 / (1 + (s.p95Latency || s.avgLatency) / 1000)) * 50)
+      : undefined;
+    return {
+      ...p,
+      keyAvailable,
+      score,
+      requests: s?.requests,
+    };
+  });
 
   res.json({
     providers,

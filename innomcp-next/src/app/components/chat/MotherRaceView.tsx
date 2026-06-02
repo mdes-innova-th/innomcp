@@ -8,6 +8,7 @@ interface RaceEntry {
   providerId: string;
   label: string;
   color: string;
+  model?: string;
   /** ms since dispatch started; set when agent_finished fires */
   latencyMs?: number;
   /** true = agent_finished received */
@@ -24,20 +25,20 @@ interface RaceEntry {
 
 // ─── Provider identity map ────────────────────────────────────────────────────
 
-const PROVIDER_META: Record<string, { label: string; color: string }> = {
-  "mdes-cloud":     { label: "MDES",     color: "text-orange-500 dark:text-orange-400" },
-  "thai-llm":       { label: "ThaiLLM",  color: "text-orange-400 dark:text-orange-300" },
-  "ollama-local":   { label: "Local",    color: "text-zinc-500 dark:text-zinc-400" },
-  "openai-gpt":     { label: "GPT",      color: "text-emerald-600 dark:text-emerald-400" },
-  "claude-haiku":   { label: "Haiku",    color: "text-purple-500 dark:text-purple-400" },
-  "claude-sonnet":  { label: "Sonnet",   color: "text-purple-600 dark:text-purple-300" },
-  "copilot":        { label: "Copilot",  color: "text-zinc-700 dark:text-zinc-300" },
-  "gemini-pro":     { label: "Gemini",   color: "text-blue-500 dark:text-blue-400" },
-  "mistral-large":  { label: "Mistral",  color: "text-red-700 dark:text-red-400" },
-  "deepseek-r1":    { label: "DeepSeek", color: "text-teal-600 dark:text-teal-400" },
-  "groq-llama":     { label: "Groq",     color: "text-orange-600 dark:text-orange-400" },
-  "together-llama": { label: "Together", color: "text-violet-500 dark:text-violet-400" },
-  "innova-bot":     { label: "Innova",   color: "text-emerald-500 dark:text-emerald-400" },
+const PROVIDER_META: Record<string, { label: string; color: string; model: string }> = {
+  "mdes-cloud":     { label: "MDES",     color: "text-orange-500 dark:text-orange-400",  model: "gemma4:26b" },
+  "thai-llm":       { label: "ThaiLLM",  color: "text-orange-400 dark:text-orange-300",  model: "qwen3.5:9b" },
+  "ollama-local":   { label: "Local",    color: "text-zinc-500 dark:text-zinc-400",       model: "llama3.2" },
+  "openai-gpt":     { label: "GPT",      color: "text-emerald-600 dark:text-emerald-400", model: "gpt-4o-mini" },
+  "claude-haiku":   { label: "Haiku",    color: "text-purple-500 dark:text-purple-400",   model: "claude-haiku-4-5-20251001" },
+  "claude-sonnet":  { label: "Sonnet",   color: "text-purple-600 dark:text-purple-300",   model: "claude-sonnet-4-6" },
+  "copilot":        { label: "Copilot",  color: "text-zinc-700 dark:text-zinc-300",        model: "gpt-4o" },
+  "gemini-pro":     { label: "Gemini",   color: "text-blue-500 dark:text-blue-400",        model: "gemini-1.5-flash" },
+  "mistral-large":  { label: "Mistral",  color: "text-red-700 dark:text-red-400",          model: "mistral-large-latest" },
+  "deepseek-r1":    { label: "DeepSeek", color: "text-teal-600 dark:text-teal-400",        model: "deepseek-reasoner" },
+  "groq-llama":     { label: "Groq",     color: "text-orange-600 dark:text-orange-400",    model: "llama-3.3-70b-versatile" },
+  "together-llama": { label: "Together", color: "text-violet-500 dark:text-violet-400",    model: "Llama-3-70b" },
+  "innova-bot":     { label: "Innova",   color: "text-emerald-500 dark:text-emerald-400",  model: "qwen2.5:0.5b" },
 };
 
 // ─── Race state deriver ───────────────────────────────────────────────────────
@@ -101,11 +102,12 @@ export function deriveRaceState(events: AgentEvent[]): RaceEntry[] {
   }
 
   return Array.from(seen.entries()).map(([pid, s]) => {
-    const meta = PROVIDER_META[pid] ?? { label: pid, color: "text-zinc-500" };
+    const meta = PROVIDER_META[pid] ?? { label: pid, color: "text-zinc-500", model: undefined };
     return {
       providerId: pid,
       label: meta.label,
       color: meta.color,
+      model: (PROVIDER_META[pid] ?? { model: undefined }).model,
       latencyMs: s.latencyMs,
       done: s.done,
       failed: s.failed,
@@ -180,6 +182,7 @@ export default function MotherRaceView({ events, hideWhenEmpty = true }: Props) 
           <div
             key={entry.providerId}
             className="flex items-center gap-1.5 px-1 py-0.5 rounded"
+            title={entry.model ?? entry.providerId}
           >
             <StatusIcon entry={entry} />
             <span className={`text-[11px] font-medium truncate flex-1 ${entry.color}`}>

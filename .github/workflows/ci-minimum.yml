@@ -151,6 +151,29 @@ jobs:
           NODE_ENV: test
         run: npm test -- --passWithNoTests --ci
 
+  test-backend-unit:
+    name: test-backend-unit (Jest)
+    needs: build-backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: innomcp-node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: innomcp-node/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run unit tests (no DB required)
+        run: npx jest --testPathIgnorePatterns="integration|e2e" --passWithNoTests --no-coverage
+        env:
+          INNOMCP_MODE: offline
+          SMOKE_MODE: "1"
+
   test-playwright:
     name: test-playwright
     needs: build-backend

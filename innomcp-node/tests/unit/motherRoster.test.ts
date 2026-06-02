@@ -51,6 +51,8 @@ describe("GET /api/mother/roster", () => {
       expect(typeof p.model).toBe("string");
       expect(typeof p.alwaysOn).toBe("boolean");
       expect(typeof p.keyAvailable).toBe("boolean");
+      expect(p.score === undefined || typeof p.score === "number").toBe(true);
+      expect(p.requests === undefined || typeof p.requests === "number").toBe(true);
     }
   });
 
@@ -61,6 +63,17 @@ describe("GET /api/mother/roster", () => {
     expect(alwaysOn.length).toBe(2);
     for (const p of alwaysOn) {
       expect(p.keyAvailable).toBe(true);
+    }
+  });
+
+  it("providers with no calls have score=undefined and requests=undefined", async () => {
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/roster");
+    // In tests, leaderboard metrics are empty (no calls made), so all providers
+    // should have undefined score and requests
+    for (const p of res.body.providers) {
+      expect(p.score).toBeUndefined();
+      expect(p.requests).toBeUndefined();
     }
   });
 });
