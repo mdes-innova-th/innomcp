@@ -5,7 +5,10 @@
  * Used by motherDispatch after each parallel fan-out.
  *
  * Thread-safe for single-process Node.js (synchronous Map operations).
+ * DB persistence is fire-and-forget via setImmediate; in-memory always authoritative.
  */
+
+import { withDbConnection } from "../utils/db";
 
 interface RawStats {
   requests: number;
@@ -42,6 +45,24 @@ export function recordProviderCall(
       successes: success ? 1 : 0,
     });
   }
+
+  // Write to DB async (non-blocking — never await, never throw to caller)
+  setImmediate(() => {
+    withDbConnection(async (conn) => {
+      await conn.query(
+        `INSERT INTO provider_stats (provider_id, requests, successes, total_latency)
+         VALUES (?, 1, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           requests      = requests + 1,
+           successes     = successes + VALUES(successes),
+           total_latency = total_latency + VALUES(total_latency),
+           last_seen     = NOW()`,
+        [providerId, success ? 1 : 0, latencyMs]
+      );
+    }).catch(() => {
+      // DB unavailable — in-memory stays authoritative
+    });
+  });
 }
 
 /**
@@ -70,9 +91,57 @@ export function resetStats(providerId?: string): void {
   }
 }
 
-/** Singleton instance exposing all three methods. */
+/**
+ * Read persisted provider stats from the DB.
+ * Returns an empty Map when the DB is unavailable — in-memory remains authoritative.
+ */
+export async function getDbStats(): Promise<
+  Map<string, { requests: number; avgLatency: number; successRate: number }>
+> {
+  const result = new Map<
+    string,
+    { requests: number; avgLatency: number; successRate: number }
+  >();
+  try {
+    await withDbConnection(async (conn) => {
+      const [rows] = (await conn.query(
+        `SELECT provider_id, requests, successes, total_latency
+         FROM provider_stats
+         WHERE requests > 0`
+      )) as [
+        Array<{
+          provider_id: unknown;
+          requests: unknown;
+          successes: unknown;
+          total_latency: unknown;
+        }>,
+        unknown
+      ];
+      for (const row of rows) {
+        const reqs = Number(row.requests ?? 0);
+        result.set(String(row.provider_id), {
+          requests: reqs,
+          avgLatency:
+            reqs > 0
+              ? Math.round(Number(row.total_latency) / reqs)
+              : 0,
+          successRate:
+            reqs > 0
+              ? Math.round((Number(row.successes) / reqs) * 100)
+              : 100,
+        });
+      }
+    });
+  } catch {
+    // DB unavailable — return empty map
+  }
+  return result;
+}
+
+/** Singleton instance exposing all four methods. */
 export const leaderboardMetrics = {
   recordProviderCall,
   getProviderStats,
+  getDbStats,
   resetStats,
 };
