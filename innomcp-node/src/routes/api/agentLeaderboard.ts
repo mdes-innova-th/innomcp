@@ -13,6 +13,10 @@
 
 import { Router, Request, Response } from "express";
 import { withDbConnection } from "../../utils/db";
+import {
+  recordProviderCall,
+  getProviderStats,
+} from "../../services/leaderboardMetrics";
 
 const router = Router();
 
@@ -197,8 +201,31 @@ async function fetchLiveStats(): Promise<
   return result;
 }
 
+/**
+ * Maps motherDispatch provider IDs to AGENT_CATALOGUE IDs.
+ * In-memory stats use motherDispatch IDs; the catalogue uses its own IDs.
+ */
+const DISPATCH_ID_TO_CATALOGUE_ID: Record<string, string> = {
+  "mdes-cloud": "mdes",
+  "thai-llm": "mdes",
+  "openai-gpt": "gpt4o",
+  "claude-haiku": "claude-haiku",
+  copilot: "copilot",
+  "ollama-local": "ollama-local",
+};
+
 router.get("/", async (_req: Request, res: Response) => {
   const liveStats = await fetchLiveStats();
+
+  // Translate in-memory (motherDispatch) stats to catalogue IDs, then merge.
+  // In-memory takes priority over DB stats for the same catalogue ID.
+  const memStats = getProviderStats();
+  for (const [dispatchId, stats] of memStats.entries()) {
+    const catalogueId = DISPATCH_ID_TO_CATALOGUE_ID[dispatchId];
+    if (catalogueId) {
+      liveStats.set(catalogueId, stats);
+    }
+  }
 
   const agents: AgentEntry[] = AGENT_CATALOGUE.map((entry) => {
     const live = liveStats.get(entry.id);
@@ -221,5 +248,35 @@ router.get("/", async (_req: Request, res: Response) => {
     totalAgents: agents.length,
   });
 });
+
+/**
+ * POST /api/agent-leaderboard/record
+ * Body: { providerId: string; latencyMs: number; success: boolean }
+ * Called by motherDispatch after each parallel fan-out to record live stats.
+ */
+router.post(
+  "/record",
+  (req: Request, res: Response): void => {
+    const { providerId, latencyMs, success } = req.body as {
+      providerId: string;
+      latencyMs: number;
+      success: boolean;
+    };
+
+    if (
+      typeof providerId !== "string" ||
+      typeof latencyMs !== "number" ||
+      typeof success !== "boolean"
+    ) {
+      res
+        .status(400)
+        .json({ ok: false, error: "providerId (string), latencyMs (number), success (boolean) required" });
+      return;
+    }
+
+    recordProviderCall(providerId, latencyMs, success);
+    res.json({ ok: true });
+  }
+);
 
 export default router;
