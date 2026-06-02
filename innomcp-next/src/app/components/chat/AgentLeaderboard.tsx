@@ -37,6 +37,16 @@ function getProviderBadge(provider: string): { label: string; cls: string } {
     return { label: "Copilot",  cls: "bg-zinc-900/10 text-zinc-800 dark:text-zinc-200" };
   if (provider === "google")
     return { label: "Gemini",   cls: "bg-blue-500/15 text-blue-700 dark:text-blue-300" };
+  if (provider === "mistral")
+    return { label: "Mistral",  cls: "bg-red-900/15 text-red-900 dark:text-red-300" };
+  if (provider === "deepseek")
+    return { label: "DeepSeek", cls: "bg-teal-500/15 text-teal-700 dark:text-teal-300" };
+  if (provider === "groq")
+    return { label: "Groq",     cls: "bg-orange-500/15 text-orange-700 dark:text-orange-300" };
+  if (provider === "together")
+    return { label: "Together", cls: "bg-violet-500/15 text-violet-700 dark:text-violet-300" };
+  if (provider === "meta")
+    return { label: "Meta",     cls: "bg-slate-500/15 text-slate-700 dark:text-slate-300" };
   return { label: provider,     cls: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-300" };
 }
 
@@ -208,7 +218,7 @@ export default function AgentLeaderboard({
             aria-hidden="true"
           />
           <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
-            🧠 Mother dispatch active — fanning out to all providers
+            🧠 Mother dispatch active — 11 providers in parallel
           </span>
         </div>
       )}

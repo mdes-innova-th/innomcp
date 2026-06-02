@@ -174,8 +174,8 @@ app.use("/api/chat/feedback", generalRateLimit, feedbackRouter);
 // Live aggregate stats — no auth required (leaderboard panel fetches as guest)
 app.use("/api/stats", generalRateLimit, cacheResponse(60_000), statsRouter);
 
-// Phase 7: Agent leaderboard — no auth required, short cache (10 s)
-app.use("/api/agent-leaderboard", generalRateLimit, cacheResponse(10_000), agentLeaderboardRouter);
+// Phase 7: Agent leaderboard — no auth required, short cache (3 s)
+app.use("/api/agent-leaderboard", generalRateLimit, cacheResponse(3_000), agentLeaderboardRouter);
 
 // Model Settings — ad-hoc connection test + provider presets (no auth, public)
 app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);

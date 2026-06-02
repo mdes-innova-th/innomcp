@@ -1700,6 +1700,7 @@ const ChatPage: React.FC = () => {
           onRename={handleRename}
           onDelete={handleDeleteSummary}
           theme={theme}
+          motherActive={chatMode === "multiagent"}
         />
       </div>
 

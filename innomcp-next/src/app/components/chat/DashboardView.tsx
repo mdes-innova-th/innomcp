@@ -123,9 +123,11 @@ function StatCard({
 export default function DashboardView({
   onOpenChat,
   projectId,
+  motherActive,
 }: {
   onOpenChat?: () => void;
   projectId?: string;
+  motherActive?: boolean;
 }) {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -398,7 +400,7 @@ export default function DashboardView({
         <p className="text-[12px] font-semibold text-foreground mb-2">
           🏆 Agent Leaderboard
         </p>
-        <AgentLeaderboard />
+        <AgentLeaderboard motherActive={motherActive} />
       </div>
 
       {/* Provider Health */}

@@ -62,6 +62,7 @@ type Props = {
   onRename?: (id: string, newTitle: string) => void; // TODO #45
   onDelete?: (id: string) => void; // Phase 10.21 — delete chat
   theme: string;
+  motherActive?: boolean;
 };
 
 // ─── Static Data ─────────────────────────────────────────────────────────────
@@ -246,6 +247,7 @@ const ChatSidebar: React.FC<Props> = ({
   onRename,
   onDelete,
   theme,
+  motherActive,
 }) => {
   const [mounted, setMounted]         = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -878,7 +880,7 @@ const ChatSidebar: React.FC<Props> = ({
         <MemoryManager sessionId={activeId ?? undefined} onClose={() => setActivePanel(null)} />
       </SlideOver>
       <SlideOver open={activePanel === "dashboard"} title="📊 Dashboard" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
-        <DashboardView onOpenChat={() => { setActivePanel(null); onNewChat(); }} />
+        <DashboardView onOpenChat={() => { setActivePanel(null); onNewChat(); }} motherActive={motherActive} />
       </SlideOver>
       <SlideOver open={activePanel === "task-detail"} title="📋 Task Detail" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
         {selectedTaskId ? (

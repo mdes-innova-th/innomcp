@@ -59,6 +59,9 @@ interface ProviderConfig {
 /** IDs belonging to the MDES cluster — used to enforce MDES_ONLY */
 const MDES_PROVIDER_IDS = new Set(["mdes-cloud", "thai-llm"]);
 
+/** Monotonically increasing counter across all dispatchMother calls in this process */
+let motherIteration = 0;
+
 const MOTHER_TIMEOUT_MS = 20_000;
 
 function buildProviderConfigs(): ProviderConfig[] {
@@ -140,6 +143,51 @@ function buildProviderConfigs(): ProviderConfig[] {
         process.env.GITHUB_COPILOT_TOKEN ||
         process.env.GH_COPILOT_TOKEN ||
         "",
+      isMdes: false,
+    },
+    {
+      id: "gemini-pro",
+      name: "Gemini Pro",
+      kind: "openai",
+      baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+      model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
+      apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || "",
+      isMdes: false,
+    },
+    {
+      id: "mistral-large",
+      name: "Mistral Large",
+      kind: "openai",
+      baseUrl: "https://api.mistral.ai/v1",
+      model: process.env.MISTRAL_MODEL || "mistral-large-latest",
+      apiKey: process.env.MISTRAL_API_KEY || "",
+      isMdes: false,
+    },
+    {
+      id: "deepseek-r1",
+      name: "DeepSeek R1",
+      kind: "openai",
+      baseUrl: "https://api.deepseek.com/v1",
+      model: process.env.DEEPSEEK_MODEL || "deepseek-reasoner",
+      apiKey: process.env.DEEPSEEK_API_KEY || "",
+      isMdes: false,
+    },
+    {
+      id: "groq-llama",
+      name: "Groq LLaMA",
+      kind: "openai",
+      baseUrl: "https://api.groq.com/openai/v1",
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      apiKey: process.env.GROQ_API_KEY || "",
+      isMdes: false,
+    },
+    {
+      id: "together-llama",
+      name: "Together LLaMA",
+      kind: "openai",
+      baseUrl: "https://api.together.xyz/v1",
+      model: process.env.TOGETHER_MODEL || "meta-llama/Llama-3-70b-chat-hf",
+      apiKey: process.env.TOGETHER_API_KEY || "",
       isMdes: false,
     },
   ];
@@ -442,6 +490,18 @@ export async function dispatchMother(
   if (eligible.length === 0) {
     return { results: [], synthesis: "", totalAgents: 0, successCount: 0 };
   }
+
+  // Emit iteration counter event (fires once per dispatchMother call, after filtering)
+  motherIteration++;
+  const iterEv = newEnvelope({
+    runId,
+    messageId,
+    type: "agent_started",
+    publicSummary: `🧠 Mother iteration #${motherIteration} — dispatching to ${eligible.length} providers`,
+    agentId: "conductor",
+  });
+  iterEv.provider = "mother";
+  if (checkAgentEventSafe(iterEv, { expectedToolUsage: false }).ok) emit(iterEv);
 
   // Dispatch all eligible providers in parallel
   const settled = await Promise.allSettled(
