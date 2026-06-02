@@ -68,7 +68,36 @@ interface AuditLogRow {
   details: string | null;
 }
 
-type Tab = 'overview' | 'users' | 'sessions' | 'providers' | 'logs';
+type Tab = 'overview' | 'users' | 'sessions' | 'providers' | 'logs' | 'mother';
+
+// ─── Mother Tab Types ───────────────────────────────────────────────────────────
+
+interface MotherProviderBreakdown {
+  providerId: string;
+  totalCalls: number;
+  successes: number;
+  avgLatencyMs: number;
+  successRate: number;
+}
+
+interface MotherStatsData {
+  totalRuns: number;
+  totalProviderCalls: number;
+  avgSuccessRate: number;
+  lastRunAt: string | null;
+  providerBreakdown: MotherProviderBreakdown[];
+}
+
+interface MotherProbeResult {
+  providerId: string;
+  status: 'online' | 'offline' | 'configured' | 'checking';
+  latencyMs: number;
+  checkedAt: string;
+}
+
+interface MotherHistoryRun {
+  totalEstimatedCostUsd?: number;
+}
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -80,6 +109,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'sessions',  label: 'Sessions' },
   { id: 'providers', label: 'Providers' },
   { id: 'logs',      label: 'Logs & Stats' },
+  { id: 'mother',    label: 'Mother' },
 ];
 
 function fmtBytes(bytes: number) {
@@ -132,6 +162,14 @@ export default function AdminPage() {
   // Logs tab state
   const [stats, setStats] = useState<StatsData | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
+
+  // Mother tab state
+  const [motherStats, setMotherStats] = useState<MotherStatsData | null>(null);
+  const [motherStatsLoading, setMotherStatsLoading] = useState(false);
+  const [motherProbe, setMotherProbe] = useState<MotherProbeResult[]>([]);
+  const [motherProbeLoading, setMotherProbeLoading] = useState(false);
+  const [motherCostTotal, setMotherCostTotal] = useState<number | null>(null);
+  const [motherHistoryLoading, setMotherHistoryLoading] = useState(false);
 
   // ── Auth guard ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -220,7 +258,47 @@ export default function AdminPage() {
       .finally(() => setStatsLoading(false));
   }, [activeTab, isLoggedIn, userRoleId]);
 
+  // Mother tab — fetch stats, probe, and history cost on tab switch
+  useEffect(() => {
+    if (activeTab !== 'mother' || !isLoggedIn || userRoleId !== 0) return;
+    fetchMotherData();
+  }, [activeTab, isLoggedIn, userRoleId]);
+
   // ── Actions ───────────────────────────────────────────────────────────────────
+
+  function fetchMotherData() {
+    // Stats
+    setMotherStatsLoading(true);
+    fetch('/api/mother/stats', { credentials: 'include' })
+      .then(r => r.json())
+      .then((d: MotherStatsData) => setMotherStats(d))
+      .catch(() => null)
+      .finally(() => setMotherStatsLoading(false));
+
+    // Probe (triggers a fresh probe run)
+    setMotherProbeLoading(true);
+    fetch('/api/agent-leaderboard/probe', { credentials: 'include' })
+      .then(r => r.json())
+      .then((d: { results: MotherProbeResult[]; timestamp: string }) => {
+        setMotherProbe(d.results ?? []);
+      })
+      .catch(() => null)
+      .finally(() => setMotherProbeLoading(false));
+
+    // History — compute cost client-side
+    setMotherHistoryLoading(true);
+    fetch('/api/mother/history?limit=50', { credentials: 'include' })
+      .then(r => r.json())
+      .then((d: { runs: MotherHistoryRun[] }) => {
+        const total = (d.runs ?? []).reduce(
+          (sum, run) => sum + (run.totalEstimatedCostUsd ?? 0),
+          0
+        );
+        setMotherCostTotal(total);
+      })
+      .catch(() => null)
+      .finally(() => setMotherHistoryLoading(false));
+  }
 
   async function changeRole(userId: number, roleId: number) {
     setSuccessMsg(''); setError('');
@@ -891,6 +969,159 @@ export default function AdminPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ─── Mother Tab ─────────────────────────────────────────────────────── */}
+        {activeTab === 'mother' && (
+          <div className="space-y-6">
+
+            {/* Header with Refresh */}
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-gray-800 dark:text-gray-100">Mother Dispatch Monitor</h2>
+              <button
+                onClick={() => fetchMotherData()}
+                className="text-xs px-3 py-1 rounded border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+              >
+                Refresh
+              </button>
+            </div>
+
+            {/* ── Summary Row ─────────────────────────────────────────────────── */}
+            <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Summary</h3>
+              </div>
+              {motherStatsLoading ? (
+                <div className="p-8 text-center text-gray-400">Loading stats…</div>
+              ) : motherStats ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4">
+                  {[
+                    { label: 'Total Runs',          value: String(motherStats.totalRuns) },
+                    { label: 'Total Provider Calls', value: String(motherStats.totalProviderCalls) },
+                    { label: 'Avg Success Rate',     value: `${motherStats.avgSuccessRate}%` },
+                    { label: 'Last Run At',          value: motherStats.lastRunAt ? new Date(motherStats.lastRunAt).toLocaleString() : '–' },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3 border border-gray-100 dark:border-gray-600">
+                      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{label}</p>
+                      <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">{value}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-gray-400">No data. Click Refresh to try again.</div>
+              )}
+            </div>
+
+            {/* ── Provider Breakdown Table ─────────────────────────────────────── */}
+            <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Provider Breakdown</h3>
+              </div>
+              {motherStatsLoading ? (
+                <div className="p-8 text-center text-gray-400">Loading…</div>
+              ) : motherStats && motherStats.providerBreakdown.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 dark:bg-gray-700/50 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-4 py-3">Provider ID</th>
+                        <th className="px-4 py-3 text-right">Total Calls</th>
+                        <th className="px-4 py-3 text-right">Successes</th>
+                        <th className="px-4 py-3 text-right">Avg Latency</th>
+                        <th className="px-4 py-3 text-right">Success Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {motherStats.providerBreakdown.map(p => (
+                        <tr key={p.providerId} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
+                          <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-300">{p.providerId}</td>
+                          <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{p.totalCalls}</td>
+                          <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{p.successes}</td>
+                          <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{p.avgLatencyMs} ms</td>
+                          <td className="px-4 py-3 text-right">
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                              p.successRate >= 80
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                : p.successRate >= 50
+                                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            }`}>
+                              {p.successRate}%
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="p-8 text-center text-gray-400">No provider breakdown data yet.</div>
+              )}
+            </div>
+
+            {/* ── Circuit State ────────────────────────────────────────────────── */}
+            <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Circuit State</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Live probe results from <span className="font-mono">GET /api/agent-leaderboard/probe</span>
+                </p>
+              </div>
+              {motherProbeLoading ? (
+                <div className="p-8 text-center text-gray-400">Probing providers…</div>
+              ) : motherProbe.length > 0 ? (
+                <div className="p-4 flex flex-wrap gap-3">
+                  {motherProbe.map(p => {
+                    const badgeCls =
+                      p.status === 'online'     ? 'bg-green-100  text-green-700  dark:bg-green-900/30  dark:text-green-400' :
+                      p.status === 'offline'    ? 'bg-red-100    text-red-700    dark:bg-red-900/30    dark:text-red-400'   :
+                      p.status === 'configured' ? 'bg-blue-100   text-blue-700   dark:bg-blue-900/30   dark:text-blue-400'  :
+                                                  'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+                    return (
+                      <div key={p.providerId} className="flex flex-col items-start rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40 px-3 py-2 min-w-[140px]">
+                        <span className="text-xs font-mono text-gray-700 dark:text-gray-300 truncate max-w-[160px]">{p.providerId}</span>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${badgeCls}`}>
+                            {p.status}
+                          </span>
+                          {p.status === 'online' && (
+                            <span className="text-xs text-gray-400 dark:text-gray-500">{p.latencyMs} ms</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-gray-400">No probe results yet. Click Refresh to run a probe.</div>
+              )}
+            </div>
+
+            {/* ── Cost Summary ─────────────────────────────────────────────────── */}
+            <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+                <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Cost Summary</h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Estimated total cost across last 50 history runs (computed client-side)
+                </p>
+              </div>
+              <div className="p-4">
+                {motherHistoryLoading ? (
+                  <div className="text-center text-gray-400 text-sm py-4">Loading history…</div>
+                ) : motherCostTotal !== null ? (
+                  <div className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-4 border border-gray-100 dark:border-gray-600 inline-block">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Total Estimated Cost</p>
+                    <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                      ${motherCostTotal.toFixed(6)}&nbsp;<span className="text-sm font-normal text-gray-400">USD</span>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-center text-gray-400 text-sm py-4">No cost data available.</div>
+                )}
+              </div>
+            </div>
+
           </div>
         )}
 
