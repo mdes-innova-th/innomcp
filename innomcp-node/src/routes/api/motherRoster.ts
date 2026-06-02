@@ -3,7 +3,7 @@
  *
  * GET /api/mother/roster
  *
- * Returns all 13 configured mother providers with their key-availability status.
+ * Returns all 14 configured mother providers with their key-availability status.
  * Used by the frontend to show "configured" vs "active" state correctly.
  *
  * Response shape:
@@ -42,6 +42,7 @@ const ROSTER: Omit<RosterEntry, "keyAvailable">[] = [
   { id: "groq-llama",     name: "Groq LLaMA 3.3",          kind: "openai",    model: "llama-3.3-70b-versatile",     alwaysOn: false, envVar: "GROQ_API_KEY" },
   { id: "together-llama", name: "Together LLaMA 3",        kind: "openai",    model: "meta-llama/Llama-3-70b-chat-hf", alwaysOn: false, envVar: "TOGETHER_API_KEY" },
   { id: "innova-bot",     name: "Innova-Bot",               kind: "ollama",    model: "qwen2.5:0.5b",                alwaysOn: true,  envVar: "" },
+  { id: "innova-oracle", name: "Innova Oracle (RAG)",       kind: "ollama",    model: "oracle-rag",                  alwaysOn: true,  envVar: "" },
 ];
 
 router.get("/", (_req: Request, res: Response): void => {

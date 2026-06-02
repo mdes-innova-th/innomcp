@@ -131,7 +131,9 @@ export default function AgentLeaderboard({
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(activeInterval);
   const [filter, setFilter] = useState<"all" | "online" | "configured" | "checking" | "offline">("all");
-  const [sortBy, setSortBy] = useState<"requests" | "latency" | "success" | "score" | "wins">("requests");
+  const [sortBy, setSortBy] = useState<"requests" | "latency" | "success" | "score" | "wins">(
+    motherActive ? "wins" : "requests"
+  );
   const [rosterEligible, setRosterEligible] = useState<number | null>(null);
 
   // ── Fetch leaderboard data ──────────────────────────────────────────────────

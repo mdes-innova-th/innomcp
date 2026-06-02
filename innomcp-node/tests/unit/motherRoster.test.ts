@@ -28,17 +28,17 @@ describe("GET /api/mother/roster", () => {
     expect(Array.isArray(res.body.providers)).toBe(true);
   });
 
-  it("returns exactly 13 providers", async () => {
+  it("returns exactly 14 providers", async () => {
     const app = buildApp();
     const res = await request(app).get("/api/mother/roster");
-    expect(res.body.totalProviders).toBe(13);
-    expect(res.body.providers.length).toBe(13);
+    expect(res.body.totalProviders).toBe(14);
+    expect(res.body.providers.length).toBe(14);
   });
 
-  it("alwaysOnCount is 2 (ollama-local + innova-bot)", async () => {
+  it("alwaysOnCount is 3 (ollama-local + innova-bot + innova-oracle)", async () => {
     const app = buildApp();
     const res = await request(app).get("/api/mother/roster");
-    expect(res.body.alwaysOnCount).toBe(2);
+    expect(res.body.alwaysOnCount).toBe(3);
   });
 
   it("each provider has required fields", async () => {
@@ -61,7 +61,7 @@ describe("GET /api/mother/roster", () => {
     const app = buildApp();
     const res = await request(app).get("/api/mother/roster");
     const alwaysOn = res.body.providers.filter((p: { alwaysOn: boolean }) => p.alwaysOn);
-    expect(alwaysOn.length).toBe(2);
+    expect(alwaysOn.length).toBe(3);
     for (const p of alwaysOn) {
       expect(p.keyAvailable).toBe(true);
     }

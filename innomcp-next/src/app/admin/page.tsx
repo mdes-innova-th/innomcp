@@ -174,6 +174,7 @@ export default function AdminPage() {
   const [motherProbeLoading, setMotherProbeLoading] = useState(false);
   const [motherCostTotal, setMotherCostTotal] = useState<number | null>(null);
   const [motherHistoryLoading, setMotherHistoryLoading] = useState(false);
+  const [winnerRanked, setWinnerRanked] = useState<Array<{providerId: string; wins: number; requests: number; successRate: number}>>([]);
 
   // ── Auth guard ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -284,6 +285,7 @@ export default function AdminPage() {
             if (wd?.winner) {
               setMotherStats(prev => prev ? { ...prev, winLeader: wd.winner.providerId, totalWins: wd.totalWins } : prev);
             }
+            setWinnerRanked(wd?.ranked ?? []);
           })
           .catch(() => {});
       })
@@ -1079,6 +1081,40 @@ export default function AdminPage() {
                 <div className="p-8 text-center text-gray-400">No provider breakdown data yet.</div>
               )}
             </div>
+
+            {/* ── Win Rankings Table ──────────────────────────────────────────────── */}
+            {winnerRanked.length > 0 && (
+              <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Win Rankings</h3>
+                  <span className="ml-2 text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-full px-2 py-0.5 font-medium">🏆 {winnerRanked.length} providers</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 dark:bg-gray-700/50 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-4 py-3">#</th>
+                        <th className="px-4 py-3">Provider</th>
+                        <th className="px-4 py-3 text-right">Wins</th>
+                        <th className="px-4 py-3 text-right">Requests</th>
+                        <th className="px-4 py-3 text-right">Success%</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {winnerRanked.map((p, i) => (
+                        <tr key={p.providerId} className={`hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors ${i === 0 ? 'bg-yellow-50/30 dark:bg-yellow-900/10' : ''}`}>
+                          <td className="px-4 py-3 text-xs text-gray-500">{i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}`}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-300">{p.providerId}</td>
+                          <td className="px-4 py-3 text-right font-semibold text-yellow-600 dark:text-yellow-400">{p.wins}</td>
+                          <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{p.requests}</td>
+                          <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{p.successRate}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {/* ── Circuit State ────────────────────────────────────────────────── */}
             <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">

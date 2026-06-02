@@ -313,26 +313,26 @@ test.describe('Dashboard MotherStatsCard UI', () => {
 });
 
 // ---------------------------------------------------------------------------
-// N. GET /api/mother/roster — 13-provider roster
+// N. GET /api/mother/roster — 14-provider roster
 // ---------------------------------------------------------------------------
 
 test.describe('GET /api/mother/roster', () => {
-  test('returns 200 with 13 providers', async ({ request }) => {
+  test('returns 200 with 14 providers', async ({ request }) => {
     const response = await request.get(`${BACKEND_URL}/api/mother/roster`);
     expect(response.status()).toBe(200);
 
     const body = await response.json();
     expect(body).toHaveProperty('providers');
     expect(Array.isArray(body.providers)).toBe(true);
-    expect(body.totalProviders).toBe(13);
-    expect(body.providers.length).toBe(13);
+    expect(body.totalProviders).toBe(14);
+    expect(body.providers.length).toBe(14);
   });
 
-  test('alwaysOnCount is 2', async ({ request }) => {
+  test('alwaysOnCount is 3', async ({ request }) => {
     const response = await request.get(`${BACKEND_URL}/api/mother/roster`);
     expect(response.status()).toBe(200);
     const body = await response.json();
-    expect(body.alwaysOnCount).toBe(2);
+    expect(body.alwaysOnCount).toBe(3);
   });
 
   test('eligibleCount >= 2 (always-on providers)', async ({ request }) => {
@@ -350,5 +350,56 @@ test.describe('GET /api/mother/roster', () => {
     expect(innovaBot).toBeDefined();
     expect(innovaBot.alwaysOn).toBe(true);
     expect(innovaBot.keyAvailable).toBe(true);
+  });
+
+  test('innova-oracle is always-on', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/roster`);
+    const body = await response.json();
+    const oracle = body.providers.find((p: { id: string }) => p.id === 'innova-oracle');
+    expect(oracle).toBeDefined();
+    expect(oracle.alwaysOn).toBe(true);
+    expect(oracle.keyAvailable).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// N+1. GET /api/mother/winner — win leader board
+// ---------------------------------------------------------------------------
+
+test.describe('GET /api/mother/winner', () => {
+  test('returns 200 with expected shape', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/winner`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body).toHaveProperty('winner');
+    expect(body).toHaveProperty('ranked');
+    expect(body).toHaveProperty('totalWins');
+    expect(Array.isArray(body.ranked)).toBe(true);
+    expect(typeof body.totalWins).toBe('number');
+  });
+
+  test('winner is null or has required fields', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/winner`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    if (body.winner !== null) {
+      expect(body.winner).toHaveProperty('providerId');
+      expect(body.winner).toHaveProperty('wins');
+      expect(typeof body.winner.wins).toBe('number');
+    }
+  });
+
+  test('ranked entries have required fields', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/winner`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    for (const entry of body.ranked) {
+      expect(typeof entry.providerId).toBe('string');
+      expect(typeof entry.wins).toBe('number');
+      expect(entry.wins).toBeGreaterThan(0);
+    }
   });
 });

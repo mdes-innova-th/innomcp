@@ -39,6 +39,7 @@ const PROVIDER_META: Record<string, { label: string; color: string; model: strin
   "groq-llama":     { label: "Groq",     color: "text-orange-600 dark:text-orange-400",    model: "llama-3.3-70b-versatile" },
   "together-llama": { label: "Together", color: "text-violet-500 dark:text-violet-400",    model: "Llama-3-70b" },
   "innova-bot":     { label: "Innova",   color: "text-emerald-500 dark:text-emerald-400",  model: "qwen2.5:0.5b" },
+  "innova-oracle":  { label: "OracleRAG", color: "text-emerald-700 dark:text-emerald-300", model: "oracle-rag" },
 };
 
 // ─── Race state deriver ───────────────────────────────────────────────────────
