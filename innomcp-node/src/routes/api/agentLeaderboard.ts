@@ -43,6 +43,8 @@ export interface AgentEntry {
   wins?: number;
   avgResponseLength?: number;  // avg chars per response from this provider
   avgQuality?: number;
+  winRate?: number;            // wins / requests * 100
+  topIntent?: string;          // intent this provider wins most often
 }
 
 /**
@@ -282,11 +284,11 @@ const AGENT_CATALOGUE: AgentEntry[] = [
 
 /** Attempt to pull live request counts and latency from task_steps. */
 async function fetchLiveStats(): Promise<
-  Map<string, { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number }>
+  Map<string, { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number; avgResponseLength?: number; avgQuality?: number; winRate?: number; topIntent?: string }>
 > {
   const result = new Map<
     string,
-    { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number }
+    { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number; avgResponseLength?: number; avgQuality?: number; winRate?: number; topIntent?: string }
   >();
 
   try {
@@ -395,6 +397,8 @@ router.get("/", async (_req: Request, res: Response) => {
           wins: live.wins,
           avgResponseLength: live.avgResponseLength,
           avgQuality: live.avgQuality,
+          winRate: live.winRate,
+          topIntent: live.topIntent,
         }
       : { ...entry };
   });

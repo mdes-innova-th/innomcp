@@ -835,7 +835,7 @@ export async function dispatchMother(
 
   const successCount = results.filter((r) => r.success).length;
   const { text: synthesis, winnerId } = await synthesizeResults(results, intent, query, emit, runId, messageId, options.responseMode);
-  if (winnerId) recordProviderWin(winnerId);
+  if (winnerId) recordProviderWin(winnerId, intent);
   const totalEstimatedCostUsd = results.reduce(
     (sum, r) => sum + (r.estimatedCostUsd ?? 0),
     0

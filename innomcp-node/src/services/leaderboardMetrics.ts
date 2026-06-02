@@ -19,6 +19,7 @@ interface RawStats {
   totalResponseChars: number;
   responseSamples: number[];
   qualityScores: number[];
+  intentWins: Record<string, number>;
 }
 
 export interface ProviderStats {
@@ -29,6 +30,8 @@ export interface ProviderStats {
   wins: number;
   avgResponseLength: number;
   avgQuality: number;
+  winRate: number;         // wins / requests * 100 (0 when requests=0)
+  topIntent?: string;      // intent this provider wins most often
 }
 
 const store = new Map<string, RawStats>();
@@ -75,6 +78,7 @@ export function recordProviderCall(
       totalResponseChars: responseChars ?? 0,
       responseSamples: responseChars != null ? [responseChars] : [],
       qualityScores: [],
+      intentWins: {},
     });
   }
 
@@ -115,6 +119,10 @@ export function getProviderStats(): Map<string, ProviderStats> {
       avgQuality: raw.qualityScores.length > 0
         ? Math.round(raw.qualityScores.reduce((s, v) => s + v, 0) / raw.qualityScores.length)
         : 0,
+      winRate: raw.requests > 0 ? Math.round((raw.wins / raw.requests) * 100) : 0,
+      topIntent: Object.keys(raw.intentWins).length > 0
+        ? Object.entries(raw.intentWins).sort((a, b) => b[1] - a[1])[0][0]
+        : undefined,
     });
   }
   return result;
@@ -131,13 +139,31 @@ export function getSparklineData(providerId: string, n = 10): number[] {
 }
 
 /**
+ * Returns a snapshot of intent-based wins across all providers.
+ * Map<intent, Map<providerId, winCount>>
+ */
+export function getIntentWinsSnapshot(): Map<string, Map<string, number>> {
+  const result = new Map<string, Map<string, number>>();
+  for (const [providerId, raw] of store.entries()) {
+    for (const [intent, count] of Object.entries(raw.intentWins)) {
+      if (!result.has(intent)) result.set(intent, new Map());
+      result.get(intent)!.set(providerId, count);
+    }
+  }
+  return result;
+}
+
+/**
  * Record that a provider's response was selected as the synthesis winner
  * (fastest successful response chosen for the final answer).
  */
-export function recordProviderWin(providerId: string): void {
+export function recordProviderWin(providerId: string, intent?: string): void {
   const existing = store.get(providerId);
   if (existing) {
     existing.wins += 1;
+    if (intent) {
+      existing.intentWins[intent] = (existing.intentWins[intent] ?? 0) + 1;
+    }
   } else {
     store.set(providerId, {
       requests: 0,
@@ -148,6 +174,7 @@ export function recordProviderWin(providerId: string): void {
       totalResponseChars: 0,
       responseSamples: [],
       qualityScores: [],
+      intentWins: intent ? { [intent]: 1 } : {},
     });
   }
 
@@ -181,6 +208,7 @@ export function recordProviderQuality(providerId: string, qualityScore: number):
     store.set(providerId, {
       requests: 0, totalLatency: 0, successes: 0, latencySamples: [],
       wins: 0, totalResponseChars: 0, responseSamples: [], qualityScores: [clampedScore],
+      intentWins: {},
     });
   }
 }
@@ -252,6 +280,7 @@ export const leaderboardMetrics = {
   recordProviderQuality,
   getProviderStats,
   getSparklineData,
+  getIntentWinsSnapshot,
   getDbStats,
   resetStats,
 };

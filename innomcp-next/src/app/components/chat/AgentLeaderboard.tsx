@@ -21,6 +21,8 @@ interface AgentEntry {
   wins?: number;
   avgResponseLength?: number;
   avgQuality?: number;
+  winRate?: number;
+  topIntent?: string;
   sparkline?: number[];
 }
 
