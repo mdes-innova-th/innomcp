@@ -115,6 +115,7 @@ describe("motherDispatch module exports", () => {
       synthesis: "best answer",
       totalAgents: 0,
       successCount: 0,
+      totalEstimatedCostUsd: 0,
     };
     expect(sample.synthesis).toBe("best answer");
     expect(Array.isArray(sample.results)).toBe(true);
