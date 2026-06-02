@@ -494,3 +494,27 @@ test.describe('GET /api/mother/compare/:id1/:id2', () => {
     expect([200, 404]).toContain(response.status());
   });
 });
+
+test.describe('GET /api/mother/intent-leaders', () => {
+  test('returns 200 with leaders array shape', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/intent-leaders`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body).toHaveProperty('leaders');
+    expect(Array.isArray(body.leaders)).toBe(true);
+    expect(body).toHaveProperty('timestamp');
+  });
+});
+
+test.describe('GET /api/mother/bus-log', () => {
+  test('returns 200 with messages array shape', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/bus-log`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body).toHaveProperty('messages');
+    expect(Array.isArray(body.messages)).toBe(true);
+    expect(typeof body.total).toBe('number');
+  });
+});

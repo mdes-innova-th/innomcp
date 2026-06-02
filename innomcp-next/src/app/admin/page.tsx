@@ -179,6 +179,8 @@ export default function AdminPage() {
   const [motherHistoryLoading, setMotherHistoryLoading] = useState(false);
   const [winnerRanked, setWinnerRanked] = useState<Array<{providerId: string; wins: number; requests: number; successRate: number}>>([]);
   const [motherRankings, setMotherRankings] = useState<Array<{providerId: string; rank: number; tier: string; compositeScore: number; wins: number}>>([]);
+  const [intentLeaders, setIntentLeaders] = useState<Array<{intent: string; intentLabel: string; leaderId: string; wins: number}>>([]);
+  const [busMessages, setBusMessages] = useState<Array<{filename: string; from?: string; subject?: string; preview: string; modifiedAt: string}>>([]);
 
   // ── Auth guard ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -321,6 +323,16 @@ export default function AdminPage() {
     fetch('/api/mother/rankings', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.rankings) setMotherRankings(d.rankings); })
+      .catch(() => {});
+
+    fetch('/api/mother/intent-leaders', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.leaders) setIntentLeaders(d.leaders); })
+      .catch(() => {});
+
+    fetch('/api/mother/bus-log?limit=8', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.messages) setBusMessages(d.messages); })
       .catch(() => {});
 
     // History — compute cost client-side
@@ -1184,6 +1196,52 @@ export default function AdminPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {/* ── Intent Leaders ─────────────────────────────────────────────── */}
+            {intentLeaders.length > 0 && (
+              <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Best Provider by Intent</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Which provider wins most often per query type</p>
+                </div>
+                <div className="p-4 flex flex-wrap gap-2">
+                  {intentLeaders.map(l => (
+                    <div key={l.intent} className="flex items-center gap-1.5 rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/40 px-3 py-2">
+                      <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase">{l.intentLabel}</span>
+                      <span className="text-xs font-semibold text-gray-800 dark:text-gray-100">{l.leaderId}</span>
+                      <span className="text-[10px] text-gray-400">({l.wins}W)</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Jit Message Bus ─────────────────────────────────────────────── */}
+            {busMessages.length > 0 && (
+              <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Jit Message Bus</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Recent innova-bot ↔ Jit oracle messages</p>
+                </div>
+                <div className="divide-y divide-gray-100 dark:divide-gray-700">
+                  {busMessages.map(m => (
+                    <div key={m.filename} className="px-4 py-2.5 flex items-start gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400">{m.from ?? 'unknown'}</span>
+                          <span className="text-[9px] text-gray-400">→</span>
+                          <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300">{m.subject ?? m.filename.replace('.md','').slice(-30)}</span>
+                        </div>
+                        <p className="text-[11px] text-gray-600 dark:text-gray-400 line-clamp-2">{m.preview}</p>
+                      </div>
+                      <span className="text-[9px] text-gray-400 shrink-0 tabular-nums">
+                        {new Date(m.modifiedAt).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
