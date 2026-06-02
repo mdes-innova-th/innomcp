@@ -10,6 +10,7 @@ import SearchBar from "@/app/components/common/SearchBar";
 import AgentLeaderboard from "@/app/components/chat/AgentLeaderboard";
 import ProviderHealthPanel from "@/app/components/chat/ProviderHealthPanel";
 import MotherDispatchPanel from "@/app/components/chat/MotherDispatchPanel";
+import MotherStatsCard from "@/app/components/chat/MotherStatsCard";
 import LiveActivityFeed from "@/app/components/chat/LiveActivityFeed";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -395,6 +396,9 @@ export default function DashboardView({
           </>
         )}
       </div>
+
+      {/* Mother Dispatch Stats — always visible */}
+      <MotherStatsCard />
 
       {/* Agent Leaderboard */}
       <div>
