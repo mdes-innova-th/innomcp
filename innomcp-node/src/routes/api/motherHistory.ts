@@ -9,7 +9,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import { getHistory } from "../../services/motherHistory";
+import { getHistory, getRunById } from "../../services/motherHistory";
 
 const router = Router();
 
@@ -29,6 +29,24 @@ router.get("/", (req: Request, res: Response): void => {
     total: runs.length,
     timestamp: new Date().toISOString(),
   });
+});
+
+/**
+ * GET /api/mother/history/:runId
+ * Returns a single run with full provider detail.
+ */
+router.get("/:runId", (req: Request, res: Response): void => {
+  const { runId } = req.params;
+  if (!runId || !/^[a-zA-Z0-9_-]{1,128}$/.test(runId)) {
+    res.status(400).json({ error: "invalid runId" });
+    return;
+  }
+  const run = getRunById(runId);
+  if (!run) {
+    res.status(404).json({ error: "run not found" });
+    return;
+  }
+  res.json({ run, timestamp: new Date().toISOString() });
 });
 
 export default router;
