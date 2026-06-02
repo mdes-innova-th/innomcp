@@ -4,6 +4,9 @@
  * (Logic duplicated here since the component is in innomcp-next, not server)
  */
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export {}; // Force module mode so Babel/TS recognise interface declarations
+
 interface AgentEvent {
   type: string;
   runId: string;
