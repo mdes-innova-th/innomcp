@@ -172,6 +172,8 @@ export default function AdminPage() {
   const [motherStatsLoading, setMotherStatsLoading] = useState(false);
   const [motherProbe, setMotherProbe] = useState<MotherProbeResult[]>([]);
   const [motherProbeLoading, setMotherProbeLoading] = useState(false);
+  const [motherCircuits, setMotherCircuits] = useState<Array<{providerId: string; state: string; failures: number}>>([]);
+  const [circuitOpenCount, setCircuitOpenCount] = useState(0);
   const [motherCostTotal, setMotherCostTotal] = useState<number | null>(null);
   const [motherHistoryLoading, setMotherHistoryLoading] = useState(false);
   const [winnerRanked, setWinnerRanked] = useState<Array<{providerId: string; wins: number; requests: number; successRate: number}>>([]);
@@ -301,6 +303,12 @@ export default function AdminPage() {
       })
       .catch(() => null)
       .finally(() => setMotherProbeLoading(false));
+
+    // Circuits
+    fetch('/api/mother/circuits', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.circuits) { setMotherCircuits(d.circuits); setCircuitOpenCount(d.openCount ?? 0); } })
+      .catch(() => {});
 
     // History — compute cost client-side
     setMotherHistoryLoading(true);
@@ -1022,6 +1030,7 @@ export default function AdminPage() {
                     { label: 'Recent (5 min)',        value: String(motherStats.recentIterations ?? 0) },
                     { label: 'Win Leader',           value: motherStats.winLeader ?? '—' },
                     { label: 'Total Wins',           value: String(motherStats.totalWins ?? 0) },
+                    { label: 'Open Circuits',        value: String(circuitOpenCount) },
                   ].map(({ label, value }) => (
                     <div key={label} className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3 border border-gray-100 dark:border-gray-600">
                       <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{label}</p>
@@ -1112,6 +1121,36 @@ export default function AdminPage() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {/* ── Circuit Breakers ───────────────────────────────────────────────────────────────── */}
+            {motherCircuits.length > 0 && (
+              <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Circuit Breakers</h3>
+                  {circuitOpenCount > 0 && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/30 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-400">
+                      {circuitOpenCount} OPEN
+                    </span>
+                  )}
+                </div>
+                <div className="p-4 flex flex-wrap gap-2">
+                  {motherCircuits.map(c => {
+                    const cls =
+                      c.state === 'CLOSED'    ? 'bg-green-100  text-green-700  dark:bg-green-900/30  dark:text-green-400 border-green-200 dark:border-green-800' :
+                      c.state === 'OPEN'      ? 'bg-red-100    text-red-700    dark:bg-red-900/30    dark:text-red-400   border-red-200   dark:border-red-800'   :
+                      c.state === 'HALF_OPEN' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800' :
+                                                'bg-gray-100   text-gray-500   dark:bg-gray-700/40  dark:text-gray-400   border-gray-200   dark:border-gray-600';
+                    return (
+                      <div key={c.providerId} className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${cls}`}>
+                        <span className="font-mono">{c.providerId}</span>
+                        <span className="opacity-70">{c.state === 'UNKNOWN' ? '?' : c.state === 'CLOSED' ? '✓' : c.state === 'OPEN' ? '✗' : '~'}</span>
+                        {c.failures > 0 && <span className="opacity-60">({c.failures})</span>}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}

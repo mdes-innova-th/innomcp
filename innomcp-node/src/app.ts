@@ -44,6 +44,7 @@ import motherHistoryRouter from "./routes/api/motherHistory";
 import motherStatsRouter from "./routes/api/motherStats";
 import motherRosterRouter from "./routes/api/motherRoster";
 import motherWinnerRouter from "./routes/api/motherWinner";
+import motherCircuitsRouter from "./routes/api/motherCircuits";
 import presenceRouter from "./routes/api/presence";
 import activityRouter from "./routes/api/activity";
 
@@ -189,6 +190,7 @@ app.use("/api/mother/stats", generalRateLimit, cacheResponse(5_000), motherStats
 
 app.use("/api/mother/roster", generalRateLimit, motherRosterRouter);
 app.use("/api/mother/winner", generalRateLimit, motherWinnerRouter);
+app.use("/api/mother/circuits", generalRateLimit, motherCircuitsRouter);
 
 // Model Settings — ad-hoc connection test + provider presets (no auth, public)
 app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);

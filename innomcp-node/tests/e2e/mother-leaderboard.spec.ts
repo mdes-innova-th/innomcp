@@ -403,3 +403,17 @@ test.describe('GET /api/mother/winner', () => {
     }
   });
 });
+
+test.describe('GET /api/mother/circuits', () => {
+  test('returns 200 with 14 circuit entries', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/circuits`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body).toHaveProperty('circuits');
+    expect(Array.isArray(body.circuits)).toBe(true);
+    expect(body.circuits).toHaveLength(14);
+    expect(body).toHaveProperty('openCount');
+    expect(typeof body.openCount).toBe('number');
+  });
+});

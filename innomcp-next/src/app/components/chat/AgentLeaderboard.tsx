@@ -1,6 +1,7 @@
 ﻿"use client";
 import React, { useState, useEffect, useCallback } from "react";
 import LatencySparkline from "./LatencySparkline";
+import LeaderboardCard from "./LeaderboardCard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -360,7 +361,20 @@ export default function AgentLeaderboard({
 
       {/* Table */}
       {!loading && !error && (
-        <div className="overflow-x-auto rounded-lg border border-border/40">
+        <>
+        {/* Mobile card grid (hidden on sm+) */}
+        <div className="sm:hidden px-1 pb-2 space-y-2">
+          {visible.map((agent, i) => (
+            <LeaderboardCard
+              key={agent.id}
+              agent={agent}
+              rank={i + 1}
+              badge={getProviderBadge(agent.provider)}
+              statusDot={STATUS_CONFIG[agent.status]?.dot ?? "🔵"}
+            />
+          ))}
+        </div>
+        <div className="hidden sm:block overflow-x-auto rounded-lg border border-border/40">
           <table className="w-full min-w-[780px]">
             <thead>
               <tr className="border-b border-border/40 bg-muted/20 text-[10px] text-muted-foreground">
@@ -515,6 +529,7 @@ export default function AgentLeaderboard({
             </tbody>
           </table>
         </div>
+        </>
       )}
 
       {/* Footer: last updated */}
