@@ -88,6 +88,8 @@ interface MotherStatsData {
   providerBreakdown: MotherProviderBreakdown[];
   avgProvidersPerRun: number;
   recentIterations: number;
+  winLeader?: string;   // providerId of current win leader
+  totalWins?: number;   // total wins across all providers
 }
 
 interface MotherProbeResult {
@@ -273,7 +275,18 @@ export default function AdminPage() {
     setMotherStatsLoading(true);
     fetch('/api/mother/stats', { credentials: 'include' })
       .then(r => r.json())
-      .then((d: MotherStatsData) => setMotherStats(d))
+      .then((d: MotherStatsData) => {
+        setMotherStats(d);
+        // Also fetch win leader
+        fetch('/api/mother/winner', { credentials: 'include' })
+          .then(r => r.ok ? r.json() : null)
+          .then(wd => {
+            if (wd?.winner) {
+              setMotherStats(prev => prev ? { ...prev, winLeader: wd.winner.providerId, totalWins: wd.totalWins } : prev);
+            }
+          })
+          .catch(() => {});
+      })
       .catch(() => null)
       .finally(() => setMotherStatsLoading(false));
 
@@ -997,7 +1010,7 @@ export default function AdminPage() {
               {motherStatsLoading ? (
                 <div className="p-8 text-center text-gray-400">Loading stats…</div>
               ) : motherStats ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 p-4">
                   {[
                     { label: 'Total Runs',          value: String(motherStats.totalRuns) },
                     { label: 'Total Provider Calls', value: String(motherStats.totalProviderCalls) },
@@ -1005,6 +1018,8 @@ export default function AdminPage() {
                     { label: 'Last Run At',          value: motherStats.lastRunAt ? new Date(motherStats.lastRunAt).toLocaleString() : '–' },
                     { label: 'Avg Agents/Run',       value: String(motherStats.avgProvidersPerRun ?? 0) },
                     { label: 'Recent (5 min)',        value: String(motherStats.recentIterations ?? 0) },
+                    { label: 'Win Leader',           value: motherStats.winLeader ?? '—' },
+                    { label: 'Total Wins',           value: String(motherStats.totalWins ?? 0) },
                   ].map(({ label, value }) => (
                     <div key={label} className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3 border border-gray-100 dark:border-gray-600">
                       <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{label}</p>

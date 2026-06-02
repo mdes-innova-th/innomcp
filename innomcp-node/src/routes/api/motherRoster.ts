@@ -25,6 +25,7 @@ interface RosterEntry {
   envVar: string;
   score?: number;          // composite score from leaderboard (0–100), undefined if no calls yet
   requests?: number;       // total calls recorded
+  wins?: number;
 }
 
 const ROSTER: Omit<RosterEntry, "keyAvailable">[] = [
@@ -57,6 +58,7 @@ router.get("/", (_req: Request, res: Response): void => {
       keyAvailable,
       score,
       requests: s?.requests,
+      wins: s?.wins,
     };
   });
 

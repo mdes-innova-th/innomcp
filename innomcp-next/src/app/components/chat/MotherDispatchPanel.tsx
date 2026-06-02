@@ -153,7 +153,7 @@ function RunRow({ run }: { run: MotherRun }) {
               <span className="text-[9.5px] text-muted-foreground/60 truncate">
                 fastest:{" "}
                 <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  {PROVIDER_LABEL[run.fastestProvider] ?? run.fastestProvider}
+                  ⚡ {PROVIDER_LABEL[run.fastestProvider] ?? run.fastestProvider}
                 </span>
                 {run.providers.find((p) => p.providerId === run.fastestProvider || p.providerName === run.fastestProvider)?.latencyMs != null && (
                   <span>

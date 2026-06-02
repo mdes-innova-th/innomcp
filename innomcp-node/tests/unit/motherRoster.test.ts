@@ -53,6 +53,7 @@ describe("GET /api/mother/roster", () => {
       expect(typeof p.keyAvailable).toBe("boolean");
       expect(p.score === undefined || typeof p.score === "number").toBe(true);
       expect(p.requests === undefined || typeof p.requests === "number").toBe(true);
+      expect(p.wins === undefined || typeof p.wins === "number").toBe(true);
     }
   });
 
@@ -74,6 +75,7 @@ describe("GET /api/mother/roster", () => {
     for (const p of res.body.providers) {
       expect(p.score).toBeUndefined();
       expect(p.requests).toBeUndefined();
+      expect(p.wins).toBeUndefined();
     }
   });
 });
