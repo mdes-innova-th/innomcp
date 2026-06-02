@@ -33,6 +33,7 @@ import {
 import { checkNaturalness } from "../services/naturalnessGuard";
 import { dispatchAgents, synthesizeAnswer, type AgentRunMode } from "./parallelDispatch";
 import { dispatchTool } from "./toolDispatch";
+import { dispatchMother } from "./motherDispatch";
 import type { GuestLimits } from "../middleware/guestLimiter";
 import { sessionMemory, type MemoryDomain } from "../services/sessionMemory";
 import { disambiguateWithSessionMemory } from "../services/memoryRagHook";
@@ -308,6 +309,25 @@ export async function runConductor(
     .finally(() => {
       agentsSettled = true;
     });
+
+  // Mother dispatch — fan out to all real providers in thinking mode.
+  // Results are injected directly into liveOutputs; the poll loop and
+  // synthesizeAnswer will pick them up automatically.
+  const motherPromise = (responseMode === "thinking" && process.env.MOTHER_DISPATCH !== "0")
+    ? dispatchMother(cls.intent, opts.message, runId, messageId, emit, {
+        history: opts.history,
+        preferredMode: opts.preferredMode,
+      }).then((r) => {
+        // Inject successful mother results into liveOutputs so synthesizeAnswer
+        // can consider them alongside the normal parallel-agent outputs.
+        for (const mr of r.results) {
+          if (mr.success && mr.text && mr.text.length > 20) {
+            liveOutputs[`__mother_${mr.providerId}`] = mr.text;
+          }
+        }
+        return r;
+      }).catch(() => null)
+    : Promise.resolve(null);
 
   // Fire MCP tool in parallel for tool-requiring intents (weather, map).
   // Result lands in liveOutputs["__tool__"] which synthesizeAnswer prefers.
