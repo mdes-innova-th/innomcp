@@ -100,8 +100,10 @@ function ProviderRow({ p }: { p: MotherRunProvider }) {
           <span className="text-rose-500" title={p.errorMsg ?? "failed"}>❌</span>
         )}
       </td>
-      <td className="py-1 px-2 text-[10px] text-muted-foreground/70 truncate max-w-[140px]">
-        {p.success ? p.preview : (p.errorMsg ?? "–")}
+      <td className="py-1 px-2 max-w-[160px]">
+        <p className="text-[10px] text-muted-foreground/60 italic leading-snug line-clamp-2">
+          {p.success ? p.preview : (p.errorMsg ?? "–")}
+        </p>
       </td>
     </tr>
   );

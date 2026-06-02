@@ -9,7 +9,7 @@ export interface MotherRunProvider {
   providerName: string;
   latencyMs: number;
   success: boolean;
-  preview: string;   // first 80 chars of text, empty string if failed
+  preview: string;   // first 200 chars of text (trimmed), empty string if failed
   errorMsg?: string;
 }
 

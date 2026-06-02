@@ -85,6 +85,7 @@ export interface AgentEvent {
   fallbackReason?: string;
   totalMs?: number;
   latencyMs?: number;
+  previewText?: string;  // first ~100 chars of provider response for race view display
 }
 
 export const SCHEMA_VERSION = "1.0.0";

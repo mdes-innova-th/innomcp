@@ -11,6 +11,8 @@ interface RaceEntry {
   model?: string;
   /** ms since dispatch started; set when agent_finished fires */
   latencyMs?: number;
+  /** first ~100 chars of response from agent_finished event */
+  previewText?: string;
   /** true = agent_finished received */
   done: boolean;
   /** true = fallback / circuit-open received */
@@ -63,6 +65,7 @@ export function deriveRaceState(events: AgentEvent[]): RaceEntry[] {
     failed: boolean;
     latencyMs?: number;
     startedAt?: number;
+    previewText?: string;
   }>();
 
   for (const ev of events) {
@@ -87,6 +90,7 @@ export function deriveRaceState(events: AgentEvent[]): RaceEntry[] {
       } else if (s.startedAt && ev.timestamp) {
         s.latencyMs = Date.parse(ev.timestamp) - s.startedAt;
       }
+      if (ev.previewText) s.previewText = ev.previewText;
     } else if (ev.type === "fallback") {
       s.failed = true;
     }
@@ -110,6 +114,7 @@ export function deriveRaceState(events: AgentEvent[]): RaceEntry[] {
       color: meta.color,
       model: (PROVIDER_META[pid] ?? { model: undefined }).model,
       latencyMs: s.latencyMs,
+      previewText: s.previewText,
       done: s.done,
       failed: s.failed,
       running: s.started && !s.done && !s.failed,
@@ -180,31 +185,37 @@ export default function MotherRaceView({ events, hideWhenEmpty = true }: Props) 
       </div>
       <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
         {sorted.map((entry) => (
-          <div
-            key={entry.providerId}
-            className="flex items-center gap-1.5 px-1 py-0.5 rounded"
-            title={entry.model ?? entry.providerId}
-          >
-            <StatusIcon entry={entry} />
-            <span className={`text-[11px] font-medium truncate flex-1 ${entry.color}`}>
-              {entry.label}
-            </span>
-            {entry.done && entry.latencyMs != null && (
-              <span className="text-[10px] tabular-nums text-muted-foreground ml-auto shrink-0">
-                {entry.latencyMs < 1000
-                  ? `${entry.latencyMs}ms`
-                  : `${(entry.latencyMs / 1000).toFixed(1)}s`}
+          <div key={entry.providerId}>
+            <div
+              className="flex items-center gap-1.5 px-1 py-0.5 rounded"
+              title={entry.model ?? entry.providerId}
+            >
+              <StatusIcon entry={entry} />
+              <span className={`text-[11px] font-medium truncate flex-1 ${entry.color}`}>
+                {entry.label}
               </span>
-            )}
-            {entry.running && (
-              <span className="text-[10px] text-blue-400 dark:text-blue-300 ml-auto shrink-0 animate-pulse">
-                …
-              </span>
-            )}
-            {entry.failed && (
-              <span className="text-[10px] text-rose-400 dark:text-rose-300 ml-auto shrink-0">
-                skip
-              </span>
+              {entry.done && entry.latencyMs != null && (
+                <span className="text-[10px] tabular-nums text-muted-foreground ml-auto shrink-0">
+                  {entry.latencyMs < 1000
+                    ? `${entry.latencyMs}ms`
+                    : `${(entry.latencyMs / 1000).toFixed(1)}s`}
+                </span>
+              )}
+              {entry.running && (
+                <span className="text-[10px] text-blue-400 dark:text-blue-300 ml-auto shrink-0 animate-pulse">
+                  …
+                </span>
+              )}
+              {entry.failed && (
+                <span className="text-[10px] text-rose-400 dark:text-rose-300 ml-auto shrink-0">
+                  skip
+                </span>
+              )}
+            </div>
+            {entry.done && entry.previewText && (
+              <p className="text-[9px] text-muted-foreground/60 line-clamp-1 px-1 leading-tight">
+                {entry.previewText}
+              </p>
             )}
           </div>
         ))}

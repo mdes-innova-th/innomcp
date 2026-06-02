@@ -511,6 +511,7 @@ async function runProvider(
     doneEv.provider = cfg.id;
     doneEv.model = cfg.model;
     doneEv.latencyMs = latencyMs;
+    doneEv.previewText = text.trim().slice(0, 100);
     if (checkAgentEventSafe(doneEv, { expectedToolUsage: false }).ok) {
       emit(doneEv);
     }
@@ -824,7 +825,7 @@ export async function dispatchMother(
     providerName: r.providerName,
     latencyMs: r.latencyMs,
     success: r.success,
-    preview: r.text.slice(0, 80),
+    preview: r.text.trim().slice(0, 200),
     errorMsg: r.errorMsg,
   }));
   const fastest = results

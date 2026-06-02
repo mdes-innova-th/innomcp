@@ -16,11 +16,13 @@ interface AgentEvent {
   timestamp: string;
   provider?: string;
   latencyMs?: number;
+  previewText?: string;
 }
 
 interface RaceEntry {
   providerId: string;
   latencyMs?: number;
+  previewText?: string;
   done: boolean;
   failed: boolean;
   running: boolean;
@@ -35,6 +37,7 @@ function deriveRaceState(events: AgentEvent[]): RaceEntry[] {
     failed: boolean;
     latencyMs?: number;
     startedAt?: number;
+    previewText?: string;
   }>();
 
   for (const ev of events) {
@@ -58,6 +61,7 @@ function deriveRaceState(events: AgentEvent[]): RaceEntry[] {
       } else if (s.startedAt && ev.timestamp) {
         s.latencyMs = Date.parse(ev.timestamp) - s.startedAt;
       }
+      if (ev.previewText) s.previewText = ev.previewText;   // ← ADD
     } else if (ev.type === "fallback") {
       s.failed = true;
     }
@@ -80,6 +84,7 @@ function deriveRaceState(events: AgentEvent[]): RaceEntry[] {
     running: s.started && !s.done && !s.failed,
     pending: !s.started,
     isFirst: pid === firstId,
+    previewText: s.previewText,
     label: pid,
     color: "",
   }));
@@ -171,5 +176,14 @@ describe("deriveRaceState", () => {
     expect(haiku.running).toBe(true);
     expect(innova.done).toBe(true);
     expect(innova.isFirst).toBe(true);
+  });
+
+  it("captures previewText from agent_finished event", () => {
+    const result = deriveRaceState([
+      makeEv({ type: "agent_started", provider: "mdes-cloud" }),
+      makeEv({ type: "agent_finished", provider: "mdes-cloud", latencyMs: 400, previewText: "สวัสดีครับ ผมคือ MDES" }),
+    ]);
+    expect(result[0].previewText).toBe("สวัสดีครับ ผมคือ MDES");
+    expect(result[0].done).toBe(true);
   });
 });
