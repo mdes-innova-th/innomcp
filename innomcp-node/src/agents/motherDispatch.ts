@@ -237,6 +237,8 @@ const PROVIDER_COST_PER_1K: Record<string, number> = {
   "deepseek-r1":    0.00055, // deepseek-reasoner: $0.55/1M
   "groq-llama":     0.00006, // llama3.3-70b on groq: $0.059/1M
   "together-llama": 0.0009,  // llama3-70b on together: $0.9/1M
+  "claude-sonnet":  0.003,   // Sonnet 4.6: $3/1M input
+  "innova-bot":     0.000,   // local qwen2.5:0.5b
 };
 
 /** Conservative per-call input token estimate (prompt + system context) */
@@ -661,13 +663,19 @@ async function synthesizeResults(
 // ── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Fan out the given query to all configured providers in parallel.
+ * Fan out the given query to all configured providers in parallel (Manus-style).
  *
- * - Providers with an empty API key are skipped silently.
+ * Roster: 13 providers — mdes-cloud, thai-llm, ollama-local, openai-gpt,
+ * claude-haiku, claude-sonnet, copilot, gemini-pro, mistral-large,
+ * deepseek-r1, groq-llama, together-llama, innova-bot.
+ *
+ * - Always-on (key-free): ollama-local, innova-bot (local Ollama).
+ * - Other providers are skipped silently when their API key is absent.
  * - When MDES_ONLY=1, only mdes-cloud and thai-llm are dispatched.
  * - Each provider has a hard 20-second AbortController timeout.
  * - Results arrive via Promise.allSettled so a single provider failure
  *   never blocks the others.
+ * - Warns to console when fewer than 5 providers are eligible.
  */
 export async function dispatchMother(
   intent: string,
@@ -693,6 +701,17 @@ export async function dispatchMother(
 
   if (eligible.length === 0) {
     return { results: [], synthesis: "", totalAgents: 0, successCount: 0, totalEstimatedCostUsd: 0 };
+  }
+
+  // Warn when fewer than 5 providers are eligible — Manus-like parallel dispatch needs diversity.
+  // Always-on (key-free) providers: ollama-local, innova-bot — always 2.
+  // Configure MDES_KEY + at least 3 cloud keys (ANTHROPIC/OPENAI/GROQ etc.) for full power.
+  const MIN_AGENTS = 5;
+  if (eligible.length < MIN_AGENTS && !mdesOnly) {
+    console.warn(
+      `[mother] ⚠️  only ${eligible.length}/${allConfigs.length} providers eligible — ` +
+      `configure REMOTE_OLLAMA_TOKEN + cloud keys to reach ${MIN_AGENTS}+ concurrent agents`
+    );
   }
 
   // Emit iteration counter event (fires once per dispatchMother call, after filtering)
