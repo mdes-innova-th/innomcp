@@ -84,6 +84,7 @@ export interface AgentEvent {
   finalText?: string;
   fallbackReason?: string;
   totalMs?: number;
+  latencyMs?: number;
 }
 
 export const SCHEMA_VERSION = "1.0.0";

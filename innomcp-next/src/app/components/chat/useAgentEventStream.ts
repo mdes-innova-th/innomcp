@@ -56,6 +56,7 @@ export interface AgentEvent {
   finalText?: string;
   fallbackReason?: string;
   totalMs?: number;
+  latencyMs?: number;
 }
 
 export type StreamStatus = "idle" | "streaming" | "done" | "error";

@@ -457,6 +457,7 @@ async function runProvider(
     });
     doneEv.provider = cfg.id;
     doneEv.model = cfg.model;
+    doneEv.latencyMs = latencyMs;
     if (checkAgentEventSafe(doneEv, { expectedToolUsage: false }).ok) {
       emit(doneEv);
     }

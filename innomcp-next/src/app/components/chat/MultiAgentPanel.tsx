@@ -120,11 +120,13 @@ function getMotherProviderBadge(provider: string | undefined): { label: string; 
     "openai-gpt":      { label: "GPT",       color: "bg-green-600/20 text-green-300" },
     "claude-haiku":    { label: "Claude",    color: "bg-purple-500/20 text-purple-300" },
     "copilot":         { label: "Copilot",   color: "bg-gray-800/40 text-gray-200" },
+    "claude-sonnet":  { label: "Sonnet",   color: "bg-purple-600/20 text-purple-200" },
     "gemini-pro":      { label: "Gemini",    color: "bg-blue-500/20 text-blue-300" },
     "mistral-large":   { label: "Mistral",   color: "bg-red-700/20 text-red-300" },
     "deepseek-r1":     { label: "DeepSeek",  color: "bg-teal-500/20 text-teal-300" },
     "groq-llama":      { label: "Groq",      color: "bg-orange-600/20 text-orange-300" },
     "together-llama":  { label: "Together",  color: "bg-violet-500/20 text-violet-300" },
+    "innova-bot":    { label: "InnBot",   color: "bg-emerald-500/20 text-emerald-300" },
     "mother":          { label: "🧠 Mother", color: "bg-yellow-400/20 text-yellow-300" },
   };
   return map[provider] ?? null;
