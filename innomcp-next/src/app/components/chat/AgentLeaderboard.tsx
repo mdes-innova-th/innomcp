@@ -1,5 +1,6 @@
 ﻿"use client";
 import React, { useState, useEffect, useCallback } from "react";
+import LatencySparkline from "./LatencySparkline";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -17,6 +18,7 @@ interface AgentEntry {
   role: string;
   score?: number;
   wins?: number;
+  sparkline?: number[];
 }
 
 interface LeaderboardResponse {
@@ -201,7 +203,7 @@ export default function AgentLeaderboard({
   // ── Export CSV ────────────────────────────────────────────────────────────
 
   function exportCSV() {
-    const header = "#,Agent,Provider,Model,Status,Requests,Avg Latency,Success%,Score,Wins,Role";
+    const header = "#,Agent,Provider,Model,Status,Requests,Avg Latency,Trend,Success%,Score,Wins,Role";
     const rows = visible.map((a, i) =>
       [
         i + 1,
@@ -211,6 +213,7 @@ export default function AgentLeaderboard({
         a.status,
         a.requests,
         formatLatency(a.avgLatency),
+        (a.sparkline ?? []).join('|'),
         `${a.successRate}%`,
         a.score?.toFixed(1) ?? "—",
         (a as AgentEntry & { wins?: number }).wins ?? 0,
@@ -368,6 +371,7 @@ export default function AgentLeaderboard({
                 <th scope="col" className="px-2 py-1.5 text-center font-medium">Status</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">Requests</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">Avg Latency</th>
+                <th scope="col" className="px-2 py-1.5 text-right font-medium w-16">Trend</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">P95</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">Success%</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium w-14">Score</th>
@@ -441,6 +445,10 @@ export default function AgentLeaderboard({
                     <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
                       {formatLatency(agent.avgLatency)}
                     </td>
+                    {/* Sparkline trend */}
+                    <td className="px-2 py-1.5 text-right">
+                      <LatencySparkline samples={agent.sparkline ?? []} />
+                    </td>
                     {/* P95 Latency */}
                     <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
                       {agent.p95Latency !== undefined ? formatLatency(agent.p95Latency) : "–"}
@@ -497,7 +505,7 @@ export default function AgentLeaderboard({
               {visible.length === 0 && (
                 <tr>
                   <td
-                    colSpan={12}
+                    colSpan={13}
                     className="px-2 py-4 text-center text-muted-foreground text-[11px]"
                   >
                     No agents match this filter.

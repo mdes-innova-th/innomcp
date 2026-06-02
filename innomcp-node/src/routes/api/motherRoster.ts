@@ -11,7 +11,7 @@
  */
 
 import { Router, Request, Response } from "express";
-import { getProviderStats } from "../../services/leaderboardMetrics";
+import { getProviderStats, getSparklineData } from "../../services/leaderboardMetrics";
 
 const router = Router();
 
@@ -26,6 +26,7 @@ interface RosterEntry {
   score?: number;          // composite score from leaderboard (0–100), undefined if no calls yet
   requests?: number;       // total calls recorded
   wins?: number;
+  sparkline?: number[];
 }
 
 const ROSTER: Omit<RosterEntry, "keyAvailable">[] = [
@@ -60,6 +61,7 @@ router.get("/", (_req: Request, res: Response): void => {
       score,
       requests: s?.requests,
       wins: s?.wins,
+      sparkline: getSparklineData(p.id, 10),
     };
   });
 

@@ -16,6 +16,7 @@ import { withDbConnection } from "../../utils/db";
 import {
   recordProviderCall,
   getProviderStats,
+  getSparklineData,
 } from "../../services/leaderboardMetrics";
 import {
   runProbe,
@@ -38,6 +39,7 @@ export interface AgentEntry {
   p95Latency?: number;
   role: string;
   score?: number;
+  sparkline?: number[];
   wins?: number;
 }
 
@@ -408,7 +410,19 @@ router.get("/", async (_req: Request, res: Response) => {
 
   // Compute composite score and sort by it descending.
   const scoredAgents = enrichedAgents
-    .map((a) => ({ ...a, score: Math.round(computeScore(a) * 10) / 10 }))
+    .map((a) => {
+      // Map catalogue ID back to dispatch IDs to get sparkline data
+      const dispatchIds = Object.entries(DISPATCH_ID_TO_CATALOGUE_ID)
+        .filter(([, catId]) => catId === a.id)
+        .map(([dispId]) => dispId);
+      // Use first dispatch ID that has samples
+      let sparkline: number[] = [];
+      for (const dispId of dispatchIds) {
+        const samples = getSparklineData(dispId, 10);
+        if (samples.length > 0) { sparkline = samples; break; }
+      }
+      return { ...a, score: Math.round(computeScore(a) * 10) / 10, sparkline };
+    })
     .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
   res.json({

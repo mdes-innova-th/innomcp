@@ -101,6 +101,16 @@ export function getProviderStats(): Map<string, ProviderStats> {
 }
 
 /**
+ * Returns the last N latency samples for sparkline display.
+ * Returns [] if the provider has no calls yet.
+ */
+export function getSparklineData(providerId: string, n = 10): number[] {
+  const raw = store.get(providerId);
+  if (!raw || raw.latencySamples.length === 0) return [];
+  return raw.latencySamples.slice(-n);
+}
+
+/**
  * Record that a provider's response was selected as the synthesis winner
  * (fastest successful response chosen for the final answer).
  */
@@ -193,11 +203,12 @@ export async function getDbStats(): Promise<
   return result;
 }
 
-/** Singleton instance exposing all five methods. */
+/** Singleton instance exposing all six methods. */
 export const leaderboardMetrics = {
   recordProviderCall,
   recordProviderWin,
   getProviderStats,
+  getSparklineData,
   getDbStats,
   resetStats,
 };

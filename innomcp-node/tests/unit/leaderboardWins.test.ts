@@ -11,6 +11,7 @@ import {
   getProviderStats,
   resetStats,
 } from "../../src/services/leaderboardMetrics";
+import { getSparklineData } from "../../src/services/leaderboardMetrics";
 
 beforeEach(() => resetStats());
 
@@ -74,5 +75,43 @@ describe("recordProviderWin DB persistence (fire-and-forget)", () => {
     }
     const stats = getProviderStats();
     expect(stats.get("rapid-provider")!.wins).toBe(10);
+  });
+});
+
+describe("getSparklineData", () => {
+  it("returns empty array for unknown provider", () => {
+    expect(getSparklineData("unknown-provider")).toEqual([]);
+  });
+
+  it("returns empty array for provider with no calls", () => {
+    recordProviderWin("win-only-provider"); // win but no call → no latency samples
+    // win-only creates entry with requests=0, latencySamples=[]
+    expect(getSparklineData("win-only-provider")).toEqual([]);
+  });
+
+  it("returns last N samples (default 10)", () => {
+    for (let i = 1; i <= 15; i++) {
+      recordProviderCall("sparkline-provider", i * 100, true);
+    }
+    const samples = getSparklineData("sparkline-provider");
+    expect(samples).toHaveLength(10);
+    expect(samples[0]).toBe(600); // 6th call (1-indexed: 15-10+1=6), 600ms
+    expect(samples[9]).toBe(1500); // last call, 1500ms
+  });
+
+  it("returns fewer than N when provider has fewer calls", () => {
+    recordProviderCall("few-calls", 200, true);
+    recordProviderCall("few-calls", 300, true);
+    const samples = getSparklineData("few-calls", 10);
+    expect(samples).toHaveLength(2);
+    expect(samples).toEqual([200, 300]);
+  });
+
+  it("respects custom n parameter", () => {
+    for (let i = 1; i <= 20; i++) {
+      recordProviderCall("n-param-provider", i * 50, false);
+    }
+    expect(getSparklineData("n-param-provider", 5)).toHaveLength(5);
+    expect(getSparklineData("n-param-provider", 3)).toHaveLength(3);
   });
 });
