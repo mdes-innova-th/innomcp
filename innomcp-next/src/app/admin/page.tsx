@@ -174,6 +174,7 @@ export default function AdminPage() {
   const [motherProbeLoading, setMotherProbeLoading] = useState(false);
   const [motherCircuits, setMotherCircuits] = useState<Array<{providerId: string; state: string; failures: number}>>([]);
   const [circuitOpenCount, setCircuitOpenCount] = useState(0);
+  const [motherProviders, setMotherProviders] = useState<Array<{providerId: string; enabled: boolean}>>([]);
   const [motherCostTotal, setMotherCostTotal] = useState<number | null>(null);
   const [motherHistoryLoading, setMotherHistoryLoading] = useState(false);
   const [winnerRanked, setWinnerRanked] = useState<Array<{providerId: string; wins: number; requests: number; successRate: number}>>([]);
@@ -310,6 +311,12 @@ export default function AdminPage() {
       .then(d => { if (d?.circuits) { setMotherCircuits(d.circuits); setCircuitOpenCount(d.openCount ?? 0); } })
       .catch(() => {});
 
+    // Providers (enabled/disabled state)
+    fetch('/api/mother/providers', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.providers) setMotherProviders(d.providers); })
+      .catch(() => {});
+
     // History — compute cost client-side
     setMotherHistoryLoading(true);
     fetch('/api/mother/history?limit=50', { credentials: 'include' })
@@ -395,6 +402,16 @@ export default function AdminPage() {
         setRevokeError(d.error || 'Revoke failed');
       }
     } catch { setRevokeError('Network error'); }
+  }
+
+  async function toggleProvider(providerId: string) {
+    try {
+      const res = await fetch(`/api/mother/providers/${providerId}/toggle`, { method: 'POST', credentials: 'include' });
+      const d = await res.json();
+      if (d.ok) {
+        setMotherProviders(prev => prev.map(p => p.providerId === providerId ? { ...p, enabled: d.enabled } : p));
+      }
+    } catch { /* ignore */ }
   }
 
   // ── Early return ──────────────────────────────────────────────────────────────
@@ -1148,6 +1165,19 @@ export default function AdminPage() {
                         <span className="font-mono">{c.providerId}</span>
                         <span className="opacity-70">{c.state === 'UNKNOWN' ? '?' : c.state === 'CLOSED' ? '✓' : c.state === 'OPEN' ? '✗' : '~'}</span>
                         {c.failures > 0 && <span className="opacity-60">({c.failures})</span>}
+                        {(() => {
+                          const pv = motherProviders.find(p => p.providerId === c.providerId);
+                          if (!pv) return null;
+                          return (
+                            <button
+                              onClick={() => toggleProvider(c.providerId)}
+                              className={`ml-1 text-[9px] px-1 rounded transition-colors ${pv.enabled ? 'text-green-600 dark:text-green-400 hover:text-red-500' : 'text-red-500 hover:text-green-500'}`}
+                              title={pv.enabled ? 'Click to disable' : 'Click to enable'}
+                            >
+                              {pv.enabled ? 'ON' : 'OFF'}
+                            </button>
+                          );
+                        })()}
                       </div>
                     );
                   })}

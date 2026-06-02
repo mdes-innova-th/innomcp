@@ -25,6 +25,7 @@ import type { AgentDispatchOptions } from "./parallelDispatch";
 import { pushRun } from "../services/motherHistory";
 import type { MotherRunProvider } from "../services/motherHistory";
 import { errorRecovery } from "../utils/errorRecovery";
+import { isProviderEnabled } from "../services/motherProviderToggle";
 
 // ── Public interfaces ─────────────────────────────────────────────────────────
 
@@ -754,6 +755,7 @@ export async function dispatchMother(
 
   // Filter: skip providers with no key; enforce MDES_ONLY
   const eligible = allConfigs.filter((cfg) => {
+    if (!isProviderEnabled(cfg.id)) return false;
     // Local Ollama providers have no required key — always include unless MDES_ONLY
     const keyRequired = cfg.kind !== "ollama" || (cfg.id !== "ollama-local" && cfg.id !== "innova-bot" && cfg.id !== "innova-oracle");
     if (keyRequired && cfg.apiKey.trim() === "") return false;
