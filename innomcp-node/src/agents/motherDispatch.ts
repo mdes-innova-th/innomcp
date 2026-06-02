@@ -551,16 +551,23 @@ async function synthesizeResults(
   messageId: string,
   responseMode?: string,
 ): Promise<string> {
-  // Collect successful responses above minimum length, prefer longest ones
+  // Score each result by in-run quality: fast + successful > slow + failed.
+  // score = 1 / (1 + latencyMs/1000)  →  range (0, 1], faster = higher
+  // Avoids cold-start problem of historical stats: works from iteration 1.
+  function inRunScore(r: MotherResult): number {
+    return r.success ? 1 / (1 + r.latencyMs / 1000) : 0;
+  }
+
+  // Collect successful responses above minimum length, rank by in-run score
   const successful = results
     .filter((r) => r.success && r.text.trim().length >= SYNTHESIS_MIN_CHARS)
-    .sort((a, b) => b.text.length - a.text.length)
+    .sort((a, b) => inRunScore(b) - inRunScore(a))
     .slice(0, 3);
 
   if (successful.length === 0) return "";
   if (successful.length === 1) return successful[0].text;
 
-  // For normal mode or fewer than 2 valid responses: longest-wins
+  // For normal mode: return fastest-successful response (top of score-ranked list)
   if (responseMode !== "thinking") {
     return successful[0].text;
   }
@@ -656,7 +663,7 @@ async function synthesizeResults(
     }
   }
 
-  // Fallback: longest-wins
+  // Fallback: fastest-successful (already sorted by inRunScore)
   return successful[0].text;
 }
 
