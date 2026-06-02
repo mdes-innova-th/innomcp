@@ -2,9 +2,13 @@
 
 ## Prerequisites
 
-- Docker + Docker Compose installed
-- External `innomcp_network` created: `docker network create innomcp_network`
-- MariaDB container running on `innomcp_network`
+1. Docker + Docker Compose installed
+2. Create the external network (one-time):
+   ```
+   docker network create innomcp_network
+   ```
+3. Copy `.env.example` to `.env` and fill in secrets
+4. MariaDB container running on `innomcp_network`
 
 ## Deploy
 
@@ -42,3 +46,9 @@ OLLAMA_API_KEY=<MDES Ollama key>
 ```bash
 docker-compose down
 ```
+
+## Troubleshooting
+
+- "network innomcp_network declared as external, but could not be found" → run: `docker network create innomcp_network`
+- Backend health failing → check `DB_HOST`/`DB_PORT` in `.env`
+- Frontend 502 → nginx started before frontend was ready; run: `docker-compose restart nginx`

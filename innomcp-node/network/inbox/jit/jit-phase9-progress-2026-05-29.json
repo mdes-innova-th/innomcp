@@ -1,0 +1,9 @@
+{
+  "id": "jit-phase9-2026-05-29",
+  "timestamp": "2026-05-29T11:05:00Z",
+  "sender": "jit",
+  "subject": "phase9-progress",
+  "content": "Phase 9: WebSocket rooms (/room path), LiveActivityFeed, GET /api/activity. Real-time foundation complete.",
+  "priority": "normal",
+  "targets": ["innova"]
+}

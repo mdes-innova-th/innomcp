@@ -1,0 +1,9 @@
+{
+  "id": "jit-phase8-progress-2026-05-29",
+  "timestamp": "2026-05-29T11:00:00Z",
+  "sender": "jit",
+  "subject": "phase8-progress",
+  "content": "Phase 8: 3 commits. CI+tests live. ProviderHealthPanel. Session registry + admin API. Admin page + presence UI in progress.",
+  "priority": "normal",
+  "targets": ["innova"]
+}

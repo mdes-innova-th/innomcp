@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="220" style="background:#fff;border-radius:8px">
+<text x="240" y="18" font-size="12" font-weight="600" text-anchor="middle" fill="#1e293b">age by name</text>
+<rect x="125.0" y="40.0" width="30" height="140.0" fill="#3b82f6" rx="2"/>
+<text x="140.0" y="36.0" font-size="9" text-anchor="middle" fill="#64748b">30.0</text>
+<text x="140.0" y="194.0" font-size="9" text-anchor="middle" fill="#94a3b8">Alice</text>
+<rect x="325.0" y="63.3" width="30" height="116.7" fill="#3b82f6" rx="2"/>
+<text x="340.0" y="59.3" font-size="9" text-anchor="middle" fill="#64748b">25.0</text>
+<text x="340.0" y="194.0" font-size="9" text-anchor="middle" fill="#94a3b8">Bob</text>
+<line x1="40" y1="40" x2="40" y2="180" stroke="#e2e8f0" stroke-width="1"/>
+<line x1="40" y1="180" x2="440" y2="180" stroke="#e2e8f0" stroke-width="1"/>
+</svg>
