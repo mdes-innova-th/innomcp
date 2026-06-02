@@ -35,6 +35,7 @@ export interface AgentEntry {
   requests: number;
   avgLatency: number;
   successRate: number;
+  p95Latency?: number;
   role: string;
   score?: number;
 }
@@ -55,7 +56,8 @@ export interface AgentEntry {
  */
 function computeScore(agent: AgentEntry): number {
   if (agent.requests === 0 && agent.status !== "online") return 0;
-  const speedScore = 1 / (1 + (agent.avgLatency || 0) / 1000);
+  const latencyForScore = agent.p95Latency ?? agent.avgLatency;
+  const speedScore = 1 / (1 + (latencyForScore || 0) / 1000);
   const popularityScore = Math.min(1, (agent.requests || 0) / 100);
   return (agent.successRate || 0) * 0.5 + speedScore * 30 + popularityScore * 20;
 }
@@ -242,11 +244,11 @@ const AGENT_CATALOGUE: AgentEntry[] = [
 
 /** Attempt to pull live request counts and latency from task_steps. */
 async function fetchLiveStats(): Promise<
-  Map<string, { requests: number; avgLatency: number; successRate: number }>
+  Map<string, { requests: number; avgLatency: number; successRate: number; p95Latency?: number }>
 > {
   const result = new Map<
     string,
-    { requests: number; avgLatency: number; successRate: number }
+    { requests: number; avgLatency: number; successRate: number; p95Latency?: number }
   >();
 
   try {
@@ -346,6 +348,7 @@ router.get("/", async (_req: Request, res: Response) => {
           requests: live.requests,
           avgLatency: live.avgLatency,
           successRate: live.successRate,
+          p95Latency: live.p95Latency,
         }
       : { ...entry };
   });

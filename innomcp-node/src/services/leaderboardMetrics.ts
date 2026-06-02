@@ -14,15 +14,24 @@ interface RawStats {
   requests: number;
   totalLatency: number;
   successes: number;
+  latencySamples: number[];
 }
 
 export interface ProviderStats {
   requests: number;
   avgLatency: number;
   successRate: number;
+  p95Latency: number;
 }
 
 const store = new Map<string, RawStats>();
+
+function computeP95(samples: number[]): number {
+  if (samples.length === 0) return 0;
+  const sorted = [...samples].sort((a, b) => a - b);
+  const idx = Math.ceil(samples.length * 0.95) - 1;
+  return sorted[Math.max(0, idx)];
+}
 
 /**
  * Increment request count, update rolling avgLatency (simple moving average),
@@ -38,11 +47,17 @@ export function recordProviderCall(
     existing.requests += 1;
     existing.totalLatency += latencyMs;
     if (success) existing.successes += 1;
+    // Add to sliding window (keep last 100 samples)
+    existing.latencySamples.push(latencyMs);
+    if (existing.latencySamples.length > 100) {
+      existing.latencySamples.shift();
+    }
   } else {
     store.set(providerId, {
       requests: 1,
       totalLatency: latencyMs,
       successes: success ? 1 : 0,
+      latencySamples: [latencyMs],
     });
   }
 
@@ -75,6 +90,7 @@ export function getProviderStats(): Map<string, ProviderStats> {
       requests: raw.requests,
       avgLatency: Math.round(raw.totalLatency / raw.requests),
       successRate: Math.round((raw.successes / raw.requests) * 100),
+      p95Latency: computeP95(raw.latencySamples),
     });
   }
   return result;

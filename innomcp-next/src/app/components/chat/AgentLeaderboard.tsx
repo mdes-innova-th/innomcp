@@ -13,6 +13,7 @@ interface AgentEntry {
   requests: number;
   avgLatency: number;
   successRate: number;
+  p95Latency?: number;
   role: string;
   score?: number;
 }
@@ -334,7 +335,7 @@ export default function AgentLeaderboard({
       {/* Table */}
       {!loading && !error && (
         <div className="overflow-x-auto rounded-lg border border-border/40">
-          <table className="w-full min-w-[680px]">
+          <table className="w-full min-w-[780px]">
             <thead>
               <tr className="border-b border-border/40 bg-muted/20 text-[10px] text-muted-foreground">
                 <th scope="col" className="px-2 py-1.5 text-left font-medium w-6">#</th>
@@ -344,6 +345,7 @@ export default function AgentLeaderboard({
                 <th scope="col" className="px-2 py-1.5 text-center font-medium">Status</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">Requests</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">Avg Latency</th>
+                <th scope="col" className="px-2 py-1.5 text-right font-medium">P95</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">Success%</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium w-14">Score</th>
                 <th scope="col" className="px-2 py-1.5 text-left font-medium">Role</th>
@@ -415,6 +417,10 @@ export default function AgentLeaderboard({
                     <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
                       {formatLatency(agent.avgLatency)}
                     </td>
+                    {/* P95 Latency */}
+                    <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
+                      {agent.p95Latency !== undefined ? formatLatency(agent.p95Latency) : "–"}
+                    </td>
                     {/* Success% */}
                     <td className="px-2 py-1.5 text-right tabular-nums">
                       {agent.successRate >= 95 ? (
@@ -459,7 +465,7 @@ export default function AgentLeaderboard({
               {visible.length === 0 && (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={11}
                     className="px-2 py-4 text-center text-muted-foreground text-[11px]"
                   >
                     No agents match this filter.
