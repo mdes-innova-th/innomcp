@@ -28,7 +28,7 @@ const FRONTEND_URL =
 // ---------------------------------------------------------------------------
 
 test.describe('GET /api/agent-leaderboard', () => {
-  test('returns at least 11 agents with a score field', async ({ request }) => {
+  test('returns at least 18 agents with a score field', async ({ request }) => {
     const response = await request.get(`${BACKEND_URL}/api/agent-leaderboard`);
 
     expect(response.status()).toBe(200);
@@ -41,11 +41,11 @@ test.describe('GET /api/agent-leaderboard', () => {
     // Shape: { agents: AgentEntry[], timestamp: string, totalAgents: number }
     expect(body).toHaveProperty('agents');
     expect(Array.isArray(body.agents)).toBe(true);
-    expect(body.agents.length).toBeGreaterThanOrEqual(11);
+    expect(body.agents.length).toBeGreaterThanOrEqual(18);
 
     // totalAgents must match the actual array length
     expect(body).toHaveProperty('totalAgents');
-    expect(body.totalAgents).toBeGreaterThanOrEqual(11);
+    expect(body.totalAgents).toBeGreaterThanOrEqual(18);
     expect(body.totalAgents).toBe(body.agents.length);
 
     // Every agent entry must carry a numeric score (composite ranking field added in Phase 16)
@@ -309,5 +309,46 @@ test.describe('Dashboard MotherStatsCard UI', () => {
 
     expect(visibleCard).toBe(true);
     console.log('[mother-leaderboard] MotherStatsCard is visible on the dashboard');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// N. GET /api/mother/roster — 13-provider roster
+// ---------------------------------------------------------------------------
+
+test.describe('GET /api/mother/roster', () => {
+  test('returns 200 with 13 providers', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/roster`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body).toHaveProperty('providers');
+    expect(Array.isArray(body.providers)).toBe(true);
+    expect(body.totalProviders).toBe(13);
+    expect(body.providers.length).toBe(13);
+  });
+
+  test('alwaysOnCount is 2', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/roster`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.alwaysOnCount).toBe(2);
+  });
+
+  test('eligibleCount >= 2 (always-on providers)', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/roster`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.eligibleCount).toBeGreaterThanOrEqual(2);
+  });
+
+  test('innova-bot is always keyAvailable', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/roster`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    const innovaBot = body.providers.find((p: { id: string }) => p.id === 'innova-bot');
+    expect(innovaBot).toBeDefined();
+    expect(innovaBot.alwaysOn).toBe(true);
+    expect(innovaBot.keyAvailable).toBe(true);
   });
 });

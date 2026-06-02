@@ -10,14 +10,14 @@ import { test, expect } from '@playwright/test';
 const BACKEND_URL = 'http://localhost:3011';
 
 test.describe('Agent Leaderboard endpoint', () => {
-  test('returns at least 10 agents', async ({ request }) => {
+  test('returns at least 18 agents', async ({ request }) => {
     const response = await request.get(`${BACKEND_URL}/api/agent-leaderboard`);
     expect(response.status()).toBe(200);
 
     const body = await response.json();
     expect(body).toHaveProperty('agents');
     expect(Array.isArray(body.agents)).toBeTruthy();
-    expect(body.agents.length).toBeGreaterThanOrEqual(10);
+    expect(body.agents.length).toBeGreaterThanOrEqual(18);
   });
 
   test('each agent has required fields: id, name, provider, model, status', async ({ request }) => {
