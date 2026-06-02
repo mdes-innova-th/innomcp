@@ -16,6 +16,7 @@ interface AgentCardEntry {
   wins?: number;
   sparkline?: number[];
   enabled?: boolean;
+  tier?: string;
 }
 
 interface Props {
@@ -47,6 +48,7 @@ export default function LeaderboardCard({ agent, rank, badge, statusDot = "🔵"
               {badge.label}
             </span>
           )}
+          {agent.tier === "gold" && <span title="Gold tier performer" className="text-[10px]">⭐</span>}
           <span className="text-xs">{statusDot}</span>
           {agent.enabled === false && (
             <span className="text-[9px] text-red-500 font-medium">OFF</span>

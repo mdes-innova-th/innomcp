@@ -454,3 +454,16 @@ test.describe('GET /api/mother/history', () => {
     }
   });
 });
+
+test.describe('GET /api/mother/rankings', () => {
+  test('returns 200 with rankings shape', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/rankings`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body).toHaveProperty('rankings');
+    expect(Array.isArray(body.rankings)).toBe(true);
+    expect(body).toHaveProperty('totalRanked');
+    expect(body).toHaveProperty('timestamp');
+  });
+});

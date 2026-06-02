@@ -46,6 +46,7 @@ import motherRosterRouter from "./routes/api/motherRoster";
 import motherWinnerRouter from "./routes/api/motherWinner";
 import motherCircuitsRouter from "./routes/api/motherCircuits";
 import motherProvidersRouter from "./routes/api/motherProviders";
+import motherRankingsRouter from "./routes/api/motherRankings";
 import presenceRouter from "./routes/api/presence";
 import activityRouter from "./routes/api/activity";
 
@@ -193,6 +194,7 @@ app.use("/api/mother/roster", generalRateLimit, motherRosterRouter);
 app.use("/api/mother/winner", generalRateLimit, motherWinnerRouter);
 app.use("/api/mother/circuits", generalRateLimit, motherCircuitsRouter);
 app.use("/api/mother/providers", generalRateLimit, motherProvidersRouter);
+app.use("/api/mother/rankings", generalRateLimit, motherRankingsRouter);
 
 // Model Settings — ad-hoc connection test + provider presets (no auth, public)
 app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);

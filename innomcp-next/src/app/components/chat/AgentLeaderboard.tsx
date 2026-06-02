@@ -158,6 +158,7 @@ export default function AgentLeaderboard({
   );
   const [rosterEligible, setRosterEligible] = useState<number | null>(null);
   const [providerEnabled, setProviderEnabled] = useState<Record<string, boolean>>({});
+  const [providerTier, setProviderTier] = useState<Record<string, string>>({});
 
   // ── Fetch leaderboard data ──────────────────────────────────────────────────
   const fetchLeaderboard = useCallback(() => {
@@ -188,6 +189,18 @@ export default function AgentLeaderboard({
               const map: Record<string, boolean> = {};
               for (const p of d.providers) map[p.providerId] = p.enabled;
               setProviderEnabled(map);
+            }
+          })
+          .catch(() => {});
+        // Fetch provider tiers
+        const rankingsUrl = resolveBackendUrl("/api/mother/rankings");
+        fetch(rankingsUrl, { credentials: "include" })
+          .then((r) => r.ok ? r.json() : null)
+          .then((d) => {
+            if (d?.rankings) {
+              const tiers: Record<string, string> = {};
+              for (const r of d.rankings) tiers[r.providerId] = r.tier;
+              setProviderTier(tiers);
             }
           })
           .catch(() => {});
@@ -470,6 +483,9 @@ export default function AgentLeaderboard({
                     {/* # */}
                     <td className="px-2 py-1.5 text-muted-foreground/50 tabular-nums">
                       {i + 1}
+                      {providerTier[agent.id] === "gold" && " 🥇"}
+                      {providerTier[agent.id] === "silver" && " 🥈"}
+                      {providerTier[agent.id] === "bronze" && " 🥉"}
                     </td>
                     {/* Agent */}
                     <td className="px-2 py-1.5 font-medium text-foreground whitespace-nowrap">

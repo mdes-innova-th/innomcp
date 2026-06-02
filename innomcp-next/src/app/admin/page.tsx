@@ -178,6 +178,7 @@ export default function AdminPage() {
   const [motherCostTotal, setMotherCostTotal] = useState<number | null>(null);
   const [motherHistoryLoading, setMotherHistoryLoading] = useState(false);
   const [winnerRanked, setWinnerRanked] = useState<Array<{providerId: string; wins: number; requests: number; successRate: number}>>([]);
+  const [motherRankings, setMotherRankings] = useState<Array<{providerId: string; rank: number; tier: string; compositeScore: number; wins: number}>>([]);
 
   // ── Auth guard ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -315,6 +316,11 @@ export default function AdminPage() {
     fetch('/api/mother/providers', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.providers) setMotherProviders(d.providers); })
+      .catch(() => {});
+
+    fetch('/api/mother/rankings', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.rankings) setMotherRankings(d.rankings); })
       .catch(() => {});
 
     // History — compute cost client-side
@@ -1134,6 +1140,46 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-right font-semibold text-yellow-600 dark:text-yellow-400">{p.wins}</td>
                           <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{p.requests}</td>
                           <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{p.successRate}%</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ── Provider Rankings ────────────────────────────────────────────── */}
+            {motherRankings.length > 0 && (
+              <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+                  <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Provider Rankings</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                    Composite: speed 30% · reliability 35% · popularity 20% · wins 15%
+                  </p>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 dark:bg-gray-700/50 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        <th className="px-4 py-3">Rank</th>
+                        <th className="px-4 py-3">Provider</th>
+                        <th className="px-4 py-3 text-right">Score</th>
+                        <th className="px-4 py-3 text-right">Speed</th>
+                        <th className="px-4 py-3 text-right">Reliability</th>
+                        <th className="px-4 py-3 text-right">Wins</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                      {motherRankings.slice(0, 10).map(r => (
+                        <tr key={r.providerId} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30 transition-colors">
+                          <td className="px-4 py-3 text-sm">
+                            {r.tier === 'gold' ? '🥇' : r.tier === 'silver' ? '🥈' : r.tier === 'bronze' ? '🥉' : r.rank}
+                          </td>
+                          <td className="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-300">{r.providerId}</td>
+                          <td className="px-4 py-3 text-right font-semibold text-gray-800 dark:text-gray-100">{r.compositeScore}</td>
+                          <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{(r as {speedScore?: number}).speedScore ?? '—'}</td>
+                          <td className="px-4 py-3 text-right text-gray-600 dark:text-gray-300">{(r as {reliabilityScore?: number}).reliabilityScore ?? '—'}%</td>
+                          <td className="px-4 py-3 text-right text-yellow-600 dark:text-yellow-400 font-medium">{r.wins}</td>
                         </tr>
                       ))}
                     </tbody>
