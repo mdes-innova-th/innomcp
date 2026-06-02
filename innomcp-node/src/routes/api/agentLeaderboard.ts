@@ -263,6 +263,17 @@ const AGENT_CATALOGUE: AgentEntry[] = [
     successRate: 100,
     role: "Local agent (Jit organ)",
   },
+  {
+    id: "innova-oracle",
+    name: "Innova Oracle",
+    provider: "innova-bot",
+    model: "oracle-rag",
+    status: "checking",
+    requests: 0,
+    avgLatency: 0,
+    successRate: 100,
+    role: "RAG knowledge (Jit)",
+  },
 ];
 
 /** Attempt to pull live request counts and latency from task_steps. */
@@ -332,6 +343,7 @@ const CATALOGUE_ID_TO_PROBE_ID: Record<string, string> = {
   "together-llama": "together-llama",
   "thai-llm": "mdes-cloud",
   "innova-bot": "ollama-local",
+  "innova-oracle": "innova-oracle",
 };
 
 /**

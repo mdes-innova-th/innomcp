@@ -1036,7 +1036,7 @@ export default function AdminPage() {
             <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center">
                 <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Provider Breakdown</h3>
-                <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full px-2 py-0.5 font-medium">13 providers</span>
+                <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full px-2 py-0.5 font-medium">14 providers</span>
               </div>
               {motherStatsLoading ? (
                 <div className="p-8 text-center text-gray-400">Loading…</div>

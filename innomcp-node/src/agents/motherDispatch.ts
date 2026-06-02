@@ -63,6 +63,46 @@ interface ProviderConfig {
   isMdes: boolean;
 }
 
+// ── Innova-Bot Oracle provider ────────────────────────────────────────────────
+
+let _oracleToken: { token: string; expiresAt: number } | null = null;
+
+async function getOracleToken(baseUrl: string, signal: AbortSignal): Promise<string | null> {
+  const now = Date.now();
+  if (_oracleToken && _oracleToken.expiresAt > now + 60_000) return _oracleToken.token;
+  try {
+    const res = await fetch(`${baseUrl}/api/auth/token?client_id=innomcp&role=user`, {
+      method: "POST", signal,
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as { access_token?: string };
+    const token = data.access_token ?? "";
+    if (!token) return null;
+    _oracleToken = { token, expiresAt: now + 23 * 3600 * 1000 };
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+async function callInnovaOracle(cfg: ProviderConfig, prompt: string, signal: AbortSignal): Promise<string> {
+  const token = await getOracleToken(cfg.baseUrl, signal);
+  if (!token) throw new Error("innova-oracle: gateway auth failed");
+
+  const res = await fetch(`${cfg.baseUrl}/api/oracle/consult`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+    body: JSON.stringify({ query: prompt.slice(0, 500), max_chars: 1500 }),
+    signal,
+  });
+  if (!res.ok) throw new Error(`innova-oracle: HTTP ${res.status}`);
+
+  const data = await res.json() as Record<string, unknown>;
+  const text = (data.context ?? data.result ?? data.text ?? "") as string;
+  if (!text || typeof text !== "string") return JSON.stringify(data).slice(0, 800);
+  return `[Oracle]\n${text.trim()}`;
+}
+
 /** IDs belonging to the MDES cluster — used to enforce MDES_ONLY */
 const MDES_PROVIDER_IDS = new Set(["mdes-cloud", "thai-llm"]);
 
@@ -216,6 +256,17 @@ function buildProviderConfigs(): ProviderConfig[] {
         process.env.OLLAMA_LOCAL_BASE_URL ||
         "http://localhost:11434",
       model: process.env.INNOVA_BOT_MODEL || "qwen2.5:0.5b",
+      apiKey: "",
+      isMdes: false,
+    },
+    {
+      id: "innova-oracle",
+      name: "Innova Oracle (RAG)",
+      kind: "ollama" as const, // placeholder kind — actual call uses callInnovaOracle
+      baseUrl:
+        process.env.INNOVA_GATEWAY_URL ||
+        `http://localhost:${process.env.GATEWAY_PORT || "8000"}`,
+      model: "oracle-rag",
       apiKey: "",
       isMdes: false,
     },
@@ -437,6 +488,8 @@ async function runProvider(
           return callAnthropic(cfg, prompt, ac.signal);
         } else if (cfg.kind === "openai") {
           return callOpenAICompat(cfg, prompt, ac.signal);
+        } else if (cfg.id === "innova-oracle") {
+          return callInnovaOracle(cfg, prompt, ac.signal);
         } else {
           return callOllamaCompat(cfg, prompt, ac.signal);
         }
@@ -673,11 +726,11 @@ async function synthesizeResults(
 /**
  * Fan out the given query to all configured providers in parallel (Manus-style).
  *
- * Roster: 13 providers — mdes-cloud, thai-llm, ollama-local, openai-gpt,
+ * Roster: 14 providers — mdes-cloud, thai-llm, ollama-local, openai-gpt,
  * claude-haiku, claude-sonnet, copilot, gemini-pro, mistral-large,
- * deepseek-r1, groq-llama, together-llama, innova-bot.
+ * deepseek-r1, groq-llama, together-llama, innova-bot, innova-oracle.
  *
- * - Always-on (key-free): ollama-local, innova-bot (local Ollama).
+ * - Always-on (key-free): ollama-local, innova-bot (local Ollama), innova-oracle (gateway).
  * - Other providers are skipped silently when their API key is absent.
  * - When MDES_ONLY=1, only mdes-cloud and thai-llm are dispatched.
  * - Each provider has a hard 20-second AbortController timeout.
@@ -701,7 +754,7 @@ export async function dispatchMother(
   // Filter: skip providers with no key; enforce MDES_ONLY
   const eligible = allConfigs.filter((cfg) => {
     // Local Ollama providers have no required key — always include unless MDES_ONLY
-    const keyRequired = cfg.kind !== "ollama" || (cfg.id !== "ollama-local" && cfg.id !== "innova-bot");
+    const keyRequired = cfg.kind !== "ollama" || (cfg.id !== "ollama-local" && cfg.id !== "innova-bot" && cfg.id !== "innova-oracle");
     if (keyRequired && cfg.apiKey.trim() === "") return false;
     if (mdesOnly && !MDES_PROVIDER_IDS.has(cfg.id)) return false;
     return true;

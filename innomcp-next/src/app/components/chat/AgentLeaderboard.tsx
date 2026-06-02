@@ -52,6 +52,8 @@ function getProviderBadge(provider: string): { label: string; cls: string } {
     return { label: "Meta",     cls: "bg-slate-500/15 text-slate-700 dark:text-slate-300" };
   if (provider === "innova-bot")
     return { label: "Innova",   cls: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" };
+  if (provider === "innova-oracle")
+    return { label: "Oracle",    cls: "bg-emerald-700/15 text-emerald-800 dark:text-emerald-200" };
   return { label: provider,     cls: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-300" };
 }
 

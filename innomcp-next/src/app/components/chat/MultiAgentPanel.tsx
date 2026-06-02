@@ -128,6 +128,7 @@ function getMotherProviderBadge(provider: string | undefined): { label: string; 
     "groq-llama":      { label: "Groq",      color: "bg-orange-600/20 text-orange-300" },
     "together-llama":  { label: "Together",  color: "bg-violet-500/20 text-violet-300" },
     "innova-bot":    { label: "InnBot",   color: "bg-emerald-500/20 text-emerald-300" },
+    "innova-oracle": { label: "OracleRAG", color: "bg-emerald-700/20 text-emerald-200" },
     "mother":          { label: "🧠 Mother", color: "bg-yellow-400/20 text-yellow-300" },
   };
   return map[provider] ?? null;

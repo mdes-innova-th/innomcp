@@ -1,5 +1,5 @@
 /**
- * services/providerHealthProbe.ts — Startup health probe for all 13 mother dispatch providers
+ * services/providerHealthProbe.ts — Startup health probe for all 14 mother dispatch providers
  *
  * Pings each provider with a lightweight request on app startup and caches the
  * result in an in-memory map. agentLeaderboard reads this to display "online" /
@@ -166,6 +166,16 @@ function buildProbeTargets(): ProbeTarget[] {
       model: process.env.INNOVA_BOT_MODEL || "qwen2.5:0.5b",
       apiKey: "",
     },
+    {
+      id: "innova-oracle",
+      kind: "openai" as const, // empty key → probe returns "configured" (gateway offline = not error)
+      baseUrl: (
+        process.env.INNOVA_GATEWAY_URL ||
+        `http://localhost:${process.env.GATEWAY_PORT || "8000"}`
+      ).replace(/\/$/, ""),
+      model: "oracle-rag",
+      apiKey: "",
+    },
   ];
 }
 
@@ -286,7 +296,7 @@ async function runSingleProbe(target: ProbeTarget): Promise<ProviderProbeResult>
 // ── Public API ────────────────────────────────────────────────────────────────
 
 /**
- * Fire all 13 provider probes concurrently.
+ * Fire all 14 provider probes concurrently.
  * Uses Promise.allSettled so one failure never blocks the others.
  * Populates the in-memory `probeStatus` map on completion.
  */

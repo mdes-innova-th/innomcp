@@ -184,8 +184,8 @@ describe("dispatchMother — provider filtering", () => {
 
 // ── buildProviderConfigs — verified via dispatchMother provider count ─────────
 
-describe("provider roster has 13 entries", () => {
-  it("buildProviderConfigs produces 13 providers (verified via eligible list with all keys set)", async () => {
+describe("provider roster has 14 entries", () => {
+  it("buildProviderConfigs produces 14 providers (verified via eligible list with all keys set)", async () => {
     // Set fake keys for every key-required provider
     process.env.REMOTE_OLLAMA_TOKEN = "fake-mdes-key";
     process.env.OPENAI_API_KEY = "fake-openai-key";
@@ -211,9 +211,9 @@ describe("provider roster has 13 entries", () => {
       noop
     );
 
-    // All 13 providers should have been attempted (all failed with bad keys)
+    // All 14 providers should have been attempted (all failed with bad keys)
     // Phase 18-B added: claude-sonnet (13th), innova-bot (14th, key-free local)
-    expect(result.totalAgents).toBe(13);
+    expect(result.totalAgents).toBe(14);
 
     // Clean up
     delete process.env.REMOTE_OLLAMA_TOKEN;
@@ -226,5 +226,5 @@ describe("provider roster has 13 entries", () => {
     delete process.env.GROQ_API_KEY;
     delete process.env.TOGETHER_API_KEY;
     delete process.env.LOCAL_OLLAMA_BASE_URL;
-  }, 60_000); // 60s timeout — 13 providers × up to ~5s fail-fast each
+  }, 60_000); // 60s timeout — 14 providers × up to ~5s fail-fast each
 });
