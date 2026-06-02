@@ -57,6 +57,7 @@ interface Props {
 export default function MotherResponsesPanel({ className = "" }: Props) {
   const [run, setRun] = useState<MotherRun | null>(null);
   const [loading, setLoading] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const fetchLatest = useCallback(() => {
     setLoading(true);
@@ -166,9 +167,20 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
                   );
                 })()}
               </div>
-              <p className="text-[11px] leading-relaxed text-foreground/80 line-clamp-3">
+              <p
+                className={`text-[11px] leading-relaxed text-foreground/80 ${expandedId === p.providerId ? "" : "line-clamp-3"} cursor-pointer`}
+                onClick={() => setExpandedId(prev => prev === p.providerId ? null : p.providerId)}
+              >
                 {p.preview}
               </p>
+              {p.preview.length > 100 && (
+                <button
+                  onClick={() => setExpandedId(prev => prev === p.providerId ? null : p.providerId)}
+                  className="text-[9px] text-muted-foreground hover:text-foreground mt-0.5 transition-colors"
+                >
+                  {expandedId === p.providerId ? "▲ less" : "▼ more"}
+                </button>
+              )}
               {i === 0 && run.synthesis && (
                 <div className="mt-1 pt-1 border-t border-border/30">
                   <span className="text-[9px] text-muted-foreground">🧬 Synthesis:</span>

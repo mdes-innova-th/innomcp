@@ -116,6 +116,7 @@ export default function MotherStatsCard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [topProvider, setTopProvider] = useState<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const poll = useCallback(async () => {
@@ -148,6 +149,16 @@ export default function MotherStatsCard() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [poll]);
+
+  // Fetch top provider from summary once on mount
+  useEffect(() => {
+    fetch(resolveBackendUrl("/api/mother/summary"), { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.topProvider?.id) setTopProvider(data.topProvider.id);
+      })
+      .catch(() => {/* summary is optional — ignore errors */});
+  }, []);
 
   // Loading skeleton
   if (loading) return <SkeletonCard />;
@@ -212,6 +223,11 @@ export default function MotherStatsCard() {
             <span className="flex items-center gap-1 text-[9.5px] font-medium text-emerald-600 dark:text-emerald-400">
               <span className="animate-pulse">●</span>
               Active
+            </span>
+          )}
+          {topProvider && (
+            <span className="text-[9.5px] font-medium text-muted-foreground/70 border border-border/30 rounded px-1.5 py-0.5">
+              Top: {topProvider}
             </span>
           )}
         </div>

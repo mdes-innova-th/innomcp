@@ -182,6 +182,11 @@ export default function MotherRaceView({ events, hideWhenEmpty = true }: Props) 
         <span className="text-[10px] text-muted-foreground tabular-nums">
           {doneCount}/{totalCount}
         </span>
+        {sorted.filter(e => e.done).length >= 1 && (
+          <span className="text-[9px] text-emerald-600 dark:text-emerald-400 tabular-nums">
+            ⚡ {sorted.find(e => e.isFirst)?.label ?? ""}
+          </span>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
         {sorted.map((entry) => (

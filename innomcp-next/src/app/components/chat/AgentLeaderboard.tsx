@@ -157,7 +157,7 @@ export default function AgentLeaderboard({
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(activeInterval);
   const [filter, setFilter] = useState<"all" | "online" | "configured" | "checking" | "offline">("all");
-  const [sortBy, setSortBy] = useState<"requests" | "latency" | "success" | "score" | "wins" | "verbose">(
+  const [sortBy, setSortBy] = useState<"requests" | "latency" | "success" | "score" | "wins" | "verbose" | "winrate">(
     motherActive ? "wins" : "requests"
   );
   const [filterType, setFilterType] = useState<"all" | "mdes" | "claude" | "gpt" | "local" | "other">("all");
@@ -271,6 +271,7 @@ export default function AgentLeaderboard({
     if (sortBy === "score") return (b.score ?? 0) - (a.score ?? 0);
     if (sortBy === "wins") return (b.wins ?? 0) - (a.wins ?? 0);
     if (sortBy === "verbose") return (b.avgResponseLength ?? 0) - (a.avgResponseLength ?? 0);
+    if (sortBy === "winrate") return (b.winRate ?? 0) - (a.winRate ?? 0);
     return b.requests - a.requests; // default: most requests first
   });
 
@@ -435,7 +436,7 @@ export default function AgentLeaderboard({
           ))}
         </div>
         <div className="ml-auto flex items-center gap-1">
-          {(["wins", "score", "requests", "latency", "success", "verbose"] as const).map((s) => (
+          {(["wins", "winrate", "score", "requests", "latency", "success", "verbose"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setSortBy(s)}
@@ -445,7 +446,7 @@ export default function AgentLeaderboard({
                   : "border-border/40 text-muted-foreground hover:text-foreground"
               }`}
             >
-              {s === "verbose" ? "↓ Verb" : s === "wins" ? "🏆 Wins" : s === "score" ? "↓ Score" : s === "requests" ? "↓ Req" : s === "latency" ? "↑ Lat" : "↓ Succ"}
+              {s === "winrate" ? "Win%" : s === "verbose" ? "↓ Verb" : s === "wins" ? "🏆 Wins" : s === "score" ? "↓ Score" : s === "requests" ? "↓ Req" : s === "latency" ? "↑ Lat" : "↓ Succ"}
             </button>
           ))}
           <button

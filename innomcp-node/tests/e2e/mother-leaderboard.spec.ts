@@ -518,3 +518,19 @@ test.describe('GET /api/mother/bus-log', () => {
     expect(typeof body.total).toBe('number');
   });
 });
+
+test.describe('GET /api/mother/summary', () => {
+  test('returns 200 with complete snapshot shape', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/summary`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body).toHaveProperty('totalProviders');
+    expect(body.totalProviders).toBe(14);
+    expect(body).toHaveProperty('enabledCount');
+    expect(body).toHaveProperty('totalDispatches');
+    expect(body).toHaveProperty('totalWins');
+    expect(body).toHaveProperty('recentRuns');
+    expect(Array.isArray(body.recentRuns)).toBe(true);
+  });
+});
