@@ -9,6 +9,7 @@ import {
 import SearchBar from "@/app/components/common/SearchBar";
 import AgentLeaderboard from "@/app/components/chat/AgentLeaderboard";
 import ProviderHealthPanel from "@/app/components/chat/ProviderHealthPanel";
+import MotherDispatchPanel from "@/app/components/chat/MotherDispatchPanel";
 import LiveActivityFeed from "@/app/components/chat/LiveActivityFeed";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -405,6 +406,9 @@ export default function DashboardView({
 
       {/* Provider Health */}
       <ProviderHealthPanel />
+
+      {/* Mother Dispatch Panel — shown only when mother dispatch is active */}
+      {motherActive && <MotherDispatchPanel />}
 
       {/* Live Activity */}
       <div>
