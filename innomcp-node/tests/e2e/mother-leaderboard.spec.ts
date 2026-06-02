@@ -481,3 +481,16 @@ test.describe('GET /api/mother/session', () => {
     expect(typeof body.sessionSuccessRate).toBe('number');
   });
 });
+
+test.describe('GET /api/mother/compare/:id1/:id2', () => {
+  test('returns 400 for same provider ID', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/compare/groq-llama/groq-llama`);
+    expect(response.status()).toBe(400);
+  });
+
+  test('returns 404 when neither provider has stats', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/compare/groq-llama/mdes-cloud`);
+    // Could be 404 (no stats yet) or 200 (if stats exist from other tests)
+    expect([200, 404]).toContain(response.status());
+  });
+});

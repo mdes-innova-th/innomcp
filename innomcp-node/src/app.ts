@@ -49,6 +49,7 @@ import motherProvidersRouter from "./routes/api/motherProviders";
 import motherRankingsRouter from "./routes/api/motherRankings";
 import motherSessionRouter from "./routes/api/motherSession";
 import motherExportRouter from "./routes/api/motherExport";
+import motherCompareRouter from "./routes/api/motherCompare";
 import presenceRouter from "./routes/api/presence";
 import activityRouter from "./routes/api/activity";
 
@@ -199,6 +200,7 @@ app.use("/api/mother/providers", generalRateLimit, motherProvidersRouter);
 app.use("/api/mother/rankings", generalRateLimit, motherRankingsRouter);
 app.use("/api/mother/session", generalRateLimit, motherSessionRouter);
 app.use("/api/mother/export", generalRateLimit, motherExportRouter);
+app.use("/api/mother/compare", generalRateLimit, motherCompareRouter);
 
 // Model Settings — ad-hoc connection test + provider presets (no auth, public)
 app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);

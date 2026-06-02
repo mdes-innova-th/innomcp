@@ -15,6 +15,7 @@ interface AgentCardEntry {
   score?: number;
   wins?: number;
   sparkline?: number[];
+  avgResponseLength?: number;
   enabled?: boolean;
   tier?: string;
 }
@@ -57,7 +58,7 @@ export default function LeaderboardCard({ agent, rank, badge, statusDot = "🔵"
       </div>
 
       {/* Stats row */}
-      <div className="grid grid-cols-4 gap-1 text-[10px]">
+      <div className="grid grid-cols-3 grid-rows-2 gap-1 text-[10px]">
         <div className="flex flex-col">
           <span className="text-muted-foreground">Req</span>
           <span className="font-medium tabular-nums">{agent.requests}</span>
@@ -76,6 +77,14 @@ export default function LeaderboardCard({ agent, rank, badge, statusDot = "🔵"
           <span className="text-muted-foreground">Wins</span>
           <span className={`font-medium tabular-nums ${(agent.wins ?? 0) > 0 ? "text-yellow-600 dark:text-yellow-400" : ""}`}>
             {agent.wins ?? 0}
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-muted-foreground">Verb</span>
+          <span className="font-medium tabular-nums text-muted-foreground">
+            {agent.avgResponseLength != null && agent.avgResponseLength > 0
+              ? agent.avgResponseLength >= 1000 ? `${(agent.avgResponseLength/1000).toFixed(1)}k` : String(agent.avgResponseLength)
+              : '—'}
           </span>
         </div>
       </div>

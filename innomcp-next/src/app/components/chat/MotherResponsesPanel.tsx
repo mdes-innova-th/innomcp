@@ -69,6 +69,15 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
       .finally(() => setLoading(false));
   }, []);
 
+  const handleDownload = useCallback(() => {
+    if (!run) return;
+    const url = resolveBackendUrl(`/api/mother/export/${run.runId}/csv`);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mother-run-${run.runId}.csv`;
+    a.click();
+  }, [run]);
+
   useEffect(() => {
     fetchLatest();
     const id = setInterval(fetchLatest, 10_000);
@@ -99,13 +108,23 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
             iter #{run.iteration}
           </span>
         </div>
-        <button
-          onClick={fetchLatest}
-          disabled={loading}
-          className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded border border-border/40"
-        >
-          {loading ? "…" : "↺"}
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleDownload}
+            disabled={!run}
+            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded border border-border/40"
+            title="Download as CSV"
+          >
+            ↓ CSV
+          </button>
+          <button
+            onClick={fetchLatest}
+            disabled={loading}
+            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded border border-border/40"
+          >
+            {loading ? "…" : "↺"}
+          </button>
+        </div>
       </div>
 
       {/* Query */}
