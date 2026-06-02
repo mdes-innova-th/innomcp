@@ -24,6 +24,7 @@ import { recordProviderCall } from "../services/leaderboardMetrics";
 import type { AgentDispatchOptions } from "./parallelDispatch";
 import { pushRun } from "../services/motherHistory";
 import type { MotherRunProvider } from "../services/motherHistory";
+import { errorRecovery } from "../utils/errorRecovery";
 
 // ── Public interfaces ─────────────────────────────────────────────────────────
 
@@ -375,14 +376,19 @@ async function runProvider(
   const t0 = Date.now();
 
   try {
-    let text: string;
-    if (cfg.kind === "anthropic") {
-      text = await callAnthropic(cfg, prompt, ac.signal);
-    } else if (cfg.kind === "openai") {
-      text = await callOpenAICompat(cfg, prompt, ac.signal);
-    } else {
-      text = await callOllamaCompat(cfg, prompt, ac.signal);
-    }
+    const text = await errorRecovery.withCircuitBreaker(
+      `mother-${cfg.id}`,
+      () => {
+        if (cfg.kind === "anthropic") {
+          return callAnthropic(cfg, prompt, ac.signal);
+        } else if (cfg.kind === "openai") {
+          return callOpenAICompat(cfg, prompt, ac.signal);
+        } else {
+          return callOllamaCompat(cfg, prompt, ac.signal);
+        }
+      },
+      { failureThreshold: 3, resetTimeout: 60_000, halfOpenRequests: 1 }
+    );
     clearTimeout(timer);
     const latencyMs = Date.now() - t0;
 
@@ -412,6 +418,31 @@ async function runProvider(
     clearTimeout(timer);
     const latencyMs = Date.now() - t0;
     const errorMsg = safeErrMsg(err);
+
+    // Circuit breaker is OPEN — emit a dedicated fallback and skip this provider
+    if (errorMsg.includes("Circuit breaker is OPEN")) {
+      const cbEv = newEnvelope({
+        runId,
+        messageId,
+        type: "fallback",
+        publicSummary: `${cfg.id} circuit open — skipping`,
+        agentId: "conductor",
+      });
+      cbEv.provider = cfg.id;
+      cbEv.model = cfg.model;
+      cbEv.fallbackReason = errorMsg;
+      if (checkAgentEventSafe(cbEv, { expectedToolUsage: false }).ok) {
+        emit(cbEv);
+      }
+      return {
+        providerId: cfg.id,
+        providerName: cfg.name,
+        text: "",
+        latencyMs,
+        success: false,
+        errorMsg: "circuit-open",
+      };
+    }
 
     recordProviderCall(cfg.id, latencyMs, false);
 
