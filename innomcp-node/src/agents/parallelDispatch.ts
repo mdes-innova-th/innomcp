@@ -36,6 +36,8 @@ export interface AgentDispatchOptions {
   preferredMode?: ChatMode;
   history?: Array<{ sender: string; text: string }>;
   intent?: string;
+  /** Controls whether Mother synthesis uses LLM merging ("thinking") or longest-wins ("normal"). */
+  responseMode?: AgentRunMode;
 }
 
 export interface AgentPlanOptions extends AgentDispatchOptions {
