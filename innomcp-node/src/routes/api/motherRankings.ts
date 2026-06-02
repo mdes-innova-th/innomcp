@@ -27,6 +27,7 @@ interface RankingEntry {
   reliabilityScore: number;
   popularityScore: number;
   winScore: number;
+  qualityScore: number;
   requests: number;
   avgLatency: number;
   successRate: number;
@@ -52,13 +53,25 @@ router.get("/", (_req: Request, res: Response): void => {
     const popularityScore  = Math.round(Math.min(100, (s.requests / 50) * 100));
     const winScore         = Math.round(Math.min(100, (s.wins / 10) * 100));
 
-    // Composite: speed 30%, reliability 35%, popularity 20%, wins 15%
-    const compositeScore = Math.round(
-      speedScore * 0.30 +
-      reliabilityScore * 0.35 +
-      popularityScore * 0.20 +
-      winScore * 0.15
-    );
+    const qualityScore = Math.round(s.avgQuality || 0);
+    const hasQuality = qualityScore > 0;
+
+    // Composite: if quality data available — speed 25%, reliability 30%, popularity 15%, wins 15%, quality 15%
+    //            otherwise — speed 30%, reliability 35%, popularity 20%, wins 15%
+    const compositeScore = hasQuality
+      ? Math.round(
+          speedScore * 0.25 +
+          reliabilityScore * 0.30 +
+          popularityScore * 0.15 +
+          winScore * 0.15 +
+          qualityScore * 0.15
+        )
+      : Math.round(
+          speedScore * 0.30 +
+          reliabilityScore * 0.35 +
+          popularityScore * 0.20 +
+          winScore * 0.15
+        );
 
     entries.push({
       providerId: id,
@@ -69,6 +82,7 @@ router.get("/", (_req: Request, res: Response): void => {
       reliabilityScore,
       popularityScore,
       winScore,
+      qualityScore,
       requests: s.requests,
       avgLatency: s.avgLatency,
       successRate: s.successRate,

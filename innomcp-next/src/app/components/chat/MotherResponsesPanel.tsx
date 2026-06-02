@@ -8,6 +8,7 @@ interface MotherRunProvider {
   success: boolean;
   preview: string;
   errorMsg?: string;
+  quality?: number;
 }
 
 interface MotherRun {
@@ -150,6 +151,20 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
                 <span className="text-[9px] tabular-nums text-muted-foreground shrink-0">
                   {p.latencyMs < 1000 ? `${p.latencyMs}ms` : `${(p.latencyMs/1000).toFixed(1)}s`}
                 </span>
+                {(() => {
+                  const len = p.preview.length;
+                  const q = len === 0 ? 0 : len < 50 ? 20 : len < 200 ? 50 : len < 500 ? 75 : 90;
+                  if (q === 0) return null;
+                  return (
+                    <span className={`text-[9px] px-1 rounded ml-1 ${
+                      q >= 75 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' :
+                      q >= 50 ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' :
+                                'bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                    }`}>
+                      Q{q}
+                    </span>
+                  );
+                })()}
               </div>
               <p className="text-[11px] leading-relaxed text-foreground/80 line-clamp-3">
                 {p.preview}

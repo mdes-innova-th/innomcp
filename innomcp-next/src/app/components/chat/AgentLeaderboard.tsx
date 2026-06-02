@@ -20,6 +20,7 @@ interface AgentEntry {
   score?: number;
   wins?: number;
   avgResponseLength?: number;
+  avgQuality?: number;
   sparkline?: number[];
 }
 
@@ -283,7 +284,7 @@ export default function AgentLeaderboard({
   // ── Export CSV ────────────────────────────────────────────────────────────
 
   function exportCSV() {
-    const header = "#,Agent,Provider,Model,Status,Requests,Avg Latency,Trend,Success%,Score,Wins,Verbose,Role";
+    const header = "#,Agent,Provider,Model,Status,Requests,Avg Latency,Trend,Success%,Score,Wins,Verbose,Quality,Role";
     const rows = visible.map((a, i) =>
       [
         i + 1,
@@ -298,6 +299,7 @@ export default function AgentLeaderboard({
         a.score?.toFixed(1) ?? "—",
         (a as AgentEntry & { wins?: number }).wins ?? 0,
         a.avgResponseLength ?? 0,
+        a.avgQuality ?? 0,
         `"${a.role}"`,
       ].join(",")
     );
@@ -502,6 +504,7 @@ export default function AgentLeaderboard({
                 <th scope="col" className="px-2 py-1.5 text-right font-medium w-14">Score</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium w-10">Wins</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium w-14">Verbose</th>
+                <th scope="col" className="px-2 py-1.5 text-right font-medium w-10">Qual</th>
                 <th scope="col" className="px-2 py-1.5 text-left font-medium">Role</th>
               </tr>
             </thead>
@@ -647,6 +650,20 @@ export default function AgentLeaderboard({
                         <span className="text-muted-foreground/40">—</span>
                       )}
                     </td>
+                    {/* Avg quality score */}
+                    <td className="px-2 py-1.5 text-right tabular-nums text-[11px]">
+                      {agent.avgQuality != null && agent.avgQuality > 0 ? (
+                        <span className={
+                          agent.avgQuality >= 80 ? "text-emerald-600 dark:text-emerald-400" :
+                          agent.avgQuality >= 50 ? "text-amber-600 dark:text-amber-400" :
+                          "text-rose-600 dark:text-rose-400"
+                        }>
+                          {agent.avgQuality}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/40">—</span>
+                      )}
+                    </td>
                     {/* Role */}
                     <td className="px-2 py-1.5 text-muted-foreground whitespace-nowrap">
                       {agent.role}
@@ -657,7 +674,7 @@ export default function AgentLeaderboard({
               {visible.length === 0 && (
                 <tr>
                   <td
-                    colSpan={14}
+                    colSpan={15}
                     className="px-2 py-4 text-center text-muted-foreground text-[11px]"
                   >
                     No agents match this filter.

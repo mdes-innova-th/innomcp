@@ -20,7 +20,7 @@
 import { newEnvelope } from "./events";
 import { checkAgentEventSafe } from "./eventGuard";
 import type { EmitFn } from "./conductor";
-import { recordProviderCall, recordProviderWin } from "../services/leaderboardMetrics";
+import { recordProviderCall, recordProviderWin, recordProviderQuality } from "../services/leaderboardMetrics";
 import type { AgentDispatchOptions } from "./parallelDispatch";
 import { pushRun } from "../services/motherHistory";
 import type { MotherRunProvider } from "../services/motherHistory";
@@ -456,6 +456,25 @@ function safeErrMsg(err: unknown): string {
 
 // ── Core provider runner ──────────────────────────────────────────────────────
 
+/**
+ * Compute a rough quality score (0–100) for a provider response.
+ * Heuristic: combines response length, success, and absence of error markers.
+ * - Empty or failed: 0
+ * - Very short (<50 chars): 20
+ * - Short (50–200 chars): 50
+ * - Medium (200–800 chars): 75
+ * - Rich (800–2000 chars): 90
+ * - Very detailed (>2000 chars): 95
+ * - Oracle prefix: +5 bonus (knowledge base responses)
+ */
+function computeQualityScore(text: string, success: boolean): number {
+  if (!success || !text.trim()) return 0;
+  const len = text.trim().length;
+  let score = len < 50 ? 20 : len < 200 ? 50 : len < 800 ? 75 : len < 2000 ? 90 : 95;
+  if (text.startsWith("[Oracle]")) score = Math.min(100, score + 5);
+  return score;
+}
+
 async function runProvider(
   cfg: ProviderConfig,
   prompt: string,
@@ -501,6 +520,7 @@ async function runProvider(
     const latencyMs = Date.now() - t0;
 
     recordProviderCall(cfg.id, latencyMs, true, text.length);
+    recordProviderQuality(cfg.id, computeQualityScore(text, true));
 
     const doneEv = newEnvelope({
       runId,

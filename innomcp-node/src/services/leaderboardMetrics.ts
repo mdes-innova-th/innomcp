@@ -18,6 +18,7 @@ interface RawStats {
   wins: number;
   totalResponseChars: number;
   responseSamples: number[];
+  qualityScores: number[];
 }
 
 export interface ProviderStats {
@@ -27,6 +28,7 @@ export interface ProviderStats {
   p95Latency: number;
   wins: number;
   avgResponseLength: number;
+  avgQuality: number;
 }
 
 const store = new Map<string, RawStats>();
@@ -72,6 +74,7 @@ export function recordProviderCall(
       wins: 0,
       totalResponseChars: responseChars ?? 0,
       responseSamples: responseChars != null ? [responseChars] : [],
+      qualityScores: [],
     });
   }
 
@@ -109,6 +112,9 @@ export function getProviderStats(): Map<string, ProviderStats> {
       avgResponseLength: raw.responseSamples.length > 0
         ? Math.round(raw.totalResponseChars / raw.responseSamples.length)
         : 0,
+      avgQuality: raw.qualityScores.length > 0
+        ? Math.round(raw.qualityScores.reduce((s, v) => s + v, 0) / raw.qualityScores.length)
+        : 0,
     });
   }
   return result;
@@ -141,6 +147,7 @@ export function recordProviderWin(providerId: string): void {
       wins: 1,
       totalResponseChars: 0,
       responseSamples: [],
+      qualityScores: [],
     });
   }
 
@@ -157,6 +164,25 @@ export function recordProviderWin(providerId: string): void {
       // DB unavailable — in-memory stays authoritative
     });
   });
+}
+
+/**
+ * Record a quality score (0–100) for a provider response.
+ * Quality is a heuristic: 0=empty/error, 50=minimal, 100=rich+detailed.
+ * Callers compute this; this function just accumulates.
+ */
+export function recordProviderQuality(providerId: string, qualityScore: number): void {
+  const clampedScore = Math.max(0, Math.min(100, Math.round(qualityScore)));
+  const existing = store.get(providerId);
+  if (existing) {
+    existing.qualityScores.push(clampedScore);
+    if (existing.qualityScores.length > 50) existing.qualityScores.shift();
+  } else {
+    store.set(providerId, {
+      requests: 0, totalLatency: 0, successes: 0, latencySamples: [],
+      wins: 0, totalResponseChars: 0, responseSamples: [], qualityScores: [clampedScore],
+    });
+  }
 }
 
 /**
@@ -219,10 +245,11 @@ export async function getDbStats(): Promise<
   return result;
 }
 
-/** Singleton instance exposing all six methods. */
+/** Singleton instance exposing all methods. */
 export const leaderboardMetrics = {
   recordProviderCall,
   recordProviderWin,
+  recordProviderQuality,
   getProviderStats,
   getSparklineData,
   getDbStats,
