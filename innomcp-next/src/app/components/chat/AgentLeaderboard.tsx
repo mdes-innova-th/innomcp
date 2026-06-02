@@ -156,9 +156,11 @@ export default function AgentLeaderboard({
   const [sortBy, setSortBy] = useState<"requests" | "latency" | "success" | "score" | "wins">(
     motherActive ? "wins" : "requests"
   );
+  const [filterType, setFilterType] = useState<"all" | "mdes" | "claude" | "gpt" | "local" | "other">("all");
   const [rosterEligible, setRosterEligible] = useState<number | null>(null);
   const [providerEnabled, setProviderEnabled] = useState<Record<string, boolean>>({});
   const [providerTier, setProviderTier] = useState<Record<string, string>>({});
+  const [sessionStats, setSessionStats] = useState<{totalDispatches: number; topWinner: {providerId: string; wins: number} | null} | null>(null);
 
   // ── Fetch leaderboard data ──────────────────────────────────────────────────
   const fetchLeaderboard = useCallback(() => {
@@ -204,6 +206,12 @@ export default function AgentLeaderboard({
             }
           })
           .catch(() => {});
+        // Fetch session dispatch stats
+        const sessionUrl = resolveBackendUrl("/api/mother/session");
+        fetch(sessionUrl, { credentials: "include" })
+          .then((r) => r.ok ? r.json() : null)
+          .then((d) => { if (d) setSessionStats({ totalDispatches: d.totalDispatches, topWinner: d.topWinner }); })
+          .catch(() => {});
       })
       .catch((e) => {
         setError(e instanceof Error ? e.message : "Failed to load");
@@ -242,8 +250,16 @@ export default function AgentLeaderboard({
   const statuses = Array.from(new Set(agents.map((a) => a.status)));
   const providers = Array.from(new Set(agents.map((a) => a.provider)));
 
-  const filtered =
+  const statusFiltered =
     filter === "all" ? agents : agents.filter((a) => a.status === filter);
+  const filtered = filterType === "all" ? statusFiltered : statusFiltered.filter((a) => {
+    const p = a.provider;
+    if (filterType === "mdes")   return p === "mdes-cloud" || p === "ollama-cloud";
+    if (filterType === "claude") return p === "anthropic";
+    if (filterType === "gpt")    return p === "openai" || p === "github" || p === "copilot";
+    if (filterType === "local")  return p === "ollama-local" || p === "innova-bot" || p === "innova-oracle";
+    return p !== "anthropic" && p !== "openai" && p !== "github" && p !== "mdes-cloud" && p !== "ollama-local" && p !== "innova-bot";
+  });
 
   const visible = [...filtered].sort((a, b) => {
     if (sortBy === "latency") return (a.avgLatency || Infinity) - (b.avgLatency || Infinity);
@@ -336,6 +352,9 @@ export default function AgentLeaderboard({
               {topWinner && (
                 <span>🏆 {PROVIDER_LABEL[topWinner.id] ?? topWinner.name} ({topWinner.wins} wins)</span>
               )}
+              {sessionStats && sessionStats.totalDispatches > 0 && (
+                <span>· {sessionStats.totalDispatches} dispatches</span>
+              )}
             </div>
           )}
         </div>
@@ -391,6 +410,22 @@ export default function AgentLeaderboard({
             </button>
           );
         })}
+        {/* Provider type filter */}
+        <div className="flex items-center gap-1 flex-wrap mt-1">
+          {(["all", "mdes", "claude", "gpt", "local", "other"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setFilterType(t)}
+              className={`rounded px-1.5 py-0.5 text-[10px] border transition-colors ${
+                filterType === t
+                  ? "border-primary/40 bg-primary/10 text-primary font-medium"
+                  : "border-border/40 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t === "all" ? "All" : t === "mdes" ? "MDES" : t === "claude" ? "Claude" : t === "gpt" ? "GPT" : t === "local" ? "Local" : "Other"}
+            </button>
+          ))}
+        </div>
         <div className="ml-auto flex items-center gap-1">
           {(["wins", "score", "requests", "latency", "success"] as const).map((s) => (
             <button

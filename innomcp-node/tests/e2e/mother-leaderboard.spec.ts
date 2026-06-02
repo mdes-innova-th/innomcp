@@ -467,3 +467,17 @@ test.describe('GET /api/mother/rankings', () => {
     expect(body).toHaveProperty('timestamp');
   });
 });
+
+test.describe('GET /api/mother/session', () => {
+  test('returns 200 with session shape', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/session`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body).toHaveProperty('sessionStart');
+    expect(body).toHaveProperty('totalDispatches');
+    expect(body).toHaveProperty('sessionSuccessRate');
+    expect(typeof body.totalDispatches).toBe('number');
+    expect(typeof body.sessionSuccessRate).toBe('number');
+  });
+});
