@@ -14,6 +14,7 @@ interface AgentEntry {
   avgLatency: number;
   successRate: number;
   role: string;
+  score?: number;
 }
 
 interface LeaderboardResponse {
@@ -182,7 +183,7 @@ export default function AgentLeaderboard({
   // ── Export CSV ────────────────────────────────────────────────────────────
 
   function exportCSV() {
-    const header = "#,Agent,Provider,Model,Status,Requests,Avg Latency,Success%,Role";
+    const header = "#,Agent,Provider,Model,Status,Requests,Avg Latency,Success%,Score,Role";
     const rows = visible.map((a, i) =>
       [
         i + 1,
@@ -193,6 +194,7 @@ export default function AgentLeaderboard({
         a.requests,
         formatLatency(a.avgLatency),
         `${a.successRate}%`,
+        a.score?.toFixed(1) ?? "—",
         `"${a.role}"`,
       ].join(",")
     );
@@ -343,6 +345,7 @@ export default function AgentLeaderboard({
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">Requests</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">Avg Latency</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">Success%</th>
+                <th scope="col" className="px-2 py-1.5 text-right font-medium w-14">Score</th>
                 <th scope="col" className="px-2 py-1.5 text-left font-medium">Role</th>
               </tr>
             </thead>
@@ -428,6 +431,24 @@ export default function AgentLeaderboard({
                         </span>
                       )}
                     </td>
+                    {/* Score */}
+                    <td className="px-2 py-1.5 text-right tabular-nums font-medium">
+                      {agent.score !== undefined ? (
+                        <span
+                          className={
+                            agent.score > 60
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : agent.score >= 40
+                              ? "text-yellow-600 dark:text-yellow-400"
+                              : "text-muted-foreground/60"
+                          }
+                        >
+                          {agent.score.toFixed(1)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/50">—</span>
+                      )}
+                    </td>
                     {/* Role */}
                     <td className="px-2 py-1.5 text-muted-foreground whitespace-nowrap">
                       {agent.role}
@@ -438,7 +459,7 @@ export default function AgentLeaderboard({
               {visible.length === 0 && (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     className="px-2 py-4 text-center text-muted-foreground text-[11px]"
                   >
                     No agents match this filter.

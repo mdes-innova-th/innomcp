@@ -36,6 +36,28 @@ export interface AgentEntry {
   avgLatency: number;
   successRate: number;
   role: string;
+  score?: number;
+}
+
+/**
+ * Composite score for provider leaderboard ranking.
+ *
+ * score = (successRate * 0.5)   // reliability — 50 %
+ *       + (speedScore   * 30)   // speed       — 30 %
+ *       + (popularity   * 20)   // usage       — 20 %
+ *
+ * speedScore     = 1 / (1 + avgLatency / 1000)   range 0..1 (faster → higher)
+ * popularityScore = Math.min(1, requests / 100)   range 0..1 (caps at 100 req)
+ *
+ * Special cases:
+ *   requests === 0 && status !== "online" → 0  (not yet active)
+ *   requests === 0 && status === "online" → successRate * 0.5  (available but unused)
+ */
+function computeScore(agent: AgentEntry): number {
+  if (agent.requests === 0 && agent.status !== "online") return 0;
+  const speedScore = 1 / (1 + (agent.avgLatency || 0) / 1000);
+  const popularityScore = Math.min(1, (agent.requests || 0) / 100);
+  return (agent.successRate || 0) * 0.5 + speedScore * 30 + popularityScore * 20;
 }
 
 /** Static catalogue — source of truth for identity/role fields. */
@@ -341,13 +363,15 @@ router.get("/", async (_req: Request, res: Response) => {
     return agent;
   });
 
-  // Sort by request count descending so the most-used agents appear first.
-  enrichedAgents.sort((a, b) => b.requests - a.requests);
+  // Compute composite score and sort by it descending.
+  const scoredAgents = enrichedAgents
+    .map((a) => ({ ...a, score: Math.round(computeScore(a) * 10) / 10 }))
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 
   res.json({
-    agents: enrichedAgents,
+    agents: scoredAgents,
     timestamp: new Date().toISOString(),
-    totalAgents: enrichedAgents.length,
+    totalAgents: scoredAgents.length,
   });
 });
 
