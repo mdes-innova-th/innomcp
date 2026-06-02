@@ -35,6 +35,14 @@ interface HistoryResponse {
 
 const POLL_INTERVAL_MS = 10_000;
 
+const PROVIDER_LABEL: Record<string, string> = {
+  "mdes-cloud": "MDES", "thai-llm": "ThaiLLM", "ollama-local": "Local",
+  "openai-gpt": "GPT", "claude-haiku": "Haiku", "claude-sonnet": "Sonnet",
+  "copilot": "Copilot", "gemini-pro": "Gemini", "mistral-large": "Mistral",
+  "deepseek-r1": "DeepSeek", "groq-llama": "Groq", "together-llama": "Together",
+  "innova-bot": "Innova",
+};
+
 // ─── URL resolution — same pattern as ProviderHealthPanel ────────────────────
 
 function resolveBackendUrl(path: string): string {
@@ -145,7 +153,7 @@ function RunRow({ run }: { run: MotherRun }) {
               <span className="text-[9.5px] text-muted-foreground/60 truncate">
                 fastest:{" "}
                 <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                  {run.fastestProvider}
+                  {PROVIDER_LABEL[run.fastestProvider] ?? run.fastestProvider}
                 </span>
                 {run.providers.find((p) => p.providerId === run.fastestProvider || p.providerName === run.fastestProvider)?.latencyMs != null && (
                   <span>

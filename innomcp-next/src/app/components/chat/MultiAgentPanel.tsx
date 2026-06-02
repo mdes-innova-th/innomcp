@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from "react";
 import type { AgentEvent, StreamStatus } from "./useAgentEventStream";
 import { getThinkingReportToneClass, resolveThinkingReportSummary } from "./multiAgentExperience";
+import MotherRaceView from "./MotherRaceView";
 
 const MDES_MODEL_BADGE: Record<string, string> = {
   "qwen3.5:9b": "Q3.5-9B",
@@ -450,6 +451,9 @@ export default function MultiAgentPanel({
               </div>
             );
           })()}
+
+          {/* Phase 20 — Mother race display */}
+          <MotherRaceView events={events} hideWhenEmpty />
 
           <div className="space-y-4">
             {agents.map((agent) => {
