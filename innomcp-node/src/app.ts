@@ -41,6 +41,7 @@ import templatesRouter from "./routes/api/templates";
 import preferencesRouter from "./routes/api/preferences";
 import agentLeaderboardRouter from "./routes/api/agentLeaderboard";
 import motherHistoryRouter from "./routes/api/motherHistory";
+import motherStatsRouter from "./routes/api/motherStats";
 import presenceRouter from "./routes/api/presence";
 import activityRouter from "./routes/api/activity";
 
@@ -180,6 +181,9 @@ app.use("/api/agent-leaderboard", generalRateLimit, cacheResponse(3_000), agentL
 
 // Phase 13-A: Mother dispatch run history — no auth required (read-only metrics)
 app.use("/api/mother/history", generalRateLimit, motherHistoryRouter);
+
+// Phase 14-C: Mother dispatch aggregate stats — no auth required, 5 s cache
+app.use("/api/mother/stats", generalRateLimit, cacheResponse(5_000), motherStatsRouter);
 
 // Model Settings — ad-hoc connection test + provider presets (no auth, public)
 app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);
