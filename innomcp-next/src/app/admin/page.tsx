@@ -86,6 +86,8 @@ interface MotherStatsData {
   avgSuccessRate: number;
   lastRunAt: string | null;
   providerBreakdown: MotherProviderBreakdown[];
+  avgProvidersPerRun: number;
+  recentIterations: number;
 }
 
 interface MotherProbeResult {
@@ -995,12 +997,14 @@ export default function AdminPage() {
               {motherStatsLoading ? (
                 <div className="p-8 text-center text-gray-400">Loading stats…</div>
               ) : motherStats ? (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 p-4">
                   {[
                     { label: 'Total Runs',          value: String(motherStats.totalRuns) },
                     { label: 'Total Provider Calls', value: String(motherStats.totalProviderCalls) },
                     { label: 'Avg Success Rate',     value: `${motherStats.avgSuccessRate}%` },
                     { label: 'Last Run At',          value: motherStats.lastRunAt ? new Date(motherStats.lastRunAt).toLocaleString() : '–' },
+                    { label: 'Avg Agents/Run',       value: String(motherStats.avgProvidersPerRun ?? 0) },
+                    { label: 'Recent (5 min)',        value: String(motherStats.recentIterations ?? 0) },
                   ].map(({ label, value }) => (
                     <div key={label} className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3 border border-gray-100 dark:border-gray-600">
                       <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">{label}</p>
@@ -1015,8 +1019,9 @@ export default function AdminPage() {
 
             {/* ── Provider Breakdown Table ─────────────────────────────────────── */}
             <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center">
                 <h3 className="font-semibold text-gray-800 dark:text-gray-100 text-sm">Provider Breakdown</h3>
+                <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full px-2 py-0.5 font-medium">13 providers</span>
               </div>
               {motherStatsLoading ? (
                 <div className="p-8 text-center text-gray-400">Loading…</div>
