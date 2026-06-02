@@ -60,6 +60,25 @@ function getProviderBadge(provider: string): { label: string; cls: string } {
   return { label: provider,     cls: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-300" };
 }
 
+// ─── Provider display label map ───────────────────────────────────────────────
+
+const PROVIDER_LABEL: Record<string, string> = {
+  "mdes-cloud":    "MDES",
+  "thai-llm":      "ThaiLLM",
+  "ollama-local":  "Local",
+  "openai-gpt":    "GPT",
+  "claude-haiku":  "Haiku",
+  "claude-sonnet": "Sonnet",
+  "copilot":       "Copilot",
+  "gemini-pro":    "Gemini",
+  "mistral-large": "Mistral",
+  "deepseek-r1":   "DeepSeek",
+  "groq-llama":    "Groq",
+  "together-llama":"Together",
+  "innova-bot":    "Innova",
+  "innova-oracle": "Oracle",
+};
+
 // ─── Provider colour map (consistent with previous component) ─────────────────
 
 const PROVIDER_COLORS: Record<string, string> = {
@@ -198,6 +217,12 @@ export default function AgentLeaderboard({
     return b.requests - a.requests; // default: most requests first
   });
 
+  const activeCount = visible.filter(a => a.requests > 0).length;
+  const fastestAgent = visible.filter(a => a.requests > 0 && a.avgLatency > 0)
+    .sort((a, b) => a.avgLatency - b.avgLatency)[0];
+  const topWinner = visible.filter(a => (a.wins ?? 0) > 0)
+    .sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0))[0];
+
   // Top performer: first agent (in sort order) with at least one request
   const topAgent = visible.find((a) => a.requests > 0);
 
@@ -265,6 +290,18 @@ export default function AgentLeaderboard({
               Refreshing in {countdown}s
             </span>
           </p>
+          {/* Aggregate stats row */}
+          {activeCount > 0 && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground mt-0.5">
+              <span>{activeCount} active</span>
+              {fastestAgent && (
+                <span>⚡ {PROVIDER_LABEL[fastestAgent.id] ?? fastestAgent.name} ({formatLatency(fastestAgent.avgLatency)})</span>
+              )}
+              {topWinner && (
+                <span>🏆 {PROVIDER_LABEL[topWinner.id] ?? topWinner.name} ({topWinner.wins} wins)</span>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <button

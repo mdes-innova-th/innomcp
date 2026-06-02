@@ -11,6 +11,7 @@ import AgentLeaderboard from "@/app/components/chat/AgentLeaderboard";
 import ProviderHealthPanel from "@/app/components/chat/ProviderHealthPanel";
 import MotherDispatchPanel from "@/app/components/chat/MotherDispatchPanel";
 import MotherStatsCard from "@/app/components/chat/MotherStatsCard";
+import MotherResponsesPanel from "./MotherResponsesPanel";
 import LiveActivityFeed from "@/app/components/chat/LiveActivityFeed";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -399,6 +400,9 @@ export default function DashboardView({
 
       {/* Mother Dispatch Stats — always visible */}
       <MotherStatsCard />
+
+      {/* Mother Responses */}
+      <MotherResponsesPanel className="w-full" />
 
       {/* Agent Leaderboard */}
       <div>

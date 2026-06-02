@@ -1,10 +1,13 @@
 /**
  * tests/unit/motherHistory.test.ts — Phase 13-E
  *
- * Unit tests for services/motherHistory.ts.
- * Pure in-memory ring buffer; no mocking needed.
+ * Unit tests for:
+ *   - services/motherHistory.ts  (pure in-memory ring buffer)
+ *   - routes/api/motherHistory.ts (HTTP endpoint layer)
  */
 
+import express from "express";
+import request from "supertest";
 import {
   pushRun,
   getHistory,
@@ -200,5 +203,149 @@ describe("motherHistory", () => {
     expect(history[0].runId).toBe(run.runId);
     motherHistory.clear();
     expect(motherHistory.get().length).toBe(0);
+  });
+});
+
+// ── Route layer tests: GET /api/mother/history ────────────────────────────────
+
+let routerModule: typeof import("../../src/routes/api/motherHistory");
+
+beforeAll(async () => {
+  routerModule = await import("../../src/routes/api/motherHistory");
+});
+
+function buildApp() {
+  const app = express();
+  app.use(express.json());
+  app.use("/api/mother/history", routerModule.default);
+  return app;
+}
+
+describe("GET /api/mother/history (route)", () => {
+  beforeEach(() => {
+    clearHistory();
+  });
+
+  it("returns 200 with empty runs array when no history", async () => {
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/history");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("runs");
+    expect(Array.isArray(res.body.runs)).toBe(true);
+    expect(res.body.runs).toHaveLength(0);
+  });
+
+  it("returns runs after pushRun", async () => {
+    pushRun(makeMockRun({ query: "route test query" }));
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/history");
+    expect(res.status).toBe(200);
+    expect(res.body.runs.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("response includes total and timestamp fields", async () => {
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/history");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("total");
+    expect(res.body).toHaveProperty("timestamp");
+    expect(typeof res.body.timestamp).toBe("string");
+  });
+
+  it("respects ?limit query parameter", async () => {
+    pushRun(makeMockRun({ runId: "r1", query: "q1" }));
+    pushRun(makeMockRun({ runId: "r2", query: "q2" }));
+    pushRun(makeMockRun({ runId: "r3", query: "q3" }));
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/history?limit=2");
+    expect(res.status).toBe(200);
+    expect(res.body.runs).toHaveLength(2);
+    expect(res.body.total).toBe(2);
+  });
+
+  it("defaults to limit=10 when no limit param supplied", async () => {
+    for (let i = 0; i < 15; i++) {
+      pushRun(makeMockRun({ query: `q${i}` }));
+    }
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/history");
+    expect(res.status).toBe(200);
+    expect(res.body.runs).toHaveLength(10);
+  });
+
+  it("clamps limit to 50 maximum", async () => {
+    for (let i = 0; i < 30; i++) {
+      pushRun(makeMockRun({ query: `q${i}` }));
+    }
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/history?limit=200");
+    expect(res.status).toBe(200);
+    expect(res.body.runs.length).toBeLessThanOrEqual(50);
+  });
+
+  it("clamps non-finite limit to default=10", async () => {
+    for (let i = 0; i < 15; i++) {
+      pushRun(makeMockRun({ query: `q${i}` }));
+    }
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/history?limit=abc");
+    expect(res.status).toBe(200);
+    expect(res.body.runs).toHaveLength(10);
+  });
+
+  it("each run has required fields", async () => {
+    const provider: MotherRunProvider = {
+      providerId: "groq-llama",
+      providerName: "Groq",
+      latencyMs: 300,
+      success: true,
+      preview: "Fast response",
+    };
+    pushRun(makeMockRun({
+      query: "shape check query",
+      fastestProvider: "groq-llama",
+      synthesis: "synthesized answer",
+      providers: [provider],
+    }));
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/history");
+    const run = res.body.runs[0];
+    expect(run).toHaveProperty("runId");
+    expect(run).toHaveProperty("query");
+    expect(run).toHaveProperty("providers");
+    expect(run).toHaveProperty("synthesis");
+    expect(run).toHaveProperty("fastestProvider");
+    expect(run).toHaveProperty("timestamp");
+  });
+});
+
+describe("GET /api/mother/history/:runId (route)", () => {
+  beforeEach(() => {
+    clearHistory();
+  });
+
+  it("returns 200 and the run when found", async () => {
+    const run = makeMockRun({ runId: "known-run-id", query: "lookup test" });
+    pushRun(run);
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/history/known-run-id");
+    expect(res.status).toBe(200);
+    expect(res.body).toHaveProperty("run");
+    expect(res.body.run.runId).toBe("known-run-id");
+    expect(res.body).toHaveProperty("timestamp");
+  });
+
+  it("returns 404 when runId not found", async () => {
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/history/nonexistent-run");
+    expect(res.status).toBe(404);
+    expect(res.body).toHaveProperty("error", "run not found");
+  });
+
+  it("returns 400 for invalid runId format", async () => {
+    const app = buildApp();
+    const res = await request(app).get("/api/mother/history/" + "x".repeat(200));
+    expect(res.status).toBe(400);
+    expect(res.body).toHaveProperty("error", "invalid runId");
   });
 });

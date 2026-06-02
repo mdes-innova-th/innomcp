@@ -417,3 +417,40 @@ test.describe('GET /api/mother/circuits', () => {
     expect(typeof body.openCount).toBe('number');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Final. GET /api/mother/history — run history
+// ---------------------------------------------------------------------------
+
+test.describe('GET /api/mother/history', () => {
+  test('returns 200 with runs array and timestamp', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/history`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body).toHaveProperty('runs');
+    expect(Array.isArray(body.runs)).toBe(true);
+    expect(body).toHaveProperty('timestamp');
+    expect(body).toHaveProperty('total');
+  });
+
+  test('limit query parameter is respected', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/history?limit=2`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.runs.length).toBeLessThanOrEqual(2);
+  });
+
+  test('GET /api/mother/history?limit=1 returns latest run shape', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/history?limit=1`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    if (body.runs.length > 0) {
+      const run = body.runs[0];
+      expect(run).toHaveProperty('runId');
+      expect(run).toHaveProperty('providers');
+      expect(Array.isArray(run.providers)).toBe(true);
+      expect(run).toHaveProperty('synthesis');
+    }
+  });
+});
