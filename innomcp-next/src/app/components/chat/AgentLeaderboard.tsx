@@ -25,6 +25,8 @@ interface AgentEntry {
   winRate?: number;
   healthScore?: number;
   efficiencyScore?: number;
+  currentStreak?: number;
+  bestStreak?: number;
   topIntent?: string;
   sparkline?: number[];
 }
@@ -579,6 +581,11 @@ export default function AgentLeaderboard({
                       {agent.topIntent && (
                         <span className="ml-1 text-[9px] bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded px-1" title={`Best for: ${agent.topIntent}`}>
                           {agent.topIntent === "code" ? "⌨️" : agent.topIntent === "knowledge" ? "📚" : agent.topIntent === "greeting" ? "👋" : agent.topIntent === "weather" ? "🌤" : "🎯"}
+                        </span>
+                      )}
+                      {(agent.currentStreak ?? 0) >= 3 && (
+                        <span className="ml-1 text-[9px] text-orange-500 dark:text-orange-400 font-bold" title={`On a ${agent.currentStreak}-win streak!`}>
+                          🔥{agent.currentStreak}
                         </span>
                       )}
                       <button

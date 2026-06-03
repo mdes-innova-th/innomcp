@@ -20,6 +20,8 @@ interface RawStats {
   responseSamples: number[];
   qualityScores: number[];
   intentWins: Record<string, number>;
+  currentStreak: number;
+  bestStreak: number;
 }
 
 export interface ProviderStats {
@@ -34,6 +36,8 @@ export interface ProviderStats {
   topIntent?: string;      // intent this provider wins most often
   healthScore: number;      // 0-100: combines successRate + circuit state availability
   efficiencyScore: number;  // wins per 1000 requests (0-100, capped)
+  currentStreak: number;
+  bestStreak: number;
 }
 
 const store = new Map<string, RawStats>();
@@ -81,6 +85,8 @@ export function recordProviderCall(
       responseSamples: responseChars != null ? [responseChars] : [],
       qualityScores: [],
       intentWins: {},
+      currentStreak: 0,
+      bestStreak: 0,
     });
   }
 
@@ -132,6 +138,8 @@ export function getProviderStats(): Map<string, ProviderStats> {
         ? Math.round(Math.round((raw.successes / raw.requests) * 100) * 0.7 +
                      (raw.wins > 0 ? 30 : 0))
         : 0,
+      currentStreak: raw.currentStreak ?? 0,
+      bestStreak: raw.bestStreak ?? 0,
     });
   }
   return result;
@@ -184,6 +192,8 @@ export function recordProviderWin(providerId: string, intent?: string): void {
       responseSamples: [],
       qualityScores: [],
       intentWins: intent ? { [intent]: 1 } : {},
+      currentStreak: 0,
+      bestStreak: 0,
     });
   }
 
@@ -217,7 +227,30 @@ export function recordProviderQuality(providerId: string, qualityScore: number):
     store.set(providerId, {
       requests: 0, totalLatency: 0, successes: 0, latencySamples: [],
       wins: 0, totalResponseChars: 0, responseSamples: [], qualityScores: [clampedScore],
-      intentWins: {},
+      intentWins: {}, currentStreak: 0, bestStreak: 0,
+    });
+  }
+}
+
+/**
+ * Record streak update after a dispatch win.
+ * Increments winner's streak, resets all other providers.
+ */
+export function recordStreaks(winnerId: string): void {
+  for (const [pid, raw] of store.entries()) {
+    if (pid === winnerId) {
+      raw.currentStreak = (raw.currentStreak ?? 0) + 1;
+      raw.bestStreak = Math.max(raw.bestStreak ?? 0, raw.currentStreak);
+    } else {
+      raw.currentStreak = 0;
+    }
+  }
+  // Ensure winner entry exists
+  if (!store.has(winnerId)) {
+    store.set(winnerId, {
+      requests: 0, totalLatency: 0, successes: 0, latencySamples: [],
+      wins: 0, totalResponseChars: 0, responseSamples: [], qualityScores: [],
+      intentWins: {}, currentStreak: 1, bestStreak: 1,
     });
   }
 }
@@ -287,6 +320,7 @@ export const leaderboardMetrics = {
   recordProviderCall,
   recordProviderWin,
   recordProviderQuality,
+  recordStreaks,
   getProviderStats,
   getSparklineData,
   getIntentWinsSnapshot,

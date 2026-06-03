@@ -20,7 +20,7 @@
 import { newEnvelope } from "./events";
 import { checkAgentEventSafe } from "./eventGuard";
 import type { EmitFn } from "./conductor";
-import { recordProviderCall, recordProviderWin, recordProviderQuality } from "../services/leaderboardMetrics";
+import { recordProviderCall, recordProviderWin, recordProviderQuality, recordStreaks } from "../services/leaderboardMetrics";
 import type { AgentDispatchOptions } from "./parallelDispatch";
 import { pushRun } from "../services/motherHistory";
 import type { MotherRunProvider } from "../services/motherHistory";
@@ -836,6 +836,7 @@ export async function dispatchMother(
   const successCount = results.filter((r) => r.success).length;
   const { text: synthesis, winnerId } = await synthesizeResults(results, intent, query, emit, runId, messageId, options.responseMode);
   if (winnerId) recordProviderWin(winnerId, intent);
+  if (winnerId) recordStreaks(winnerId);
   const totalEstimatedCostUsd = results.reduce(
     (sum, r) => sum + (r.estimatedCostUsd ?? 0),
     0

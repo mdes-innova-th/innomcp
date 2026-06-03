@@ -59,6 +59,8 @@ import motherTriggerDispatchRouter from "./routes/api/motherTriggerDispatch";
 import motherInboxRouter from "./routes/api/motherInbox";
 import motherConfigRouter from "./routes/api/motherConfig";
 import motherTrendsRouter from "./routes/api/motherTrends";
+import motherStreaksRouter from "./routes/api/motherStreaks";
+import motherHandoffRouter from "./routes/api/motherHandoff";
 import presenceRouter from "./routes/api/presence";
 import activityRouter from "./routes/api/activity";
 
@@ -219,6 +221,8 @@ app.use("/api/mother/trigger-dispatch", generalRateLimit, motherTriggerDispatchR
 app.use("/api/mother/inbox", generalRateLimit, motherInboxRouter);
 app.use("/api/mother/config", generalRateLimit, motherConfigRouter);
 app.use("/api/mother/trends", generalRateLimit, motherTrendsRouter);
+app.use("/api/mother/streaks", generalRateLimit, motherStreaksRouter);
+app.use("/api/mother/handoff", generalRateLimit, motherHandoffRouter);
 
 // Model Settings — ad-hoc connection test + provider presets (no auth, public)
 app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);

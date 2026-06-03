@@ -660,3 +660,23 @@ test.describe('GET /api/mother/trends', () => {
     expect(typeof body.avgSuccessRate).toBe('number');
   });
 });
+
+test.describe('GET /api/mother/streaks', () => {
+  test('returns 200 with streaks and currentLeader', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/streaks`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(Array.isArray(body.streaks)).toBe(true);
+    expect(body).toHaveProperty('currentLeader');
+  });
+});
+
+test.describe('GET /api/mother/handoff', () => {
+  test('returns 200 with markdown text', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/handoff`);
+    expect(response.status()).toBe(200);
+    const text = await response.text();
+    expect(text).toContain('Mother Dispatch Session Handoff');
+    expect(text).toContain('Summary');
+  });
+});

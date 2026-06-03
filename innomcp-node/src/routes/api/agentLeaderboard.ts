@@ -47,6 +47,8 @@ export interface AgentEntry {
   topIntent?: string;          // intent this provider wins most often
   healthScore?: number;
   efficiencyScore?: number;
+  currentStreak?: number;
+  bestStreak?: number;
 }
 
 /**
@@ -286,11 +288,11 @@ const AGENT_CATALOGUE: AgentEntry[] = [
 
 /** Attempt to pull live request counts and latency from task_steps. */
 async function fetchLiveStats(): Promise<
-  Map<string, { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number; avgResponseLength?: number; avgQuality?: number; winRate?: number; topIntent?: string }>
+  Map<string, { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number; avgResponseLength?: number; avgQuality?: number; winRate?: number; topIntent?: string; currentStreak?: number; bestStreak?: number }>
 > {
   const result = new Map<
     string,
-    { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number; avgResponseLength?: number; avgQuality?: number; winRate?: number; topIntent?: string }
+    { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number; avgResponseLength?: number; avgQuality?: number; winRate?: number; topIntent?: string; currentStreak?: number; bestStreak?: number }
   >();
 
   try {
@@ -403,6 +405,8 @@ router.get("/", async (_req: Request, res: Response) => {
           topIntent: live.topIntent,
           healthScore: live.healthScore,
           efficiencyScore: live.efficiencyScore,
+          currentStreak: live.currentStreak,
+          bestStreak: live.bestStreak,
         }
       : { ...entry };
   });
