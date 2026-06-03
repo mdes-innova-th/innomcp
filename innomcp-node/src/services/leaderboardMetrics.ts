@@ -38,6 +38,7 @@ export interface ProviderStats {
   efficiencyScore: number;  // wins per 1000 requests (0-100, capped)
   currentStreak: number;
   bestStreak: number;
+  consistencyScore: number; // 0-100: 100 = very consistent response lengths, 0 = highly variable
 }
 
 const store = new Map<string, RawStats>();
@@ -109,6 +110,13 @@ export function recordProviderCall(
   });
 }
 
+function computeStdDev(samples: number[]): number {
+  if (samples.length < 2) return 0;
+  const mean = samples.reduce((s, v) => s + v, 0) / samples.length;
+  const variance = samples.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / samples.length;
+  return Math.sqrt(variance);
+}
+
 /**
  * Returns a snapshot of all tracked providers with computed derived fields.
  */
@@ -140,6 +148,13 @@ export function getProviderStats(): Map<string, ProviderStats> {
         : 0,
       currentStreak: raw.currentStreak ?? 0,
       bestStreak: raw.bestStreak ?? 0,
+      // Consistency: 100 = very consistent (low stddev), 0 = very variable
+      // Based on response length variance
+      consistencyScore: (() => {
+        const lengthStdDev = computeStdDev(raw.responseSamples);
+        return raw.responseSamples.length < 2 ? 0
+          : Math.max(0, Math.round(100 - Math.min(100, (lengthStdDev / 500) * 100)));
+      })(),
     });
   }
   return result;

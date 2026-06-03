@@ -263,13 +263,25 @@ export default function MotherDispatchPanel() {
         <p className="text-[12px] font-semibold text-foreground">
           🧠 Mother Dispatch History
         </p>
-        <button
-          onClick={() => { setLoading(true); poll(); }}
-          title="Refresh dispatch history"
-          className="rounded-lg border border-border/40 px-2 py-0.5 text-[10.5px] text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
-        >
-          ↻
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => {
+              const url = resolveBackendUrl("/api/mother/handoff");
+              window.open(url, "_blank");
+            }}
+            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded border border-border/40 ml-1"
+            title="Open session handoff document"
+          >
+            📋
+          </button>
+          <button
+            onClick={() => { setLoading(true); poll(); }}
+            title="Refresh dispatch history"
+            className="rounded-lg border border-border/40 px-2 py-0.5 text-[10.5px] text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+          >
+            ↻
+          </button>
+        </div>
       </div>
 
       {/* Loading skeleton */}

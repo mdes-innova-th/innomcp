@@ -228,6 +228,9 @@ export default function MotherRaceView({ events, hideWhenEmpty = true }: Props) 
                     : `${(entry.latencyMs / 1000).toFixed(1)}s`}
                 </span>
               )}
+              {entry.isFirst && entry.done && (
+                <span className="text-[8px] text-yellow-500 font-bold ml-1">WIN</span>
+              )}
               {entry.running && (
                 <span className="text-[10px] text-blue-400 dark:text-blue-300 ml-auto shrink-0 animate-pulse">
                   …

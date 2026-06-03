@@ -184,7 +184,7 @@ export default function AdminPage() {
   const [dispatchQuery, setDispatchQuery] = useState("");
   const [dispatchResult, setDispatchResult] = useState<{successCount: number; totalAgents: number; synthesis: string} | null>(null);
   const [dispatching, setDispatching] = useState(false);
-  const [motherTrends, setMotherTrends] = useState<{dominantWinner: string | null; avgSuccessRate: number; totalRuns: number} | null>(null);
+  const [motherTrends, setMotherTrends] = useState<{dominantWinner: string | null; avgSuccessRate: number; totalRuns: number; streakLeader?: string; streakLength?: number} | null>(null);
 
   // ── Auth guard ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -342,6 +342,16 @@ export default function AdminPage() {
     fetch('/api/mother/trends?limit=10', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setMotherTrends({ dominantWinner: d.dominantWinner, avgSuccessRate: d.avgSuccessRate, totalRuns: d.totalRuns }); })
+      .catch(() => {});
+
+    fetch('/api/mother/streaks', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.currentLeader) {
+          // Add streak info to motherStats or set separately
+          setMotherTrends(prev => prev ? { ...prev, streakLeader: d.currentLeader.id, streakLength: d.currentLeader.streak } : prev);
+        }
+      })
       .catch(() => {});
 
     // History — compute cost client-side
@@ -1135,6 +1145,7 @@ export default function AdminPage() {
                     { label: 'Avg Agents/Run',       value: String(motherStats.avgProvidersPerRun ?? 0) },
                     { label: 'Recent (5 min)',        value: String(motherStats.recentIterations ?? 0) },
                     { label: 'Avg Success%',         value: motherTrends ? `${motherTrends.avgSuccessRate}%` : '—' },
+                    { label: 'Streak Leader',        value: motherTrends?.streakLeader ? `🔥 ${motherTrends.streakLeader} (${motherTrends.streakLength})` : '—' },
                     { label: 'Win Leader',           value: motherStats.winLeader ?? '—' },
                     { label: 'Total Wins',           value: String(motherStats.totalWins ?? 0) },
                     { label: 'Open Circuits',        value: String(circuitOpenCount) },

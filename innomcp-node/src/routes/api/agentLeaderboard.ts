@@ -49,6 +49,7 @@ export interface AgentEntry {
   efficiencyScore?: number;
   currentStreak?: number;
   bestStreak?: number;
+  consistencyScore?: number;
 }
 
 /**
@@ -288,11 +289,11 @@ const AGENT_CATALOGUE: AgentEntry[] = [
 
 /** Attempt to pull live request counts and latency from task_steps. */
 async function fetchLiveStats(): Promise<
-  Map<string, { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number; avgResponseLength?: number; avgQuality?: number; winRate?: number; topIntent?: string; currentStreak?: number; bestStreak?: number }>
+  Map<string, { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number; avgResponseLength?: number; avgQuality?: number; winRate?: number; topIntent?: string; currentStreak?: number; bestStreak?: number; consistencyScore?: number }>
 > {
   const result = new Map<
     string,
-    { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number; avgResponseLength?: number; avgQuality?: number; winRate?: number; topIntent?: string; currentStreak?: number; bestStreak?: number }
+    { requests: number; avgLatency: number; successRate: number; p95Latency?: number; wins?: number; avgResponseLength?: number; avgQuality?: number; winRate?: number; topIntent?: string; currentStreak?: number; bestStreak?: number; consistencyScore?: number }
   >();
 
   try {
@@ -407,6 +408,7 @@ router.get("/", async (_req: Request, res: Response) => {
           efficiencyScore: live.efficiencyScore,
           currentStreak: live.currentStreak,
           bestStreak: live.bestStreak,
+          consistencyScore: live.consistencyScore,
         }
       : { ...entry };
   });

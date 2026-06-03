@@ -27,6 +27,7 @@ interface AgentEntry {
   efficiencyScore?: number;
   currentStreak?: number;
   bestStreak?: number;
+  consistencyScore?: number;
   topIntent?: string;
   sparkline?: number[];
 }
@@ -144,6 +145,17 @@ function formatTime(d: Date): string {
   return d.toTimeString().slice(0, 8);
 }
 
+// ─── Column visibility ────────────────────────────────────────────────────────
+
+type ColumnKey = "trend" | "verbose" | "qual" | "winrate" | "health";
+const OPTIONAL_COLS: { key: ColumnKey; label: string }[] = [
+  { key: "trend",   label: "Trend" },
+  { key: "verbose", label: "Verbose" },
+  { key: "qual",    label: "Qual" },
+  { key: "winrate", label: "Win%" },
+  { key: "health",  label: "Health" },
+];
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AgentLeaderboard({
@@ -173,6 +185,12 @@ export default function AgentLeaderboard({
   const [sessionStats, setSessionStats] = useState<{totalDispatches: number; topWinner: {providerId: string; wins: number} | null} | null>(null);
   const [historyProvider, setHistoryProvider] = useState<{id: string; label: string} | null>(null);
   const [showInactive, setShowInactive] = useState(false);
+  const [hiddenCols, setHiddenCols] = useState<Set<ColumnKey>>(new Set());
+  const toggleCol = (key: ColumnKey) => setHiddenCols(prev => {
+    const next = new Set(prev);
+    next.has(key) ? next.delete(key) : next.add(key);
+    return next;
+  });
 
   // ── Fetch leaderboard data ──────────────────────────────────────────────────
   const fetchLeaderboard = useCallback(() => {
@@ -496,6 +514,23 @@ export default function AgentLeaderboard({
             ⬇ CSV
           </button>
         </div>
+        {/* Column visibility toggles */}
+        <div className="flex items-center gap-1 mt-1 flex-wrap">
+          <span className="text-[9px] text-muted-foreground/50 mr-0.5">cols:</span>
+          {OPTIONAL_COLS.map(col => (
+            <button
+              key={col.key}
+              onClick={() => toggleCol(col.key)}
+              className={`rounded px-1.5 py-0.5 text-[9px] border transition-colors ${
+                hiddenCols.has(col.key)
+                  ? "border-border/20 text-muted-foreground/30 line-through"
+                  : "border-border/40 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {col.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Loading / Error states */}
@@ -542,15 +577,15 @@ export default function AgentLeaderboard({
                 <th scope="col" className="px-2 py-1.5 text-center font-medium">Status</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">Requests</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">Avg Latency</th>
-                <th scope="col" className="px-2 py-1.5 text-right font-medium w-16">Trend</th>
+                {!hiddenCols.has("trend") && <th scope="col" className="px-2 py-1.5 text-right font-medium w-16">Trend</th>}
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">P95</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium">Success%</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium w-14">Score</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium w-10">Wins</th>
-                <th scope="col" className="px-2 py-1.5 text-right font-medium w-14">Verbose</th>
-                <th scope="col" className="px-2 py-1.5 text-right font-medium w-10">Qual</th>
-                <th scope="col" className="px-2 py-1.5 text-right font-medium w-10">Win%</th>
-                <th scope="col" className="px-2 py-1.5 text-right font-medium w-10">Health</th>
+                {!hiddenCols.has("verbose") && <th scope="col" className="px-2 py-1.5 text-right font-medium w-14">Verbose</th>}
+                {!hiddenCols.has("qual") && <th scope="col" className="px-2 py-1.5 text-right font-medium w-10">Qual</th>}
+                {!hiddenCols.has("winrate") && <th scope="col" className="px-2 py-1.5 text-right font-medium w-10">Win%</th>}
+                {!hiddenCols.has("health") && <th scope="col" className="px-2 py-1.5 text-right font-medium w-10">Health</th>}
                 <th scope="col" className="px-2 py-1.5 text-left font-medium">Role</th>
               </tr>
             </thead>
@@ -641,9 +676,11 @@ export default function AgentLeaderboard({
                       {formatLatency(agent.avgLatency)}
                     </td>
                     {/* Sparkline trend */}
-                    <td className="px-2 py-1.5 text-right">
-                      <LatencySparkline samples={agent.sparkline ?? []} />
-                    </td>
+                    {!hiddenCols.has("trend") && (
+                      <td className="px-2 py-1.5 text-right">
+                        <LatencySparkline samples={agent.sparkline ?? []} />
+                      </td>
+                    )}
                     {/* P95 Latency */}
                     <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
                       {agent.p95Latency !== undefined ? formatLatency(agent.p95Latency) : "–"}
@@ -704,47 +741,55 @@ export default function AgentLeaderboard({
                       )}
                     </td>
                     {/* Avg response length */}
-                    <td className="px-2 py-1.5 text-right tabular-nums text-[11px]">
-                      {agent.avgResponseLength != null && agent.avgResponseLength > 0 ? (
-                        <span className="text-muted-foreground">
-                          {agent.avgResponseLength >= 1000 ? `${(agent.avgResponseLength/1000).toFixed(1)}k` : String(agent.avgResponseLength)}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/40">—</span>
-                      )}
-                    </td>
+                    {!hiddenCols.has("verbose") && (
+                      <td className="px-2 py-1.5 text-right tabular-nums text-[11px]">
+                        {agent.avgResponseLength != null && agent.avgResponseLength > 0 ? (
+                          <span className="text-muted-foreground">
+                            {agent.avgResponseLength >= 1000 ? `${(agent.avgResponseLength/1000).toFixed(1)}k` : String(agent.avgResponseLength)}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/40">—</span>
+                        )}
+                      </td>
+                    )}
                     {/* Avg quality score */}
-                    <td className="px-2 py-1.5 text-right tabular-nums text-[11px]">
-                      {agent.avgQuality != null && agent.avgQuality > 0 ? (
-                        <span className={
-                          agent.avgQuality >= 80 ? "text-emerald-600 dark:text-emerald-400" :
-                          agent.avgQuality >= 50 ? "text-amber-600 dark:text-amber-400" :
-                          "text-rose-600 dark:text-rose-400"
-                        }>
-                          {agent.avgQuality}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/40">—</span>
-                      )}
-                    </td>
+                    {!hiddenCols.has("qual") && (
+                      <td className="px-2 py-1.5 text-right tabular-nums text-[11px]">
+                        {agent.avgQuality != null && agent.avgQuality > 0 ? (
+                          <span className={
+                            agent.avgQuality >= 80 ? "text-emerald-600 dark:text-emerald-400" :
+                            agent.avgQuality >= 50 ? "text-amber-600 dark:text-amber-400" :
+                            "text-rose-600 dark:text-rose-400"
+                          }>
+                            {agent.avgQuality}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/40">—</span>
+                        )}
+                      </td>
+                    )}
                     {/* Win Rate */}
-                    <td className="px-2 py-1.5 text-right tabular-nums text-[11px]">
-                      {agent.winRate != null && agent.winRate > 0 ? (
-                        <span className={agent.winRate >= 50 ? "text-yellow-600 dark:text-yellow-400 font-medium" : "text-muted-foreground"}>
-                          {agent.winRate}%
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/40">—</span>
-                      )}
-                    </td>
+                    {!hiddenCols.has("winrate") && (
+                      <td className="px-2 py-1.5 text-right tabular-nums text-[11px]">
+                        {agent.winRate != null && agent.winRate > 0 ? (
+                          <span className={agent.winRate >= 50 ? "text-yellow-600 dark:text-yellow-400 font-medium" : "text-muted-foreground"}>
+                            {agent.winRate}%
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground/40">—</span>
+                        )}
+                      </td>
+                    )}
                     {/* Health score */}
-                    <td className="px-2 py-1.5 text-right tabular-nums text-[11px]">
-                      {agent.healthScore != null && agent.healthScore > 0 ? (
-                        <span className={agent.healthScore >= 70 ? "text-emerald-600 dark:text-emerald-400" : agent.healthScore >= 40 ? "text-amber-600 dark:text-amber-400" : "text-rose-500"}>
-                          {agent.healthScore}
-                        </span>
-                      ) : <span className="text-muted-foreground/40">—</span>}
-                    </td>
+                    {!hiddenCols.has("health") && (
+                      <td className="px-2 py-1.5 text-right tabular-nums text-[11px]">
+                        {agent.healthScore != null && agent.healthScore > 0 ? (
+                          <span className={agent.healthScore >= 70 ? "text-emerald-600 dark:text-emerald-400" : agent.healthScore >= 40 ? "text-amber-600 dark:text-amber-400" : "text-rose-500"}>
+                            {agent.healthScore}
+                          </span>
+                        ) : <span className="text-muted-foreground/40">—</span>}
+                      </td>
+                    )}
                     {/* Role */}
                     <td className="px-2 py-1.5 text-muted-foreground whitespace-nowrap">
                       {agent.role}
@@ -755,7 +800,7 @@ export default function AgentLeaderboard({
               {visible.length === 0 && (
                 <tr>
                   <td
-                    colSpan={17}
+                    colSpan={17 - hiddenCols.size}
                     className="px-2 py-4 text-center text-muted-foreground text-[11px]"
                   >
                     No agents match this filter.
