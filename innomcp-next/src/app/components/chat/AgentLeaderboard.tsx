@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import LatencySparkline from "./LatencySparkline";
 import LeaderboardCard from "./LeaderboardCard";
+import ProviderHistoryPanel from "./ProviderHistoryPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -165,6 +166,7 @@ export default function AgentLeaderboard({
   const [providerEnabled, setProviderEnabled] = useState<Record<string, boolean>>({});
   const [providerTier, setProviderTier] = useState<Record<string, string>>({});
   const [sessionStats, setSessionStats] = useState<{totalDispatches: number; topWinner: {providerId: string; wins: number} | null} | null>(null);
+  const [historyProvider, setHistoryProvider] = useState<{id: string; label: string} | null>(null);
 
   // ── Fetch leaderboard data ──────────────────────────────────────────────────
   const fetchLeaderboard = useCallback(() => {
@@ -546,6 +548,13 @@ export default function AgentLeaderboard({
                           {agent.topIntent === "code" ? "⌨️" : agent.topIntent === "knowledge" ? "📚" : agent.topIntent === "greeting" ? "👋" : agent.topIntent === "weather" ? "🌤" : "🎯"}
                         </span>
                       )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setHistoryProvider({ id: agent.id, label: agent.name }); }}
+                        className="ml-1 text-[9px] text-muted-foreground/30 hover:text-muted-foreground transition-colors"
+                        title="Show dispatch history"
+                      >
+                        ⏱
+                      </button>
                     </td>
                     {/* Provider */}
                     <td
@@ -716,6 +725,22 @@ export default function AgentLeaderboard({
         <p className="text-[9.5px] text-muted-foreground text-right">
           Last updated: {formatTime(lastUpdated)}
         </p>
+      )}
+
+      {/* Provider history overlay */}
+      {historyProvider && (
+        <div
+          className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4"
+          onClick={() => setHistoryProvider(null)}
+        >
+          <div onClick={e => e.stopPropagation()}>
+            <ProviderHistoryPanel
+              providerId={historyProvider.id}
+              providerLabel={historyProvider.label}
+              onClose={() => setHistoryProvider(null)}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

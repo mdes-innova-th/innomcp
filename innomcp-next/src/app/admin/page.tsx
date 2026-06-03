@@ -432,6 +432,16 @@ export default function AdminPage() {
     } catch { /* ignore */ }
   }
 
+  async function resetMotherStats() {
+    try {
+      const res = await fetch('/api/mother/stats/reset', { method: 'POST', credentials: 'include' });
+      if (res.ok) {
+        // Re-fetch after reset
+        fetchMotherData();
+      }
+    } catch { /* ignore */ }
+  }
+
   // ── Early return ──────────────────────────────────────────────────────────────
 
   if (isAuthLoading || !isLoggedIn || userRoleId !== 0) {
@@ -1044,6 +1054,13 @@ export default function AdminPage() {
                 className="text-xs px-3 py-1 rounded border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
               >
                 Refresh
+              </button>
+              <button
+                onClick={resetMotherStats}
+                className="text-xs px-3 py-1 rounded border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-200 transition-colors ml-1"
+                title="Clear all stats and history"
+              >
+                Reset
               </button>
             </div>
 

@@ -174,4 +174,17 @@ router.get("/", (_req: Request, res: Response): void => {
   res.json(response);
 });
 
+/**
+ * POST /api/mother/stats/reset
+ * Clears all in-memory leaderboard metrics and history.
+ * Used for fresh starts without server restart.
+ */
+router.post("/reset", (_req: Request, res: Response): void => {
+  const { resetStats } = require("../../services/leaderboardMetrics") as typeof import("../../services/leaderboardMetrics");
+  const { clearHistory } = require("../../services/motherHistory") as typeof import("../../services/motherHistory");
+  resetStats();
+  clearHistory?.();
+  res.json({ ok: true, message: "All mother dispatch stats and history cleared", timestamp: new Date().toISOString() });
+});
+
 export default router;

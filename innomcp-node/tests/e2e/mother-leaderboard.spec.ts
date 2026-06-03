@@ -552,3 +552,27 @@ test.describe('GET /api/mother/providers/:id/stats', () => {
     expect(response.status()).toBe(404);
   });
 });
+
+test.describe('POST /api/mother/stats/reset', () => {
+  test('returns 200 with ok:true', async ({ request }) => {
+    const response = await request.post(`${BACKEND_URL}/api/mother/stats/reset`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.ok).toBe(true);
+  });
+});
+
+test.describe('GET /api/mother/providers/:id/history', () => {
+  test('returns 200 with runs array for known provider', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/providers/groq-llama/history`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(Array.isArray(body.runs)).toBe(true);
+    expect(typeof body.total).toBe('number');
+  });
+
+  test('returns 404 for unknown provider', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/providers/fake/history`);
+    expect(response.status()).toBe(404);
+  });
+});

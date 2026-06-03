@@ -101,4 +101,46 @@ router.get("/:providerId/stats", (req: Request, res: Response): void => {
   });
 });
 
+/**
+ * GET /api/mother/providers/:providerId/history?limit=10
+ * Returns dispatch runs where this provider participated.
+ */
+router.get("/:providerId/history", (req: Request, res: Response): void => {
+  const { providerId } = req.params;
+  if (!ALL_PROVIDER_IDS.includes(providerId)) {
+    res.status(404).json({ ok: false, error: "Unknown provider" });
+    return;
+  }
+
+  const raw = parseInt((req.query as { limit?: string }).limit ?? "10", 10);
+  const limit = Math.min(Math.max(1, Number.isFinite(raw) ? raw : 10), 50);
+
+  const { getHistory } = require("../../services/motherHistory") as typeof import("../../services/motherHistory");
+  const allRuns = getHistory(50);
+
+  const providerRuns = allRuns
+    .filter(run => run.providers.some(p => p.providerId === providerId))
+    .slice(0, limit)
+    .map(run => {
+      const p = run.providers.find(pr => pr.providerId === providerId)!;
+      return {
+        runId: run.runId,
+        timestamp: run.timestamp,
+        query: run.query.slice(0, 60),
+        latencyMs: p.latencyMs,
+        success: p.success,
+        preview: p.preview,
+        isFastest: run.fastestProvider === providerId,
+        isWinner: run.fastestProvider === providerId,
+      };
+    });
+
+  res.json({
+    providerId,
+    runs: providerRuns,
+    total: providerRuns.length,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 export default router;
