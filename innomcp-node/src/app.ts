@@ -20,6 +20,7 @@ import { apiKeyMiddleware } from "./utils/apikey";
 import csrfMiddleware from "./utils/csrf";
 import { authenticateToken } from "./utils/jwt";
 import { chatRouter } from "./routes/api/chat";
+import { hydrateStore } from "./providers/registry";
 import logger from "./utils/logger";
 import debugRouter from "./routes/api/debug";
 import tasksRouter from "./routes/api/tasks";
@@ -76,6 +77,7 @@ process.on("unhandledRejection", (err) => {
 });
 
 logger.info('ðŸš€ Backend application starting...');
+hydrateStore();
 const allowedOrigin = process.env.ALLOWED_ORIGIN?.split(",") || [];
 
 // CORS origin function - allow all in development, restricted in production

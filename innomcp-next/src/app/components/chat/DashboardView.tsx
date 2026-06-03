@@ -151,6 +151,33 @@ export default function DashboardView({
       .finally(() => setLoading(false));
   }, [projectId]);
 
+  const handleExportLog = async () => {
+    const params = new URLSearchParams();
+    if (projectId) params.set("projectId", projectId);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+
+    try {
+      const response = await fetch(`${BACKEND}/api/export/logs${suffix}`, {
+        method: "GET",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error(`Export failed: ${response.statusText}`);
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `system-logs-${new Date().toISOString().split('T')[0]}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("Export log error:", e);
+      alert("Failed to export logs. Please check if the backend is running.");
+    }
+  };
+
   // Initial load + pinned artifacts
   useEffect(() => {
     fetchDashboard();
@@ -278,6 +305,12 @@ export default function DashboardView({
           className="rounded-lg border border-border/50 px-4 py-2 text-[12.5px] text-foreground hover:bg-muted/30 transition-colors"
         >
           📋 ดูงานทั้งหมด
+        </button>
+        <button
+          onClick={handleExportLog}
+          className="rounded-lg border border-border/50 px-4 py-2 text-[12.5px] text-foreground hover:bg-muted/30 transition-colors"
+        >
+          ⬇️ Export Log
         </button>
         {s && s.shellExecutions24h > 0 && (
           <span className="rounded-lg border border-amber-500/30 bg-amber-500/[0.08] px-3 py-2 text-[11.5px] text-amber-700 dark:text-amber-400">

@@ -19,6 +19,7 @@ interface RawStats {
   totalResponseChars: number;
   responseSamples: number[];
   avgQuality: number;
+  qualitySamples: number;
   intentWins: Record<string, number>;
   currentStreak: number;
   bestStreak: number;
@@ -42,6 +43,15 @@ export interface ProviderStats {
 }
 
 const store = new Map<string, RawStats>();
+
+function persistLeaderboardStats(operation: () => void | Promise<void>): void {
+  if (process.env.NODE_ENV === "test") return;
+  setImmediate(() => {
+    Promise.resolve(operation()).catch(() => {
+      // DB unavailable - in-memory stays authoritative
+    });
+  });
+}
 
 function computeP95(samples: number[]): number {
   if (samples.length === 0) return 0;
@@ -85,6 +95,7 @@ export function recordProviderCall(
       totalResponseChars: responseChars ?? 0,
       responseSamples: responseChars != null ? [responseChars] : [],
       avgQuality: 0,
+      qualitySamples: 0,
       intentWins: {},
       currentStreak: 0,
       bestStreak: 0,
@@ -92,7 +103,7 @@ export function recordProviderCall(
   }
 
   // Write to DB async (non-blocking — never await, never throw to caller)
-  setImmediate(() => {
+  persistLeaderboardStats(() => {
     withDbConnection(async (conn) => {
       await conn.query(
         `INSERT INTO provider_stats (provider_id, requests, successes, total_latency)
@@ -204,6 +215,7 @@ export function recordProviderWin(providerId: string, intent?: string): void {
       totalResponseChars: 0,
       responseSamples: [],
       avgQuality: 0,
+      qualitySamples: 0,
       intentWins: intent ? { [intent]: 1 } : {},
       currentStreak: 0,
       bestStreak: 0,
@@ -211,7 +223,7 @@ export function recordProviderWin(providerId: string, intent?: string): void {
   }
 
   // Persist win to DB async (fire-and-forget — same pattern as recordProviderCall)
-  setImmediate(() => {
+  persistLeaderboardStats(() => {
     withDbConnection(async (conn) => {
       await conn.query(
         `INSERT INTO provider_stats (provider_id, wins)
@@ -232,14 +244,16 @@ export function recordProviderWin(providerId: string, intent?: string): void {
  */
 export function recordProviderQuality(providerId: string, qualityScore: number): void {
   const clampedScore = Math.max(0, Math.min(100, Math.round(qualityScore)));
-  const alpha = 0.2;
   const existing = store.get(providerId);
   if (existing) {
-    existing.avgQuality = alpha * clampedScore + (1 - alpha) * existing.avgQuality;
+    const samples = existing.qualitySamples ?? (existing.avgQuality > 0 ? 1 : 0);
+    existing.avgQuality = (existing.avgQuality * samples + clampedScore) / (samples + 1);
+    existing.qualitySamples = samples + 1;
   } else {
     store.set(providerId, {
       requests: 0, totalLatency: 0, successes: 0, latencySamples: [],
       wins: 0, totalResponseChars: 0, responseSamples: [], avgQuality: clampedScore,
+      qualitySamples: 1,
       intentWins: {}, currentStreak: 0, bestStreak: 0,
     });
   }
@@ -262,7 +276,8 @@ export function recordStreaks(winnerId: string): void {
   if (!store.has(winnerId)) {
     store.set(winnerId, {
       requests: 0, totalLatency: 0, successes: 0, latencySamples: [],
-      wins: 0, totalResponseChars: 0, responseSamples: [], qualityScores: [],
+      wins: 0, totalResponseChars: 0, responseSamples: [], avgQuality: 0,
+      qualitySamples: 0,
       intentWins: {}, currentStreak: 1, bestStreak: 1,
     });
   }

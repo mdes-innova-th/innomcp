@@ -9,6 +9,7 @@ import { logBoth } from "./utils/mcpLogger";
 import { initMemoryRag } from "./services/memoryRagHook";
 import { initializeDatabaseSchema } from "./utils/db";
 
+import { hydrateStore } from "./providers/registry";
 import app from "./app";
 import { wss as chatWSS, mcpClient, toolHealthChecker } from "./routes/api/chat";
 import { roomWSS } from "./routes/api/roomWss";

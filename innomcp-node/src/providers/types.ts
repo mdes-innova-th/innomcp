@@ -24,7 +24,14 @@ export type Capability =
   | "tool-use"
   | "fast-cheap"
   | "hard-reasoning"
-  | "grounding-critic";
+  | "grounding-critic"
+  | "general-purpose"
+  | "ultra-reasoning"
+  | "complex-architecture"
+  | "code-review"
+  | "math"
+  | "multimodal"
+  | "culture-aware";
 
 export type PrivacyLevel = "public" | "internal" | "confidential";
 

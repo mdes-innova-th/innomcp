@@ -26,6 +26,12 @@ User → ChatInput (drag-drop, voice, file)
 | Cache | cacheMiddleware.ts Map | 30s–5m |
 | Files | WORKSPACE_ROOT filesystem | Until deleted |
 
+## Memory Hydration Flow
+To optimize performance and reduce DB load, the system employs a boot-time and request-time hydration strategy:
+- **Boot-time Hydration**: Core system state (e.g., AI Provider Registry) is loaded from MariaDB into an in-memory `Map` during application startup (`hydrateStore()`).
+- **Request-time Hydration**: Session-specific memories and context are fetched from MariaDB at the beginning of a chat request and cached in `sessionMemory.ts` for the duration of the request.
+- **Write-through**: Updates to hydrated state are written back to MariaDB immediately to ensure persistence.
+
 ## Key Modules
 | File | Responsibility |
 |------|----------------|

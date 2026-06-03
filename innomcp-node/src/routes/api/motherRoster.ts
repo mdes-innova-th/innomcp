@@ -27,6 +27,7 @@ interface RosterEntry {
   score?: number;          // composite score from leaderboard (0–100), undefined if no calls yet
   requests?: number;       // total calls recorded
   wins?: number;
+  quality?: number;       // average quality score (0–100)
   sparkline?: number[];
   enabled?: boolean;
 }
@@ -63,6 +64,7 @@ router.get("/", (_req: Request, res: Response): void => {
       score,
       requests: s?.requests,
       wins: s?.wins,
+      quality: s?.avgQuality,
       sparkline: getSparklineData(p.id, 10),
       enabled: isProviderEnabled(p.id),
     };

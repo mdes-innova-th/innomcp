@@ -2,6 +2,7 @@ import { Router } from "express";
 import { chatRouter } from "./chat";
 import csrfRouter from "./csrf";
 import orchestratorRouter from "./orchestrator";
+import motherScorecardRouter from "./motherScorecard";
 import { getAvailableProviders } from "../../providers/router";
 
 const apiRouter = Router();
@@ -14,6 +15,7 @@ apiCsrfRouter.use("/csrf", csrfRouter);
 // URL Stats API routes (middleware applied at app level in src/app.ts)
 apiRouter.use("/chat", chatRouter);
 apiRouter.use("/orchestrate", orchestratorRouter);
+apiRouter.use("/mother/scorecard", motherScorecardRouter);
 
 // Provider discovery — lists available providers and which are configured
 apiRouter.get("/providers", (_req, res) => {

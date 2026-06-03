@@ -43,6 +43,20 @@ function buildSeed(): ProviderRecord[] {
     healthStatus: "unknown",
   });
 
+  seeds.push({
+    id: "innova-bot",
+    displayName: "Innova Bot (Local Ollama)",
+    type: "ollama-local",
+    baseUrl: process.env.INNOVA_BOT_BASE_URL || process.env.LOCAL_OLLAMA_BASE_URL || process.env.OLLAMA_LOCAL_BASE_URL || "http://localhost:11434",
+    model: process.env.INNOVA_BOT_MODEL || "qwen2.5:0.5b",
+    capabilities: ["thai-naturalness", "fast-cheap"],
+    priority: 65,
+    enabled: true,
+    privacyLevel: "internal",
+    timeoutMs: 20_000,
+    healthStatus: "unknown",
+  });
+
   // Remote MDES Ollama — optional (only seeded if URL env present)
   const mdesUrl =
     process.env.OLLAMA_REMOTE_BASE_URL || "https://ollama.mdes-innova.online";
@@ -52,7 +66,7 @@ function buildSeed(): ProviderRecord[] {
       displayName: "MDES Remote Ollama",
       type: "ollama-remote",
       baseUrl: mdesUrl.replace(/\/$/, ""),
-      apiKeyRef: process.env.OLLAMA_REMOTE_API_KEY_REF || undefined,
+      apiKeyRef: process.env.OLLAMA_REMOTE_API_KEY_REF || "REMOTE_OLLAMA_TOKEN",
       model: process.env.OLLAMA_REMOTE_DEFAULT_MODEL || "gpt-oss:120b-cloud",
       capabilities: ["thai-naturalness", "hard-reasoning", "long-context", "grounding-critic"],
       priority: 70,
@@ -198,7 +212,58 @@ function buildSeed(): ProviderRecord[] {
     });
   }
 
-  // ThaiLLM Specialist — optional (only seeded if THAI_LLM_API_KEY is present)
+  // Additional optional cloud providers.
+  if (process.env.MISTRAL_API_KEY) {
+    seeds.push({
+      id: "mistral-large",
+      displayName: "Mistral Large",
+      type: "openai-compatible",
+      baseUrl: (process.env.MISTRAL_BASE_URL || "https://api.mistral.ai/v1").replace(/\/$/, ""),
+      apiKeyRef: "MISTRAL_API_KEY",
+      model: process.env.MISTRAL_MODEL || "mistral-large-latest",
+      capabilities: ["hard-reasoning", "code", "long-context"],
+      priority: 80,
+      enabled: true,
+      privacyLevel: "internal",
+      timeoutMs: 60_000,
+      healthStatus: "unknown",
+    });
+  }
+
+  if (process.env.GROQ_API_KEY) {
+    seeds.push({
+      id: "groq-llama",
+      displayName: "Groq Llama",
+      type: "openai-compatible",
+      baseUrl: (process.env.GROQ_BASE_URL || "https://api.groq.com/openai/v1").replace(/\/$/, ""),
+      apiKeyRef: "GROQ_API_KEY",
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      capabilities: ["fast-cheap", "code"],
+      priority: 80,
+      enabled: true,
+      privacyLevel: "internal",
+      timeoutMs: 30_000,
+      healthStatus: "unknown",
+    });
+  }
+
+  if (process.env.TOGETHER_API_KEY) {
+    seeds.push({
+      id: "together-llama",
+      displayName: "Together Llama",
+      type: "openai-compatible",
+      baseUrl: (process.env.TOGETHER_BASE_URL || "https://api.together.xyz/v1").replace(/\/$/, ""),
+      apiKeyRef: "TOGETHER_API_KEY",
+      model: process.env.TOGETHER_MODEL || "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+      capabilities: ["long-context", "code", "fast-cheap"],
+      priority: 75,
+      enabled: true,
+      privacyLevel: "internal",
+      timeoutMs: 60_000,
+      healthStatus: "unknown",
+    });
+  }
+
   if (process.env.THAI_LLM_API_KEY) {
     seeds.push({
       id: "seed-thai-llm-specialist",
@@ -221,8 +286,9 @@ function buildSeed(): ProviderRecord[] {
 
 /** Hydrate the registry with seed entries (idempotent). */
 export function ensureSeeded(): void {
-  if (registry.size > 0) return;
-  for (const p of buildSeed()) registry.set(p.id, p);
+  for (const p of buildSeed()) {
+    if (!registry.has(p.id)) registry.set(p.id, p);
+  }
 }
 
 /**
@@ -237,10 +303,12 @@ export function hydrateStore(): void {
 ensureSeeded();
 
 export function listProviders(): ProviderRecord[] {
+  ensureSeeded();
   return Array.from(registry.values()).sort((a, b) => b.priority - a.priority);
 }
 
 export function getProvider(id: string): ProviderRecord | undefined {
+  ensureSeeded();
   return registry.get(id);
 }
 
@@ -305,6 +373,7 @@ export function setHealth(
 
 /** Resolve the API key VALUE for runtime use. Never returns it via API. */
 export function resolveApiKey(id: string): string | undefined {
+  ensureSeeded();
   const rec = registry.get(id);
   if (!rec) return undefined;
   if (rec.apiKeyRef) {

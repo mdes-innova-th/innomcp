@@ -756,11 +756,14 @@ export default function AgentLeaderboard({
                     {!hiddenCols.has("qual") && (
                       <td className="px-2 py-1.5 text-right tabular-nums text-[11px]">
                         {agent.avgQuality != null && agent.avgQuality > 0 ? (
-                          <span className={
-                            agent.avgQuality >= 80 ? "text-emerald-600 dark:text-emerald-400" :
-                            agent.avgQuality >= 50 ? "text-amber-600 dark:text-amber-400" :
-                            "text-rose-600 dark:text-rose-400"
-                          }>
+                          <span
+                            className={`rounded px-1 py-0.5 text-[8.5px] font-semibold leading-none ${
+                              agent.avgQuality >= 80 ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" :
+                              agent.avgQuality >= 50 ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" :
+                              "bg-rose-500/15 text-rose-700 dark:text-rose-300"
+                            }`}
+                            title={`Quality Score: ${agent.avgQuality}`}
+                          >
                             {agent.avgQuality}
                           </span>
                         ) : (

@@ -27,6 +27,7 @@ import type { MotherRunProvider } from "../services/motherHistory";
 import { errorRecovery } from "../utils/errorRecovery";
 import { isProviderEnabled } from "../services/motherProviderToggle";
 import { listProviders, resolveApiKey } from "../providers/registry";
+import { selectProvider, type SelectOptions } from "../providers/router";
 
 // ── Public interfaces ─────────────────────────────────────────────────────────
 
@@ -106,7 +107,8 @@ async function callInnovaOracle(cfg: ProviderConfig, prompt: string, signal: Abo
 }
 
 /** IDs belonging to the MDES cluster — used to enforce MDES_ONLY */
-const MDES_PROVIDER_IDS = new Set(["mdes-cloud", "thai-llm"]);
+const MDES_PROVIDER_IDS = new Set(["mdes-cloud", "thai-llm", "seed-mdes-ollama", "seed-thai-llm-specialist"]);
+const KEY_FREE_PROVIDER_IDS = new Set(["ollama-local", "seed-local-ollama", "innova-bot", "seed-innova-bot", "innova-oracle"]);
 
 export const INTENT_KEYWORDS: Record<string, string[]> = {
   weather: ["อุณหภูมิ", "สภาพอากาศ", "ฝน", "แดด", "พยากรณ์"],
@@ -146,6 +148,37 @@ function buildProviderConfigs(): ProviderConfig[] {
     apiKey: resolveApiKey(p.id) || "",
     isMdes: p.id.includes("mdes"),
   }));
+}
+
+function isProviderConfigEligible(cfg: ProviderConfig, mdesOnly = process.env.MDES_ONLY === "1"): boolean {
+  if (!isProviderEnabled(cfg.id)) return false;
+  const keyRequired = cfg.kind !== "ollama" || !KEY_FREE_PROVIDER_IDS.has(cfg.id);
+  if (keyRequired && cfg.apiKey.trim() === "") return false;
+  if (mdesOnly && !MDES_PROVIDER_IDS.has(cfg.id)) return false;
+  return true;
+}
+
+function selectCriticConfig(configs: ProviderConfig[], intent: string): ProviderConfig | null {
+  const eligible = configs.filter((cfg) => isProviderConfigEligible(cfg));
+  if (eligible.length === 0) return null;
+
+  const capabilities: SelectOptions["capabilities"] =
+    intent === "code" ? ["code", "grounding-critic"] : ["grounding-critic", "hard-reasoning"];
+  const selection = selectProvider({
+    mode: process.env.MDES_ONLY === "1" ? "remote" : "hybrid",
+    capabilities,
+    privacyLevel: "public",
+  });
+
+  const selected = selection.provider ? eligible.find((cfg) => cfg.id === selection.provider?.id) : undefined;
+  if (selected) return selected;
+
+  for (const alternate of selection.alternates) {
+    const alternateCfg = eligible.find((cfg) => cfg.id === alternate.id);
+    if (alternateCfg) return alternateCfg;
+  }
+
+  return eligible[0];
 }
 // ── Cost estimation ───────────────────────────────────────────────────────────
 
@@ -528,9 +561,9 @@ async function critiqueResults(
     `3. รายละเอียดที่สำคัญที่หายไป หรือตัวเลือกที่ดีที่สุด\n` +
     `ตอบเป็นภาษาไทย กระชับ ตรงประเด็น ห้ามเกรงใจ`;
 
-  // Use the highest priority provider for critique
   const configs = buildProviderConfigs();
-  const criticCfg = configs.sort((a, b) => b.priority - a.priority)[0];
+  const criticCfg = selectCriticConfig(configs, intent);
+  if (!criticCfg) return "";
 
   const critEv = newEnvelope({
     runId,
@@ -731,14 +764,7 @@ export async function dispatchMother(
   const allConfigs = buildProviderConfigs();
 
   // Filter: skip providers with no key; enforce MDES_ONLY
-  const eligible = allConfigs.filter((cfg) => {
-    if (!isProviderEnabled(cfg.id)) return false;
-    // Local Ollama providers have no required key — always include unless MDES_ONLY
-    const keyRequired = cfg.kind !== "ollama" || (cfg.id !== "ollama-local" && cfg.id !== "innova-bot" && cfg.id !== "innova-oracle");
-    if (keyRequired && cfg.apiKey.trim() === "") return false;
-    if (mdesOnly && !MDES_PROVIDER_IDS.has(cfg.id)) return false;
-    return true;
-  });
+  const eligible = allConfigs.filter((cfg) => isProviderConfigEligible(cfg, mdesOnly));
 
   if (eligible.length === 0) {
     return { results: [], synthesis: "", totalAgents: 0, successCount: 0, totalEstimatedCostUsd: 0 };
