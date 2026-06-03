@@ -56,6 +56,8 @@ import motherSummaryRouter from "./routes/api/motherSummary";
 import motherLeaderboardSnapshotRouter from "./routes/api/motherLeaderboardSnapshot";
 import motherTalkToInnovaBotRouter from "./routes/api/motherTalkToInnovaBot";
 import motherTriggerDispatchRouter from "./routes/api/motherTriggerDispatch";
+import motherInboxRouter from "./routes/api/motherInbox";
+import motherConfigRouter from "./routes/api/motherConfig";
 import presenceRouter from "./routes/api/presence";
 import activityRouter from "./routes/api/activity";
 
@@ -213,6 +215,8 @@ app.use("/api/mother/summary", generalRateLimit, motherSummaryRouter);
 app.use("/api/mother/leaderboard-snapshot", generalRateLimit, motherLeaderboardSnapshotRouter);
 app.use("/api/mother/talk-to-innova-bot", generalRateLimit, motherTalkToInnovaBotRouter);
 app.use("/api/mother/trigger-dispatch", generalRateLimit, motherTriggerDispatchRouter);
+app.use("/api/mother/inbox", generalRateLimit, motherInboxRouter);
+app.use("/api/mother/config", generalRateLimit, motherConfigRouter);
 
 // Model Settings — ad-hoc connection test + provider presets (no auth, public)
 app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);

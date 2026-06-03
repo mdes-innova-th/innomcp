@@ -164,6 +164,7 @@ export default function AgentLeaderboard({
     motherActive ? "wins" : "requests"
   );
   const [filterType, setFilterType] = useState<"all" | "mdes" | "claude" | "gpt" | "local" | "other">("all");
+  const [filterTier, setFilterTier] = useState<"all" | "gold" | "silver" | "bronze">("all");
   const [rosterEligible, setRosterEligible] = useState<number | null>(null);
   const [providerEnabled, setProviderEnabled] = useState<Record<string, boolean>>({});
   const [providerTier, setProviderTier] = useState<Record<string, string>>({});
@@ -273,7 +274,9 @@ export default function AgentLeaderboard({
     ? filtered.filter(a => a.requests > 0 || (a.wins ?? 0) > 0)
     : filtered;
 
-  const visible = [...active].sort((a, b) => {
+  const tierFiltered = filterTier === "all" ? active : active.filter(a => providerTier[a.id] === filterTier);
+
+  const visible = [...tierFiltered].sort((a, b) => {
     if (sortBy === "latency") return (a.avgLatency || Infinity) - (b.avgLatency || Infinity);
     if (sortBy === "success") return b.successRate - a.successRate;
     if (sortBy === "score") return (b.score ?? 0) - (a.score ?? 0);
@@ -443,6 +446,21 @@ export default function AgentLeaderboard({
               }`}
             >
               {t === "all" ? "All" : t === "mdes" ? "MDES" : t === "claude" ? "Claude" : t === "gpt" ? "GPT" : t === "local" ? "Local" : "Other"}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1 mt-1">
+          {(["all", "gold", "silver", "bronze"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setFilterTier(t)}
+              className={`rounded px-1.5 py-0.5 text-[10px] border transition-colors ${
+                filterTier === t
+                  ? "border-primary/40 bg-primary/10 text-primary font-medium"
+                  : "border-border/40 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t === "all" ? "All Tiers" : t === "gold" ? "🥇" : t === "silver" ? "🥈" : "🥉"}
             </button>
           ))}
         </div>

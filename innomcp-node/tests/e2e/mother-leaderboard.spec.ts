@@ -623,3 +623,26 @@ test.describe('POST /api/mother/trigger-dispatch', () => {
     expect(response.status()).not.toBe(400);
   });
 });
+
+test.describe('GET /api/mother/inbox', () => {
+  test('returns 200 with inbox shape', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/inbox`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(Array.isArray(body.messages)).toBe(true);
+    expect(typeof body.newCount).toBe('number');
+  });
+});
+
+test.describe('GET /api/mother/config', () => {
+  test('returns 200 with 14 providers and no apiKey', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/config`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.totalProviders).toBe(14);
+    expect(body).toHaveProperty('featureFlags');
+    for (const p of body.providers) {
+      expect(p).not.toHaveProperty('apiKey');
+    }
+  });
+});

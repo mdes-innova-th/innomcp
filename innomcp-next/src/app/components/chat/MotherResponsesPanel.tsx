@@ -61,6 +61,8 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
   const [showTalk, setShowTalk] = useState(false);
   const [talkMsg, setTalkMsg] = useState("");
   const [talkSending, setTalkSending] = useState(false);
+  const [inboxMessages, setInboxMessages] = useState<Array<{subject?: string; preview: string; isNew: boolean}>>([]);
+  const [showInbox, setShowInbox] = useState(false);
 
   const fetchLatest = useCallback(() => {
     setLoading(true);
@@ -89,6 +91,17 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
     } catch { /* ignore */ }
     finally { setTalkSending(false); }
   }, [talkMsg]);
+
+  const checkInbox = useCallback(() => {
+    fetch(resolveBackendUrl("/api/mother/inbox?limit=5"), { credentials: "include" })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.messages) setInboxMessages(d.messages); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    checkInbox();
+  }, [checkInbox]);
 
   const handleDownload = useCallback(() => {
     if (!run) return;
@@ -146,6 +159,15 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
             💬
           </button>
           <button
+            onClick={() => { setShowInbox(s => !s); checkInbox(); }}
+            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded border border-border/40 relative"
+            title="Check innova-bot replies"
+          >
+            📬{inboxMessages.filter(m => m.isNew).length > 0 && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+            )}
+          </button>
+          <button
             onClick={fetchLatest}
             disabled={loading}
             className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded border border-border/40"
@@ -172,6 +194,20 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
           >
             {talkSending ? "…" : "Send"}
           </button>
+        </div>
+      )}
+
+      {showInbox && (
+        <div className="mt-2 rounded border border-border/40 bg-muted/20 p-2 space-y-1.5 max-h-48 overflow-y-auto">
+          <p className="text-[10px] font-semibold text-muted-foreground">Replies from innova-bot</p>
+          {inboxMessages.length === 0 ? (
+            <p className="text-[10px] text-muted-foreground/60">No replies yet.</p>
+          ) : inboxMessages.map((m, i) => (
+            <div key={i} className={`text-[10px] p-1.5 rounded border ${m.isNew ? 'border-blue-400/30 bg-blue-400/5' : 'border-border/30'}`}>
+              {m.subject && <p className="font-medium mb-0.5">{m.subject}</p>}
+              <p className="text-muted-foreground/80 line-clamp-2">{m.preview}</p>
+            </div>
+          ))}
         </div>
       )}
 
