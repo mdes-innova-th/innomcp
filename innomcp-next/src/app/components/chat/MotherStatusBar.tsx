@@ -5,6 +5,7 @@ interface ProviderStatus {
   totalProviders: number;
   enabledCount: number;
   activeCount: number;
+  topProvider?: string;
 }
 
 function resolveBackendUrl(path: string): string {
@@ -33,6 +34,7 @@ export default function MotherStatusBar({ motherActive = false, className = "" }
             totalProviders: d.totalProviders ?? 14,
             enabledCount: d.enabledCount ?? 0,
             activeCount: d.activeProviders ?? 0,
+            topProvider: d.topProvider?.id,
           });
         })
         .catch(() => {});
@@ -55,6 +57,9 @@ export default function MotherStatusBar({ motherActive = false, className = "" }
       </span>
       {motherActive && (
         <span className="text-emerald-600 dark:text-emerald-400 font-medium">· Mother ON</span>
+      )}
+      {status.topProvider && (
+        <span className="text-muted-foreground/60">· 🏆 {status.topProvider}</span>
       )}
     </div>
   );

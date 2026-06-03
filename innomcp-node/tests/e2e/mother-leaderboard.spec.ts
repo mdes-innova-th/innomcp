@@ -609,3 +609,17 @@ test.describe('Agent leaderboard with health+efficiency fields', () => {
     }
   });
 });
+
+test.describe('POST /api/mother/trigger-dispatch', () => {
+  test('returns 400 for empty query', async ({ request }) => {
+    const response = await request.post(`${BACKEND_URL}/api/mother/trigger-dispatch`)
+      .send({ query: '' });
+    expect(response.status()).toBe(400);
+  });
+
+  test('accepts default empty body and returns non-400', async ({ request }) => {
+    const response = await request.post(`${BACKEND_URL}/api/mother/trigger-dispatch`)
+      .send({});
+    expect(response.status()).not.toBe(400);
+  });
+});

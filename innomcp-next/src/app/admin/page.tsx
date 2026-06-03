@@ -181,6 +181,9 @@ export default function AdminPage() {
   const [motherRankings, setMotherRankings] = useState<Array<{providerId: string; rank: number; tier: string; compositeScore: number; wins: number}>>([]);
   const [intentLeaders, setIntentLeaders] = useState<Array<{intent: string; intentLabel: string; leaderId: string; wins: number}>>([]);
   const [busMessages, setBusMessages] = useState<Array<{filename: string; from?: string; subject?: string; preview: string; modifiedAt: string}>>([]);
+  const [dispatchQuery, setDispatchQuery] = useState("");
+  const [dispatchResult, setDispatchResult] = useState<{successCount: number; totalAgents: number; synthesis: string} | null>(null);
+  const [dispatching, setDispatching] = useState(false);
 
   // ── Auth guard ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -440,6 +443,26 @@ export default function AdminPage() {
         fetchMotherData();
       }
     } catch { /* ignore */ }
+  }
+
+  async function triggerTestDispatch() {
+    const q = dispatchQuery.trim() || "สวัสดี test dispatch";
+    setDispatching(true);
+    setDispatchResult(null);
+    try {
+      const res = await fetch('/api/mother/trigger-dispatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ query: q, intent: 'general' }),
+      });
+      const d = await res.json();
+      if (d.ok) {
+        setDispatchResult({ successCount: d.successCount, totalAgents: d.totalAgents, synthesis: d.synthesis });
+        fetchMotherData(); // refresh stats after dispatch
+      }
+    } catch { /* ignore */ }
+    finally { setDispatching(false); }
   }
 
   // ── Early return ──────────────────────────────────────────────────────────────
@@ -1047,21 +1070,46 @@ export default function AdminPage() {
           <div className="space-y-6">
 
             {/* Header with Refresh */}
-            <div className="flex items-center justify-between">
-              <h2 className="font-semibold text-gray-800 dark:text-gray-100">Mother Dispatch Monitor</h2>
-              <button
-                onClick={() => fetchMotherData()}
-                className="text-xs px-3 py-1 rounded border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-              >
-                Refresh
-              </button>
-              <button
-                onClick={resetMotherStats}
-                className="text-xs px-3 py-1 rounded border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-200 transition-colors ml-1"
-                title="Clear all stats and history"
-              >
-                Reset
-              </button>
+            <div className="flex flex-col gap-0">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-gray-800 dark:text-gray-100">Mother Dispatch Monitor</h2>
+                <button
+                  onClick={() => fetchMotherData()}
+                  className="text-xs px-3 py-1 rounded border border-gray-200 dark:border-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+                >
+                  Refresh
+                </button>
+                <button
+                  onClick={resetMotherStats}
+                  className="text-xs px-3 py-1 rounded border border-red-200 dark:border-red-800 text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-200 transition-colors ml-1"
+                  title="Clear all stats and history"
+                >
+                  Reset
+                </button>
+              </div>
+              {/* Test Dispatch */}
+              <div className="flex items-center gap-2 mt-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700/40 border border-gray-100 dark:border-gray-700">
+                <input
+                  type="text"
+                  value={dispatchQuery}
+                  onChange={e => setDispatchQuery(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !dispatching && triggerTestDispatch()}
+                  placeholder="Test query (leave empty for default)…"
+                  className="flex-1 text-xs px-2 py-1 rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 outline-none focus:border-blue-400"
+                />
+                <button
+                  onClick={triggerTestDispatch}
+                  disabled={dispatching}
+                  className="text-xs px-3 py-1 rounded bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-40 transition-colors"
+                >
+                  {dispatching ? '…' : '▶ Dispatch'}
+                </button>
+              </div>
+              {dispatchResult && (
+                <div className="mt-2 text-xs text-gray-600 dark:text-gray-400 p-2 rounded bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800">
+                  ✅ {dispatchResult.successCount}/{dispatchResult.totalAgents} responded · {dispatchResult.synthesis.slice(0, 120)}
+                </div>
+              )}
             </div>
 
             {/* ── Summary Row ─────────────────────────────────────────────────── */}

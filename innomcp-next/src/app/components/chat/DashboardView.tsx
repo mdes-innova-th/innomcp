@@ -12,6 +12,7 @@ import ProviderHealthPanel from "@/app/components/chat/ProviderHealthPanel";
 import MotherDispatchPanel from "@/app/components/chat/MotherDispatchPanel";
 import MotherStatsCard from "@/app/components/chat/MotherStatsCard";
 import MotherResponsesPanel from "./MotherResponsesPanel";
+import MotherStatusBar from "./MotherStatusBar";
 import LiveActivityFeed from "@/app/components/chat/LiveActivityFeed";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -220,6 +221,7 @@ export default function DashboardView({
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 flex flex-col gap-5">
+      <MotherStatusBar motherActive className="mb-2" />
       {/* Welcome */}
       <div>
         <h1 className="text-[20px] font-semibold text-foreground">Dashboard</h1>

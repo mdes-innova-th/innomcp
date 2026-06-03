@@ -28,6 +28,8 @@ interface RankingEntry {
   popularityScore: number;
   winScore: number;
   qualityScore: number;
+  efficiencyScore: number;
+  healthScore: number;
   requests: number;
   avgLatency: number;
   successRate: number;
@@ -83,6 +85,8 @@ router.get("/", (_req: Request, res: Response): void => {
       popularityScore,
       winScore,
       qualityScore,
+      efficiencyScore: s.efficiencyScore || 0,
+      healthScore: s.healthScore || 0,
       requests: s.requests,
       avgLatency: s.avgLatency,
       successRate: s.successRate,
