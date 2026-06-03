@@ -7,7 +7,7 @@
  * itself perform the LLM call.
  */
 
-import { listProviders } from "./registry";
+import { listProviders, getProvider, resolveApiKey } from "./registry";
 import type { Capability, PrivacyLevel, ProviderRecord } from "./types";
 
 export type ChatMode = "local" | "remote" | "hybrid";
@@ -132,22 +132,16 @@ export function getAvailableProviders(): string[] {
 export function resolveProviderEndpoint(
   providerId: string
 ): { url: string; key: string; model: string } | null {
-  switch (providerId) {
-    case "gpt":
-      return {
-        url: process.env.GPT_BASE_URL || "https://api.openai.com/v1",
-        key: process.env.OPENAI_API_KEY || process.env.GPT_API_KEY || "",
-        model: process.env.GPT_MODEL || "gpt-4o-mini",
-      };
-    case "github-copilot":
-      return {
-        url: process.env.GITHUB_COPILOT_BASE_URL || "https://api.githubcopilot.com",
-        key: process.env.GITHUB_COPILOT_TOKEN || process.env.COPILOT_API_KEY || "",
-        model: process.env.COPILOT_MODEL || "gpt-4o",
-      };
-    default:
-      return null;
-  }
+  const provider = getProvider(providerId);
+  if (!provider) return null;
+
+  const key = resolveApiKey(providerId) || "";
+
+  return {
+    url: provider.baseUrl,
+    key: key,
+    model: provider.model,
+  };
 }
 
 /**
