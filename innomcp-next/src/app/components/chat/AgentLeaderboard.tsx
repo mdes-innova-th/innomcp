@@ -23,6 +23,8 @@ interface AgentEntry {
   avgResponseLength?: number;
   avgQuality?: number;
   winRate?: number;
+  healthScore?: number;
+  efficiencyScore?: number;
   topIntent?: string;
   sparkline?: number[];
 }
@@ -158,7 +160,7 @@ export default function AgentLeaderboard({
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(activeInterval);
   const [filter, setFilter] = useState<"all" | "online" | "configured" | "checking" | "offline">("all");
-  const [sortBy, setSortBy] = useState<"requests" | "latency" | "success" | "score" | "wins" | "verbose" | "winrate">(
+  const [sortBy, setSortBy] = useState<"requests" | "latency" | "success" | "score" | "wins" | "verbose" | "winrate" | "health" | "efficiency">(
     motherActive ? "wins" : "requests"
   );
   const [filterType, setFilterType] = useState<"all" | "mdes" | "claude" | "gpt" | "local" | "other">("all");
@@ -278,6 +280,8 @@ export default function AgentLeaderboard({
     if (sortBy === "wins") return (b.wins ?? 0) - (a.wins ?? 0);
     if (sortBy === "verbose") return (b.avgResponseLength ?? 0) - (a.avgResponseLength ?? 0);
     if (sortBy === "winrate") return (b.winRate ?? 0) - (a.winRate ?? 0);
+    if (sortBy === "health") return (b.healthScore ?? 0) - (a.healthScore ?? 0);
+    if (sortBy === "efficiency") return (b.efficiencyScore ?? 0) - (a.efficiencyScore ?? 0);
     return b.requests - a.requests; // default: most requests first
   });
 
@@ -293,7 +297,7 @@ export default function AgentLeaderboard({
   // ── Export CSV ────────────────────────────────────────────────────────────
 
   function exportCSV() {
-    const header = "#,Agent,Provider,Model,Status,Requests,Avg Latency,Trend,Success%,Score,Wins,Verbose,Quality,Win%,Role";
+    const header = "#,Agent,Provider,Model,Status,Requests,Avg Latency,Trend,Success%,Score,Wins,Verbose,Quality,Win%,Health,Role";
     const rows = visible.map((a, i) =>
       [
         i + 1,
@@ -310,6 +314,7 @@ export default function AgentLeaderboard({
         a.avgResponseLength ?? 0,
         a.avgQuality ?? 0,
         a.winRate != null ? `${a.winRate}%` : "—",
+        a.healthScore ?? 0,
         `"${a.role}"`,
       ].join(",")
     );
@@ -442,7 +447,7 @@ export default function AgentLeaderboard({
           ))}
         </div>
         <div className="ml-auto flex items-center gap-1">
-          {(["wins", "winrate", "score", "requests", "latency", "success", "verbose"] as const).map((s) => (
+          {(["wins", "winrate", "score", "requests", "latency", "success", "verbose", "health", "efficiency"] as const).map((s) => (
             <button
               key={s}
               onClick={() => setSortBy(s)}
@@ -452,7 +457,7 @@ export default function AgentLeaderboard({
                   : "border-border/40 text-muted-foreground hover:text-foreground"
               }`}
             >
-              {s === "winrate" ? "Win%" : s === "verbose" ? "↓ Verb" : s === "wins" ? "🏆 Wins" : s === "score" ? "↓ Score" : s === "requests" ? "↓ Req" : s === "latency" ? "↑ Lat" : "↓ Succ"}
+              {s === "health" ? "💚 Health" : s === "efficiency" ? "⚡ Eff" : s === "winrate" ? "Win%" : s === "verbose" ? "↓ Verb" : s === "wins" ? "🏆 Wins" : s === "score" ? "↓ Score" : s === "requests" ? "↓ Req" : s === "latency" ? "↑ Lat" : "↓ Succ"}
             </button>
           ))}
           <button
@@ -516,6 +521,7 @@ export default function AgentLeaderboard({
                 <th scope="col" className="px-2 py-1.5 text-right font-medium w-14">Verbose</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium w-10">Qual</th>
                 <th scope="col" className="px-2 py-1.5 text-right font-medium w-10">Win%</th>
+                <th scope="col" className="px-2 py-1.5 text-right font-medium w-10">Health</th>
                 <th scope="col" className="px-2 py-1.5 text-left font-medium">Role</th>
               </tr>
             </thead>
@@ -697,6 +703,14 @@ export default function AgentLeaderboard({
                         <span className="text-muted-foreground/40">—</span>
                       )}
                     </td>
+                    {/* Health score */}
+                    <td className="px-2 py-1.5 text-right tabular-nums text-[11px]">
+                      {agent.healthScore != null && agent.healthScore > 0 ? (
+                        <span className={agent.healthScore >= 70 ? "text-emerald-600 dark:text-emerald-400" : agent.healthScore >= 40 ? "text-amber-600 dark:text-amber-400" : "text-rose-500"}>
+                          {agent.healthScore}
+                        </span>
+                      ) : <span className="text-muted-foreground/40">—</span>}
+                    </td>
                     {/* Role */}
                     <td className="px-2 py-1.5 text-muted-foreground whitespace-nowrap">
                       {agent.role}
@@ -707,7 +721,7 @@ export default function AgentLeaderboard({
               {visible.length === 0 && (
                 <tr>
                   <td
-                    colSpan={16}
+                    colSpan={17}
                     className="px-2 py-4 text-center text-muted-foreground text-[11px]"
                   >
                     No agents match this filter.

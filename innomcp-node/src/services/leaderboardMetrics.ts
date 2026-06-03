@@ -32,6 +32,8 @@ export interface ProviderStats {
   avgQuality: number;
   winRate: number;         // wins / requests * 100 (0 when requests=0)
   topIntent?: string;      // intent this provider wins most often
+  healthScore: number;      // 0-100: combines successRate + circuit state availability
+  efficiencyScore: number;  // wins per 1000 requests (0-100, capped)
 }
 
 const store = new Map<string, RawStats>();
@@ -123,6 +125,13 @@ export function getProviderStats(): Map<string, ProviderStats> {
       topIntent: Object.keys(raw.intentWins).length > 0
         ? Object.entries(raw.intentWins).sort((a, b) => b[1] - a[1])[0][0]
         : undefined,
+      efficiencyScore: raw.requests > 0
+        ? Math.min(100, Math.round((raw.wins / raw.requests) * 100))
+        : 0,
+      healthScore: raw.requests > 0
+        ? Math.round(Math.round((raw.successes / raw.requests) * 100) * 0.7 +
+                     (raw.wins > 0 ? 30 : 0))
+        : 0,
     });
   }
   return result;

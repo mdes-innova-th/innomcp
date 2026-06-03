@@ -28,6 +28,7 @@ import PreferencesPanel from "./PreferencesPanel";
 import WebhookPanel from "@/app/components/chat/WebhookPanel";
 import RateLimitIndicator from "@/app/components/common/RateLimitIndicator";
 import UserPresence from "@/app/components/chat/UserPresence";
+import MotherStatusBar from "./MotherStatusBar";
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -941,6 +942,8 @@ const ChatSidebar: React.FC<Props> = ({
             </svg>
           </button>
         </div>
+
+        <MotherStatusBar motherActive={motherActive} className="px-3 py-1 border-b border-border/20" />
 
         {/* ── New Task button ── */}
         <div className="px-3 pb-3">

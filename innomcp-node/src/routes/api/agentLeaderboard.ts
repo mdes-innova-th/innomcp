@@ -45,6 +45,8 @@ export interface AgentEntry {
   avgQuality?: number;
   winRate?: number;            // wins / requests * 100
   topIntent?: string;          // intent this provider wins most often
+  healthScore?: number;
+  efficiencyScore?: number;
 }
 
 /**
@@ -399,6 +401,8 @@ router.get("/", async (_req: Request, res: Response) => {
           avgQuality: live.avgQuality,
           winRate: live.winRate,
           topIntent: live.topIntent,
+          healthScore: live.healthScore,
+          efficiencyScore: live.efficiencyScore,
         }
       : { ...entry };
   });

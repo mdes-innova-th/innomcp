@@ -595,3 +595,17 @@ test.describe('POST /api/mother/talk-to-innova-bot', () => {
     expect(response.status()).toBe(400);
   });
 });
+
+test.describe('Agent leaderboard with health+efficiency fields', () => {
+  test('agents include healthScore and efficiencyScore when present', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/agent-leaderboard`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    // Fields exist on the response schema (may be 0/undefined for unused providers)
+    for (const agent of body.agents) {
+      // healthScore and efficiencyScore are optional — just check they're numbers if present
+      if (agent.healthScore !== undefined) expect(typeof agent.healthScore).toBe('number');
+      if (agent.efficiencyScore !== undefined) expect(typeof agent.efficiencyScore).toBe('number');
+    }
+  });
+});
