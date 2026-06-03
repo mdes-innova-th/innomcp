@@ -141,6 +141,11 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
           <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5 text-muted-foreground">
             iter #{run.iteration}
           </span>
+          {run.providers.filter(p => p.success).length > 0 && (
+            <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5 text-muted-foreground">
+              ⚡ {Math.round(run.providers.filter(p => p.success).reduce((s, p) => s + p.latencyMs, 0) / run.providers.filter(p => p.success).length)}ms avg
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <button

@@ -646,3 +646,17 @@ test.describe('GET /api/mother/config', () => {
     }
   });
 });
+
+test.describe('GET /api/mother/trends', () => {
+  test('returns 200 with trends shape', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/trends`);
+    expect(response.status()).toBe(200);
+
+    const body = await response.json();
+    expect(body).toHaveProperty('timeline');
+    expect(Array.isArray(body.timeline)).toBe(true);
+    expect(body).toHaveProperty('frequency');
+    expect(body).toHaveProperty('dominantWinner');
+    expect(typeof body.avgSuccessRate).toBe('number');
+  });
+});

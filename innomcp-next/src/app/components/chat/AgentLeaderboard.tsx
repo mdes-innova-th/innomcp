@@ -170,6 +170,7 @@ export default function AgentLeaderboard({
   const [providerTier, setProviderTier] = useState<Record<string, string>>({});
   const [sessionStats, setSessionStats] = useState<{totalDispatches: number; topWinner: {providerId: string; wins: number} | null} | null>(null);
   const [historyProvider, setHistoryProvider] = useState<{id: string; label: string} | null>(null);
+  const [showInactive, setShowInactive] = useState(false);
 
   // ── Fetch leaderboard data ──────────────────────────────────────────────────
   const fetchLeaderboard = useCallback(() => {
@@ -270,7 +271,7 @@ export default function AgentLeaderboard({
     return p !== "anthropic" && p !== "openai" && p !== "github" && p !== "mdes-cloud" && p !== "ollama-local" && p !== "innova-bot";
   });
 
-  const active = motherActive && filter === "all" && filtered.some(a => a.requests > 0)
+  const active = motherActive && filter === "all" && !showInactive && filtered.some(a => a.requests > 0)
     ? filtered.filter(a => a.requests > 0 || (a.wins ?? 0) > 0)
     : filtered;
 
@@ -463,6 +464,14 @@ export default function AgentLeaderboard({
               {t === "all" ? "All Tiers" : t === "gold" ? "🥇" : t === "silver" ? "🥈" : "🥉"}
             </button>
           ))}
+          {motherActive && filter === "all" && filtered.some(a => a.requests === 0) && (
+            <button
+              onClick={() => setShowInactive(s => !s)}
+              className="text-[9px] text-muted-foreground/50 hover:text-muted-foreground transition-colors ml-1"
+            >
+              {showInactive ? "hide inactive" : `+ ${filtered.filter(a => a.requests === 0).length} inactive`}
+            </button>
+          )}
         </div>
         <div className="ml-auto flex items-center gap-1">
           {(["wins", "winrate", "score", "requests", "latency", "success", "verbose", "health", "efficiency"] as const).map((s) => (
@@ -747,6 +756,25 @@ export default function AgentLeaderboard({
                 </tr>
               )}
             </tbody>
+            {visible.length > 0 && (
+              <tfoot>
+                <tr className="border-t border-border/40 bg-muted/20">
+                  <td colSpan={3} className="px-2 py-1.5 text-[10px] text-muted-foreground">
+                    {visible.length} providers shown
+                    {agents.length !== visible.length && (
+                      <span className="ml-1 text-primary/60">({agents.length - visible.length} filtered)</span>
+                    )}
+                  </td>
+                  <td colSpan={5} className="px-2 py-1.5 text-right text-[10px] text-muted-foreground tabular-nums">
+                    Σ {visible.reduce((s, a) => s + a.requests, 0)} req
+                  </td>
+                  <td colSpan={3} className="px-2 py-1.5 text-right text-[10px] text-muted-foreground tabular-nums">
+                    🏆 {visible.reduce((s, a) => s + (a.wins ?? 0), 0)} total wins
+                  </td>
+                  <td colSpan={6} />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
         </>

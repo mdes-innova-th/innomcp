@@ -184,6 +184,7 @@ export default function AdminPage() {
   const [dispatchQuery, setDispatchQuery] = useState("");
   const [dispatchResult, setDispatchResult] = useState<{successCount: number; totalAgents: number; synthesis: string} | null>(null);
   const [dispatching, setDispatching] = useState(false);
+  const [motherTrends, setMotherTrends] = useState<{dominantWinner: string | null; avgSuccessRate: number; totalRuns: number} | null>(null);
 
   // ── Auth guard ────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -336,6 +337,11 @@ export default function AdminPage() {
     fetch('/api/mother/bus-log?limit=8', { credentials: 'include' })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.messages) setBusMessages(d.messages); })
+      .catch(() => {});
+
+    fetch('/api/mother/trends?limit=10', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setMotherTrends({ dominantWinner: d.dominantWinner, avgSuccessRate: d.avgSuccessRate, totalRuns: d.totalRuns }); })
       .catch(() => {});
 
     // History — compute cost client-side
@@ -1120,7 +1126,7 @@ export default function AdminPage() {
               {motherStatsLoading ? (
                 <div className="p-8 text-center text-gray-400">Loading stats…</div>
               ) : motherStats ? (
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 p-4">
                   {[
                     { label: 'Total Runs',          value: String(motherStats.totalRuns) },
                     { label: 'Total Provider Calls', value: String(motherStats.totalProviderCalls) },
@@ -1128,6 +1134,7 @@ export default function AdminPage() {
                     { label: 'Last Run At',          value: motherStats.lastRunAt ? new Date(motherStats.lastRunAt).toLocaleString() : '–' },
                     { label: 'Avg Agents/Run',       value: String(motherStats.avgProvidersPerRun ?? 0) },
                     { label: 'Recent (5 min)',        value: String(motherStats.recentIterations ?? 0) },
+                    { label: 'Avg Success%',         value: motherTrends ? `${motherTrends.avgSuccessRate}%` : '—' },
                     { label: 'Win Leader',           value: motherStats.winLeader ?? '—' },
                     { label: 'Total Wins',           value: String(motherStats.totalWins ?? 0) },
                     { label: 'Open Circuits',        value: String(circuitOpenCount) },
