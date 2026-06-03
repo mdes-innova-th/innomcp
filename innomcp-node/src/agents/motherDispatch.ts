@@ -26,6 +26,7 @@ import { pushRun } from "../services/motherHistory";
 import type { MotherRunProvider } from "../services/motherHistory";
 import { errorRecovery } from "../utils/errorRecovery";
 import { isProviderEnabled } from "../services/motherProviderToggle";
+import { listProviders, resolveApiKey } from "../providers/registry";
 
 // ── Public interfaces ─────────────────────────────────────────────────────────
 
@@ -107,7 +108,7 @@ async function callInnovaOracle(cfg: ProviderConfig, prompt: string, signal: Abo
 /** IDs belonging to the MDES cluster — used to enforce MDES_ONLY */
 const MDES_PROVIDER_IDS = new Set(["mdes-cloud", "thai-llm"]);
 
-const INTENT_KEYWORDS: Record<string, string[]> = {
+export const INTENT_KEYWORDS: Record<string, string[]> = {
   weather: ["อุณหภูมิ", "สภาพอากาศ", "ฝน", "แดด", "พยากรณ์"],
   geo: ["ที่ตั้ง", "จังหวัด", "ประเทศ", "แผนที่", "พิกัด"],
   knowledge: ["ข้อมูล", "รายละเอียด", "ประวัติ", "ข้อเท็จจริง", "สรุป"],
@@ -117,7 +118,7 @@ const INTENT_KEYWORDS: Record<string, string[]> = {
   general: ["คำตอบ", "ข้อมูล", "ประเด็น"],
 };
 
-const AI_ISMS = [
+export const AI_ISMS = [
   "As an AI language model",
   "I hope this helps",
   "Certainly!",
@@ -135,167 +136,17 @@ let motherIteration = 0;
 const MOTHER_TIMEOUT_MS = 20_000;
 
 function buildProviderConfigs(): ProviderConfig[] {
-  const mdesUrl =
-    process.env.REMOTE_OLLAMA_BASE_URL ||
-    process.env.OLLAMA_REMOTE_BASE_URL ||
-    process.env.OLLAMA_REMOTE_URL ||
-    "https://ollama.mdes-innova.online";
-  const mdesKey =
-    process.env.REMOTE_OLLAMA_TOKEN ||
-    process.env.OLLAMA_REMOTE_API_KEY ||
-    process.env.OLLAMA_API_KEY ||
-    "";
-
-  return [
-    {
-      id: "mdes-cloud",
-      name: "MDES Cloud (gemma4:26b)",
-      kind: "ollama",
-      baseUrl: mdesUrl,
-      model: process.env.MDES_PRIMARY_MODEL || "gemma4:26b",
-      apiKey: mdesKey,
-      isMdes: true,
-    },
-    {
-      id: "thai-llm",
-      name: "Thai LLM (qwen3.5:9b)",
-      kind: "ollama",
-      baseUrl: mdesUrl,
-      model: process.env.THAI_LLM_MODEL || "qwen3.5:9b",
-      apiKey: mdesKey,
-      isMdes: true,
-    },
-    {
-      id: "ollama-local",
-      name: "Local Ollama",
-      kind: "ollama",
-      baseUrl:
-        process.env.LOCAL_OLLAMA_BASE_URL ||
-        process.env.OLLAMA_LOCAL_BASE_URL ||
-        process.env.OLLAMA_BASE_URL ||
-        "http://localhost:11434",
-      model:
-        process.env.LOCAL_OLLAMA_MODEL ||
-        process.env.OLLAMA_LOCAL_DEFAULT_MODEL ||
-        "llama3.2",
-      apiKey: process.env.LOCAL_OLLAMA_TOKEN || "",
-      isMdes: false,
-    },
-    {
-      id: "openai-gpt",
-      name: "OpenAI GPT",
-      kind: "openai",
-      baseUrl:
-        process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
-      model:
-        (process.env.OPENAI_FALLBACK_MODELS ?? "").split(",").map((m) => m.trim()).filter(Boolean)[0] ||
-        "gpt-4o-mini",
-      apiKey: process.env.OPENAI_API_KEY || "",
-      isMdes: false,
-    },
-    {
-      id: "claude-haiku",
-      name: "Claude Haiku",
-      kind: "anthropic",
-      baseUrl: "https://api.anthropic.com/v1",
-      model: "claude-haiku-4-5-20251001",
-      apiKey: process.env.ANTHROPIC_API_KEY || "",
-      isMdes: false,
-    },
-    {
-      id: "copilot",
-      name: "GitHub Copilot",
-      kind: "openai",
-      baseUrl:
-        process.env.COPILOT_BASE_URL || "https://api.githubcopilot.com",
-      model: "gpt-4o",
-      apiKey:
-        process.env.GITHUB_COPILOT_TOKEN ||
-        process.env.GH_COPILOT_TOKEN ||
-        "",
-      isMdes: false,
-    },
-    {
-      id: "gemini-pro",
-      name: "Gemini Pro",
-      kind: "openai",
-      baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
-      model: process.env.GEMINI_MODEL || "gemini-1.5-flash",
-      apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || "",
-      isMdes: false,
-    },
-    {
-      id: "mistral-large",
-      name: "Mistral Large",
-      kind: "openai",
-      baseUrl: "https://api.mistral.ai/v1",
-      model: process.env.MISTRAL_MODEL || "mistral-large-latest",
-      apiKey: process.env.MISTRAL_API_KEY || "",
-      isMdes: false,
-    },
-    {
-      id: "deepseek-r1",
-      name: "DeepSeek R1",
-      kind: "openai",
-      baseUrl: "https://api.deepseek.com/v1",
-      model: process.env.DEEPSEEK_MODEL || "deepseek-reasoner",
-      apiKey: process.env.DEEPSEEK_API_KEY || "",
-      isMdes: false,
-    },
-    {
-      id: "groq-llama",
-      name: "Groq LLaMA",
-      kind: "openai",
-      baseUrl: "https://api.groq.com/openai/v1",
-      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
-      apiKey: process.env.GROQ_API_KEY || "",
-      isMdes: false,
-    },
-    {
-      id: "together-llama",
-      name: "Together LLaMA",
-      kind: "openai",
-      baseUrl: "https://api.together.xyz/v1",
-      model: process.env.TOGETHER_MODEL || "meta-llama/Llama-3-70b-chat-hf",
-      apiKey: process.env.TOGETHER_API_KEY || "",
-      isMdes: false,
-    },
-    {
-      id: "claude-sonnet",
-      name: "Claude Sonnet 4.6",
-      kind: "anthropic",
-      baseUrl: "https://api.anthropic.com/v1",
-      model: process.env.CLAUDE_SONNET_MODEL || "claude-sonnet-4-6",
-      apiKey: process.env.ANTHROPIC_API_KEY || "",
-      isMdes: false,
-    },
-    {
-      id: "innova-bot",
-      name: "Innova-Bot (Local)",
-      kind: "ollama",
-      baseUrl:
-        process.env.INNOVA_BOT_BASE_URL ||
-        process.env.LOCAL_OLLAMA_BASE_URL ||
-        process.env.OLLAMA_LOCAL_BASE_URL ||
-        "http://localhost:11434",
-      model: process.env.INNOVA_BOT_MODEL || "qwen2.5:0.5b",
-      apiKey: "",
-      isMdes: false,
-    },
-    {
-      id: "innova-oracle",
-      name: "Innova Oracle (RAG)",
-      kind: "ollama" as const, // placeholder kind — actual call uses callInnovaOracle
-      baseUrl:
-        process.env.INNOVA_GATEWAY_URL ||
-        `http://localhost:${process.env.GATEWAY_PORT || "7010"}`,
-      model: "oracle-rag",
-      apiKey: "",
-      isMdes: false,
-    },
-  ];
+  return listProviders().map((p) => ({
+    id: p.id,
+    name: p.displayName,
+    kind: p.type === "ollama-local" || p.type === "ollama-remote" ? "ollama" :
+          p.type === "anthropic-compatible" ? "anthropic" : "openai",
+    baseUrl: p.baseUrl,
+    model: p.model,
+    apiKey: resolveApiKey(p.id) || "",
+    isMdes: p.id.includes("mdes"),
+  }));
 }
-
 // ── Cost estimation ───────────────────────────────────────────────────────────
 
 /** Cost per 1K input tokens (USD), rough estimates. Self-hosted providers = $0. */
@@ -485,7 +336,7 @@ function safeErrMsg(err: unknown): string {
  * 2. Completeness: Presence of intent-specific keywords (40%)
  * 3. Coherence: Penalizes "AI-isms" and robotic phrasing (30%)
  */
-function computeDetailedQualityScore(results: MotherResult[], target: MotherResult, intent: string): number {
+export function computeDetailedQualityScore(results: MotherResult[], target: MotherResult, intent: string): number {
   if (!target.success || !target.text.trim()) return 0;
 
   // 1. Novelty (Inverse overlap)
@@ -648,6 +499,66 @@ async function runProvider(
   }
 }
 
+/**
+ * Critique the parallel results using a high-tier model to identify hallucinations,
+ * contradictions, and gaps.
+ */
+async function critiqueResults(
+  results: MotherResult[],
+  query: string,
+  intent: string,
+  emit: EmitFn,
+  runId: string,
+  messageId: string
+): Promise<string> {
+  const successful = results.filter((r) => r.success && r.text.trim().length > 0);
+  if (successful.length < 2) return "";
+
+  const resultsText = successful
+    .map((r, i) => `[Provider ${i + 1} (${r.providerName})]: ${r.text.trim()}`)
+    .join("\n\n");
+
+  const critiquePrompt = `คุณเป็น AI ผู้ตรวจสอบ (Critic) หน้าที่ของคุณคือเปรียบเทียบคำตอบจาก AI หลายตัว\n` +
+    `คำถาม: ${query}\n` +
+    `เจตนา: ${intent}\n\n` +
+    `คำตอบที่ได้รับ:\n${resultsText}\n\n` +
+    `จงวิเคราะห์และระบุ:\n` +
+    `1. จุดที่ขัดแย้งกัน (Contradictions)\n` +
+    `2. ข้อมูลที่ดูเหมือนการหลอน (Hallucinations)\n` +
+    `3. รายละเอียดที่สำคัญที่หายไป หรือตัวเลือกที่ดีที่สุด\n` +
+    `ตอบเป็นภาษาไทย กระชับ ตรงประเด็น ห้ามเกรงใจ`;
+
+  // Use the highest priority provider for critique
+  const configs = buildProviderConfigs();
+  const criticCfg = configs.sort((a, b) => b.priority - a.priority)[0];
+
+  const critEv = newEnvelope({
+    runId,
+    messageId,
+    type: "agent_started",
+    publicSummary: `🧐 Critiquing responses via ${criticCfg.name}...`,
+    agentId: "conductor",
+  });
+  critEv.provider = "mother-critic";
+  if (checkAgentEventSafe(critEv, { expectedToolUsage: false }).ok) emit(critEv);
+
+  try {
+    const critique = await runProvider(criticCfg, critiquePrompt, runId, messageId, emit);
+    const doneEv = newEnvelope({
+      runId,
+      messageId,
+      type: "agent_finished",
+      publicSummary: `🧐 Critique complete`,
+      agentId: "conductor",
+    });
+    doneEv.provider = "mother-critic";
+    if (checkAgentEventSafe(doneEv, { expectedToolUsage: false }).ok) emit(doneEv);
+    return critique.text;
+  } catch (err) {
+    return `Critique failed: ${safeErrMsg(err)}`;
+  }
+}
+
 // ── Synthesis ────────────────────────────────────────────────────────────────
 
 const SYNTHESIS_TIMEOUT_MS = 10_000;
@@ -670,6 +581,7 @@ async function synthesizeResults(
   runId: string,
   messageId: string,
   responseMode?: string,
+  critique?: string,
 ): Promise<{ text: string; winnerId: string | null }> {
   // Score each result by in-run quality: fast + successful > slow + failed.
   // score = 1 / (1 + latencyMs/1000)  →  range (0, 1], faster = higher
@@ -715,9 +627,10 @@ async function synthesizeResults(
   const safeQuery = query.replace(/["\\\n\r]/g, " ").trim().slice(0, 300);
   const synthesisPrompt =
     `คุณเป็น AI synthesizer รวมคำตอบจากหลาย AI agents ดังนี้:\n` +
-    `${agentLines}\n` +
+    `${agentLines}\n\n` +
+    (critique ? `🧐 ผลการตรวจสอบโดย Critic:\n${critique}\n\n` : "") +
     `คำถามเดิม: ${safeQuery}\n` +
-    `สรุปและรวมเข้าด้วยกัน ให้คำตอบที่ดีที่สุด ภาษาไทย กระชับ ไม่เกิน 5 ประโยค`;
+    `สรุปและรวมเข้าด้วยกัน ให้คำตอบที่ดีที่สุด ภาษาไทย กระชับ ไม่เกิน 5 ประโยค โดยใช้ผลการวิเคราะห์ของ Critic เพื่อลดความผิดพลาด`;
 
   // Resolve MDES endpoint config (same env vars as mdes-cloud provider)
   const mdesUrl =
@@ -879,15 +792,19 @@ export async function dispatchMother(
 
   const successCount = results.filter((r) => r.success).length;
 
-  // Record detailed quality scores for all successful results
-  results.forEach((r) => {
-    if (r.success) {
-      const score = computeDetailedQualityScore(results, r, intent);
-      recordProviderQuality(r.providerId, score);
-    }
-  });
+  // Manus-style: Critique before synthesis
+  const critique = await critiqueResults(results, query, intent, emit, runId, messageId);
 
-  const { text: synthesis, winnerId } = await synthesizeResults(results, intent, query, emit, runId, messageId, options.responseMode);
+  const { text: synthesis, winnerId } = await synthesizeResults(
+    results,
+    intent,
+    query,
+    emit,
+    runId,
+    messageId,
+    options.responseMode,
+    critique
+  );
   if (winnerId) recordProviderWin(winnerId, intent);
   if (winnerId) recordStreaks(winnerId);
   const totalEstimatedCostUsd = results.reduce(
@@ -896,14 +813,22 @@ export async function dispatchMother(
   );
 
   // Record this run in history
-  const runProviders: MotherRunProvider[] = results.map((r) => ({
-    providerId: r.providerId,
-    providerName: r.providerName,
-    latencyMs: r.latencyMs,
-    success: r.success,
-    preview: r.text.trim().slice(0, 200),
-    errorMsg: r.errorMsg,
-  }));
+  const runProviders: MotherRunProvider[] = results.map((r) => {
+    let qualityScore: number | undefined;
+    if (r.success) {
+      qualityScore = computeDetailedQualityScore(results, r, intent);
+      recordProviderQuality(r.providerId, qualityScore);
+    }
+    return {
+      providerId: r.providerId,
+      providerName: r.providerName,
+      latencyMs: r.latencyMs,
+      success: r.success,
+      preview: r.text.trim().slice(0, 200),
+      errorMsg: r.errorMsg,
+      qualityScore,
+    };
+  });
   const fastest = results
     .filter((r) => r.success)
     .sort((a, b) => a.latencyMs - b.latencyMs)[0];
