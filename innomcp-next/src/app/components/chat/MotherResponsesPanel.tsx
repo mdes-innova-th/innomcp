@@ -58,6 +58,9 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
   const [run, setRun] = useState<MotherRun | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [showTalk, setShowTalk] = useState(false);
+  const [talkMsg, setTalkMsg] = useState("");
+  const [talkSending, setTalkSending] = useState(false);
 
   const fetchLatest = useCallback(() => {
     setLoading(true);
@@ -70,6 +73,22 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const sendToInnovaBot = useCallback(async () => {
+    if (!talkMsg.trim()) return;
+    setTalkSending(true);
+    try {
+      await fetch(resolveBackendUrl("/api/mother/talk-to-innova-bot"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ message: talkMsg.trim(), from: "innomcp-chat" }),
+      });
+      setTalkMsg("");
+      setShowTalk(false);
+    } catch { /* ignore */ }
+    finally { setTalkSending(false); }
+  }, [talkMsg]);
 
   const handleDownload = useCallback(() => {
     if (!run) return;
@@ -120,6 +139,13 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
             ↓ CSV
           </button>
           <button
+            onClick={() => setShowTalk(s => !s)}
+            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded border border-border/40"
+            title="Talk to innova-bot"
+          >
+            💬
+          </button>
+          <button
             onClick={fetchLatest}
             disabled={loading}
             className="text-[10px] text-muted-foreground hover:text-foreground transition-colors px-1.5 py-0.5 rounded border border-border/40"
@@ -128,6 +154,26 @@ export default function MotherResponsesPanel({ className = "" }: Props) {
           </button>
         </div>
       </div>
+
+      {showTalk && (
+        <div className="flex gap-1.5 mt-1">
+          <input
+            type="text"
+            value={talkMsg}
+            onChange={e => setTalkMsg(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && !e.shiftKey && sendToInnovaBot()}
+            placeholder="Message to innova-bot…"
+            className="flex-1 text-[11px] px-2 py-1 rounded border border-border/50 bg-muted/30 outline-none focus:border-primary/40"
+          />
+          <button
+            onClick={sendToInnovaBot}
+            disabled={talkSending || !talkMsg.trim()}
+            className="text-[10px] px-2 py-1 rounded bg-primary/10 text-primary border border-primary/20 disabled:opacity-40"
+          >
+            {talkSending ? "…" : "Send"}
+          </button>
+        </div>
+      )}
 
       {/* Query */}
       <p className="text-[11px] text-muted-foreground/70 line-clamp-1 italic">

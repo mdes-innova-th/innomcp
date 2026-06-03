@@ -576,3 +576,22 @@ test.describe('GET /api/mother/providers/:id/history', () => {
     expect(response.status()).toBe(404);
   });
 });
+
+test.describe('GET /api/mother/leaderboard-snapshot', () => {
+  test('returns 200 with 14 providers and rankings', async ({ request }) => {
+    const response = await request.get(`${BACKEND_URL}/api/mother/leaderboard-snapshot`);
+    expect(response.status()).toBe(200);
+    const body = await response.json();
+    expect(body.providers).toHaveLength(14);
+    expect(body).toHaveProperty('intentLeaders');
+    expect(body).toHaveProperty('enabledCount');
+  });
+});
+
+test.describe('POST /api/mother/talk-to-innova-bot', () => {
+  test('returns 400 for empty message', async ({ request }) => {
+    const response = await request.post(`${BACKEND_URL}/api/mother/talk-to-innova-bot`)
+      .send({ message: '' });
+    expect(response.status()).toBe(400);
+  });
+});
