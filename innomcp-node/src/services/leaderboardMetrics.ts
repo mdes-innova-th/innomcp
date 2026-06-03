@@ -18,7 +18,7 @@ interface RawStats {
   wins: number;
   totalResponseChars: number;
   responseSamples: number[];
-  qualityScores: number[];
+  avgQuality: number;
   intentWins: Record<string, number>;
   currentStreak: number;
   bestStreak: number;
@@ -84,7 +84,7 @@ export function recordProviderCall(
       wins: 0,
       totalResponseChars: responseChars ?? 0,
       responseSamples: responseChars != null ? [responseChars] : [],
-      qualityScores: [],
+      avgQuality: 0,
       intentWins: {},
       currentStreak: 0,
       bestStreak: 0,
@@ -132,9 +132,7 @@ export function getProviderStats(): Map<string, ProviderStats> {
       avgResponseLength: raw.responseSamples.length > 0
         ? Math.round(raw.totalResponseChars / raw.responseSamples.length)
         : 0,
-      avgQuality: raw.qualityScores.length > 0
-        ? Math.round(raw.qualityScores.reduce((s, v) => s + v, 0) / raw.qualityScores.length)
-        : 0,
+      avgQuality: Math.round(raw.avgQuality),
       winRate: raw.requests > 0 ? Math.round((raw.wins / raw.requests) * 100) : 0,
       topIntent: Object.keys(raw.intentWins).length > 0
         ? Object.entries(raw.intentWins).sort((a, b) => b[1] - a[1])[0][0]
@@ -205,7 +203,7 @@ export function recordProviderWin(providerId: string, intent?: string): void {
       wins: 1,
       totalResponseChars: 0,
       responseSamples: [],
-      qualityScores: [],
+      avgQuality: 0,
       intentWins: intent ? { [intent]: 1 } : {},
       currentStreak: 0,
       bestStreak: 0,
@@ -234,14 +232,14 @@ export function recordProviderWin(providerId: string, intent?: string): void {
  */
 export function recordProviderQuality(providerId: string, qualityScore: number): void {
   const clampedScore = Math.max(0, Math.min(100, Math.round(qualityScore)));
+  const alpha = 0.2;
   const existing = store.get(providerId);
   if (existing) {
-    existing.qualityScores.push(clampedScore);
-    if (existing.qualityScores.length > 50) existing.qualityScores.shift();
+    existing.avgQuality = alpha * clampedScore + (1 - alpha) * existing.avgQuality;
   } else {
     store.set(providerId, {
       requests: 0, totalLatency: 0, successes: 0, latencySamples: [],
-      wins: 0, totalResponseChars: 0, responseSamples: [], qualityScores: [clampedScore],
+      wins: 0, totalResponseChars: 0, responseSamples: [], avgQuality: clampedScore,
       intentWins: {}, currentStreak: 0, bestStreak: 0,
     });
   }

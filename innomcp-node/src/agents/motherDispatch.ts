@@ -107,6 +107,28 @@ async function callInnovaOracle(cfg: ProviderConfig, prompt: string, signal: Abo
 /** IDs belonging to the MDES cluster — used to enforce MDES_ONLY */
 const MDES_PROVIDER_IDS = new Set(["mdes-cloud", "thai-llm"]);
 
+const INTENT_KEYWORDS: Record<string, string[]> = {
+  weather: ["อุณหภูมิ", "สภาพอากาศ", "ฝน", "แดด", "พยากรณ์"],
+  geo: ["ที่ตั้ง", "จังหวัด", "ประเทศ", "แผนที่", "พิกัด"],
+  knowledge: ["ข้อมูล", "รายละเอียด", "ประวัติ", "ข้อเท็จจริง", "สรุป"],
+  code: ["ฟังก์ชัน", "ตัวแปร", "syntax", "implementation", "api", "library"],
+  "planning-broad": ["ขั้นตอน", "กลยุทธ์", "แผน", "วิเคราะห์", "เป้าหมาย"],
+  greeting: ["สวัสดี", "ยินดี", "ทักทาย"],
+  general: ["คำตอบ", "ข้อมูล", "ประเด็น"],
+};
+
+const AI_ISMS = [
+  "As an AI language model",
+  "I hope this helps",
+  "Certainly!",
+  "Here is a summary",
+  "ขออภัย",
+  "ในฐานะ AI",
+  "ผมเป็น AI",
+  "ข้อมูลนี้เป็นเพียงการจำลอง",
+  "หวังว่าข้อมูลนี้จะเป็นประโยชน์",
+];
+
 /** Monotonically increasing counter across all dispatchMother calls in this process */
 let motherIteration = 0;
 
@@ -266,7 +288,7 @@ function buildProviderConfigs(): ProviderConfig[] {
       kind: "ollama" as const, // placeholder kind — actual call uses callInnovaOracle
       baseUrl:
         process.env.INNOVA_GATEWAY_URL ||
-        `http://localhost:${process.env.GATEWAY_PORT || "8000"}`,
+        `http://localhost:${process.env.GATEWAY_PORT || "7010"}`,
       model: "oracle-rag",
       apiKey: "",
       isMdes: false,
@@ -457,22 +479,45 @@ function safeErrMsg(err: unknown): string {
 // ── Core provider runner ──────────────────────────────────────────────────────
 
 /**
- * Compute a rough quality score (0–100) for a provider response.
- * Heuristic: combines response length, success, and absence of error markers.
- * - Empty or failed: 0
- * - Very short (<50 chars): 20
- * - Short (50–200 chars): 50
- * - Medium (200–800 chars): 75
- * - Rich (800–2000 chars): 90
- * - Very detailed (>2000 chars): 95
- * - Oracle prefix: +5 bonus (knowledge base responses)
+ * Compute a detailed quality score (0–100) for a provider response.
+ * Based on three pillars:
+ * 1. Novelty: Inverse overlap with other successful results (30%)
+ * 2. Completeness: Presence of intent-specific keywords (40%)
+ * 3. Coherence: Penalizes "AI-isms" and robotic phrasing (30%)
  */
-function computeQualityScore(text: string, success: boolean): number {
-  if (!success || !text.trim()) return 0;
-  const len = text.trim().length;
-  let score = len < 50 ? 20 : len < 200 ? 50 : len < 800 ? 75 : len < 2000 ? 90 : 95;
-  if (text.startsWith("[Oracle]")) score = Math.min(100, score + 5);
-  return score;
+function computeDetailedQualityScore(results: MotherResult[], target: MotherResult, intent: string): number {
+  if (!target.success || !target.text.trim()) return 0;
+
+  // 1. Novelty (Inverse overlap)
+  let overlapSum = 0;
+  let comparisonCount = 0;
+  const targetWords = new Set(target.text.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+
+  results.forEach(r => {
+    if (r.providerId === target.providerId || !r.success || !r.text.trim()) return;
+    comparisonCount++;
+    const otherWords = new Set(r.text.toLowerCase().split(/\s+/).filter(w => w.length > 2));
+    const intersection = new Set([...targetWords].filter(x => otherWords.has(x)));
+    overlapSum += intersection.size / Math.max(targetWords.size, 1);
+  });
+
+  const noveltyScore = comparisonCount === 0 ? 100 : (1 - (overlapSum / comparisonCount)) * 100;
+
+  // 2. Completeness (Intent-specific keywords)
+  const keywords = INTENT_KEYWORDS[intent] || INTENT_KEYWORDS.general;
+  const matchedKeywords = keywords.filter(k => target.text.includes(k)).length;
+  const completenessScore = (matchedKeywords / Math.max(keywords.length, 1)) * 100;
+
+  // 3. Coherence (Penalize AI-isms)
+  let aiIsmCount = 0;
+  AI_ISMS.forEach(ism => {
+    if (target.text.toLowerCase().includes(ism.toLowerCase())) {
+      aiIsmCount++;
+    }
+  });
+  const coherenceScore = Math.max(0, 100 - (aiIsmCount * 15));
+
+  return (noveltyScore * 0.3) + (completenessScore * 0.4) + (coherenceScore * 0.3);
 }
 
 async function runProvider(
@@ -520,7 +565,6 @@ async function runProvider(
     const latencyMs = Date.now() - t0;
 
     recordProviderCall(cfg.id, latencyMs, true, text.length);
-    recordProviderQuality(cfg.id, computeQualityScore(text, true));
 
     const doneEv = newEnvelope({
       runId,
@@ -834,6 +878,15 @@ export async function dispatchMother(
   });
 
   const successCount = results.filter((r) => r.success).length;
+
+  // Record detailed quality scores for all successful results
+  results.forEach((r) => {
+    if (r.success) {
+      const score = computeDetailedQualityScore(results, r, intent);
+      recordProviderQuality(r.providerId, score);
+    }
+  });
+
   const { text: synthesis, winnerId } = await synthesizeResults(results, intent, query, emit, runId, messageId, options.responseMode);
   if (winnerId) recordProviderWin(winnerId, intent);
   if (winnerId) recordStreaks(winnerId);
