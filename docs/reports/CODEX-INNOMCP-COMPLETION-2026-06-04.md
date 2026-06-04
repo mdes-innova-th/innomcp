@@ -97,3 +97,31 @@ External/provider blockers reproduced in the same pass:
 - Discord has `DISCORD_TOKEN`, but no report target is configured: `JIT_REPORT_CHANNEL_ID`, `AUTO_REPORT_CHANNEL_ID`, `DISCORD_CHANNEL_ID`, and `DISCORD_WEBHOOK_URL` are missing.
 - Docker CLI and Compose are installed, but the Docker Desktop Linux engine is not running; local `docker ps` cannot connect to `dockerDesktopLinuxEngine`.
 - No local Redis/MariaDB/MySQL listeners were found on `6379`, `3306`, or `3308`, and no `redis-server`, `mariadbd`, `mysqld`, or `mysql` binary was found in PATH.
+
+## Addendum - Antigravity Mission Control Lane
+
+Fresh Jit integration work on 2026-06-05 adds Antigravity as a coordination/verification lane for future innomcp chat hardening:
+
+- `C:\Users\USER-NT\.antigravity\config.yaml` now sets `defaults.auto_approve=true` and `defaults.skip_permissions=true`.
+- `C:\Users\USER-NT\Jit\scripts\antigravity-y.sh` and `.ps1` launch Antigravity with the requested `-y` compatibility flag.
+- `C:\Users\USER-NT\Jit\AGENTS.md` and this repo's `AGENTS.md` now serve as the shared convergence layer for Codex, Antigravity, ClaudeCode, innova-bot, and browser MCP verification.
+- `C:\Users\USER-NT\Jit\.codex\skills\antigravity-orchestrator\SKILL.md` defines the portable skill workflow.
+- Jit routing now registers `antigravity-mission-control` for wide coordination, browser automation, Playwright MCP, and Chrome DevTools MCP.
+- Antigravity user MCP config now registers `playwright` (`npx -y @playwright/mcp@latest`) and `chrome-devtools` (`npx -y chrome-devtools-mcp@latest`).
+
+Important boundary: Antigravity is not counted as a content-usable model lane until a live task returns usable content. Codex/Jit remains the deep executor and final evidence owner.
+
+## Addendum - 2026-06-05 Runtime Recheck
+
+Fresh report: `docs/reports/ANTIGRAVITY-INNOMCP-RUNTIME-2026-06-05.md`.
+
+Current verified state:
+
+- Antigravity probe passed and registered Playwright MCP plus Chrome DevTools MCP in the Antigravity user MCP config.
+- MCP server was restored on `3012`; `GET /health` returned `{"status":"ok"}`.
+- MCP `tools/list` returned `56` remote tools.
+- Backend `3011` was restarted to reconnect to MCP and returned `{"status":"ok"}`.
+- Frontend `3000/api/health` reported `mcp_status=connected`, `remote_tools=56`, `local_tools=4`, `total_tools=60`, and MCP Server `healthy`.
+- `pnpm --filter innomcp-next exec playwright test e2e/chat.spec.ts --project=chromium` passed `11/11` in `1.2m`.
+
+Residual environment limitation remains Redis/database readiness; this keeps overall frontend health `unhealthy` even while chat/MCP liveness and the targeted chat suite pass.
