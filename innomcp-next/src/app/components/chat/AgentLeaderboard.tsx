@@ -145,6 +145,43 @@ function formatTime(d: Date): string {
   return d.toTimeString().slice(0, 8);
 }
 
+function toFiniteNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function normalizeAgent(raw: Partial<AgentEntry>, index: number): AgentEntry {
+  const id = String(raw.id ?? `agent-${index}`);
+  return {
+    id,
+    name: String(raw.name ?? id),
+    provider: String(raw.provider ?? "unknown"),
+    model: String(raw.model ?? "unknown"),
+    status: String(raw.status ?? "checking"),
+    requests: toFiniteNumber(raw.requests),
+    avgLatency: toFiniteNumber(raw.avgLatency),
+    successRate: toFiniteNumber(raw.successRate),
+    p95Latency: raw.p95Latency == null ? undefined : toFiniteNumber(raw.p95Latency),
+    role: String(raw.role ?? "Agent"),
+    score: raw.score == null ? undefined : toFiniteNumber(raw.score),
+    wins: raw.wins == null ? undefined : toFiniteNumber(raw.wins),
+    avgResponseLength: raw.avgResponseLength == null ? undefined : toFiniteNumber(raw.avgResponseLength),
+    avgQuality: raw.avgQuality == null ? undefined : toFiniteNumber(raw.avgQuality),
+    winRate: raw.winRate == null ? undefined : toFiniteNumber(raw.winRate),
+    healthScore: raw.healthScore == null ? undefined : toFiniteNumber(raw.healthScore),
+    efficiencyScore: raw.efficiencyScore == null ? undefined : toFiniteNumber(raw.efficiencyScore),
+    currentStreak: raw.currentStreak == null ? undefined : toFiniteNumber(raw.currentStreak),
+    bestStreak: raw.bestStreak == null ? undefined : toFiniteNumber(raw.bestStreak),
+    consistencyScore: raw.consistencyScore == null ? undefined : toFiniteNumber(raw.consistencyScore),
+    topIntent: raw.topIntent,
+    sparkline: Array.isArray(raw.sparkline)
+      ? raw.sparkline
+          .map((sample) => toFiniteNumber(sample, Number.NaN))
+          .filter(Number.isFinite)
+      : undefined,
+  };
+}
+
 // ─── Column visibility ────────────────────────────────────────────────────────
 
 type ColumnKey = "trend" | "verbose" | "qual" | "winrate" | "health";
@@ -201,8 +238,11 @@ export default function AgentLeaderboard({
         return r.json() as Promise<LeaderboardResponse>;
       })
       .then((data) => {
-        setAgents(data.agents ?? []);
-        setTotalAgents(data.totalAgents ?? data.agents?.length ?? 0);
+        const normalizedAgents = Array.isArray(data.agents)
+          ? data.agents.map(normalizeAgent)
+          : [];
+        setAgents(normalizedAgents);
+        setTotalAgents(toFiniteNumber(data.totalAgents, normalizedAgents.length));
         setLastUpdated(new Date());
         setError(null);
         setCountdown(activeInterval);

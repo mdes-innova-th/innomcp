@@ -38,6 +38,25 @@ Known runtime readiness limitation:
 
 - `GET http://localhost:3011/api/health` and `/api/health/ready` returned 503 because local infra dependencies were unavailable in this machine session: Redis/database and optional Detect/Webd APIs. This is an environment readiness blocker, not a backend liveness failure.
 
+## Addendum - Chat Completion Hardening
+
+Fresh evidence from the final chat pass:
+
+- Root chat production probe: `CHAT_INPUT_VISIBLE true`, `SEND_BTN_VISIBLE true`, `APP_ERRORS 0`.
+- `docs/reports/chat-e2e-20260604-135458/playwright-chat.log` - `11 passed (1.1m)`.
+- `pnpm --filter innomcp-next run build` - pass.
+- `pnpm --filter innomcp-node run test:unit -- --runInBand` - pass, 77 suites / 742 tests.
+- `pnpm --filter innomcp-server-node run build` - pass.
+- `git diff --check` - pass, CRLF warnings only.
+- `node C:\Users\USER-NT\Jit\eval\innova-bot-talk.js` - pass, `publish_event` round trip OK via File Fallback in 1662ms.
+
+Fixes proven by this pass:
+
+- `MotherStatsCard` now normalizes partial `/api/mother/stats` payloads before rendering, preventing `avgProvidersPerRun.toFixed` from crashing the chat shell when live stats are incomplete.
+- `AgentLeaderboard` now normalizes live provider rows before rendering/export, preventing malformed or partial provider metrics from crashing the dashboard panel.
+- `chat.spec.ts` now marks onboarding complete before each e2e navigation and targets the real ThinkingModal dialog by `aria-labelledby`, so the test measures chat behavior rather than hidden side panels or first-run onboarding.
+- `tasksRouteContinuation.test.ts` now proves multi-agent SSE events stay before `final_answer`, guarding against the analysis stream being hidden behind the final synthesis.
+
 ## Publish Blocker
 
 `git push -u origin pending-commits` is blocked by credential/repository access.

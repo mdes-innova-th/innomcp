@@ -7,6 +7,12 @@
  */
 import { test, expect, Page } from "@playwright/test";
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("innomcp-onboarding-done", "true");
+  });
+});
+
 const CHAT_URL = "/";
 const WAIT_FOR_RESPONSE_MS = 90_000; // 90s max per AI response — station/LLM queries can take 30–60s
 
@@ -62,6 +68,17 @@ async function waitForAIResponse(page: Page) {
 }
 
 // ─── TC-01: Page loads and chat input is visible ──────────────────────────────
+test("TC-00: thinkingMode query opens ThinkingModal and cleans URL", async ({ page }) => {
+  await page.goto("/?thinkingMode=true");
+  await page.waitForSelector('[data-testid="chat-input"]', { timeout: 10_000 });
+
+  const dialog = page.locator('[role="dialog"][aria-labelledby="thinking-modal-title"]');
+  await expect(dialog).toBeVisible();
+
+  await expect.poll(() => page.url()).not.toContain("thinkingMode=true");
+  expect(new URL(page.url()).pathname).toBe("/");
+});
+
 test("TC-01: page loads, chat input visible, mode status bar present", async ({ page }) => {
   await navigateToChat(page);
 

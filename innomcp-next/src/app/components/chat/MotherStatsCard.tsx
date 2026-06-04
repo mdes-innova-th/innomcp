@@ -22,6 +22,51 @@ interface MotherStats {
   }>;
 }
 
+function toFiniteNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function normalizeMotherStats(data: Partial<MotherStats>): MotherStats {
+  const providerBreakdown = Array.isArray(data.providerBreakdown)
+    ? data.providerBreakdown.map((provider) => ({
+        providerId: String(provider.providerId ?? ""),
+        totalCalls: toFiniteNumber(provider.totalCalls),
+        successes: toFiniteNumber(provider.successes),
+        avgLatencyMs: toFiniteNumber(provider.avgLatencyMs),
+        successRate: toFiniteNumber(provider.successRate),
+      }))
+    : [];
+
+  return {
+    totalRuns: toFiniteNumber(data.totalRuns),
+    totalProviderCalls: toFiniteNumber(data.totalProviderCalls),
+    avgSuccessRate: toFiniteNumber(data.avgSuccessRate),
+    avgProvidersPerRun: toFiniteNumber(data.avgProvidersPerRun),
+    fastestProvider: data.fastestProvider
+      ? {
+          id: String(data.fastestProvider.id ?? ""),
+          avgLatencyMs: toFiniteNumber(data.fastestProvider.avgLatencyMs),
+        }
+      : null,
+    mostReliableProvider: data.mostReliableProvider
+      ? {
+          id: String(data.mostReliableProvider.id ?? ""),
+          successRate: toFiniteNumber(data.mostReliableProvider.successRate),
+        }
+      : null,
+    topProviderByRequests: data.topProviderByRequests
+      ? {
+          id: String(data.topProviderByRequests.id ?? ""),
+          requests: toFiniteNumber(data.topProviderByRequests.requests),
+        }
+      : null,
+    recentIterations: toFiniteNumber(data.recentIterations),
+    lastRunAt: typeof data.lastRunAt === "string" ? data.lastRunAt : null,
+    providerBreakdown,
+  };
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const POLL_INTERVAL_MS = 15_000;
@@ -126,8 +171,8 @@ export default function MotherStatsCard() {
         credentials: "include",
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: MotherStats = await res.json();
-      setStats(data);
+      const data = (await res.json()) as Partial<MotherStats>;
+      setStats(normalizeMotherStats(data));
       setUpdatedAt(new Date());
       setError(null);
     } catch (err) {

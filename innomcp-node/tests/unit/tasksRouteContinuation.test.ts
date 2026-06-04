@@ -87,6 +87,24 @@ describe("tasks continuation route", () => {
 
       runConductorMock.mockImplementation(async (_input, emit) => {
         emit({
+          type: "agent_started",
+          runId: "run-1",
+          messageId: "msg-1",
+          publicSummary: "critic is checking continuation context",
+          agentId: "critic",
+          isSafeForUser: true,
+          timestamp: "2026-05-26T00:00:00.000Z",
+        });
+        emit({
+          type: "fact_found",
+          runId: "run-1",
+          messageId: "msg-1",
+          publicSummary: "artifact and prior final answer merged before synthesis",
+          agentId: "conductor",
+          isSafeForUser: true,
+          timestamp: "2026-05-26T00:00:01.000Z",
+        });
+        emit({
           type: "final_answer",
           runId: "run-1",
           messageId: "msg-1",
@@ -126,6 +144,20 @@ describe("tasks continuation route", () => {
       );
       expect(response.text).toContain('"type":"fact_found"');
       expect(response.text).toContain('"type":"final_answer"');
+
+      const events = response.text
+        .split(/\n\n+/)
+        .map((chunk) => chunk.trim())
+        .filter((chunk) => chunk.startsWith("data: "))
+        .map((chunk) => JSON.parse(chunk.slice("data: ".length)));
+      const eventTypes = events.map((event) => event.type);
+      const finalIndex = eventTypes.indexOf("final_answer");
+      expect(finalIndex).toBeGreaterThan(-1);
+      expect(eventTypes.slice(0, finalIndex)).toEqual(
+        expect.arrayContaining(["fact_found", "agent_started"])
+      );
+      expect(eventTypes.slice(finalIndex + 1)).not.toContain("fact_found");
+      expect(eventTypes.slice(finalIndex + 1)).not.toContain("agent_started");
     } finally {
       await fs.rm(workspaceRoot, { recursive: true, force: true });
     }
