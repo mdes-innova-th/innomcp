@@ -92,4 +92,16 @@ describe("monitoring health checks", () => {
     expect(dbService).toMatchObject({ status: "healthy" });
     expect(tmdService).toMatchObject({ status: "unknown" });
   });
+
+  it("reports degraded, not unhealthy, when the database is unavailable but core probes answer", async () => {
+    pingDatabaseMock.mockRejectedValueOnce(new Error("connect ECONNREFUSED 127.0.0.1:3306"));
+
+    const { createHealthResponse } = await import("../../src/utils/monitoring");
+    const health = await createHealthResponse(false);
+
+    const dbService = health.services.find((service: { name: string }) => service.name === "Database");
+
+    expect(health.status).toBe("degraded");
+    expect(dbService).toMatchObject({ status: "unhealthy" });
+  });
 });

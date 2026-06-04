@@ -194,7 +194,9 @@ const HEALTH_CHECKS: HealthCheckConfig[] = [
     url: 'mysql://localhost:3306',
     method: 'GET',
     timeout: 2000,
-    critical: true,
+    // Optional for public chat/MCP readiness: auth/admin/database-backed
+    // features degrade, but weather/chat flows continue with fallback data.
+    critical: false,
   },
   {
     name: 'MCP Server',

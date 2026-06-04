@@ -42,12 +42,14 @@ Verified after restart:
 - MCP `tools/list` returned `56` remote tools.
 - Backend `GET http://localhost:3011/health` returned `{"status":"ok"}`.
 - Frontend `GET http://localhost:3000/api/health` reported:
+  - `status: degraded`
+  - `mode_ready: true`
   - `mcp_status: connected`
   - `remote_tools: 56`
   - `local_tools: 4`
   - `total_tools: 60`
   - MCP Server service: `healthy`
-- Remaining readiness limitation: Redis/database are still unavailable, so overall frontend health remains `unhealthy` despite chat/MCP liveness.
+- Remaining readiness limitation: Redis/database are still unavailable; Redis reports not-ready state and Database service reports `unhealthy`, so the stack is `degraded` rather than fully healthy.
 
 ## Chat E2E
 
@@ -61,4 +63,4 @@ Result:
 
 - `11 passed (1.2m)`
 
-This proves the current chat UI and health endpoint acceptance suite still pass after MCP reconnect and Antigravity/Jit orchestration updates.
+This proves the current chat UI and health endpoint acceptance suite still pass after MCP reconnect, Antigravity/Jit orchestration updates, and the database-readiness health-gate fix.

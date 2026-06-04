@@ -121,7 +121,7 @@ Current verified state:
 - MCP server was restored on `3012`; `GET /health` returned `{"status":"ok"}`.
 - MCP `tools/list` returned `56` remote tools.
 - Backend `3011` was restarted to reconnect to MCP and returned `{"status":"ok"}`.
-- Frontend `3000/api/health` reported `mcp_status=connected`, `remote_tools=56`, `local_tools=4`, `total_tools=60`, and MCP Server `healthy`.
+- Frontend `3000/api/health` now reports `status=degraded`, `mode_ready=true`, `mcp_status=connected`, `remote_tools=56`, `local_tools=4`, `total_tools=60`, and MCP Server `healthy`.
 - `pnpm --filter innomcp-next exec playwright test e2e/chat.spec.ts --project=chromium` passed `11/11` in `1.2m`.
 
-Residual environment limitation remains Redis/database readiness; this keeps overall frontend health `unhealthy` even while chat/MCP liveness and the targeted chat suite pass.
+Residual environment limitation remains Redis/database readiness; Redis still reports a not-ready state and Database still reports `unhealthy`, so the frontend is `degraded` rather than fully healthy while chat/MCP liveness and the targeted chat suite pass.
