@@ -161,7 +161,10 @@ Jit/innova-bot fleet validation:
 
 - Jit Mother loop cycle 54 passed with `56/56 OK`; selected lanes were `ollama_mdes`, `thaillm`, and `ollama_local`.
 - innova-bot notification succeeded.
-- A dedicated final shipping validator was launched with 56 MDES/ThaiLLM agents: `C:\Users\USER-NT\Jit\network\goals\innomcp-final-shipping-validator.log`.
+- A dedicated final shipping validator ran 56 MDES/ThaiLLM agents: `C:\Users\USER-NT\Jit\network\artifacts\fleet-batch-2026-06-05T08-11-17-686Z\proof-manifest.md`.
+- Final validator result: `count=56`, `completed=56`, `ok=53`, `fail=3`, `pending=0`, threshold `ok>=42` passed.
+- MDES lane: 26/29 OK; 3 failures were remote `Ollama HTTP 504` responses while the model-router also observed Ollama cloud `429` session-limit fallback.
+- ThaiLLM lane: 27/27 OK across `openthaigpt-thaillm-8b-instruct-v7.2`, `pathumma-thaillm-qwen3-8b-think-3.0.0`, `typhoon-s-thaillm-8b-instruct`, and `thalle-0.2-thaillm-8b-fa`.
 
 Remaining blockers:
 
