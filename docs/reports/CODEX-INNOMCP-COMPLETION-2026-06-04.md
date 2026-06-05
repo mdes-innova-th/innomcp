@@ -125,3 +125,47 @@ Current verified state:
 - `pnpm --filter innomcp-next exec playwright test e2e/chat.spec.ts --project=chromium` passed `11/11` in `1.2m`.
 
 Residual environment limitation remains Redis/database readiness; Redis still reports a not-ready state and Database still reports `unhealthy`, so the frontend is `degraded` rather than fully healthy while chat/MCP liveness and the targeted chat suite pass.
+
+## Addendum - 2026-06-05 Codex Final Live Verification
+
+Fresh evidence directory: `docs/reports/codex-final-live-20260605-150742/`.
+
+Current verdict: `PASS_WITH_ENV_BLOCKERS`.
+
+Fresh command evidence:
+
+- `pnpm --filter innomcp-next run build` - pass.
+- `pnpm --filter innomcp-node run build` - pass.
+- `pnpm --filter innomcp-server-node run build` - pass.
+- `pnpm --filter innomcp-node run test:unit -- --runInBand` - pass, 77 suites / 743 tests.
+- `pnpm --filter innomcp-server-node run test:thaiGeoTool` - pass, 10/10.
+- `pnpm --filter innomcp-server-node run typecheck:weather` - pass.
+- `git diff --check` - pass.
+- `pnpm --filter innomcp-next exec playwright test e2e/chat.spec.ts --project=chromium` - pass, 11/11 in 1.2 minutes.
+- `node C:\Users\USER-NT\Jit\eval\innova-bot-talk.js` - pass, `publish_event` round trip completed via File Fallback in 1658ms.
+- `node C:\Users\USER-NT\Jit\eval\antigravity-probe.js` - pass.
+- `npx -y chrome-devtools-mcp@latest --help` - pass.
+
+Runtime artifact: `docs/reports/codex-final-live-20260605-150742/runtime-health.json`.
+
+Runtime status:
+
+- Frontend `3000/api/health` returned HTTP 200 with `mode_ready=true`, MCP connected, `remote_tools=56`, `local_tools=4`, and `total_tools=60`.
+- Backend `3011/health` returned HTTP 200.
+- Backend `3011/api/health/live` returned HTTP 200.
+- Backend `3011/api/health/ready` returned HTTP 200 with `ready=true` and `status=degraded`.
+- MCP `3012/health` returned HTTP 200.
+- MCP `3012/mcp` `tools/list` returned HTTP 200 with 56 tools.
+
+Jit/innova-bot fleet validation:
+
+- Jit Mother loop cycle 54 passed with `56/56 OK`; selected lanes were `ollama_mdes`, `thaillm`, and `ollama_local`.
+- innova-bot notification succeeded.
+- A dedicated final shipping validator was launched with 56 MDES/ThaiLLM agents: `C:\Users\USER-NT\Jit\network\goals\innomcp-final-shipping-validator.log`.
+
+Remaining blockers:
+
+- Git publish is still blocked by repository access / credential mismatch for `mdes-innova/innomcp`.
+- Docker Desktop Linux engine pipe is still unavailable from this shell, so Docker-backed Redis/MariaDB cannot be raised through `docker compose` here.
+- Frontend health remains `degraded` because Redis is in cooldown and Database is unhealthy in this local session; backend readiness is no longer 503 and now reports `ready=true`.
+- `docs/api/` is untracked generated API documentation and was not included in this release proof because its title/scope and Thai text encoding need review before it should be shipped.

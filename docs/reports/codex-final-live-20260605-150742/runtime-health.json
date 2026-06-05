@@ -1,0 +1,32 @@
+﻿{
+    "frontend_api_health":  {
+                                "ok":  true,
+                                "body":  "{\"status\":\"degraded\",\"service\":\"innomcp-next\",\"mode\":\"online\",\"mode_ready\":true,\"ai_mode\":\"remote\",\"mcp_status\":\"connected\",\"redis_status\":\"cooldown\",\"redis_ready\":false,\"redis_configured\":true,\"redis_retry_after_ms\":28997,\"local_tools\":4,\"remote_tools\":56,\"total_tools\":60,\"notes\":[],\"services\":[{\"name\":\"Weather API (TMD)\",\"status\":\"healthy\"},{\"name\":\"Open-Meteo API\",\"status\":\"healthy\"},{\"name\":\"OpenSearch (Thai Gov)\",\"status\":\"healthy\"},{\"name\":\"Redis\",\"status\":\"degraded\"},{\"name\":\"Database\",\"status\":\"unhealthy\"},{\"name\":\"MCP Server\",\"status\":\"healthy\"}],\"timestamp\":\"2026-06-05T08:07:44.408Z\",\"uptime\":49162}",
+                                "status":  200
+                            },
+    "backend_health":  {
+                           "ok":  true,
+                           "body":  "{\"status\":\"ok\"}",
+                           "status":  200
+                       },
+    "backend_live":  {
+                         "ok":  true,
+                         "body":  "{\"alive\":true,\"timestamp\":\"2026-06-05T08:07:44.525Z\",\"uptime\":49174.7738669}",
+                         "status":  200
+                     },
+    "backend_ready":  {
+                          "ok":  true,
+                          "body":  "{\"ready\":true,\"status\":\"degraded\",\"timestamp\":\"2026-06-05T08:07:44.543Z\"}",
+                          "status":  200
+                      },
+    "mcp_health":  {
+                       "ok":  true,
+                       "body":  "{\"status\":\"ok\"}",
+                       "status":  200
+                   },
+    "mcp_tools_list":  {
+                           "toolCount":  56,
+                           "ok":  true,
+                           "status":  200
+                       }
+}
