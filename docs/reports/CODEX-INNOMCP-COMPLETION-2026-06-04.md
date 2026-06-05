@@ -171,7 +171,7 @@ Remaining blockers:
 - Git publish is still blocked by repository access / credential mismatch for `mdes-innova/innomcp`.
 - Docker Desktop Linux engine pipe is still unavailable from this shell, so Docker-backed Redis/MariaDB cannot be raised through `docker compose` here.
 - Frontend health remains `degraded` because Redis is in cooldown and Database is unhealthy in this local session; backend readiness is no longer 503 and now reports `ready=true`.
-- `docs/api/` is untracked generated API documentation and was not included in this release proof because its title/scope and Thai text encoding need review before it should be shipped.
+- `docs/api/` was initially excluded until review; it is resolved in the 2026-06-05 API documentation addendum below.
 
 ## Addendum - 2026-06-05 Oracle Skill and Fleet Readiness
 
@@ -208,3 +208,13 @@ Fresh post-report checks:
 - `pnpm --filter innomcp-next run build` passed.
 - Live health smoke returned HTTP 200 for `3000/api/health`, `3011/health`, `3011/api/health/ready`, and `3012/health`.
 - Backend readiness remains `ready=true`, `status=degraded`; degraded status is still limited to missing Redis/database infra in this local shell.
+
+## Addendum - 2026-06-05 API Documentation Resolution
+
+The previously untracked generated API documentation was reviewed and made shippable:
+
+- `docs/api/openapi.yaml` now identifies `INNOMCP` instead of `Innova-Bot`.
+- Server base URLs were changed to avoid composing paths as `/api/api/...`.
+- `/api/providers/test-call` was fixed from invalid `requestBody_content` to valid OpenAPI `requestBody.content`.
+- `docs/api/swagger_ui.html` now uses the Swagger UI `StandaloneLayout`.
+- `npx -y swagger-cli validate docs/api/openapi.yaml` passed with `docs/api/openapi.yaml is valid`.

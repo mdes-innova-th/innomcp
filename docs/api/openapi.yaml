@@ -1,0 +1,533 @@
+openapi: 3.0.0
+info:
+  title: INNOMCP API
+  description: System Architecture Specification for INNOMCP, providing a unified interface for multi-agent orchestration, AI provider routing, MCP-backed tools, and secure workspace management. This API handles both administrative control and application-level integration via JWT and API Key authentication.
+  version: 1.0.0
+  contact:
+    name: INNOMCP System Architect (MDES)
+servers:
+  - url: https://api.innomcp.ai
+    description: Production Gateway
+  - url: http://localhost:3000
+    description: Development Gateway (Next.js Proxy)
+  - url: http://localhost:8080
+    description: Development Backend (Node.js Service)
+paths:
+  /api/ai/providers:
+    get:
+      summary: List all AI providers
+      description: Retrieve a comprehensive list of all registered AI providers within the orchestration system. / ดึงรายการผู้ให้บริการ AI ทั้งหมดที่ลงทะเบียนไว้ในระบบประสานงาน
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProviderPublicView'
+                  count:
+                    type: integer
+    post:
+      summary: Create a new AI provider
+      description: Register and initialize a new AI provider into the system configuration. / ลงทะเบียนและเริ่มต้นการกำหนดค่าผู้ให้บริการ AI รายใหม่เข้าสู่ระบบ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                properties:
+                  provider:
+                    $ref: '#/components/schemas/ProviderPublicView'
+        '400':
+          description: Invalid input
+  /api/ai/providers/{id}:
+    patch:
+      summary: Update an AI provider
+      description: Update the operational parameters and configuration details of a specific AI provider. / อัปเดตพารามิเตอร์การทำงานและรายละเอียดการกำหนดค่าของผู้ให้บริการ AI ที่ระบุ
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                properties:
+                  provider:
+                    $ref: '#/components/schemas/ProviderPublicView'
+        '404':
+          description: Provider not found
+    delete:
+      summary: Delete an AI provider
+      description: Permanently remove a specified AI provider from the system registry. / ลบผู้ให้บริการ AI ที่ระบุออกจากระบบลงทะเบียนอย่างถาวร
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          description: Provider not found
+  /api/ai/providers/{id}/test:
+    post:
+      summary: Test provider connectivity
+      description: Perform a connectivity probe to verify the availability and responsiveness of a specific AI provider. / ตรวจสอบสถานะการเชื่อมต่อเพื่อยืนยันความพร้อมและการตอบสนองของผู้ให้บริการ AI ที่ระบุ
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Test result
+          content:
+            application/json:
+              schema:
+                properties:
+                  provider:
+                    $ref: '#/components/schemas/ProviderPublicView'
+                  probe:
+                    type: object
+                    properties:
+                      ok:
+                        type: boolean
+                      detail:
+                        type: string
+        '404':
+          description: Provider not found
+  /api/ai/providers/route-preview:
+    post:
+      summary: Preview provider selection based on mode/capabilities
+      description: Simulate the GodTierRouter selection process to preview which provider would be chosen based on mode and capabilities. / จำลองกระบวนการเลือกของผู้กำหนดเส้นทาง (GodTierRouter) เพื่อแสดงตัวอย่างผู้ให้บริการที่จะถูกเลือกตามโหมดและขีดความสามารถ
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  enum: [local, cloud, hybrid]
+                capabilities:
+                  type: array
+                  items:
+                    type: string
+                privacyLevel:
+                  type: string
+      responses:
+        '200':
+          description: Preview result
+  /api/mother/session:
+    get:
+      summary: Get current Mother process session statistics
+      description: Retrieve real-time session telemetry and performance statistics for the current Mother process. / ดึงข้อมูลโทรมาตร (Telemetry) ของเซสชันและสถิติประสิทธิภาพแบบเรียลไทม์ของกระบวนการหลัก (Mother process) ปัจจุบัน
+      responses:
+        '200':
+          description: Session stats
+          content:
+            application/json:
+              schema:
+                properties:
+                  sessionStart:
+                    type: string
+                    format: date-time
+                  totalDispatches:
+                    type: integer
+                  totalProviderCalls:
+                    type: integer
+                  avgProvidersPerDispatch:
+                    type: number
+                  sessionSuccessRate:
+                    type: integer
+                  mostActiveProvider:
+                    type: object
+                    properties:
+                      providerId:
+                        type: string
+                      requests:
+                        type: integer
+                  topWinner:
+                    type: object
+                    properties:
+                      providerId:
+                        type: string
+                      wins:
+                        type: integer
+                  activeProviders:
+                    type: integer
+                  timestamp:
+                    type: string
+                    format: date-time
+  /api/mother/talk-to-innova-bot:
+    post:
+      summary: Send message to innova-bot via message bus
+      description: Dispatch a message to the Innova-Bot agent through the internal system message bus. / ส่งข้อความถึงเอเจนต์ Innova-Bot ผ่านระบบบัสข้อความ (Message Bus) ภายในของระบบ
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                from:
+                  type: string
+                  default: innomcp
+              required: [message]
+      responses:
+        '200':
+          description: Message written to bus
+          content:
+            application/json:
+              schema:
+                properties:
+                  ok:
+                    type: boolean
+                  filename:
+                    type: string
+                  filepath:
+                    type: string
+                  timestamp:
+                    type: string
+        '400':
+          description: Message is required
+        '500':
+          description: FS error
+  /api/debug/selection:
+    post:
+      summary: Test GodTierRouter selection logic
+      description: Analyze and debug the GodTierRouter's semantic and keyword-based selection logic for a given input. / วิเคราะห์และตรวจสอบตรรกะการเลือกของผู้กำหนดเส้นทาง (GodTierRouter) ทั้งในด้านความหมายและคำสำคัญสำหรับข้อความนำเข้าที่ระบุ
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                history:
+                  type: array
+                  items:
+                    type: object
+              required: [text]
+      responses:
+        '200':
+          description: Routing result
+          content:
+            application/json:
+              schema:
+                properties:
+                  input:
+                    type: string
+                  emotion:
+                    type: object
+                  router:
+                    type: object
+                    properties:
+                      category:
+                        type: string
+                      confidence:
+                        type: number
+                      reasoning:
+                        type: string
+                      isAmbiguous:
+                        type: boolean
+                      matchedKeywords:
+                        type: array
+                        items:
+                          type: string
+                      keywordScore:
+                        type: number
+                      semanticScore:
+                        type: number
+                      latencyMs:
+                        type: integer
+                  timestamp:
+                    type: string
+        '400':
+          description: Text is required
+  /api/providers/test-call:
+    post:
+      summary: Fire a real API call through a registered provider
+      description: Execute a live end-to-end API request through a registered provider to verify integration integrity. / เรียกใช้งาน API จริงแบบต้นจนจบ (End-to-End) ผ่านผู้ให้บริการที่ลงทะเบียนไว้เพื่อตรวจสอบความถูกต้องของการบูรณาการระบบ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                providerId:
+                  type: string
+                message:
+                  type: string
+              required: [providerId, message]
+      responses:
+        '200':
+          description: Provider response
+          content:
+            application/json:
+              schema:
+                properties:
+                  response:
+                    type: string
+                  durationMs:
+                    type: integer
+        '400':
+          description: Invalid input
+        '404':
+          description: Provider not found
+        '502':
+          description: Upstream provider error
+  /api/apikey:
+    get:
+      summary: List all API keys
+      description: Retrieve a filtered list of all API keys, including their current lifecycle status and constraints. / ดึงรายการรหัสผ่าน API (API Keys) ทั้งหมดพร้อมสถานะวงจรชีวิตและข้อจำกัดในการใช้งาน
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, revoke]
+        - name: name
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                properties:
+                  apiKeys:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ApiKey'
+    post:
+      summary: Create a new API key
+      description: Generate a new secure API key with defined expiration and rate-limiting policies. / สร้างรหัสผ่าน API (API Key) ชุดใหม่ที่มีการกำหนดวันหมดอายุและนโยบายการจำกัดอัตราการเรียกใช้งาน
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyCreate'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                properties:
+                  message:
+                    type: string
+                  apiKey:
+                    type: string
+                  apikey_name:
+                    type: string
+                  expire:
+                    type: string
+                    format: date-time
+                  rate_limit:
+                    type: integer
+                  allowed_origins:
+                    type: array
+                    items:
+                      type: string
+  /api/proxy:
+    get:
+      summary: Proxy GET request to external endpoint
+      description: Forward a GET request to a remote external endpoint via the secure system proxy. / ส่งต่อคำขอแบบ GET ไปยังจุดปลายทางภายนอกผ่านตัวแทนส่งต่อ (Proxy) ที่ปลอดภัยของระบบ
+      parameters:
+        - name: endpoint
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Proxied response
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                  status:
+                    type: integer
+    post:
+      summary: Proxy POST request to external endpoint
+      description: Forward a POST request with a data payload to a remote external endpoint via the secure system proxy. / ส่งต่อคำขอแบบ POST พร้อมข้อมูลนำเข้าไปยังจุดปลายทางภายนอกผ่านตัวแทนส่งต่อ (Proxy) ที่ปลอดภัยของระบบ
+      parameters:
+        - name: endpoint
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Proxied response
+          content:
+            application/json:
+              schema:
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                  status:
+                    type: integer
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token used for user-level authentication and role-based access control.
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Application-specific API Key for authenticated programmatic access.
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: token
+      description: JWT session token stored in HttpOnly cookies.
+    CsrfAuth:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+      description: CSRF token required for state-changing operations.
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Indicates if the request was processed successfully.
+        data:
+          type: object
+          description: The actual payload returned by the service.
+        status:
+          type: integer
+          description: The HTTP status code of the upstream service.
+      required: [success, status]
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: High-level error identifier or descriptive message.
+        message:
+          type: string
+          description: Human-readable error message.
+        details:
+          type: string
+          description: Technical details regarding the failure.
+        resolution:
+          type: string
+          description: Suggested steps to resolve the issue.
+        status:
+          type: integer
+          description: The HTTP status code of the error.
+        statusText:
+          type: string
+          description: Standard HTTP status text.
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: A simple confirmation or status message.
+      required: [message]
+    ProviderPublicView:
+      type: object
+      properties:
+        id:
+          type: string
+        displayName:
+          type: string
+        enabled:
+          type: boolean
+        hasApiKey:
+          type: boolean
+        baseUrl:
+          type: string
+    ProviderCreate:
+      type: object
+      properties:
+        displayName:
+          type: string
+        baseUrl:
+          type: string
+        apiKey:
+          type: string
+        enabled:
+          type: boolean
+      required: [displayName, baseUrl]
+    ApiKey:
+      type: object
+      properties:
+        apikey:
+          type: string
+        apikey_name:
+          type: string
+        expire:
+          type: string
+          format: date-time
+        rate_limit:
+          type: integer
+        allowed_origins:
+          type: array
+          items:
+            type: string
+    ApiKeyCreate:
+      type: object
+      properties:
+        apikey_name:
+          type: string
+        expire:
+          type: string
+          format: date-time
+        rate_limit:
+          type: integer
+        allowed_origins:
+          type: array
+          items:
+            type: string
+        user_id:
+          type: integer
+      required: [apikey_name]

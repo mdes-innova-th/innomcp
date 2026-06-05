@@ -105,4 +105,14 @@ Remaining non-code blockers:
 - Git publish remains blocked by repository access / credential mismatch for `mdes-innova/innomcp`.
 - Docker Desktop Linux engine is unavailable from this shell, so Docker-backed Redis/MariaDB cannot be raised here.
 - Local frontend health remains `degraded` because Redis/database are unavailable.
-- `docs/api/` remains untracked generated API documentation and needs title/scope/Thai-encoding review before shipping.
+- `docs/api/` was reviewed after the first readiness pass, corrected, validated, and is now included in release evidence.
+
+## API Documentation Resolution
+
+The previously untracked `docs/api/` artifact is now shippable:
+
+- `docs/api/openapi.yaml` title and description now identify `INNOMCP`.
+- Server base URLs no longer double-prefix `/api` when combined with path keys.
+- `/api/providers/test-call` now uses a valid OpenAPI `requestBody.content` shape.
+- `docs/api/swagger_ui.html` now uses `StandaloneLayout`.
+- `npx -y swagger-cli validate docs/api/openapi.yaml` passed with `docs/api/openapi.yaml is valid`.
