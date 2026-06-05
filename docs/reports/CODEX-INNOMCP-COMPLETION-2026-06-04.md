@@ -172,3 +172,39 @@ Remaining blockers:
 - Docker Desktop Linux engine pipe is still unavailable from this shell, so Docker-backed Redis/MariaDB cannot be raised through `docker compose` here.
 - Frontend health remains `degraded` because Redis is in cooldown and Database is unhealthy in this local session; backend readiness is no longer 503 and now reports `ready=true`.
 - `docs/api/` is untracked generated API documentation and was not included in this release proof because its title/scope and Thai text encoding need review before it should be shipped.
+
+## Addendum - 2026-06-05 Oracle Skill and Fleet Readiness
+
+Fresh report: `docs/reports/ORACLE-SKILL-READINESS-2026-06-05.md`.
+
+Current readiness verdict: `PASS_WITH_BOUNDARIES`.
+
+Codex/Oracle skill evidence:
+
+- Codex has 35 global Oracle/OMX skills visible via `arra-oracle-skills list -g` and 36 session-visible directories under `C:\Users\USER-NT\.codex\skills`.
+- Delivery skills used in this pass: `rrr-lite`, `recap-lite`, `trace`, `agent-fleet-budget`, and `antigravity-orchestrator`.
+- `trace`, `rrr-lite`, `recap-lite`, `go`, and `oracle-soul-sync-update` inspect as Codex-installed and command-capable.
+- Full `rrr`, full `recap`, `team-agents`, `fleet`, `xray`, and `awaken` remain available through the Oracle/Claude lane but are not installed for Codex in the current minimal Codex profile.
+- `9arm` and `ECC` were not found by the Oracle skill inspector; `debug-mantra` appears in the Claude global installed list but does not resolve through the current source-catalog inspector.
+
+Antigravity/MAW evidence:
+
+- `C:\Users\USER-NT\.antigravity\config.yaml` contains `defaults.auto_approve=true` and `defaults.skip_permissions=true`.
+- Antigravity CLI is installed under `C:\Users\USER-NT\AppData\Local\Programs\Antigravity\bin`.
+- `node C:\Users\USER-NT\Jit\eval\antigravity-probe.js` passed in the same delivery pass and confirmed Playwright MCP plus Chrome DevTools MCP registration.
+- `maw team status` works and lists the `innomcp`, `innova-bot-template`, and `jit` teams; no MAW tasks are currently queued.
+
+Latest >50-agent fleet proof:
+
+- Artifact: `C:\Users\USER-NT\Jit\network\artifacts\fleet-batch-2026-06-05T09-25-15-556Z\proof-manifest.md`.
+- Result: `count=56`, `completed=56`, `ok=56`, `pass=yes`.
+- MDES lane: `29/29 OK`; ThaiLLM lane: `27/27 OK`.
+- Ollama local is intentionally excluded from this strict final fleet proof because the fresh provider smoke timed out.
+- This supersedes the earlier final shipping validator that passed threshold with `53/56 OK`.
+
+Fresh post-report checks:
+
+- `git diff --check` passed with only a Git line-ending normalization warning for this existing report.
+- `pnpm --filter innomcp-next run build` passed.
+- Live health smoke returned HTTP 200 for `3000/api/health`, `3011/health`, `3011/api/health/ready`, and `3012/health`.
+- Backend readiness remains `ready=true`, `status=degraded`; degraded status is still limited to missing Redis/database infra in this local shell.
