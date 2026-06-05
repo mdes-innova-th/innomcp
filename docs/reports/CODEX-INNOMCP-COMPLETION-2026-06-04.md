@@ -218,3 +218,10 @@ The previously untracked generated API documentation was reviewed and made shipp
 - `/api/providers/test-call` was fixed from invalid `requestBody_content` to valid OpenAPI `requestBody.content`.
 - `docs/api/swagger_ui.html` now uses the Swagger UI `StandaloneLayout`.
 - `npx -y swagger-cli validate docs/api/openapi.yaml` passed with `docs/api/openapi.yaml is valid`.
+
+## Addendum - 2026-06-05 Final Post-Commit Regression
+
+Fresh post-commit verification after `docs/api/` was included:
+
+- `pnpm --filter innomcp-node run test:unit -- --runInBand` passed: 77 suites / 743 tests.
+- `pnpm --filter innomcp-next exec playwright test e2e/chat.spec.ts --project=chromium` passed: 11/11 in 1.2 minutes.

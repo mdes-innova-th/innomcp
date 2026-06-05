@@ -116,3 +116,10 @@ The previously untracked `docs/api/` artifact is now shippable:
 - `/api/providers/test-call` now uses a valid OpenAPI `requestBody.content` shape.
 - `docs/api/swagger_ui.html` now uses `StandaloneLayout`.
 - `npx -y swagger-cli validate docs/api/openapi.yaml` passed with `docs/api/openapi.yaml is valid`.
+
+## Final Post-Commit Regression
+
+Fresh post-commit checks after the API documentation commit:
+
+- `pnpm --filter innomcp-node run test:unit -- --runInBand` passed: 77 suites / 743 tests.
+- `pnpm --filter innomcp-next exec playwright test e2e/chat.spec.ts --project=chromium` passed: 11/11 in 1.2 minutes.
