@@ -1,6 +1,7 @@
 ﻿import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { correlationIdMiddleware } from "./middleware/correlationId";
 import { performanceTrackingMiddleware, trackPerformance } from "./middleware/performanceTracking";
@@ -68,6 +69,19 @@ import activityRouter from "./routes/api/activity";
 
 // Initialize Express application
 const app = express();
+
+// Trust proxy — required for correct IP detection behind reverse proxies (nginx, Cloudflare)
+// Without this, req.ip returns the proxy IP and rate limiting by IP is broken
+app.set("trust proxy", 1);
+
+// Helmet sets security headers: X-Content-Type-Options, X-Frame-Options, Referrer-Policy, etc.
+// Configured to allow CORS and framed embedding from same origin
+app.use(helmet({
+  contentSecurityPolicy: false, // CSP handled separately if needed
+  crossOriginEmbedderPolicy: false, // Allow cross-origin resources
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false,
+}));
 
 // Protect tests from crashing due to MCP SDK fetch failures when innomcp-server is down
 process.on("unhandledRejection", (err) => {
@@ -185,8 +199,8 @@ app.use("/api/providers/health-check", generalRateLimit, providerHealthRouter);
 // Phase C: SSE streaming chat (additive â€” does not replace /api/chat)
 app.use("/api/chat/stream", generalRateLimit, chatStreamRouter);
 
-// Router à¸ªà¸³à¸«à¸£à¸±à¸š Debug/Test GUI (à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡ auth)
-app.use("/api/debug", debugRouter);
+// Router à¸ªà¸³à¸«à¸£à¸±à¸š Debug/Test GUI — requires auth (prevents info leak)
+app.use("/api/debug", generalRateLimit, authenticateToken, debugRouter);
 
 // Task persistence — Manus-style task history (requires API key + CSRF via /api)
 // Mounted explicitly here before the catch-all /api to allow auth-bypass in tests.
@@ -220,7 +234,8 @@ app.use("/api/mother/bus-log", generalRateLimit, motherBusLogRouter);
 app.use("/api/mother/summary", generalRateLimit, motherSummaryRouter);
 app.use("/api/mother/leaderboard-snapshot", generalRateLimit, motherLeaderboardSnapshotRouter);
 app.use("/api/mother/talk-to-innova-bot", generalRateLimit, motherTalkToInnovaBotRouter);
-app.use("/api/mother/trigger-dispatch", generalRateLimit, motherTriggerDispatchRouter);
+// trigger-dispatch fires LLM calls — requires auth to prevent cost abuse
+app.use("/api/mother/trigger-dispatch", generalRateLimit, authenticateToken, motherTriggerDispatchRouter);
 app.use("/api/mother/inbox", generalRateLimit, motherInboxRouter);
 app.use("/api/mother/config", generalRateLimit, motherConfigRouter);
 app.use("/api/mother/trends", generalRateLimit, motherTrendsRouter);
@@ -232,13 +247,15 @@ app.use("/api/mother/scorecard", generalRateLimit, motherScorecardRouter);
 app.use("/api/model-settings", generalRateLimit, modelSettingsRouter);
 
 // Project Memory — key-value store for Private Agent Studio sessions
-app.use("/api/memories", generalRateLimit, memoriesRouter);
+// REQUIRES auth: prevents IDOR on DELETE and unauthorized memory access
+app.use("/api/memories", generalRateLimit, authenticateToken, memoriesRouter);
 
 // Projects — group tasks and memories into named projects
 app.use("/api/projects", generalRateLimit, projectsRouter);
 
 // Shell Tool — sandboxed command execution for Private Agent Studio
-app.use("/api/shell", generalRateLimit, shellRouter);
+// REQUIRES auth: prevents unauthenticated RCE via /api/shell/exec
+app.use("/api/shell", generalRateLimit, authenticateToken, shellRouter);
 
 // Web Fetch Tool — SSRF-safe URL fetcher + HTML→Markdown + workspace artifact
 app.use("/api/fetch", generalRateLimit, webFetchRouter);
@@ -247,7 +264,8 @@ app.use("/api/fetch", generalRateLimit, webFetchRouter);
 app.use("/api/plugins", generalRateLimit, cacheResponse(300_000), pluginsRouter);
 
 // Webhook Registry — register, toggle, and delete outbound webhooks (Phase 4)
-app.use("/api/webhooks", generalRateLimit, webhooksRouter);
+// REQUIRES auth: prevents unauthorized webhook registration (SSRF vector)
+app.use("/api/webhooks", generalRateLimit, authenticateToken, webhooksRouter);
 
 // Saved Prompt Templates — list, create, use, delete (Phase 5)
 app.use("/api/templates", generalRateLimit, cacheResponse(300_000), templatesRouter);

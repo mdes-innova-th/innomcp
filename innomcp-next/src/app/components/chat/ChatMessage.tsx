@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import DOMPurify from "dompurify";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -371,7 +372,7 @@ export default function ChatMessage({
             <div className="flex justify-center bg-gradient-to-b from-background to-muted/30 p-4">
               <div
                 className="relative inline-flex overflow-hidden rounded-md ring-1 ring-border/40"
-                dangerouslySetInnerHTML={{ __html: structuredContent.chartSvg }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(structuredContent.chartSvg, { USE_PROFILES: { svg: true } }) }}
               />
             </div>
             <div className="flex flex-wrap justify-end gap-2 border-t border-border/60 bg-muted/30 px-3 py-2">
