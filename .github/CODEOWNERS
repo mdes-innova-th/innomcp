@@ -1,0 +1,21 @@
+# These are the people and teams responsible for code review.
+# Each line is a file pattern followed by one or more owners.
+# Order matters: later patterns override earlier ones.
+
+# Default: notify the maintainer
+*                          @mdes-innova
+
+# AI / agent orchestration
+/innomcp-node/src/utils/mcp/    @mdes-innova
+/innomcp-node/src/services/     @mdes-innova
+
+# Frontend / UI
+/innomcp-next/src/app/          @mdes-innova
+/innomcp-next/src/components/   @mdes-innova
+
+# MCP tools
+/innomcp-server-node/src/mcp/   @mdes-innova
+
+# Infrastructure / deploy
+/docker-compose.yml             @mdes-innova
+/.github/workflows/             @mdes-innova

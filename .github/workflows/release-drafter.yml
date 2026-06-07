@@ -1,0 +1,39 @@
+name: Release Drafter
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  update_release_draft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: release-drafter/release-drafter@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag-name: v${{ steps.date.outputs.date }}
+          name-template: "INNOMCP v${{ steps.date.outputs.date }}"
+          version-template: "0.50.0+g${{ steps.date.outputs.date }}"
+          exclude-labels: "skip-changelog,duplicate,question,invalid,wontfix"
+          category-template: "### $TITLE"
+          template: |
+            ## Changes
+
+            $CHANGES
+
+            ## Contributors
+
+            $CONTRIBUTORS
+
+            ## Full changelog
+
+            Compare against previous tag.
+      - id: date
+        run: echo "date=$(date +%Y%m%d)" >> "$GITHUB_OUTPUT"

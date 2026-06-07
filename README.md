@@ -33,12 +33,16 @@ INNOMCP is a **self-hostable, multi-agent AI workspace** that gives you the same
 
 ## 🎬 Demo
 
-> 🚧 **GIF coming soon** — the dev server is up and `pnpm dev` will start a local demo on `http://localhost:3000`. In the meantime, browse the [`screenshots/`](screenshots/) folder for the live UI:
+![INNOMCP chat with Thai weather query — real TMD data, parallel tool dispatch, streamed response](docs/screenshots/hero-weather-response.png)
+
+> **Live UI screenshots** (1280×1015, fresh from last Playwright run on 2026-05-11):
 >
-> - `screenshots/product-audit/` — full chat + artifact + tool panel walkthrough
-> - `screenshots/browser-release-flows/` — Playwright signoff suite
+> - 🌦️ **Weather + tool panel** → `docs/screenshots/hero-weather-response.png`
+> - 🧮 **Calculator tool dispatch** → `docs/screenshots/hero-calculator-tool.png`
+> - 📊 **Evidence dashboard** → `docs/screenshots/hero-evidence-dashboard.png`
+> - 📱 **Mobile responsive view** → `docs/screenshots/hero-mobile-view.png`
 >
-> **Want to record a real GIF?** Run `pnpm dev` and use any screen recorder — we accept PRs adding `docs/demo.gif`!
+> **Want to record a real 60s demo GIF?** Run `pnpm dev` and use any screen recorder — PRs adding `docs/demo.gif` are very welcome!
 
 ---
 
