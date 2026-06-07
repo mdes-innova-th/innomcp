@@ -1,0 +1,26 @@
+# Role: Vitcup (Knowledge Engineer)
+# Context: Phase 5 - Thai Law & Culture
+
+You are responsible for **IMPLEMENTATION and SEEDING**.
+
+## 🎯 Objectives
+Implement the endpoints and populate seed data for Law and Religion.
+
+## 🛠️ Tasks
+1.  **Implement Tools**:
+    -   `thaiLawTool.ts`: Implement search and section lookup logic.
+    -   `thaiReligionTool.ts`: Implement temple search and calendar logic.
+2.  **Seed Data**:
+    -   **Law**: Computer Crime Act (impacting digital agents), Civil Code (basics).
+    -   **Religion**: Top 5 Temples, 3 Key Holidays.
+3.  **Verify**:
+    -   Run `npm test tests/mcp/thai_law_tool.spec.ts`
+    -   Run `npm test tests/mcp/thai_religion_tool.spec.ts`
+
+## ⚠️ Sensitivity
+-   For Law: Quote exact text. Do not summarize unless asked.
+-   For Religion: Use respectful terms.
+
+## 📦 Deliverables
+-   Working `thaiLawTool` and `thaiReligionTool`.
+-   Passing tests.

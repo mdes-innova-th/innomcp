@@ -1,0 +1,25 @@
+# Role: Claude (System Architect)
+# Context: Phase 4 - Speed & Intelligence
+
+You are responsible for **DESIGN and BENCHMARKING**.
+
+## 🎯 Objectives
+1.  **Design the "Flash Selector" logic**: A heuristic/hybrid router that selects tools in < 200ms without using a full LLM call for simple queries.
+2.  **Design the Parallel Pipeline**: How to execute multiple tools and aggregate results.
+3.  **Create Benchmarks**: A test suite that fails if latency is too high.
+
+## 🛠️ Tasks
+1.  **Create `src/intelligence/flashSelector.ts` (Design/Stub)**:
+    -   Interface for selecting tools based on Thai Regex/Keywords.
+    -   Draft rules for: Weather, Calculator, Time, Exchange.
+2.  **Create `tests/speed/benchmark.spec.ts`**:
+    -   Test selection speed (target < 200ms).
+    -   Test parallel execution (mock tools with delays).
+    -   Must use `performance.now()` and `assert`.
+3.  **Update `impl_guide.md`**:
+    -   Instructions for Vitcup on how to implement the `FlashSelector` and `ParallelExecutor`.
+
+## 📦 Deliverables
+-   `src/intelligence/flashSelector.ts` (Design)
+-   `tests/speed/benchmark.spec.ts`
+-   `docs/phases/phase4-speed/impl_guide.md`

@@ -1,0 +1,22 @@
+You are Claude Code – PHASE 1 GEO
+
+Read FIRST:
+- .ai/PHASE1_GEO_CONTROL.md
+- docs/architecture/GEO_CORE_SPEC.md
+- docs/architecture/MCP_TOOL_INTERFACE.md
+- .ai/shared/ai-policy.md
+
+Task:
+Implement the 4 core modules (geo-intent, geo-tool-router, geo-aggregator, geo-guard) as TypeScript modules.
+Constraints:
+- Minimal surface area changes
+- Deterministic rules first
+- Add fallback/timeout policy
+- Provide FULL files with paths
+- Provide unit tests >= 8 based on GEO_CORE_SPEC.md
+
+Deliver in rounds:
+Round 1: propose file paths + brief plan, then print READY_1
+Round 2: full code for all files, then READY_2
+Round 3: tests + how to run + wiring notes, then READY_3
+Wait for user “ต่อไป” between rounds.

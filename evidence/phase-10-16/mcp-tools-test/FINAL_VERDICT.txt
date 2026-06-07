@@ -1,0 +1,77 @@
+MCP TOOLS FUNCTIONAL TEST - FINAL VERDICT
+==========================================
+Date: 2026-05-14 15:42-15:44 UTC
+Backend: http://localhost:3011 (port 3011 on phase-c-living-agent-chat-opus-recovery)
+
+TEST EXECUTION
+==============
+6 targeted queries via HTTP POST /api/chat/stream
+All requests received 200 OK after 15-35 seconds
+All responses parsed as Server-Sent Event (SSE) streams
+
+CRITICAL RESULT: 0/6 TOOLS FIRED - MDES ABORT WALL
+==================================================
+
+Matrix:
+  ID   Query                                  Expected Tool        Status
+  MT1  หลักฐานคดีล่าสุดมีกี่รายการ ขอ 5      detect_evidence      FAIL (abort)
+  MT2  ข้อมูลจังหวัดเชียงใหม่ lat/lng         thai_geo_tool        FAIL (abort)
+  MT3  เช็คสถานะ docker evidence db           system_status_tool   FAIL (abort)
+  MT4  ประเทศไทยมีกี่จังหวัด ภาคเหนือ        thaiKnowledgeTool    FAIL (abort)
+  MT5  พยากรณ์อากาศพรุ่งนี้ฝน                NWP/TMD weather      FAIL (abort)
+  MT6  วันนี้วันที่เท่าไหร่                  datetime fastpath    FAIL (abort)
+
+FINDINGS
+========
+
+1. Agents instantiate correctly
+   - 10+ agent_started events per query (concierge, critic, stylist, rag-agent, broker, conductor)
+   - MDES models fire: qwen3.5:9b (Qwen), gemma4:e4b (Gemma)
+   - Broker selects Local Ollama (priority=90) + minimax-m2.5:cloud
+
+2. Routing bypasses tool paths
+   - conductor selects route_selected → "generic response route" (non-specialized)
+   - No MCP tool invocation detected in any SSE stream
+   - Zero "mcp_tool_call" or "tool_result" events
+
+3. MDES timeout/abort wall
+   - All 10 agents in pipeline report fallback event at ~T+12s
+   - fallbackReason: "This operation was aborted" (generic timeout message)
+   - No error details provided in SSE stream
+
+4. Input encoding issue (secondary)
+   - Thai text in finalText shows as "?????????" despite correct UTF-8 submission
+   - Suggests character mapping or display layer issue, not transport layer
+
+ROOT CAUSE HYPOTHESIS
+====================
+HTTP stateless endpoint (/api/chat/stream) lacks session context:
+- WebSocket chat (working) maintains sessionId across messages
+- HTTP POST requests are isolated, have no prior history
+- Conductor routing logic may require session context to route to specialized tool paths
+- Without session context, defaults to safe generic route
+- MDES agents attempt to fulfill generic route but timeout waiting for context/tools
+
+EVIDENCE ARTIFACTS
+==================
+c:/Users/USER-NT/DEV/innomcp/evidence/phase-10-16/mcp-tools-test/
+├── MT1-raw.sse → Full SSE stream MT1 (15K)
+├── MT2-raw.sse → Full SSE stream MT2 (13K)
+├── MT3-raw.sse → Full SSE stream MT3 (57K - longest timeout)
+├── MT4-raw.sse → Full SSE stream MT4 (20K)
+├── MT5-raw.sse → Full SSE stream MT5 (15K)
+├── MT6-raw.sse → Full SSE stream MT6 (11K)
+├── MT1-final.txt → Extracted finalText (encoding issue visible)
+├── MT2-final.txt through MT6-final.txt (final answers)
+└── REPORT.txt, FINAL_VERDICT.txt (analysis)
+
+Backend logs: c:/Users/USER-NT/DEV/innomcp/evidence/phase-10-16/backend-port3011.log
+Lines 15:42-15:44 mark the 6 HTTP requests (cid: 99b3bfe6, 140b08c5, 9ae20e08, e2970816, f2edb4c5, 89339479)
+
+VERDICT: BLOCKED
+================
+Status: BLOCKED - Tool system unreachable via HTTP endpoint
+Pass bar: 0/6 FAIL
+Recommend: Verify HTTP endpoint session handling vs WebSocket; diagnose MDES timeout root cause
+
+Handoff: innomcp-dev

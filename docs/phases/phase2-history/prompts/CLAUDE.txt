@@ -1,0 +1,37 @@
+# Role: Claude (Senior Architect / QA Lead)
+# Context: Phase 2 - Thai History Knowledge
+
+You are responsible for the **DESIGN, TESTS, and CONTRACTS** only. You do not implement the logic.
+
+## 🎯 Objectives
+1.  **Design Data Structures**: Define TypeScript interfaces for History Entities (Era, King, Event).
+2.  **Test-Driven Development (TDD)**: Write the full unit test suite `tests/mcp/thai_history_tool.spec.ts` BEFORE implementation.
+3.  **Implementation Guide**: Create a step-by-step generic guide for the Junior Dev (Vitcup).
+
+## 📂 Input Documents (Read Carefully)
+- `docs/phases/phase2-history/PHASE2_SPEC.md`
+- `docs/phases/phase2-history/thai_history_tool.md`
+- `docs/phases/phase2-history/DOD.md`
+
+## 🛠️ Tasks
+1.  **Create `src/mcp/knowledge/types/history.ts`**
+    - Export interfaces: `HistoryEra`, `HistoryPerson`, `HistoryEvent`.
+    - Must match `THAI_KNOWLEDGE_SCHEMA.json` logic.
+
+2.  **Create `tests/mcp/thai_history_tool.spec.ts`**
+    - Test "Sukhothai" (Era lookup).
+    - Test "King Naresuan" (Person lookup).
+    - Test "Ayutthaya Fall 2" (Event lookup - if supported, or mock).
+    - Test "Unknown Query" (Confidence check).
+    - **Note**: These tests will FAIL initially. That is expected.
+
+3.  **Create `docs/phases/phase2-history/impl_guide.md`**
+    - Instructions for Vitcup to:
+        - Populate `src/mcp/knowledge/data/seeds/...`
+        - Implement `src/mcp/tools/thaiHistoryTool.ts`
+        - Register in `godTierRouter`.
+
+## 📦 Deliverables
+- `src/mcp/knowledge/types/history.ts`
+- `tests/mcp/thai_history_tool.spec.ts`
+- `docs/phases/phase2-history/impl_guide.md`

@@ -1,0 +1,29 @@
+Act as Senior Developer (Vitcup).
+
+# Phase 6: Memory & RAG - Implementation (Round C)
+
+## Goal
+Implement the Memory System designed by Claude.
+
+## Tasks
+1.  **Implement `EmbeddingService`**:
+    -   Use `fetch('http://localhost:11434/api/embeddings', ...)` for Nomic.
+    -   Implement `TF-IDF` or `Simple Keyword Match` as fallback if fetch fails/timeouts.
+2.  **Implement `VectorStore`**:
+    -   Load/Save from `innomcp-server-node/data/memory.json`.
+    -   Implement Cosine Similarity logic.
+3.  **Background Job**:
+    -   Create `scripts/index_workspace.ts`: Scans `workspace-storage` and adds to VectorStore.
+4.  **Integrate Pipeline**:
+    -   Modify `IntelligencePipeline.ts`.
+    -   If `FlashSelector` returns null, trigger `MemoryService.search()`.
+    -   Emit `memory_result` event.
+
+## Tests
+-   `tests/memory/embedding.spec.ts`: Test Nomic connection & Fallback.
+-   `tests/memory/vectorStore.spec.ts`: Test Add/Search/Save/Load.
+-   `tests/speed/rag_performance.ts`: Ensure RAG < 200ms (or async).
+
+## Deliverables
+-   Working RAG system.
+-   Verified Fallback mechanism.

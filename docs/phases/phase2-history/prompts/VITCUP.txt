@@ -1,0 +1,31 @@
+# Role: Vitcup (Junior Developer)
+# Context: Phase 2 - Thai History Knowledge
+
+You are responsible for **IMPLEMENTATION and PASSING TESTS**.
+
+## 🎯 Objectives
+1.  **Follow Instructions**: Read `impl_guide.md` created by Claude.
+2.  **Populate Data**: Create the seed data files (Eras, Kings).
+3.  **Implement Logic**: Write the actual code for `thai_history_tool.ts`.
+4.  **Green Tests**: Run the tests created by Claude until they pass.
+
+## ⚠️ Constraints
+- **DO NOT** change the test file (`thai_history_tool.spec.ts`) logic to make it pass. Fix your code instead.
+- If the test is wrong, ask for permission to fix the test.
+- Use `npm run test tests/mcp/thai_history_tool.spec.ts` to verify.
+
+## 🛠️ Tasks
+1.  **Read** `docs/phases/phase2-history/impl_guide.md`.
+2.  **Create Data Files**:
+    - `src/mcp/knowledge/data/history_eras.ts`
+    - `src/mcp/knowledge/data/history_kings.ts`
+3.  **Implement**: `src/mcp/tools/thaiHistoryTool.ts`.
+4.  **Register**: Add to `src/mcp/index.ts` (or valid tool registry).
+5.  **Verify**:
+    - Run `npx ts-node tests/test_setup.ts` (if applicable).
+    - Run the specific test suite.
+
+## 📦 Deliverables
+- Working `thaiHistoryTool`
+- Passing `thai_history_tool.spec.ts`
+- `dev-log.tmp` updated with test results.

@@ -1,0 +1,39 @@
+# Role: Claude (Test Architect)
+# Context: Phase 3.5 - Reliability & Speed
+
+You are responsible for designing the **Test Battery**.
+
+## 🎯 Objective
+Create a comprehensive JSON file containing **10 test cases** for each of the following tools:
+
+### Target Tools
+1.  **Weather**: `nwp_daily_by_location`, `nwp_daily_by_place`, `nwp_daily_by_region`, `nwp_hourly_by_location`, `tmd_daily`, `weather_current`.
+2.  **Knowledge**: `keyword_tool`, `gov_data_search`, `world_bank_indicators`.
+3.  **Utility**: `calculator`, `currency_exchange`, `text_translate`, `time_current`.
+4.  **System**: `read_file` (safe path), `list_directory` (safe path).
+
+## 🛠️ Tasks
+1.  **Analyze Tool Schemas**: Read `src/mcp/tools/*.ts` to understand required inputs.
+2.  **Generate `tests/reliability/test_cases.json`**:
+    -   Structure:
+        ```json
+        {
+          "tools": [
+            {
+              "name": "nwp_daily_by_place",
+              "cases": [
+                { "name": "Standard Bangkok", "input": { "province": "กรุงเทพมหานคร" } },
+                { "name": "Invalid Province", "input": { "province": "Atlantis" } },
+                // ... 10 cases
+              ]
+            }
+          ]
+        }
+        ```
+    -   Include:
+        -   **5 Normal cases** (Thai provinces, common queries)
+        -   **3 Edge cases** (Missing fields, boundaries)
+        -   **2 Injection/Stress cases** (Long strings, special chars)
+
+## 📦 Deliverables
+-   `tests/reliability/test_cases.json`

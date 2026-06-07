@@ -1,0 +1,307 @@
+// innomcp-node/src/tools/webSearchAggregatorTool.ts
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import crypto from "crypto";
+import { logger } from "../utils/logger";
+import { logMCPRequest } from "../utils/logger";
+
+/**
+ * Web Search Aggregator Tool
+ * - Aggregates search results from multiple sources via:
+ *   1) a local gateway (recommended) to avoid exposing keys
+ *   2) lightweight public endpoints (optional, limited)
+ *
+ * Supported "source" values:
+ * - google   (should use gateway; direct Google requires paid API / custom search)
+ * - youtube  (should use gateway; YouTube Data API key is sensitive)
+ * - wikipedia (public, can do direct)
+ * - x / tiktok / instagram / facebook / linkedin (should use gateway; requires tokens / scraping not recommended)
+ *
+ * Best practice:
+ * - Implement gateway that:
+ *   - Uses official APIs where possible
+ *   - Handles auth, rate limits, caching
+ *   - Returns normalized JSON
+ */
+
+const DEFAULT_TIMEOUT_MS = Number(process.env.WEB_AGG_TIMEOUT_MS || 20_000);
+const DEFAULT_TOPK = Number(process.env.WEB_AGG_TOPK || 5);
+const DEFAULT_SOURCES = (process.env.WEB_AGG_DEFAULT_SOURCES || "wikipedia,gateway")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const GATEWAY_URL = process.env.WEB_AGG_GATEWAY_URL || ""; // e.g. http://localhost:4010
+
+function sha1(s: string) {
+  return crypto.createHash("sha1").update(s).digest("hex");
+}
+
+async function fetchJsonWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resp = await fetch(url, { ...init, signal: controller.signal });
+    const text = await resp.text().catch(() => "");
+    let json: any = null;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = null;
+    }
+    return { ok: resp.ok, status: resp.status, text, json, headers: resp.headers };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function safeText(s: string, n = 220) {
+  const x = (s || "").toString().replace(/\s+/g, " ").trim();
+  return x.length <= n ? x : x.slice(0, n) + "…";
+}
+
+const SourceEnum = z.enum([
+  "gateway",
+  "wikipedia",
+  "google",
+  "youtube",
+  "x",
+  "tiktok",
+  "instagram",
+  "facebook",
+  "linkedin",
+]);
+
+const WebAggInputSchema = z.object({
+  query: z.string().min(1).max(600),
+  sources: z.array(SourceEnum).optional().default(DEFAULT_SOURCES as any),
+  topK: z.number().int().min(1).max(20).optional().default(DEFAULT_TOPK),
+  lang: z.string().min(2).max(10).optional().default("th"),
+  region: z.string().min(2).max(10).optional().default("TH"),
+  timeoutMs: z.number().int().min(500).max(120_000).optional(),
+  // Optional "intent" helps gateway pick endpoints better
+  intent: z.enum(["general", "news", "video", "wiki", "social"]).optional().default("general"),
+});
+
+type NormalizedResult = {
+  source: string;
+  title: string;
+  snippet?: string;
+  url?: string;
+  publishedAt?: string;
+  author?: string;
+  score?: number;
+  raw?: any;
+};
+
+async function wikipediaSearch(query: string, lang: string, topK: number, timeoutMs: number) {
+  // MediaWiki API (public)
+  const api = `https://${encodeURIComponent(lang)}.wikipedia.org/w/api.php`;
+  const params = new URLSearchParams({
+    action: "query",
+    list: "search",
+    srsearch: query,
+    utf8: "1",
+    format: "json",
+    srlimit: String(Math.min(topK, 10)),
+    origin: "*",
+  });
+
+  const url = `${api}?${params.toString()}`;
+  const resp = await fetchJsonWithTimeout(url, { method: "GET" }, timeoutMs);
+  if (!resp.ok || !resp.json?.query?.search) return [];
+
+  const items = resp.json.query.search as any[];
+  return items.map((it) => {
+    const title = String(it.title || "");
+    const pageid = it.pageid;
+    const pageUrl = `https://${lang}.wikipedia.org/?curid=${pageid}`;
+    return {
+      source: "wikipedia",
+      title,
+      snippet: String(it.snippet || "").replace(/<[^>]+>/g, ""),
+      url: pageUrl,
+      score: typeof it.score === "number" ? it.score : undefined,
+      raw: { pageid, size: it.size, wordcount: it.wordcount, timestamp: it.timestamp },
+    } satisfies NormalizedResult;
+  });
+}
+
+async function gatewaySearch(
+  query: string,
+  sources: string[],
+  topK: number,
+  lang: string,
+  region: string,
+  intent: string,
+  timeoutMs: number
+): Promise<NormalizedResult[]> {
+  if (!GATEWAY_URL) return [];
+
+  const url = `${GATEWAY_URL.replace(/\/$/, "")}/v1/search`;
+  const resp = await fetchJsonWithTimeout(
+    url,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, sources, topK, lang, region, intent }),
+    },
+    timeoutMs
+  );
+
+  if (!resp.ok) return [];
+
+  // Gateway contract suggestion:
+  // { results: [ {source,title,snippet,url,publishedAt,author,score,raw} ] }
+  const arr = resp.json?.results || resp.json || [];
+  if (!Array.isArray(arr)) return [];
+
+  return arr
+    .map((r: any) => {
+      const out: NormalizedResult = {
+        source: String(r.source || "gateway"),
+        title: String(r.title || ""),
+        snippet: r.snippet ? String(r.snippet) : undefined,
+        url: r.url ? String(r.url) : undefined,
+        publishedAt: r.publishedAt ? String(r.publishedAt) : undefined,
+        author: r.author ? String(r.author) : undefined,
+        score: typeof r.score === "number" ? r.score : undefined,
+        raw: r.raw ?? undefined,
+      };
+      return out;
+    })
+    .filter((x) => x.title.length > 0)
+    .slice(0, topK);
+}
+
+function dedupeByUrlOrTitle(items: NormalizedResult[]) {
+  const seen = new Set<string>();
+  const out: NormalizedResult[] = [];
+  for (const it of items) {
+    const key = (it.url || "") ? `u:${it.url}` : `t:${it.title.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(it);
+  }
+  return out;
+}
+
+function formatForChat(items: NormalizedResult[]) {
+  if (items.length === 0) return "ไม่พบผลลัพธ์จากแหล่งที่เลือก";
+  const lines: string[] = [];
+  items.forEach((it, idx) => {
+    lines.push(`${idx + 1}. [${it.source}] ${it.title}`);
+    if (it.snippet) lines.push(`   - ${safeText(it.snippet, 240)}`);
+    if (it.url) lines.push(`   - ${it.url}`);
+    if (it.publishedAt) lines.push(`   - published: ${it.publishedAt}`);
+  });
+  return lines.join("\n");
+}
+
+export function registerWebSearchAggregatorTool(mcpserver: McpServer) {
+  mcpserver.registerTool(
+    "webAggTool_search_multi_source",
+    {
+      title: "สืบค้นข้อมูลจาก Web หลายแหล่ง (Google/YouTube/Wiki/Social ผ่าน Gateway)",
+      description: `
+หน้าที่: สืบค้นข้อมูลจากหลายแหล่ง เพื่อประกอบการตอบก่อนส่งให้ AI สรุปผล
+แหล่งข้อมูล:
+- wikipedia (เรียกได้โดยตรง)
+- google / youtube / social (แนะนำผ่าน gateway เพื่อความปลอดภัย + เสถียร)
+
+เหมาะสำหรับ:
+- ต้องการข้อมูลล่าสุด/หลายแหล่ง
+- ต้องการอ้างอิง/สรุปจากเว็บ
+- ต้องการค้น YouTube หรือ social media
+
+ตั้งค่าแนะนำ:
+- WEB_AGG_GATEWAY_URL = http://localhost:<port> (บริการภายในที่จัดการ token/api key/caching)
+`,
+    },
+    async (args: any) => {
+      const t0 = Date.now();
+      const parsed = WebAggInputSchema.safeParse(args);
+      if (!parsed.success) {
+        return {
+          content: [{ type: "text" as const, text: `Invalid input: ${parsed.error.message}` }],
+          structuredContent: { ok: false, error: "VALIDATION_ERROR" },
+        };
+      }
+
+      const input = parsed.data;
+      const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
+      const queryHash = sha1(`${input.query}|${input.sources.join(",")}|${input.topK}|${input.lang}|${input.region}|${input.intent}`);
+
+      try {
+        const wantWiki = input.sources.includes("wikipedia");
+        const wantGateway = input.sources.includes("gateway") || input.sources.some((s) => s !== "wikipedia");
+
+        const all: NormalizedResult[] = [];
+
+        // 1) Wikipedia direct
+        if (wantWiki) {
+          const wiki = await wikipediaSearch(input.query, input.lang, input.topK, timeoutMs);
+          all.push(...wiki);
+        }
+
+        // 2) Gateway (google/youtube/social etc)
+        if (wantGateway) {
+          const gatewaySources = input.sources
+            .filter((s) => s !== "wikipedia")
+            .map((s) => String(s));
+
+          const g = await gatewaySearch(
+            input.query,
+            gatewaySources.length ? gatewaySources : ["google"],
+            input.topK,
+            input.lang,
+            input.region,
+            input.intent,
+            timeoutMs
+          );
+          all.push(...g);
+        }
+
+        const merged = dedupeByUrlOrTitle(all).slice(0, input.topK);
+
+        const duration = Date.now() - t0;
+        logMCPRequest("webAggTool_search_multi_source", true, duration);
+
+        logger.info(
+          `[webAggTool] ok=true ${duration}ms q="${safeText(input.query, 120)}" sources=${input.sources.join(",")} topK=${input.topK} hash=${queryHash.slice(0, 10)}`
+        );
+
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: formatForChat(merged),
+            },
+          ],
+          structuredContent: {
+            ok: true,
+            query: input.query,
+            sources: input.sources,
+            topK: input.topK,
+            lang: input.lang,
+            region: input.region,
+            intent: input.intent,
+            durationMs: duration,
+            results: merged,
+            queryHash,
+          },
+        };
+      } catch (e: any) {
+        const duration = Date.now() - t0;
+        logMCPRequest("webAggTool_search_multi_source", false, duration, e);
+        logger.error(`[webAggTool] ok=false ${duration}ms err=${String(e?.message || e)}`);
+
+        return {
+          content: [{ type: "text" as const, text: `ค้นหาไม่สำเร็จ: ${String(e?.message || e)}` }],
+          structuredContent: { ok: false, error: String(e?.message || e), durationMs: duration, queryHash },
+        };
+      }
+    }
+  );
+}

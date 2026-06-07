@@ -1,0 +1,6 @@
+﻿frontend_health STATUS=200 BODY={"status":"unhealthy","service":"innomcp-next","mode":"offline","mode_ready":false,"ai_mode":"remote","mcp_status":"connected","redis_status":"cooldown","redis_ready":false,"redis_configured":true,"redis_retry_after_ms":29321,"local_tools":
+backend_health STATUS=200 BODY={"status":"ok"}
+backend_live STATUS=200 BODY={"alive":true,"timestamp":"2026-06-04T07:48:46.096Z","uptime":45.9383141}
+backend_ready STATUS=503 BODY=
+mcp_health STATUS=200 BODY={"status":"ok"}
+mcp_tools_list FAIL=The remote server returned an error: (406) Not Acceptable.

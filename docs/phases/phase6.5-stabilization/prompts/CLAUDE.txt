@@ -1,0 +1,39 @@
+Act as Senior Architect (Claude).
+
+# Phase 6.5: System Stabilization - Architecture Refactor (Round B)
+
+## Goal
+Redesign the request processing flow to introduce a **Deterministic Fast Path Layer** and disable unnecessary AI calls.
+
+## Context
+Current system over-relies on LLM for classification and tool selection, leading to:
+1.  Slow TTFB (>1s for "2+2").
+2.  Nondeterministic behavior (wrong tool selection).
+3.  Unnecessary costs/errors.
+
+## Requirements
+
+### 1. New Request Flow
+Refactor `src/chat/chatHandler.ts` (or equivalent entry point):
+
+1.  **Fast Path Check**:
+    -   Is Math? -> `eval()`.
+    -   Is Known Fact? -> Lookup `const facts`.
+    -   Is Memory Intent? -> `pipeline.execute({ forceMemory: true })`.
+2.  **Tool Selection (Deterministic)**:
+    -   Regex/Keyword matching first.
+    -   Only use AI if no match.
+3.  **Execution**.
+
+### 2. Specific Logic Changes
+-   **Math**: Use regex `^[0-9+\-*/().\s]+$` -> internal calc.
+-   **History**: Map "รัชกาลที่ X" -> Name.
+-   **Memory**: Regex `/(เก็บ|เคย|สรุป).*(ไว้|ที่)/` -> Memory RAG.
+-   **Weather**: Handle multiple provinces (split string by "และ", "กับ").
+
+## Output
+1.  **Refactored `selectTools` logic** (Pseudo-code or TS).
+2.  **`FastPathLayer` class design**.
+3.  **Updated `IntelligencePipeline` integration plan**.
+
+Provide the design in `docs/phases/phase6.5-stabilization/architecture_refactor.md`.

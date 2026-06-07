@@ -1,0 +1,678 @@
+กรมอุตุนิยมวิทยา ได้จัดสร้างระบบคอมพิวเตอร์สมรรถนะสูง (High Performance Computing Cluster) เพื่อใช้ในการคำนวณแบบจำลองสภาพอากาศซึ่งมีความซับซ้อนและความละเอียดสูง จำนวน 4 โดเมน ได้แก่
+
+    Domain 1 : ข้อมูลพยากรณ์ราย 3 ชั่วโมงล่วงหน้า 10 วัน รายละเอียดเชิงพื้นที่ 9 กิโลเมตร
+    Domain 2 : ข้อมูลพยากรณ์ราย 1 ชั่วโมงล่วงหน้า 72 ชั่วโมง รายละเอียดเชิงพื้นที่ 3 กิโลเมตร
+----------------------------------
+
+ข้อมูลพยากรณ์อากาศรายชั่วโมง
+
+ผู้ใช้งานสามารถเรียกใช้ข้อมูลพยากรณ์อากาศแบบรายชั่วโมงได้โดยระบุพิกัดทางภูมิศาสตร์ ชื่อสถานที่ ที่ต้องการข้อมูลพยากรณ์อากาศ
+
+โดยระบบจะค้นหาข้อมูลที่คำนวณมาจากแบบจำลองพยากรณ์อากาศที่โดเมนความละเอียด 2 กม. ตามพิกัดอ้างอิงของสถานที่ที่ระบุ ซึ่งสามารถเรียกใช้ข้อมูลพยากรณ์อากาศรายชั่วโมงได้สูงลุด 48 ชั่วโมง
+ตัวแปรพยากรณ์อากาศรายชั่วโมง
+ตัวแปรข้อมูล 	ความหมาย 	คำอธิบาย 	หน่วย 	หมายเหตุ
+tc 	Temperature 	อุณหภูมิที่ระดับพื้นผิว 	°C 	
+rh 	Relative humidity 	ความชื้นสัมพัทธ์ที่ระดับพื้นผิว 	% 	
+slp 	Sea level pressure 	ความกดอากาศที่ระดับน้ำทะเล 	hpa 	
+rain 	Rain volume 	ปริมาณฝนรายชั่วโมง 	mm 	
+ws10m 	Wind speed at 10m 	ความเร็วลมที่ระดับความสูง 10 เมตร 	m/s 	แปลงหน่วยเป็น knots โดยการ x 1.94
+wd10m 	Wind direction at 10m 	ทิศทางลมที่ระดับความสูง 10 เมตร 	degree 	
+wsNNN 	Wind speed at pressure level NNN hpa 	ความเร็วลมที่ระดับความกดอากาศ NNN hpa 	m/s 	NNN มีค่าที่ระดับ 925, 850, 700, 500, และ 200 hpa
+แปลงหน่วยเป็น knots โดยการ x 1.94
+wdNNN 	Wind direction at pressure level NNN hpa 	ทิศทางลมที่ระดับความกดอากาศ NNN hpa 	degree 	NNN มีค่าที่ระดับ 925, 850, 700, 500, และ 200 hpa
+cloudlow 	Cloud fraction at low level 	ปริมาณเมฆที่ความสูงระดับต่ำ 	% 	
+cloudmed 	Cloud fraction at medium level 	ปริมาณเมฆที่ความสูงระดับกลาง 	% 	
+cloudhigh 	Cloud fraction at high level 	ปริมาณเมฆที่ความสูงระดับสูง 	% 	
+cond 	Weather condition 	สภาพอากาศโดยทั่วไป 	- 	ความหมาย
+1 = ท้องฟ้าแจ่มใส (Clear)
+2 = มีเมฆบางส่วน (Partly cloudy)
+3 = เมฆเป็นส่วนมาก (Cloudy)
+4 = มีเมฆมาก (Overcast)
+5 = ฝนตกเล็กน้อย (Light rain)
+6 = ฝนปานกลาง (Moderate rain)
+7 = ฝนตกหนัก (Heavy rain)
+8 = ฝนฟ้าคะนอง (Thunderstorm)
+9 = อากาศหนาวจัด (Very cold)
+10 = อากาศหนาว (Cold)
+11 = อากาศเย็น (Cool)
+12 = อากาศร้อนจัด (Very hot)
+ตรวจสอบข้อมูล
+
+แสดงค่าขอบเขตของข้อมูลพยากรณ์แบบรายชั่วโมงที่มีอยู่ในระบบ
+
+    หมายเหตุ: API นี้ไม่นับจำนวน datapoint
+
+URL
+
+https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly
+
+Parameters
+
+None
+Response
+Code 	Description 	Remark
+200 	OK 	เรียกใช้ข้อมูลได้สำเร็จ
+401 	Unauthorized 	Access token ไม่ถูกต้อง หรือหมดอายุ
+429 	Too Many Requests 	เรียกใช้ข้อมูลเกิน Rate limit ที่กำหนด
+
+ตัวอย่างการเรียกข้อมูล
+
+curl -X GET \
+  'https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly' \
+  -H 'accept: application/json' \
+  -H 'authorization: Bearer YOUR_ACCESS_TOKEN'
+
+ตัวอย่าง JSON Response Data
+
+{
+    "hourly_data": {
+      "min" : "2017-08-16:T07:00:00+07:00",
+      "max" : "2017-08-18:T07:00:00+07:00"
+    }
+}
+
+ระบุพิกัดภูมิศาสตร์
+
+เรียกดูตัวแปรสภาพอากาศรายชั่วโมงตามพิกัด (lat, long) ที่ระบุ
+Method
+
+GET
+
+URL
+
+https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly/at
+
+Parameters
+Query parameters
+Name 	Type 	Description 	Remark
+lat
+(required) 	float 	พิกัดละติจูด 	
+lon
+(required) 	float 	พิกัดลองจิจูด 	
+date 	date 	วันที่ต้องการข้อมูล
+รูปแบบ: YYYY-MM-DD
+เช่น 2017-08-23 	Default: วันที่ปัจจุบัน
+hour 	int 	ชั่วโมงเริ่มต้นที่ต้องการข้อมูล
+เลขชั่วโมงในวัน 0-23 น. 	Default: ชั่วโมงปัจจุบัน
+ใช้เวลาประเทศไทย (GMT+7)
+duration 	int 	จำนวนชั่วโมงที่ต้องการข้อมูล 	Default: 1
+เรียกข้อมูลได้สูงสุด 48 ชั่วโมง หากข้อมูลอยู่ในช่วงที่เกินจากข้อมูลที่มีอยู่ในระบบจะเกิดข้อผิดพลาด
+fields 	list 	รายการข้อมูลตัวแปรพยากรณ์ คั่นด้วยเครื่องหมาย , (comma)
+อ้างอิง: ตัวแปรพยากรณ์อากาศรายชั่วโมง 	Default: tc,rh,cond
+Header parameters
+Name 	Type 	Description 	Remark
+authorization
+(required) 	string 	OAuth access token ของผู้ใช้ 	
+accept 	string 	รูปแบบข้อมูล response
+รองรับรูปแบบข้อมูล
+
+    application/json
+    application/xml
+    application/rdf+xml
+    text/csv
+
+	Default: application/json
+Response
+Code 	Description 	Remark
+200 	OK 	เรียกใช้ข้อมูลได้สำเร็จ
+401 	Unauthorized 	Access token ไม่ถูกต้อง หรือหมดอายุ
+422 	Unprocessable Entity 	Request ที่ส่งไปข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+429 	Too Many Requests 	เรียกใช้ข้อมูลเกิน Rate limit ที่กำหนด
+ตัวอย่างการเรียกข้อมูล
+
+curl -X GET \
+  'https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly/at?lat=13.10&lon=100.10&fields=tc,rh&date=2017-08-17&hour=8&duration=2' \
+  -H 'accept: application/json' \
+  -H 'authorization: Bearer YOUR_ACCESS_TOKEN'
+
+ตัวอย่าง JSON Response Data
+
+{
+    "WeatherForcasts": [
+        {
+            "location": {
+                "lat": 13.0068,
+                "lon": 100.0829
+            },
+            "forecasts": [
+                {
+                    "time": "2017-08-17T08:00:00+07:00",
+                    "data": {
+                        "rh": 88.54,
+                        "tc": 28.56
+                    }
+                },
+                {
+                    "time": "2017-08-17T09:00:00+07:00",
+                    "data": {
+                        "rh": 87.44,
+                        "tc": 29.07
+                    }
+                }
+            ]
+        }
+    ]
+}
+
+ระบุชื่อสถานที่
+
+เรียกดูตัวแปรสภาพอากาศรายชั่วโมงตามชื่อสถานที่ (จังหวัด/อำเภอ/ตำบล) ที่ระบุ
+Method
+
+GET
+
+URL
+
+https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly/place
+
+Parameters
+Query parameters
+Name 	Type 	Description 	Remark
+province 	string 	ชื่อจังหวัด (ภาษาไทย) 	
+amphoe 	string 	ชื่ออำเภอ (ภาษาไทย) 	หากชื่ออำเภอซ้ำกัน ควรระบุชื่อจังหวัดมาด้วย
+tambon 	string 	ชื่อตำบล (ภาษาไทย) 	หากชื่อตำบลซ้ำกัน ควรระบุชื่อจังหวัดหรืออำเภอมาด้วย
+subarea 	bool
+0=false
+1=true 	แนบข้อมูลของสถานที่ย่อยมาด้วย
+เช่น จังหวัด -> อำเภอ
+อำเภอ -> ตำบล 	Default: 0
+date 	date 	วันที่ต้องการข้อมูล
+รูปแบบ: YYYY-MM-DD
+เช่น 2017-08-23 	Default: วันที่ปัจจุบัน
+hour 	int 	ชั่วโมงเริ่มต้นที่ต้องการข้อมูล
+เลขชั่วโมงในวัน 0-23 น. 	Default: ชั่วโมงปัจจุบัน
+ใช้เวลาประเทศไทย (GMT+7)
+duration 	int 	จำนวนชั่วโมงที่ต้องการข้อมูล 	Default: 1
+เรียกข้อมูลได้สูงสุด 48 ชั่วโมง หากข้อมูลอยู่ในช่วงที่เกินจากข้อมูลที่มีอยู่ในระบบจะเกิดข้อผิดพลาด
+fields 	list 	รายการข้อมูลตัวแปรพยากรณ์ คั่นด้วยเครื่องหมาย , (comma)
+อ้างอิง: ตัวแปรพยากรณ์อากาศรายชั่วโมง 	Default: tc,rh,cond
+Header parameters
+Name 	Type 	Description 	Remark
+authorization
+(required) 	string 	OAuth access token ของผู้ใช้ 	
+accept 	string 	รูปแบบข้อมูล response
+รองรับรูปแบบข้อมูล
+
+    application/json
+    application/xml
+    application/rdf+xml
+    text/csv
+
+	Default: application/json
+Response
+Code 	Description 	Remark
+200 	OK 	เรียกใช้ข้อมูลได้สำเร็จ
+401 	Unauthorized 	Access token ไม่ถูกต้อง หรือหมดอายุ
+404 	Not Found 	ชื่อสถานที่ไม่มีอยู่ในระบบ
+422 	Unprocessable Entity 	Request ที่ส่งไปข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+429 	Too Many Requests 	เรียกใช้ข้อมูลเกิน Rate limit ที่กำหนด
+ตัวอย่างการเรียกข้อมูล
+
+curl -X GET \
+  'https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly/place?province=นครปฐม&amphoe=สามพราน&fields=tc,rh&date=2017-08-17&hour=8&duration=2' \
+  -H 'accept: application/json' \
+  -H 'authorization: Bearer YOUR_ACCESS_TOKEN'
+
+ตัวอย่าง JSON Response Data
+
+{
+    "WeatherForcasts": [
+        {
+            "location": {
+                "province": "นครปฐม",
+                "areatype": "amphoe",
+                "tambon": null,
+                "region": "C",
+                "geocode": "7306",
+                "amphoe": "สามพราน",
+                "lat": 13.7239,
+                "lon": 100.2164
+            },
+            "forecasts": [
+                {
+                    "time": "2017-08-17T08:00:00+07:00",
+                    "data": {
+                        "rh": 73.75,
+                        "tc": 28.84
+                    }
+                },
+                {
+                    "time": "2017-08-17T09:00:00+07:00",
+                    "data": {
+                        "rh": 68.85,
+                        "tc": 30.22
+                    }
+                }
+            ]
+        }
+    ]
+}
+
+ระบุชื่อภูมิภาค
+
+เรียกดูตัวแปรสภาพอากาศรายชั่วโมงของจังหวัดในภูมิภาคที่ระบุ
+Method
+
+GET
+
+URL
+
+https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly/region
+
+Parameters
+Query parameters
+Name 	Type 	Description 	Remark
+region
+(required) 	string 	ชื่อภูมิภาค
+C=ภาคกลาง
+N=ภาคเหนือ
+NE=ภาคตะวันออกเฉียงเหนือ
+E=ภาคตะวันออก
+S=ภาคใต้
+W=ภาคตะวันตก 	
+date 	date 	วันที่ต้องการข้อมูล
+รูปแบบ: YYYY-MM-DD
+เช่น 2017-08-23 	Default: วันที่ปัจจุบัน
+hour 	int 	ชั่วโมงเริ่มต้นที่ต้องการข้อมูล
+เลขชั่วโมงในวัน 0-23 น. 	Default: ชั่วโมงปัจจุบัน
+ใช้เวลาประเทศไทย (GMT+7)
+duration 	int 	จำนวนชั่วโมงที่ต้องการข้อมูล 	Default: 1
+เรียกข้อมูลได้สูงสุด 48 ชั่วโมง หากข้อมูลอยู่ในช่วงที่เกินจากข้อมูลที่มีอยู่ในระบบจะเกิดข้อผิดพลาด
+fields 	list 	รายการข้อมูลตัวแปรพยากรณ์ คั่นด้วยเครื่องหมาย , (comma)
+อ้างอิง: ตัวแปรพยากรณ์อากาศรายชั่วโมง 	Default: tc,rh,cond
+Header parameters
+Name 	Type 	Description 	Remark
+authorization
+(required) 	string 	OAuth access token ของผู้ใช้ 	
+accept 	string 	รูปแบบข้อมูล response
+รองรับรูปแบบข้อมูล
+
+    application/json
+    application/xml
+    application/rdf+xml
+    text/csv
+
+	Default: application/json
+Response
+Code 	Description 	Remark
+200 	OK 	เรียกใช้ข้อมูลได้สำเร็จ
+401 	Unauthorized 	Access token ไม่ถูกต้อง หรือหมดอายุ
+422 	Unprocessable Entity 	Request ที่ส่งไปข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+429 	Too Many Requests 	เรียกใช้ข้อมูลเกิน Rate limit ที่กำหนด
+ตัวอย่างการเรียกข้อมูล
+
+curl -X GET \
+  'https://data.tmd.go.th/nwpapi/v1/forecast/location/hourly/region?region=E&fields=tc,rh&date=2017-08-17&hour=8&duration=2' \
+  -H 'accept: application/json' \
+  -H 'authorization: Bearer YOUR_ACCESS_TOKEN'
+
+ตัวอย่าง JSON Response Data
+
+{
+    "WeatherForecast": [
+        {
+            "location": {
+                "province": "ฉะเชิงเทรา",
+                "areatype": "province",
+                "tambon": null,
+                "region": "E",
+                "geocode": "24",
+                "amphoe": null,
+                "lat": 13.6065,
+                "lon": 101.4254
+            },
+            "forecasts": [
+                {
+                    "time": "2017-08-17T08:00:00+07:00",
+                    "data": {
+                        "rh": 87.51,
+                        "tc": 27.06
+                    }
+                },
+                {
+                    "time": "2017-08-17T09:00:00+07:00",
+                    "data": {
+                        "rh": 89.44,
+                        "tc": 26.5
+                    }
+                }
+            ]
+        },
+    ...
+
+ข้อมูลพยากรณ์อากาศรายวัน
+
+ผู้ใช้งานสามารถเรียกใช้ข้อมูลพยากรณ์อากาศแบบรายวันได้โดยระบุพิกัดทางภูมิศาสตร์ ชื่อสถานที่ ที่ต้องการข้อมูลพยากรณ์อากาศ
+
+โดยระบบจะค้นหาข้อมูลที่คำนวณมาจากแบบจำลองพยากรณ์อากาศที่โดเมนความละเอียด 18 กม. และ 27 กม. ตามตำแหน่งที่กำหนด ซึ่งสามารถเรียกใช้ข้อมูลพยากรณ์อากาศรายชั่วโมงได้สูงลุด 126 วัน
+ตัวแปรพยากรณ์อากาศรายวัน
+ตัวแปรข้อมูล 	ความหมาย 	คำอธิบาย 	หน่วย 	หมายเหตุ
+tc_max 	Max temperature 	อุณหภูมิสูงสุด ที่ระดับพื้นผิว 	°C 	
+tc_min 	Min temperature 	อุณหภูมิต่ำสุด ที่ระดับพื้นผิว 	°C 	
+rh 	Relative humidity 	ความชื้นสัมพัทธเฉลี่ย ที่ระดับพื้นผิว 	% 	
+slp 	Sea level pressure 	ความกดอากาศเฉลี่ย ที่ระดับน้ำทะเล 	hpa 	
+psfc 	Surface pressure 	ความกดอากาศที่ระดับพื้นผิว 	Pa 	
+rain 	Rain volume 	ปริมาณฝนรวม 24 ชม. 	mm 	
+ws10m 	Wind speed at 10m 	ความเร็วลมสูงสุดที่ระดับความสูง 10 เมตร 	m/s 	แปลงหน่วยเป็น knots โดยการ x 1.94
+wd10m 	Wind direction at 10m 	ทิศทางลมสูงสุดที่ระดับความสูง 10 เมตร 	degree 	
+wsNNN 	Wind speed at pressure level NNN hpa 	ความเร็วลมสูงสุดที่ระดับความกดอากาศ NNN hpa 	m/s 	NNN มีค่าที่ระดับ 925, 850, 700, 500, และ 200 hpa
+แปลงหน่วยเป็น knots โดยการ x 1.94
+wdNNN 	Wind direction at pressure level NNN hpa 	ทิศทางลมสูงสุดที่ระดับความกดอากาศ NNN hpa 	degree 	NNN มีค่าที่ระดับ 925, 850, 700, 500, และ 200 hpa
+cloudlow 	Cloud fraction at low level 	ปริมาณเมฆเฉลี่ยที่ความสูงระดับต่ำ 	% 	
+cloudmed 	Cloud fraction at medium level 	ปริมาณเมฆเฉลี่ยที่ความสูงระดับกลาง 	% 	
+cloudhigh 	Cloud fraction at high level 	ปริมาณเมฆเฉลี่ยที่ความสูงระดับสูง 	% 	
+swdown 	Downward short wave flux at ground sureface 	ปริมาณรังสีคลื่นสั้นที่ระดับพื้นผิว 	W m-2 	
+cond 	Weather condition 	สภาพอากาศโดยทั่วไป 	- 	ความหมาย
+1 = ท้องฟ้าแจ่มใส (Clear)
+2 = มีเมฆบางส่วน (Partly cloudy)
+3 = เมฆเป็นส่วนมาก (Cloudy)
+4 = มีเมฆมาก (Overcast)
+5 = ฝนตกเล็กน้อย (Light rain)
+6 = ฝนปานกลาง (Moderate rain)
+7 = ฝนตกหนัก (Heavy rain)
+8 = ฝนฟ้าคะนอง (Thunderstorm)
+9 = อากาศหนาวจัด (Very cold)
+10 = อากาศหนาว (Cold)
+11 = อากาศเย็น (Cool)
+12 = อากาศร้อนจัด (Very hot)
+ตรวจสอบข้อมูล
+
+แสดงค่าขอบเขตของข้อมูลพยากรณ์แบบรายวันที่มีอยู่ในระบบ
+
+    หมายเหตุ: API นี้ไม่นับจำนวน datapoint
+
+URL
+
+https://data.tmd.go.th/nwpapi/v1/forecast/location/daily
+
+Parameters
+
+None
+Response
+Code 	Description 	Remark
+200 	OK 	เรียกใช้ข้อมูลได้สำเร็จ
+401 	Unauthorized 	Access token ไม่ถูกต้อง หรือหมดอายุ
+429 	Too Many Requests 	เรียกใช้ข้อมูลเกิน Rate limit ที่กำหนด
+ตัวอย่างการเรียกข้อมูล
+
+curl -X GET \
+  'https://data.tmd.go.th/nwpapi/v1/forecast/location/daily' \
+  -H 'accept: application/json' \
+  -H 'authorization: Bearer YOUR_ACCESS_TOKEN'
+
+ตัวอย่าง JSON Response Data
+
+{
+    "daily_data": {
+      "min" : "2017-08-16",
+      "max" : "2017-12-20"
+    }
+}
+
+ระบุพิกัดภูมิศาสตร์
+
+เรียกดูตัวแปรสภาพอากาศรายวันตามพิกัด (lat, long) ที่ระบุ
+Method
+
+GET
+
+URL
+
+https://data.tmd.go.th/nwpapi/v1/forecast/location/daily/at
+
+Parameters
+Query parameters
+Name 	Type 	Description 	Remark
+lat
+(required) 	float 	พิกัดละติจูด 	
+lon
+(required) 	float 	พิกัดลองจิจูด 	
+date 	date 	วันที่ต้องการข้อมูล
+รูปแบบ: YYYY-MM-DD
+เช่น 2017-08-23 	Default: วันที่ปัจจุบัน
+duration 	int 	จำนวนวันที่ต้องการข้อมูล 	Default: 1
+เรียกข้อมูลได้สูงสุด 126 วัน หากข้อมูลอยู่ในช่วงที่เกินจากข้อมูลที่มีอยู่ในระบบจะเกิดข้อผิดพลาด
+fields 	list 	รายการข้อมูลตัวแปรพยากรณ์ คั่นด้วยเครื่องหมาย , (comma)
+อ้างอิง: ตัวแปรพยากรณ์อากาศรายวัน 	Default: tc_min,tc_max,rh,cond
+Header parameters
+Name 	Type 	Description 	Remark
+authorization
+(required) 	string 	OAuth access token ของผู้ใช้ 	
+accept 	string 	รูปแบบข้อมูล response
+รองรับรูปแบบข้อมูล
+
+    application/json
+    application/xml
+    application/rdf+xml
+    text/csv
+
+	Default: application/json
+Response
+Code 	Description 	Remark
+200 	OK 	เรียกใช้ข้อมูลได้สำเร็จ
+401 	Unauthorized 	Access token ไม่ถูกต้อง หรือหมดอายุ
+422 	Unprocessable Entity 	Request ที่ส่งไปข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+429 	Too Many Requests 	เรียกใช้ข้อมูลเกิน Rate limit ที่กำหนด
+ตัวอย่างการเรียกข้อมูล
+
+curl -X GET \
+  'https://data.tmd.go.th/nwpapi/v1/forecast/location/daily/at?lat=13.10&lon=100.10&fields=tc_max,rh&date=2017-08-17&duration=2' \
+  -H 'accept: application/json' \
+  -H 'authorization: Bearer YOUR_ACCESS_TOKEN'
+
+ตัวอย่าง JSON Response Data
+
+{
+    "weather_forecast": {
+        "locations": [
+            {
+                "location": {
+                    "lat": 13.0068,
+                    "lon": 100.0829
+                },
+                "forecasts": [
+                    {
+                        "time": "2017-08-17T00:00:00+07:00",
+                        "data": {
+                            "rh": 88.54,
+                            "tc_max": 28.56
+                        }
+                    },
+                    {
+                        "time": "2017-08-18T00:00:00+07:00",
+                        "data": {
+                            "rh": 87.44,
+                            "tc_max": 27.21
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}
+
+ระบุชื่อสถานที่
+
+เรียกดูตัวแปรสภาพอากาศรายวันตามชื่อสถานที่ (จังหวัด/อำเภอ/ตำบล) ที่ระบุ
+Method
+
+GET
+
+URL
+
+https://data.tmd.go.th/nwpapi/v1/forecast/location/daily/place
+
+Parameters
+Query parameters
+Name 	Type 	Description 	Remark
+province 	string 	ชื่อจังหวัด (ภาษาไทย) 	
+amphoe 	string 	ชื่ออำเภอ (ภาษาไทย) 	หากชื่ออำเภอซ้ำกัน ควรระบุชื่อจังหวัดมาด้วย
+tambon 	string 	ชื่อตำบล (ภาษาไทย) 	หากชื่อตำบลซ้ำกัน ควรระบุชื่อจังหวัดหรืออำเภอมาด้วย
+subarea 	bool
+0=false
+1=true 	แนบข้อมูลของสถานที่ย่อยมาด้วย
+เช่น จังหวัด -> อำเภอ
+อำเภอ -> ตำบล 	Default: 0
+date 	date 	วันที่ต้องการข้อมูล
+รูปแบบ: YYYY-MM-DD
+เช่น 2017-08-23 	Default: วันที่ปัจจุบัน
+duration 	int 	จำนวนวันที่ต้องการข้อมูล 	Default: 1
+เรียกข้อมูลได้สูงสุด 126 วัน หากข้อมูลอยู่ในช่วงที่เกินจากข้อมูลที่มีอยู่ในระบบจะเกิดข้อผิดพลาด
+fields 	list 	รายการข้อมูลตัวแปรพยากรณ์ คั่นด้วยเครื่องหมาย , (comma)
+อ้างอิง: ตัวแปรพยากรณ์อากาศรายวัน 	Default: tc_min,tc_max,rh,cond
+Header parameters
+Name 	Type 	Description 	Remark
+authorization
+(required) 	string 	OAuth access token ของผู้ใช้ 	
+accept 	string 	รูปแบบข้อมูล response
+รองรับรูปแบบข้อมูล
+
+    application/json
+    application/xml
+    application/rdf+xml
+    text/csv
+
+	Default: application/json
+Response
+Code 	Description 	Remark
+200 	OK 	เรียกใช้ข้อมูลได้สำเร็จ
+401 	Unauthorized 	Access token ไม่ถูกต้อง หรือหมดอายุ
+404 	Not Found 	ชื่อสถานที่ไม่มีอยู่ในระบบ
+422 	Unprocessable Entity 	Request ที่ส่งไปข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+429 	Too Many Requests 	เรียกใช้ข้อมูลเกิน Rate limit ที่กำหนด
+ตัวอย่างการเรียกข้อมูล
+
+curl -X GET \
+  'https://data.tmd.go.th/nwpapi/v1/forecast/location/daily/place?province=นครปฐม&amphoe=สามพราน&fields=tc_max,rh&date=2017-08-17&duration=2' \
+  -H 'accept: application/json' \
+  -H 'authorization: Bearer YOUR_ACCESS_TOKEN'
+
+ตัวอย่าง JSON Response Data
+
+{
+    "weather_forecast": {
+        "locations": [
+            {
+                "location": {
+                    "province": "นครปฐม",
+                    "areatype": "amphoe",
+                    "tambon": null,
+                    "region": "C",
+                    "geocode": "7306",
+                    "amphoe": "สามพราน",
+                    "lat": 13.7239,
+                    "lon": 100.2164
+                },
+                "forecasts": [
+                    {
+                        "time": "2017-08-17T00:00:00+07:00",
+                        "data": {
+                            "rh": 82.93,
+                            "tc": 27.61
+                        }
+                    },
+                    {
+                        "time": "2017-08-18T00:00:00+07:00",
+                        "data": {
+                            "rh": 76.4,
+                            "tc": 28.53
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}
+
+ระบุชื่อภูมิภาค
+
+เรียกดูตัวแปรสภาพอากาศรายวันของจังหวัดในภูมิภาคที่ระบุ
+Method
+
+GET
+
+URL
+
+https://data.tmd.go.th/nwpapi/v1/forecast/location/daily/region
+
+Parameters
+Query parameters
+Name 	Type 	Description 	Remark
+region
+(required) 	string 	ชื่อภูมิภาค
+C=ภาคกลาง
+N=ภาคเหนือ
+NE=ภาคตะวันออกเฉียงเหนือ
+E=ภาคตะวันออก
+S=ภาคใต้
+W=ภาคตะวันตก 	
+date 	date 	วันที่ต้องการข้อมูล
+รูปแบบ: YYYY-MM-DD
+เช่น 2017-08-23 	Default: วันที่ปัจจุบัน
+duration 	int 	จำนวนวันที่ต้องการข้อมูล 	Default: 1
+เรียกข้อมูลได้สูงสุด 126 วัน หากข้อมูลอยู่ในช่วงที่เกินจากข้อมูลที่มีอยู่ในระบบจะเกิดข้อผิดพลาด
+fields 	list 	รายการข้อมูลตัวแปรพยากรณ์ คั่นด้วยเครื่องหมาย , (comma)
+อ้างอิง: ตัวแปรพยากรณ์อากาศรายวัน 	Default: tc_min,tc_max,rh,cond
+Header parameters
+Name 	Type 	Description 	Remark
+authorization
+(required) 	string 	OAuth access token ของผู้ใช้ 	
+accept 	string 	รูปแบบข้อมูล response
+รองรับรูปแบบข้อมูล
+
+    application/json
+    application/xml
+    application/rdf+xml
+    text/csv
+
+	Default: application/json
+Response
+Code 	Description 	Remark
+200 	OK 	เรียกใช้ข้อมูลได้สำเร็จ
+401 	Unauthorized 	Access token ไม่ถูกต้อง หรือหมดอายุ
+422 	Unprocessable Entity 	Request ที่ส่งไปข้อมูลไม่ถูกต้องหรือไม่ครบถ้วน
+429 	Too Many Requests 	เรียกใช้ข้อมูลเกิน Rate limit ที่กำหนด
+ตัวอย่างการเรียกข้อมูล
+
+curl -X GET \
+  'https://data.tmd.go.th/nwpapi/v1/forecast/location/daily/region?region=E&fields=tc_max,rh&date=2017-08-17&duration=2' \
+  -H 'accept: application/json' \
+  -H 'authorization: Bearer YOUR_ACCESS_TOKEN'
+
+ตัวอย่าง JSON Response Data
+
+{
+    "weather_forecast": {
+        "locations": [
+            {
+                "location": {
+                    "province": "ฉะเชิงเทรา",
+                    "areatype": "province",
+                    "tambon": null,
+                    "region": "E",
+                    "geocode": "24",
+                    "amphoe": null,
+                    "lat": 13.6065,
+                    "lon": 101.4254
+                },
+                "forecasts": [
+                    {
+                        "time": "2017-08-17T00:00:00+07:00",
+                        "data": {
+                            "rh": 81.65,
+                            "tc": 28.26
+                        }
+                    },
+                    {
+                        "time": "2017-08-18T00:00:00+07:00",
+                        "data": {
+                            "rh": 78.75,
+                            "tc": 28.72
+                        }
+                    }
+                ]
+            },
+          ...
+
+
+-------------------------------------------------------------

@@ -1,0 +1,29 @@
+# Role: Vitcup (Performance Engineer)
+# Context: Phase 4 - Speed & Intelligence
+
+You are responsible for **IMPLEMENTATION and OPTIMIZATION**.
+
+## 🎯 Objectives
+Implement the designs provided by Claude to achieve >5x speedup in tool selection.
+
+## 🛠️ Tasks
+1.  **Implement `src/intelligence/flashSelector.ts`**:
+    -   Code the Regex/Keyword matchers for Thai language.
+    -   Optimize for speed (no heavy loops).
+2.  **Implement `src/intelligence/pipeline.ts`**:
+    -   `executeParallel(tools, input)` function.
+    -   Handle partial failures (one tool fails, others succeed).
+3.  **Integrate**:
+    -   Wire into `godTierRouter` or `server.ts`.
+4.  **Verify**:
+    -   Run `tests/speed/benchmark.spec.ts`.
+    -   Run `tests/reliability/run_battery.ts` (Regression Check).
+
+## ⚠️ Constraints
+-   **NO REGRESSIONS**: If Phase 3.5 battery fails, you MUST fix it.
+-   **Thai First**: Ensure "อากาศเชียงใหม่" matches correctly.
+
+## 📦 Deliverables
+-   `src/intelligence/flashSelector.ts` (Final)
+-   `src/intelligence/pipeline.ts`
+-   `reports/speed/benchmark_results.md`

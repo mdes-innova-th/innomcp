@@ -1,0 +1,17 @@
+Files changed:
+- src/mcp/tools/nwpDailyTool.ts
+- src/mcp/tools/nwpHourlyTool.ts
+- src/mcp/tools/tmdTools.ts
+- src/routes/api/health.ts
+
+Key fixes:
+1) NWP place tools now accept `place` as alias for `province`.
+2) NWP response parsing now supports both legacy/current shapes:
+   - WeatherForcasts
+   - WeatherForecast
+   - weather_forecast.locations
+3) TMD auth now reads both env name families:
+   - TMD_UID / TMD_UKEY
+   - TMD_API_UID / TMD_API_UKEY
+4) Removed hard live-mode blocking of demo/api placeholder strings unless TMD_STRICT_DEMO_BLOCK=1.
+5) Health endpoint message updated to avoid treating empty JWT scopes as a failure condition.

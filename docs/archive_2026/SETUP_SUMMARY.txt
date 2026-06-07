@@ -1,0 +1,191 @@
+# 🎯 สรุปการตั้งค่า Ollama Standalone + Docker
+
+## ✅ ปรับปรุงระบบสำเร็จ
+
+### 1️⃣ Docker-Compose ปรับปรุงแล้ว ✅
+- **ลบ**: Ollama service ออก
+- **เปลี่ยน**: `OLLAMA_HOST=http://ollama:11434` → `OLLAMA_HOST=http://host.docker.internal:11434`
+- **ลบ**: dependencies ไปยัง Ollama
+- **ไฟล์**: `docker-compose.yml` (ในโปรเจค root)
+
+---
+
+## 🚀 ขั้นตอนการเริ่มต้น
+
+### ขั้นตอนที่ 1: ติดตั้ง Ollama บน Windows (1 ครั้ง)
+
+```powershell
+# 1. ดาวน์โหลด Ollama จาก: https://ollama.ai
+# 2. เปิด OllamaSetup.exe และติดตั้ง
+# 3. เปิด PowerShell และตรวจสอบ:
+ollama --version
+
+# 4. ดาวน์โหลด Model (ใช้เวลา 10-30 นาที):
+ollama pull llama2
+
+# 5. ตรวจสอบ:
+ollama list
+```
+
+### ขั้นตอนที่ 2: เปิด Ollama Service (ทุกครั้งที่ใช้งาน)
+
+```powershell
+# Terminal 1: เปิด Ollama
+ollama serve
+
+# ควรเห็น: Serving on http://127.0.0.1:11434
+# เก็บ terminal นี้ไว้เปิด
+```
+
+### ขั้นตอนที่ 3: เปิด Docker (ทุกครั้งที่ใช้งาน)
+
+```powershell
+# Terminal 2: เปิด Docker + Project
+cd C:\Users\USER-NT\DEV\innomcp
+
+# วิธี A: ใช้ Script (แนะนำ)
+.\start-all.ps1
+
+# วิธี B: Manual
+docker compose down
+docker compose up --build
+```
+
+### ขั้นตอนที่ 4: เข้าใช้ Application
+
+```
+เบราว์เซอร์:
+- http://localhost:3004  ← Frontend
+- http://localhost:3010  ← API
+- http://localhost:11434 ← Ollama
+```
+
+---
+
+## 📋 ไฟล์ที่สร้าง/ปรับปรุง
+
+### ✅ ไฟล์อ้างอิง:
+1. **docker-compose.yml** - ปรับปรุงแล้ว (ลบ Ollama service)
+2. **WINDOWS_OLLAMA_INSTALLATION.md** - คำแนะนำการติดตั้งจาก 0
+3. **OLLAMA_SETUP_GUIDE.md** - คำแนะนำโดยละเอียด
+4. **start-all.ps1** - Script เปิดทั้งหมด
+5. **README_OLLAMA_SETUP.txt** - สรุปเบิกต้น
+6. **.env-ollama** - Environment variables (สำหรับอ้างอิง)
+
+---
+
+## 🎨 Architecture ที่อัปเดต
+
+```
+Windows Host
+    ├─ ollama serve (localhost:11434) ← GPU ของเครื่อง
+    │   └─ Model: llama2 (ขนาด 3.8 GB)
+    │
+    └─ Docker Desktop
+       ├─ innomcp-next       (port 3004) ← Frontend
+       ├─ innomcp-node       (port 3010) → เชื่อมต่อ host.docker.internal:11434
+       ├─ innomcp-server-node (port 3011) ← MCP Server
+       ├─ mariadb            (port 3306) ← Database
+       └─ redis              (port 6379) ← Cache
+```
+
+---
+
+## ✨ ข้อดี Setup ใหม่
+
+| Feature | ก่อน (Docker Ollama) | หลัง (Standalone) |
+|---------|-------------------|------------------|
+| **GPU Support** | ⚠️ ต้อง NVIDIA Runtime | ✅ ตรง GPU |
+| **ความเร็ว** | ⚠️ ผ่าน virtualization | ✅ เร็วขึ้น |
+| **Debug** | ⚠️ ยุ่งกับ Docker logs | ✅ ง่ายกว่า |
+| **Installation** | ⚠️ ซับซ้อน | ✅ ง่ายมาก |
+| **File Size** | ⚠️ โหลดใหม่ทุกครั้ง | ✅ เก็บ cache |
+
+---
+
+## 🔍 ตรวจสอบการทำงาน
+
+### Step 1: Ollama ทำงาน?
+```powershell
+curl http://localhost:11434/api/tags
+# ต้องเห็น models
+```
+
+### Step 2: Docker ทำงาน?
+```powershell
+docker ps
+# ต้องเห็น innomcp containers
+```
+
+### Step 3: Docker เชื่อมต่อ Ollama?
+```powershell
+docker exec innomcp-node curl http://host.docker.internal:11434/api/tags
+# ต้องเห็น models
+```
+
+### Step 4: Chat API ทำงาน?
+```
+เปิด http://localhost:3004
+พิมพ์: "สวัสดี"
+ต้องได้ response ← ✅ สำเร็จ!
+```
+
+---
+
+## 🆘 Troubleshooting
+
+### ❌ Problem: Docker ไม่เชื่อมต่อ Ollama
+```powershell
+# แก้ไข: 
+# 1. เช็ก Ollama ทำงาน: curl http://localhost:11434
+# 2. Docker Desktop Settings > General > Expose daemon
+# 3. ลองใช้ IP address แทน host.docker.internal
+```
+
+### ❌ Problem: GPU ไม่ทำงาน
+```powershell
+# แก้ไข:
+# 1. ติดตั้ง NVIDIA drivers: nvidia.com
+# 2. ตั้งค่า: OLLAMA_RUNNER_CUDA=1
+# 3. Restart Ollama
+```
+
+### ❌ Problem: Model ไม่ download
+```powershell
+# แก้ไข:
+# 1. เช็ก disk space: Get-Volume
+# 2. ลอง model เล็ก: ollama pull tinyllama
+# 3. เช็ก internet: ping ollama.ai
+```
+
+---
+
+## 📞 ต้อง Support?
+
+ตรวจสอบไฟล์คำแนะนำ:
+- **ติดตั้ง**: WINDOWS_OLLAMA_INSTALLATION.md
+- **Config**: OLLAMA_SETUP_GUIDE.md
+- **เร็ว**: README_OLLAMA_SETUP.txt
+
+---
+
+## 🎉 เสร็จแล้ว!
+
+ระบบของคุณตั้งค่าสำเร็จ:
+
+✅ Ollama standalone บน Windows
+✅ Docker เชื่อมต่อ Ollama ผ่าน host.docker.internal
+✅ GPU support (ถ้าติดตั้ง NVIDIA drivers)
+✅ Chat AI พร้อมใช้ได้
+
+**เริ่มต้นใช้งาน**:
+```powershell
+# Terminal 1:
+ollama serve
+
+# Terminal 2:
+cd C:\Users\USER-NT\DEV\innomcp
+.\start-all.ps1
+```
+
+🚀 **Happy coding!**

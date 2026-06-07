@@ -1,0 +1,6 @@
+[ChatTrace] in transport=http uiMode=officer cid=12345678 sid=sess-abc rid=req-123 q="ตอนนี้เครื่องออนไลน์กี่เครื่อง"
+[ChatTrace] tools transport=http uiMode=officer cid=12345678 sid=sess-abc rid=req-123 selected=[active_evidence_machines] bypassWeather=false deep=false
+[ChatTrace] out transport=http uiMode=officer cid=12345678 sid=sess-abc rid=req-123 bypassWeather=false deep=false tools=[active_evidence_machines] keys=- a="พบ 5 เครื่อง"
+[ChatTrace] in transport=http uiMode=default cid=87654321 sid=sess-xyz rid=req-999 q="วันนี้กรุงเทพฝนตกไหม SECRET_TOKEN=[REDACTED]"
+[ChatTrace] tools transport=http uiMode=default cid=87654321 sid=sess-xyz rid=req-999 selected=[weatherPipeline] bypassWeather=false deep=false
+[ChatTrace] out transport=http uiMode=default cid=87654321 sid=sess-xyz rid=req-999 bypassWeather=false deep=false tools=[weatherPipeline] keys=forecast,current a="วันนี้กรุงเทพฯ มีฝน 40% อุณหภูมิ ..."

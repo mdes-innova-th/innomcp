@@ -1,0 +1,35 @@
+Act as Senior Developer (Vitcup).
+
+# Phase 6.5: Stabilization - Implementation (Round C)
+
+## Goal
+Implement the FastPathLayer and stabilize the system based on `architecture_refactor.md`.
+
+## Tasks
+
+### 1. Core Logic
+1.  **Create `src/chat/fastPathLayer.ts`**:
+    -   Implement `process(query)` logic.
+    -   Integrate `mathjs` or safe eval.
+    -   Add `THAI_HISTORY_KB`.
+2.  **Refactor `src/chat/chatHandler.ts`** (or main entry):
+    -   Integrate `FastPathLayer`.
+    -   Remove initial `chatWithOllama` classification.
+
+### 2. Tool Stabilization
+1.  **Weather Tool**: Support multi-province queries (split string).
+2.  **WorldBank Tool**: Ensure API URL is `/country/TH/indicator/...`.
+    -   Validate `country` param is never empty.
+3.  **Embedding**: Add `try-catch` to `NomicEmbeddingService` to suppress logs on failure.
+
+### 3. Testing
+Create `tests/system/core.spec.ts` with these exact cases:
+-   `2+2`
+-   `รัชกาลที่ 3 เป็นใคร`
+-   `สรุปข้อมูลที่เคยเก็บไว้` (Mock Memory)
+-   `อากาศ เชียงใหม่ และ ภูเก็ต`
+-   `GDP Thailand` (Mock WorldBank)
+
+## Deliverables
+-   All core system tests PASS.
+-   "Classification" log disappears for simple queries.

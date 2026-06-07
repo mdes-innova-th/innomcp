@@ -1,0 +1,1 @@
+(ใช้ interface เดียว เปลี่ยน domain + attributes)

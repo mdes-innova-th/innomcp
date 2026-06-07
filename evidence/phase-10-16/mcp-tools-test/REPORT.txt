@@ -1,0 +1,55 @@
+MCP TOOLS TEST REPORT - 2026-05-14
+==================================
+
+TEST SETUP:
+Backend: http://localhost:3011
+Query method: /api/chat/stream POST with JSON body
+Response format: Server-Sent Events (SSE)
+Extractor: extract-final.js (parses final_answer type events)
+
+CRITICAL FINDING: ALL 6 TESTS BLOCKED BY MDES ABORT
+===================================================
+
+All responses show consistent pattern:
+- agent_started events fire normally (10+ events each)
+- MDES models detected: qwen3.5:9b, gemma4:e4b
+- ALL agents return "fallback" event with: "This operation was aborted"
+- Route selected: "route_selected" → generic response route (non-specialized)
+- NO tool invocation attempted on any query
+
+DETAILED RESULTS:
+=================
+
+| ID  | Query | Tool Expected | agent_started | MDES Models | Final Text | Verdict |
+|-----|-------|---------------|--------------|------------|------------|-----------| 
+| MT1 | หลักฐาน/5 | detect_evidence_stats | 10 | qwen3.5,gemma4 | (encoding error) | FAIL-MDES |
+| MT2 | เชียงใหม่ lat/lng | thai_geo_tool | 10 | qwen3.5,gemma4 | (encoding error) | FAIL-MDES |
+| MT3 | docker status | system_status_tool | 10 | qwen3.5,gemma4 | (encoding error) | FAIL-MDES |
+| MT4 | ประเทศไทย จังหวัด | thaiKnowledgeTool | 10 | qwen3.5,gemma4 | (encoding error) | FAIL-MDES |
+| MT5 | พยากรณ์อากาศ | NWP/TMD | 10 | qwen3.5,gemma4 | (encoding error) | FAIL-MDES |
+| MT6 | วันนี้วันที่ | datetime fastpath | 10 | qwen3.5,gemma4 | (encoding error) | FAIL-MDES |
+
+All final_answer text shows Thai encoding issues (question marks) + generic responses.
+
+ROOT CAUSE ANALYSIS:
+====================
+
+1. **Routing issue**: conductor selecting "generic response route" instead of tool-specific routes
+2. **MDES timeout/abort**: All agents report fallback after ~12 seconds (see timestamps 08:42:31 → 08:42:43)
+3. **No tool binding**: Zero MCP tool calls detected in any SSE stream
+4. **Input encoding**: Thai text appears garbled in finalText (?????????) - input encoding likely UTF-8 mismatch
+
+EVIDENCE LOGS SAVED:
+====================
+/c/Users/USER-NT/DEV/innomcp/evidence/phase-10-16/mcp-tools-test/
+- MT1-final.txt through MT6-final.txt (final answers)
+- tool-1.sse through tool-6.sse (raw SSE streams in /tmp/)
+
+VERDICT: BLOCKED
+===============
+- 0/6 tools fired
+- 6/6 queries received fallback template response
+- System is routing to generic path, not to MCP tools
+- MDES abort wall blocking all specialized tool invocation
+
+Handoff: innomcp-dev → diagnose conductor routing + MDES timeout

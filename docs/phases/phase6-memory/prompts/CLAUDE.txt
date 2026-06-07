@@ -1,0 +1,36 @@
+Act as Senior Architect (Claude).
+
+# Phase 6: Memory & RAG - Design (Round B)
+
+## Goal
+Design the "Memory System" to allow INNOMCP to retrieve information from:
+1.  **Workspace Storage**: User files (.txt, .md).
+2.  **Tool Outputs**: Past tool results (Short-term memory).
+3.  **Database Keywords**: `innomcp_mariadb.keywords` table.
+
+## Requirements
+1.  **Performance**: Memory lookup must be **ASYNC** (Fire-and-forget or Parallel).
+    -   Do NOT block "High Confidence" Flash Tool execution.
+    -   Only block if Flash Confidence < 0.8 (Fallback).
+2.  **Reliability**:
+    -   Primary Embedding: `nomic-embed-text` (via Ollama).
+    -   Fallback: If Ollama fails/timeouts (1s), use **Keyword/TF-IDF** search.
+3.  **Storage**:
+    -   MVP: Simple JSON file (`data/vector_store.json`) or in-memory Structure.
+    -   Do not introduce Vector DB infrastructure yet.
+
+## Tasks
+1.  Create `src/memory/types.ts`: Define interfaces for `EmbeddingService`, `VectorStore`, `MemoryItem`.
+2.  Create `src/memory/embedding.ts` (Stub):
+    -   `embed(text: string): Promise<number[]>`
+    -   `calculateSimilarity(a: number[], b: number[]): number`
+3.  Create `src/memory/vectorStore.ts` (Stub):
+    -   `add(item: MemoryItem): Promise<void>`
+    -   `search(queryVector: number[], limit: number): Promise<MemoryItem[]>`
+4.  Update `src/intelligence/pipeline.ts` (Design only):
+    -   Show how to integrate `MemoryService` without breaking exisiting `FlashSelector`.
+
+## Output
+-   Files: `types.ts`, `embedding.ts`, `vectorStore.ts` (Stubs).
+-   Plan for Vitcup (Implementation).
+-   Test Plan.

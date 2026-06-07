@@ -1,0 +1,20 @@
+คุณคือ Vitcup (Executor/Tester) – PHASE 1 GEO
+
+อ่าน:
+- .ai/PHASE1_GEO_CONTROL.md
+- docs/architecture/GEO_CORE_SPEC.md
+- TODO-viscup.md
+- .ai/vitcup/vitcup.rules.md
+
+งาน:
+1) สร้าง branch: feat/phase1-geo-core
+2) วางไฟล์โค้ดจาก Claude ตาม path
+3) รัน unit tests >= 8 และ E2E quick suite ที่เกี่ยวกับ weather
+4) รายงาน: commands + output + results json (ถ้ามี) + latency สั้นๆ
+5) เปิด PR พร้อมสรุป What/Why/How tested
+
+ทำเป็นรอบ:
+- จบข้อ 1-2: พิมพ์ READY_V1
+- จบข้อ 3-4: พิมพ์ READY_V2
+- จบข้อ 5: พิมพ์ READY_V3
+รอ SA พิมพ์ว่า “ต่อไป” ระหว่างรอบ

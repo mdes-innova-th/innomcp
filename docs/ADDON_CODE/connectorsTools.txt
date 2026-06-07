@@ -1,0 +1,586 @@
+// innomcp-node/src/tools/connectorsTools.ts
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
+import fs from "fs";
+import path from "path";
+import crypto from "crypto";
+import { logger } from "../utils/logger";
+import { logMCPRequest } from "../utils/logger";
+import mysql from "mysql2/promise";
+
+const DEFAULT_TIMEOUT_MS = Number(process.env.CONNECTOR_TIMEOUT_MS || 25_000);
+const LOG_PREVIEW_CHARS = Number(process.env.CONNECTOR_LOG_PREVIEW || 180);
+
+// Gateway (recommended) — you can implement a small local service to handle OAuth/SMB/etc.
+const CONNECTOR_GATEWAY_URL = process.env.CONNECTOR_GATEWAY_URL || "";
+
+// Local filesystem allowlist (for mounted NAS or local folders)
+const FS_ALLOWLIST = (process.env.FS_ALLOWLIST || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+// MySQL connection (optional direct DB read)
+const MYSQL_URL = process.env.MYSQL_URL || ""; // e.g. mysql://user:pass@host:3306/dbname
+const MYSQL_READONLY = process.env.MYSQL_READONLY !== "false"; // default true
+
+function sha1(s: string) {
+  return crypto.createHash("sha1").update(s).digest("hex");
+}
+
+function safePreview(s: string, n = LOG_PREVIEW_CHARS) {
+  const x = (s || "").toString().replace(/\s+/g, " ").trim();
+  return x.length <= n ? x : x.slice(0, n) + "…";
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const resp = await fetch(url, { ...init, signal: controller.signal });
+    const text = await resp.text().catch(() => "");
+    let json: any = null;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = null;
+    }
+    return { ok: resp.ok, status: resp.status, text, json, headers: resp.headers };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+function isPathAllowed(p: string) {
+  if (FS_ALLOWLIST.length === 0) return false;
+  const abs = path.resolve(p);
+  return FS_ALLOWLIST.some((base) => {
+    const b = path.resolve(base);
+    return abs === b || abs.startsWith(b + path.sep);
+  });
+}
+
+function ensureReadOnlySql(sql: string) {
+  // allow: SELECT / SHOW / DESCRIBE / EXPLAIN (optional)
+  const s = sql.trim().toLowerCase();
+  if (
+    s.startsWith("select") ||
+    s.startsWith("show") ||
+    s.startsWith("describe") ||
+    s.startsWith("desc") ||
+    s.startsWith("explain")
+  )
+    return true;
+
+  return false;
+}
+
+// =======================
+// 1) Local HTTP Fetch Tool
+// =======================
+const LocalHttpInputSchema = z.object({
+  url: z.string().url(),
+  headers: z.record(z.string()).optional(),
+  timeoutMs: z.number().int().min(500).max(120_000).optional(),
+});
+
+async function localHttpGet(input: z.infer<typeof LocalHttpInputSchema>) {
+  const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const start = Date.now();
+
+  const resp = await fetchWithTimeout(
+    input.url,
+    {
+      method: "GET",
+      headers: {
+        ...(input.headers || {}),
+      },
+    },
+    timeoutMs
+  );
+
+  const duration = Date.now() - start;
+
+  const contentText =
+    resp.json != null
+      ? JSON.stringify(resp.json, null, 2)
+      : resp.text || `HTTP ${resp.status}`;
+
+  return {
+    ok: resp.ok,
+    status: resp.status,
+    durationMs: duration,
+    body: resp.json ?? resp.text,
+    preview: safePreview(contentText),
+  };
+}
+
+// =======================
+// 2) Local File Read Tool
+// =======================
+const LocalFileInputSchema = z.object({
+  filePath: z.string().min(1).max(5000),
+  encoding: z.enum(["utf8", "base64"]).optional().default("utf8"),
+  maxBytes: z.number().int().min(1_024).max(10_000_000).optional().default(2_000_000),
+});
+
+async function localFileRead(input: z.infer<typeof LocalFileInputSchema>) {
+  const start = Date.now();
+  const abs = path.resolve(input.filePath);
+
+  if (!isPathAllowed(abs)) {
+    return {
+      ok: false,
+      code: "PATH_NOT_ALLOWED",
+      message: `filePath not allowed by FS_ALLOWLIST`,
+      durationMs: Date.now() - start,
+      absPath: abs,
+    };
+  }
+
+  if (!fs.existsSync(abs)) {
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      message: `file not found`,
+      durationMs: Date.now() - start,
+      absPath: abs,
+    };
+  }
+
+  const stat = fs.statSync(abs);
+  if (!stat.isFile()) {
+    return {
+      ok: false,
+      code: "NOT_A_FILE",
+      message: `path is not a file`,
+      durationMs: Date.now() - start,
+      absPath: abs,
+    };
+  }
+
+  const size = stat.size;
+  const maxBytes = input.maxBytes ?? 2_000_000;
+  const toRead = Math.min(size, maxBytes);
+
+  const buf = Buffer.alloc(toRead);
+  const fd = fs.openSync(abs, "r");
+  try {
+    fs.readSync(fd, buf, 0, toRead, 0);
+  } finally {
+    fs.closeSync(fd);
+  }
+
+  const durationMs = Date.now() - start;
+  const data =
+    input.encoding === "base64" ? buf.toString("base64") : buf.toString("utf8");
+
+  return {
+    ok: true,
+    durationMs,
+    absPath: abs,
+    sizeBytes: size,
+    readBytes: toRead,
+    encoding: input.encoding,
+    data,
+    dataSha1: sha1(data),
+    preview: input.encoding === "utf8" ? safePreview(data) : `base64(${data.length})`,
+  };
+}
+
+// =======================
+// 3) DB Read-Only Query Tool (MySQL)
+// =======================
+const DbQueryInputSchema = z.object({
+  sql: z.string().min(1).max(20_000),
+  params: z.array(z.any()).optional().default([]),
+  timeoutMs: z.number().int().min(500).max(120_000).optional(),
+});
+
+async function dbQueryMySql(input: z.infer<typeof DbQueryInputSchema>) {
+  const start = Date.now();
+  const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
+  if (!MYSQL_URL) {
+    return {
+      ok: false,
+      code: "MISSING_CONFIG",
+      message: "MYSQL_URL is empty",
+      durationMs: Date.now() - start,
+    };
+  }
+
+  if (MYSQL_READONLY && !ensureReadOnlySql(input.sql)) {
+    return {
+      ok: false,
+      code: "READONLY_BLOCKED",
+      message: "Only read-only SQL is allowed (SELECT/SHOW/DESCRIBE/EXPLAIN)",
+      durationMs: Date.now() - start,
+    };
+  }
+
+  const conn = await mysql.createConnection({
+    uri: MYSQL_URL,
+    connectTimeout: Math.min(timeoutMs, 10_000),
+  });
+
+  try {
+    // set session max execution time if supported (MySQL 5.7+)
+    try {
+      await conn.query("SET SESSION MAX_EXECUTION_TIME = ?", [timeoutMs]);
+    } catch {
+      // ignore
+    }
+
+    const [rows, fields] = await conn.query({
+      sql: input.sql,
+      values: input.params,
+      timeout: timeoutMs,
+    } as any);
+
+    const durationMs = Date.now() - start;
+
+    const normalizedRows = Array.isArray(rows) ? rows : [rows];
+    return {
+      ok: true,
+      durationMs,
+      rowCount: normalizedRows.length,
+      rows: normalizedRows,
+      fields: fields || null,
+      preview: safePreview(JSON.stringify(normalizedRows?.slice?.(0, 3) ?? rows)),
+    };
+  } catch (e: any) {
+    return {
+      ok: false,
+      code: "DB_ERROR",
+      message: String(e?.message || e),
+      durationMs: Date.now() - start,
+    };
+  } finally {
+    try {
+      await conn.end();
+    } catch {
+      // ignore
+    }
+  }
+}
+
+// =======================
+// 4) Drive / OneDrive / NAS via Gateway Tools
+// =======================
+const DriveListInputSchema = z.object({
+  provider: z.enum(["gdrive", "onedrive", "nas"]).default("gdrive"),
+  folderIdOrPath: z.string().min(1).max(5000),
+  recursive: z.boolean().optional().default(false),
+  maxItems: z.number().int().min(1).max(2000).optional().default(200),
+  timeoutMs: z.number().int().min(500).max(120_000).optional(),
+});
+
+const DriveReadInputSchema = z.object({
+  provider: z.enum(["gdrive", "onedrive", "nas"]).default("gdrive"),
+  fileIdOrPath: z.string().min(1).max(5000),
+  encoding: z.enum(["utf8", "base64"]).optional().default("utf8"),
+  maxBytes: z.number().int().min(1_024).max(20_000_000).optional().default(2_000_000),
+  timeoutMs: z.number().int().min(500).max(120_000).optional(),
+});
+
+async function gatewayListFiles(input: z.infer<typeof DriveListInputSchema>) {
+  const start = Date.now();
+  const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
+  if (!CONNECTOR_GATEWAY_URL) {
+    return {
+      ok: false,
+      code: "MISSING_GATEWAY",
+      message: "CONNECTOR_GATEWAY_URL is empty (set env to enable drive/onedrive/nas gateway)",
+      durationMs: Date.now() - start,
+    };
+  }
+
+  const { ok, status, json, text } = await fetchWithTimeout(
+    `${CONNECTOR_GATEWAY_URL.replace(/\/$/, "")}/v1/list`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: input.provider,
+        folderIdOrPath: input.folderIdOrPath,
+        recursive: input.recursive,
+        maxItems: input.maxItems,
+      }),
+    },
+    timeoutMs
+  );
+
+  const durationMs = Date.now() - start;
+
+  if (!ok) {
+    return {
+      ok: false,
+      code: "GATEWAY_HTTP_ERROR",
+      status,
+      message: safePreview(json ? JSON.stringify(json) : text),
+      durationMs,
+    };
+  }
+
+  return {
+    ok: true,
+    durationMs,
+    items: json?.items ?? json ?? [],
+    preview: safePreview(JSON.stringify(json?.items?.slice?.(0, 10) ?? json)),
+  };
+}
+
+async function gatewayReadFile(input: z.infer<typeof DriveReadInputSchema>) {
+  const start = Date.now();
+  const timeoutMs = input.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+
+  // If provider=nas and path is local-mounted, allow direct read (fast)
+  if (input.provider === "nas") {
+    const abs = path.resolve(input.fileIdOrPath);
+    if (isPathAllowed(abs) && fs.existsSync(abs) && fs.statSync(abs).isFile()) {
+      return localFileRead({
+        filePath: abs,
+        encoding: input.encoding,
+        maxBytes: input.maxBytes,
+      });
+    }
+  }
+
+  if (!CONNECTOR_GATEWAY_URL) {
+    return {
+      ok: false,
+      code: "MISSING_GATEWAY",
+      message: "CONNECTOR_GATEWAY_URL is empty (set env to enable drive/onedrive/nas gateway)",
+      durationMs: Date.now() - start,
+    };
+  }
+
+  const { ok, status, json, text } = await fetchWithTimeout(
+    `${CONNECTOR_GATEWAY_URL.replace(/\/$/, "")}/v1/read`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: input.provider,
+        fileIdOrPath: input.fileIdOrPath,
+        encoding: input.encoding,
+        maxBytes: input.maxBytes,
+      }),
+    },
+    timeoutMs
+  );
+
+  const durationMs = Date.now() - start;
+
+  if (!ok) {
+    return {
+      ok: false,
+      code: "GATEWAY_HTTP_ERROR",
+      status,
+      message: safePreview(json ? JSON.stringify(json) : text),
+      durationMs,
+    };
+  }
+
+  // Expected: { data, encoding, sizeBytes, readBytes, meta }
+  const data = json?.data ?? json?.content ?? null;
+  const encoding = json?.encoding ?? input.encoding;
+
+  return {
+    ok: true,
+    durationMs,
+    encoding,
+    data,
+    meta: json?.meta ?? null,
+    preview: encoding === "utf8" ? safePreview(String(data ?? "")) : `base64(${String(data ?? "").length})`,
+  };
+}
+
+// =======================
+// MCP Registration
+// =======================
+export function registerConnectorsTools(mcpserver: McpServer) {
+  // ---- Local HTTP Tool ----
+  mcpserver.registerTool(
+    "localDataTool_http_get",
+    {
+      title: "ดึงข้อมูลจาก Local/Remote HTTP (GET)",
+      description: `
+หน้าที่: ดึงข้อมูลจาก local server หรือ endpoint ใดๆ ผ่าน HTTP GET
+เหมาะสำหรับ: ดึงข้อมูลจาก service ภายในองค์กร, local API, internal microservice
+`,
+    },
+    async (args: any) => {
+      const start = Date.now();
+      const parsed = LocalHttpInputSchema.safeParse(args);
+      if (!parsed.success) {
+        return {
+          content: [{ type: "text" as const, text: `Invalid input: ${parsed.error.message}` }],
+          structuredContent: { ok: false, error: "VALIDATION_ERROR" },
+        };
+      }
+
+      try {
+        const out = await localHttpGet(parsed.data);
+        logMCPRequest("localDataTool_http_get", out.ok, Date.now() - start, out.ok ? undefined : new Error(out.preview || "HTTP error"));
+
+        logger.info(
+          `[localDataTool_http_get] ok=${out.ok} status=${out.status} ${out.durationMs}ms url=${safePreview(parsed.data.url, 120)}`
+        );
+
+        return {
+          content: [{ type: "text" as const, text: out.preview || `HTTP ${out.status}` }],
+          structuredContent: out,
+        };
+      } catch (e: any) {
+        logMCPRequest("localDataTool_http_get", false, Date.now() - start, e);
+        return {
+          content: [{ type: "text" as const, text: `Error: ${String(e?.message || e)}` }],
+          structuredContent: { ok: false, error: String(e?.message || e) },
+        };
+      }
+    }
+  );
+
+  // ---- Local File Tool ----
+  mcpserver.registerTool(
+    "localDataTool_file_read",
+    {
+      title: "อ่านไฟล์จากเครื่อง/โฟลเดอร์ที่อนุญาต (NAS mount ได้)",
+      description: `
+หน้าที่: อ่านไฟล์จาก local machine (รวมถึง NAS ที่ mount มาเป็น path)
+ข้อจำกัด: ต้องอยู่ใน FS_ALLOWLIST เท่านั้น (comma-separated)
+ผลลัพธ์: คืนเนื้อหาบางส่วนตาม maxBytes
+`,
+    },
+    async (args: any) => {
+      const start = Date.now();
+      const parsed = LocalFileInputSchema.safeParse(args);
+      if (!parsed.success) {
+        return {
+          content: [{ type: "text" as const, text: `Invalid input: ${parsed.error.message}` }],
+          structuredContent: { ok: false, error: "VALIDATION_ERROR" },
+        };
+      }
+
+      const out = await localFileRead(parsed.data);
+      logMCPRequest("localDataTool_file_read", !!out.ok, Date.now() - start, out.ok ? undefined : new Error(out.message || out.code));
+
+      logger.info(
+        `[localDataTool_file_read] ok=${out.ok} ${out.durationMs}ms path=${safePreview(String((out as any).absPath || parsed.data.filePath), 140)}`
+      );
+
+      return {
+        content: [{ type: "text" as const, text: (out as any).preview || JSON.stringify(out, null, 2) }],
+        structuredContent: out,
+      };
+    }
+  );
+
+  // ---- DB Query Tool ----
+  mcpserver.registerTool(
+    "dbTool_mysql_query_readonly",
+    {
+      title: "ค้นข้อมูลจาก MySQL (Read-only)",
+      description: `
+หน้าที่: query ข้อมูลจาก MySQL แบบ read-only (SELECT/SHOW/DESCRIBE/EXPLAIN)
+ตั้งค่า: MYSQL_URL, MYSQL_READONLY=true (default)
+เหมาะสำหรับ: ดึงข้อมูลจาก DB ภายใน/ภายนอกเครื่อง (ที่อนุญาต)
+`,
+    },
+    async (args: any) => {
+      const start = Date.now();
+      const parsed = DbQueryInputSchema.safeParse(args);
+      if (!parsed.success) {
+        return {
+          content: [{ type: "text" as const, text: `Invalid input: ${parsed.error.message}` }],
+          structuredContent: { ok: false, error: "VALIDATION_ERROR" },
+        };
+      }
+
+      const out = await dbQueryMySql(parsed.data);
+      logMCPRequest("dbTool_mysql_query_readonly", !!out.ok, Date.now() - start, out.ok ? undefined : new Error(out.message || out.code));
+
+      logger.info(
+        `[dbTool_mysql_query_readonly] ok=${out.ok} ${out.durationMs}ms sql=${safePreview(parsed.data.sql, 120)}`
+      );
+
+      return {
+        content: [{ type: "text" as const, text: (out as any).preview || JSON.stringify(out, null, 2) }],
+        structuredContent: out,
+      };
+    }
+  );
+
+  // ---- Drive List Tool (Gateway) ----
+  mcpserver.registerTool(
+    "driveTool_list",
+    {
+      title: "ดึงรายการไฟล์จาก Google Drive / OneDrive / NAS (ผ่าน Gateway)",
+      description: `
+หน้าที่: list ไฟล์/โฟลเดอร์จาก gdrive/onedrive/nas
+ต้องมี: CONNECTOR_GATEWAY_URL (แนะนำให้เป็น local service เพื่อจัดการ OAuth/SMB)
+ถ้า provider=nas และ folderIdOrPath เป็น path ที่ mount แล้ว + อยู่ใน FS_ALLOWLIST จะให้ gateway handle หรือคุณจะ mount แล้วใช้ local file tool แทน
+`,
+    },
+    async (args: any) => {
+      const start = Date.now();
+      const parsed = DriveListInputSchema.safeParse(args);
+      if (!parsed.success) {
+        return {
+          content: [{ type: "text" as const, text: `Invalid input: ${parsed.error.message}` }],
+          structuredContent: { ok: false, error: "VALIDATION_ERROR" },
+        };
+      }
+
+      const out = await gatewayListFiles(parsed.data);
+      logMCPRequest("driveTool_list", !!out.ok, Date.now() - start, out.ok ? undefined : new Error(out.message || out.code));
+
+      logger.info(
+        `[driveTool_list] ok=${out.ok} ${out.durationMs}ms provider=${parsed.data.provider} folder=${safePreview(parsed.data.folderIdOrPath, 140)}`
+      );
+
+      return {
+        content: [{ type: "text" as const, text: (out as any).preview || JSON.stringify(out, null, 2) }],
+        structuredContent: out,
+      };
+    }
+  );
+
+  // ---- Drive Read Tool (Gateway or direct NAS mount) ----
+  mcpserver.registerTool(
+    "driveTool_read",
+    {
+      title: "อ่านไฟล์จาก Google Drive / OneDrive / NAS (ผ่าน Gateway หรือ path ที่ mount)",
+      description: `
+หน้าที่: อ่านไฟล์จาก gdrive/onedrive/nas
+- ถ้า provider=nas และ fileIdOrPath เป็น path ที่อยู่ใน FS_ALLOWLIST + mount แล้ว -> อ่านตรงได้ (เร็ว)
+- ไม่เช่นนั้น -> ต้องใช้ CONNECTOR_GATEWAY_URL เพื่ออ่านผ่าน service
+`,
+    },
+    async (args: any) => {
+      const start = Date.now();
+      const parsed = DriveReadInputSchema.safeParse(args);
+      if (!parsed.success) {
+        return {
+          content: [{ type: "text" as const, text: `Invalid input: ${parsed.error.message}` }],
+          structuredContent: { ok: false, error: "VALIDATION_ERROR" },
+        };
+      }
+
+      const out = await gatewayReadFile(parsed.data);
+      logMCPRequest("driveTool_read", !!out.ok, Date.now() - start, out.ok ? undefined : new Error(out.message || out.code));
+
+      logger.info(
+        `[driveTool_read] ok=${out.ok} ${out.durationMs}ms provider=${parsed.data.provider} file=${safePreview(parsed.data.fileIdOrPath, 140)}`
+      );
+
+      return {
+        content: [{ type: "text" as const, text: (out as any).preview || JSON.stringify(out, null, 2) }],
+        structuredContent: out,
+      };
+    }
+  );
+}

@@ -1,0 +1,3 @@
+﻿headers=application/json STATUS=406
+headers=application/json, text/event-stream STATUS=200 COUNT=56
+headers=text/event-stream STATUS=406

@@ -1,0 +1,110 @@
+## ความต้องการของฉัน(chat history list log)
+
+    ## ✅ ระบบพร้อมใช้งานจริง เร็ว แม่นยำ และมีประสิทธิภาพสูงกว่าใช้ Ollama app โดยตรง
+        - ปุ่ม new chat ไม่ปรากฏ จงแก้ไขให้แสดงและใช้งานได้
+        -  chatWithOllama (LOCAL AI, fast task) ทำไมยังช้า จงตรวจสอบหน่อยว่าใช้GPUแล้วรึไม่ทำไม่ช้ากว่าC:\Users\USER-NT\AppData\Local\Programs\Ollama app chat ที่ฉันใช้งาน
+        - chatWithOllama (LOCAL AI, fast task) ทำไมยังช้า หรือเป็นในระหว่างกระบวนการmcp จงพัฒนาปรับปรุงให้ดีขึ้นอีก เร็วอีก แรงอีก เอาให้เครื่องทำงานหนักไปเลยเพื่อความเร็วแรงแบบlocalนี้
+        - ทดสอบการตอบด่วน - คำถามแนะนำ:
+                Tool 1: dateTimeTool ✅ (ผ่านแล้ว)
+                ✅ "ตอนนี้กี่โมง"
+
+                Tool 2: tmdTool (กำลังทดสอบ)
+                "อากาศวันนี้เป็นอย่างไร"
+                "อุณหภูมิกรุงเทพวันนี้"
+
+                Tool 3: calculatorTool
+                "คำนวณ 123 + 456"
+                "85 คูณ 92 เท่าไร"
+                "จงหาคำตอบของ
+                (3^3+1)(4^3+1)(5^3+1)......(99^3+1)(100^3+1) หารด้วย 50(2^3-1)(3^3-1)(4^3-1)....(98^3-1)(99^3-1)
+                และ
+                (x^2 + 10X + 20)^2 = (x+a)(x+b)(x+c)(x+d)+16 จงหา a^2+b^2+c^2+d^2
+                และ99!! มีค่าเท่าไหร่"
+
+                Tool 4: echartsTool
+                "สร้างกราฟแท่ง จากข้อมูลล่าสุด มกราคม 100, กุมภาพันธ์ 150, มีนาคม 200"
+                "วาดกราฟวงกลม กรุงเทพ 40%, เชียงใหม่ 30%, ภูเก็ต 30%"
+                
+                Tool 5-7: webdTools (ต้องการ WEBDDSB server)
+                "webd แสดงสถิติแยกตามกลุ่ม"
+                "webd แสดงสถิติแยกตาม platform"
+                "webd แสดงสถิติแยกตามประเทศ"
+            
+            ```
+        
+  ===============================================================================
+    ===============================================================================
+
+    ## 🔧 จงพัฒนา Tools สำหรับ MCP
+
+    ### 1. **ArchiveTool**
+    - **API:** Internet Archive Open Data  
+    - **Function:** ค้นหา metadata ของหนังสือ, เพลง, วิดีโอ, dataset  
+    - **Use case:** ผู้ใช้ถาม “หาหนังสือเกี่ยวกับ AI ที่อยู่ใน archive.org” → Tool ดึง JSON metadata มาแสดง  
+    - **Implementation:**  
+    - Endpoint: `https://archive.org/advancedsearch.php?q=...&output=json`  
+    - Node tool: `archiveTool(query)` → return list of items  
+
+    ---
+
+    ### 2. **NasaTool**
+    - **API:** NASA Open Data  
+    - **Function:** ดึงข้อมูลภาพถ่ายดาวเทียม, ภารกิจ, Astronomy Picture of the Day (APOD)  
+    - **Use case:** “ขอดูภาพ APOD วันนี้” → Tool เรียก NASA API แล้วส่งกลับ URL ภาพ  
+    - **Implementation:**  
+    - Endpoint: `https://api.nasa.gov/planetary/apod?api_key=DEMO_KEY`  
+    - Node tool: `nasaTool(endpoint, params)`  
+
+    ---
+
+    ### 3. **WeatherTool**
+    - **API:** OpenWeather  
+    - **Function:** พยากรณ์อากาศ, historical weather, current conditions  
+    - **Use case:** “พรุ่งนี้กรุงเทพฝนตกไหม” → Tool ดึง forecast 5 วันมาแสดง  
+    - **Implementation:**  
+    - Endpoint: `https://api.openweathermap.org/data/2.5/forecast?q=Bangkok&appid=API_KEY`  
+    - Node tool: `weatherTool(city, type)`  
+
+    ---
+
+    ### 4. **WorldBankTool**
+    - **API:** World Bank Open Data  
+    - **Function:** ดึงข้อมูลเศรษฐกิจ เช่น GDP, inflation, population  
+    - **Use case:** “GDP ไทย 2024 เท่าไหร่” → Tool ดึง indicator `NY.GDP.MKTP.CD`  
+    - **Implementation:**  
+    - Endpoint: `http://api.worldbank.org/v2/country/TH/indicator/NY.GDP.MKTP.CD?format=json`  
+    - Node tool: `worldBankTool(country, indicator)`  
+
+    ---
+
+    ### 5. **GovDataTool**
+    - **API:** US Gov 18F / Data.gov  
+    - **Function:** ดึงข้อมูลภาครัฐ เช่น census, transport, health  
+    - **Use case:** “จำนวนประชากรสหรัฐล่าสุด” → Tool ดึง dataset จาก Data.gov  
+    - **Implementation:**  
+    - Endpoint: `https://api.data.gov/...`  
+    - Node tool: `govDataTool(datasetId, params)`  
+
+    ---
+
+    ## 🛠 การออกแบบ Tools ให้ “มีประโยชน์กว่า CalculatorTool”
+    - **CalculatorTool เดิม:** ทำแค่ basic math → ไม่คุ้มค่า  
+    - **แนวทางใหม่:**  
+    - รวม **calculation 	แทน CalculatorTool เดิม:
+        Hybrid Approach Design
+        • 	NewtonTool → ใช้สำหรับ symbolic math เช่น derivative, integration, simplify algebra
+        • 	MathTool → ใช้สำหรับ numeric/statistics เช่น mean, stddev, matrix calc, unit conversion
+    Flow ตัวอย่าง
+        1. ผู้ใช้ถาม: "หาอนุพันธ์ของ x^2 + 3x"
+        MCP เลือก NewtonTool > ส่งไป https://newton.now.sh/api/v2/derive/x^2+3x
+        คืนค่า "2x+3"
+
+        2. ผู้ใช้ถาม: "ค่าเฉลี่ยของ [2,4,6,8]"
+        MCP เลือก MathTool>evaluate('mean([2,4,6,8])') 
+        คืนค่า 5
+
+
+
+    - ทำให้ Tools ไม่ใช่แค่ “ดึงข้อมูล” แต่ **ประมวลผล + สรุปผล**  
+
+    ---

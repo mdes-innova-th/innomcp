@@ -1,0 +1,149 @@
+// innomcp-node/src/fastpath/README.fastpath.config.ts
+// (This file is plain TS for convenient importing/printing; you can delete if not needed)
+// Purpose: Provide a ready-to-run example for fast path + gateway contracts.
+// No runtime dependency required unless you import it somewhere.
+
+export const FASTPATH_ENV_EXAMPLE = `
+# ===== Fast Path Greeting / Small-talk =====
+FASTPATH_MODE=on
+FASTPATH_MAX_TEXT_LEN=400
+FASTPATH_LOG_PREVIEW=140
+FASTPATH_MAX_WORK_MS=15
+
+# Optional built-in dictionary file used by fastPathGreeting.ts (hot reload)
+FASTPATH_DICT_PATH=./config/fastpath-dict.json
+FASTPATH_DICT_RELOAD_MS=30000
+
+# Optional extra phrase overlay (fastPathHandler.ts)
+FASTPATH_EXTRA_FILE=./config/fastpath-extra.json
+FASTPATH_EXTRA_URL=http://localhost:4010/v1/phrases
+FASTPATH_EXTRA_TTL_MS=60000
+
+# ===== Image Generation =====
+# Recommended: use gateway so you don't put keys in this repo
+IMAGE_GEN_GATEWAY_URL=http://localhost:4010/v1/image/generate
+IMAGE_GEN_TIMEOUT_MS=60000
+IMAGE_OUT_DIR=./generated-images
+
+# If you insist direct provider (not recommended):
+# OPENAI_API_KEY=...
+# OPENAI_IMAGE_URL=https://api.openai.com/v1/images/generations
+# OPENAI_IMAGE_MODEL=gpt-image-1
+# STABILITY_API_KEY=...
+# STABILITY_IMAGE_URL=https://api.stability.ai/v2beta/stable-image/generate/core
+# REPLICATE_API_TOKEN=...
+# REPLICATE_MODEL_VERSION=...
+
+# ===== Connectors =====
+# Allow read only from these directories (local or NAS mount)
+FS_ALLOWLIST=/mnt/c/Users/USER-NT/DEV/innomcp/innomcp-node/data,/mnt/nas/shared
+
+# Optional local gateway for Drive/OneDrive/NAS OAuth/SMB
+CONNECTOR_GATEWAY_URL=http://localhost:4010
+
+# Optional MySQL read-only connection
+MYSQL_URL=mysql://readonly_user:readonly_pass@127.0.0.1:3306/innomcp
+MYSQL_READONLY=true
+
+# ===== Web Search Aggregator =====
+WEB_AGG_GATEWAY_URL=http://localhost:4010
+WEB_AGG_TIMEOUT_MS=20000
+WEB_AGG_TOPK=5
+WEB_AGG_DEFAULT_SOURCES=wikipedia,gateway
+`;
+
+export const FASTPATH_DICT_EXAMPLE_JSON = {
+  greeting: [
+    "สวัสดี",
+    "หวัดดี",
+    "ดีครับ",
+    "ดีค่ะ",
+    "ยินดีที่ได้รู้จัก",
+    "hello",
+    "hi",
+    "hey",
+    "hola",
+    "bonjour",
+    "こんにちは",
+    "안녕하세요",
+    "你好",
+    "مرحبا",
+  ],
+  identity: ["นายคือใคร", "คุณคือใคร", "who are you", "what is your name", "你是谁", "あなたは誰", "너는 누구야"],
+  thanks: ["ขอบคุณ", "thank you", "thanks", "ありがとう", "谢谢", "감사합니다", "merci", "gracias"],
+  ok: ["โอเค", "ok", "okay", "sure", "ได้", "ตกลง"],
+  ping: ["ping", "ทดสอบ", "เทส", "ยังอยู่ไหม", "alive"],
+  emoji: ["🙂", "😀", "😂", "🤣", "🙏", "👍", "555", "5555", "999", "999!"],
+};
+
+export const GATEWAY_CONTRACTS = `
+# ===== Gateway Contracts (suggested) =====
+
+## 1) Image Generate
+POST /v1/image/generate
+Request:
+{
+  "provider": "openai|stability|replicate|custom",
+  "prompt": "...",
+  "negativePrompt": "...",
+  "size": "1024x1024",
+  "n": 1,
+  "seed": 123,
+  "outputFormat": "png|jpg|webp",
+  "returnMode": "file|base64"
+}
+
+Response (option A - base64):
+{
+  "images": [{"b64":"...","mime":"image/png"}],
+  "meta": {...}
+}
+
+Response (option B - file path):
+{
+  "filePath": "/abs/path/or/relative/path.png",
+  "meta": {...}
+}
+
+Response (option C - URL):
+{
+  "url": "https://.../image.png",
+  "meta": {...}
+}
+
+## 2) Drive List
+POST /v1/list
+Request:
+{
+  "provider":"gdrive|onedrive|nas",
+  "folderIdOrPath":"...",
+  "recursive":false,
+  "maxItems":200
+}
+Response:
+{ "items":[ { "name":"...", "idOrPath":"...", "mime":"...", "size":123, "modifiedAt":"..." } ] }
+
+## 3) Drive Read
+POST /v1/read
+Request:
+{
+  "provider":"gdrive|onedrive|nas",
+  "fileIdOrPath":"...",
+  "encoding":"utf8|base64",
+  "maxBytes":2000000
+}
+Response:
+{ "encoding":"utf8", "data":"...", "meta": {...} }
+
+## 4) Web Search Aggregator
+POST /v1/search
+Request:
+{ "query":"...", "sources":["google","youtube","x","tiktok","instagram","facebook","linkedin"], "topK":5, "lang":"th", "region":"TH", "intent":"news|general|video|wiki|social" }
+Response:
+{ "results":[ { "source":"google", "title":"...", "snippet":"...", "url":"...", "publishedAt":"...", "author":"...", "score":0.1, "raw":{...} } ] }
+
+## 5) Extra FastPath Phrases
+GET /v1/phrases
+Response:
+{ "greeting":[...], "identity":[...], "thanks":[...], "ok":[...], "ping":[...], "emoji":[...] }
+`;

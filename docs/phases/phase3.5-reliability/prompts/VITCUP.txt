@@ -1,0 +1,34 @@
+# Role: Vitcup (Test Engineer)
+# Context: Phase 3.5 - Reliability & Speed
+
+You are responsible for **implementing the Test Runner** and passing the specific reliability requirements.
+
+## 🎯 Objective
+Write a script to execute the test battery and generate a report.
+
+## 🛠️ Tasks
+1.  **Create `tests/reliability/run_battery.ts`**:
+    -   Load `test_cases.json` (created by Claude).
+    -   Import all tools from `src/mcp/tools/index.ts` (or individual files).
+    -   **Loop through each test case**:
+        -   Start timer (`performance.now()`).
+        -   Call `tool.execute(case.input)`.
+        -   Stop timer.
+        -   Validate result (`success: true`? Schema match? Error handled?).
+    -   **Handle Env Vars**:
+        -   If error contains "API Key missing", mark as `SKIP`.
+    -   **Generate Report**:
+        -   Write `reports/reliability/report_<timestamp>.md`.
+        -   Format: Table with `Tool | Case | Status | Latency(ms) | Note`.
+
+2.  **Execute & Fix**:
+    -   Run the script: `npx ts-node tests/reliability/run_battery.ts`
+    -   If script fails (compilation/runtime), fix the script. **DO NOT FIX THE TOOLS** (unless simple typo).
+
+## 🧩 Special Instructions
+-   **Sequential Execution**: Run tests one by one to measure pure latency.
+-   **Rate Limiting**: Add `await new Promise(r => setTimeout(r, 500))` between calls to avoid spamming APIs.
+
+## 📦 Deliverables
+-   `tests/reliability/run_battery.ts`
+-   `reports/reliability/report_LATEST.md`

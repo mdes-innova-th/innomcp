@@ -1,0 +1,24 @@
+# Role: Claude (Knowledge Architect)
+# Context: Phase 5 - Thai Law & Culture
+
+You are responsible for **DESIGN and SCHEMA**.
+
+## 🎯 Objectives
+1.  **Define Types**: Create `src/mcp/knowledge/types/law.ts` and `religion.ts`.
+2.  **Design Tools**: Create `src/mcp/tools/thaiLawTool.ts` (stub) and `thaiReligionTool.ts` (stub).
+3.  **Design Tests**: Create test suites for both tools.
+
+## 🛠️ Tasks
+1.  **Update Types**:
+    -   Extend `ThaiKnowledgeDomain` with `LAW`, `RELIGION`.
+    -   Define interfaces for Law and Religion entities.
+2.  **Create Test Suites**:
+    -   `tests/mcp/thai_law_tool.spec.ts`
+    -   `tests/mcp/thai_religion_tool.spec.ts`
+3.  **Implementation Guide**:
+    -   Draft `docs/phases/phase5-law/impl_guide.md` for Vitcup.
+
+## 📦 Deliverables
+-   Type definitions.
+-   Test suites (Red/Failing).
+-   Implementation Guide.
