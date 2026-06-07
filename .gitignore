@@ -81,21 +81,11 @@ workspace-storage/nginx/
 package-lock.json
 
 
-# Ignore Markdown and text files
-*.md
-*.txt
-
-!TODO.md
-!ENV_SETUP.md
-!README.md
-!LICENSE
-!CHANGELOG.md
-!CONTRIBUTING.md
-!innomcp-node/DEPLOYMENT.md
-!innomcp-node/CHANGELOG.md
-!innomcp-node/README.md
-!innomcp-node/CONTRIBUTING.md
-!docs/reports/query_coverage_test_progress.md
+# Note: historically we ignored *.md wholesale, but that hid the
+# README, blog posts, and 60+ docs files. We now track all markdown
+# except for a small allowlist of generated/secret-bearing ones.
+docs/10_History_Logs/
+REPORT_PROBLEM.md
 !docs/reports/alias_geo_lookup_test_summary.md
 !docs/reports/tester_fix_bug_handoff.md
 
