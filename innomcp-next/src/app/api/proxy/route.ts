@@ -6,6 +6,60 @@ import {
 } from "@/app/lib/apiProxyUtils";
 import { jwtMiddleware } from "@/jwtmiddleware";
 
+/**
+ * SSRF protection: validate that the target URL is allowed.
+ * Blocks private IPs (10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x)
+ * and only permits known backend hosts.
+ */
+function isUrlAllowed(endpoint: string): { allowed: boolean; reason?: string } {
+  let targetUrl: URL;
+  try {
+    targetUrl = new URL(endpoint);
+  } catch {
+    return { allowed: false, reason: "Invalid URL" };
+  }
+
+  // Only allow HTTPS in production
+  if (process.env.NODE_ENV === "production" && targetUrl.protocol !== "https:") {
+    return { allowed: false, reason: "Only HTTPS allowed in production" };
+  }
+
+  const hostname = targetUrl.hostname.toLowerCase();
+
+  // Block private/reserved IP ranges to prevent SSRF
+  const privateIpPatterns = [
+    /^127\./,                        // loopback
+    /^10\./,                          // 10.0.0.0/8
+    /^172\.(1[6-9]|2\d|3[01])\./,    // 172.16.0.0/12
+    /^192\.168\./,                    // 192.168.0.0/16
+    /^169\.254\./,                    // link-local (cloud metadata)
+    /^0\./,                           // 0.0.0.0/8
+    /^::1$/,                          // IPv6 loopback
+    /^fc/,                            // IPv6 unique local
+    /^fe80/,                          // IPv6 link-local
+  ];
+
+  for (const pattern of privateIpPatterns) {
+    if (pattern.test(hostname)) {
+      return { allowed: false, reason: `Private IP blocked: ${hostname}` };
+    }
+  }
+
+  // Allow known backend hosts
+  const backendHost = process.env.NODE_BACKEND_HOST || "localhost";
+  const allowedHosts = [backendHost, "localhost", "innomcp.dataxo.info"];
+  // In development, allow any localhost port
+  if (process.env.NODE_ENV === "development" && (hostname === "localhost" || hostname === "127.0.0.1")) {
+    return { allowed: true };
+  }
+
+  if (!allowedHosts.some(h => hostname === h || hostname.endsWith(`.${h}`))) {
+    return { allowed: false, reason: `Host not in allowlist: ${hostname}` };
+  }
+
+  return { allowed: true };
+}
+
 export async function GET(request: NextRequest) {
   console.log("[proxy] Handling GET request for proxy");
   const { searchParams } = new URL(request.url);
@@ -16,6 +70,16 @@ export async function GET(request: NextRequest) {
 
   const endpoint = `${searchParams.get("endpoint") || ""}`;
   console.log(`[proxy] GET to endpoint: ${endpoint}`);
+
+  // SSRF protection: validate endpoint before proxying
+  const urlCheck = isUrlAllowed(endpoint);
+  if (!urlCheck.allowed) {
+    console.warn(`[proxy] SSRF blocked: ${urlCheck.reason} (endpoint: ${endpoint})`);
+    return NextResponse.json(
+      { error: `Proxy request blocked: ${urlCheck.reason}` },
+      { status: 403 }
+    );
+  }
 
   // ตรวจสอบ JWT จาก HttpOnly cookie เพิ่อดึง user_id
   const tokenName = process.env.TOKEN_NAME || "token";
@@ -117,7 +181,7 @@ export async function GET(request: NextRequest) {
       {
         headers: {
           "Cache-Control": "public, max-age=300",
-          "Access-Control-Allow-Origin": "*",
+          // Removed Access-Control-Allow-Origin: * — CORS handled by Next.js middleware
           "Access-Control-Allow-Methods": "GET",
           "Access-Control-Allow-Headers": "Content-Type, X-CSRF-Token",
         },
@@ -163,6 +227,16 @@ export async function POST(request: NextRequest) {
 
   const endpoint = searchParams.get("endpoint") || "";
   console.log(`[proxy] POST to endpoint: ${endpoint}`);
+
+  // SSRF protection: validate endpoint before proxying
+  const urlCheck = isUrlAllowed(endpoint);
+  if (!urlCheck.allowed) {
+    console.warn(`[proxy] SSRF blocked: ${urlCheck.reason} (endpoint: ${endpoint})`);
+    return NextResponse.json(
+      { error: `Proxy request blocked: ${urlCheck.reason}` },
+      { status: 403 }
+    );
+  }
 
   // ตรวจสอบ JWT จาก HttpOnly cookie เพิ่อดึง user_id
   const tokenName = process.env.TOKEN_NAME || "token";

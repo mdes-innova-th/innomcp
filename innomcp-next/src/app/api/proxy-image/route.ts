@@ -7,6 +7,42 @@ import {
 import { jwtMiddleware } from "@/jwtmiddleware";
 
 /**
+ * SSRF protection: block private IPs and unknown hosts.
+ * (Shared logic with /api/proxy — duplicated here for route-level isolation.)
+ */
+function isImageUrlAllowed(endpoint: string): { allowed: boolean; reason?: string } {
+  let targetUrl: URL;
+  try {
+    targetUrl = new URL(endpoint);
+  } catch {
+    return { allowed: false, reason: "Invalid URL" };
+  }
+
+  const hostname = targetUrl.hostname.toLowerCase();
+
+  // Block private/reserved IP ranges to prevent SSRF
+  const privateIpPatterns = [
+    /^127\./,
+    /^10\./,
+    /^172\.(1[6-9]|2\d|3[01])\./,
+    /^192\.168\./,
+    /^169\.254\./,
+    /^0\./,
+    /^::1$/,
+    /^fc/,
+    /^fe80/,
+  ];
+
+  for (const pattern of privateIpPatterns) {
+    if (pattern.test(hostname)) {
+      return { allowed: false, reason: `Private IP blocked: ${hostname}` };
+    }
+  }
+
+  return { allowed: true };
+}
+
+/**
  * Handle GET requests for proxying image requests
  */
 export async function GET(request: NextRequest) {
@@ -23,6 +59,16 @@ export async function GET(request: NextRequest) {
 
   const endpoint = `${apiImageHost}/${searchParams.get("endpoint") || ""}`;
   console.log(`[proxy-image] Target endpoint: ${endpoint}`);
+
+  // SSRF protection: validate constructed endpoint
+  const urlCheck = isImageUrlAllowed(endpoint);
+  if (!urlCheck.allowed) {
+    console.warn(`[proxy-image] SSRF blocked: ${urlCheck.reason} (endpoint: ${endpoint})`);
+    return NextResponse.json(
+      { error: `Proxy request blocked: ${urlCheck.reason}` },
+      { status: 403 }
+    );
+  }
 
   // ตรวจสอบ JWT จาก HttpOnly cookie เพิ่อดึง user_id
   const tokenName = process.env.TOKEN_NAME || "token";

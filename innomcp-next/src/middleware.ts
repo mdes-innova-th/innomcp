@@ -113,8 +113,10 @@ export async function middleware(request: NextRequest) {
     const tokenName = process.env.TOKEN_NAME || "token";
     const token = request.cookies.get(tokenName)?.value;
     const payload = token ? decodeJwtPayload(token) : null;
-    // Redirect to root if no token or not admin (userrole_id !== 0)
-    if (!payload || payload.userrole_id !== 0) {
+    // Support both snake_case (frontend login JWT) and camelCase (backend JWT) field names
+    const roleId = payload?.userrole_id ?? payload?.userRoleId;
+    // Redirect to root if no token or not admin (role !== 0)
+    if (!payload || roleId !== 0) {
       const redirectUrl = request.nextUrl.clone();
       redirectUrl.pathname = "/";
       return NextResponse.redirect(redirectUrl);
