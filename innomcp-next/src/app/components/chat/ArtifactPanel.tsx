@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useMemo } from "react";
+import DOMPurify from "dompurify";
 
 export interface Artifact {
   id: string;
@@ -39,8 +40,8 @@ function extractSourceUrl(content: string): string | null {
 }
 
 function MarkdownPreview({ content }: { content: string }) {
-  // Simple Markdown → HTML conversion (no external dep)
-  const html = content
+  // Simple Markdown → HTML conversion — sanitized via DOMPurify to prevent XSS
+  const rawHtml = content
     .replace(/^### (.+)$/gm, '<h3 class="text-[13px] font-semibold mt-3 mb-1">$1</h3>')
     .replace(/^## (.+)$/gm, '<h2 class="text-[14px] font-semibold mt-4 mb-1">$1</h2>')
     .replace(/^# (.+)$/gm, '<h1 class="text-[15px] font-bold mt-4 mb-2">$1</h1>')
@@ -51,10 +52,15 @@ function MarkdownPreview({ content }: { content: string }) {
     .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal text-[12.5px]">$1</li>')
     .replace(/\n\n/g, '</p><p class="mb-2 text-[12.5px] leading-relaxed">')
     .replace(/\n/g, '<br/>');
+  // DOMPurify sanitizes the regex-generated HTML, stripping any injected <script> or event handlers
+  const safeHtml = DOMPurify.sanitize(`<p class="mb-2">${rawHtml}</p>`, {
+    ALLOWED_TAGS: ['h1', 'h2', 'h3', 'p', 'strong', 'em', 'code', 'li', 'br'],
+    ALLOWED_ATTR: ['class'],
+  });
   return (
     <div
       className="prose prose-sm break-thai-words max-w-none p-3 text-foreground text-[12.5px] leading-relaxed"
-      dangerouslySetInnerHTML={{ __html: `<p class="mb-2">${html}</p>` }}
+      dangerouslySetInnerHTML={{ __html: safeHtml }}
     />
   );
 }
@@ -196,7 +202,7 @@ export default function ArtifactPanel({ artifacts, onClose }: Props) {
               ) : current.type === "chart" ? (
                 <div
                   className="overflow-x-auto p-3 break-thai-words"
-                  dangerouslySetInnerHTML={{ __html: current.content }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(current.content, { USE_PROFILES: { svg: true } }) }}
                 />
               ) : (
                 <pre className="p-3 text-[11.5px] font-mono text-foreground/80 whitespace-pre-wrap break-thai-words">
