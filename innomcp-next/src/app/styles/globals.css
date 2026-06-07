@@ -223,6 +223,12 @@ html.dark {
   --sidebar-ring: oklch(0.62 0.18 270);
 }
 
+/* Thai text wrapping fix */
+.break-thai-words {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
 /* Logo animations */
 @keyframes logo-animation {
   /* Initial zoom in for each animation sequence */
@@ -346,7 +352,7 @@ html.dark {
 }
 
 /* Logo animation states */
-.truly-fullscreen.zoomed {
+.gui-fullscreen.zoomed {
   position: fixed !important;
   top: 50% !important;
   left: 50% !important;
@@ -355,7 +361,7 @@ html.dark {
   transition: all 1s ease !important;
 }
 
-.truly-fullscreen.shrinking {
+.gui-fullscreen.shrinking {
   position: fixed !important;
   top: 50% !important;
   left: 50% !important;
@@ -395,18 +401,18 @@ html.dark {
 }
 
 /* Use TH Sarabun New for report preview */
-.report-thai,
-.report-thai-title,
-.report-thai-subtitle {
+.gui-report-thai,
+.gui-report-thai-title,
+.gui-report-thai-subtitle {
   font-family: "TH Sarabun New", Arial, sans-serif !important;
   letter-spacing: 0;
   font-size: 1.35rem;
 }
-.report-thai-title {
+.gui-report-thai-title {
   font-size: 2.1rem;
   font-weight: bold;
 }
-.report-thai-subtitle {
+.gui-report-thai-subtitle {
   font-size: 1.3rem;
 }
 

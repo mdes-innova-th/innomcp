@@ -137,7 +137,7 @@ export default function ChatMessage({
 
   return (
     <div className={className ?? ""}>
-      <div className="prose prose-sm wrap-break-word dark:prose-invert">
+      <div className="prose prose-sm break-thai-words dark:prose-invert">
         {/* Evidence Dashboard (structuredContent-only) */}
         <EvidenceDashboard structuredContent={structuredContent} />
 
@@ -1427,7 +1427,7 @@ export function MessageView({
           })()}
 
           {/* Message content — Thai-friendly: 16px body, leading-7 for breathing room (req 6) */}
-          <div className="whitespace-pre-wrap wrap-break-word text-[15px] leading-7 sm:text-base sm:leading-[1.75]">
+          <div className="whitespace-pre-wrap break-thai-words text-[15px] leading-7 sm:text-base sm:leading-[1.75]">
             {/* Progress indicator — Phase 10.46: themed pill instead of grey box. */}
             {(message as any).isProgress && (
               <div

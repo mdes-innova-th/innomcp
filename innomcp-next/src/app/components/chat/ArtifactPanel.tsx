@@ -53,7 +53,7 @@ function MarkdownPreview({ content }: { content: string }) {
     .replace(/\n/g, '<br/>');
   return (
     <div
-      className="prose prose-sm max-w-none p-3 text-foreground text-[12.5px] leading-relaxed"
+      className="prose prose-sm break-thai-words max-w-none p-3 text-foreground text-[12.5px] leading-relaxed"
       dangerouslySetInnerHTML={{ __html: `<p class="mb-2">${html}</p>` }}
     />
   );
@@ -61,7 +61,7 @@ function MarkdownPreview({ content }: { content: string }) {
 
 function CodePreview({ content, language }: { content: string; language?: string }) {
   return (
-    <pre className="overflow-x-auto rounded-lg bg-muted/40 p-3 text-[11.5px] font-mono leading-relaxed text-foreground/90">
+    <pre className="overflow-x-auto rounded-lg bg-muted/40 p-3 text-[11.5px] font-mono leading-relaxed text-foreground/90 break-thai-words">
       <code>{content}</code>
     </pre>
   );
@@ -195,17 +195,17 @@ export default function ArtifactPanel({ artifacts, onClose }: Props) {
                 <CodePreview content={current.content} language={current.language} />
               ) : current.type === "chart" ? (
                 <div
-                  className="overflow-x-auto p-3"
+                  className="overflow-x-auto p-3 break-thai-words"
                   dangerouslySetInnerHTML={{ __html: current.content }}
                 />
               ) : (
-                <pre className="p-3 text-[11.5px] font-mono text-foreground/80 whitespace-pre-wrap">
+                <pre className="p-3 text-[11.5px] font-mono text-foreground/80 whitespace-pre-wrap break-thai-words">
                   {current.content}
                 </pre>
               )
             )}
             {tab === "raw" && (
-              <pre className="p-3 text-[11.5px] font-mono text-foreground/80 whitespace-pre-wrap">
+              <pre className="p-3 text-[11.5px] font-mono text-foreground/80 whitespace-pre-wrap break-thai-words">
                 {current.content}
               </pre>
             )}

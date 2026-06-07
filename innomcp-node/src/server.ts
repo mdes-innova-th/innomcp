@@ -3,6 +3,8 @@ import http from "http";
 import net from "net";
 import { URL } from "url";
 import dotenv from "dotenv";
+import fs from "fs";
+import path from "path";
 
 import logger from "./utils/logger";
 import { logBoth } from "./utils/mcpLogger";
@@ -18,7 +20,33 @@ import { runProbe } from "./services/providerHealthProbe";
 
 dotenv.config();
 
+const CRASH_LOG_PATH = path.join(__dirname, "..", "..", "logs", "backend-crash.log");
+
+process.on("uncaughtException", (err: any) => {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] UNCAUGHT EXCEPTION:\n${err.stack || err}\n\n`;
+  try {
+    fs.appendFileSync(CRASH_LOG_PATH, logMessage);
+  } catch (e) {
+    console.error("Failed to write to crash log:", e);
+  }
+  logger.error(`💥 Uncaught Exception: ${err.message}\nStack: ${err.stack}`);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason: any, promise: any) => {
+  const timestamp = new Date().toISOString();
+  const logMessage = `[${timestamp}] UNHANDLED REJECTION:\n${reason.stack || reason}\nPromise: ${promise}\n\n`;
+  try {
+    fs.appendFileSync(CRASH_LOG_PATH, logMessage);
+  } catch (e) {
+    console.error("Failed to write to crash log:", e);
+  }
+  logger.error(`⚠️ Unhandled Rejection: ${reason.message || reason}\nStack: ${reason.stack}`);
+});
+
 // Guard: refuse to start in production with a weak or placeholder JWT_SECRET.
+
 assertProductionJwtSecret(process.env.NODE_ENV, process.env.JWT_SECRET);
 
 const host = process.env.SERVER_HOST || "0.0.0.0";
