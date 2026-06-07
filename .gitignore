@@ -87,6 +87,10 @@ package-lock.json
 
 !TODO.md
 !ENV_SETUP.md
+!README.md
+!LICENSE
+!CHANGELOG.md
+!CONTRIBUTING.md
 !innomcp-node/DEPLOYMENT.md
 !innomcp-node/CHANGELOG.md
 !innomcp-node/README.md
