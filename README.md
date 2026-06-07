@@ -6,6 +6,13 @@
 
 **Thai-first multilingual • 10+ AI providers • MCP tool ecosystem • RAG memory • Live artifact panel**
 
+[![GitHub stars](https://img.shields.io/github/stars/mdes-innova-th/innomcp?style=for-the-badge&logo=github&color=FFCB6B)](https://github.com/mdes-innova-th/innomcp/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/mdes-innova-th/innomcp?style=for-the-badge&logo=github&color=blue)](https://github.com/mdes-innova-th/innomcp/network/members)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
+[![Release](https://img.shields.io/github/v/release/mdes-innova-th/innomcp?style=for-the-badge&color=green)](https://github.com/mdes-innova-th/innomcp/releases)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=for-the-badge)](CONTRIBUTING.md)
+[![Made with ♥ in Bangkok](https://img.shields.io/badge/Made%20with%20%E2%9D%A4%20in-Bangkok-blue.svg?style=for-the-badge)](https://en.wikipedia.org/wiki/Bangkok)
+
 [Demo](#-demo) • [Quick Start](#-quick-start) • [Why INNOMCP](#-why-innomcp) • [Architecture](#-architecture) • [Contributing](#-contributing) • [Roadmap](docs/MASTER_REVIEW.md)
 
 </div>
@@ -33,16 +40,17 @@ INNOMCP is a **self-hostable, multi-agent AI workspace** that gives you the same
 
 ## 🎬 Demo
 
-![INNOMCP chat with Thai weather query — real TMD data, parallel tool dispatch, streamed response](docs/screenshots/hero-weather-response.png)
+![INNOMCP live demo — Thai weather, calculator, evidence dashboard](docs/demo.gif)
 
-> **Live UI screenshots** (1280×1015, fresh from last Playwright run on 2026-05-11):
->
-> - 🌦️ **Weather + tool panel** → `docs/screenshots/hero-weather-response.png`
-> - 🧮 **Calculator tool dispatch** → `docs/screenshots/hero-calculator-tool.png`
-> - 📊 **Evidence dashboard** → `docs/screenshots/hero-evidence-dashboard.png`
-> - 📱 **Mobile responsive view** → `docs/screenshots/hero-mobile-view.png`
->
-> **Want to record a real 60s demo GIF?** Run `pnpm dev` and use any screen recorder — PRs adding `docs/demo.gif` are very welcome!
+> 6-frame live demo · 1280×600 · slideshow of the most-engaging flows
+
+**More screenshots:**
+- 🌦️ [Weather + tool panel](docs/screenshots/hero-weather-response.png) — TMD API + NWP forecast
+- 🧮 [Calculator tool](docs/screenshots/hero-calculator-tool.png) — parallel dispatch visible
+- 📊 [Evidence dashboard](docs/screenshots/hero-evidence-dashboard.png) — structured content
+- 📱 [Mobile responsive](docs/screenshots/hero-mobile-view.png) — bottom nav layout
+
+Want a real recording? Run `pnpm dev` and use any screen recorder — PRs adding `docs/demo.webm` are very welcome!
 
 ---
 
@@ -78,6 +86,13 @@ docker compose up -d mariadb
 pnpm dev
 ```
 Open **http://localhost:3000** — you'll see the chat UI. The backend (`:3011`) and MCP server (`:3012`) start automatically.
+
+### Or — one command with Docker
+```bash
+git clone https://github.com/mdes-innova-th/innomcp && cd innomcp && docker compose up -d
+# Then visit http://localhost:3000
+```
+*(Docker Compose orchestration is in progress — see [issue tracker](https://github.com/mdes-innova-th/innomcp/issues). For now, use the pnpm dev path above.)*
 
 ### 5. Try a query
 > *"สภาพอากาศที่เชียงใหม่วันนี้เป็นยังไงบ้าง"*
