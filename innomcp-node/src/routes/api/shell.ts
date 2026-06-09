@@ -92,11 +92,17 @@ router.post("/exec", async (req: AuthRequest, res: Response) => {
 // GET /api/shell/history
 router.get("/history", async (req: AuthRequest, res: Response) => {
   const { sessionId, taskId, limit = "20" } = req.query as Record<string, string>;
+  const userId = req.user?.userId ?? null;
   try {
     const rows = await withDbConnection(async (conn) => {
       let q =
         "SELECT id, command, exit_code, risk_level, duration_ms, created_at FROM shell_executions WHERE 1=1";
-      const params: (string | number)[] = [];
+      const params: (string | number | null)[] = [];
+      // Ownership gate: only return rows owned by this user (or null user_id rows for legacy data)
+      if (userId !== null) {
+        q += " AND (user_id = ? OR user_id IS NULL)";
+        params.push(userId);
+      }
       if (sessionId) { q += " AND session_id = ?"; params.push(sessionId); }
       if (taskId)    { q += " AND task_id = ?";    params.push(taskId); }
       q += " ORDER BY created_at DESC LIMIT ?";
