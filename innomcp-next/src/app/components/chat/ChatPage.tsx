@@ -26,6 +26,9 @@ import dynamic from "next/dynamic";
 import MultiAgentPanel from "@/app/components/chat/MultiAgentPanel";
 import StarterPromptsGrid from "@/app/components/chat/StarterPromptsGrid";
 import AgentWorkspacePanel from "@/app/components/chat/AgentWorkspacePanel";
+import OfficeTeamPanel from "@/app/components/chat/OfficeTeamPanel";
+import OraclePatternPanel from "@/app/components/chat/OraclePatternPanel";
+import PulsePanel from "@/app/components/chat/PulsePanel";
 import { useAgentEventStream } from "@/app/components/chat/useAgentEventStream";
 import KeyboardShortcutsPanel, { useKeyboardShortcutsPanel } from "@/app/components/chat/KeyboardShortcutsPanel";
 import type { Artifact } from "@/app/components/chat/ArtifactPanel";
@@ -1606,9 +1609,9 @@ const ChatPage: React.FC = () => {
 
       <KeyboardShortcutsPanel open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
-      {/* INNOMCP Computer � floating right-side live agent panel */}
+      {/* INNOMCP Computer — floating right-side live agent panel */}
       {workspaceOpen && (
-        <div className="fixed inset-x-2 top-16 z-40 max-h-[50vh] overflow-y-auto sm:inset-x-auto sm:right-4 sm:top-20 sm:w-80 sm:max-h-[calc(100vh-6rem)]">
+        <div className="fixed inset-x-2 top-16 z-40 max-h-[85vh] overflow-y-auto sm:inset-x-auto sm:right-4 sm:top-20 sm:w-80 sm:max-h-[calc(100vh-6rem)] space-y-4 bg-background/95 border border-border/40 p-2.5 rounded-xl shadow-lg">
           <ErrorBoundary componentName="AgentWorkspacePanel">
             <AgentWorkspacePanel
               events={agentStreamState.events}
@@ -1651,11 +1654,29 @@ const ChatPage: React.FC = () => {
               }}
             />
           </ErrorBoundary>
+
+          {/* Office Agent Team Panel */}
+          <ErrorBoundary componentName="OfficeTeamPanel">
+            <OfficeTeamPanel />
+          </ErrorBoundary>
+
+          {/* Oracle Pattern Panel */}
+          <ErrorBoundary componentName="OraclePatternPanel">
+            <OraclePatternPanel />
+          </ErrorBoundary>
+
+          {/* Pulse Panel */}
+          <ErrorBoundary componentName="PulsePanel">
+            <PulsePanel />
+          </ErrorBoundary>
+
           <button
             onClick={() => setWorkspaceOpen(false)}
             className="absolute right-2 top-2 text-muted-foreground/60 hover:text-foreground text-lg leading-none"
-            aria-label="???"
-          >?</button>
+            aria-label="Close"
+          >
+            ×
+          </button>
         </div>
       )}
 

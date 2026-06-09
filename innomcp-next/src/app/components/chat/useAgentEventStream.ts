@@ -18,7 +18,7 @@
  * DOM.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 
 export type AgentEventType =
   | "agent_run_started"
@@ -116,7 +116,7 @@ function parseSseChunk(buffer: string): { complete: string[]; remainder: string 
   // Splits on the SSE message delimiter "\n\n". Each complete message
   // becomes its own raw blob. The remainder is the partial trailing
   // message that hasn't terminated yet.
-  const parts = buffer.split(/\n\n/);
+  const parts = buffer.split(/\r?\n\r?\n/);
   const remainder = parts.pop() ?? "";
   return { complete: parts, remainder };
 }
@@ -144,10 +144,7 @@ function extractDataLine(blob: string): string | null {
  */
 function resolveStreamUrl(explicit: string): string {
   if (explicit && /^https?:\/\//.test(explicit)) return explicit;
-  const envUrl =
-    typeof process !== "undefined" && process.env && process.env.NEXT_PUBLIC_BACKEND_URL
-      ? String(process.env.NEXT_PUBLIC_BACKEND_URL).replace(/\/$/, "")
-      : "";
+  const envUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
   if (envUrl) return `${envUrl}${explicit.startsWith("/") ? "" : "/"}${explicit}`;
   if (typeof window !== "undefined" && window.location) {
     const { protocol, hostname, port } = window.location;
@@ -163,6 +160,12 @@ function resolveStreamUrl(explicit: string): string {
 export function useAgentEventStream(endpoint: string = "/api/chat/stream") {
   const [state, setState] = useState<AgentStreamState>(initialState);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+    };
+  }, []);
 
   const reset = useCallback(() => {
     abortRef.current?.abort();

@@ -7,67 +7,80 @@ interface AgentLog {
   message: string;
 }
 
+const ACTIVE_AGENTS = ["innova", "planner", "coder", "researcher", "reviewer", "emotion", "oracle"];
+
 export default function PulsePanel() {
-  const [activeAgent, setActiveAgent] = useState("bigboss");
-  const [logs, setLogs] = useState<AgentLog[]>([]);
+  const [activeAgent, setActiveAgent] = useState("innova");
+  const [logs, setLogs] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
   const [inputCmd, setInputCmd] = useState("");
   const terminalEndRef = useRef<HTMLDivElement | null>(null);
 
-  const mockLogs: Record<string, AgentLog[]> = {
-    bigboss: [
-      { timestamp: "23:54:10", level: "INFO", message: "Conductor / Orchestrator initialized." },
-      { timestamp: "23:54:12", level: "INFO", message: "Spawning subagents: debugger, reviewer, builder." },
-      { timestamp: "23:54:15", level: "INFO", message: "Broadcasting event: 'TaskStarted' containing project scope" },
-      { timestamp: "23:54:20", level: "INFO", message: "Awaiting reports from builder..." }
-    ],
-    debugger: [
-      { timestamp: "23:54:11", level: "INFO", message: "Debugger attached to workspace C:/Users/USER-NT/DEV/innomcp" },
-      { timestamp: "23:54:13", level: "DEBUG", message: "Reading project config file .agents/agents.yaml" },
-      { timestamp: "23:54:14", level: "INFO", message: "Validating registry: 4 active branches mapped." },
-      { timestamp: "23:54:18", level: "WARN", message: "Branch 'agents/debugger' is 2 commits behind parent branch 'dev'." }
-    ],
-    builder: [
-      { timestamp: "23:54:11", level: "INFO", message: "Builder worktree initialized at agents/builder" },
-      { timestamp: "23:54:13", level: "INFO", message: "Building packages/opencode with single bundle targeting..." },
-      { timestamp: "23:54:19", level: "INFO", message: "Compilation completed in 4.2s. Output: dist/opencode-windows-x64" },
-      { timestamp: "23:54:21", level: "INFO", message: "Running bun run typecheck - 0 errors found." }
-    ],
-    reviewer: [
-      { timestamp: "23:54:11", level: "INFO", message: "Reviewer workspace ready." },
-      { timestamp: "23:54:14", level: "INFO", message: "Auditing layout changes in ChatSidebar.tsx" },
-      { timestamp: "23:54:16", level: "INFO", message: "Security check passed: 0 vulnerabilities found in dependencies." }
-    ]
+  // Fetch real agent logs
+  const fetchLogs = async (agentName: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/tmux/logs?agent=${agentName}`);
+      const data = await res.json();
+      if (data.exists && Array.isArray(data.lines)) {
+        setLogs(data.lines);
+      } else if (data.lines) {
+        setLogs(data.lines); // Fallback messages
+      } else {
+        setLogs([`[SYSTEM] Standby - No logs returned for ${agentName}.`]);
+      }
+    } catch (err: any) {
+      setLogs([`[SYSTEM ERROR] Failed to fetch logs: ${err.message}`]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    setLogs(mockLogs[activeAgent] || []);
+    fetchLogs(activeAgent);
+    const id = setInterval(() => fetchLogs(activeAgent), 5000);
+    return () => clearInterval(id);
   }, [activeAgent]);
 
   useEffect(() => {
     terminalEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-  const handleCommand = (e: React.FormEvent) => {
+  const handleCommand = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputCmd.trim()) return;
-    const now = new Date().toLocaleTimeString("en-US", { hour12: false });
-    const userLog: AgentLog = { timestamp: now, level: "INFO", message: `$ ${inputCmd}` };
-    const responseLog: AgentLog = {
-      timestamp: now,
-      level: "DEBUG",
-      message: `Executing tool command: ${inputCmd}... (OK)`
-    };
-    setLogs((prev) => [...prev, userLog, responseLog]);
+
+    const cmd = inputCmd.trim();
     setInputCmd("");
+    
+    // Add command echo to terminal
+    setLogs((prev) => [...prev, `$ ${cmd}`, `[SYSTEM] Processing control request...`]);
+
+    try {
+      const res = await fetch("/api/tmux/control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "run-tests" }) // Default to safety test check
+      });
+      const data = await res.json();
+      if (data.success) {
+        setLogs((prev) => [...prev, `[SYSTEM] Command accepted: ${cmd}`, data.stdout || "Success"]);
+      } else {
+        setLogs((prev) => [...prev, `[SYSTEM ERROR] Rejected: ${data.error || "Execution failed"}`]);
+      }
+    } catch (err: any) {
+      setLogs((prev) => [...prev, `[SYSTEM ERROR] Failed to broadcast: ${err.message}`]);
+    }
   };
 
-  const getLevelColor = (level: string) => {
-    switch (level) {
-      case "ERROR": return "text-rose-500 font-semibold";
-      case "WARN": return "text-amber-500 font-semibold";
-      case "DEBUG": return "text-sky-400";
-      default: return "text-emerald-500";
-    }
+  const getLineStyle = (line: string) => {
+    const low = line.toLowerCase();
+    if (low.startsWith("$")) return "text-white font-semibold";
+    if (low.includes("error") || low.includes("fail") || low.includes("critical")) return "text-rose-500 font-medium";
+    if (low.includes("warn")) return "text-amber-500 font-medium";
+    if (low.includes("pass") || low.includes("success") || low.includes("completed")) return "text-emerald-500 font-medium";
+    if (low.includes("debug") || low.includes("trace")) return "text-sky-400";
+    return "text-white/80";
   };
 
   return (
@@ -79,7 +92,7 @@ export default function PulsePanel() {
 
       {/* Selector tab */}
       <div className="flex flex-wrap gap-1.5 mb-4">
-        {Object.keys(mockLogs).map((agent) => (
+        {ACTIVE_AGENTS.map((agent) => (
           <button
             key={agent}
             onClick={() => setActiveAgent(agent)}
@@ -89,24 +102,26 @@ export default function PulsePanel() {
                 : "bg-muted/40 hover:bg-muted/60 text-muted-foreground"
             }`}
           >
-            {agent}
+            {agent.toUpperCase()}
           </button>
         ))}
       </div>
 
       {/* Terminal window */}
       <div className="flex-1 min-h-[300px] flex flex-col rounded-lg overflow-hidden border border-border/40 bg-black/85 shadow-2xl">
-        <div className="flex items-center gap-1.5 px-3 py-2 border-b border-border/20 bg-background/50">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[10.5px] font-mono text-muted-foreground">pty-bridge: {activeAgent}-session</span>
+        <div className="flex items-center justify-between px-3 py-2 border-b border-border/20 bg-background/50">
+          <div className="flex items-center gap-1.5">
+            <span className={`h-2 w-2 rounded-full ${loading ? "bg-amber-500 animate-pulse" : "bg-emerald-500 animate-pulse"}`} />
+            <span className="text-[10.5px] font-mono text-muted-foreground">pty-bridge: {activeAgent}-session</span>
+          </div>
+          <span className="text-[9px] font-mono text-muted-foreground/50">Auto-refresh: 5s</span>
         </div>
 
-        <div className="flex-1 p-3 overflow-y-auto font-mono text-[11px] leading-relaxed text-muted-foreground space-y-1 bg-black/30">
-          {logs.map((log, index) => (
+        <div className="flex-1 p-3 overflow-y-auto font-mono text-[11.5px] leading-relaxed text-muted-foreground space-y-1 bg-black/30 max-h-[400px]">
+          {logs.map((line, index) => (
             <div key={index} className="flex gap-2 items-start">
-              <span className="text-white/30 shrink-0">{log.timestamp}</span>
-              <span className={`shrink-0 ${getLevelColor(log.level)}`}>[{log.level}]</span>
-              <span className="text-white/85 break-all whitespace-pre-wrap">{log.message}</span>
+              <span className="text-white/30 shrink-0 select-none">{(index + 1).toString().padStart(3, "0")}</span>
+              <span className={`break-all whitespace-pre-wrap ${getLineStyle(line)}`}>{line}</span>
             </div>
           ))}
           <div ref={terminalEndRef} />

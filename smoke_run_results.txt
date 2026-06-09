@@ -1,0 +1,17 @@
+﻿RUN_TS=2026-06-08T00:02:25
+HTTP_URI=http://localhost:3015/api/chat
+WS_URI=ws://localhost:3015/chat
+--- HTTP ---
+HTTP#1 marker=SMOKE721_P1 cid=SMOKE721_HTTP_P1 exitCode=1 expect=officerEvidence err=Unable to connect to the remote server
+HTTP#2 marker=SMOKE721_P2 cid=SMOKE721_HTTP_P2 exitCode=1 expect=officerEvidence err=Unable to connect to the remote server
+HTTP#3 marker=SMOKE721_P3 cid=SMOKE721_HTTP_P3 exitCode=1 expect=officerEvidence err=Unable to connect to the remote server
+HTTP#4 marker=SMOKE721_P4 cid=SMOKE721_HTTP_P4 exitCode=1 expect=NOT weatherGate err=Unable to connect to the remote server
+HTTP#5 marker=SMOKE721_P5 cid=SMOKE721_HTTP_P5 exitCode=1 expect=weatherGate err=Unable to connect to the remote server
+HTTP#6 marker=SMOKE721_P6 cid=SMOKE721_HTTP_P6 exitCode=1 expect=weatherGate err=Unable to connect to the remote server
+--- WS ---
+WS#1 marker=SMOKE721_P1 cid=SMOKE721_WS_P1 exitCode=1 expect=officerEvidence err=Exception calling "Wait" with "0" argument(s): "One or more errors occurred."
+WS#2 marker=SMOKE721_P2 cid=SMOKE721_WS_P2 exitCode=1 expect=officerEvidence err=Exception calling "Wait" with "0" argument(s): "One or more errors occurred."
+WS#3 marker=SMOKE721_P3 cid=SMOKE721_WS_P3 exitCode=1 expect=officerEvidence err=Exception calling "Wait" with "0" argument(s): "One or more errors occurred."
+WS#4 marker=SMOKE721_P4 cid=SMOKE721_WS_P4 exitCode=1 expect=NOT weatherGate err=Exception calling "Wait" with "0" argument(s): "One or more errors occurred."
+WS#5 marker=SMOKE721_P5 cid=SMOKE721_WS_P5 exitCode=1 expect=weatherGate err=Exception calling "Wait" with "0" argument(s): "One or more errors occurred."
+WS#6 marker=SMOKE721_P6 cid=SMOKE721_WS_P6 exitCode=1 expect=weatherGate err=Exception calling "Wait" with "0" argument(s): "One or more errors occurred."

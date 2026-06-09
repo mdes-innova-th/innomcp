@@ -20,13 +20,15 @@ export class ForecastEngine {
     constructor(private clients: Map<string, any>) {}
 
     private isFixtureMode(): boolean {
-        return process.env.WEATHER_FIXTURE_W1 === "1";
+        return process.env.WEATHER_FIXTURE_W1 === "1" || process.env.SMOKE_MODE === "1";
     }
 
     private getClient(): any {
         const c = this.clients.get("innomcp-server") || this.clients.values().next().value;
         if (c) return c;
-        if (process.env.WEATHER_FIXTURE_W1 === "1") {
+        // In fixture/SMOKE mode, return a dummy client that should never be called
+        // (fixtures should be served from cache)
+        if (this.isFixtureMode()) {
             return {
                 callTool: async () => {
                     throw new Error("WEATHER_FIXTURE_W1 dummy client should not be called");

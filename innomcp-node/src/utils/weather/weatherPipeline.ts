@@ -176,7 +176,8 @@ export class WeatherPipeline {
         this.nwpEngine = new NwpEngine(clients);
 
         // Phase W1: allow deterministic zero-network fixtures for verifier/evidence.
-        if (process.env.WEATHER_FIXTURE_W1 === "1") {
+        // Auto-enable in SMOKE_MODE for deterministic tests without network calls.
+        if (process.env.WEATHER_FIXTURE_W1 === "1" || process.env.SMOKE_MODE === "1") {
             primeWeatherFixturesW1();
         }
     }

@@ -1024,10 +1024,10 @@ export function renderThaiGeoAnswerShort(toolResult: any): { text: string; trace
     const post = sanitize(postRaw);
 
     const lines: string[] = [];
-    if (dist) lines.push(`${districtLabel(prov)}: ${dist}`);
-    if (sub) lines.push(`${subdistrictLabel(prov)}: ${sub}`);
-    if (prov) lines.push(`จังหวัด: ${prov}`);
-    if (post) lines.push(`รหัสไปรษณีย์: ${post}`);
+    if (dist) lines.push(`${districtLabel(prov)}${dist}`);
+    if (sub) lines.push(`${subdistrictLabel(prov)}${sub}`);
+    if (prov) lines.push(`จังหวัด${prov}`);
+    if (post) lines.push(`รหัสไปรษณีย์ ${post}`);
     return lines;
   };
 

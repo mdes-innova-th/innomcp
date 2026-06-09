@@ -9,10 +9,9 @@ import {
   faStop,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
-// Phase 10.68 — AIModelSelector + ThinkingModeToggle merged into ChatModeSelector
-import ChatModeSelector, { type ChatMode } from "./ChatModeSelector";
-import ToolsTypeSelector, { type ToolType } from "./ToolsTypeSelector";
 import type { Artifact } from "./ArtifactPanel";
+
+export type ProviderMode = "remote" | "local";
 
 // Phase 3 CSV — backend base URL
 const BACKEND =
@@ -25,19 +24,6 @@ interface CsvMeta {
   rowCount: number;
   colCount: number;
   content: string;
-}
-
-// Provider mode stored in localStorage so it survives page refreshes.
-export type ProviderMode = "remote" | "local";
-const PROVIDER_MODE_KEY = "innomcp.provider.mode";
-
-function readProviderMode(): ProviderMode {
-  if (typeof window === "undefined") return "remote";
-  return (localStorage.getItem(PROVIDER_MODE_KEY) as ProviderMode) ?? "remote";
-}
-
-function saveProviderMode(mode: ProviderMode): void {
-  if (typeof window !== "undefined") localStorage.setItem(PROVIDER_MODE_KEY, mode);
 }
 
 interface ChatInputProps {
@@ -59,29 +45,12 @@ interface ChatInputProps {
   adjustTextarea: () => void;
   theme: string;
   layoutMode?: "empty" | "conversation";
-  onToolTypeChange?: (type: ToolType) => void;
-  chatMode?: ChatMode;
-  onChatModeChange?: (mode: ChatMode) => void;
   onFocus?: () => void;
   onBlur?: () => void;
-  providerMode?: ProviderMode;
-  onProviderModeChange?: (mode: ProviderMode) => void;
   /** Phase 3 CSV — called after /api/analyze succeeds so parent can add to ArtifactPanel */
   onAddArtifact?: (artifact: Artifact) => void;
   /** Phase 3 CSV — set a prefix string that sendMessage in parent will prepend to user text */
   setCsvPrefix?: (val: string) => void;
-}
-
-function DotsAnimation() {
-  // Phase 10.47 — render as three CSS-animated dots so the cursor doesn't
-  // flicker and the reflow-cost is zero. Pure CSS bouncy stagger.
-  return (
-    <span className="ml-1 inline-flex items-center gap-0.5 align-middle" aria-hidden="true">
-      <span className="h-1 w-1 rounded-full bg-current animate-bounce [animation-delay:0s]" />
-      <span className="h-1 w-1 rounded-full bg-current animate-bounce [animation-delay:140ms]" />
-      <span className="h-1 w-1 rounded-full bg-current animate-bounce [animation-delay:280ms]" />
-    </span>
-  );
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({
@@ -91,7 +60,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
   setSelectedImage: _setSelectedImage,
   selectedFile,
   setSelectedFile: _setSelectedFile,
-  handleNewChat,
   handleFileUpload,
   handleRemoveImage,
   sendMessage,
@@ -101,34 +69,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
   textareaRef,
   fileInputRef,
   adjustTextarea,
-  theme,
-  layoutMode: _layoutMode = "conversation",
-  onToolTypeChange,
-  chatMode = "normal",
-  onChatModeChange,
   onFocus,
   onBlur,
-  providerMode: providerModeProp,
-  onProviderModeChange,
   onAddArtifact,
   setCsvPrefix,
 }) => {
-  // Provider mode — read from localStorage on first render; sync back on toggle
-  const [providerMode, setProviderMode] = useState<ProviderMode>(() => providerModeProp ?? "remote");
-  useEffect(() => {
-    const stored = readProviderMode();
-    setProviderMode(stored);
-    onProviderModeChange?.(stored);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function toggleProviderMode() {
-    const next: ProviderMode = providerMode === "remote" ? "local" : "remote";
-    setProviderMode(next);
-    saveProviderMode(next);
-    onProviderModeChange?.(next);
-  }
-
   // Draft persistence
   const DRAFT_KEY = "innomcp-chat-draft";
   const [draftSaved, setDraftSaved] = useState(false);
@@ -219,41 +164,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
     localStorage.removeItem(DRAFT_KEY);
   };
 
-  // Phase 5 — Thai voice input via Web Speech API
-  const [isListening, setIsListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
-
-  const toggleVoice = () => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) return; // silently skip if not supported
-
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = 'th-TH';
-    recognition.continuous = false;
-    recognition.interimResults = true;
-
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results)
-        .map((r: any) => r[0].transcript)
-        .join('');
-      setInput(transcript);
-    };
-
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
-
-    recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
-  };
-
   useEffect(() => {
     adjustTextarea();
     const handler = () => adjustTextarea();
@@ -282,11 +192,10 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const rotatingPlaceholder = PLACEHOLDER_ROTATION[placeholderIndex];
 
   const hasAttachment = Boolean(selectedFile);
-  // Character counter — only surface when the input is non-trivial.
-  // 4000 is a comfortable soft-ceiling; warn at 80% and tint at 95%.
+  // Character counter — only surface when the input is close to the limit.
   const CHAR_LIMIT = 4000;
   const charCount = input.length;
-  const showCharCounter = charCount >= 600;
+  const showCharCounter = charCount >= 3200;
   const charPct = charCount / CHAR_LIMIT;
   const counterTone =
     charPct >= 0.95
@@ -304,18 +213,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
       ? `${(selectedFile.size / 1024 / 1024).toFixed(1)} MB`
       : `${(selectedFile.size / 1024).toFixed(0)} KB`
     : null;
-
-  // Connection state — kept compact (req 3: status visible but not space-hungry)
-  const stateDot = isWaitingForResponse
-    ? "bg-amber-500"
-    : isSocketReady
-    ? "bg-emerald-500"
-    : "bg-rose-500";
-  const stateLabel = isWaitingForResponse
-    ? "กำลังประมวลผล"
-    : isSocketReady
-    ? "พร้อมใช้งาน"
-    : "กำลังเชื่อมต่อ";
 
   return (
     <div className="mx-auto w-full max-w-[64rem]">
@@ -442,12 +339,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
         {/* Single-row toolbar on desktop; wraps on mobile */}
         <div className="flex flex-wrap items-center gap-2 px-2.5 pb-2.5 pt-2 sm:px-3">
-          <ToolsTypeSelector
-            onNewChat={handleNewChat}
-            onToolTypeChange={onToolTypeChange}
-            theme={theme}
-          />
-
           <button
             onClick={() => fileInputRef.current?.click()}
             title="แนบไฟล์"
@@ -458,70 +349,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <span className="hidden sm:inline">แนบไฟล์</span>
           </button>
 
-          {/* Connection state — single dot+label, hidden on very small viewports */}
-          <span
-            title={
-              isSocketReady
-                ? "ระบบพร้อมส่งคำสั่ง"
-                : "กำลังเชื่อมต่อระบบตอบกลับ"
-            }
-            className="hidden items-center gap-1.5 rounded-md px-2 py-1.5 text-[12px] font-medium text-muted-foreground sm:inline-flex"
-          >
-            <span className={`h-1.5 w-1.5 rounded-full ${stateDot}`} aria-hidden="true" />
-            {stateLabel}
-          </span>
-
-          {/* Right-aligned: provider badge + model selector + send */}
+          {/* Right-aligned: send/stop button */}
           <div className="ml-auto flex flex-1 items-center justify-end gap-2 sm:flex-none">
-            {/* Provider mode badge — MDES Cloud vs Ollama Local */}
-            <button
-              type="button"
-              onClick={toggleProviderMode}
-              disabled={isWaitingForResponse}
-              title={
-                providerMode === "remote"
-                  ? "ใช้ MDES Cloud Ollama — คลิกเพื่อเปลี่ยนเป็น Local"
-                  : "ใช้ Ollama Local (localhost:11434) — คลิกเพื่อเปลี่ยนเป็น MDES Cloud"
-              }
-              data-testid="provider-mode-toggle"
-              className={`hidden h-7 items-center gap-1 rounded-full border px-2.5 text-[11px] font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50 sm:inline-flex ${
-                providerMode === "local"
-                  ? "border-amber-500/45 bg-amber-500/10 text-amber-800 dark:text-amber-200 hover:bg-amber-500/16"
-                  : "border-sky-500/40 bg-sky-500/8 text-sky-800 dark:text-sky-200 hover:bg-sky-500/14"
-              }`}
-            >
-              <span
-                className={`h-1.5 w-1.5 rounded-full ${
-                  providerMode === "local" ? "bg-amber-500" : "bg-sky-500"
-                }`}
-                aria-hidden="true"
-              />
-              <span>{providerMode === "local" ? "Ollama Local" : "MDES Cloud"}</span>
-            </button>
-
-            {/* Phase 5 — Thai voice input button (browser check at runtime, SSR-safe) */}
-            {typeof window !== 'undefined' && ((window as any).SpeechRecognition || (window as any).webkitSpeechRecognition) && (
-              <button
-                onClick={toggleVoice}
-                type="button"
-                title={isListening ? 'หยุดฟัง' : 'พูดได้เลย (ภาษาไทย)'}
-                className={`rounded-lg p-2 transition-colors ${
-                  isListening
-                    ? 'bg-rose-500/20 text-rose-500 animate-pulse'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                }`}
-                aria-label={isListening ? 'หยุดฟัง' : 'เริ่มฟังเสียง'}
-              >
-                {isListening ? '🔴' : '🎙️'}
-              </button>
-            )}
-
-            <ChatModeSelector
-              mode={chatMode}
-              onChange={(m) => onChatModeChange?.(m)}
-              disabled={isWaitingForResponse}
-            />
-
             <button
               onClick={isWaitingForResponse ? handleStop : handleSendWithCsv}
               disabled={!isSocketReady || (!isWaitingForResponse && !input.trim() && !csvMeta)}
@@ -531,13 +360,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                   : "bg-primary hover:bg-primary/92"
               } disabled:cursor-not-allowed disabled:scale-100 disabled:bg-muted disabled:text-muted-foreground/70 disabled:shadow-none`}
               data-testid="send-btn"
-              title={
-                isWaitingForResponse
-                  ? "หยุดการตอบ (Esc)"
-                  : isSocketReady
-                  ? "ส่งข้อความ (Enter)"
-                  : "กำลังเชื่อมต่อ AI"
-              }
+              title={isWaitingForResponse ? "หยุดการตอบ (Esc)" : "ส่งข้อความ (Enter)"}
               aria-label={isWaitingForResponse ? "หยุดการตอบของ AI" : "ส่งข้อความ"}
             >
               {/* Phase 10.41 — animated halo only while waiting so the user
@@ -554,27 +377,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
                   <FontAwesomeIcon icon={faStop} className="relative" />
                   <span className="relative">หยุด</span>
                 </>
-              ) : isSocketReady ? (
+              ) : (
                 <>
                   <span>ส่ง</span>
                   <FontAwesomeIcon icon={faArrowUp} />
                 </>
-              ) : (
-                <span>
-                  เชื่อมต่อ
-                  <DotsAnimation />
-                </span>
               )}
             </button>
           </div>
         </div>
-
-        {/* Draft saved indicator */}
-        {draftSaved && (
-          <span className="text-[10px] text-muted-foreground/50 absolute bottom-1 right-2 pointer-events-none select-none">
-            📝 ดราฟท์บันทึกแล้ว
-          </span>
-        )}
       </div>
 
       {/* Phase 3 drag-and-drop hint — shown only when input is empty and no file attached */}
@@ -584,9 +395,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </p>
       )}
 
-      {/* Helper line — keys on left, character counter on right when relevant.
-          Phase 10.36 — kbds upgraded with a faint inner bevel + tight gap so the
-          row reads as a single hint strip rather than three separate phrases. */}
+      {/* Helper line — keys on left, character counter on right when relevant. */}
       <div className="mt-1.5 hidden items-center justify-between gap-3 px-1 text-[11px] text-muted-foreground/85 sm:flex">
         <div className="flex items-center gap-3">
           <span className="inline-flex items-center gap-1">
