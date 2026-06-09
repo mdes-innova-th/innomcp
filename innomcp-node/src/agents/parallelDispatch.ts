@@ -69,8 +69,8 @@ const INTENT_AGENTS_POOL: Record<string, AgentId[]> = {
   knowledge:        ["thinker", "rag-agent", "researcher", "concierge", "critic", "stylist", "fact-checker", "domain-expert", "linguist"],
   "planning-broad": ["thinker", "weather-analyst", "geo-planner", "rag-agent", "researcher", "concierge", "critic", "stylist", "domain-expert", "fact-checker", "linguist"],
   code:             ["thinker", "tool-scout", "researcher", "concierge", "critic", "stylist", "fact-checker", "domain-expert", "linguist", "rag-agent"],
-  factual:          ["thinker", "rag-agent", "researcher", "concierge", "critic", "fact-checker", "domain-expert", "linguist"],
-  general:          ["thinker", "concierge", "critic", "stylist", "rag-agent", "researcher", "linguist", "domain-expert", "fact-checker"],
+  factual:          ["thinker", "rag-agent", "researcher", "concierge", "critic", "fact-checker", "domain-expert", "linguist", "data-analyst"],
+  general:          ["thinker", "concierge", "critic", "stylist", "rag-agent", "researcher", "linguist", "domain-expert", "fact-checker", "data-analyst"],
 };
 
 // Thai-specialized model — set THAI_LLM_MODEL=openthaigpt:7b (or similar) to override
@@ -91,6 +91,7 @@ const AGENT_MODEL_MDES: Record<string, string> = {
   "fact-checker":    "gemma3:12b",          // accuracy verifier
   "linguist":        thaiModel ?? "gemma3:12b",  // Thai model preferred for NL polish
   "domain-expert":   "gemma3:12b",          // domain-specific insight
+  "data-analyst":    "gemma3:12b",          // data analysis, CSV/JSON reasoning
 };
 
 // Per-model timeouts — larger models need more time for first token
@@ -301,6 +302,7 @@ const AGENT_PROMPT: Record<string, (q: string, ctx?: string) => string> = {
 ตอบสั้น 2-3 ประโยค ห้ามปั้นข้อมูลขึ้นมา`,
   "linguist":        (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}สมมติเป็นผู้รู้เรื่องนี้ดี ตอบตรงๆ เลย: "${q}"\nภาษาไทยเหมือนคนจริงๆ คุย ไม่ต้องบอกที่มา ไม่ต้องขึ้นต้นด้วย "แน่นอน" หรือ "ดีใจที่ถาม" ตอบสั้นไม่เกิน 3 ประโยค`,
   "domain-expert":   (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}เป็นผู้เชี่ยวชาญเรื่องนี้ ตอบตรงโดยไม่ต้องแนะนำตัว: "${q}"\nให้ข้อมูลจากมุมมองผู้รู้จริง ภาษาไทยกระชับ ไม่เกิน 4 ประโยค ห้ามเกริ่นนำ`,
+  "data-analyst":    (q, ctx) => `${ctx ? `บริบทการสนทนา:\n${ctx}\n\n` : ""}คุณเป็นนักวิเคราะห์ข้อมูล วิเคราะห์และตีความข้อมูลต่อไปนี้ตรงประเด็น: "${q}"\nระบุ pattern, trend, หรือ insight สำคัญ ตอบภาษาไทยกระชับ 2-4 ประโยค ห้ามเกริ่นนำ`,
 };
 
 // ── Ollama (MDES) call ──────────────────────────────────────────────────────

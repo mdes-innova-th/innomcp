@@ -97,6 +97,9 @@ import {
   nwpDailyByRegionTool
 } from "./mcp/tools/nwpDailyTool";
 
+// Phase 10.21 — Data Analysis Tool
+import { registerDataAnalysisTool } from "./mcp/tools/dataAnalysisTool";
+
 // Phase 4: Intelligence Pipeline Integration
 import { IntelligencePipeline } from "./intelligence/pipeline";
 
@@ -150,6 +153,7 @@ registerThaiHistoryTool(mcpserver);
 registerThaiLawTool(mcpserver);
 registerThaiKnowledgeTool(mcpserver);
 registerThaiReligionTool(mcpserver); // New Phase 5 Tools
+registerDataAnalysisTool(mcpserver); // Phase 10.21 — Data Analysis
 
 // Register NEW Session 8.8 tools (direct tool objects)
 mcpserver.registerTool(archiveTool.name, {

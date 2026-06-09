@@ -78,6 +78,47 @@ function inferKnowledgeDomain(query: string): string | undefined {
   return undefined;
 }
 
+/**
+ * Extract inline CSV/JSON payload from a query string.
+ * Detects fenced code blocks (```csv … ``` or ```json … ```) or a bare
+ * JSON array/object. Returns empty-string dataPayload when nothing found.
+ */
+function extractDataPayload(query: string): {
+  dataPayload: string;
+  dataFormat: "csv" | "json";
+  questionText: string;
+} {
+  // Fenced code block: ```csv\n...\n``` or ```json\n...\n```
+  const fencedMatch = query.match(/```(?:csv|json|CSV|JSON)?\s*\n([\s\S]*?)```/);
+  if (fencedMatch) {
+    const raw = fencedMatch[1].trim();
+    const hint = (query.match(/```(csv|json|CSV|JSON)/)?.[1] ?? "").toLowerCase();
+    const format: "csv" | "json" =
+      hint === "json" || (raw.trimStart().startsWith("{") || raw.trimStart().startsWith("["))
+        ? "json"
+        : "csv";
+    const questionText = query.replace(fencedMatch[0], "").trim();
+    return { dataPayload: raw, dataFormat: format, questionText };
+  }
+
+  // Bare JSON array at start of message: [{"a":1,...},...]
+  const jsonArrMatch = query.match(/^(\[[\s\S]+\])/);
+  if (jsonArrMatch) {
+    try {
+      JSON.parse(jsonArrMatch[1]);
+      return {
+        dataPayload: jsonArrMatch[1],
+        dataFormat: "json",
+        questionText: query.slice(jsonArrMatch[1].length).trim(),
+      };
+    } catch {
+      // not valid JSON
+    }
+  }
+
+  return { dataPayload: "", dataFormat: "csv", questionText: query };
+}
+
 function hasEvidenceSignal(query: string): boolean {
   if (/หลักฐาน|คดี|พยาน|forensic|evidence|detect|nip|isp|threat|sigint/i.test(query)) return true;
   if (/machine|เครื่อง|url|traffic/i.test(query)) {
@@ -179,6 +220,20 @@ export function planToolCall(intent: ChatIntent, query: string): ToolPlan | null
       reason: domain ? `thai knowledge:${domain}` : "thai knowledge",
       authoritative: false,
     };
+  }
+
+  if (intent === "data") {
+    const { dataPayload, dataFormat, questionText } = extractDataPayload(trimmed);
+    if (dataPayload) {
+      return {
+        toolName: "dataAnalysisTool",
+        args: { data: dataPayload, format: dataFormat, ...(questionText ? { question: questionText } : {}) },
+        reason: "data analysis intent",
+        authoritative: true,
+      };
+    }
+    // No inline data — fall through to null (agents will handle it)
+    return null;
   }
 
   if (intent === "planning-broad") {
@@ -437,6 +492,44 @@ function formatToolResult(toolName: string, rawText: string): string | null {
       return lines.join("\n");
     }
     return `🛡️ ผลการตรวจสอบหลักฐาน:\n${JSON.stringify(parsed).slice(0, 300)}`;
+  }
+
+  // Phase 10.21 — dataAnalysisTool formatter
+  if (toolName === "dataAnalysisTool") {
+    if (parsed?.ok === false) {
+      return `วิเคราะห์ข้อมูลไม่สำเร็จ: ${parsed.error ?? "unknown error"}`;
+    }
+    const d = parsed?.data;
+    if (!d) return rawText.slice(0, 2000);
+    const lines: string[] = [];
+    lines.push(`วิเคราะห์ข้อมูล: ${d.summary?.rows ?? 0} แถว, ${d.summary?.columns ?? 0} คอลัมน์`);
+    if (Array.isArray(d.kpis) && d.kpis.length > 0) {
+      lines.push("KPI สำคัญ:");
+      for (const kpi of d.kpis.slice(0, 5)) {
+        lines.push(`• ${kpi.label}: ${kpi.value}${kpi.unit ? " " + kpi.unit : ""}`);
+      }
+    }
+    if (Array.isArray(d.stats) && d.stats.length > 0) {
+      lines.push("สรุปสถิติรายคอลัมน์:");
+      for (const s of d.stats.slice(0, 6)) {
+        const extras: string[] = [];
+        if (s.type === "number") {
+          if (s.mean !== undefined) extras.push(`mean=${s.mean}`);
+          if (s.min !== undefined) extras.push(`min=${s.min}`);
+          if (s.max !== undefined) extras.push(`max=${s.max}`);
+        }
+        extras.push(`unique=${s.unique}`);
+        lines.push(`• ${s.column} [${s.type}]: ${extras.join(", ")}`);
+      }
+    }
+    if (d.table?.headers && d.table?.rows?.length > 0) {
+      lines.push("ตัวอย่างข้อมูล (3 แถวแรก):");
+      lines.push(d.table.headers.join(" | "));
+      for (const row of d.table.rows.slice(0, 3)) {
+        lines.push(row.join(" | "));
+      }
+    }
+    return lines.join("\n").slice(0, 4000);
   }
 
   // Phase C.01b — Bug B fix: evidenceTool success-path formatter.

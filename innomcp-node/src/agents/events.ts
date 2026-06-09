@@ -43,7 +43,8 @@ export type AgentId =
   | "researcher"
   | "fact-checker"
   | "linguist"
-  | "domain-expert";
+  | "domain-expert"
+  | "data-analyst";
 
 export const AGENT_ROLE_LABEL_TH: Record<AgentId, string> = {
   conductor: "ผู้กำกับงาน",
@@ -61,6 +62,7 @@ export const AGENT_ROLE_LABEL_TH: Record<AgentId, string> = {
   "fact-checker": "ผู้ตรวจสอบข้อเท็จจริง",
   linguist: "ผู้เชี่ยวชาญภาษา",
   "domain-expert": "ผู้เชี่ยวชาญเฉพาะทาง",
+  "data-analyst": "นักวิเคราะห์ข้อมูล",
 };
 
 export interface AgentEvent {
