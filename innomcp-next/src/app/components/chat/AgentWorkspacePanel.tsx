@@ -18,6 +18,7 @@ interface Props {
   isStreaming: boolean;
   runId?: string;
   onApprovalRequired?: (payload: ApprovalRequiredPayload) => void;
+  onApprovalConfirmed?: () => void;
 }
 
 const STEP_TYPES = new Set([
@@ -97,7 +98,7 @@ function getStepLabel(event: AgentEvent): string {
   return base;
 }
 
-export default function AgentWorkspacePanel({ events, isStreaming, runId, onApprovalRequired }: Props) {
+export default function AgentWorkspacePanel({ events, isStreaming, runId, onApprovalRequired, onApprovalConfirmed }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   // Elapsed timer — starts when isStreaming becomes true, freezes when done
@@ -274,6 +275,7 @@ export default function AgentWorkspacePanel({ events, isStreaming, runId, onAppr
               autoRun={true}
               onComplete={(_code) => { /* exit code handled by LiveTerminal internally */ }}
               onApprovalRequired={onApprovalRequired}
+              onApprovalConfirmed={onApprovalConfirmed}
             />
           ) : (
             <ShellOutputView

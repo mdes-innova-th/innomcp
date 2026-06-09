@@ -5,6 +5,7 @@ export interface ApprovalRequiredPayload {
   command: string;
   riskLevel: string;
   reason?: string;
+  approvalId?: string;
 }
 
 export interface LiveTerminalProps {
@@ -14,6 +15,8 @@ export interface LiveTerminalProps {
   onComplete?: (exitCode: number) => void;
   /** Called when the shell API returns 403 approval_required instead of marking failed */
   onApprovalRequired?: (payload: ApprovalRequiredPayload) => void;
+  /** Called by parent after approve-and-exec succeeds — resets terminal from awaiting_approval */
+  onApprovalConfirmed?: () => void;
 }
 
 type Status = "idle" | "running" | "completed" | "failed" | "awaiting_approval";
@@ -36,6 +39,7 @@ export default function LiveTerminal({
   autoRun = false,
   onComplete,
   onApprovalRequired,
+  onApprovalConfirmed,
 }: LiveTerminalProps) {
   const [status, setStatus] = useState<Status>("idle");
   const [stdout, setStdout] = useState("");
@@ -83,6 +87,7 @@ export default function LiveTerminal({
             command,
             riskLevel: typeof body.riskLevel === "string" ? body.riskLevel : "high",
             reason: typeof body.reason === "string" ? body.reason : undefined,
+            approvalId: typeof body.approvalId === "string" ? body.approvalId : undefined,
           });
           return;
         }
@@ -238,12 +243,20 @@ export default function LiveTerminal({
               Run
             </button>
           )}
-          {(status === "completed" || status === "failed" || status === "awaiting_approval") ? (
+          {(status === "completed" || status === "failed") ? (
             <button
               onClick={run}
               className="rounded px-2 py-0.5 text-[10px] bg-[#1f2937] text-[#9ca3af] hover:bg-[#374151] transition-colors"
             >
               Re-run
+            </button>
+          ) : null}
+          {status === "awaiting_approval" && onApprovalConfirmed ? (
+            <button
+              onClick={() => { setStatus("running"); onApprovalConfirmed(); }}
+              className="rounded px-2 py-0.5 text-[10px] bg-amber-900/60 text-amber-300 hover:bg-amber-800/60 transition-colors"
+            >
+              Confirm
             </button>
           ) : null}
         </div>

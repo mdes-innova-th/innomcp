@@ -411,6 +411,8 @@ const ChatPage: React.FC = () => {
   // PAS-5: Approval gate state � risky tool actions require user confirmation
   const [pendingApproval, setPendingApproval] = useState<ApprovalRequest | null>(null);
   const approvalCallbacks = useRef<Map<string, (approved: boolean) => void>>(new Map());
+  // Holds the approvalId from the pending shell gate so onApprovalConfirmed can call approve-and-exec
+  const pendingShellApprovalId = useRef<string | null>(null);
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -1610,15 +1612,41 @@ const ChatPage: React.FC = () => {
             <AgentWorkspacePanel
               events={agentStreamState.events}
               isStreaming={isWaitingForResponse}
-              onApprovalRequired={(payload) =>
-                requestApproval({
+              onApprovalRequired={async (payload) => {
+                // Store approvalId so onApprovalConfirmed can use it
+                pendingShellApprovalId.current = payload.approvalId ?? null;
+                const approved = await requestApproval({
                   action: "Run shell command",
                   tool: "shell-exec",
                   riskLevel: payload.riskLevel as import("@/app/components/chat/ApprovalGate").RiskLevel,
                   command: payload.command,
                   details: payload.reason,
-                })
-              }
+                });
+                if (!approved) {
+                  pendingShellApprovalId.current = null;
+                }
+                // If approved, the round-trip is completed by onApprovalConfirmed below
+                // when the user clicks Confirm on the LiveTerminal
+              }}
+              onApprovalConfirmed={async () => {
+                const approvalId = pendingShellApprovalId.current;
+                pendingShellApprovalId.current = null;
+                if (!approvalId) return;
+                const BACKEND =
+                  typeof window !== "undefined" && window.location.port === "3000"
+                    ? "http://localhost:3011"
+                    : "";
+                try {
+                  await fetch(`${BACKEND}/api/shell/approve-and-exec`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({ approvalId }),
+                  });
+                } catch {
+                  // Network error — silently ignore; command was already approved
+                }
+              }}
             />
           </ErrorBoundary>
           <button
