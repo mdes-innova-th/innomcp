@@ -412,7 +412,8 @@ const ChatPage: React.FC = () => {
   const [pendingApproval, setPendingApproval] = useState<ApprovalRequest | null>(null);
   const approvalCallbacks = useRef<Map<string, (approved: boolean) => void>>(new Map());
   // Holds the approvalId from the pending shell gate so onApprovalConfirmed can call approve-and-exec
-  const pendingShellApprovalId = useRef<string | null>(null);
+  // Map keyed by approvalId — supports concurrent terminals each awaiting approval
+  const pendingShellApprovals = useRef<Map<string, boolean>>(new Map());
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -1613,8 +1614,8 @@ const ChatPage: React.FC = () => {
               events={agentStreamState.events}
               isStreaming={isWaitingForResponse}
               onApprovalRequired={async (payload) => {
-                // Store approvalId so onApprovalConfirmed can use it
-                pendingShellApprovalId.current = payload.approvalId ?? null;
+                const aid = payload.approvalId;
+                if (aid) pendingShellApprovals.current.set(aid, false);
                 const approved = await requestApproval({
                   action: "Run shell command",
                   tool: "shell-exec",
@@ -1622,16 +1623,17 @@ const ChatPage: React.FC = () => {
                   command: payload.command,
                   details: payload.reason,
                 });
-                if (!approved) {
-                  pendingShellApprovalId.current = null;
+                if (approved && aid) {
+                  pendingShellApprovals.current.set(aid, true);
+                } else if (aid) {
+                  pendingShellApprovals.current.delete(aid);
                 }
-                // If approved, the round-trip is completed by onApprovalConfirmed below
-                // when the user clicks Confirm on the LiveTerminal
               }}
-              onApprovalConfirmed={async () => {
-                const approvalId = pendingShellApprovalId.current;
-                pendingShellApprovalId.current = null;
+              onApprovalConfirmed={async (approvalId?: string) => {
                 if (!approvalId) return;
+                const wasApproved = pendingShellApprovals.current.get(approvalId);
+                pendingShellApprovals.current.delete(approvalId);
+                if (!wasApproved) return;
                 const BACKEND =
                   typeof window !== "undefined" && window.location.port === "3000"
                     ? "http://localhost:3011"

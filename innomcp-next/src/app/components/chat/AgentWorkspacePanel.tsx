@@ -18,7 +18,7 @@ interface Props {
   isStreaming: boolean;
   runId?: string;
   onApprovalRequired?: (payload: ApprovalRequiredPayload) => void;
-  onApprovalConfirmed?: () => void;
+  onApprovalConfirmed?: (approvalId: string) => void;
 }
 
 const STEP_TYPES = new Set([

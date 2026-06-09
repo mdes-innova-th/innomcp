@@ -5,8 +5,13 @@
  * Both functions are pure — they never mutate input.
  */
 
-/** Keys whose string values should be replaced with "***" */
-const SECRET_KEY_RE = /api[_-]?key|token|password|secret|auth|bearer/i;
+/**
+ * Keys whose string values should be replaced with "***".
+ * Uses word boundaries / anchors to avoid over-masking:
+ *   - "auth" matches exactly but NOT "author", "authorization", "authenticate"
+ *   - "token" matches at word boundary, not inside "tokenize"
+ */
+const SECRET_KEY_RE = /\b(api[_-]?key|token|password|secret|bearer)\b|^auth$/i;
 
 /**
  * Recursively walk `value` (object / array / primitive) and replace any

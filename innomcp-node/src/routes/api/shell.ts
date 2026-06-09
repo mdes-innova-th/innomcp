@@ -221,7 +221,7 @@ router.post("/approve-and-exec", async (req: AuthRequest, res: Response) => {
     const result = await executeShell(command, {
       workspaceRoot: WORKSPACE_ROOT,
       workingDir,
-      taskId: approvalToken,
+      taskId: approvalId,
       userId,
     });
 

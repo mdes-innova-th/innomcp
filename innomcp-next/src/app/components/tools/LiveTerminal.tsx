@@ -15,8 +15,9 @@ export interface LiveTerminalProps {
   onComplete?: (exitCode: number) => void;
   /** Called when the shell API returns 403 approval_required instead of marking failed */
   onApprovalRequired?: (payload: ApprovalRequiredPayload) => void;
-  /** Called by parent after approve-and-exec succeeds — resets terminal from awaiting_approval */
-  onApprovalConfirmed?: () => void;
+  /** Called by parent after approve-and-exec succeeds — resets terminal from awaiting_approval.
+   *  Receives the approvalId so parent can match the correct pending entry. */
+  onApprovalConfirmed?: (approvalId: string) => void;
 }
 
 type Status = "idle" | "running" | "completed" | "failed" | "awaiting_approval";
@@ -46,6 +47,8 @@ export default function LiveTerminal({
   const [stderr, setStderr] = useState("");
   const [exitCode, setExitCode] = useState<number | undefined>();
   const [durationMs, setDurationMs] = useState<number | undefined>();
+  // Stored approvalId from the 403 response — passed back to parent on Confirm
+  const pendingApprovalIdRef = useRef<string | undefined>(undefined);
 
   const outputEndRef = useRef<HTMLDivElement>(null);
   // Track the in-flight fetch so we can abort on unmount or re-run
@@ -82,12 +85,14 @@ export default function LiveTerminal({
         let body: Record<string, unknown> = {};
         try { body = await res.json(); } catch { /* ignore parse error */ }
         if (body.error === "approval_required" || body.approval_required === true) {
+          const aid = typeof body.approvalId === "string" ? body.approvalId : undefined;
+          pendingApprovalIdRef.current = aid;
           setStatus("awaiting_approval");
           onApprovalRequired?.({
             command,
             riskLevel: typeof body.riskLevel === "string" ? body.riskLevel : "high",
             reason: typeof body.reason === "string" ? body.reason : undefined,
-            approvalId: typeof body.approvalId === "string" ? body.approvalId : undefined,
+            approvalId: aid,
           });
           return;
         }
@@ -253,7 +258,12 @@ export default function LiveTerminal({
           ) : null}
           {status === "awaiting_approval" && onApprovalConfirmed ? (
             <button
-              onClick={() => { setStatus("running"); onApprovalConfirmed(); }}
+              onClick={() => {
+                setStatus("running");
+                const aid = pendingApprovalIdRef.current;
+                pendingApprovalIdRef.current = undefined;
+                if (aid) onApprovalConfirmed(aid);
+              }}
               className="rounded px-2 py-0.5 text-[10px] bg-amber-900/60 text-amber-300 hover:bg-amber-800/60 transition-colors"
             >
               Confirm
