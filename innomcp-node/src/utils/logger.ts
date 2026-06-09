@@ -3,6 +3,30 @@ import 'winston-daily-rotate-file';
 import path from 'path';
 import fs from 'fs';
 
+// Secret key regex — mirrors maskSecrets.ts (kept in sync manually; no cross-package import)
+const _LOG_SECRET_KEY_RE = /\b(api[_-]?key|token|password|secret|bearer)\b|^auth$/i;
+
+function _maskMeta(obj: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (_LOG_SECRET_KEY_RE.test(k) && typeof v === 'string') {
+      out[k] = '***';
+    } else if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+      out[k] = _maskMeta(v as Record<string, unknown>);
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+/** Winston format that strips secret values from log metadata before serialisation */
+const maskSecretsFormat = winston.format((info) => {
+  const { level, message, timestamp, stack, ...meta } = info as Record<string, unknown>;
+  const masked = _maskMeta(meta as Record<string, unknown>);
+  return { ...masked, level, message, timestamp, stack } as winston.Logform.TransformableInfo;
+})();
+
 // ============================================================================
 // INNOMCP LOGGER CONFIGURATION (THAI GOD 2026 EDITION)
 // ============================================================================
@@ -36,6 +60,7 @@ if (!fs.existsSync(LOG_DIR)) {
 const structuredFormat = winston.format.combine(
   winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss.SSS' }),
   winston.format.errors({ stack: true }), // Capture stack traces
+  maskSecretsFormat,
   winston.format.printf(({ timestamp, level, message, stack, ...meta }) => {
     let log = `[${timestamp}] [${level.toUpperCase()}] ${message}`;
 
@@ -56,6 +81,7 @@ const structuredFormat = winston.format.combine(
 const consoleFormat = winston.format.combine(
   winston.format.colorize({ all: true }), // Colorize everything for better readability
   winston.format.timestamp({ format: 'HH:mm:ss' }),
+  maskSecretsFormat,
   winston.format.printf(({ timestamp, level, message, ...meta }) => {
     let log = `${timestamp} ${level}: ${message}`;
     if (Object.keys(meta).length > 0 && LOG_MODE === 'dev') {
