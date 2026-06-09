@@ -208,7 +208,7 @@ export function selectAgentPlan(
   const runMode = normalizeRunMode(opts.runMode);
   const preferredMode = opts.preferredMode ?? "hybrid";
   const remoteAvailable = opts.remoteAvailable ?? hasRemoteEndpoint();
-  const pool = INTENT_AGENTS_POOL[intent] ?? INTENT_AGENTS_POOL["general"];
+  const pool = INTENT_AGENTS_POOL[intent] ?? INTENT_AGENTS_POOL["general"] ?? [];
 
   if (runMode === "normal") {
     // Normal mode keeps a professional two-reader path: local + remote in
@@ -218,7 +218,7 @@ export function selectAgentPlan(
       // In normal mode, slot-1 should be a domain responder, not a meta-agent.
       // Skip thinker/researcher/fact-checker/linguist/domain-expert as the primary slot.
       const NORMAL_SKIP = new Set(["thinker", "researcher", "fact-checker", "linguist", "domain-expert"]);
-      let head = pool.find(a => !NORMAL_SKIP.has(a)) ?? pool[0];
+      const head: AgentId = pool.find(a => !NORMAL_SKIP.has(a)) ?? pool[0] ?? "concierge";
       // C.09: ถ้า pool มี critic, ให้ critic เป็นตัวที่ 2 (เพื่อให้ synthesizeAnswer
       // มี polished output เสมอ). ถ้าไม่มี critic, ใช้ slice(0,2) เดิม
       if (head !== "critic" && pool.includes("critic")) {

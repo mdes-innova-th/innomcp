@@ -178,7 +178,7 @@ function selectCriticConfig(configs: ProviderConfig[], intent: string): Provider
     if (alternateCfg) return alternateCfg;
   }
 
-  return eligible[0];
+  return eligible[0] ?? null;
 }
 // ── Cost estimation ───────────────────────────────────────────────────────────
 
@@ -804,6 +804,9 @@ export async function dispatchMother(
     }
     // Promise itself rejected (should not happen — runProvider catches internally)
     const cfg = eligible[idx];
+    if (!cfg) {
+      return { providerId: "unknown", providerName: "unknown", text: "", latencyMs: 0, success: false, errorMsg: "no provider config" };
+    }
     const errorMsg = safeErrMsg(outcome.reason);
     recordProviderCall(cfg.id, 0, false);
     return {

@@ -131,6 +131,7 @@ export default function AgentWorkspacePanel({ events, isStreaming, runId, onAppr
       return () => clearInterval(id);
     }
     // Freeze on done — keep last elapsed value, no interval
+    return;
   }, [isStreaming, isDone, elapsedSec]);
 
   // Determine current step index: first incomplete step after the last completed one

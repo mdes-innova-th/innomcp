@@ -34,6 +34,7 @@ export async function POST(req: Request) {
       }
 
       const user = rows[0];
+      if (!user) return { error: "USER_NOT_FOUND" };
 
       try {
         const isPasswordValid = await bcrypt.compare(password, user.password);

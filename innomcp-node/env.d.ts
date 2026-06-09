@@ -87,7 +87,6 @@ declare global {
       OLLAMA_LOCAL_BASE_URL?: string;
       OLLAMA_LOCAL_API_KEY?: string;
       OLLAMA_LOCAL_DEFAULT_MODEL?: string;
-      OLLAMA_REMOTE_API_KEY?: string;
 
       // Phase C.18 — MDES-only mode
       // "1" = skip localhost + GPT fallback; all agents use ollama.mdes only

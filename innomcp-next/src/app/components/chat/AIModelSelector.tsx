@@ -131,7 +131,7 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({ theme: _theme, onMode
     }
   };
 
-  const current = MODES.find((m) => m.id === currentMode) ?? MODES[0];
+  const current = MODES.find((m) => m.id === currentMode) ?? MODES[0]!;
 
   return (
     <div className="relative">

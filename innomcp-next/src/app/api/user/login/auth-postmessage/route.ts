@@ -210,7 +210,7 @@ export async function POST(request: NextRequest) {
         [displayName, birthDate]
       );
 
-      let user;
+      let user: RowDataPacket | undefined;
       if (existingUsers.length > 0) {
         // ผู้ใช้มีอยู่แล้ว
         user = existingUsers[0];
