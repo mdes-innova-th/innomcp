@@ -10,6 +10,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { useToast } from "@/app/context/ToastContext";
 import ToolTypeBadge from "./ToolTypeBadge";
 import EvidenceDashboard from "./EvidenceDashboard";
+import ChartRenderer from "./ChartRenderer";
 import GeneratedImageCard from "./GeneratedImageCard";
 
 type Props = {
@@ -141,6 +142,18 @@ export default function ChatMessage({
       <div className="prose prose-sm break-thai-words dark:prose-invert">
         {/* Evidence Dashboard (structuredContent-only) */}
         <EvidenceDashboard structuredContent={structuredContent} />
+
+        {/* Data Analysis Renderer — fires when __render.route === "data-analysis" */}
+        {structuredContent?.__render?.route === "data-analysis" && (
+          <ChartRenderer
+            data={{
+              summary: structuredContent.summary,
+              stats: structuredContent.stats,
+              kpis: structuredContent.kpis,
+              table: structuredContent.table,
+            }}
+          />
+        )}
 
         {/* Display NASA APOD Image — Phase 10.59 themed card */}
         {structuredContent?.url && structuredContent?.media_type === 'image' && (
