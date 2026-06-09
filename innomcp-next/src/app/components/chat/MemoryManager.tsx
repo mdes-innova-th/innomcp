@@ -16,9 +16,11 @@ const BACKEND =
 
 export default function MemoryManager({
   sessionId,
+  projectId,
   onClose,
 }: {
   sessionId?: string;
+  projectId?: string;
   onClose?: () => void;
 }) {
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -28,7 +30,14 @@ export default function MemoryManager({
   const [saving, setSaving] = useState(false);
 
   const load = () => {
-    const params = sessionId ? `?scope=session&sessionId=${sessionId}` : "";
+    let params: string;
+    if (projectId) {
+      params = `?scope=project&projectId=${projectId}`;
+    } else if (sessionId) {
+      params = `?scope=session&sessionId=${sessionId}`;
+    } else {
+      params = "";
+    }
     fetch(`${BACKEND}/api/memories${params}`, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => setMemories(d.memories ?? []))
@@ -38,7 +47,7 @@ export default function MemoryManager({
   useEffect(() => {
     load();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, [sessionId, projectId]);
 
   const handleSave = async () => {
     if (!newKey.trim() || !newValue.trim()) return;
@@ -48,10 +57,10 @@ export default function MemoryManager({
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        scope: "session",
+        scope: projectId ? "project" : "session",
         keyName: newKey.trim(),
         value: newValue.trim(),
-        sessionId,
+        ...(projectId ? { projectId } : { sessionId }),
       }),
     }).catch(() => {});
     setNewKey("");

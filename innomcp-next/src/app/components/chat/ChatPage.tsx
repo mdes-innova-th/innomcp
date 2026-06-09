@@ -24,6 +24,7 @@ import {
 } from "../../../utils/chatStorage";
 import dynamic from "next/dynamic";
 import MultiAgentPanel from "@/app/components/chat/MultiAgentPanel";
+import StarterPromptsGrid from "@/app/components/chat/StarterPromptsGrid";
 import AgentWorkspacePanel from "@/app/components/chat/AgentWorkspacePanel";
 import { useAgentEventStream } from "@/app/components/chat/useAgentEventStream";
 import KeyboardShortcutsPanel, { useKeyboardShortcutsPanel } from "@/app/components/chat/KeyboardShortcutsPanel";
@@ -142,37 +143,6 @@ const TOOL_TYPE_META: Record<ToolType, {
   },
 };
 
-const STARTER_PROMPTS = [
-  {
-    icon: "???",
-    title: "???????????",
-    description: "????????????????????????? ???? ?????? ???????????????? ?????????",
-    query: "????????????????????? ????????????????? ??????????????????????????",
-    accent: "from-sky-500/16 via-sky-500/8 to-transparent",
-  },
-  {
-    icon: "??",
-    title: "??????????????????????????????",
-    description: "????????????????????????????????????????????????????????????????",
-    query: "??????????????????????????????????????????????????????????????????????????????????",
-    accent: "from-emerald-500/16 via-emerald-500/8 to-transparent",
-  },
-  {
-    icon: "??",
-    title: "???????????????????????",
-    description: "????? concept, style, ???????? ?????????????????????????",
-    query: "?????????????????????????????????????????????????? ?????? cinematic ??????",
-    accent: "from-pink-500/16 via-pink-500/8 to-transparent",
-  },
-  {
-    icon: "??",
-    title: "?????????????????????????????",
-    description: "???????????? ? ???????????????????????????? ??? route ????????????????????",
-    query: "???????????????????????????????????????????????????????????? ???????????????????????????",
-    accent: "from-amber-500/16 via-amber-500/8 to-transparent",
-  },
-] as const;
-
 const QUICK_ACTIONS = [
   { icon: "??", label: "???????????????", prompt: "???????????????????????????????????????" },
   { icon: "??", label: "?????????", prompt: "??????????????????? [?????? feature ??????????]" },
@@ -270,6 +240,38 @@ function persistSummariesToLocalStorage(summaries: SidebarSummary[]): void {
   localStorage.removeItem("chatSummaries");
 }
 
+// ─── StatusRibbon ─────────────────────────────────────────────────────────────
+// Single unified status indicator — replaces duplicate dots/labels in the header and composer.
+const StatusRibbon: React.FC<{
+  isSocketReady: boolean;
+  isWaitingForResponse: boolean;
+  streamStatus: string;
+}> = ({ isSocketReady, isWaitingForResponse, streamStatus }) => {
+  const isStreaming = streamStatus === "streaming";
+  if (!isSocketReady) {
+    return (
+      <div className="flex items-center gap-1.5 rounded-md bg-rose-500/10 px-2.5 py-1 text-[11.5px] font-medium text-rose-700 ring-1 ring-rose-500/20 dark:text-rose-300">
+        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" aria-hidden="true" />
+        <span>ออฟไลน์</span>
+      </div>
+    );
+  }
+  if (isWaitingForResponse || isStreaming) {
+    return (
+      <div className="flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2.5 py-1 text-[11.5px] font-medium text-amber-700 dark:text-amber-300">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" aria-hidden="true" />
+        <span>กำลังประมวลผล</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11.5px] text-muted-foreground">
+      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
+      <span>พร้อมใช้งาน</span>
+    </div>
+  );
+};
+
 function shouldUseMdesFinal(existing: string, next: string, isProgress?: boolean): boolean {
   const current = existing.trim();
   const candidate = next.trim();
@@ -299,6 +301,7 @@ const ChatPage: React.FC = () => {
   const [tourActive, setTourActive] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+  const [multiAgentOpen, setMultiAgentOpen] = useState(false);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [artifactPanelOpen, setArtifactPanelOpen] = useState(false);
   const [planViewerOpen, setPlanViewerOpen] = useState(false);
@@ -1607,6 +1610,15 @@ const ChatPage: React.FC = () => {
             <AgentWorkspacePanel
               events={agentStreamState.events}
               isStreaming={isWaitingForResponse}
+              onApprovalRequired={(payload) =>
+                requestApproval({
+                  action: "Run shell command",
+                  tool: "shell-exec",
+                  riskLevel: payload.riskLevel as import("@/app/components/chat/ApprovalGate").RiskLevel,
+                  command: payload.command,
+                  details: payload.reason,
+                })
+              }
             />
           </ErrorBoundary>
           <button
@@ -1701,6 +1713,12 @@ const ChatPage: React.FC = () => {
           onDelete={handleDeleteSummary}
           theme={theme}
           motherActive={chatMode === "multiagent"}
+          chatMode={chatMode}
+          onChatModeChange={setChatMode}
+          selectedToolType={selectedToolType}
+          onToolTypeChange={setSelectedToolType}
+          providerMode={providerMode}
+          onProviderModeChange={setProviderMode}
         />
       </div>
 
@@ -1712,12 +1730,16 @@ const ChatPage: React.FC = () => {
           <div className={`mx-auto w-full max-w-[88rem] pt-3 ${hasMessages ? 'pb-3' : 'pb-6'}`}>
             {hasMessages ? (
               <div className="mb-3 flex items-center gap-2 px-1">
-                <span className={`inline-flex h-2 w-2 shrink-0 rounded-full ${workspaceState.dot}`} aria-hidden="true" />
                 <h1 className="font-display min-w-0 flex-1 truncate text-[15px] font-semibold text-foreground sm:text-base">
                   {activeConversationTitle}
                 </h1>
+                <StatusRibbon
+                  isSocketReady={isSocketReady}
+                  isWaitingForResponse={isWaitingForResponse}
+                  streamStatus={agentStreamState.status}
+                />
                 <span
-                  className="hidden shrink-0 items-center gap-2 text-xs text-muted-foreground sm:inline-flex"
+                  className="hidden shrink-0 items-center gap-2 text-xs text-muted-foreground sr-only"
                   title={workspaceState.detail}
                 >
                   <span>{activeToolMeta.label}</span>
@@ -1847,78 +1869,17 @@ const ChatPage: React.FC = () => {
                     adjustTextarea={adjustTextarea}
                     theme={theme}
                     layoutMode="empty"
-                    onToolTypeChange={(t) => setSelectedToolType(t)}
-                    chatMode={chatMode}
-                    onChatModeChange={setChatMode}
                     onFocus={() => setIsChatActive(true)}
                     onBlur={() => setIsChatActive(false)}
-                    providerMode={providerMode}
-                    onProviderModeChange={setProviderMode}
                     onAddArtifact={(a) => { setArtifacts(prev => [...prev, a]); setArtifactPanelOpen(true); }}
                     setCsvPrefix={(s) => { csvPrefixRef.current = s; }}
                   />
 
-                  {/* Starter prompts � premium card design with hover accent + arrow CTA */}
-                  <div className="mt-1">
-                    <div className="mb-2 flex items-center justify-between">
-                      <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                        ?????????????
-                      </h2>
-                      <span className="text-[11.5px] text-muted-foreground/85">?????????????????</span>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {STARTER_PROMPTS.map((prompt) => (
-                        <button
-                          key={prompt.query}
-                          onClick={() => {
-                            setInput(prompt.query);
-                            // Phase 10.35 � focus composer + scroll into view so the
-                            // user's next move is obviously "press Enter".
-                            requestAnimationFrame(() => {
-                              const el = textareaRef.current;
-                              if (el) {
-                                el.focus();
-                                // Place cursor at end so they can edit naturally.
-                                const len = prompt.query.length;
-                                try { el.setSelectionRange(len, len); } catch {}
-                                el.scrollIntoView({ block: "nearest", behavior: "smooth" });
-                              }
-                            });
-                          }}
-                          data-testid="starter-prompt"
-                          className={`group relative flex min-w-0 items-start gap-3 overflow-hidden rounded-lg border border-border/70 bg-card p-3.5 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md`}
-                        >
-                          {/* Soft accent wash unique to the prompt � sits behind everything */}
-                          <span
-                            aria-hidden="true"
-                            className={`pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b ${prompt.accent} opacity-0 transition-opacity duration-300 group-hover:opacity-100`}
-                          />
-                          <span
-                            className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted/60 text-lg leading-none ring-1 ring-border/60 transition-colors group-hover:bg-primary/8 group-hover:ring-primary/30"
-                            aria-hidden="true"
-                          >
-                            {prompt.icon}
-                          </span>
-                          <span className="relative min-w-0 flex-1">
-                            <span className="flex items-center gap-1.5">
-                              <span className="block truncate text-[13.5px] font-semibold text-foreground transition-colors group-hover:text-primary">
-                                {prompt.title}
-                              </span>
-                              <span
-                                aria-hidden="true"
-                                className="opacity-0 transition-opacity text-primary text-[12px] group-hover:opacity-100"
-                              >
-                                ?
-                              </span>
-                            </span>
-                            <span className="mt-0.5 line-clamp-2 block text-[12.5px] leading-5 text-muted-foreground">
-                              {prompt.description}
-                            </span>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {/* Modular Starter Prompts Grid (Empty Mode) */}
+                  <StarterPromptsGrid
+                    onSelect={setInput}
+                    textareaRef={textareaRef}
+                  />
 
                   {/* Quick action cards � 2�2 grid */}
                   <div className="mt-3">
@@ -2200,6 +2161,17 @@ const ChatPage: React.FC = () => {
               )}
 
               <TypingIndicator typingUsers={typingUsers} />
+              {/* Keep starter prompts in compact mode after conversation starts */}
+              {messages.length > 0 && messages.length <= 4 && (
+                <StarterPromptsGrid
+                  onSelect={(query) => {
+                    setInput(query);
+                    textareaRef.current?.focus();
+                  }}
+                  textareaRef={textareaRef}
+                  reduced
+                />
+              )}
               <ChatInput
                 input={input}
                 setInput={setInput}
@@ -2219,13 +2191,8 @@ const ChatPage: React.FC = () => {
                 adjustTextarea={adjustTextarea}
                 theme={theme}
                 layoutMode="conversation"
-                onToolTypeChange={(t) => setSelectedToolType(t)}
-                chatMode={chatMode}
-                onChatModeChange={setChatMode}
                 onFocus={() => setIsChatActive(true)}
                 onBlur={() => setIsChatActive(false)}
-                providerMode={providerMode}
-                onProviderModeChange={setProviderMode}
                 onAddArtifact={(a) => { setArtifacts(prev => [...prev, a]); setArtifactPanelOpen(true); }}
                 setCsvPrefix={(s) => { csvPrefixRef.current = s; }}
               />

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { AgentEvent } from "./useAgentEventStream";
 import ShellOutputView from "@/app/components/tools/ShellOutputView";
-import LiveTerminal from "@/app/components/tools/LiveTerminal";
+import LiveTerminal, { type ApprovalRequiredPayload } from "@/app/components/tools/LiveTerminal";
 import AgentCoordinationView from "./AgentCoordinationView";
 
 /** Format seconds as MM:SS */
@@ -17,6 +17,7 @@ interface Props {
   events: AgentEvent[];
   isStreaming: boolean;
   runId?: string;
+  onApprovalRequired?: (payload: ApprovalRequiredPayload) => void;
 }
 
 const STEP_TYPES = new Set([
@@ -96,7 +97,7 @@ function getStepLabel(event: AgentEvent): string {
   return base;
 }
 
-export default function AgentWorkspacePanel({ events, isStreaming, runId }: Props) {
+export default function AgentWorkspacePanel({ events, isStreaming, runId, onApprovalRequired }: Props) {
   const [collapsed, setCollapsed] = useState(false);
 
   // Elapsed timer — starts when isStreaming becomes true, freezes when done
@@ -272,6 +273,7 @@ export default function AgentWorkspacePanel({ events, isStreaming, runId }: Prop
               command={shellCommand}
               autoRun={true}
               onComplete={(_code) => { /* exit code handled by LiveTerminal internally */ }}
+              onApprovalRequired={onApprovalRequired}
             />
           ) : (
             <ShellOutputView

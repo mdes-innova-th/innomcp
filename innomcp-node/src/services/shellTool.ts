@@ -78,6 +78,8 @@ export interface ShellExecOptions {
   timeoutMs?: number;
   taskId?: string;
   sessionId?: string;
+  /** Authenticated user id — null when unauthenticated. */
+  userId?: number | null;
   /** When false the allowlist gate is skipped (useful for tests). Default: true */
   strictMode?: boolean;
   /** When true skip writing to the audit DB (useful for unit tests). Default: false */
@@ -318,11 +320,12 @@ async function writeAuditLog(
   await withDbConnection(async (conn) => {
     await conn.query(
       `INSERT INTO shell_executions
-         (task_id, session_id, command, working_dir, exit_code, stdout, stderr, risk_level, duration_ms)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (task_id, session_id, user_id, command, working_dir, exit_code, stdout, stderr, risk_level, approved, duration_ms)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
       [
         opts.taskId ?? null,
         opts.sessionId ?? null,
+        opts.userId ?? null,
         command,
         workingDir,
         result.exitCode,

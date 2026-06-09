@@ -16,6 +16,8 @@ import { useAuth } from "@/app/context/AuthContext";
 import { useTheme } from "@/app/context/ThemeContext";
 import { useRouter } from "next/navigation";
 import AgentLeaderboard from "./AgentLeaderboard";
+import ChatModeSelector, { type ChatMode } from "./ChatModeSelector";
+import ToolsTypeSelector, { type ToolType } from "./ToolsTypeSelector";
 import ModelSettingsPanel from "./ModelSettingsPanel";
 import MemoryManager from "./MemoryManager";
 import DashboardView from "./DashboardView";
@@ -29,6 +31,16 @@ import WebhookPanel from "@/app/components/chat/WebhookPanel";
 import RateLimitIndicator from "@/app/components/common/RateLimitIndicator";
 import UserPresence from "@/app/components/chat/UserPresence";
 import MotherStatusBar from "./MotherStatusBar";
+import PlaygroundPanel from "./PlaygroundPanel";
+import TracesPanel from "./TracesPanel";
+import PulsePanel from "./PulsePanel";
+import CanvasPanel from "./CanvasPanel";
+import PlanetsPanel from "./PlanetsPanel";
+import ComparePanel from "./ComparePanel";
+import EvolutionPanel from "./EvolutionPanel";
+import ForumPanel from "./ForumPanel";
+import ActivityPanel from "./ActivityPanel";
+
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
 
@@ -53,6 +65,8 @@ interface SidebarProject {
   color?: string;
 }
 
+import { type ProviderMode } from "./ChatInput";
+
 type Props = {
   summaries: ChatSummary[];
   activeId: string | null;
@@ -64,6 +78,12 @@ type Props = {
   onDelete?: (id: string) => void; // Phase 10.21 — delete chat
   theme: string;
   motherActive?: boolean;
+  chatMode?: ChatMode;
+  onChatModeChange?: (mode: ChatMode) => void;
+  selectedToolType?: ToolType;
+  onToolTypeChange?: (type: ToolType) => void;
+  providerMode?: ProviderMode;
+  onProviderModeChange?: (mode: ProviderMode) => void;
 };
 
 // ─── Static Data ─────────────────────────────────────────────────────────────
@@ -164,7 +184,7 @@ function relativeTime(ms: number): string {
 
 // ─── Slide-over Panel ─────────────────────────────────────────────────────────
 
-type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | "memory" | "dashboard" | "task-detail" | "workspace" | "preferences" | "webhooks" | null;
+type PanelId = "agent" | "plugins" | "scheduled" | "library" | "model-settings" | "memory" | "dashboard" | "task-detail" | "workspace" | "preferences" | "webhooks" | "playground" | "compare" | "map" | "traces" | "pulse" | "canvas" | "planets" | "evolution" | "forum" | "activity" | null;
 
 interface SlideOverProps {
   open: boolean;
@@ -249,6 +269,12 @@ const ChatSidebar: React.FC<Props> = ({
   onDelete,
   theme,
   motherActive,
+  chatMode = "normal",
+  onChatModeChange,
+  selectedToolType,
+  onToolTypeChange,
+  providerMode = "remote",
+  onProviderModeChange,
 }) => {
   const [mounted, setMounted]         = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -878,7 +904,7 @@ const ChatSidebar: React.FC<Props> = ({
         <ModelSettingsPanel onClose={() => setActivePanel(null)} />
       </SlideOver>
       <SlideOver open={activePanel === "memory"} title="🧠 Memory" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
-        <MemoryManager sessionId={activeId ?? undefined} onClose={() => setActivePanel(null)} />
+        <MemoryManager sessionId={activeId ?? undefined} projectId={activeProjectId ?? undefined} onClose={() => setActivePanel(null)} />
       </SlideOver>
       <SlideOver open={activePanel === "dashboard"} title="📊 Dashboard" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
         <DashboardView onOpenChat={() => { setActivePanel(null); onNewChat(); }} motherActive={motherActive} />
@@ -897,6 +923,34 @@ const ChatSidebar: React.FC<Props> = ({
       <SlideOver open={activePanel === "webhooks"} title="🔔 Webhooks" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
         <WebhookPanel />
       </SlideOver>
+      <SlideOver open={activePanel === "playground"} title="🎯 Vector Playground" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <PlaygroundPanel />
+      </SlideOver>
+      <SlideOver open={activePanel === "compare"} title="⚔️ Model Comparison" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <ComparePanel />
+      </SlideOver>
+      <SlideOver open={activePanel === "traces"} title="🔍 Discovery Traces" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <TracesPanel />
+      </SlideOver>
+      <SlideOver open={activePanel === "pulse"} title="📡 Oracle Pulse" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <PulsePanel />
+      </SlideOver>
+      <SlideOver open={activePanel === "canvas"} title="🎨 Collaboration Canvas" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <CanvasPanel />
+      </SlideOver>
+      <SlideOver open={activePanel === "planets"} title="🌌 Nebula Planets" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <PlanetsPanel />
+      </SlideOver>
+      <SlideOver open={activePanel === "evolution"} title="⏳ State Evolution" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <EvolutionPanel />
+      </SlideOver>
+      <SlideOver open={activePanel === "forum"} title="💬 Federation Forum" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <ForumPanel />
+      </SlideOver>
+      <SlideOver open={activePanel === "activity"} title="📋 System Activity" onClose={() => setActivePanel(null)} sidebarRight={sidebarRight}>
+        <ActivityPanel />
+      </SlideOver>
+
 
       <aside
         ref={sidebarRef}
@@ -1067,6 +1121,69 @@ const ChatSidebar: React.FC<Props> = ({
             )}
           </div>
           <NavBtn
+            icon="🎯"
+            label="Playground"
+            onClick={() => togglePanel("playground")}
+            active={activePanel === "playground"}
+            testId="sidebar-nav-playground"
+          />
+          <NavBtn
+            icon="🔍"
+            label="Traces"
+            onClick={() => togglePanel("traces")}
+            active={activePanel === "traces"}
+            testId="sidebar-nav-traces"
+          />
+          <NavBtn
+            icon="📡"
+            label="Pulse"
+            onClick={() => togglePanel("pulse")}
+            active={activePanel === "pulse"}
+            testId="sidebar-nav-pulse"
+          />
+          <NavBtn
+            icon="🎨"
+            label="Canvas"
+            onClick={() => togglePanel("canvas")}
+            active={activePanel === "canvas"}
+            testId="sidebar-nav-canvas"
+          />
+          <NavBtn
+            icon="🌌"
+            label="Planets"
+            onClick={() => togglePanel("planets")}
+            active={activePanel === "planets"}
+            testId="sidebar-nav-planets"
+          />
+          <NavBtn
+            icon="⚔️"
+            label="Compare"
+            onClick={() => togglePanel("compare")}
+            active={activePanel === "compare"}
+            testId="sidebar-nav-compare"
+          />
+          <NavBtn
+            icon="⏳"
+            label="Evolution"
+            onClick={() => togglePanel("evolution")}
+            active={activePanel === "evolution"}
+            testId="sidebar-nav-evolution"
+          />
+          <NavBtn
+            icon="💬"
+            label="Forum"
+            onClick={() => togglePanel("forum")}
+            active={activePanel === "forum"}
+            testId="sidebar-nav-forum"
+          />
+          <NavBtn
+            icon="📋"
+            label="Activity"
+            onClick={() => togglePanel("activity")}
+            active={activePanel === "activity"}
+            testId="sidebar-nav-activity"
+          />
+          <NavBtn
             icon="⚙️"
             label="Preferences"
             onClick={() => togglePanel("preferences")}
@@ -1075,9 +1192,58 @@ const ChatSidebar: React.FC<Props> = ({
           />
         </div>
 
+
         {notifOpen && (
           <NotificationCenter onClose={() => setNotifOpen(false)} />
         )}
+
+        <div className="mx-3 border-t border-border/50" />
+
+        {/* ── Chat Settings (Mode + Tool + Provider) ── */}
+        <div className="px-3 py-2">
+          <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Chat Settings
+          </span>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] text-muted-foreground">โหมด</span>
+              <ChatModeSelector
+                mode={chatMode}
+                onChange={(m) => onChatModeChange?.(m)}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] text-muted-foreground">เครื่องมือ</span>
+              <ToolsTypeSelector
+                onToolTypeChange={(t) => onToolTypeChange?.(t)}
+                theme={safeTheme}
+              />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[12px] text-muted-foreground">ผู้ให้บริการ</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = providerMode === "remote" ? "local" : "remote";
+                  onProviderModeChange?.(next);
+                }}
+                className={`h-7 inline-flex items-center gap-1 rounded-full border px-2.5 text-[11px] font-medium transition-all ${
+                  providerMode === "local"
+                    ? "border-amber-500/45 bg-amber-500/10 text-amber-800 dark:text-amber-200 hover:bg-amber-500/16"
+                    : "border-sky-500/40 bg-sky-500/8 text-sky-800 dark:text-sky-200 hover:bg-sky-500/14"
+                }`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    providerMode === "local" ? "bg-amber-500" : "bg-sky-500"
+                  }`}
+                  aria-hidden="true"
+                />
+                <span>{providerMode === "local" ? "Ollama Local" : "MDES Cloud"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
 
         <div className="mx-3 border-t border-border/50" />
 

@@ -1,14 +1,22 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
+export interface ApprovalRequiredPayload {
+  command: string;
+  riskLevel: string;
+  reason?: string;
+}
+
 export interface LiveTerminalProps {
   command: string;
   /** If true, start streaming immediately on mount (default: false) */
   autoRun?: boolean;
   onComplete?: (exitCode: number) => void;
+  /** Called when the shell API returns 403 approval_required instead of marking failed */
+  onApprovalRequired?: (payload: ApprovalRequiredPayload) => void;
 }
 
-type Status = "idle" | "running" | "completed" | "failed";
+type Status = "idle" | "running" | "completed" | "failed" | "awaiting_approval";
 
 /** Strip ANSI escape sequences (colors, cursor movement, etc.) */
 function stripAnsi(str: string): string {
@@ -27,6 +35,7 @@ export default function LiveTerminal({
   command,
   autoRun = false,
   onComplete,
+  onApprovalRequired,
 }: LiveTerminalProps) {
   const [status, setStatus] = useState<Status>("idle");
   const [stdout, setStdout] = useState("");
@@ -64,6 +73,24 @@ export default function LiveTerminal({
         body: JSON.stringify({ command }),
         signal: controller.signal,
       });
+
+      if (res.status === 403) {
+        let body: Record<string, unknown> = {};
+        try { body = await res.json(); } catch { /* ignore parse error */ }
+        if (body.error === "approval_required" || body.approval_required === true) {
+          setStatus("awaiting_approval");
+          onApprovalRequired?.({
+            command,
+            riskLevel: typeof body.riskLevel === "string" ? body.riskLevel : "high",
+            reason: typeof body.reason === "string" ? body.reason : undefined,
+          });
+          return;
+        }
+        // Non-approval 403 — fall through to generic error handling
+        setStderr(`403 Forbidden`);
+        setStatus("failed");
+        return;
+      }
 
       if (!res.ok) {
         const text = await res.text().catch(() => res.statusText);
@@ -147,7 +174,7 @@ export default function LiveTerminal({
       setStderr(String(err));
       setStatus("failed");
     }
-  }, [command, onComplete]);
+  }, [command, onComplete, onApprovalRequired]);
 
   // Auto-run on mount if requested
   useEffect(() => {
@@ -185,6 +212,9 @@ export default function LiveTerminal({
         {status === "failed" && (
           <span className="text-red-400 text-[10px]">●</span>
         )}
+        {status === "awaiting_approval" && (
+          <span className="animate-pulse text-amber-400 text-[10px]">●</span>
+        )}
         {status === "idle" && (
           <span className="text-[#4b5563] text-[10px]">●</span>
         )}
@@ -193,6 +223,11 @@ export default function LiveTerminal({
         <div className="flex items-center gap-2 shrink-0">
           {durationMs !== undefined && (
             <span className="text-[10px] text-[#4b5563]">{durationMs}ms</span>
+          )}
+          {status === "awaiting_approval" && (
+            <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold bg-amber-900/60 text-amber-400">
+              Awaiting approval...
+            </span>
           )}
           {exitCodeBadge}
           {status === "idle" && (
@@ -203,7 +238,7 @@ export default function LiveTerminal({
               Run
             </button>
           )}
-          {status === "completed" || status === "failed" ? (
+          {(status === "completed" || status === "failed" || status === "awaiting_approval") ? (
             <button
               onClick={run}
               className="rounded px-2 py-0.5 text-[10px] bg-[#1f2937] text-[#9ca3af] hover:bg-[#374151] transition-colors"
@@ -222,6 +257,8 @@ export default function LiveTerminal({
           </pre>
         ) : status === "running" ? (
           <div className="px-3 py-2 text-[#4b5563] italic">รอผลลัพธ์…</div>
+        ) : status === "awaiting_approval" ? (
+          <div className="px-3 py-2 text-amber-500/80 italic">รอการอนุมัติก่อนดำเนินการ…</div>
         ) : status === "idle" ? (
           <div className="px-3 py-2 text-[#4b5563] italic">กด Run เพื่อเริ่ม</div>
         ) : null}
