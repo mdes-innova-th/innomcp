@@ -53,6 +53,7 @@ function buildProbeTargets(): ProbeTarget[] {
   const mdesKey =
     process.env.REMOTE_OLLAMA_TOKEN ||
     process.env.OLLAMA_REMOTE_API_KEY ||
+    process.env.REMOTE_OLLAMA_TOKEN ||
     process.env.OLLAMA_API_KEY ||
     "";
 
@@ -175,6 +176,42 @@ function buildProbeTargets(): ProbeTarget[] {
       ).replace(/\/$/, ""),
       model: "oracle-rag",
       apiKey: "",
+    },
+    // ── CommandCode AI providers ──
+    {
+      id: "seed-cc-claude-sonnet",
+      kind: "anthropic" as const,
+      baseUrl: (process.env.COMMANDCODE_BASE_URL || "https://api.commandcode.ai/provider/v1").replace(/\/$/, ""),
+      model: "claude-sonnet-4-6",
+      apiKey: process.env.CODEX_API_KEY || "",
+    },
+    {
+      id: "seed-cc-claude-opus",
+      kind: "anthropic" as const,
+      baseUrl: (process.env.COMMANDCODE_BASE_URL || "https://api.commandcode.ai/provider/v1").replace(/\/$/, ""),
+      model: "claude-opus-4-8",
+      apiKey: process.env.CODEX_API_KEY || "",
+    },
+    {
+      id: "seed-cc-gpt-5.4",
+      kind: "openai" as const,
+      baseUrl: (process.env.COMMANDCODE_BASE_URL || "https://api.commandcode.ai/provider/v1").replace(/\/$/, ""),
+      model: "gpt-5.4",
+      apiKey: process.env.CODEX_API_KEY || "",
+    },
+    {
+      id: "seed-cc-deepseek-v4",
+      kind: "openai" as const,
+      baseUrl: (process.env.COMMANDCODE_BASE_URL || "https://api.commandcode.ai/provider/v1").replace(/\/$/, ""),
+      model: "deepseek/deepseek-v4-pro",
+      apiKey: process.env.CODEX_API_KEY || "",
+    },
+    {
+      id: "seed-cc-qwen-3.7",
+      kind: "openai" as const,
+      baseUrl: (process.env.COMMANDCODE_BASE_URL || "https://api.commandcode.ai/provider/v1").replace(/\/$/, ""),
+      model: "Qwen/Qwen3.7-Max",
+      apiKey: process.env.CODEX_API_KEY || "",
     },
   ];
 }

@@ -281,6 +281,117 @@ function buildSeed(): ProviderRecord[] {
     });
   }
 
+  // ── CommandCode AI — multi-model gateway (always seeded if base URL resolves) ──
+  const ccBaseUrl = (process.env.COMMANDCODE_BASE_URL || "https://api.commandcode.ai/provider/v1").replace(/\/$/, "");
+  // CommandCode offers both OpenAI-compat chat and Anthropic-compat messages endpoints
+  // Seed primary models if CODEX_API_KEY is present
+  if (process.env.CODEX_API_KEY) {
+    seeds.push({
+      id: "seed-cc-claude-sonnet",
+      displayName: "CommandCode → Claude Sonnet 4.6",
+      type: "anthropic-compatible",
+      baseUrl: ccBaseUrl,
+      apiKeyRef: "CODEX_API_KEY",
+      model: "claude-sonnet-4-6",
+      capabilities: ["hard-reasoning", "code", "tool-use", "long-context"],
+      priority: 88,
+      enabled: true,
+      privacyLevel: "internal",
+      timeoutMs: 60_000,
+      healthStatus: "unknown",
+    });
+
+    seeds.push({
+      id: "seed-cc-claude-haiku",
+      displayName: "CommandCode → Claude Haiku 4.5",
+      type: "anthropic-compatible",
+      baseUrl: ccBaseUrl,
+      apiKeyRef: "CODEX_API_KEY",
+      model: "claude-haiku-4-5-20251001",
+      capabilities: ["thai-naturalness", "fast-cheap", "tool-use"],
+      priority: 82,
+      enabled: true,
+      privacyLevel: "internal",
+      timeoutMs: 20_000,
+      healthStatus: "unknown",
+    });
+
+    seeds.push({
+      id: "seed-cc-claude-opus",
+      displayName: "CommandCode → Claude Opus 4.8",
+      type: "anthropic-compatible",
+      baseUrl: ccBaseUrl,
+      apiKeyRef: "CODEX_API_KEY",
+      model: "claude-opus-4-8",
+      capabilities: ["ultra-reasoning", "complex-architecture", "code-review"],
+      priority: 100,
+      enabled: true,
+      privacyLevel: "confidential",
+      timeoutMs: 120_000,
+      healthStatus: "unknown",
+    });
+
+    seeds.push({
+      id: "seed-cc-gpt-5.4",
+      displayName: "CommandCode → GPT-5.4",
+      type: "openai-compatible",
+      baseUrl: ccBaseUrl,
+      apiKeyRef: "CODEX_API_KEY",
+      model: "gpt-5.4",
+      capabilities: ["code", "tool-use", "general-purpose", "long-context"],
+      priority: 78,
+      enabled: true,
+      privacyLevel: "internal",
+      timeoutMs: 60_000,
+      healthStatus: "unknown",
+    });
+
+    seeds.push({
+      id: "seed-cc-deepseek-v4",
+      displayName: "CommandCode → DeepSeek V4 Pro",
+      type: "openai-compatible",
+      baseUrl: ccBaseUrl,
+      apiKeyRef: "CODEX_API_KEY",
+      model: "deepseek/deepseek-v4-pro",
+      capabilities: ["hard-reasoning", "code", "math", "long-context"],
+      priority: 85,
+      enabled: true,
+      privacyLevel: "internal",
+      timeoutMs: 90_000,
+      healthStatus: "unknown",
+    });
+
+    seeds.push({
+      id: "seed-cc-qwen-3.7",
+      displayName: "CommandCode → Qwen 3.7 Max",
+      type: "openai-compatible",
+      baseUrl: ccBaseUrl,
+      apiKeyRef: "CODEX_API_KEY",
+      model: "Qwen/Qwen3.7-Max",
+      capabilities: ["thai-naturalness", "long-context", "hard-reasoning"],
+      priority: 84,
+      enabled: true,
+      privacyLevel: "internal",
+      timeoutMs: 60_000,
+      healthStatus: "unknown",
+    });
+
+    seeds.push({
+      id: "seed-cc-gemini-3.5",
+      displayName: "CommandCode → Gemini 3.5 Flash",
+      type: "openai-compatible",
+      baseUrl: ccBaseUrl,
+      apiKeyRef: "CODEX_API_KEY",
+      model: "google/gemini-3.5-flash",
+      capabilities: ["multimodal", "fast-cheap", "long-context"],
+      priority: 76,
+      enabled: true,
+      privacyLevel: "internal",
+      timeoutMs: 30_000,
+      healthStatus: "unknown",
+    });
+  }
+
   return seeds;
 }
 

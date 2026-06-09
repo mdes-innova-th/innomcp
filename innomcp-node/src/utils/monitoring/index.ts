@@ -534,13 +534,13 @@ export function startPeriodicHealthChecks(intervalSeconds = 300): NodeJS.Timeout
 export async function createHealthResponse(detailed = false) {
   const health = await checkAllServices(true);
   const metrics = getSystemMetrics();
-  
+
   const response: any = {
     status: health.status.toLowerCase(),
     timestamp: health.timestamp,
     uptime: health.uptime,
   };
-  
+
   if (detailed) {
     response.services = health.services;
     response.metrics = metrics;
@@ -551,6 +551,214 @@ export async function createHealthResponse(detailed = false) {
       status: s.status.toLowerCase(),
     }));
   }
-  
+
   return response;
+}
+
+// ── TICKET-013: Liveness / Readiness split ──────────────────────────────────
+
+/**
+ * Names of services considered liveness checks (fast, critical path: chat+MCP).
+ * These must respond in < 50 ms total to keep the liveness gate green.
+ */
+const LIVENESS_SERVICE_NAMES = new Set(['MCP Server']);
+
+/**
+ * Names of services considered readiness checks (slower stores).
+ * Redis and Database failures keep liveness green but degrade readiness.
+ */
+const READINESS_SERVICE_NAMES = new Set(['Redis', 'Database']);
+
+/** Maximum wall-clock ms allowed for the liveness bundle. */
+const LIVENESS_TIMEOUT_MS = 50;
+
+/** Maximum wall-clock ms allowed for the readiness bundle. */
+const READINESS_TIMEOUT_MS = 500;
+
+export interface CheckBundleResult {
+  /** 'green' | 'yellow' | 'red' */
+  status: 'green' | 'yellow' | 'red';
+  /** Wall-clock ms for the entire bundle. */
+  response_time_ms: number;
+  /** ISO-8601 timestamp of this check. */
+  last_check: string;
+  /** Last error message (if any). */
+  last_error: string | null;
+  /** Per-service detail. */
+  checks: Array<{
+    service: string;
+    status: 'green' | 'yellow' | 'red';
+    response_time_ms: number;
+    message?: string;
+  }>;
+}
+
+export interface DetailedHealthResponse {
+  /** Composite status derived from liveness + readiness. */
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  liveness: CheckBundleResult;
+  readiness: CheckBundleResult;
+  metrics: ReturnType<typeof getSystemMetrics>;
+  timestamp: string;
+}
+
+/** Map a HealthStatus enum value to a traffic-light color. */
+function toColor(s: HealthStatus): 'green' | 'yellow' | 'red' {
+  if (s === HealthStatus.HEALTHY) return 'green';
+  if (s === HealthStatus.DEGRADED || s === HealthStatus.UNKNOWN) return 'yellow';
+  return 'red';
+}
+
+/**
+ * Run liveness checks only (MCP Server + chat-layer services).
+ * Enforces a hard LIVENESS_TIMEOUT_MS ceiling via Promise.race.
+ * Never throws — returns red on timeout or unexpected error.
+ */
+export async function checkLiveness(): Promise<CheckBundleResult> {
+  const t0 = Date.now();
+  const now = () => Date.now() - t0;
+
+  const configs = HEALTH_CHECKS.filter(c => LIVENESS_SERVICE_NAMES.has(c.name));
+
+  const timeoutPromise = new Promise<CheckBundleResult>((resolve) =>
+    setTimeout(() => {
+      resolve({
+        status: 'red',
+        response_time_ms: now(),
+        last_check: new Date().toISOString(),
+        last_error: `liveness timeout after ${LIVENESS_TIMEOUT_MS}ms`,
+        checks: configs.map(c => ({
+          service: c.name,
+          status: 'red' as const,
+          response_time_ms: now(),
+          message: 'timeout',
+        })),
+      });
+    }, LIVENESS_TIMEOUT_MS)
+  );
+
+  const checkPromise = (async (): Promise<CheckBundleResult> => {
+    const results = await Promise.all(configs.map(c => checkService(c)));
+    const elapsed = now();
+    let lastError: string | null = null;
+
+    const checks = results.map((r, i) => {
+      const color = toColor(r.status);
+      if (color === 'red' && r.message && r.message !== 'OK') lastError = r.message;
+      return {
+        service: configs[i].name,
+        status: color,
+        response_time_ms: r.responseTime ?? elapsed,
+        message: r.message,
+      };
+    });
+
+    const anyRed = checks.some(c => c.status === 'red');
+    const anyYellow = checks.some(c => c.status === 'yellow');
+    const bundleStatus: 'green' | 'yellow' | 'red' = anyRed ? 'red' : anyYellow ? 'yellow' : 'green';
+
+    return {
+      status: bundleStatus,
+      response_time_ms: elapsed,
+      last_check: new Date().toISOString(),
+      last_error: lastError,
+      checks,
+    };
+  })();
+
+  return Promise.race([checkPromise, timeoutPromise]);
+}
+
+/**
+ * Run readiness checks only (Redis + Database).
+ * Enforces a hard READINESS_TIMEOUT_MS ceiling.
+ * Never throws — returns yellow on timeout (stores slow ≠ unhealthy overall).
+ */
+export async function checkReadiness(): Promise<CheckBundleResult> {
+  const t0 = Date.now();
+  const now = () => Date.now() - t0;
+
+  const configs = HEALTH_CHECKS.filter(c => READINESS_SERVICE_NAMES.has(c.name));
+
+  const timeoutPromise = new Promise<CheckBundleResult>((resolve) =>
+    setTimeout(() => {
+      resolve({
+        status: 'yellow',
+        response_time_ms: now(),
+        last_check: new Date().toISOString(),
+        last_error: `readiness timeout after ${READINESS_TIMEOUT_MS}ms`,
+        checks: configs.map(c => ({
+          service: c.name,
+          status: 'yellow' as const,
+          response_time_ms: now(),
+          message: 'timeout',
+        })),
+      });
+    }, READINESS_TIMEOUT_MS)
+  );
+
+  const checkPromise = (async (): Promise<CheckBundleResult> => {
+    const results = await Promise.all(configs.map(c => checkService(c)));
+    const elapsed = now();
+    let lastError: string | null = null;
+
+    const checks = results.map((r, i) => {
+      const color = toColor(r.status);
+      if ((color === 'red' || color === 'yellow') && r.message && r.message !== 'OK') {
+        lastError = r.message;
+      }
+      return {
+        service: configs[i].name,
+        status: color,
+        response_time_ms: r.responseTime ?? elapsed,
+        message: r.message,
+      };
+    });
+
+    const anyRed = checks.some(c => c.status === 'red');
+    const anyYellow = checks.some(c => c.status === 'yellow');
+    const bundleStatus: 'green' | 'yellow' | 'red' = anyRed ? 'red' : anyYellow ? 'yellow' : 'green';
+
+    return {
+      status: bundleStatus,
+      response_time_ms: elapsed,
+      last_check: new Date().toISOString(),
+      last_error: lastError,
+      checks,
+    };
+  })();
+
+  return Promise.race([checkPromise, timeoutPromise]);
+}
+
+/**
+ * Composite status rule (TICKET-013 spec):
+ *   healthy   = liveness green AND readiness green
+ *   degraded  = liveness green AND readiness yellow/red
+ *   unhealthy = liveness red
+ */
+function deriveCompositeStatus(
+  liveness: CheckBundleResult,
+  readiness: CheckBundleResult
+): 'healthy' | 'degraded' | 'unhealthy' {
+  if (liveness.status === 'red') return 'unhealthy';
+  if (readiness.status === 'green') return 'healthy';
+  return 'degraded';
+}
+
+/**
+ * Detailed health response (TICKET-013).
+ * Runs liveness and readiness checks in parallel.
+ * Shape: { status, liveness, readiness, metrics, timestamp }
+ */
+export async function createDetailedHealthResponse(): Promise<DetailedHealthResponse> {
+  const [liveness, readiness] = await Promise.all([checkLiveness(), checkReadiness()]);
+
+  return {
+    status: deriveCompositeStatus(liveness, readiness),
+    liveness,
+    readiness,
+    metrics: getSystemMetrics(),
+    timestamp: new Date().toISOString(),
+  };
 }

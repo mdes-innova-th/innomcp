@@ -33,12 +33,34 @@ interface HealthResult {
 async function probeProvider(
   rec: ReturnType<typeof listProviders>[number]
 ): Promise<HealthResult> {
-  // Ollama variants expose /api/tags; everything else gets /health
+  // Ollama variants expose /api/tags; CommandCode uses /v1/models; everything else gets /health
   const isOllama =
     rec.type === "ollama-local" || rec.type === "ollama-remote";
-  const probeUrl = isOllama
-    ? `${rec.baseUrl}/api/tags`
-    : `${rec.baseUrl}/health`;
+  const isCommandCode = rec.id.startsWith("seed-cc-") || rec.baseUrl.includes("commandcode");
+
+  let probeUrl: string;
+  let headers: Record<string, string> = {};
+  if (isOllama) {
+    probeUrl = `${rec.baseUrl}/api/tags`;
+    // MDES remote Ollama requires auth
+    if (rec.apiKeyRef) {
+      const apiKey = process.env[rec.apiKeyRef] || "";
+      if (apiKey) {
+        headers["Authorization"] = `Bearer ${apiKey}`;
+      }
+    }
+  } else if (isCommandCode) {
+    // CommandCode: use /v1/models endpoint for health check
+    probeUrl = `${rec.baseUrl}/models`;
+    if (rec.apiKeyRef) {
+      const apiKey = process.env[rec.apiKeyRef] || "";
+      if (apiKey) {
+        headers["Authorization"] = `Bearer ${apiKey}`;
+      }
+    }
+  } else {
+    probeUrl = `${rec.baseUrl}/health`;
+  }
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
@@ -51,6 +73,7 @@ async function probeProvider(
     const resp = await fetch(probeUrl, {
       method: "GET",
       signal: controller.signal,
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
     });
     latencyMs = Date.now() - t0;
 

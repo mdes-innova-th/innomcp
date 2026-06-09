@@ -7,7 +7,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { createHealthResponse } from '../../utils/monitoring';
+import { createHealthResponse, createDetailedHealthResponse } from '../../utils/monitoring';
 import { getSystemMetrics } from '../../utils/monitoring';
 import { getRedisHealthSnapshot } from '../../utils/redis';
 
@@ -35,12 +35,36 @@ function getMcpInventory(chatModule: any) {
 
 /**
  * GET /api/health
- * Health check endpoint - แสดงสถานะระบบแบบง่าย
+ * Health check endpoint.
+ *
+ * ?detailed=true  — returns TICKET-013 dual-check response:
+ *   { status, liveness: CheckBundleResult, readiness: CheckBundleResult, metrics, timestamp }
+ *   Status is derived from liveness only for the HTTP status code (backward compat).
+ *
+ * (no query param) — legacy response enriched with mode/redis/mcp fields.
  */
 healthRouter.get('/', async (req: Request, res: Response) => {
+  // ── ?detailed=true path (TICKET-013) ─────────────────────────────────
+  if (req.query.detailed === 'true') {
+    try {
+      const detailed = await createDetailedHealthResponse();
+      // HTTP status: 503 only when liveness is red (unhealthy); degraded → 200
+      const statusCode = detailed.status === 'unhealthy' ? 503 : 200;
+      res.status(statusCode).json(detailed);
+    } catch (error) {
+      console.error('[Health] Error in detailed health check:', error);
+      res.status(500).json({
+        status: 'unhealthy',
+        timestamp: new Date().toISOString(),
+        error: 'Detailed health check failed',
+      });
+    }
+    return;
+  }
+
+  // ── Legacy path (backward compat) ────────────────────────────────────
   try {
-    const detailed = req.query.detailed === 'true';
-    const health = await createHealthResponse(detailed);
+    const health = await createHealthResponse(false);
     const redisHealth = getRedisHealthSnapshot();
 
     // Set appropriate status code
