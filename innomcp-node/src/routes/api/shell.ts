@@ -27,12 +27,16 @@ const pendingApprovals = new Map<string, { command: string; ts: number }>();
 const APPROVAL_TTL_MS = 60_000;
 
 // Prune expired entries every 5 minutes — prevents unbounded growth from abandoned approvals
-setInterval(() => {
+// .unref() is Node-only; Bun returns a number-like timer ID without .unref()
+const _pruneTimer = setInterval(() => {
   const cutoff = Date.now() - APPROVAL_TTL_MS;
   for (const [id, entry] of pendingApprovals) {
     if (entry.ts < cutoff) pendingApprovals.delete(id);
   }
-}, 5 * 60_000).unref();
+}, 5 * 60_000);
+if (typeof _pruneTimer === "object" && typeof (_pruneTimer as NodeJS.Timeout).unref === "function") {
+  (_pruneTimer as NodeJS.Timeout).unref();
+}
 
 // POST /api/shell/exec
 router.post("/exec", async (req: AuthRequest, res: Response) => {
@@ -98,10 +102,16 @@ router.get("/history", async (req: AuthRequest, res: Response) => {
       let q =
         "SELECT id, command, exit_code, risk_level, duration_ms, created_at FROM shell_executions WHERE 1=1";
       const params: (string | number | null)[] = [];
-      // Ownership gate: only return rows owned by this user (or null user_id rows for legacy data)
+      // Ownership gate: authenticated users see own rows + legacy (null user_id) rows.
+      // Unauthenticated callers (userId=null) get an empty result — not a 401,
+      // since the route may be reached before auth is confirmed, but leaking all
+      // history rows to an unauthenticated caller is unacceptable.
       if (userId !== null) {
         q += " AND (user_id = ? OR user_id IS NULL)";
         params.push(userId);
+      } else {
+        // No auth context — return nothing rather than everything
+        q += " AND 1=0";
       }
       if (sessionId) { q += " AND session_id = ?"; params.push(sessionId); }
       if (taskId)    { q += " AND task_id = ?";    params.push(taskId); }
