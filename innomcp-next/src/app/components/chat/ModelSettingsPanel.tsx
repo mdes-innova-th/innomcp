@@ -51,6 +51,7 @@ export default function ModelSettingsPanel({ onClose }: Props) {
   const [baseUrl, setBaseUrl] = useState("https://ollama.mdes-innova.online/v1");
   const [apiKey, setApiKey] = useState("");
   const [modelName, setModelName] = useState("gemma3:12b");
+  const [fallbackProvider, setFallbackProvider] = useState("none");
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
   const [saved, setSaved] = useState(false);
@@ -106,10 +107,12 @@ export default function ModelSettingsPanel({ onClose }: Props) {
     const storedUrl = localStorage.getItem("innomcp.model.baseUrl");
     const storedKey = localStorage.getItem("innomcp.model.apiKey");
     const storedModel = localStorage.getItem("innomcp.model.name");
+    const storedFallback = localStorage.getItem("innomcp_fallback_provider");
     if (storedProvider) setSelectedId(storedProvider);
     if (storedUrl) setBaseUrl(storedUrl);
     if (storedKey) setApiKey(storedKey);
     if (storedModel) setModelName(storedModel);
+    if (storedFallback) setFallbackProvider(storedFallback);
   }, []);
 
   const handleProviderSelect = (id: string) => {
@@ -309,6 +312,42 @@ export default function ModelSettingsPanel({ onClose }: Props) {
           data-testid="model-settings-modelname"
           className="rounded-lg border border-border/50 bg-background px-3 py-1.5 font-mono text-[12px] text-foreground placeholder-muted-foreground/40 focus:border-primary/40 focus:outline-none"
         />
+      </div>
+
+      {/* Fallback provider */}
+      <div className="flex flex-col gap-1">
+        <label className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+          Fallback provider (if primary fails)
+          {fallbackProvider !== "none" && fallbackProvider === selectedId && (
+            <span
+              title="Fallback is the same as primary — no actual fallback will occur"
+              className="inline-flex items-center gap-0.5 rounded-full bg-amber-500/12 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-300"
+            >
+              <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+              Same as primary
+            </span>
+          )}
+        </label>
+        <select
+          value={fallbackProvider}
+          onChange={(e) => {
+            setFallbackProvider(e.target.value);
+            localStorage.setItem("innomcp_fallback_provider", e.target.value);
+          }}
+          data-testid="model-settings-fallback-provider"
+          className="rounded-lg border border-border/50 bg-background px-3 py-1.5 text-[12px] text-foreground focus:border-primary/40 focus:outline-none"
+        >
+          <option value="none">None</option>
+          {presets.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Actions */}
