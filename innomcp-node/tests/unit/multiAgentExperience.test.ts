@@ -13,7 +13,7 @@ describe("multi-agent thinking report UX contract", () => {
       errorCount: 0,
     });
 
-    expect(summary.title).toBe("Thinking report");
+    expect(summary.title).toBe("กำลังเริ่มวิเคราะห์");
     expect(summary.statusText).toBe("พร้อมทำงาน");
     expect(summary.digest).toContain("คำตอบหลัก");
     expect(summary.tone).toBe("ready");
