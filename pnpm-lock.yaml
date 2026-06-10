@@ -306,6 +306,9 @@ importers:
       '@playwright/test':
         specifier: ^1.45.0
         version: 1.60.0
+      '@types/express-serve-static-core':
+        specifier: 5.1.0
+        version: 5.1.0
       '@types/multer':
         specifier: ^2.0.0
         version: 2.1.0
