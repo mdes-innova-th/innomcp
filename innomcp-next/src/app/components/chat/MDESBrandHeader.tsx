@@ -2,6 +2,7 @@
 
 import React from 'react';
 import StatusRibbon from './StatusRibbon';
+import MDESModelPicker from './MDESModelPicker';
 
 interface MDESBrandHeaderProps {
   isSocketReady: boolean;
@@ -17,6 +18,8 @@ interface MDESBrandHeaderProps {
   onToggleModelSettings?: () => void;
   modelSettingsOpen?: boolean;
   conversationTitle?: string;
+  currentModel?: string;
+  onModelChange?: (model: string) => void;
 }
 
 export default function MDESBrandHeader({
@@ -33,6 +36,8 @@ export default function MDESBrandHeader({
   onToggleModelSettings,
   modelSettingsOpen = false,
   conversationTitle,
+  currentModel,
+  onModelChange,
 }: MDESBrandHeaderProps) {
   return (
     <header className="sticky top-0 z-50 flex h-12 items-center justify-between border-b border-border/60 bg-background/95 backdrop-blur-sm px-4">
@@ -66,6 +71,15 @@ export default function MDESBrandHeader({
           agentCount={agentCount}
           activeModels={activeModels}
         />
+
+        {/* Model selector – compact display between status and provider toggle */}
+        {currentModel && onModelChange && (
+          <MDESModelPicker
+            currentModel={currentModel}
+            onModelChange={onModelChange}
+            className="w-32"
+          />
+        )}
 
         {/* Provider mode toggle */}
         <div className="flex rounded-md border border-border overflow-hidden">
