@@ -1,7 +1,7 @@
 'use client'
 
 import { FC, memo } from 'react'
-import { cn } from '@/lib/utils' // adjust import path if needed
+function cn(...c: (string | undefined | false | null)[]) { return c.filter(Boolean).join(' '); }
 
 // ---------- Types ---------- //
 
