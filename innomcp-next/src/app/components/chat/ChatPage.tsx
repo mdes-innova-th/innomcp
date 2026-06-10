@@ -46,6 +46,7 @@ import MDESBrandHeader from "@/app/components/chat/MDESBrandHeader";
 import ManusWorkspacePanel from "@/app/components/chat/ManusWorkspacePanel";
 import CollapsibleAgentWrapper from "@/app/components/chat/CollapsibleAgentWrapper";
 import ModelSettingsPanel from "@/app/components/chat/ModelSettingsPanel";
+import ChatEmptyStateManager from "@/app/components/chat/ChatEmptyStateManager";
 
 // Phase 4 � lazy-load panel/modal components not needed on initial paint
 const ThinkingModal = dynamic(() => import("@/app/components/chat/ThinkingModal"), {
@@ -1871,10 +1872,13 @@ const ChatPage: React.FC = () => {
                     setCsvPrefix={(s) => { csvPrefixRef.current = s; }}
                   />
 
-                  {/* Modular Starter Prompts Grid (Empty Mode) */}
-                  <StarterPromptsGrid
-                    onSelect={setInput}
+                  {/* Manus-style empty state manager — ChatWelcomeHero + QuickActions + StarterPromptsGrid */}
+                  <ChatEmptyStateManager
+                    isConnected={isSocketReady}
+                    onQuerySelect={setInput}
                     textareaRef={textareaRef}
+                    providerMode={providerMode}
+                    hasMessages={hasMessages}
                   />
 
                   {/* Quick action cards � 2�2 grid */}
