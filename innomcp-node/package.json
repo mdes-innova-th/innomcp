@@ -67,7 +67,7 @@
     "express": "^5.1.0",
     "fuse.js": "^7.1.0",
     "helmet": "^8.2.0",
-    "ioredis": "^5.6.1",
+    "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.3",
     "lru-cache": "^11.2.4",
     "mathjs": "^14.7.1",
