@@ -672,3 +672,63 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   .animate-blink { animation: none; opacity: 1; }
   .skeleton-shimmer::after { animation: none; opacity: 0; }
 }
+
+
+/* ── MDES/Manus additions (cc_chat_manus_swarm) ── */
+/* MDES Brand */
+:root {
+  --mdes-primary: #1a3c6e;
+  --mdes-primary-light: #2d5a9e;
+  --mdes-accent: #c8973e;
+  --mdes-accent-light: #e8b85e;
+}
+
+.dark {
+  --mdes-primary: #1a3c6e;
+  --mdes-primary-light: #2d5a9e;
+  --mdes-accent: #c8973e;
+  --mdes-accent-light: #e8b85e;
+}
+
+/* Manus Workspace */
+:root {
+  --manus-panel-bg: oklch(0.12 0 0 / 0.97);
+  --manus-panel-border: oklch(0.25 0 0 / 0.4);
+  --manus-step-active: #f59e0b;
+  --manus-step-done: #10b981;
+}
+
+.dark {
+  --manus-panel-bg: oklch(0.12 0 0 / 0.97);
+  --manus-panel-border: oklch(0.25 0 0 / 0.4);
+  --manus-step-active: #f59e0b;
+  --manus-step-done: #10b981;
+}
+
+/* Animation for workspace panel slide-in */
+@keyframes manus-slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+
+.manus-panel-enter { 
+  animation: manus-slide-in 0.25s ease-out; 
+}
+
+/* Collapsible agent panel transition */
+.agent-panel-collapse { 
+  overflow: hidden; 
+  transition: max-height 0.3s ease-in-out; 
+}
+
+/* MDES shimmer for processing state */
+@keyframes mdes-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+.mdes-processing-shimmer {
+  background: linear-gradient(90deg, transparent 0%, var(--mdes-primary-light) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: mdes-shimmer 2s linear infinite;
+}
