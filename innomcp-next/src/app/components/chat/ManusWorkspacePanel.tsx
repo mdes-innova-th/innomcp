@@ -1,29 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-
-// ===== Types (re-defined locally for completeness) =====
-export interface AgentEvent {
-  id: string;
-  type: string;
-  agentName?: string;
-  modelName?: string;
-  publicSummary?: string;
-  toolName?: string;
-  toolArgs?: Record<string, unknown>;
-  toolResult?: unknown;
-  elapsed?: number;
-  timestamp: number;
-  metadata?: Record<string, unknown>;
-}
-
-export interface Artifact {
-  id: string;
-  name: string;
-  type: string;
-  content: string;
-  createdAt: number;
-}
+import type { AgentEvent } from "./useAgentEventStream";
+import type { Artifact } from "./ArtifactPanel";
 
 export interface ManusWorkspacePanelProps {
   events: AgentEvent[];
@@ -103,21 +82,19 @@ const ManusWorkspacePanel: React.FC<ManusWorkspacePanelProps> = ({
   };
 
   // Format timestamp
-  const formatTime = (ts: number) => {
-    const d = new Date(ts);
-    return d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+  const formatTime = (ts: string) => {
+    try {
+      const d = new Date(ts);
+      return d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+    } catch { return ""; }
   };
 
   // === Filtered events for sub panels ===
   const webEvents = events.filter(
-    (e) =>
-      (e.toolName === "web_search" || e.toolName === "browser") &&
-      e.toolResult != null
+    (e) => e.toolName === "web_search" || e.toolName === "browser"
   );
   const terminalEvents = events.filter(
-    (e) =>
-      ["shell", "exec", "bash"].includes(e.toolName || "") &&
-      e.toolResult != null
+    (e) => ["shell", "exec", "bash"].some(k => e.toolName?.toLowerCase().includes(k))
   );
 
   // === Render functions per tab ===
@@ -132,11 +109,11 @@ const ManusWorkspacePanel: React.FC<ManusWorkspacePanelProps> = ({
         const { icon, label } = getStepLabel(event);
         const isLast = idx === events.length - 1;
         const isActive = isStreaming && isLast;
-        const duration = event.elapsed ? `${event.elapsed}ms` : "";
+        const duration = event.totalMs ? `${event.totalMs}ms` : event.latencyMs ? `${event.latencyMs}ms` : "";
 
         return (
           <div
-            key={event.id}
+            key={event.messageId}
             className="flex items-start gap-3 text-sm text-slate-700 dark:text-slate-200"
           >
             {/* Status dot */}
@@ -153,11 +130,11 @@ const ManusWorkspacePanel: React.FC<ManusWorkspacePanelProps> = ({
               <div className="flex items-baseline gap-1.5 flex-wrap">
                 <span>{icon}</span>
                 <span className="font-medium truncate">{label}</span>
-                {event.modelName && (
+                {event.model && (
                   <>
                     <span className="text-slate-400 dark:text-slate-500">·</span>
                     <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                      {event.modelName}
+                      {event.model}
                     </span>
                   </>
                 )}
@@ -191,20 +168,18 @@ const ManusWorkspacePanel: React.FC<ManusWorkspacePanelProps> = ({
       ) : (
         webEvents.map((event) => (
           <div
-            key={event.id}
+            key={event.messageId}
             className="rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-3"
           >
             <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">
               🌐 {event.toolName || "เว็บ"}
             </div>
             <div className="text-xs text-slate-600 dark:text-slate-400 whitespace-pre-wrap break-words max-h-60 overflow-y-auto">
-              {typeof event.toolResult === "string"
-                ? event.toolResult
-                : JSON.stringify(event.toolResult, null, 2)}
+              {event.previewText ?? event.publicSummary ?? "—"}
             </div>
-            {event.elapsed && (
+            {event.totalMs && (
               <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                {event.elapsed}ms
+                {event.totalMs}ms
               </div>
             )}
           </div>
@@ -222,17 +197,15 @@ const ManusWorkspacePanel: React.FC<ManusWorkspacePanelProps> = ({
       ) : (
         terminalEvents.map((event) => (
           <div
-            key={event.id}
+            key={event.messageId}
             className="rounded-lg overflow-hidden border border-slate-700 bg-slate-950 text-slate-200"
           >
             <div className="flex items-center gap-2 px-3 py-2 bg-slate-900 text-xs font-medium text-slate-400">
               💻 {event.toolName || "shell"}
-              {event.elapsed && <span className="ml-auto">{event.elapsed}ms</span>}
+              {event.totalMs && <span className="ml-auto">{event.totalMs}ms</span>}
             </div>
             <pre className="p-3 text-xs font-mono whitespace-pre-wrap max-h-60 overflow-y-auto">
-              {typeof event.toolResult === "string"
-                ? event.toolResult
-                : JSON.stringify(event.toolResult, null, 2)}
+              {event.previewText ?? event.publicSummary ?? "—"}
             </pre>
           </div>
         ))
@@ -249,11 +222,11 @@ const ManusWorkspacePanel: React.FC<ManusWorkspacePanelProps> = ({
       ) : (
         artifacts.map((art) => {
           const typeIcon =
-            art.type === "image"
+            (art.type as string) === "image"
               ? "🖼️"
-              : art.type === "code" || art.type === "script"
+              : (art.type as string) === "code" || (art.type as string) === "script"
               ? "📝"
-              : art.type === "pdf"
+              : (art.type as string) === "pdf"
               ? "📕"
               : "📄";
           return (
@@ -267,7 +240,7 @@ const ManusWorkspacePanel: React.FC<ManusWorkspacePanelProps> = ({
                   {art.name}
                 </div>
                 <div className="text-xs text-slate-500 dark:text-slate-400">
-                  {formatTime(art.createdAt)}
+                  {formatTime(new Date(art.createdAt).toISOString())}
                 </div>
               </div>
               <button

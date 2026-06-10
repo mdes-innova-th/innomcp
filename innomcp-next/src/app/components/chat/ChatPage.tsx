@@ -41,6 +41,10 @@ import { ErrorBoundary } from "@/app/components/common/ErrorBoundary";
 import OnboardingModal from "@/app/components/common/OnboardingModal";
 import GuidedTour from "@/app/components/common/GuidedTour";
 import ActiveModelBadge from "@/app/components/chat/ActiveModelBadge";
+import StatusRibbon from "@/app/components/chat/StatusRibbon";
+import MDESBrandHeader from "@/app/components/chat/MDESBrandHeader";
+import ManusWorkspacePanel from "@/app/components/chat/ManusWorkspacePanel";
+import CollapsibleAgentWrapper from "@/app/components/chat/CollapsibleAgentWrapper";
 
 // Phase 4 � lazy-load panel/modal components not needed on initial paint
 const ThinkingModal = dynamic(() => import("@/app/components/chat/ThinkingModal"), {
@@ -243,37 +247,7 @@ function persistSummariesToLocalStorage(summaries: SidebarSummary[]): void {
   localStorage.removeItem("chatSummaries");
 }
 
-// ─── StatusRibbon ─────────────────────────────────────────────────────────────
-// Single unified status indicator — replaces duplicate dots/labels in the header and composer.
-const StatusRibbon: React.FC<{
-  isSocketReady: boolean;
-  isWaitingForResponse: boolean;
-  streamStatus: string;
-}> = ({ isSocketReady, isWaitingForResponse, streamStatus }) => {
-  const isStreaming = streamStatus === "streaming";
-  if (!isSocketReady) {
-    return (
-      <div className="flex items-center gap-1.5 rounded-md bg-rose-500/10 px-2.5 py-1 text-[11.5px] font-medium text-rose-700 ring-1 ring-rose-500/20 dark:text-rose-300">
-        <span className="h-1.5 w-1.5 rounded-full bg-rose-500" aria-hidden="true" />
-        <span>ออฟไลน์</span>
-      </div>
-    );
-  }
-  if (isWaitingForResponse || isStreaming) {
-    return (
-      <div className="flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2.5 py-1 text-[11.5px] font-medium text-amber-700 dark:text-amber-300">
-        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-500" aria-hidden="true" />
-        <span>กำลังประมวลผล</span>
-      </div>
-    );
-  }
-  return (
-    <div className="flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11.5px] text-muted-foreground">
-      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden="true" />
-      <span>พร้อมใช้งาน</span>
-    </div>
-  );
-};
+// StatusRibbon is now imported from ./StatusRibbon (standalone component)
 
 function shouldUseMdesFinal(existing: string, next: string, isProgress?: boolean): boolean {
   const current = existing.trim();
@@ -1609,75 +1583,18 @@ const ChatPage: React.FC = () => {
 
       <KeyboardShortcutsPanel open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
-      {/* INNOMCP Computer — floating right-side live agent panel */}
+      {/* INNOMCP Manus Workspace — persistent right-side panel */}
       {workspaceOpen && (
-        <div className="fixed inset-x-2 top-16 z-40 max-h-[85vh] overflow-y-auto sm:inset-x-auto sm:right-4 sm:top-20 sm:w-80 sm:max-h-[calc(100vh-6rem)] space-y-4 bg-background/95 border border-border/40 p-2.5 rounded-xl shadow-lg">
-          <ErrorBoundary componentName="AgentWorkspacePanel">
-            <AgentWorkspacePanel
-              events={agentStreamState.events}
-              isStreaming={isWaitingForResponse}
-              onApprovalRequired={async (payload) => {
-                const aid = payload.approvalId;
-                if (aid) pendingShellApprovals.current.set(aid, false);
-                const approved = await requestApproval({
-                  action: "Run shell command",
-                  tool: "shell-exec",
-                  riskLevel: payload.riskLevel as import("@/app/components/chat/ApprovalGate").RiskLevel,
-                  command: payload.command,
-                  details: payload.reason,
-                });
-                if (approved && aid) {
-                  pendingShellApprovals.current.set(aid, true);
-                } else if (aid) {
-                  pendingShellApprovals.current.delete(aid);
-                }
-              }}
-              onApprovalConfirmed={async (approvalId?: string) => {
-                if (!approvalId) return;
-                const wasApproved = pendingShellApprovals.current.get(approvalId);
-                pendingShellApprovals.current.delete(approvalId);
-                if (!wasApproved) return;
-                const BACKEND =
-                  typeof window !== "undefined" && window.location.port === "3000"
-                    ? "http://localhost:3011"
-                    : "";
-                try {
-                  await fetch(`${BACKEND}/api/shell/approve-and-exec`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({ approvalId }),
-                  });
-                } catch {
-                  // Network error — silently ignore; command was already approved
-                }
-              }}
-            />
-          </ErrorBoundary>
-
-          {/* Office Agent Team Panel */}
-          <ErrorBoundary componentName="OfficeTeamPanel">
-            <OfficeTeamPanel />
-          </ErrorBoundary>
-
-          {/* Oracle Pattern Panel */}
-          <ErrorBoundary componentName="OraclePatternPanel">
-            <OraclePatternPanel />
-          </ErrorBoundary>
-
-          {/* Pulse Panel */}
-          <ErrorBoundary componentName="PulsePanel">
-            <PulsePanel />
-          </ErrorBoundary>
-
-          <button
-            onClick={() => setWorkspaceOpen(false)}
-            className="absolute right-2 top-2 text-muted-foreground/60 hover:text-foreground text-lg leading-none"
-            aria-label="Close"
-          >
-            ×
-          </button>
-        </div>
+        <ErrorBoundary componentName="ManusWorkspacePanel">
+          <ManusWorkspacePanel
+            events={agentStreamState.events}
+            artifacts={artifacts}
+            isStreaming={isWaitingForResponse}
+            isOpen={workspaceOpen}
+            onClose={() => setWorkspaceOpen(false)}
+            className="fixed inset-y-0 right-0 z-40 w-full sm:w-[380px] manus-panel-enter"
+          />
+        </ErrorBoundary>
       )}
 
       {/* PAS-1: Artifact Panel � floats below agent workspace panel */}
@@ -1773,10 +1690,25 @@ const ChatPage: React.FC = () => {
         />
       </div>
 
-      {/* Main content area � natural page flow, no inner scroll */}
+      {/* Main content area — natural page flow, no inner scroll */}
       <div className={`relative flex-1 transition-all duration-300 ${
         isSidebarCollapsed ? 'ml-0 lg:ml-14' : 'ml-0 lg:ml-72'
       }`}>
+        {/* MDES Brand Header — Manus.ai-style sticky top bar */}
+        <MDESBrandHeader
+          isSocketReady={isSocketReady}
+          isWaitingForResponse={isWaitingForResponse}
+          streamStatus={agentStreamState.status}
+          agentCount={agentStreamState.events.filter(e => e.agentId && e.agentId !== "conductor" && e.agentId !== "broker").length > 0
+            ? new Set(agentStreamState.events.filter(e => e.agentId && e.agentId !== "conductor" && e.agentId !== "broker").map(e => e.agentId!)).size
+            : undefined}
+          providerMode={providerMode}
+          onProviderModeChange={setProviderMode}
+          onToggleWorkspace={() => setWorkspaceOpen(v => !v)}
+          workspaceOpen={workspaceOpen}
+          onToggleMultiAgent={() => setMultiAgentOpen(v => !v)}
+          conversationTitle={hasMessages ? activeConversationTitle : undefined}
+        />
         <div className="relative z-10 w-full px-3 sm:px-5 lg:px-6 xl:px-8">
           <div className={`mx-auto w-full max-w-[88rem] pt-3 ${hasMessages ? 'pb-3' : 'pb-6'}`}>
             {hasMessages ? (
