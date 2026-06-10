@@ -18,6 +18,99 @@
 
 import { useState } from "react";
 
+/* ------------------------------------------------------------------ */
+/*  Presets — quick‑fill cards for popular AI providers               */
+/* ------------------------------------------------------------------ */
+
+interface Preset {
+  id: string;
+  icon: string;
+  label: string;
+  type: "ollama-local" | "ollama-remote" | "openai-compatible" | "anthropic-compatible" | "custom";
+  baseUrl: string;
+  model: string;
+  needsKey: boolean;
+}
+
+const PRESETS: Preset[] = [
+  {
+    id: "mdes-ollama",
+    icon: "🇹🇭",
+    label: "MDES Ollama (ภาครัฐ)",
+    type: "ollama-remote",
+    baseUrl: "https://ollama.mdes-innova.online/v1",
+    model: "minimax-m2.5:cloud",
+    needsKey: false,
+  },
+  {
+    id: "openai",
+    icon: "🤖",
+    label: "OpenAI",
+    type: "openai-compatible",
+    baseUrl: "https://api.openai.com/v1",
+    model: "gpt-4o",
+    needsKey: true,
+  },
+  {
+    id: "anthropic",
+    icon: "🅰️",
+    label: "Anthropic",
+    type: "anthropic-compatible",
+    baseUrl: "https://api.anthropic.com/v1",
+    model: "claude-3-5-sonnet-20241022",
+    needsKey: true,
+  },
+  {
+    id: "groq",
+    icon: "🚀",
+    label: "Groq (Fast)",
+    type: "openai-compatible",
+    baseUrl: "https://api.groq.com/openai/v1",
+    model: "llama-3.3-70b-versatile",
+    needsKey: true,
+  },
+  {
+    id: "ollama-local",
+    icon: "💻",
+    label: "Ollama Local",
+    type: "ollama-local",
+    baseUrl: "http://localhost:11434/v1",
+    model: "minimax-m2.5:cloud",
+    needsKey: false,
+  },
+  {
+    id: "gemini",
+    icon: "🔮",
+    label: "Gemini",
+    type: "openai-compatible",
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+    model: "gemini-1.5-pro",
+    needsKey: true,
+  },
+  {
+    id: "lmstudio",
+    icon: "⚡",
+    label: "LM Studio",
+    type: "openai-compatible",
+    baseUrl: "http://localhost:1234/v1",
+    model: "",
+    needsKey: false,
+  },
+  {
+    id: "mdes-thaillm",
+    icon: "🛡️",
+    label: "MDES ThaiLLM",
+    type: "openai-compatible",
+    baseUrl: "https://api.thaillm.mdes.go.th/v1",
+    model: "typhoon-v1.5-instruct",
+    needsKey: true,
+  },
+];
+
+/* ------------------------------------------------------------------ */
+/*  Provider type & capability constants                               */
+/* ------------------------------------------------------------------ */
+
 const PROVIDER_TYPES = [
   { value: "ollama-local", label: "Ollama (ภายในเครื่อง)" },
   { value: "ollama-remote", label: "Ollama (ระยะไกล)" },
@@ -37,13 +130,22 @@ const CAPABILITIES = [
   { value: "grounding-critic", label: "นักวิจารณ์/ตรวจหลักฐาน" },
 ] as const;
 
+/* ------------------------------------------------------------------ */
+/*  Props                                                              */
+/* ------------------------------------------------------------------ */
+
 interface Props {
   open: boolean;
   onClose: () => void;
   onCreated?: () => void;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Component                                                          */
+/* ------------------------------------------------------------------ */
+
 export default function ProviderModal({ open, onClose, onCreated }: Props) {
+  /* ---- manual‑entry state ----------------------------------------- */
   const [displayName, setDisplayName] = useState("");
   const [type, setType] = useState<(typeof PROVIDER_TYPES)[number]["value"]>("ollama-local");
   const [baseUrl, setBaseUrl] = useState("http://localhost:11434");
@@ -55,7 +157,38 @@ export default function ProviderModal({ open, onClose, onCreated }: Props) {
   const [testResult, setTestResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  if (!open) return null;
+  /* ---- preset tracking -------------------------------------------- */
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+
+  /* ---- helpers ---------------------------------------------------- */
+
+  /** Fill the form from a chosen preset */
+  const applyPreset = (preset: Preset) => {
+    setSelectedPreset(preset.id);
+    setDisplayName(preset.label);
+    setType(preset.type);
+    setBaseUrl(preset.baseUrl);
+    setModel(preset.model);
+    setApiKey(""); // user must supply key if needed
+    setCaps(["thai-naturalness"]);
+    setPriority(50);
+    setError(null);
+    setTestResult(null);
+  };
+
+  /** Reset to blank / defaults (manual mode) */
+  const resetToManual = () => {
+    setSelectedPreset(null);
+    setDisplayName("");
+    setType("ollama-local");
+    setBaseUrl("http://localhost:11434");
+    setModel("minimax-m2.5:cloud");
+    setApiKey("");
+    setCaps(["thai-naturalness"]);
+    setPriority(50);
+    setError(null);
+    setTestResult(null);
+  };
 
   const toggleCap = (c: string) => {
     setCaps((prev) =>
@@ -167,6 +300,8 @@ export default function ProviderModal({ open, onClose, onCreated }: Props) {
     }
   };
 
+  if (!open) return null;
+
   return (
     <div
       data-testid="provider-modal"
@@ -189,6 +324,60 @@ export default function ProviderModal({ open, onClose, onCreated }: Props) {
           </button>
         </div>
 
+        {/* =========================================================== */}
+        {/*  PRESET CARDS                                                */}
+        {/* =========================================================== */}
+        <div className="mb-4">
+          <div className="mb-2 text-sm text-muted-foreground">
+            เลือก Provider สำเร็จรูป
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {PRESETS.map((p) => {
+              const isActive = selectedPreset === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => applyPreset(p)}
+                  className={`group flex h-[70px] items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors ${
+                    isActive
+                      ? "border-emerald-500/60 bg-emerald-500/10 ring-1 ring-emerald-500/30"
+                      : "border-border bg-card hover:bg-muted"
+                  }`}
+                >
+                  <span className="text-xl leading-none">{p.icon}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-xs font-medium text-foreground">
+                      {p.label}
+                    </div>
+                    <div className="mt-1">
+                      {p.needsKey ? (
+                        <span className="inline-block rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-medium text-rose-700">
+                          ต้องการ Key
+                        </span>
+                      ) : (
+                        <span className="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700">
+                          ฟรี
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={resetToManual}
+            className="mt-2 w-full rounded border border-dashed border-border px-3 py-2 text-xs text-muted-foreground hover:bg-muted"
+          >
+            ⚙️ กรอกเอง (manual entry)
+          </button>
+        </div>
+
+        {/* =========================================================== */}
+        {/*  MANUAL FORM                                                 */}
+        {/* =========================================================== */}
         <div className="grid gap-3 text-sm">
           <label className="grid gap-1">
             <span className="text-muted-foreground">ชื่อ</span>
@@ -303,6 +492,9 @@ export default function ProviderModal({ open, onClose, onCreated }: Props) {
           )}
         </div>
 
+        {/* =========================================================== */}
+        {/*  ACTION BUTTONS                                              */}
+        {/* =========================================================== */}
         <div className="mt-4 flex items-center justify-end gap-2">
           <button
             type="button"
