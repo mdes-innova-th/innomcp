@@ -19,11 +19,23 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    container_name: innomcp-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   api:
     build: ./innomcp-node
     restart: unless-stopped
     ports:
-      - "3011:3011"
+      - "3015:3011"
     environment:
       - NODE_ENV=production
       - DB_HOST=mariadb
@@ -37,11 +49,17 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - INNOMCP_MODE=${INNOMCP_MODE:-online}
-      - PARALLEL_AGENTS=${PARALLEL_AGENTS:-0}
+      - PARALLEL_AGENTS=1
+      - REDIS_URL=redis://redis:6379/0
+      - CODEX_API_KEY=${CODEX_API_KEY:-}
+      - COMMANDCODE_API_KEY=${COMMANDCODE_API_KEY:-}
+      - JWT_SECRET=${JWT_SECRET:-}
     volumes:
       - workspace:/workspace
     depends_on:
       mariadb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   web:

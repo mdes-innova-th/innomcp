@@ -5,6 +5,15 @@ import * as sessionRegistry from '../services/sessionRegistry';
 
 // JWT configuration
 const JWT_SECRET = process.env.JWT_SECRET || 'innomcp-secret-key-change-in-production';
+
+// Validate secret strength at startup
+if (JWT_SECRET === 'innomcp-secret-key-change-in-production' || JWT_SECRET.length < 32) {
+  console.error(
+    'FATAL: JWT_SECRET is insecure. Set a strong secret (≥ 32 chars) via JWT_SECRET environment variable.'
+  );
+  process.exit(1);
+}
+
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d'; // 7 days
 const REFRESH_TOKEN_EXPIRES_IN = '30d'; // 30 days
 
@@ -15,6 +24,7 @@ export interface JWTPayload {
   userDispName: string;
   /** JWT ID — unique per token, used for session tracking and revocation */
   jti?: string;
+  scope?: string[];
   iat?: number;
   exp?: number;
 }
@@ -29,13 +39,20 @@ export interface AuthRequest extends Request {
  * @param payload User data to encode in token
  * @returns JWT token string
  */
-export function generateAccessToken(payload: Omit<JWTPayload, 'iat' | 'exp'>): string {
+export function generateAccessToken(
+  payload: Omit<JWTPayload, 'iat' | 'exp' | 'scope'>,
+  scope?: string[]
+): string {
   const jti = payload.jti ?? crypto.randomUUID();
-  return jwt.sign({ ...payload, jti }, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN as string,
-    issuer: 'innomcp',
-    audience: 'innomcp-client'
-  } as jwt.SignOptions);
+  return jwt.sign(
+    { ...payload, jti, ...(scope ? { scope } : {}) },
+    JWT_SECRET,
+    {
+      expiresIn: JWT_EXPIRES_IN as string,
+      issuer: 'innomcp',
+      audience: 'innomcp-client',
+    } as jwt.SignOptions
+  );
 }
 
 /**
@@ -214,4 +231,35 @@ export function setTokenCookie(res: Response, token: string, isRefreshToken = fa
 export function clearTokenCookies(res: Response): void {
   res.clearCookie('token', { path: '/' });
   res.clearCookie('refreshToken', { path: '/' });
+}
+
+/**
+ * Middleware to require specific scope(s) for a route.
+ * Must be used after `authenticateToken`.
+ */
+export function requireScope(...requiredScopes: string[]) {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    const user = req.user;
+
+    if (!user || !user.scope) {
+      res.status(403).json({
+        success: false,
+        error: 'Insufficient permissions',
+        message: 'No scopes available for this user',
+      });
+      return;
+    }
+
+    const hasAll = requiredScopes.every(s => user.scope!.includes(s));
+    if (!hasAll) {
+      res.status(403).json({
+        success: false,
+        error: 'Insufficient permissions',
+        message: `Required scopes: ${requiredScopes.join(', ')}`,
+      });
+      return;
+    }
+
+    next();
+  };
 }
