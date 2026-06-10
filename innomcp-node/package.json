@@ -76,7 +76,7 @@
     "natural": "^8.1.0",
     "ollama": "^0.6.3",
     "rehype-sanitize": "^5.0.1",
-    "rehype-stringify": "^9.0.4",
+    "rehype-stringify": "^10.0.1",
     "remark": "^15.0.1",
     "remark-html": "^16.0.1",
     "remark-parse": "^10.0.2",
