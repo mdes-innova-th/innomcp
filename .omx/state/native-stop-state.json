@@ -259,6 +259,16 @@
         "last_turn_id": "019e55e3-5681-73e3-80ad-0e7dfbce0e6a",
         "last_thread_id": null
       }
+    },
+    "019eb273-f5de-7092-9606-5eed3e4c6b83": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|`network/loop/latest-fleet-progress.json`: not safe. it replaces a completed, evidenced run with a transient `running` snapshot, sets `notify`/`artifacts` to `null`, and includes a truncated `latest.reply`. that is likely to regress consumers expecting complete artifacts or stable evidence. `network/provider-status.json`: mostly plausible as a fresh probe cache, but it removes `ollama_cloud` from usable due to quota and adds `innova_bot`, `ollama_local`, and `ollama_mdes`. that is only safe if this file is intentionally a volatile runtime snapshot. as a committed diff, it is environment-specific and can cause routing changes/regressions. the diff is not a safe code change; it commits transient operational state with incomplete progress and changed backend availability. verdict: fail",
+        "first_seen_at": "2026-06-10T16:53:45.710Z",
+        "last_seen_at": "2026-06-10T16:53:45.710Z",
+        "repeat_count": 1,
+        "last_turn_id": "019eb273-f616-7792-82c1-5b1fe0b87a3f",
+        "last_thread_id": null
+      }
     }
   }
 }
