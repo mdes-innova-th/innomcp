@@ -14,6 +14,8 @@ interface MDESBrandHeaderProps {
   onToggleWorkspace?: () => void;
   workspaceOpen?: boolean;
   onToggleMultiAgent?: () => void;
+  onToggleModelSettings?: () => void;
+  modelSettingsOpen?: boolean;
   conversationTitle?: string;
 }
 
@@ -28,6 +30,8 @@ export default function MDESBrandHeader({
   onToggleWorkspace,
   workspaceOpen = false,
   onToggleMultiAgent,
+  onToggleModelSettings,
+  modelSettingsOpen = false,
   conversationTitle,
 }: MDESBrandHeaderProps) {
   return (
@@ -117,6 +121,20 @@ export default function MDESBrandHeader({
           >
             <span>🗂️</span>
             <span className="hidden sm:inline">พื้นที่ทำงาน</span>
+          </button>
+        )}
+
+        {/* Model/Provider settings — openclaude-style provider management */}
+        {onToggleModelSettings && (
+          <button
+            onClick={onToggleModelSettings}
+            className={`flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+              modelSettingsOpen ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+            title="จัดการ AI Provider"
+            aria-label="จัดการ AI Provider"
+          >
+            <span aria-hidden="true">⚙️</span>
           </button>
         )}
       </div>

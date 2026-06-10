@@ -45,6 +45,7 @@ import StatusRibbon from "@/app/components/chat/StatusRibbon";
 import MDESBrandHeader from "@/app/components/chat/MDESBrandHeader";
 import ManusWorkspacePanel from "@/app/components/chat/ManusWorkspacePanel";
 import CollapsibleAgentWrapper from "@/app/components/chat/CollapsibleAgentWrapper";
+import ModelSettingsPanel from "@/app/components/chat/ModelSettingsPanel";
 
 // Phase 4 � lazy-load panel/modal components not needed on initial paint
 const ThinkingModal = dynamic(() => import("@/app/components/chat/ThinkingModal"), {
@@ -277,6 +278,7 @@ const ChatPage: React.FC = () => {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [tourActive, setTourActive] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [multiAgentOpen, setMultiAgentOpen] = useState(false);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
@@ -1583,6 +1585,15 @@ const ChatPage: React.FC = () => {
 
       <KeyboardShortcutsPanel open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
 
+      {/* Provider Management — openclaude-style model settings panel */}
+      {modelSettingsOpen && (
+        <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[460px] border-l border-border/60 bg-background/98 shadow-2xl backdrop-blur-sm overflow-y-auto manus-panel-enter">
+          <ErrorBoundary componentName="ModelSettingsPanel">
+            <ModelSettingsPanel onClose={() => setModelSettingsOpen(false)} />
+          </ErrorBoundary>
+        </div>
+      )}
+
       {/* INNOMCP Manus Workspace — persistent right-side panel */}
       {workspaceOpen && (
         <ErrorBoundary componentName="ManusWorkspacePanel">
@@ -1707,6 +1718,8 @@ const ChatPage: React.FC = () => {
           onToggleWorkspace={() => setWorkspaceOpen(v => !v)}
           workspaceOpen={workspaceOpen}
           onToggleMultiAgent={() => setMultiAgentOpen(v => !v)}
+          onToggleModelSettings={() => setModelSettingsOpen(v => !v)}
+          modelSettingsOpen={modelSettingsOpen}
           conversationTitle={hasMessages ? activeConversationTitle : undefined}
         />
         <div className="relative z-10 w-full px-3 sm:px-5 lg:px-6 xl:px-8">
