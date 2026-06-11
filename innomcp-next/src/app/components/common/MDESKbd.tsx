@@ -1,47 +1,52 @@
-use client;
+"use client";
 
-import React from 'react';
+import React from "react";
 
 interface MDESKbdProps {
+  /** Single key string or array of key strings */
   keys: string | string[];
+  /** Separator between keys, default "+" */
   separator?: string;
+  /** Additional classes for the wrapper element */
   className?: string;
 }
 
-const MDESKbd: React.FC<MDESKbdProps> = ({
+export function MDESKbd({
   keys,
-  separator = '+',
-  className = '',
-}) => {
-  if (!keys) return null;
+  separator = "+",
+  className,
+}: MDESKbdProps) {
+  const keyArray = typeof keys === "string" ? [keys] : keys;
 
-  const keyArray = Array.isArray(keys) ? keys : [keys];
-  if (keyArray.length === 0) return null;
+  if (!keyArray.length) return null;
 
-  const label = keyArray.join(` ${separator} `);
+  const ariaLabel = keyArray.join(` ${separator} `);
 
   return (
     <span
-      aria-label={`Keyboard shortcut: ${label}`}
-      className={`inline-flex items-center gap-x-1 ${className}`}
+      className={`inline-flex items-center ${className ?? ""}`}
+      aria-label={ariaLabel}
     >
       {keyArray.map((key, index) => (
-        <React.Fragment key={`${key}-${index}`}>
-          <kbd className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-mono font-medium text-gray-800 bg-gray-100 border border-gray-300 rounded shadow-sm dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600">
-            {key}
-          </kbd>
-          {index < keyArray.length - 1 && (
+        <React.Fragment key={index}>
+          {index > 0 && (
             <span
+              className="mx-0.5 select-none text-gray-400 dark:text-gray-500"
               aria-hidden="true"
-              className="text-xs text-gray-500 dark:text-gray-400 mx-0.5 select-none"
             >
               {separator}
             </span>
           )}
+          <kbd
+            aria-hidden="true"
+            className="rounded border border-gray-300 bg-gray-100 px-1.5 py-0.5 font-mono text-xs text-gray-900 shadow-sm dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+          >
+            {key}
+          </kbd>
         </React.Fragment>
       ))}
     </span>
   );
-};
+}
 
 export default MDESKbd;
