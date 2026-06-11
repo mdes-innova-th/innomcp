@@ -1,7 +1,10 @@
 // chat.ts — shared chat type definitions for INNOMCP
 export interface ChatMessage {
-  sender: "user" | "ai";
-  text: string;
+  id?: string;
+  sender?: "user" | "ai";
+  role?: "user" | "assistant" | "system";
+  text?: string;
+  content?: string;
   fullText?: string;
   isAnimating?: boolean;
   structuredContent?: unknown;
@@ -25,6 +28,6 @@ export interface Artifact {
   createdAt: number;
 }
 
-export type ChatMode = "normal" | "multiagent" | "reasoning" | "fast";
+export type ChatMode = "normal" | "multiagent" | "reasoning" | "fast" | "general";
 
-export type ToolType = "auto" | "weather" | "geo" | "evidence" | "knowledge" | "image" | "code";
+export type ToolType = "auto" | "weather" | "geo" | "evidence" | "knowledge" | "image" | "code" | "none";

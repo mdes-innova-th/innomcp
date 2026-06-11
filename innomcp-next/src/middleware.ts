@@ -81,7 +81,7 @@ export function middleware(request: NextRequest) {
   // Determine client IP (edge‑friendly, no Node APIs)
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.ip ||
+    request.headers.get('x-real-ip') ||
     'anonymous';
 
   // Choose rate limit: chat routes get a stricter window

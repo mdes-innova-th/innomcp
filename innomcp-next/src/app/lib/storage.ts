@@ -1,4 +1,3 @@
-```typescript
 // storage.ts — robust localStorage wrapper for INNOMCP
 // Handles SSR, quota exceeded, JSON parse errors, and TypeScript generics.
 
@@ -187,7 +186,7 @@ export class INNOMCPStorage {
    * Quota information. Uses navigator.storage.estimate() if available,
    * otherwise falls back to a typical limit of 5 MB.
    */
-  quota(): { used: number; total: number; percentage: number } {
+  async quota(): Promise<{ used: number; total: number; percentage: number }> {
     if (this.isServer) {
       // Server-side: no quota, just report memory map size
       const used = this.size();
@@ -263,4 +262,3 @@ export const STORAGE_KEYS = {
   THEME: 'theme',
   SIDEBAR_STATE: 'innomcp-sidebar-state',
 } as const;
-```

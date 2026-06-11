@@ -130,16 +130,14 @@ export function useOfflineSync(
       for (const msg of currentQueue) {
         const success = await sendWithRetry(msg);
         if (success) {
-          toRemove.add(msg.id);
+          if (msg.id) toRemove.add(msg.id);
         } else {
-          // Stop processing further messages if one fails after all retries?
-          // Decision: continue with next, but mark sync as incomplete.
           console.warn(`Message ${msg.id} could not be sent, keeping in queue.`);
         }
       }
 
       if (toRemove.size > 0) {
-        setPendingMessages((prev) => prev.filter((msg) => !toRemove.has(msg.id)));
+        setPendingMessages((prev) => prev.filter((msg) => !toRemove.has(msg.id ?? '')));
       }
     } catch (error) {
       console.error('Sync process encountered an error:', error);

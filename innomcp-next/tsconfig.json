@@ -37,6 +37,8 @@
     "**/*.mts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "tests/**/*.test.*",
+    "e2e/**/*.spec.*"
   ]
 }
