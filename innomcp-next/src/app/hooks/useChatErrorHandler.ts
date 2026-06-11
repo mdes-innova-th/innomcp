@@ -1,5 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 "use client";
 
 import { useState, useCallback } from "react";
@@ -24,12 +22,14 @@ interface UseChatErrorHandlerReturn {
 function isWebSocketError(error: unknown): error is { code?: number; message: string } {
   if (typeof error !== "object" || error === null) return false;
   const e = error as Record<string, unknown>;
-  return (
-    ("code" in e && typeof e.code === "number") ||
+  const hasCode = "code" in e && typeof e.code === "number";
+  const hasCloseType =
     "message" in e &&
     typeof e.message === "string" &&
-    (typeof (e as any).type === "string" && (e as any).type === "close")
-  );
+    "type" in e &&
+    typeof e.type === "string" &&
+    e.type === "close";
+  return hasCode || hasCloseType;
 }
 
 function isTimeoutError(error: unknown): error is { elapsed: number } {
@@ -49,14 +49,14 @@ function isProviderError(error: unknown): error is { provider?: string; statusCo
   );
 }
 
-function isFileTooLargeError(error: unknown): error is { fileName: string; sizeMB: number } {
+function isFileTooLargeError(error: unknown): error is Error {
   if (error instanceof Error) {
     return /file too large|ขนาดไฟล์ใหญ่เกิน/i.test(error.message);
   }
   return false;
 }
 
-function isToolError(error: unknown): error is { toolName: string; message: string } {
+function isToolError(error: unknown): error is Error {
   if (error instanceof Error) {
     return /tool|function_call|ฟังก์ชัน/i.test(error.message);
   }
@@ -97,7 +97,7 @@ export function useChatErrorHandler(): UseChatErrorHandlerReturn {
         type: "provider_error",
         provider: (error as { provider?: string }).provider ?? "unknown",
         statusCode: (error as { statusCode?: number }).statusCode,
-        message: (error as { message: string }).message ?? String(error),
+        message: (error as { message: string }).message,
       };
     }
     // File too large

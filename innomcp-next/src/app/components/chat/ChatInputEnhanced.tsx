@@ -1,5 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -147,6 +145,7 @@ interface ChatInputEnhancedProps {
   handleStop: () => void;
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
   fileInputRef: React.RefObject<HTMLInputElement | null>;
+  handleNewChat: () => void;
   handleFileUpload: (e: ChangeEvent<HTMLInputElement>) => void;
   handleRemoveImage: () => void;
   selectedImage: string | null;
@@ -174,6 +173,7 @@ const ChatInputEnhanced: React.FC<ChatInputEnhancedProps> = ({
   handleStop,
   textareaRef,
   fileInputRef,
+  handleNewChat,
   handleFileUpload,
   handleRemoveImage,
   selectedImage,
@@ -234,6 +234,7 @@ const ChatInputEnhanced: React.FC<ChatInputEnhancedProps> = ({
           isSocketReady={isSocketReady}
           sendMessage={sendMessage}
           handleStop={handleStop}
+          handleNewChat={handleNewChat}
           textareaRef={textareaRef}
           fileInputRef={fileInputRef}
           handleFileUpload={handleFileUpload}

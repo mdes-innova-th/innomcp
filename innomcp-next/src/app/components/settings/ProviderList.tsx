@@ -1,22 +1,21 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import ProviderCard from "./ProviderCard";
 
-// Types
+// Aligned with ProviderCard's ProviderInfo
 interface Provider {
   id: string;
   name: string;
-  description?: string;
-  endpoint?: string;
-  apiKey?: string;
+  type: string;
+  baseUrl: string;
+  model: string;
+  capabilities: string[];
   enabled: boolean;
   priority: number;
   isDefault: boolean;
-  healthStatus?: "online" | "offline" | "unknown";
-  // add other fields as needed
+  healthy?: boolean;
+  latencyMs?: number;
 }
 
 interface ProviderListProps {
@@ -77,7 +76,14 @@ export default function ProviderList({ onAddProvider, className = "" }: Provider
         prev.map(p => {
           const update = statuses.find(s => s.id === p.id);
           if (update) {
-            return { ...p, healthStatus: update.healthStatus };
+            return {
+              ...p,
+              healthy: update.healthStatus === "online"
+                ? true
+                : update.healthStatus === "offline"
+                ? false
+                : undefined,
+            };
           }
           return p;
         })
@@ -183,6 +189,29 @@ export default function ProviderList({ onAddProvider, className = "" }: Provider
     }
   };
 
+  // Edit handler (stub — parent controls edit modal via onAddProvider pattern)
+  const handleEdit = (_providerId: string) => {
+    // Future: open edit modal with provider pre-filled
+  };
+
+  // Test handler — run a single-provider health check
+  const handleTest = async (providerId: string) => {
+    try {
+      const res = await fetch(`/api/ai/providers/${providerId}/test`, { method: "POST" });
+      if (!res.ok) throw new Error("ไม่สามารถทดสอบผู้ให้บริการได้");
+      const result: { healthy: boolean; latencyMs?: number } = await res.json();
+      setProviders(prev =>
+        prev.map(p =>
+          p.id === providerId
+            ? { ...p, healthy: result.healthy, latencyMs: result.latencyMs }
+            : p
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการทดสอบ");
+    }
+  };
+
   // Toggle single provider (passed to ProviderCard)
   const handleToggle = async (providerId: string, enabled: boolean) => {
     try {
@@ -272,10 +301,10 @@ export default function ProviderList({ onAddProvider, className = "" }: Provider
           <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">ค่าเริ่มต้น</span>
           <ProviderCard
             provider={defaultProvider}
-            onToggle={(enabled: boolean) => handleToggle(defaultProvider.id, enabled)}
-            onDelete={() => {}} // cannot delete
-            disableDelete
-            disableDrag
+            onToggle={(id: string, enabled: boolean) => handleToggle(id, enabled)}
+            onEdit={() => {}} // default provider: no edit
+            onDelete={() => {}} // default provider: cannot delete
+            onTest={(id: string) => handleTest(id)}
           />
         </div>
       )}
@@ -334,8 +363,10 @@ export default function ProviderList({ onAddProvider, className = "" }: Provider
               >
                 <ProviderCard
                   provider={provider}
-                  onToggle={(enabled: boolean) => handleToggle(provider.id, enabled)}
-                  onDelete={() => handleDelete(provider.id)}
+                  onToggle={(id: string, enabled: boolean) => handleToggle(id, enabled)}
+                  onEdit={(id: string) => handleEdit(id)}
+                  onDelete={(id: string) => handleDelete(id)}
+                  onTest={(id: string) => handleTest(id)}
                 />
               </div>
             ))}

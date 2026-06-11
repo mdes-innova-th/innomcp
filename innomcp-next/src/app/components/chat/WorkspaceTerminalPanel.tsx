@@ -1,5 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 "use client";
 
 import React, { useEffect, useLayoutEffect, useMemo, useRef } from "react";
@@ -13,7 +11,7 @@ import type { AgentEvent } from "./useAgentEventStream";
 interface TerminalLine {
   type: "input" | "output" | "error" | "info" | "success";
   content: string;
-  timestamp: number;
+  timestamp: string;
   duration?: number;
 }
 
@@ -27,8 +25,8 @@ interface WorkspaceTerminalPanelProps {
 // Helpers
 // ============================================================
 
-/** Convert Unix-ms timestamp to HH:mm:ss string in Thai locale */
-function formatTime(timestamp: number): string {
+/** Convert ISO timestamp string to HH:mm:ss in Thai locale */
+function formatTime(timestamp: string): string {
   return new Date(timestamp).toLocaleTimeString("th-TH", {
     hour12: false,
     hour: "2-digit",
@@ -77,37 +75,51 @@ const WorkspaceTerminalPanel: React.FC<WorkspaceTerminalPanelProps> = ({
     const resultLines: TerminalLine[] = [];
 
     for (const evt of shellEvents) {
-      // 1) Input line – green prompt
-      if (evt.input !== undefined && evt.input !== null) {
+      const durationMs =
+        evt.totalMs !== undefined
+          ? evt.totalMs
+          : evt.latencyMs !== undefined
+          ? evt.latencyMs
+          : undefined;
+
+      // 1) Input line – green prompt (tool name acts as the command)
+      if (evt.toolName) {
         resultLines.push({
           type: "input",
-          content: evt.input,
+          content: evt.toolName,
           timestamp: evt.timestamp,
         });
       }
 
-      // 2) Output lines – white, split by newline (if any)
-      if (evt.output) {
-        const outLines = evt.output.split("\n");
+      // 2) Output lines – white, split by newline
+      // previewText carries a short human-readable result; fall back to publicSummary
+      const outputText =
+        evt.type !== "error"
+          ? evt.previewText ?? (evt.type === "tool_call_finished" ? evt.publicSummary : undefined)
+          : undefined;
+
+      if (outputText) {
+        const outLines = outputText.split("\n");
         for (const line of outLines) {
           resultLines.push({
             type: "output",
             content: line,
             timestamp: evt.timestamp,
-            duration: evt.duration,
+            duration: durationMs,
           });
         }
       }
 
-      // 3) Error lines – red, split by newline
-      if (evt.error) {
-        const errLines = evt.error.split("\n");
+      // 3) Error lines – red
+      if (evt.type === "error") {
+        const errText = evt.publicSummary;
+        const errLines = errText.split("\n");
         for (const line of errLines) {
           resultLines.push({
             type: "error",
             content: line,
             timestamp: evt.timestamp,
-            duration: evt.duration,
+            duration: durationMs,
           });
         }
       }

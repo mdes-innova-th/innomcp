@@ -1,12 +1,8 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 "use client";
 
 import { useMemo, useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/types/chat";
 import type { AgentEvent } from "@/app/components/chat/useAgentEventStream";
-// กำหนดประเภท AgentEvent จาก useAgentEventStream (เพื่อความเข้ากันได้)
-import type { AgentEvent as AgentEventStream } from "./useAgentEventStream";
 
 // ----------------------------------------------------------------------
 // Private helper functions
@@ -20,7 +16,7 @@ function groupMessagesByDate(
 ): { date: string; messages: ChatMessage[] }[] {
   const groups = new Map<string, ChatMessage[]>();
   messages.forEach((msg) => {
-    const date = new Date(msg.timestamp).toLocaleDateString("th-TH", {
+    const date = new Date(msg.timestamp ?? 0).toLocaleDateString("th-TH", {
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -44,7 +40,7 @@ function groupMessagesByDate(
 function countActiveAgents(events: AgentEvent[]): number {
   const agents = new Set<string>();
   events.forEach((e) => {
-    if (e.agent) agents.add(e.agent);
+    if (e.agentId) agents.add(e.agentId);
   });
   return agents.size;
 }
@@ -55,7 +51,8 @@ function countActiveAgents(events: AgentEvent[]): number {
 function getActiveModels(events: AgentEvent[]): string[] {
   const models = new Set<string>();
   events.forEach((e) => {
-    if (e.type === "llm_response" && e.model) {
+    // model is present on agent_finished events (and optionally on others)
+    if (e.type === "agent_finished" && e.model) {
       models.add(e.model);
     }
   });
@@ -63,11 +60,11 @@ function getActiveModels(events: AgentEvent[]): string[] {
 }
 
 /**
- * โมเดลที่ถูกใช้ในเหตุการณ์ llm_response ล่าสุด
+ * โมเดลที่ถูกใช้ในเหตุการณ์ agent_finished ล่าสุด (เดิมคือ llm_response)
  */
 function getLatestModel(events: AgentEvent[]): string | undefined {
   for (let i = events.length - 1; i >= 0; i--) {
-    if (events[i].type === "llm_response" && events[i].model) {
+    if (events[i].type === "agent_finished" && events[i].model) {
       return events[i].model;
     }
   }
@@ -79,9 +76,9 @@ function getLatestModel(events: AgentEvent[]): string | undefined {
  */
 function getTotalElapsed(events: AgentEvent[]): number {
   if (events.length === 0) return 0;
-  // events ถูกเรียงตามลำดับเวลาที่ได้รับ (chronological)
-  const start = events[0].timestamp;
-  const end = events[events.length - 1].timestamp;
+  // timestamp is an ISO string — parse to ms for arithmetic
+  const start = Date.parse(events[0].timestamp);
+  const end = Date.parse(events[events.length - 1].timestamp);
   return end - start;
 }
 

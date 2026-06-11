@@ -1,5 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 "use client";
 
 import React, {
@@ -13,12 +11,17 @@ import React, {
 // Store stubs — replace with real Zustand stores when available
 interface ConvSummary { id: string; title: string; summary?: string; messages: Array<{sender:string;text:string}>; }
 interface MCPTool { name: string; description: string; category?: string; }
-interface OllamaModel { name: string; size?: number; family?: string; }
-const useConversationStore = (selector: (s: {summaries: ConvSummary[]}) => unknown) =>
+interface OllamaModel { name: string; description?: string; size?: number; family?: string; }
+
+interface ConvStoreState { summaries: ConvSummary[]; }
+interface ToolStoreState { tools: MCPTool[]; }
+interface ModelStoreState { models: OllamaModel[]; }
+
+const useConversationStore = <T,>(selector: (s: ConvStoreState) => T): T =>
   selector({ summaries: [] });
-const useToolStore = (selector: (s: {tools: MCPTool[]}) => unknown) =>
+const useToolStore = <T,>(selector: (s: ToolStoreState) => T): T =>
   selector({ tools: [] });
-const useModelStore = (selector: (s: {models: OllamaModel[]}) => unknown) =>
+const useModelStore = <T,>(selector: (s: ModelStoreState) => T): T =>
   selector({ models: [] });
 
 type SearchScope = "conversations" | "tools" | "models" | "all";
@@ -58,11 +61,11 @@ export default function MDESSearchPanel({
 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const debounceRef = useRef<NodeJS.Timeout>();
+  const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
-  const conversations = useConversationStore((s) => (s as {summaries: ConvSummary[]}).summaries) as ConvSummary[];
-  const tools = useToolStore((s) => (s as {tools: MCPTool[]}).tools) as MCPTool[];
-  const models = useModelStore((s) => (s as {models: OllamaModel[]}).models) as OllamaModel[];
+  const conversations = useConversationStore((s) => s.summaries);
+  const tools = useToolStore((s) => s.tools);
+  const models = useModelStore((s) => s.models);
 
   // Load search history on mount
   useEffect(() => {
@@ -238,7 +241,7 @@ export default function MDESSearchPanel({
 
   // Close on Escape
   useEffect(() => {
-    const handleKeyDown = (e: GlobalKeyEvent) => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if (e.key === "Escape" && isOpen) {
         onClose();
       }
@@ -246,7 +249,6 @@ export default function MDESSearchPanel({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
-  type GlobalKeyEvent = KeyboardEvent;
 
   // Focus input when opened
   useEffect(() => {

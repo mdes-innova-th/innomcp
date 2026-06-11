@@ -1,5 +1,3 @@
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-nocheck
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -26,13 +24,42 @@ const GROUP_LABELS: Record<string, string> = {
   synthesis: 'การสังเคราะห์ (Synthesis)',
 };
 
+type StepStatus = 'active' | 'done' | 'error' | 'waiting';
+
+/** Derive a display status from the AgentEvent type field. */
+function statusOf(event: AgentEvent): StepStatus {
+  const t = event.type;
+  if (t === 'error' || t === 'fallback') return 'error';
+  if (
+    t === 'agent_finished' ||
+    t === 'tool_call_finished' ||
+    t === 'fact_found' ||
+    t === 'final_answer' ||
+    t === 'feedback_saved' ||
+    t === 'timing' ||
+    t === 'follow_up_suggestions' ||
+    t === 'critique'
+  )
+    return 'done';
+  if (
+    t === 'agent_started' ||
+    t === 'agent_run_started' ||
+    t === 'tool_call_started' ||
+    t === 'agent_delta' ||
+    t === 'draft_delta' ||
+    t === 'route_selected'
+  )
+    return 'active';
+  return 'waiting';
+}
+
 // ==================== Component ====================
 export default function AgentStepsView({
   events,
   isStreaming,
   className = '',
 }: AgentStepsViewProps) {
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
   // Group events by type, preserving order
   const groups = useMemo(() => {
@@ -63,7 +90,10 @@ export default function AgentStepsView({
   const isComplete =
     !isStreaming &&
     events.length > 0 &&
-    events.every((e) => e.status === 'done' || e.status === 'error');
+    events.every((e) => {
+      const s = statusOf(e);
+      return s === 'done' || s === 'error';
+    });
 
   const totalElapsed = useMemo(() => {
     if (events.length === 0) return 0;
@@ -73,11 +103,11 @@ export default function AgentStepsView({
     return (max - min) / 1000; // seconds
   }, [events, isStreaming]);
 
-  const toggleExpand = (id: string) => {
+  const toggleExpand = (idx: number) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
       return next;
     });
   };
@@ -140,16 +170,22 @@ export default function AgentStepsView({
               {/* Connecting line */}
               <div className="absolute left-5 top-0 bottom-0 w-px bg-gray-200" />
 
-              {group.items.map((event, idxInGroup) => {
+              {group.items.map((event, _idxInGroup) => {
                 const currentIndex = globalIndex++;
-                const isExpanded = expandedIds.has(event.id);
-                const isActive = event.status === 'active';
-                const isDone = event.status === 'done';
-                const isError = event.status === 'error';
+                const isExpanded = expandedIds.has(currentIndex);
+                const stepStatus = statusOf(event);
+                const isActive = stepStatus === 'active';
+                const isDone = stepStatus === 'done';
+                const isError = stepStatus === 'error';
+                // Map publicSummary → both the label and the expandable detail
+                const label = event.publicSummary;
+                // latencyMs is in milliseconds; display as seconds
+                const elapsedS =
+                  event.latencyMs !== undefined ? event.latencyMs / 1000 : undefined;
 
                 return (
                   <div
-                    key={event.id}
+                    key={currentIndex}
                     className="slide-in-step flex items-start mb-4 relative"
                     style={{ animationDelay: `${currentIndex * 0.06}s` }}
                   >
@@ -198,12 +234,12 @@ export default function AgentStepsView({
                     {/* Content */}
                     <div
                       className="ml-4 flex-1 min-w-0 cursor-pointer"
-                      onClick={() => event.summary && toggleExpand(event.id)}
-                      title={event.summary ? 'คลิกเพื่อดูรายละเอียด' : undefined}
+                      onClick={() => event.previewText && toggleExpand(currentIndex)}
+                      title={event.previewText ? 'คลิกเพื่อดูรายละเอียด' : undefined}
                     >
                       <div className="flex items-center flex-wrap gap-2">
                         <span className="text-sm font-medium text-gray-800">
-                          {currentIndex + 1}. {event.label}
+                          {currentIndex + 1}. {label}
                         </span>
                         {event.model && (
                           <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
@@ -215,20 +251,20 @@ export default function AgentStepsView({
                             กำลังทำงาน...
                           </span>
                         )}
-                        {event.elapsed !== undefined && event.status !== 'active' && (
+                        {elapsedS !== undefined && !isActive && (
                           <span className="text-xs text-gray-400 ml-auto">
-                            {event.elapsed.toFixed(1)}s
+                            {elapsedS.toFixed(1)}s
                           </span>
                         )}
                       </div>
 
-                      {/* Expandable summary */}
-                      {event.summary && (
+                      {/* Expandable preview detail */}
+                      {event.previewText && (
                         <div className="mt-1 text-sm text-gray-600">
                           {isExpanded ? (
-                            <p className="whitespace-pre-wrap">{event.summary}</p>
+                            <p className="whitespace-pre-wrap">{event.previewText}</p>
                           ) : (
-                            <p className="line-clamp-2">{event.summary}</p>
+                            <p className="line-clamp-2">{event.previewText}</p>
                           )}
                         </div>
                       )}

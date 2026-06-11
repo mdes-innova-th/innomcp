@@ -1,10 +1,9 @@
-// @ts-nocheck
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { AgentStepsView } from "./AgentStepsView";
-import { WorkspaceTerminalPanel } from "./WorkspaceTerminalPanel";
-import { WorkspaceTabBar } from "./WorkspaceTabBar";
+import AgentStepsView from "./AgentStepsView";
+import WorkspaceTerminalPanel from "./WorkspaceTerminalPanel";
+import WorkspaceTabBar from "./WorkspaceTabBar";
 import type { AgentEvent } from "./useAgentEventStream";
 import type { Artifact } from "./ArtifactPanel";
 import { X, Download } from "lucide-react";
@@ -68,7 +67,7 @@ export const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
             ) : (
               webEvents.map((e, idx) => (
                 <div
-                  key={e.id ?? idx}
+                  key={`${e.runId}-${idx}`}
                   className="bg-white border border-gray-100 rounded-lg p-3 shadow-sm"
                 >
                   <p className="text-sm text-gray-600 whitespace-pre-wrap break-words">
@@ -81,7 +80,7 @@ export const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
         );
       }
       case "terminal":
-        return <WorkspaceTerminalPanel events={events} />;
+        return <WorkspaceTerminalPanel events={events} isStreaming={isStreaming} />;
       case "files":
         return (
           <div className="p-4 space-y-3 overflow-y-auto h-full">
@@ -99,7 +98,7 @@ export const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
                     {artifact.name}
                   </span>
                   <a
-                    href={artifact.downloadUrl ?? "#"}
+                    href={"#"}
                     download={artifact.name}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -148,9 +147,9 @@ export const WorkspaceManager: React.FC<WorkspaceManagerProps> = ({
 
       {/* Tab Bar */}
       <WorkspaceTabBar
-        tabs={TABS}
+        tabs={[...TABS]}
         activeTab={activeTab}
-        onTabChange={(tabId) => setActiveTab(tabId)}
+        onTabChange={(tabId: string) => setActiveTab(tabId)}
       />
 
       {/* Tab content */}
