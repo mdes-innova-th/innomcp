@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { isIOS } from '@/lib/userAgent' // assume a utility exists; if not, inline check
+const isIOS = () => typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent);
 
 // Extend window to include beforeinstallprompt (non‑standard)
 interface BeforeInstallPromptEvent extends Event {
@@ -113,9 +113,4 @@ export default function PWAInstallPrompt({ className = '' }: PWAInstallPromptPro
   )
 }
 
-// Inline iOS detection utility if not provided elsewhere
-function isIOS(): boolean {
-  if (typeof navigator === 'undefined') return false
-  const ua = navigator.userAgent
-  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && typeof navigator.standalone !== 'undefined')
-}
+// isIOS defined at top of file

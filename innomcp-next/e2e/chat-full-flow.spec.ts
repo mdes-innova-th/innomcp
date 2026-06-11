@@ -14,8 +14,9 @@ const TH_UI = {
   responseIndicator: 'message', // role/class used for response bubble
 };
 
-// Helper: wait for console errors during test
-const captureConsoleErrors = async (page) => {
+// Helper: capture console errors during test
+import type { Page } from '@playwright/test';
+const captureConsoleErrors = (page: Page) => {
   const errors: string[] = [];
   page.on('console', (msg) => {
     if (msg.type() === 'error') errors.push(msg.text());

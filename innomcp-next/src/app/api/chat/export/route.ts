@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return new Response(stream, {
+    return new Response(stream as unknown as BodyInit, {
       headers: {
         "Content-Type": contentType,
         "Content-Disposition": `attachment; filename="${filename}"`,

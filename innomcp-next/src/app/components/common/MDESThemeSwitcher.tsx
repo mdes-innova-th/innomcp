@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useCallback, useMemo } from 'react';
-import { useTheme } from '@/contexts/ThemeContext';
+import ThemeContext from '@/app/context/ThemeContext';
+import { useContext } from 'react';
+const useTheme = () => useContext(ThemeContext) as unknown as { theme: string; setTheme: (t: string) => void };
 
 type Theme = 'light' | 'dark' | 'system';
 

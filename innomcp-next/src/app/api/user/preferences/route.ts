@@ -81,61 +81,55 @@ function mergePreferences(
   return { ...defaults, ...current, ...input };
 }
 
-function getCurrentPreferences(): UserPreferences {
-  const cookieStore = cookies();
+async function getCurrentPreferences(): Promise<UserPreferences> {
+  const cookieStore = await cookies();
   const prefCookie = cookieStore.get(COOKIE_NAME);
   if (prefCookie) {
     try {
       const parsed = JSON.parse(prefCookie.value);
       if (typeof parsed === "object" && parsed !== null) {
-        // Merge with defaults to fill any missing keys (for backward compatibility)
         return { ...defaults, ...parsed };
       }
-    } catch {
-      // ignore corrupt cookie
-    }
+    } catch { /* ignore */ }
   }
   return { ...defaults };
 }
 
-function setPreferencesCookie(prefs: UserPreferences): void {
-  const cookieStore = cookies();
+async function setPreferencesCookie(prefs: UserPreferences): Promise<void> {
+  const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, JSON.stringify(prefs), {
     httpOnly: false,
     path: "/",
     sameSite: "lax",
-    // no expires → session cookie
   });
 }
 
-function deletePreferencesCookie(): void {
-  const cookieStore = cookies();
+async function deletePreferencesCookie(): Promise<void> {
+  const cookieStore = await cookies();
   cookieStore.delete(COOKIE_NAME);
 }
 
 export async function GET(): Promise<NextResponse> {
-  const prefs = getCurrentPreferences();
-  // Ensure the cookie always exists (for new visitors)
-  setPreferencesCookie(prefs);
+  const prefs = await getCurrentPreferences();
+  await setPreferencesCookie(prefs);
   return NextResponse.json(prefs);
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  const currentPrefs = getCurrentPreferences();
+  const currentPrefs = await getCurrentPreferences();
   let body: unknown;
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "เนื้อหาคำขอไม่ใช่ JSON" }, { status: 400 });
   }
-
   const sanitizedInput = sanitizeInput(body);
   const updatedPrefs = mergePreferences(currentPrefs, sanitizedInput);
-  setPreferencesCookie(updatedPrefs);
+  await setPreferencesCookie(updatedPrefs);
   return NextResponse.json(updatedPrefs);
 }
 
 export async function DELETE(): Promise<NextResponse> {
-  deletePreferencesCookie();
+  await deletePreferencesCookie();
   return NextResponse.json(defaults);
 }

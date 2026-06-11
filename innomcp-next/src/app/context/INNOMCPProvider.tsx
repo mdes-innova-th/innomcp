@@ -389,5 +389,4 @@ export function useINNOMCP(): INNOMCPContextValue {
   return ctx;
 }
 
-/* Optional re‑exports for convenience */
-export { NotificationContext, NotificationProvider, useNotifications } from "./notification-context"; // not needed but can be useful; omitted for self‑containment
+// useNotifications is exported above as a named export from this module
