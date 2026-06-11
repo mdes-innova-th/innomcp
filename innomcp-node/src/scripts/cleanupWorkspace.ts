@@ -1,0 +1,69 @@
+#!/usr/bin/env node
+
+/**
+ * cleanupWorkspace.ts — Scheduled workspace cleanup script for INNOMCP node.
+ * 
+ * Usage:
+ *   node dist/scripts/cleanupWorkspace.js [--dry-run] [--max-age-days 7]
+ * 
+ * Cron example:
+ *   0 2 * * * node /path/to/dist/scripts/cleanupWorkspace.js >> /var/log/innomcp-cleanup.log 2>&1
+ * 
+ * This script deletes session directories older than the specified number of days.
+ * It uses workspaceService.cleanupOldSessions() and reports the results in Thai.
+ */
+
+import workspaceService from '../services/workspaceService';
+
+interface CleanupResult {
+  deletedCount: number;
+  freedBytes: number;
+}
+
+async function main(): Promise<void> {
+  // Parse CLI arguments
+  const args = process.argv.slice(2);
+  let dryRun = false;
+  let maxAgeDays = 7;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--dry-run') {
+      dryRun = true;
+    } else if (arg === '--max-age-days') {
+      const value = args[++i];
+      if (value === undefined) {
+        console.error('ข้อผิดพลาด: --max-age-days ต้องการค่าตัวเลข');
+        process.exit(1);
+      }
+      const parsed = parseInt(value, 10);
+      if (isNaN(parsed) || parsed < 1) {
+        console.error('ข้อผิดพลาด: --max-age-days ต้องเป็นตัวเลขบวก');
+        process.exit(1);
+      }
+      maxAgeDays = parsed;
+    } else {
+      console.error(`ข้อผิดพลาด: ไม่รู้จักอาร์กิวเมนต์ "${arg}"`);
+      process.exit(1);
+    }
+  }
+
+  console.log(`\n🧹 เริ่มทำความสะอาดพื้นที่ทำงาน...`);
+  console.log(`   โหมด: ${dryRun ? 'จำลอง (dry-run)' : 'จริง'}`);
+  console.log(`   อายุสูงสุดของเซสชัน: ${maxAgeDays} วัน\n`);
+
+  try {
+    const result: CleanupResult = await workspaceService.cleanupOldSessions({
+      maxAgeDays,
+      dryRun,
+    });
+
+    const freedMB = (result.freedBytes / (1024 * 1024)).toFixed(2);
+    console.log(`✅ เสร็จสิ้น: ทำความสะอาด ${result.deletedCount} เซสชัน, ปลดปล่อย ${freedMB} MB`);
+  } catch (error) {
+    console.error('❌ เกิดข้อผิดพลาดระหว่างทำความสะอาด:', error);
+    process.exit(1);
+  }
+}
+
+main();
