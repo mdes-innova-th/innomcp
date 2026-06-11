@@ -38,7 +38,14 @@ const chakraPetch = Chakra_Petch({
 });
 
 export const metadata: Metadata = {
-  title: title,
+  title: title || 'INNOMCP — ศูนย์ MCP ภาครัฐ',
+  description: 'ระบบ AI สำหรับภาครัฐไทย โดย MDES — Multi-Agent Chat ด้วย MDES Ollama',
+  themeColor: '#1a3c6e',
+  openGraph: {
+    title: 'INNOMCP — ศูนย์ MCP ภาครัฐ',
+    siteName: 'INNOMCP',
+    locale: 'th_TH',
+  },
 };
 
 export default async function RootLayout({

@@ -1,194 +1,222 @@
-import { EventEmitter } from 'events';
+```ts
+// toolExecutor.ts
+// Safe MCP tool execution wrapper for innomcp-node
+// Part of INNOMCP Thailand government AI platform by MDES
 
-export class ToolTimeoutError extends Error {
-  constructor() {
-    super('เครื่องมือหมดเวลา กรุณาลองใหม่อีกครั้ง');
-    this.name = 'ToolTimeoutError';
-  }
-}
-
-export class ToolParamError extends Error {
-  constructor() {
-    super('พารามิเตอร์ไม่ถูกต้อง');
-    this.name = 'ToolParamError';
-  }
-}
-
-export interface ToolDefinition {
-  name: string;
-  description: string;
-  parameters: Record<string, unknown>;
-  handler: (params: unknown) => Promise<unknown>;
-  timeout?: number;
-}
-
-export interface ExecOptions {
-  timeoutMs?: number;
-  retries?: number;
-  context?: Record<string, unknown>;
-}
-
-export interface ToolResult {
+interface ToolResult {
   success: boolean;
   data?: unknown;
   error?: string;
-  durationMs: number;
-  retries: number;
+  elapsed: number; // ms
+  toolName: string;
+  timestamp: number; // Unix ms
 }
 
-export interface ToolDefinitionPublic {
-  name: string;
-  description: string;
-  parameters: Record<string, unknown>;
-  timeout?: number;
+interface ExecuteOptions {
+  timeout?: number; // ms, default 30000
+  retries?: number; // number of retry attempts, default 1 (total attempts = retries + 1)
+  signal?: AbortSignal;
 }
 
-const DEFAULT_TIMEOUT_MS = 30_000;
-const MAX_RETRIES = 3;
-const RETRY_BASE_DELAY_MS = 1_000;
-const NOT_FOUND_MESSAGE =
-  'ไม่พบเครื่องมือที่ต้องการ';
-const EXEC_ERROR_MESSAGE =
-  'เกิดข้อผิดพลาดในการเรียกใช้เครื่องมือ';
-
-export class ToolExecutor extends EventEmitter {
-  private static instance: ToolExecutor;
-  private readonly tools = new Map<string, ToolDefinition>();
-
-  private constructor() {
-    super();
-    this.on('error', () => {});
+// Internal error types
+class TimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TimeoutError';
   }
+}
 
-  static getInstance(): ToolExecutor {
-    if (!ToolExecutor.instance) {
-      ToolExecutor.instance = new ToolExecutor();
+class AbortError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AbortError';
+  }
+}
+
+/**
+ * Safe MCP tool execution wrapper with timeout, retries, abort, and Thai error messages.
+ * Implements singleton pattern for INNOMCP.
+ */
+class ToolExecutor {
+  private registry = new Map<
+    string,
+    {
+      handler: (args: Record<string, unknown>) => Promise<unknown>;
+      description: string;
     }
-    return ToolExecutor.instance;
-  }
+  >();
 
-  register(tool: ToolDefinition): void {
-    this.tools.set(tool.name, { ...tool });
-  }
-
-  unregister(name: string): void {
-    this.tools.delete(name);
-  }
-
-  hasTool(name: string): boolean {
-    return this.tools.has(name);
-  }
-
-  listTools(): ToolDefinitionPublic[] {
-    return Array.from(this.tools, ([name, def]) => ({
-      name,
-      description: def.description,
-      parameters: def.parameters,
-      timeout: def.timeout,
-    }));
-  }
-
+  /**
+   * Execute a single tool with safety net.
+   */
   async execute(
-    name: string,
-    params: unknown,
-    options: ExecOptions = {},
+    toolName: string,
+    args: Record<string, unknown>,
+    opts?: ExecuteOptions
   ): Promise<ToolResult> {
-    const tool = this.tools.get(name);
-    if (!tool) {
-      return {
-        success: false,
-        error: NOT_FOUND_MESSAGE,
-        durationMs: 0,
-        retries: 0,
-      };
+    const startTime = Date.now();
+    const timeout = opts?.timeout ?? 30000;
+    const maxRetries = opts?.retries ?? 1;
+    const signal = opts?.signal;
+
+    if (signal?.aborted) {
+      return this.createErrorResult(toolName, startTime, 'ABORTED', this.getThaiError('ABORTED'));
     }
 
-    const effectiveTimeout = options.timeoutMs ?? tool.timeout ?? DEFAULT_TIMEOUT_MS;
-    const maxRetries = Math.min(Math.max(options.retries ?? 0, 0), MAX_RETRIES);
-    const startTime = Date.now();
+    const handlerEntry = this.registry.get(toolName);
+    if (!handlerEntry) {
+      return this.createErrorResult(
+        toolName,
+        startTime,
+        'TOOL_NOT_FOUND',
+        this.getThaiError('TOOL_NOT_FOUND')
+      );
+    }
 
-    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
-      const attemptStart = Date.now();
-      this.emit('tool:start', {
-        toolName: name,
-        attempt,
-        params,
-        context: options.context,
-      });
+    let lastError: Error | undefined;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      // Check abort before each attempt
+      if (signal?.aborted) {
+        return this.createErrorResult(toolName, startTime, 'ABORTED', this.getThaiError('ABORTED'));
+      }
 
       try {
-        const data = await this.raceWithTimeout(tool.handler(params), effectiveTimeout);
-        const totalDuration = Date.now() - startTime;
-        this.emit('tool:end', {
-          toolName: name,
-          attempt,
-          result: data,
-          attemptDurationMs: Date.now() - attemptStart,
-          totalDurationMs: totalDuration,
-        });
-
+        const result = await this.executeWithTimeout(
+          handlerEntry.handler,
+          args,
+          timeout,
+          signal
+        );
+        const elapsed = Date.now() - startTime;
         return {
           success: true,
-          data,
-          durationMs: totalDuration,
-          retries: attempt,
+          data: result,
+          elapsed,
+          toolName,
+          timestamp: Date.now(),
         };
-      } catch (error) {
-        const errorMessage = this.toErrorMessage(error);
-        this.emit('tool:error', {
-          toolName: name,
-          attempt,
-          error: errorMessage,
-          attemptDurationMs: Date.now() - attemptStart,
-          originalError: error,
-        });
+      } catch (error: unknown) {
+        lastError = error instanceof Error ? error : new Error(String(error));
 
-        if (attempt === maxRetries) {
-          return {
-            success: false,
-            error: errorMessage,
-            durationMs: Date.now() - startTime,
-            retries: attempt,
-          };
+        // Do not retry if the operation was explicitly aborted
+        if (lastError instanceof AbortError) {
+          return this.createErrorResult(
+            toolName,
+            startTime,
+            'ABORTED',
+            this.getThaiError('ABORTED')
+          );
         }
 
-        await this.delay(RETRY_BASE_DELAY_MS * Math.pow(2, attempt));
+        // If this was the last attempt, break out
+        if (attempt === maxRetries) {
+          break;
+        }
       }
     }
 
+    // All attempts exhausted – determine error code
+    const errorCode = lastError instanceof TimeoutError ? 'TIMEOUT' : 'EXECUTION_ERROR';
+    const elapsed = Date.now() - startTime;
+    return this.createErrorResult(toolName, startTime, errorCode, this.getThaiError(errorCode));
+  }
+
+  /**
+   * Batch execute multiple tools in parallel.
+   * Each tool is executed independently; failures do not block others.
+   */
+  async executeAll(
+    tools: Array<{ name: string; args: Record<string, unknown> }>
+  ): Promise<ToolResult[]> {
+    return Promise.all(tools.map((tool) => this.execute(tool.name, tool.args)));
+  }
+
+  /**
+   * Check if a tool is registered and ready.
+   */
+  isAvailable(toolName: string): boolean {
+    return this.registry.has(toolName);
+  }
+
+  /**
+   * Retrieve metadata of a tool (name and Thai description).
+   */
+  getToolInfo(toolName: string): { name: string; description: string } | undefined {
+    const entry = this.registry.get(toolName);
+    if (!entry) return undefined;
     return {
-      success: false,
-      error: EXEC_ERROR_MESSAGE,
-      durationMs: Date.now() - startTime,
-      retries: maxRetries,
+      name: toolName,
+      description: entry.description,
     };
   }
 
-  private raceWithTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new ToolTimeoutError()), timeoutMs);
-      promise
-        .then((value) => {
-          clearTimeout(timeout);
-          resolve(value);
+  /**
+   * Register a custom tool.
+   * The handler must accept a Record of arguments and return a Promise.
+   * Description is automatically set to a generic Thai string.
+   */
+  register(name: string, handler: (args: Record<string, unknown>) => Promise<unknown>): void {
+    this.registry.set(name, {
+      handler,
+      description: 'เครื่องมือที่ลงทะเบียนโดยผู้ใช้',
+    });
+  }
+
+  /**
+   * Optional: register a tool with a custom Thai description.
+   */
+  registerWithDescription(
+    name: string,
+    handler: (args: Record<string, unknown>) => Promise<unknown>,
+    description: string
+  ): void {
+    this.registry.set(name, { handler, description });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Race the handler against a timeout and abort signal.
+   */
+  private async executeWithTimeout(
+    handler: (args: Record<string, unknown>) => Promise<unknown>,
+    args: Record<string, unknown>,
+    timeout: number,
+    signal?: AbortSignal
+  ): Promise<unknown> {
+    return new Promise<unknown>((resolve, reject) => {
+      const onAbort = () => reject(new AbortError('Operation aborted'));
+
+      if (signal) {
+        signal.addEventListener('abort', onAbort, { once: true });
+      }
+
+      const handlerPromise = handler(args);
+      const timeoutId = setTimeout(() => {
+        reject(new TimeoutError(`Execution timed out after ${timeout}ms`));
+      }, timeout);
+
+      const cleanup = () => {
+        clearTimeout(timeoutId);
+        if (signal) {
+          signal.removeEventListener('abort', onAbort);
+        }
+      };
+
+      handlerPromise
+        .then((result) => {
+          cleanup();
+          resolve(result);
         })
         .catch((error) => {
-          clearTimeout(timeout);
+          cleanup();
           reject(error);
         });
     });
   }
 
-  private toErrorMessage(error: unknown): string {
-    if (error instanceof ToolTimeoutError || error instanceof ToolParamError) {
-      return error.message;
-    }
-    return EXEC_ERROR_MESSAGE;
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
-}
-
-export default ToolExecutor;
+  /**
+   *

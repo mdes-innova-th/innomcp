@@ -1,0 +1,115 @@
+# =============================================================================
+#   Docker Compose - Production Configuration
+#   สำหรับระบบ INNOMCP (MCP Hub โดย MDES)
+#   ให้บริการ frontend Next.js + backend Node.js + Database MariaDB
+#   MDES Ollama เป็น external endpoint แล้ว (https://ollama.mdes-innova.online)
+# =============================================================================
+
+version: "3.8"
+
+services:
+  # ---------------------------------------------------------------------------
+  # 1. Frontend - Next.js (innomcp-next)
+  #    รับผิดชอบแสดงผล UI ทั้งหมด สร้างจาก Dockerfile ใน ./innomcp-next
+  # ---------------------------------------------------------------------------
+  innomcp-next:
+    build:
+      context: ./innomcp-next
+      dockerfile: Dockerfile
+    container_name: innomcp-next
+    restart: always
+    ports:
+      - "3000:3000"                  # Mapping port ภายนอก/ภายใน
+    env_file:
+      - .env                         # ใช้ไฟล์ .env ร่วมกัน (ควรมี NEXT_PUBLIC_* ด้วย)
+    networks:
+      - innomcp-network
+    depends_on:
+      innomcp-node:
+        condition: service_healthy   # รอให้ backend พร้อมก่อน (health check ผ่าน)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s              # ให้เวลาเริ่มต้นนานขึ้นสำหรับ Next.js build
+    # (กรณีต้องการ mount workspace เดียวกับ backend อาจเพิ่ม volume ได้
+    #  แต่โดยทั่วไป Next.js ไม่ต้องแชร์ workspace โดยตรง)
+
+  # ---------------------------------------------------------------------------
+  # 2. Backend - Node.js (innomcp-node)
+  #    จัดการ logic หลัก, API และการเชื่อมต่อกับฐานข้อมูลและ Ollama ภายนอก
+  # ---------------------------------------------------------------------------
+  innomcp-node:
+    build:
+      context: ./innomcp-node
+      dockerfile: Dockerfile
+    container_name: innomcp-node
+    restart: always
+    ports:
+      - "3011:3011"                  # API endpoint ภายใน container ใช้ 3011
+    env_file:
+      - .env                         # ต้องมี DATABASE_URL, JWT_SECRET, OLLAMA_ENDPOINT ฯลฯ
+    networks:
+      - innomcp-network
+    depends_on:
+      mariadb:
+        condition: service_healthy   # รอ MariaDB พร้อม
+    volumes:
+      - workspace-storage:/app/workspace   # พื้นที่เก็บไฟล์ผู้ใช้ (workspace)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3011/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ---------------------------------------------------------------------------
+  # 3. Database - MariaDB 11
+  #    เก็บข้อมูลถาวร เช่น ผู้ใช้, sessions, การตั้งค่า ฯลฯ
+  # ---------------------------------------------------------------------------
+  mariadb:
+    image: mariadb:11
+    container_name: innomcp-mariadb
+    restart: always
+    environment:
+      MARIADB_DATABASE: "innomcp"      # ชื่อฐานข้อมูล
+      MARIADB_USER: "innomcp_user"     # ชื่อผู้ใช้
+      MARIADB_PASSWORD: "secure_password_change_me"  # รหัสผ่าน (ควรกำหนดผ่าน .env)
+    ports:
+      - "3306:3306"                    # เผื่อกรณีต้องการเชื่อมต่อจากภายนอก (ปิดใน production จริง)
+    volumes:
+      - mariadb-data:/var/lib/mysql    # เก็บข้อมูลฐานข้อมูลถาวร
+    networks:
+      - innomcp-network
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "localhost"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # หมายเหตุ: MDES Ollama เป็น external service ให้บริการที่
+  # https://ollama.mdes-innova.online
+  # การเชื่อมต่อไปยัง Ollama ถูกกำหนดค่าใน .env (OLLAMA_ENDPOINT)
+  # ---------------------------------------------------------------------------
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  innomcp-network:
+    driver: bridge
+    name: innomcp-network
+
+# =============================================================================
+# Volumes สำหรับข้อมูลถาวร
+# =============================================================================
+volumes:
+  mariadb-data:
+    name: innomcp_mariadb_data
+    driver: local
+  workspace-storage:
+    name: innomcp_workspace_storage
+    driver: local

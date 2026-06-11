@@ -1,213 +1,147 @@
-import EventBus from './eventBus.js';
-
-export type Priority = 'high' | 'normal' | 'low';
-export type Release = () => void;
-
-export type BackpressureStats = {
-  active: number;
-  queued: number;
-  rejected: number;
-  totalProcessed: number;
-  avgWaitMs: number;
-  pressure: 'none' | 'low' | 'medium' | 'high' | 'critical';
-};
-
-export type Limits = {
-  maxConcurrent: number;
-  maxQueued: number;
-  highPrioritySlots: number;
-  timeoutMs: number;
-};
-
-export type PressureHandler = (stats: BackpressureStats) => void;
-
-interface QueueEntry {
-  resolve: (release: Release) => void;
-  reject: (err: Error) => void;
-  priority: Priority;
-  timeoutId: ReturnType<typeof setTimeout>;
-  timestamp: number;
+interface QueueItem {
+  id: string;
+  sessionId: string;
+  execute: () => Promise<unknown>;
+  priority: number;
+  addedAt: number;
 }
 
-const DEFAULT_LIMITS: Limits = {
-  maxConcurrent: 50,
-  maxQueued: 200,
-  highPrioritySlots: 10,
-  timeoutMs: 30_000,
-};
+class BackpressureHandler {
+  private MAX_CONCURRENT = 10;
+  private MAX_QUEUE_SIZE = 100;
+  private running = 0;
+  private queue: Array<QueueItem & { deferred: { resolve: (value: unknown) => void; reject: (reason?: unknown) => void } }> = [];
+  private processed = 0;
+  private rejected = 0; // overflow rejections
+  private totalWaitTime = 0;
+  private waitCount = 0;
+  private drainResolvers: Array<() => void> = [];
 
-const QUEUE_TIMEOUT_MESSAGE =
-  'ระบบยุ่งมาก กรุณารอสักครู่';
+  /**
+   * Enqueue a task for execution. If the current running count is below MAX_CONCURRENT
+   * the task starts immediately; otherwise it waits in priority order.
+   * Tasks are dequeued in descending priority order.
+   * Queued items that exceed MAX_QUEUE_SIZE are rejected immediately.
+   */
+  enqueue(item: Omit<QueueItem, 'addedAt'>): Promise<unknown> {
+    return new Promise((resolve, reject) => {
+      if (this.queue.length >= this.MAX_QUEUE_SIZE) {
+        this.rejected++;
+        reject(new Error('Queue overflow: backpressure – too many pending requests'));
+        return;
+      }
 
-function getPressureLevel(ratio: number): BackpressureStats['pressure'] {
-  if (ratio < 0.3) return 'none';
-  if (ratio < 0.5) return 'low';
-  if (ratio < 0.7) return 'medium';
-  if (ratio < 0.9) return 'high';
-  return 'critical';
-}
-
-export class BackpressureHandler {
-  private static instance: BackpressureHandler;
-  private limits: Limits = { ...DEFAULT_LIMITS };
-  private active = 0;
-  private rejected = 0;
-  private totalProcessed = 0;
-  private readonly waitTimes: number[] = [];
-  private readonly queues: Record<Priority, QueueEntry[]> = {
-    high: [],
-    normal: [],
-    low: [],
-  };
-  private pressure: BackpressureStats['pressure'] = 'none';
-  private readonly pressureHandlers = new Set<PressureHandler>();
-
-  private constructor() {}
-
-  static getInstance(): BackpressureHandler {
-    if (!BackpressureHandler.instance) {
-      BackpressureHandler.instance = new BackpressureHandler();
-    }
-    return BackpressureHandler.instance;
-  }
-
-  acquire(priority: Priority = 'normal'): Promise<Release> {
-    const release = this.tryAcquire(priority);
-    if (release) {
-      return Promise.resolve(release);
-    }
-
-    if (this.queuedCount() >= this.limits.maxQueued) {
-      this.rejected += 1;
-      this.notifyPressureChange();
-      return Promise.reject(new Error(QUEUE_TIMEOUT_MESSAGE));
-    }
-
-    return new Promise<Release>((resolve, reject) => {
-      const entry: QueueEntry = {
-        resolve,
-        reject,
-        priority,
-        timestamp: Date.now(),
-        timeoutId: setTimeout(() => {
-          this.removeQueued(entry);
-          this.rejected += 1;
-          this.notifyPressureChange();
-          reject(new Error(QUEUE_TIMEOUT_MESSAGE));
-        }, this.limits.timeoutMs),
+      const fullItem = {
+        ...item,
+        addedAt: Date.now(),
+        deferred: { resolve, reject },
       };
 
-      this.queues[priority].push(entry);
-      this.notifyPressureChange();
+      // Insert sorted by priority descending (higher priority first)
+      this.insertSorted(fullItem);
+      this.processNext();
     });
   }
 
-  tryAcquire(priority: Priority = 'normal'): Release | null {
-    if (!this.canAcquire(priority)) {
-      return null;
-    }
+  private insertSorted(
+    item: QueueItem & { deferred: { resolve: (value: unknown) => void; reject: (reason?: unknown) => void } }
+  ): void {
+    let low = 0;
+    let high = this.queue.length;
 
-    this.active += 1;
-    this.notifyPressureChange();
-    return this.createRelease();
-  }
-
-  getStats(): BackpressureStats {
-    const avgWaitMs =
-      this.waitTimes.length === 0
-        ? 0
-        : this.waitTimes.reduce((sum, value) => sum + value, 0) / this.waitTimes.length;
-
-    return {
-      active: this.active,
-      queued: this.queuedCount(),
-      rejected: this.rejected,
-      totalProcessed: this.totalProcessed,
-      avgWaitMs,
-      pressure: getPressureLevel(this.active / Math.max(1, this.limits.maxConcurrent)),
-    };
-  }
-
-  setLimits(limits: Limits): void {
-    this.limits = { ...limits };
-    this.drainQueue();
-    this.notifyPressureChange();
-  }
-
-  onPressure(handler: PressureHandler): void {
-    this.pressureHandlers.add(handler);
-  }
-
-  private canAcquire(priority: Priority): boolean {
-    if (this.active >= this.limits.maxConcurrent) {
-      return false;
-    }
-
-    if (priority === 'high') {
-      return true;
-    }
-
-    return this.active < Math.max(0, this.limits.maxConcurrent - this.limits.highPrioritySlots);
-  }
-
-  private createRelease(): Release {
-    let released = false;
-    return () => {
-      if (released) return;
-      released = true;
-      this.active = Math.max(0, this.active - 1);
-      this.totalProcessed += 1;
-      this.drainQueue();
-      this.notifyPressureChange();
-    };
-  }
-
-  private drainQueue(): void {
-    for (const priority of ['high', 'normal', 'low'] as const) {
-      const queue = this.queues[priority];
-      while (queue.length > 0 && this.canAcquire(priority)) {
-        const entry = queue.shift();
-        if (!entry) break;
-
-        clearTimeout(entry.timeoutId);
-        this.recordWait(Date.now() - entry.timestamp);
-        this.active += 1;
-        entry.resolve(this.createRelease());
+    while (low < high) {
+      const mid = (low + high) >>> 1;
+      if (this.queue[mid].priority >= item.priority) {
+        low = mid + 1;
+      } else {
+        high = mid;
       }
     }
+
+    this.queue.splice(low, 0, item);
   }
 
-  private removeQueued(entry: QueueEntry): void {
-    const queue = this.queues[entry.priority];
-    const index = queue.indexOf(entry);
-    if (index >= 0) {
-      queue.splice(index, 1);
+  private processNext(): void {
+    while (this.running < this.MAX_CONCURRENT && this.queue.length > 0) {
+      const item = this.queue.shift()!; // guaranteed highest priority
+      this.running++;
+      const waitTime = Date.now() - item.addedAt;
+      this.totalWaitTime += waitTime;
+      this.waitCount++;
+
+      item.execute().then(
+        (result) => {
+          this.processed++;
+          this.running--;
+          item.deferred.resolve(result);
+          this.processNext();
+          this.checkDrain();
+        },
+        (error) => {
+          this.processed++;
+          this.running--;
+          item.deferred.reject(error);
+          this.processNext();
+          this.checkDrain();
+        }
+      );
     }
   }
 
-  private queuedCount(): number {
-    return this.queues.high.length + this.queues.normal.length + this.queues.low.length;
+  getStats(): { running: number; queued: number; rejected: number; processed: number; avgWaitMs: number } {
+    return {
+      running: this.running,
+      queued: this.queue.length,
+      rejected: this.rejected,
+      processed: this.processed,
+      avgWaitMs: this.waitCount ? Math.round(this.totalWaitTime / this.waitCount) : 0,
+    };
   }
 
-  private recordWait(waitMs: number): void {
-    this.waitTimes.push(waitMs);
-    if (this.waitTimes.length > 100) {
-      this.waitTimes.shift();
+  /**
+   * Returns a promise that resolves when all currently running and queued tasks
+   * have finished (i.e. both running and queue are empty).
+   */
+  drain(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (this.running === 0 && this.queue.length === 0) {
+        resolve();
+        return;
+      }
+      this.drainResolvers.push(resolve);
+    });
+  }
+
+  private checkDrain(): void {
+    if (this.running === 0 && this.queue.length === 0) {
+      const resolvers = this.drainResolvers;
+      this.drainResolvers = [];
+      resolvers.forEach((r) => r());
     }
   }
 
-  private notifyPressureChange(): void {
-    const stats = this.getStats();
-    if (stats.pressure === this.pressure) {
-      return;
-    }
+  /**
+   * Immediately remove all queued tasks, rejecting their promises.
+   * Already running tasks are not affected.
+   */
+  clear(): void {
+    const error = new Error('Queue cleared by backpressure handler');
+    this.queue.forEach((item) => item.deferred.reject(error));
+    this.queue = [];
+    // Note: we do not affect running count or statistics.
+  }
 
-    this.pressure = stats.pressure;
-    EventBus.getInstance().emit('backpressure:triggered', stats);
-    for (const handler of this.pressureHandlers) {
-      handler(stats);
+  /**
+   * Update the maximum number of concurrently executing tasks.
+   * If the limit is increased, pending tasks (if any) will be started automatically.
+   */
+  setMaxConcurrent(n: number): void {
+    if (n < 0) {
+      throw new Error('MAX_CONCURRENT must be non-negative');
     }
+    this.MAX_CONCURRENT = n;
+    this.processNext(); // may start more tasks
   }
 }
 
-export default BackpressureHandler;
+export const backpressureHandler = new BackpressureHandler();

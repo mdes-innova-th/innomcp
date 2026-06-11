@@ -1,300 +1,137 @@
-/**
- * ContextManager - manages conversation context windows for innomcp-node.
- *
- * Provides session-based storage, token estimation, trimming strategies,
- * and automatic cleanup of idle sessions.
- */
+// contextManager.ts — Conversation Context Window Manager for innomcp-node
+// จัดการประวัติการสนทนาที่ส่งไปยังโมเดล AI (ตัดข้อความเมื่อยาวเกินกำหนด)
 
-/** Role of a message in the conversation */
-export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';
-
-/** A single message in a conversation session */
-export interface Message {
-  role: MessageRole;
+interface Message {
+  role: 'user' | 'assistant' | 'system';
   content: string;
-  /** Unix timestamp in milliseconds (set automatically if omitted) */
-  timestamp?: number;
-  /** Pre-calculated token count (if available) */
   tokens?: number;
 }
 
-/** Statistics for a conversation session */
-export interface SessionStats {
-  /** Total number of messages in the session */
-  messageCount: number;
-  /** Sum of estimated tokens for all messages */
-  totalTokens: number;
-  /** Timestamp of the oldest message (0 if empty) */
-  oldestMessage: number;
-  /** Timestamp of the newest message (0 if empty) */
-  newestMessage: number;
-}
+class ContextManager {
+  private sessions: Map<string, Message[]> = new Map();
 
-/**
- * Default maximum number of messages per session.
- * Exceeding this limit will automatically drop the oldest messages,
- * while preserving system messages.
- */
-const MAX_MESSAGES_PER_SESSION = 200;
-
-/**
- * Session time-to-live in milliseconds (2 hours).
- * Sessions with no activity for this duration are automatically removed.
- */
-const SESSION_TTL_MS = 2 * 60 * 60 * 1000;
-
-/**
- * Token estimation heuristic: approximately 4 characters per token.
- */
-const CHARS_PER_TOKEN = 4;
-
-/**
- * Threshold (as a fraction of maxTokens) at which a warning is logged
- * about high context utilisation.
- */
-const TOKEN_USAGE_WARNING_RATIO = 0.8;
-
-export default class ContextManager {
-  private static instance: ContextManager | null = null;
-  private sessions: Map<string, Message[]>;
-  private lastActivity: Map<string, number>;
-
-  private constructor() {
-    this.sessions = new Map();
-    this.lastActivity = new Map();
-  }
+  // จำนวนโทเค็นสูงสุดที่อนุญาตให้ส่งไปยัง API (สามารถปรับแต่งได้)
+  public maxTokens: number = 8000;
 
   /**
-   * Returns the singleton instance of ContextManager.
-   * Creates it on first call.
+   * เพิ่มข้อความเข้าไปในบริบทของเซสชัน
+   * @param sessionId - ตัวระบุเซสชัน
+   * @param message - ข้อความที่จะเพิ่ม (role, content)
    */
-  static getInstance(): ContextManager {
-    if (!ContextManager.instance) {
-      ContextManager.instance = new ContextManager();
-    }
-    return ContextManager.instance;
-  }
-
-  /**
-   * Adds a message to a conversation session.
-   * Automatically enforces the maximum message limit (200 messages),
-   * dropping oldest non-system messages if necessary.
-   * Updates the session's last-activity timestamp.
-   *
-   * @param sessionId - Unique identifier for the session.
-   * @param msg - Message to add (timestamp defaults to Date.now()).
-   */
-  addMessage(sessionId: string, msg: Message): void {
-    this.cleanExpiredSessions();
-
-    const messages = this.sessions.get(sessionId) ?? [];
-    const newMessage: Message = {
-      ...msg,
-      timestamp: msg.timestamp ?? Date.now(),
-    };
-    messages.push(newMessage);
-
-    // Enforce maximum message count
-    if (messages.length > MAX_MESSAGES_PER_SESSION) {
-      this.sessions.set(sessionId, this.limitMessageCount(messages));
+  addMessage(sessionId: string, message: Message): void {
+    const current = this.sessions.get(sessionId);
+    if (!current) {
+      this.sessions.set(sessionId, [message]);
     } else {
-      this.sessions.set(sessionId, messages);
+      current.push(message);
     }
-
-    this.lastActivity.set(sessionId, Date.now());
   }
 
   /**
-   * Retrieves messages for a session, optionally trimmed to fit within a token budget.
-   * If the session does not exist or has expired, an empty array is returned.
-   *
-   * @param sessionId - The session identifier.
-   * @param maxTokens - (Optional) Maximum allowed tokens. If provided, messages
-   *                    will be trimmed from oldest to newest, preserving system messages.
-   * @returns Array of messages, possibly trimmed.
+   * ดึงบริบทสำหรับการเรียก API (ถูกตัดให้พอดีกับ maxTokens แล้ว)
+   * @param sessionId - ตัวระบุเซสชัน
+   * @returns อาร์เรย์ของข้อความที่ผ่านการตัดแต่งแล้ว
    */
-  getContext(sessionId: string, maxTokens?: number): Message[] {
-    this.cleanExpiredSessions();
-
-    const messages = this.sessions.get(sessionId);
-    if (!messages || messages.length === 0) {
-      return [];
-    }
-
-    if (maxTokens !== undefined) {
-      const trimmed = this.trimContext(messages, maxTokens);
-      const currentTokens = ContextManager.estimateTotalTokens(trimmed);
-      if (currentTokens > TOKEN_USAGE_WARNING_RATIO * maxTokens) {
-        console.warn(
-          `คำเตือน: บริบทการสนทนาสำหรับเซสชัน ${sessionId} ใช้โทเค็น ${currentTokens} จากขีดจำกัด ${maxTokens} (>${Math.round(TOKEN_USAGE_WARNING_RATIO * 100)}%) อาจจะต้องทำการบีบอัดเพิ่มเติม`
-        );
-      }
-      return trimmed;
-    }
-
-    return messages;
+  getContext(sessionId: string): Message[] {
+    const messages = this.sessions.get(sessionId) || [];
+    return this.trim(messages, this.maxTokens);
   }
 
   /**
-   * Trims an array of messages to fit within a token budget.
-   * The algorithm keeps all system messages and then fills the remaining
-   * tokens with the most recent non‑system messages, skipping older ones.
-   *
-   * @param messages - The original messages.
-   * @param maxTokens - Maximum allowed tokens.
-   * @returns A new array of trimmed messages (original is not mutated).
+   * นับจำนวนโทเค็นโดยประมาณ (ใช้การคำนวณแบบง่าย: จำนวนตัวอักษร / 4)
+   * @param text - ข้อความที่ต้องการนับ
+   * @returns จำนวนโทเค็นโดยประมาณ (ปัดขึ้น)
    */
-  trimContext(messages: Message[], maxTokens: number): Message[] {
+  countTokens(text: string): number {
+    return Math.ceil(text.length / 4);
+  }
+
+  /**
+   * ตัดข้อความเก่าออกจนกว่าจำนวนโทเค็นทั้งหมดจะไม่เกิน maxTokens
+   * โดยจะเก็บข้อความระบบ (system) ตัวแรกไว้เสมอ (ถ้ามี)
+   * @param messages - รายการข้อความทั้งหมด
+   * @param maxTokens - จำนวนโทเค็นสูงสุดที่ต้องการ
+   * @returns รายการข้อความที่ผ่านการตัดแล้ว
+   */
+  trim(messages: Message[], maxTokens: number): Message[] {
     if (messages.length === 0) return [];
 
+    const hasSystem = messages[0].role === 'system';
     const systemMessages: Message[] = [];
     const otherMessages: Message[] = [];
 
+    if (hasSystem) {
+      systemMessages.push(messages[0]);
+      for (let i = 1; i < messages.length; i++) {
+        otherMessages.push(messages[i]);
+      }
+    } else {
+      otherMessages.push(...messages);
+    }
+
+    let totalTokens = messages.reduce(
+      (sum, msg) => sum + this.countTokens(msg.content),
+      0,
+    );
+
+    // เริ่มลบข้อความเก่าที่สุด (ไม่รวม system) จนกว่าจะอยู่ในขีดจำกัด
+    while (otherMessages.length > 0 && totalTokens > maxTokens) {
+      const removed = otherMessages.shift()!;
+      totalTokens -= this.countTokens(removed.content);
+    }
+
+    return [...systemMessages, ...otherMessages];
+  }
+
+  /**
+   * สรุปเนื้อหาของข้อความทั้งหมด (placeholder – ใช้งานการย่อแบบง่าย)
+   * @param messages - รายการข้อความที่ต้องการสรุป
+   * @returns ข้อความระบบที่มีเนื้อหาสรุป
+   */
+  summarize(messages: Message[]): Message {
+    const parts: string[] = [];
     for (const msg of messages) {
-      if (msg.role === 'system') {
-        systemMessages.push(msg);
-      } else {
-        otherMessages.push(msg);
+      if (msg.role === 'user' || msg.role === 'assistant') {
+        // ตัดข้อความมาเฉพาะ 80 ตัวอักษรแรกเพื่อใช้เป็นสรุป
+        parts.push(msg.content.slice(0, 80));
       }
     }
 
-    const systemTokens = ContextManager.estimateTotalTokens(systemMessages);
-    let remainingBudget = maxTokens - systemTokens;
-    if (remainingBudget <= 0) {
-      // Even system messages exceed the budget – keep them all (soft limit)
-      return [...systemMessages];
-    }
-
-    // Walk from the most recent non‑system message backwards
-    const keptOther: Message[] = [];
-    let used = 0;
-    for (let i = otherMessages.length - 1; i >= 0; i--) {
-      const tokenCount = this.getTokenCount(otherMessages[i]);
-      if (used + tokenCount > remainingBudget) {
-        break; // stop adding earlier messages
-      }
-      keptOther.unshift(otherMessages[i]); // restore original order
-      used += tokenCount;
-    }
-
-    return [...systemMessages, ...keptOther];
-  }
-
-  /**
-   * Estimates the number of tokens in a text string.
-   * Uses a fast heuristic: 1 token ≈ 4 characters (rounding up).
-   *
-   * @param text - Input string.
-   * @returns Estimated token count.
-   */
-  estimateTokens(text: string): number {
-    return Math.ceil(text.length / CHARS_PER_TOKEN);
-  }
-
-  /**
-   * Clears all messages for a given session and removes its metadata.
-   * If the session does not exist, this is a no‑op.
-   *
-   * @param sessionId - The session identifier.
-   */
-  clearSession(sessionId: string): void {
-    this.sessions.delete(sessionId);
-    this.lastActivity.delete(sessionId);
-  }
-
-  /**
-   * Returns the number of **active** (non‑expired) sessions.
-   */
-  sessionCount(): number {
-    this.cleanExpiredSessions();
-    return this.sessions.size;
-  }
-
-  /**
-   * Computes statistics for a given session.
-   * If the session does not exist or has expired, returns an empty stats object
-   * (all fields zeroed).
-   *
-   * @param sessionId - The session identifier.
-   * @returns Session statistics.
-   */
-  getSessionStats(sessionId: string): SessionStats {
-    this.cleanExpiredSessions();
-
-    const messages = this.sessions.get(sessionId);
-    if (!messages || messages.length === 0) {
-      return {
-        messageCount: 0,
-        totalTokens: 0,
-        oldestMessage: 0,
-        newestMessage: 0,
-      };
-    }
-
-    let totalTokens = 0;
-    let oldest = Number.POSITIVE_INFINITY;
-    let newest = 0;
-
-    for (const msg of messages) {
-      totalTokens += this.getTokenCount(msg);
-      const ts = msg.timestamp ?? 0;
-      if (ts < oldest) oldest = ts;
-      if (ts > newest) newest = ts;
-    }
+    const summaryContent =
+      parts.length > 0
+        ? `สรุปเนื้อหาการสนทนาก่อนหน้า:\n${parts.join('\n')}`
+        : 'สรุป: ไม่มีเนื้อหาการสนทนา';
 
     return {
-      messageCount: messages.length,
-      totalTokens,
-      oldestMessage: oldest === Number.POSITIVE_INFINITY ? 0 : oldest,
-      newestMessage: newest,
+      role: 'system',
+      content: summaryContent,
     };
   }
 
-  // ---------------------------------------------------------------------------
-  // Private helpers
-  // ---------------------------------------------------------------------------
-
   /**
-   * Removes any session that has been idle longer than the configured TTL.
+   * ล้างข้อมูลบริบทของเซสชันทั้งหมด
+   * @param sessionId - ตัวระบุเซสชัน
    */
-  private cleanExpiredSessions(): void {
-    const now = Date.now();
-    for (const [sessionId, last] of this.lastActivity.entries()) {
-      if (now - last > SESSION_TTL_MS) {
-        this.sessions.delete(sessionId);
-        this.lastActivity.delete(sessionId);
-      }
-    }
+  clear(sessionId: string): void {
+    this.sessions.delete(sessionId);
   }
 
   /**
-   * Reduces the message array to at most MAX_MESSAGES_PER_SESSION messages,
-   * preserving all system messages and dropping the oldest non‑system messages
-   * first. The original array is not mutated.
-   *
-   * @param messages - The full message array (may exceed the limit).
-   * @returns A new array that satisfies the maximum count.
+   * แสดงสถิติของเซสชัน ได้แก่ จำนวนข้อความ และจำนวนโทเค็นโดยประมาณ
+   * @param sessionId - ตัวระบุเซสชัน
+   * @returns object ที่มี messageCount และ estimatedTokens
    */
-  private limitMessageCount(messages: Message[]): Message[] {
-    if (messages.length <= MAX_MESSAGES_PER_SESSION) {
-      return messages;
-    }
-
-    const systemMessages = messages.filter((msg) => msg.role === 'system');
-    const otherMessages = messages.filter((msg) => msg.role !== 'system');
-    const keepOtherCount = Math.max(0, MAX_MESSAGES_PER_SESSION - systemMessages.length);
-    const keptOtherMessages = otherMessages.slice(-keepOtherCount);
-
-    return [...systemMessages, ...keptOtherMessages];
-  }
-
-  private getTokenCount(msg: Message): number {
-    return msg.tokens ?? this.estimateTokens(msg.content);
-  }
-
-  private static estimateTotalTokens(messages: Message[]): number {
-    return messages.reduce((total, msg) => {
-      return total + (msg.tokens ?? Math.ceil(msg.content.length / CHARS_PER_TOKEN));
-    }, 0);
+  stats(sessionId: string): { messageCount: number; estimatedTokens: number } {
+    const messages = this.sessions.get(sessionId) || [];
+    const estimatedTokens = messages.reduce(
+      (sum, msg) => sum + this.countTokens(msg.content),
+      0,
+    );
+    return {
+      messageCount: messages.length,
+      estimatedTokens,
+    };
   }
 }
+
+export const contextManager = new ContextManager();
