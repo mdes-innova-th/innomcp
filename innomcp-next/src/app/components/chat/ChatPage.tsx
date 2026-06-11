@@ -1791,14 +1791,9 @@ const ChatPage: React.FC = () => {
             {!hasMessages && !isWaitingForResponse ? (
               <div className="flex min-h-0 flex-1 flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(16rem,1fr)] lg:items-start">
                 <section className="flex flex-col gap-4">
-                  {/* Hero � single statement, not two restating ones (req 2: reduce duplicated copy) */}
-                  <div className="relative">
-                    {/* Soft accent gradient ring behind the headline � gives the page a premium feel
-                        without competing with content. Pointer-events-none + aria-hidden. */}
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none absolute -left-4 -top-6 h-24 w-24 rounded-full bg-gradient-to-br from-primary/20 via-sky-400/15 to-violet-500/10 blur-2xl animate-float-orbit"
-                    />
+                  {/* Manus-style: hero handled by ChatEmptyStateManager below */}
+                  <div className="relative hidden">
+                    <div aria-hidden="true" />
                     <div className="relative flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center gap-1.5 rounded-md bg-gradient-to-r from-emerald-500/15 via-primary/15 to-sky-500/15 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-primary/85">
                         <span aria-hidden="true">?</span>

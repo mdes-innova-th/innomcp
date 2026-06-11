@@ -111,7 +111,7 @@ export default async function RootLayout({
               <Header />
               <ModeStatusBar />
               <GlobalLoadingOverlay />
-              <main className="relative flex-1 overflow-x-hidden pt-24 pb-16 md:pb-0">
+              <main className="relative flex-1 pt-24 pb-16 md:pb-0">
                 {children}
               </main>
               <FooterWrapper />

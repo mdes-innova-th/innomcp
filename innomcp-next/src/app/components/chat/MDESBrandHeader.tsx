@@ -40,7 +40,7 @@ export default function MDESBrandHeader({
   onModelChange,
 }: MDESBrandHeaderProps) {
   return (
-    <header className="sticky top-0 z-50 flex h-12 items-center justify-between border-b border-border/60 bg-background/95 backdrop-blur-sm px-4">
+    <header data-debug="mdes-brand-header" className="sticky top-0 z-50 flex h-12 items-center justify-between border-b border-border/60 bg-background/95 backdrop-blur-sm px-4">
       {/* LEFT: MDES brand */}
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-xl leading-none" role="img" aria-label="Thai flag">
