@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export type ScrollToBottomReturn<T extends HTMLElement = HTMLDivElement> = {
-  ref: React.RefObject<T>;
+  ref: React.RefObject<T | null>;
   scrollToBottom: () => void;
   isAtBottom: boolean;
 };

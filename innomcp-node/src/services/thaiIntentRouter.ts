@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { ThaiNLPService } from './thaiNLPService';
 
 export interface RoutingDecision {

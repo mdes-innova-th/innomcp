@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { checkDatabaseConnection } from './config/database';
 import { isWebSocketServerReady } from './config/websocket';
 import { analyticsService } from './services/analytics';

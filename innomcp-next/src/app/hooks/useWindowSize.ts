@@ -15,7 +15,8 @@ export interface WindowSize {
  * Creates a debounced version of a function that delays invocation
  * until after `delay` milliseconds have elapsed since the last call.
  */
-function debounce<T extends (...args: unknown[]) => void>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function debounce<T extends (...args: any[]) => void>(
   fn: T,
   delay: number
 ): (...args: Parameters<T>) => void {

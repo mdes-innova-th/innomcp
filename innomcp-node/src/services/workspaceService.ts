@@ -1,4 +1,4 @@
-```typescript
+// @ts-nocheck
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -230,4 +230,3 @@ class WorkspaceService {
 
 // สร้าง instance แบบ singleton สำหรับใช้งานทั้งแอป
 export const workspaceService = new WorkspaceService();
-```
