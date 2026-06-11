@@ -1,98 +1,105 @@
-/**
- * Phase 3 — In-memory rate limiter.
- *
- * Two presets:
- *   generalRateLimit  60 req/min  (mount on /api)
- *   authRateLimit     10 req/min  (mount on /api/auth — brute-force resistance)
- *
- * Storage is a single Map keyed by `${preset}:${ip}`. Stale buckets are
- * cleared lazily on access (no setInterval — survives test runs without
- * leaking timers and keeps memory bounded under steady traffic).
- *
- * Disabled when:
- *   - process.env.NODE_ENV === "test"
- *   - process.env.NODE_ENV === "development"  (local dev + Playwright E2E never burst-limit themselves)
- *   - process.env.SMOKE_MODE === "1"
- *   - process.env.RATE_LIMIT_DISABLED === "1"
- *
- * Deliberately no Redis dependency: the goal is light abuse-protection on
- * a single-node deployment, not distributed coordination.
- */
+// rateLimiter.ts
+// In-memory sliding window rate limiter for API endpoints.
+// Thai error message: "คำขอมากเกินไป กรุณารอสักครู่แล้วลองอีกครั้ง"
 
-import type { Request, Response, NextFunction } from "express";
-
-interface Bucket {
-  count: number;
-  resetAt: number; // epoch ms
+interface RateLimitOptions {
+  windowMs: number;               // time window in milliseconds
+  maxRequests: number;            // max requests per window
+  keyFn?: (req: any) => string;   // default: by IP (req.ip or connection remote address)
+  skipFn?: (req: any) => boolean; // skip rate limiting if returns true
+  message?: string;               // Thai error message (default provided)
 }
 
-const WINDOW_MS = 60_000;
-const GENERAL_LIMIT = 60;
-const AUTH_LIMIT = 10;
+type Middleware = (req: any, res: any, next: () => void) => void;
 
-const buckets = new Map<string, Bucket>();
+const DEFAULT_THAI_MESSAGE = 'คำขอมากเกินไป กรุณารอสักครู่แล้วลองอีกครั้ง';
+const CLEANUP_INTERVAL_MS = 60_000; // 60 seconds
 
-function isDisabled(): boolean {
-  return (
-    process.env.NODE_ENV === "test" ||
-    process.env.NODE_ENV === "development" ||
-    process.env.SMOKE_MODE === "1" ||
-    process.env.RATE_LIMIT_DISABLED === "1"
-  );
+// Internal store: key -> sorted array of timestamps (ms)
+const store = new Map<string, number[]>();
+
+// Periodic cleanup of expired entries
+let cleanupTimer: ReturnType<typeof setInterval> | null = null;
+function startCleanup(windowMs: number): void {
+  if (cleanupTimer) return; // already started
+  cleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [key, timestamps] of store.entries()) {
+      // Remove expired timestamps
+      const valid = timestamps.filter((t) => now - t < windowMs);
+      if (valid.length === 0) {
+        store.delete(key);
+      } else if (valid.length !== timestamps.length) {
+        store.set(key, valid);
+      }
+    }
+  }, CLEANUP_INTERVAL_MS);
+  // Allow Node.js to exit even if timer is still running
+  if (cleanupTimer.unref) cleanupTimer.unref();
 }
 
-function getClientIp(req: Request): string {
-  if (req.ip) return req.ip;
-  const fwd = req.headers["x-forwarded-for"];
-  if (typeof fwd === "string" && fwd.length > 0) {
-    return fwd.split(",")[0]!.trim();
-  }
-  if (Array.isArray(fwd) && fwd.length > 0) return fwd[0]!;
-  return "unknown";
+// Simple default key extractor
+function defaultKeyFn(req: any): string {
+  return req.ip || req.connection?.remoteAddress || req.socket?.remoteAddress || 'unknown';
 }
 
-function makeLimiter(preset: "general" | "auth", limit: number) {
-  return function rateLimiter(req: Request, res: Response, next: NextFunction): void {
-    if (isDisabled()) {
+function createRateLimiter(options: RateLimitOptions): Middleware {
+  const {
+    windowMs,
+    maxRequests,
+    keyFn = defaultKeyFn,
+    skipFn,
+    message = DEFAULT_THAI_MESSAGE,
+  } = options;
+
+  // Start cleanup timer on first limiter creation
+  startCleanup(windowMs);
+
+  return function rateLimitMiddleware(req: any, res: any, next: () => void): void {
+    // Optional skip condition
+    if (skipFn?.(req)) {
       next();
       return;
     }
 
-    const key = `${preset}:${getClientIp(req)}`;
+    const key = keyFn(req);
     const now = Date.now();
-    let bucket = buckets.get(key);
 
-    if (!bucket || bucket.resetAt <= now) {
-      bucket = { count: 0, resetAt: now + WINDOW_MS };
-      buckets.set(key, bucket);
-    }
+    // Get current timestamps for this key
+    let timestamps = store.get(key) || [];
 
-    bucket.count += 1;
+    // Remove timestamps outside the window
+    timestamps = timestamps.filter((t) => now - t < windowMs);
 
-    const remaining = Math.max(0, limit - bucket.count);
-    res.setHeader("X-RateLimit-Limit", String(limit));
-    res.setHeader("X-RateLimit-Remaining", String(remaining));
-    res.setHeader("X-RateLimit-Reset", String(Math.ceil(bucket.resetAt / 1000)));
-
-    if (bucket.count > limit) {
-      const retryAfterMs = Math.max(0, bucket.resetAt - now);
-      res.setHeader("Retry-After", String(Math.ceil(retryAfterMs / 1000)));
-      res.status(429).json({
-        error: "rate_limit_exceeded",
-        retryAfterMs,
-      });
+    if (timestamps.length >= maxRequests) {
+      // Rate limit exceeded
+      res.statusCode = 429;
+      res.setHeader('Retry-After', Math.ceil(windowMs / 1000));
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8'); // or application/json
+      res.end(message);
       return;
     }
+
+    // Allow request and record it
+    timestamps.push(now);
+    store.set(key, timestamps);
 
     next();
   };
 }
 
-export const generalRateLimit = makeLimiter("general", GENERAL_LIMIT);
-export const authRateLimit = makeLimiter("auth", AUTH_LIMIT);
-
-// Test-only helper: reset state between cases. Not exported via the public
-// barrel — import directly when needed.
-export function _resetRateLimiterForTests(): void {
-  buckets.clear();
+// Predefined limiters
+function chatRateLimit(): Middleware {
+  return createRateLimiter({ windowMs: 60_000, maxRequests: 20 });
 }
+
+function apiRateLimit(): Middleware {
+  return createRateLimiter({ windowMs: 60_000, maxRequests: 60 });
+}
+
+function providerRateLimit(): Middleware {
+  return createRateLimiter({ windowMs: 60_000, maxRequests: 10 });
+}
+
+export { createRateLimiter, chatRateLimit, apiRateLimit, providerRateLimit };
+export type { RateLimitOptions, Middleware };

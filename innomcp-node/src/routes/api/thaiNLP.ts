@@ -1,0 +1,131 @@
+// thaiNLP.ts - ระบบประมวลผลภาษาไทยสำหรับ API กระทรวงดิจิทัลเพื่อเศรษฐกิจและสังคม
+// Version: 1.0.0
+// ใช้ Express Router ไม่ต้องตรวจสอบสิทธิ์ (public endpoint)
+
+import { Router, Request, Response } from 'express';
+import { thaiNLPService } from '../services/thaiNLPService'; // สมมติว่ามี service นี้อยู่แล้ว
+
+const router = Router();
+
+/**
+ * POST /api/thai/detect
+ * ตรวจจับเจตนาหรือหมวดหมู่ของข้อความภาษาไทย
+ * Body: { text: string }
+ * Response: { intent: string, confidence: number }
+ */
+router.post('/detect', async (req: Request, res: Response) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({
+        error: 'กรุณาระบุข้อความภาษาไทยในฟิลด์ "text"',
+      });
+    }
+
+    const result = await thaiNLPService.detectIntent(text);
+    res.json(result);
+  } catch (error) {
+    console.error('❌ detect error:', error);
+    res.status(500).json({
+      error: 'เกิดข้อผิดพลาดในการตรวจจับเจตนา กรุณาลองใหม่อีกครั้ง',
+    });
+  }
+});
+
+/**
+ * POST /api/thai/entities
+ * ดึงข้อมูลเอนทิตีจากข้อความ: จังหวัด, วันที่, หน่วยงาน
+ * Body: { text: string }
+ * Response: { provinces: string[], dates: string[], agencies: string[], ... }
+ */
+router.post('/entities', async (req: Request, res: Response) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({
+        error: 'กรุณาระบุข้อความภาษาไทยในฟิลด์ "text"',
+      });
+    }
+
+    const entities = await thaiNLPService.extractEntities(text);
+    res.json(entities);
+  } catch (error) {
+    console.error('❌ entities error:', error);
+    res.status(500).json({
+      error: 'เกิดข้อผิดพลาดในการสกัดเอนทิตี กรุณาลองใหม่อีกครั้ง',
+    });
+  }
+});
+
+/**
+ * POST /api/thai/tokenize
+ * ตัดคำภาษาไทย (Word Tokenization)
+ * Body: { text: string }
+ * Response: { tokens: string[] }
+ */
+router.post('/tokenize', async (req: Request, res: Response) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({
+        error: 'กรุณาระบุข้อความภาษาไทยในฟิลด์ "text"',
+      });
+    }
+
+    const tokens = await thaiNLPService.tokenize(text);
+    res.json({ tokens });
+  } catch (error) {
+    console.error('❌ tokenize error:', error);
+    res.status(500).json({
+      error: 'เกิดข้อผิดพลาดในการตัดคำ กรุณาลองใหม่อีกครั้ง',
+    });
+  }
+});
+
+/**
+ * POST /api/thai/clean
+ * ทำความสะอาดและปรับปรุงข้อความภาษาไทยให้เป็นมาตรฐาน
+ * Body: { text: string }
+ * Response: { cleaned: string }
+ */
+router.post('/clean', async (req: Request, res: Response) => {
+  try {
+    const { text } = req.body;
+
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({
+        error: 'กรุณาระบุข้อความภาษาไทยในฟิลด์ "text"',
+      });
+    }
+
+    const cleaned = await thaiNLPService.cleanText(text);
+    res.json({ cleaned });
+  } catch (error) {
+    console.error('❌ clean error:', error);
+    res.status(500).json({
+      error: 'เกิดข้อผิดพลาดในการทำความสะอาดข้อความ กรุณาลองใหม่อีกครั้ง',
+    });
+  }
+});
+
+/**
+ * GET /api/thai/provinces
+ * ดึงรายชื่อจังหวัดทั้งหมดของประเทศไทย
+ * Response: { provinces: string[] }
+ */
+router.get('/provinces', async (_req: Request, res: Response) => {
+  try {
+    const provinces = await thaiNLPService.getProvinces();
+    res.json({ provinces });
+  } catch (error) {
+    console.error('❌ provinces error:', error);
+    res.status(500).json({
+      error: 'เกิดข้อผิดพลาดในการดึงรายชื่อจังหวัด กรุณาลองใหม่อีกครั้ง',
+    });
+  }
+});
+
+export default router;
