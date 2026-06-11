@@ -47,6 +47,10 @@ import ManusWorkspacePanel from "@/app/components/chat/ManusWorkspacePanel";
 import CollapsibleAgentWrapper from "@/app/components/chat/CollapsibleAgentWrapper";
 import ModelSettingsPanel from "@/app/components/chat/ModelSettingsPanel";
 import ChatEmptyStateManager from "@/app/components/chat/ChatEmptyStateManager";
+import SlashCommandMenu from "@/app/components/chat/SlashCommandMenu";
+import MDESStreamIndicator from "@/app/components/chat/MDESStreamIndicator";
+import InlineFeedbackBar from "@/app/components/chat/InlineFeedbackBar";
+import FloatingStatusBadge from "@/app/components/chat/FloatingStatusBadge";
 
 // Phase 4 � lazy-load panel/modal components not needed on initial paint
 const ThinkingModal = dynamic(() => import("@/app/components/chat/ThinkingModal"), {
@@ -280,6 +284,7 @@ const ChatPage: React.FC = () => {
   const [tourActive, setTourActive] = useState(false);
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const [modelSettingsOpen, setModelSettingsOpen] = useState(false);
+  const [slashMenuVisible, setSlashMenuVisible] = useState(false);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const [multiAgentOpen, setMultiAgentOpen] = useState(false);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
@@ -1585,6 +1590,19 @@ const ChatPage: React.FC = () => {
       <div className="pointer-events-none fixed inset-0 chat-workspace-bg" />
 
       <KeyboardShortcutsPanel open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
+
+      {/* Slash command menu — appears when user types "/" */}
+      <SlashCommandMenu
+        visible={slashMenuVisible && input === "/"}
+        query=""
+        onSelect={(cmd) => { cmd.action(setInput); setSlashMenuVisible(false); setInput(""); }}
+        onClose={() => setSlashMenuVisible(false)}
+      />
+
+      {/* MDES stream indicator — floating bottom-center when AI is working */}
+      <FloatingStatusBadge
+        status={isWaitingForResponse ? "thinking" : agentStreamState.status === "done" ? "done" : "idle"}
+      />
 
       {/* Provider Management — openclaude-style model settings panel */}
       {modelSettingsOpen && (

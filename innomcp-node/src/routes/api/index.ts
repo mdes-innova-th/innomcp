@@ -4,6 +4,10 @@ import csrfRouter from "./csrf";
 import orchestratorRouter from "./orchestrator";
 import motherScorecardRouter from "./motherScorecard";
 import { getAvailableProviders } from "../../providers/router";
+import analyticsRouter from "./analytics";
+import mdesModelsRouter from "./mdesModels";
+import thaiNLPRouter from "./thaiNLP";
+import workspaceFileRouter from "./workspace";
 
 const apiRouter = Router();
 const apiCsrfRouter = Router();
@@ -16,6 +20,10 @@ apiCsrfRouter.use("/csrf", csrfRouter);
 apiRouter.use("/chat", chatRouter);
 apiRouter.use("/orchestrate", orchestratorRouter);
 apiRouter.use("/mother/scorecard", motherScorecardRouter);
+apiRouter.use("/analytics", analyticsRouter);
+apiRouter.use("/mdes", mdesModelsRouter);
+apiRouter.use("/thai", thaiNLPRouter);
+apiRouter.use("/workspace/files", workspaceFileRouter);
 
 // Provider discovery — lists available providers and which are configured
 apiRouter.get("/providers", (_req, res) => {

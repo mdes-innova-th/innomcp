@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from "react";
 import type { AgentEvent } from "./useAgentEventStream";
 import type { Artifact } from "./ArtifactPanel";
+import AgentStepsView from "./AgentStepsView";
+import WorkspaceTerminalPanel from "./WorkspaceTerminalPanel";
 
 export interface ManusWorkspacePanelProps {
   events: AgentEvent[];
@@ -99,6 +101,10 @@ const ManusWorkspacePanel: React.FC<ManusWorkspacePanelProps> = ({
 
   // === Render functions per tab ===
   const renderAgentTab = () => (
+    <AgentStepsView events={events} isStreaming={isStreaming} className="min-h-0" />
+  );
+
+  const _renderAgentTabLegacy = () => (
     <div className="space-y-3 p-4">
       {events.length === 0 && (
         <div className="text-center text-slate-400 dark:text-slate-500 py-8">
@@ -189,28 +195,7 @@ const ManusWorkspacePanel: React.FC<ManusWorkspacePanelProps> = ({
   );
 
   const renderTerminalTab = () => (
-    <div className="p-4 space-y-4">
-      {terminalEvents.length === 0 ? (
-        <div className="text-center text-slate-400 dark:text-slate-500 py-8">
-          ยังไม่มีผลลัพธ์จาก Terminal
-        </div>
-      ) : (
-        terminalEvents.map((event) => (
-          <div
-            key={event.messageId}
-            className="rounded-lg overflow-hidden border border-slate-700 bg-slate-950 text-slate-200"
-          >
-            <div className="flex items-center gap-2 px-3 py-2 bg-slate-900 text-xs font-medium text-slate-400">
-              💻 {event.toolName || "shell"}
-              {event.totalMs && <span className="ml-auto">{event.totalMs}ms</span>}
-            </div>
-            <pre className="p-3 text-xs font-mono whitespace-pre-wrap max-h-60 overflow-y-auto">
-              {event.previewText ?? event.publicSummary ?? "—"}
-            </pre>
-          </div>
-        ))
-      )}
-    </div>
+    <WorkspaceTerminalPanel events={events} isStreaming={isStreaming} />
   );
 
   const renderArtifactsTab = () => (
