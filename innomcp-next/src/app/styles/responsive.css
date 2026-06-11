@@ -1,0 +1,158 @@
+/* responsive.css - INNOMCP Responsive Design Utilities */
+/* Appends to existing style system using CSS custom properties & utility classes */
+
+:root {
+  /* Breakpoints */
+  --mdes-mobile-max: 639px;
+  --mdes-tablet-min: 640px;
+  --mdes-tablet-max: 1023px;
+  --mdes-desktop-min: 1024px;
+
+  /* Sidebar dimensions */
+  --mdes-sidebar-width-desktop: 16rem;
+  --mdes-sidebar-width-tablet: 200px;
+
+  /* Workspace dimensions */
+  --mdes-workspace-width-desktop: 380px;
+  --mdes-workspace-width-tablet: 400px;
+
+  /* z-index layers */
+  --z-sidebar: 50;
+  --z-header: 60;
+  --z-workspace-overlay: 70;
+  --z-workspace-inline: auto;
+}
+
+/* ------------------------------------------------------------------------- */
+/* Mobile first base styles (common) */
+/* ------------------------------------------------------------------------- */
+
+.mdes-scroll-smooth {
+  scroll-behavior: smooth;
+}
+
+.mdes-message-gap {
+  margin-bottom: 1rem;
+}
+
+.mdes-compose-area {
+  position: sticky;
+  bottom: 0;
+  background-color: inherit;   /* inherits parent bg, e.g., chat bg */
+  padding: 1rem;
+  border-top: 1px solid var(--mdes-border-light, #e0e0e0);
+  z-index: var(--z-workspace-overlay);
+}
+
+/* ------------------------------------------------------------------------- */
+/* Mobile (<640px) */
+/* ------------------------------------------------------------------------- */
+@media screen and (max-width: 639px) {
+  /* Sidebar hidden – drawer mode */
+  .mdes-sidebar {
+    display: none !important;   /* prevents any accidental override */
+  }
+
+  /* Workspace full overlay */
+  .mdes-workspace {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: var(--z-workspace-overlay);
+    width: auto;
+    height: 100vh;
+    transform: none;
+    transition: none;
+  }
+
+  /* Header: essential controls only – hide subtitle */
+  .mdes-header .mdes-header-subtitle,
+  .mdes-header-subtitle {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------------------------- */
+/* Tablet (640px – 1023px) */
+/* ------------------------------------------------------------------------- */
+@media screen and (min-width: 640px) and (max-width: 1023px) {
+  /* Sidebar fixed on left */
+  .mdes-sidebar {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--mdes-sidebar-width-tablet);
+    z-index: var(--z-sidebar);
+    overflow-y: auto;
+  }
+
+  /* Workspace overlay from right */
+  .mdes-workspace {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: var(--mdes-workspace-width-tablet);
+    z-index: var(--z-workspace-overlay);
+    overflow-y: auto;
+  }
+
+  /* Header: show most controls */
+  .mdes-header .mdes-header-subtitle,
+  .mdes-header-subtitle {
+    display: block;  /* or inline-block, depending on base style */
+  }
+
+  /* Optional: hide only extra decorative elements if needed */
+  /* .mdes-header .mdes-header-actions { display: flex; } */
+}
+
+/* ------------------------------------------------------------------------- */
+/* Desktop (≥1024px) */
+/* ------------------------------------------------------------------------- */
+@media screen and (min-width: 1024px) {
+  /* Sidebar fixed, full width */
+  .mdes-sidebar {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--mdes-sidebar-width-desktop);
+    z-index: var(--z-sidebar);
+    overflow-y: auto;
+  }
+
+  /* Workspace as inline right panel (not fixed overlay) */
+  .mdes-workspace {
+    position: static;              /* back into document flow */
+    width: var(--mdes-workspace-width-desktop);
+    flex: 0 0 var(--mdes-workspace-width-desktop);  /* if parent is flex */
+    order: 2;                     /* rightmost in a flex row */
+    z-index: var(--z-workspace-inline);
+    height: auto;                 /* normal height */
+    overflow-y: visible;
+  }
+
+  /* Header: full controls */
+  .mdes-header .mdes-header-subtitle,
+  .mdes-header-subtitle {
+    display: block;
+  }
+
+  /* Ensure full controls are visible */
+  .mdes-header .mdes-header-actions {
+    display: flex; /* or whatever base styles suggest */
+  }
+
+  /* If parent should adapt to fixed sidebar, add left padding */
+  /* Assumes a wrapper .mdes-main or similar. Uncomment & adjust if needed:
+  .mdes-main {
+    margin-left: var(--mdes-sidebar-width-desktop);
+  }
+  */
+}
