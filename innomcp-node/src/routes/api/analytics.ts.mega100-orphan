@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import * as analyticsService from '../services/analyticsService';
+import * as analyticsService from '../../services/analyticsService';
 
 const router = Router();
 

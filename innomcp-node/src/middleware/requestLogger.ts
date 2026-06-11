@@ -33,8 +33,9 @@ const requestLogger = (req: Request, res: Response, next: NextFunction): void =>
   let sessionId: string | undefined;
 
   // Try to extract session ID from express-session or similar
-  if (req.session && typeof req.session === 'object' && 'id' in req.session) {
-    sessionId = (req.session as { id: string }).id;
+  const reqSession = (req as { session?: { id?: string } }).session;
+  if (reqSession && typeof reqSession === 'object' && 'id' in reqSession) {
+    sessionId = reqSession.id;
   }
 
   // Listen for response finish

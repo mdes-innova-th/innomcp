@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
 import jwt from 'jsonwebtoken';
-import workspaceService from './services/workspaceService';
+import { workspaceService } from '../../services/workspaceService';
 
 /**
  * Interface สำหรับ body ของ POST /files
@@ -250,12 +250,11 @@ router.post('/upload', upload.single('file'), async (req: Request, res: Response
     }
 
     // ส่ง buffer ไปให้ service จัดการ
-    await workspaceService.uploadFile(sessionId, {
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size,
-      buffer: file.buffer,
-    }, targetPath);
+    await workspaceService.writeFile(
+      sessionId,
+      targetPath,
+      file.buffer.toString('utf8'),
+    );
 
     sendSuccess(res, { path: targetPath }, 'อัปโหลดไฟล์สำเร็จ');
   } catch (err: unknown) {

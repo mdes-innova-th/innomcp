@@ -13,7 +13,7 @@
  * It uses workspaceService.cleanupOldSessions() and reports the results in Thai.
  */
 
-import workspaceService from '../services/workspaceService';
+import { workspaceService } from '../services/workspaceService';
 
 interface CleanupResult {
   deletedCount: number;

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { mdesModelCache } from '../cache/mdesModelCache'; // adjust path for innomcp-node
+import { mdesModelCache } from '../../services/mdesModelCache';
 
 // --- Type Definitions (inline for strict completeness) ---
 export interface Model {
@@ -24,7 +24,7 @@ const router = Router();
 /**
  * Async wrapper to catch promise rejections and forward to Express error handler.
  */
-const asyncHandler = (fn: (req: Request, res: Response) => Promise<void>) =>
+const asyncHandler = (fn: (req: Request, res: Response) => Promise<void | Response>) =>
   (req: Request, res: Response, next: any) => {
     Promise.resolve(fn(req, res)).catch(next);
   };

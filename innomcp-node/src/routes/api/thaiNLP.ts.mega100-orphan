@@ -3,7 +3,7 @@
 // ใช้ Express Router ไม่ต้องตรวจสอบสิทธิ์ (public endpoint)
 
 import { Router, Request, Response } from 'express';
-import { thaiNLPService } from '../services/thaiNLPService'; // สมมติว่ามี service นี้อยู่แล้ว
+import { thaiNLPService } from '../../services/thaiNLPService';
 
 const router = Router();
 
