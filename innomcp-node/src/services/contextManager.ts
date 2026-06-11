@@ -1,4 +1,3 @@
-```ts
 /**
  * ContextManager - manages conversation context windows for innomcp-node.
  *
@@ -281,4 +280,21 @@ export default class ContextManager {
       return messages;
     }
 
-    const
+    const systemMessages = messages.filter((msg) => msg.role === 'system');
+    const otherMessages = messages.filter((msg) => msg.role !== 'system');
+    const keepOtherCount = Math.max(0, MAX_MESSAGES_PER_SESSION - systemMessages.length);
+    const keptOtherMessages = otherMessages.slice(-keepOtherCount);
+
+    return [...systemMessages, ...keptOtherMessages];
+  }
+
+  private getTokenCount(msg: Message): number {
+    return msg.tokens ?? this.estimateTokens(msg.content);
+  }
+
+  private static estimateTotalTokens(messages: Message[]): number {
+    return messages.reduce((total, msg) => {
+      return total + (msg.tokens ?? Math.ceil(msg.content.length / CHARS_PER_TOKEN));
+    }, 0);
+  }
+}

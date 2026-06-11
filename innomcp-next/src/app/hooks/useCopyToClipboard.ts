@@ -1,4 +1,3 @@
-```typescript
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
@@ -89,4 +88,3 @@ export function useCopyToClipboard(resetDelay: number = 2000): CopyToClipboardRe
 
   return { copy, copied, error };
 }
-```

@@ -1,4 +1,3 @@
-```typescript
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -116,4 +115,3 @@ export function useLocalStorageState<T>(
 
   return [storedValue, setValue, removeValue];
 }
-```

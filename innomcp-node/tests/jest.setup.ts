@@ -9,6 +9,8 @@
 // BEFORE jest's first teardown runs. The shim is API-compatible (Storage
 // interface) so any test code that touches localStorage still works.
 
+process.env.JWT_SECRET ||= "innomcp-jest-secret-32-characters-minimum";
+
 (() => {
   const desc = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
   // Already replaced (or browser env) — leave it alone.

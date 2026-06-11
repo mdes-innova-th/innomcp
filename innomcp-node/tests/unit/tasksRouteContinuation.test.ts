@@ -118,7 +118,7 @@ describe("tasks continuation route", () => {
       const { default: tasksRouter } = await import("../../src/routes/api/tasks");
       const response = await request(makeApp(tasksRouter))
         .post("/api/tasks/task-1234/messages")
-        .send({ message: "now make it a TypeScript version" });
+        .send({ message: "now make it a TypeScript version", sessionId: "   " });
 
       expect(response.status).toBe(200);
       expect(response.headers["content-type"]).toContain("text/event-stream");

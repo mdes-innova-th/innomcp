@@ -213,3 +213,5 @@ playwright-report/
 test-results/
 # .ai/silent/*.json
 docs/reports/SKILL-USAGE-LOG.md
+cc_*.js
+cc_lib_swarm.js

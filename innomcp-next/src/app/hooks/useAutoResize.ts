@@ -1,4 +1,3 @@
-```typescript
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
@@ -61,4 +60,3 @@ export function useAutoResize<T extends HTMLTextAreaElement = HTMLTextAreaElemen
     reset,
   };
 }
-```

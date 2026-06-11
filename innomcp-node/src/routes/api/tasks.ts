@@ -458,6 +458,8 @@ router.post("/:id/messages", async (req: Request, res: Response) => {
   let continuationMessage = message.trim();
   let continuationHistory: Array<{ sender: "user" | "ai"; text: string }> = [];
   let resumedSummary = "";
+  const continuationSessionId =
+    typeof sessionId === "string" && sessionId.trim() ? sessionId.trim() : id;
   try {
     const { task, steps } = await withDbConnection(async (conn) => {
       const [taskRows] = await conn.query(
@@ -548,7 +550,7 @@ router.post("/:id/messages", async (req: Request, res: Response) => {
       {
         message: continuationMessage,
         history: continuationHistory,
-        sessionId: sessionId ?? id,
+        sessionId: continuationSessionId,
       },
       emit
     );

@@ -1,4 +1,3 @@
-```typescript
 import { Router, Request, Response } from 'express';
 import { mdesModelCache } from '../cache/mdesModelCache'; // adjust path for innomcp-node
 
@@ -111,4 +110,3 @@ router.get(
 );
 
 export default router;
-```

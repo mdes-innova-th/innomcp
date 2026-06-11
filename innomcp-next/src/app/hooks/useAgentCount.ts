@@ -1,4 +1,3 @@
-```typescript
 "use client";
 
 import { useMemo } from "react";
@@ -115,4 +114,3 @@ export function useActiveAgentIds(events: AgentEvent[]): string[] {
     return activeIds;
   }, [events]);
 }
-```

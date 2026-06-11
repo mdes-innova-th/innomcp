@@ -1,4 +1,3 @@
-```typescript
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -70,4 +69,3 @@ export function useValueHistory<T>(
 
   return historyRef.current;
 }
-```

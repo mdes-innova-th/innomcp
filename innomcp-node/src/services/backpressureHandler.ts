@@ -1,77 +1,213 @@
-```ts
-import EventBus from '../events/EventBus.js';
+import EventBus from './eventBus.js';
 
-/**
- * Priority levels for backpressure handling.
- * 'high' - critical, serviced first, even when slots are low
- * 'normal' - typical requests
- * 'low' - can be deferred most easily
- */
 export type Priority = 'high' | 'normal' | 'low';
-
-/**
- * Release callback to be invoked when request processing is complete.
- */
 export type Release = () => void;
 
-/**
- * Runtime statistics for backpressure monitoring.
- */
 export type BackpressureStats = {
-    /** Number of currently active (processing) requests. */
-    active: number;
-    /** Number of requests waiting in queues. */
-    queued: number;
-    /** Total number of rejected requests (queue overflow or timeout). */
-    rejected: number;
-    /** Total number of requests that were successfully processed (release called). */
-    totalProcessed: number;
-    /** Average waiting time in milliseconds over the last 100 processed requests. */
-    avgWaitMs: number;
-    /** Current pressure level based on concurrency usage. */
-    pressure: 'none' | 'low' | 'medium' | 'high' | 'critical';
+  active: number;
+  queued: number;
+  rejected: number;
+  totalProcessed: number;
+  avgWaitMs: number;
+  pressure: 'none' | 'low' | 'medium' | 'high' | 'critical';
 };
 
-/**
- * Configuration limits for backpressure control.
- */
 export type Limits = {
-    /** Maximum number of concurrent requests allowed. */
-    maxConcurrent: number;
-    /** Maximum number of requests that can be held in queue. */
-    maxQueued: number;
-    /** Minimum slots reserved exclusively for high-priority requests. */
-    highPrioritySlots: number;
-    /** Time in milliseconds after which a queued request is rejected. */
-    timeoutMs: number;
+  maxConcurrent: number;
+  maxQueued: number;
+  highPrioritySlots: number;
+  timeoutMs: number;
 };
 
-/**
- * Handler callback invoked when the pressure level changes.
- */
 export type PressureHandler = (stats: BackpressureStats) => void;
 
 interface QueueEntry {
-    resolve: () => void;
-    reject: (err: Error) => void;
-    priority: Priority;
-    timeoutId: ReturnType<typeof setTimeout>;
-    timestamp: number;
-    queueRef: QueueEntry[]; // reference to the queue array this entry belongs to
+  resolve: (release: Release) => void;
+  reject: (err: Error) => void;
+  priority: Priority;
+  timeoutId: ReturnType<typeof setTimeout>;
+  timestamp: number;
 }
 
 const DEFAULT_LIMITS: Limits = {
-    maxConcurrent: 50,
-    maxQueued: 200,
-    highPrioritySlots: 10,
-    timeoutMs: 30_000,
+  maxConcurrent: 50,
+  maxQueued: 200,
+  highPrioritySlots: 10,
+  timeoutMs: 30_000,
 };
 
-const PRESSURE_LEVELS = ['none', 'low', 'medium', 'high', 'critical'] as const;
-type PressureLevel = typeof PRESSURE_LEVELS[number];
+const QUEUE_TIMEOUT_MESSAGE =
+  'ระบบยุ่งมาก กรุณารอสักครู่';
 
-function getPressureLevel(ratio: number): PressureLevel {
-    if (ratio < 0.3) return 'none';
-    if (ratio < 0.5) return 'low';
-    if (ratio < 0.7) return 'medium';
-    if (ratio < 0.
+function getPressureLevel(ratio: number): BackpressureStats['pressure'] {
+  if (ratio < 0.3) return 'none';
+  if (ratio < 0.5) return 'low';
+  if (ratio < 0.7) return 'medium';
+  if (ratio < 0.9) return 'high';
+  return 'critical';
+}
+
+export class BackpressureHandler {
+  private static instance: BackpressureHandler;
+  private limits: Limits = { ...DEFAULT_LIMITS };
+  private active = 0;
+  private rejected = 0;
+  private totalProcessed = 0;
+  private readonly waitTimes: number[] = [];
+  private readonly queues: Record<Priority, QueueEntry[]> = {
+    high: [],
+    normal: [],
+    low: [],
+  };
+  private pressure: BackpressureStats['pressure'] = 'none';
+  private readonly pressureHandlers = new Set<PressureHandler>();
+
+  private constructor() {}
+
+  static getInstance(): BackpressureHandler {
+    if (!BackpressureHandler.instance) {
+      BackpressureHandler.instance = new BackpressureHandler();
+    }
+    return BackpressureHandler.instance;
+  }
+
+  acquire(priority: Priority = 'normal'): Promise<Release> {
+    const release = this.tryAcquire(priority);
+    if (release) {
+      return Promise.resolve(release);
+    }
+
+    if (this.queuedCount() >= this.limits.maxQueued) {
+      this.rejected += 1;
+      this.notifyPressureChange();
+      return Promise.reject(new Error(QUEUE_TIMEOUT_MESSAGE));
+    }
+
+    return new Promise<Release>((resolve, reject) => {
+      const entry: QueueEntry = {
+        resolve,
+        reject,
+        priority,
+        timestamp: Date.now(),
+        timeoutId: setTimeout(() => {
+          this.removeQueued(entry);
+          this.rejected += 1;
+          this.notifyPressureChange();
+          reject(new Error(QUEUE_TIMEOUT_MESSAGE));
+        }, this.limits.timeoutMs),
+      };
+
+      this.queues[priority].push(entry);
+      this.notifyPressureChange();
+    });
+  }
+
+  tryAcquire(priority: Priority = 'normal'): Release | null {
+    if (!this.canAcquire(priority)) {
+      return null;
+    }
+
+    this.active += 1;
+    this.notifyPressureChange();
+    return this.createRelease();
+  }
+
+  getStats(): BackpressureStats {
+    const avgWaitMs =
+      this.waitTimes.length === 0
+        ? 0
+        : this.waitTimes.reduce((sum, value) => sum + value, 0) / this.waitTimes.length;
+
+    return {
+      active: this.active,
+      queued: this.queuedCount(),
+      rejected: this.rejected,
+      totalProcessed: this.totalProcessed,
+      avgWaitMs,
+      pressure: getPressureLevel(this.active / Math.max(1, this.limits.maxConcurrent)),
+    };
+  }
+
+  setLimits(limits: Limits): void {
+    this.limits = { ...limits };
+    this.drainQueue();
+    this.notifyPressureChange();
+  }
+
+  onPressure(handler: PressureHandler): void {
+    this.pressureHandlers.add(handler);
+  }
+
+  private canAcquire(priority: Priority): boolean {
+    if (this.active >= this.limits.maxConcurrent) {
+      return false;
+    }
+
+    if (priority === 'high') {
+      return true;
+    }
+
+    return this.active < Math.max(0, this.limits.maxConcurrent - this.limits.highPrioritySlots);
+  }
+
+  private createRelease(): Release {
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.active = Math.max(0, this.active - 1);
+      this.totalProcessed += 1;
+      this.drainQueue();
+      this.notifyPressureChange();
+    };
+  }
+
+  private drainQueue(): void {
+    for (const priority of ['high', 'normal', 'low'] as const) {
+      const queue = this.queues[priority];
+      while (queue.length > 0 && this.canAcquire(priority)) {
+        const entry = queue.shift();
+        if (!entry) break;
+
+        clearTimeout(entry.timeoutId);
+        this.recordWait(Date.now() - entry.timestamp);
+        this.active += 1;
+        entry.resolve(this.createRelease());
+      }
+    }
+  }
+
+  private removeQueued(entry: QueueEntry): void {
+    const queue = this.queues[entry.priority];
+    const index = queue.indexOf(entry);
+    if (index >= 0) {
+      queue.splice(index, 1);
+    }
+  }
+
+  private queuedCount(): number {
+    return this.queues.high.length + this.queues.normal.length + this.queues.low.length;
+  }
+
+  private recordWait(waitMs: number): void {
+    this.waitTimes.push(waitMs);
+    if (this.waitTimes.length > 100) {
+      this.waitTimes.shift();
+    }
+  }
+
+  private notifyPressureChange(): void {
+    const stats = this.getStats();
+    if (stats.pressure === this.pressure) {
+      return;
+    }
+
+    this.pressure = stats.pressure;
+    EventBus.getInstance().emit('backpressure:triggered', stats);
+    for (const handler of this.pressureHandlers) {
+      handler(stats);
+    }
+  }
+}
+
+export default BackpressureHandler;

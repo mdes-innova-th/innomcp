@@ -1,4 +1,3 @@
-```typescript
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -128,4 +127,3 @@ export function useIsTablet(): boolean {
   const { width } = useWindowSize();
   return width !== undefined && width >= 768 && width < 1024;
 }
-```

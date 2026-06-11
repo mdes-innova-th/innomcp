@@ -1,4 +1,3 @@
-```typescript
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -78,4 +77,3 @@ export function useScrollToBottom<T extends HTMLElement = HTMLDivElement>(
 
   return { ref, scrollToBottom, isAtBottom };
 }
-```

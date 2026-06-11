@@ -1,4 +1,3 @@
-```typescript
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
@@ -54,4 +53,3 @@ export function useDebouncedCallback<T extends (...args: unknown[]) => unknown>(
 
   return debouncedFn;
 }
-```

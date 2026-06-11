@@ -1,4 +1,3 @@
-```typescript
 "use client";
 
 import { useMemo } from "react";
@@ -124,4 +123,3 @@ export function useMessageGrouping(messages: ChatMessage[]): MessageGroup[] {
     return result;
   }, [messages]);
 }
-```
