@@ -1,0 +1,511 @@
+{
+    "planned_by":  "jit (Sonnet) — Opus-gated per phase, \u003e100 CC sub-agents",
+    "provider":  "commandcode",
+    "plan_id":  "INNOMCP-OPUS-GATES-EXTENDED-2026-06-13",
+    "sa_reviewer":  "claude-opus-4-8",
+    "rules":  "Output ONLY the requested artifact. No markdown fences around code. JSON must be valid. For Opus SA tasks: return ONLY valid JSON array/object, no prose.",
+    "groups":  [
+                   {
+                       "members":  [
+                                       {
+                                           "id":  "OPUS-P1-GATE",
+                                           "output":  "innomcp-node/docs/opus-gates/P1-GATE.json",
+                                           "finished_at":  null,
+                                           "model":  "claude-opus-4-8",
+                                           "role":  "sa",
+                                           "status":  "pending",
+                                           "task":  "You are Senior Architect doing FORMAL Phase 1 gate validation. Review the commit 82b1a32 \u0027fix(P1): resurrect innomcp-node backend\u0027. Verify: (1) All 4 core services restored (cacheManager, healthAggregator, responseFormatter, toolExecutor) from commit 3007ba2; (2) 14 residual tsc errors fixed; (3) 5 orphan files quarantined as *.mega100-*; (4) dist/ rebuilt; (5) backend answers on :3012. Check verify-recovery.js shows 8/8 PASS. Return JSON: {phase:\u0027P1\u0027, verdict:\u0027PASS\u0027|\u0027FAIL\u0027, evidence:[], issues:[]}. ONLY valid JSON."
+                                       },
+                                       {
+                                           "id":  "OPUS-P2-GATE",
+                                           "output":  "innomcp-node/docs/opus-gates/P2-GATE.json",
+                                           "finished_at":  null,
+                                           "model":  "claude-opus-4-8",
+                                           "role":  "sa",
+                                           "status":  "pending",
+                                           "task":  "You are Senior Architect doing FORMAL Phase 2 gate validation. Verify: (1) analytics.ts, mdesModels.ts, thaiNLP.ts rebuilt against real service APIs (analyticsService.getStats, mdesModelCache.getModels, thaiNLPService.detectIntent); (2) 0 @ts-nocheck in src/services; (3) tsc --noEmit EXIT 0; (4) routes re-wired in src/routes/api/index.ts. Check the actual file content of analytics.ts to confirm it uses analyticsService.getStats() not getOverallStats() (the hallucinated method). Return JSON: {phase:\u0027P2\u0027, verdict:\u0027PASS\u0027|\u0027FAIL\u0027, evidence:[], issues:[]}. ONLY valid JSON."
+                                       },
+                                       {
+                                           "id":  "OPUS-P3-GATE",
+                                           "output":  "innomcp-node/docs/opus-gates/P3-GATE.json",
+                                           "finished_at":  null,
+                                           "model":  "claude-opus-4-8",
+                                           "role":  "sa",
+                                           "status":  "pending",
+                                           "task":  "You are Senior Architect doing FORMAL Phase 3 gate validation. Verify: (1) fastPathHandler has GREETING_TOKENS Set including \u0027hello\u0027,\u0027hi\u0027,\u0027ping\u0027 — confirmed by reading lines 804-830 of src/services/fastPathHandler.ts; (2) GREETING_TOKENS block is BEFORE the gibberish block; (3) WSStatusBanner.tsx exists with correct props and no infinite spin when disconnected; (4) health.ts returns providers + build fields in /api/health response. Confirm the actual code structure, not just file existence. Return JSON: {phase:\u0027P3\u0027, verdict:\u0027PASS\u0027|\u0027FAIL\u0027, evidence:[], issues:[]}. ONLY valid JSON."
+                                       },
+                                       {
+                                           "id":  "OPUS-P4-GATE",
+                                           "output":  "innomcp-node/docs/opus-gates/P4-GATE.json",
+                                           "finished_at":  null,
+                                           "model":  "claude-opus-4-8",
+                                           "role":  "sa",
+                                           "status":  "pending",
+                                           "task":  "You are Senior Architect doing FORMAL Phase 4 gate validation. Verify: (1) PanelErrorBoundary.tsx is a class component with getDerivedStateFromError + componentDidCatch + reset button; (2) AgentStepsView.tsx subscribes to agent_step WS events with cleanup (removeEventListener on unmount); (3) playwright-audit.ts and browser-audit.spec.ts exist and target correct selectors; (4) ThreeColumnLayout.tsx exists with left/center/right props. Confirm each file has the correct implementation. Return JSON: {phase:\u0027P4\u0027, verdict:\u0027PASS\u0027|\u0027FAIL\u0027, evidence:[], issues:[]}. ONLY valid JSON."
+                                       },
+                                       {
+                                           "id":  "OPUS-P5-GATE",
+                                           "output":  "innomcp-node/docs/opus-gates/P5-GATE.json",
+                                           "finished_at":  null,
+                                           "model":  "claude-opus-4-8",
+                                           "role":  "sa",
+                                           "status":  "pending",
+                                           "task":  "You are Senior Architect doing FORMAL Phase 5 gate validation. Verify: (1) pre-commit-fence-check.sh correctly detects first-line fence (read actual script); (2) pre-commit-tsc-gate.sh covers BOTH innomcp-node/src/ AND innomcp-next/src/ staged files; (3) .git/hooks/pre-commit contains \u0027pre-commit-fence-check.sh\u0027 AND \u0027pre-commit-tsc-gate.sh\u0027 (not just existence — grep content); (4) verify-recovery.js checks hook content not just existence; (5) WAVE-POLICY.md exists with 5+ sections. Return JSON: {phase:\u0027P5\u0027, verdict:\u0027PASS\u0027|\u0027FAIL\u0027, evidence:[], issues:[]}. ONLY valid JSON."
+                                       }
+                                   ],
+                       "id":  "GATES",
+                       "mission":  "Opus SA formal gate validation per phase"
+                   },
+                   {
+                       "members":  [
+                                       {
+                                           "id":  "VQA-B1",
+                                           "output":  "innomcp-node/scripts/verify-backend-phase3.js",
+                                           "finished_at":  null,
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "role":  "dev",
+                                           "status":  "pending",
+                                           "task":  "Write a Node.js script (innomcp-node/scripts/verify-backend-phase3.js) that verifies Phase 3 via HTTP against a running backend on localhost:3012. Tests: (1) GET /api/health returns 200 with providers and build fields; (2) GET /api/analytics/stats returns 200; (3) GET /api/mdes/models returns 200; (4) POST /api/thai/detect with body {text:\u0027สวัสดี\u0027} returns 200; (5) POST a simple chat message \u0027hello\u0027 and assert response doesn\u0027t contain ห้ามเดาโว้ย. Uses node:http and node:assert. Prints PASS/FAIL per check. Exit 0 if all pass. Output ONLY .js code, no fences."
+                                       },
+                                       {
+                                           "id":  "VQA-B2",
+                                           "output":  "innomcp-node/scripts/run-phase3-verification.sh",
+                                           "finished_at":  null,
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "role":  "dev",
+                                           "status":  "pending",
+                                           "task":  "Write a bash script (innomcp-node/scripts/run-phase3-verification.sh) that: (1) runs node scripts/verify-backend-phase3.js; (2) runs node scripts/verify-recovery.js; (3) reports PASS/FAIL per script; (4) exits 0 only if both pass. Output ONLY bash, no fences."
+                                       },
+                                       {
+                                           "id":  "VQA-B3",
+                                           "output":  "innomcp-node/tests/integration/phase3-browser-smoke.test.ts",
+                                           "finished_at":  null,
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "role":  "dev",
+                                           "status":  "pending",
+                                           "task":  "Write a TypeScript integration test (innomcp-node/tests/integration/phase3-browser-smoke.test.ts) that uses node:http to test the running backend on port 3012: (1) GET /api/health returns {providers, build, status}; (2) POST /api/chat with message \u0027hello\u0027 returns something that is NOT ห้ามเดาโว้ย; (3) GET /api/analytics/stats is 200; (4) GET /api/thai/check?text=สวัสดี returns {isThai:true}. Uses node:test and node:assert. All tests have skipAudit equivalent — skip if port 3012 is not reachable. Output ONLY .ts code, no fences."
+                                       },
+                                       {
+                                           "id":  "VQA-B4",
+                                           "output":  "innomcp-node/docs/PHASE3-VERIFICATION-REPORT.md",
+                                           "finished_at":  null,
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "role":  "doc",
+                                           "status":  "pending",
+                                           "task":  "Write a markdown PHASE3-VERIFICATION-REPORT.md for innomcp Phase 3. Sections: (1) test commands to run against localhost:3012; (2) expected results for each endpoint; (3) pass criteria: hello→greeting, /health has providers, all 3 routes 200; (4) evidence checklist. Output only markdown."
+                                       },
+                                       {
+                                           "id":  "VQA-B5",
+                                           "output":  "innomcp-next/scripts/verify-phase4-browser.ts",
+                                           "finished_at":  null,
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "role":  "dev",
+                                           "status":  "pending",
+                                           "task":  "Write a Playwright E2E verification script (innomcp-next/scripts/verify-phase4-browser.ts) that verifies Phase 4 browser criteria: (1) navigates to http://localhost:3001; (2) checks for element containing text \u0027MDES INNOMCP\u0027 OR has class/id containing \u0027mdes\u0027 or \u0027brand\u0027; (3) checks page has 3+ visible column elements; (4) checks no fullpage error; (5) screenshots to innomcp-next/qa/phase4-verification.png; (6) returns PASS/FAIL JSON. Use @playwright/test chromium. Output ONLY .ts code, no fences."
+                                       },
+                                       {
+                                           "id":  "VQA-B6",
+                                           "output":  "innomcp-node/docs/ALL-PHASES-EXIT-CRITERIA.md",
+                                           "finished_at":  null,
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "role":  "test",
+                                           "status":  "pending",
+                                           "task":  "Write a complete exit criteria verification document (innomcp-node/docs/ALL-PHASES-EXIT-CRITERIA.md) covering ALL 5 phases. For each phase: criteria, test command, expected result, evidence location. Section 6: overall go/no-go decision matrix. Output only markdown."
+                                       }
+                                   ],
+                       "id":  "VQA-BROWSER",
+                       "mission":  "Phase 3-4 browser verification"
+                   },
+                   {
+                       "members":  [
+                                       {
+                                           "output":  "innomcp-node/scripts/health-monitor.js",
+                                           "task":  "Write a Node.js monitoring script (innomcp-node/scripts/health-monitor.js) that polls GET /api/health every 30 seconds, logs timestamp + status + provider info, alerts if status goes to unhealthy (prints WARNING). Run indefinitely. Exit on SIGINT. Output ONLY .js, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-01",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/services/systemHealthCheck.ts",
+                                           "task":  "Write a TypeScript service (innomcp-node/src/services/systemHealthCheck.ts) that checks all system components: (1) DB connection via healthAggregator; (2) Redis via getRedisHealthSnapshot; (3) providers via getProviderStatus; (4) MCP tools count. Returns SystemHealthReport {db:bool, redis:bool, providers:string[], mcpTools:number, overall:\u0027healthy\u0027|\u0027degraded\u0027|\u0027unhealthy\u0027}. Export. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-02",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/tests/unit/systemHealthCheck.test.js",
+                                           "task":  "Write node:test tests for systemHealthCheck.ts (innomcp-node/tests/unit/systemHealthCheck.test.js). Tests: overall is healthy when db+redis true, degraded when one false, unhealthy when both false. Mock the imported functions. Output ONLY .js, no fences.",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "id":  "EXT-03",
+                                           "role":  "test"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/middleware/requestId.ts",
+                                           "task":  "Write a TypeScript middleware (innomcp-node/src/middleware/requestId.ts) that adds a unique request ID to every request as X-Request-ID header and attaches to req.requestId. Uses crypto.randomUUID(). Export requestIdMiddleware. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-04",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/utils/responseTime.ts",
+                                           "task":  "Write a TypeScript utility (innomcp-node/src/utils/responseTime.ts): middleware that measures response time and sets X-Response-Time header in ms. Export responseTimeMiddleware. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-05",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/docs/MONITORING.md",
+                                           "task":  "Write MONITORING.md (250-300 words Thai+English) for innomcp-node: how to monitor health, what metrics to watch, alert thresholds, and the health-monitor.js script. Output only markdown.",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "id":  "EXT-06",
+                                           "role":  "doc"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/utils/typeGuards.ts",
+                                           "task":  "Write a TypeScript type guard utility (innomcp-node/src/utils/typeGuards.ts): isString, isNumber, isObject, isArray, hasProperty\u003cT\u003e(obj, key), isNonEmpty(val). All exported. Output ONLY .ts, no fences.",
+                                           "model":  "zai-org/GLM-5.1",
+                                           "id":  "EXT-07",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/tests/unit/typeGuards.test.js",
+                                           "task":  "Write node:test for typeGuards.ts. Tests: isString true for \u0027hello\u0027 false for 42, isNonEmpty false for \u0027\u0027 and null, hasProperty true when key exists. Output ONLY .js, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-08",
+                                           "role":  "test"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/utils/pagination.ts",
+                                           "task":  "Write a TypeScript pagination utility (innomcp-node/src/utils/pagination.ts): function paginate\u003cT\u003e(items: T[], page: number, pageSize: number): {data:T[], total:number, page:number, pageSize:number, totalPages:number}. Export. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-09",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/utils/eventBusHelper.ts",
+                                           "task":  "Write a TypeScript event emitter wrapper (innomcp-node/src/utils/eventBusHelper.ts): thin wrapper around Node EventEmitter with typed methods emit\u003cT\u003e(event:string, data:T), on\u003cT\u003e(event:string, handler:(data:T)=\u003evoid), off(event, handler). Export EventBusHelper class. Output ONLY .ts, no fences.",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "id":  "EXT-10",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/utils/withTimeout.ts",
+                                           "task":  "Write a TypeScript timeout utility (innomcp-node/src/utils/withTimeout.ts): async function withTimeout\u003cT\u003e(promise: Promise\u003cT\u003e, ms: number, label?: string): Promise\u003cT\u003e. Throws if promise doesn\u0027t resolve in time with label in message. Export. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-11",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/tests/unit/withTimeout.test.js",
+                                           "task":  "Write node:test for withTimeout: fast promise resolves ok, slow promise throws with timeout message. Use Date.now() to verify timing. Output ONLY .js, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-12",
+                                           "role":  "test"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/utils/retry.ts",
+                                           "task":  "Write a TypeScript retry utility (innomcp-node/src/utils/retry.ts): async function retry\u003cT\u003e(fn: ()=\u003ePromise\u003cT\u003e, opts:{maxAttempts:number, delayMs:number, backoff?:boolean}): Promise\u003cT\u003e. Exponential backoff if backoff=true. Throws last error after maxAttempts. Export. Output ONLY .ts, no fences.",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "id":  "EXT-13",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/utils/dateUtils.ts",
+                                           "task":  "Write a TypeScript date utility (innomcp-node/src/utils/dateUtils.ts): formatISO(date:Date):string, formatThai(date:Date):string (Thai Buddhist year), isToday(date:Date):boolean, daysDiff(a:Date,b:Date):number. Export all. Output ONLY .ts, no fences.",
+                                           "model":  "zai-org/GLM-5.1",
+                                           "id":  "EXT-14",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/utils/stringUtils.ts",
+                                           "task":  "Write a TypeScript string utility (innomcp-node/src/utils/stringUtils.ts): truncate(s,max), slugify(s), capitalize(s), countWords(s), stripHtml(s), isThaiText(s) (checks for Thai Unicode range). Export all. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-15",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/tests/unit/stringUtils.test.js",
+                                           "task":  "Write node:test for stringUtils: truncate cuts at max, slugify lowercases+hyphens, isThaiText true for Thai chars false for ASCII. Output ONLY .js, no fences.",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "id":  "EXT-16",
+                                           "role":  "test"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/hooks/useLocalStorage.ts",
+                                           "task":  "Write a React hook (innomcp-next/src/app/hooks/useLocalStorage.ts): useLocalStorage\u003cT\u003e(key:string, initial:T) returning [T, (val:T)=\u003evoid]. Persists to localStorage, SSR-safe (typeof window check). Export. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-17",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/hooks/useDebounce.ts",
+                                           "task":  "Write a React hook (innomcp-next/src/app/hooks/useDebounce.ts): useDebounce\u003cT\u003e(value:T, delayMs:number): T. Returns debounced value updated after delay. Export. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-18",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/hooks/useMediaQuery.ts",
+                                           "task":  "Write a React hook (innomcp-next/src/app/hooks/useMediaQuery.ts): useMediaQuery(query:string): boolean. Uses window.matchMedia, updates on change. SSR-safe. Export. Output ONLY .ts, no fences.",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "id":  "EXT-19",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/Badge.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/Badge.tsx): Badge with props {variant:\u0027default\u0027|\u0027success\u0027|\u0027warning\u0027|\u0027error\u0027|\u0027info\u0027, children, className?}. Color-coded Tailwind pill. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "zai-org/GLM-5.1",
+                                           "id":  "EXT-20",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/Skeleton.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/Skeleton.tsx): loading skeleton placeholder. Props: {width?:string|number, height?:string|number, rounded?:boolean, className?}. Uses Tailwind animate-pulse. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-21",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/Spinner.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/Spinner.tsx): centered full-page loading spinner overlay. Props: {show:boolean, message?:string}. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-22",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/EmptyState.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/EmptyState.tsx): empty state card with icon, title, description, optional action button. Props: {icon?:React.ReactNode, title:string, description?:string, action?:{label:string, onClick:()=\u003evoid}}. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "id":  "EXT-23",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/CopyButton.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/CopyButton.tsx): copy-to-clipboard button. Props: {text:string, label?:string}. Shows checkmark for 2s after copy. Uses navigator.clipboard. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-24",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/Alert.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/Alert.tsx): dismissible alert with variant (info/success/warning/error). Props: {variant, message, onDismiss?:()=\u003evoid}. Tailwind color coding. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-25",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/docs/COMPONENT-CATALOG.md",
+                                           "task":  "Write innomcp-next/docs/COMPONENT-CATALOG.md: catalog all components in src/app/components/common/. Table with: component name, file, props, purpose. 200-300 words. Output only markdown.",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "id":  "EXT-26",
+                                           "role":  "doc"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/contexts/ThemeContext.tsx",
+                                           "task":  "Write a TypeScript context (innomcp-next/src/app/contexts/ThemeContext.tsx): light/dark theme context. ThemeProvider and useTheme hook. Persists to localStorage. Export both. Output ONLY .tsx, no fences.",
+                                           "model":  "zai-org/GLM-5.1",
+                                           "id":  "EXT-27",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/contexts/UserContext.tsx",
+                                           "task":  "Write a TypeScript context (innomcp-next/src/app/contexts/UserContext.tsx): user session context. Interface User {id:number, name:string, role:string}. UserProvider with login/logout. useUser hook. Export. Output ONLY .tsx, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-28",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/hooks/useWindowSize.ts",
+                                           "task":  "Write a TypeScript hook (innomcp-next/src/app/hooks/useWindowSize.ts): returns {width:number, height:number} updating on resize. SSR-safe (initial 0x0). Export. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-29",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/hooks/useKeyPress.ts",
+                                           "task":  "Write a TypeScript hook (innomcp-next/src/app/hooks/useKeyPress.ts): useKeyPress(key:string): boolean. True while key is held. Handles cleanup. Export. Output ONLY .ts, no fences.",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "id":  "EXT-30",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/hooks/useScrollPosition.ts",
+                                           "task":  "Write a TypeScript hook (innomcp-next/src/app/hooks/useScrollPosition.ts): returns {x:number, y:number} scroll position, updates on scroll. SSR-safe. Export. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-31",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/hooks/useAsync.ts",
+                                           "task":  "Write a TypeScript hook (innomcp-next/src/app/hooks/useAsync.ts): useAsync\u003cT\u003e(fn:()=\u003ePromise\u003cT\u003e): {data:T|null, loading:boolean, error:Error|null, run:()=\u003evoid}. Calls fn on run(). Handles cleanup. Export. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-32",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/ProgressBar.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/ProgressBar.tsx): horizontal progress bar. Props: {value:0-100, label?:string, color?:\u0027blue\u0027|\u0027green\u0027|\u0027red\u0027|\u0027yellow\u0027, showPercent?:boolean}. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "id":  "EXT-33",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/Tag.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/Tag.tsx): small color tag/chip. Props: {label:string, color?:string, onRemove?:()=\u003evoid}. Optional X button. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "zai-org/GLM-5.1",
+                                           "id":  "EXT-34",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/Divider.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/Divider.tsx): horizontal or vertical divider. Props: {orientation?:\u0027horizontal\u0027|\u0027vertical\u0027, label?:string, className?}. With optional centered label. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-35",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/docs/TESTING-GUIDE.md",
+                                           "task":  "Write a TESTING-GUIDE.md for innomcp (400 words English+Thai): how to run unit tests, integration tests, E2E Playwright, and smoke tests. Commands for each. Expected output when all pass. Output only markdown.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-36",
+                                           "role":  "doc"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/.github/workflows/health-check.yml",
+                                           "task":  "Write a GitHub Actions workflow (innomcp-node/.github/workflows/health-check.yml): runs on schedule (every 6 hours) to ping the deployed health endpoint if HEALTH_CHECK_URL secret is set. Sends notification if unhealthy. Output ONLY YAML, no fences.",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "id":  "EXT-37",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/middleware/cors.ts",
+                                           "task":  "Write a TypeScript middleware (innomcp-node/src/middleware/cors.ts): configures CORS for the innomcp backend. Allows origins from ALLOWED_ORIGINS env (comma-separated), defaults to localhost:3000,localhost:3001. Export configureCors function returning Express middleware. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-38",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/middleware/compression.ts",
+                                           "task":  "Write a TypeScript middleware (innomcp-node/src/middleware/compression.ts): Express middleware to compress responses \u003e 1KB using zlib gzip. Sets Content-Encoding: gzip. Uses node:zlib. Export compressionMiddleware. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-39",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/utils/sanitize.ts",
+                                           "task":  "Write a TypeScript utility (innomcp-node/src/utils/sanitize.ts): sanitizeString(s:string): string strips HTML tags, trims, and removes null bytes. sanitizeObject(obj:Record\u003cstring,unknown\u003e): applies sanitizeString to all string values recursively. Export both. Output ONLY .ts, no fences.",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "id":  "EXT-40",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/tests/unit/sanitize.test.js",
+                                           "task":  "Write node:test for sanitize.ts: sanitizeString removes HTML, sanitizeObject recurses into nested objects. Output ONLY .js, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-41",
+                                           "role":  "test"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/utils/numberUtils.ts",
+                                           "task":  "Write a TypeScript utility (innomcp-node/src/utils/numberUtils.ts): clamp(n,min,max), round(n,decimals), toPercent(n,total), abbreviate(n):string (\u00271.2K\u0027, \u00273.4M\u0027). Export all. Output ONLY .ts, no fences.",
+                                           "model":  "zai-org/GLM-5.1",
+                                           "id":  "EXT-42",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/utils/arrayUtils.ts",
+                                           "task":  "Write a TypeScript utility (innomcp-node/src/utils/arrayUtils.ts): chunk\u003cT\u003e(arr,n), unique\u003cT\u003e(arr), groupBy\u003cT\u003e(arr,keyFn:(item:T)=\u003estring), flatten\u003cT\u003e(arr), last\u003cT\u003e(arr). Export all. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-43",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/tests/unit/arrayUtils.test.js",
+                                           "task":  "Write node:test for arrayUtils: chunk splits correctly, unique deduplicates, groupBy groups correctly. Output ONLY .js, no fences.",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "id":  "EXT-44",
+                                           "role":  "test"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/src/utils/objectUtils.ts",
+                                           "task":  "Write a TypeScript utility (innomcp-node/src/utils/objectUtils.ts): pick\u003cT\u003e(obj,keys), omit\u003cT\u003e(obj,keys), deepClone\u003cT\u003e(obj), merge\u003cT\u003e(target,source), isEqual(a,b). Export all. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-45",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/Kbd.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/Kbd.tsx): keyboard shortcut display component. Props: {keys:string[]}. Renders each key in a styled \u003ckbd\u003e element with + separator. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-46",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/Avatar.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/Avatar.tsx): user avatar with initials fallback. Props: {src?:string, name:string, size?:\u0027sm\u0027|\u0027md\u0027|\u0027lg\u0027, className?}. Shows image if src, else colored circle with initials. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "id":  "EXT-47",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/Collapsible.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/Collapsible.tsx): collapsible section with animated expand/collapse. Props: {title:string, children:ReactNode, defaultOpen?:boolean}. Uses CSS transition. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "zai-org/GLM-5.1",
+                                           "id":  "EXT-48",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/hooks/useCopyToClipboard.ts",
+                                           "task":  "Write a TypeScript hook (innomcp-next/src/app/hooks/useCopyToClipboard.ts): returns {copied:boolean, copy:(text:string)=\u003evoid}. copied resets after 2s. Export. Output ONLY .ts, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-49",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/docs/HOOKS-CATALOG.md",
+                                           "task":  "Write a HOOKS-CATALOG.md for innomcp-next (innomcp-next/docs/HOOKS-CATALOG.md): catalog all hooks in src/app/hooks/. Table: hook name, file, params, returns, purpose. 200-300 words. Output only markdown.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-50",
+                                           "role":  "doc"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/tests/utils/testHelpers.ts",
+                                           "task":  "Write a TypeScript test utility (innomcp-node/tests/utils/testHelpers.ts): makeReq(overrides), makeRes(), makeNext() helper factories for Express middleware testing. Typed. Export all. Output ONLY .ts, no fences.",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "id":  "EXT-51",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/scripts/seed-test-data.js",
+                                           "task":  "Write a TypeScript script (innomcp-node/scripts/seed-test-data.js): creates test data in the workspace directory for testing file operations. Creates workspace/test/, workspace/test/sample.md, workspace/test/data.json. Uses node:fs. Output ONLY .js, no fences.",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "id":  "EXT-52",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/Count.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/Count.tsx): animated number counter. Props: {value:number, duration?:number, prefix?:string, suffix?:string}. Animates from 0 to value over duration ms using requestAnimationFrame. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "id":  "EXT-53",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-next/src/app/components/common/Timer.tsx",
+                                           "task":  "Write a TypeScript component (innomcp-next/src/app/components/common/Timer.tsx): countdown or stopwatch. Props: {mode:\u0027countdown\u0027|\u0027stopwatch\u0027, initialMs?:number, onComplete?:()=\u003evoid}. Shows MM:SS. Controls: start/pause/reset. Export default. Output ONLY .tsx, no fences.",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "id":  "EXT-54",
+                                           "role":  "dev"
+                                       },
+                                       {
+                                           "output":  "innomcp-node/docs/INNOMCP-ARCHITECTURE.md",
+                                           "task":  "Write INNOMCP-ARCHITECTURE.md (400-500 words English+Thai): comprehensive architecture overview. Sections: system overview, backend layers, frontend layers, data flow, key design decisions. Include ASCII diagram. Output only markdown.",
+                                           "model":  "zai-org/GLM-5.1",
+                                           "id":  "EXT-55",
+                                           "role":  "doc"
+                                       }
+                                   ],
+                       "id":  "EXTENDED",
+                       "mission":  "120+ quality/utility/component tasks"
+                   }
+               ]
+}

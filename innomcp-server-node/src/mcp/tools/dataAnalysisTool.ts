@@ -7,6 +7,7 @@
  */
 import { parse as parseCsv } from "csv-parse/sync";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -200,25 +201,11 @@ export const dataAnalysisTool = {
   description:
     "Analyse CSV or JSON data: parse rows, compute column statistics (min/max/mean/unique), " +
     "extract KPI highlights, and return a table view. Max 500 rows processed.",
-  inputSchema: {
-    type: "object" as const,
-    properties: {
-      data: {
-        type: "string" as const,
-        description: "Raw CSV text or JSON array string to analyse",
-      },
-      format: {
-        type: "string" as const,
-        enum: ["csv", "json"],
-        description: "Data format: csv or json",
-      },
-      question: {
-        type: "string" as const,
-        description: "Optional natural-language question about the data",
-      },
-    },
-    required: ["data", "format"],
-  },
+  inputSchema: z.object({
+    data: z.string().describe("Raw CSV text or JSON array string to analyse"),
+    format: z.enum(["csv", "json"]).describe("Data format: csv or json"),
+    question: z.string().optional().describe("Optional natural-language question about the data"),
+  }),
   execute: async (args: any) => {
     const resultText = await execute(args as DataAnalysisInput);
     return {
