@@ -81,8 +81,9 @@ function createRateLimiter(options: RateLimitOptions): Middleware {
     res.setHeader('X-RateLimit-Reset', String(resetTime));
 
     if (timestamps.length >= maxRequests) {
+      const retryAfterMs = windowMs;
       res.setHeader('Retry-After', String(Math.ceil(windowMs / 1000)));
-      res.status(429).json({ error: message });
+      res.status(429).json({ error: 'rate_limit_exceeded', retryAfterMs, message });
       return;
     }
 

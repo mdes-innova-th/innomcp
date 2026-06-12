@@ -117,7 +117,9 @@ export async function executeShell(
   // ── 4. Workspace containment check ───────────────────────────────────────
   const normRoot = normalisePath(opts.workspaceRoot);
   const rawWd = opts.workingDir
-    ? path.resolve(opts.workspaceRoot, opts.workingDir.replace(/^[/\\]+/, ""))
+    ? (path.isAbsolute(opts.workingDir)
+        ? opts.workingDir
+        : path.resolve(opts.workspaceRoot, opts.workingDir))
     : opts.workspaceRoot;
   const normWd = normalisePath(rawWd);
 
@@ -181,8 +183,8 @@ function runCommand(
             : 0;
         resolve({
           exitCode,
-          stdout: stdout.slice(0, 10_000),
-          stderr: stderr.slice(0, 2_000),
+          stdout: stdout.trim().slice(0, 10_000),
+          stderr: stderr.trim().slice(0, 2_000),
           durationMs: Date.now() - start,
           command,
           riskLevel,
@@ -259,7 +261,9 @@ export async function streamShell(
   // ── 4. Workspace containment ──────────────────────────────────────────────
   const normRoot = normalisePath(opts.workspaceRoot);
   const rawWd = opts.workingDir
-    ? path.resolve(opts.workspaceRoot, opts.workingDir.replace(/^[/\\]+/, ""))
+    ? (path.isAbsolute(opts.workingDir)
+        ? opts.workingDir
+        : path.resolve(opts.workspaceRoot, opts.workingDir))
     : opts.workspaceRoot;
   const normWd = normalisePath(rawWd);
   if (!normWd.startsWith(normRoot)) {
