@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { WebSocketServer, WebSocket } from "ws";
 
 interface HeartbeatInfo {

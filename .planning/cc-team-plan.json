@@ -1,0 +1,76 @@
+{
+  "plan_id": "INNOMCP-RECOVERY-P2-2026-06-12",
+  "planned_by": "jit (Fable 5)",
+  "sa_reviewer": "sonnet",
+  "provider": "commandcode",
+  "phase": "Phase 2 — De-quarantine & rebuild against REAL service APIs",
+  "rules": "Output ONLY the requested artifact (code = no markdown fences, JSON = valid JSON). Use ONLY methods that exist on the real services listed in each task. Do NOT invent method names — that is the exact bug that broke MEGA-100.",
+  "groups": [
+    {
+      "id": "R",
+      "mission": "Rebuild 3 quarantined REST routes against real service APIs (Express Router, TypeScript)",
+      "members": [
+        {
+          "id": "R1",
+          "role": "dev",
+          "model": "deepseek/deepseek-v4-pro",
+          "status": "done",
+          "task": "Write a complete TypeScript Express router file (innomcp-node/src/routes/api/analytics.ts) for an analytics REST API. Import the singleton: `import { analyticsService } from '../../services/analyticsService';`. The service class AnalyticsService has ONLY these public methods (use ONLY these, do not invent others): track(event), getStats(), trackSession(id), endSession(id), reset(), saveSnapshot(), loadSnapshot(). Create routes: GET /stats -> analyticsService.getStats(); POST /track -> body{event} analyticsService.track(event) ; POST /reset -> analyticsService.reset(); POST /snapshot -> analyticsService.saveSnapshot(). Use Router from express, async handlers typed (req: Request, res: Response) returning Promise<void | Response>, try/catch with res.status(500).json({error}). Export `export default router;`. Output ONLY the .ts code, NO markdown fences, NO ```ts.",
+          "output": "ψ\\outbox\\cc-team\\R-R1-dev.md",
+          "finished_at": "2026-06-11T19:26:21.526Z"
+        },
+        {
+          "id": "R2",
+          "role": "dev",
+          "model": "Qwen/Qwen3.7-Max",
+          "status": "done",
+          "task": "Write a complete TypeScript Express router file (innomcp-node/src/routes/api/mdesModels.ts) for an MDES model catalog REST API. Import the singleton: `import { mdesModelCache } from '../../services/mdesModelCache';`. The class MDESModelCache has ONLY these public methods (use ONLY these): getModels(), getModel(name), getModelFamilies(), isModelAvailable(name), getBestModelForTask(task), warmUp(), getStats(). Create routes: GET /models -> getModels(); GET /models/:name -> getModel(req.params.name) (404 if falsy); GET /families -> getModelFamilies(); GET /best?task=xxx -> getBestModelForTask(query.task); POST /warmup -> warmUp(); GET /stats -> getStats(). Router from express, async handlers typed (req: Request, res: Response) => Promise<void | Response>, set Cache-Control public max-age=300 on GETs, try/catch 500. Export `export default router;`. Output ONLY the .ts code, NO markdown fences.",
+          "output": "ψ\\outbox\\cc-team\\R-R2-dev.md",
+          "finished_at": "2026-06-11T19:27:11.711Z"
+        },
+        {
+          "id": "R3",
+          "role": "dev",
+          "model": "deepseek/deepseek-v4-pro",
+          "status": "done",
+          "task": "Write a complete TypeScript Express router file (innomcp-node/src/routes/api/thaiNLP.ts) for a Thai NLP REST API. Import the singleton: `import { thaiNLPService } from '../../services/thaiNLPService';`. The class ThaiNLPService has ONLY these public methods (use ONLY these): isThai(text), thaiRatio(text), detectIntent(text), suggestModel(text), tokenize(text), extractEntities(text), clean(text), formatGovDoc(text). Create POST routes that read body{text}: POST /detect-intent -> detectIntent; POST /tokenize -> tokenize; POST /entities -> extractEntities; POST /clean -> clean; POST /format-gov -> formatGovDoc; POST /analyze -> returns {isThai, thaiRatio, intent: detectIntent, suggestedModel: suggestModel}. Validate text is non-empty string (400 if not). Router from express, async handlers (req,res)=>Promise<void|Response>, try/catch 500. Export `export default router;`. Output ONLY the .ts code, NO markdown fences.",
+          "output": "ψ\\outbox\\cc-team\\R-R3-dev.md",
+          "finished_at": "2026-06-11T19:26:51.188Z"
+        },
+        {
+          "id": "R4",
+          "role": "test",
+          "model": "deepseek/deepseek-v4-flash",
+          "status": "done",
+          "task": "Write a Node.js smoke test file (innomcp-node/tests/recovery/routes-resolve.test.js) using node:test and node:assert/strict (no external deps). It must, for each of these compiled route modules, require it and assert it exports a function (Express router is a function): '../../dist/routes/api/analytics.js', '../../dist/routes/api/mdesModels.js', '../../dist/routes/api/thaiNLP.js', '../../dist/routes/api/workspace.js'. Each in its own test() that try/requires and asserts typeof default-or-module === 'function' OR has a .stack/.use property (Express router duck-type). Print a summary. Output ONLY the JavaScript code, NO markdown fences.",
+          "output": "ψ\\outbox\\cc-team\\R-R4-test.md",
+          "finished_at": "2026-06-11T19:27:04.793Z"
+        },
+        {
+          "id": "R5",
+          "role": "test",
+          "model": "zai-org/GLM-5.1",
+          "status": "done",
+          "task": "Write a markdown checklist (Thai) at innomcp-node/tests/recovery/PHASE2-VERIFY.md for verifying Phase 2 of an innomcp backend recovery. Sections: (1) pre-checks (tsc --noEmit EXIT 0, npm run build succeeds), (2) route re-wiring checklist — confirm analytics/mdesModels/thaiNLP re-imported in src/routes/api/index.ts and registered with apiRouter.use, (3) 6 curl smoke commands hitting GET /api/analytics/stats, GET /api/mdes/models, POST /api/thai/analyze etc with expected status, (4) regression: confirm no @ts-nocheck remains in src/services (grep command), (5) 5 pass criteria. Concise, implementation-ready. Output ONLY markdown.",
+          "output": "ψ\\outbox\\cc-team\\R-R5-test.md",
+          "finished_at": "2026-06-11T19:27:25.919Z"
+        }
+      ]
+    },
+    {
+      "id": "Q",
+      "mission": "Remove @ts-nocheck from 6 services with proper TypeScript types",
+      "members": [
+        {
+          "id": "Q1",
+          "role": "dev",
+          "model": "Qwen/Qwen3.7-Max",
+          "status": "done",
+          "task": "Explain the safest general procedure to remove a `// @ts-nocheck` pragma from a TypeScript service file without changing runtime behavior: how to enable checking incrementally, common error classes (implicit any, possibly-undefined, missing return types) and their minimal type-only fixes, and how to verify with tsc --noEmit. Then give a reusable checklist a developer follows per file. Target files: providerManager.ts, thaiGovtTools.ts, thaiIntentRouter.ts, workspaceService.ts, wsEnhancer.ts, warmup.ts. Output a markdown playbook (Thai), implementation-ready. NO markdown fences around the whole doc.",
+          "output": "ψ\\outbox\\cc-team\\Q-Q1-dev.md",
+          "finished_at": "2026-06-11T19:28:08.564Z"
+        }
+      ]
+    }
+  ]
+}

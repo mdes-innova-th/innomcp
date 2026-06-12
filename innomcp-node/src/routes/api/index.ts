@@ -4,9 +4,9 @@ import csrfRouter from "./csrf";
 import orchestratorRouter from "./orchestrator";
 import motherScorecardRouter from "./motherScorecard";
 import { getAvailableProviders } from "../../providers/router";
-// QUARANTINED 2026-06-12 (Phase 1): analytics/mdesModels/thaiNLP routes were
-// MEGA-100 wave hallucinations calling non-existent service methods — never functional.
-// Phase 2 (cc-team) will rebuild them against the real service APIs.
+import analyticsRouter from "./analytics";
+import mdesModelsRouter from "./mdesModels";
+import thaiNLPRouter from "./thaiNLP";
 import workspaceFileRouter from "./workspace";
 
 const apiRouter = Router();
@@ -16,11 +16,12 @@ const apiCsrfRouter = Router();
 apiCsrfRouter.use("/csrf", csrfRouter);
 
 // Health is mounted publicly in app.ts (before apiKeyMiddleware)
-// URL Stats API routes (middleware applied at app level in src/app.ts)
 apiRouter.use("/chat", chatRouter);
 apiRouter.use("/orchestrate", orchestratorRouter);
 apiRouter.use("/mother/scorecard", motherScorecardRouter);
-// QUARANTINED 2026-06-12 (Phase 1): /analytics /mdes /thai — see import note above
+apiRouter.use("/analytics", analyticsRouter);
+apiRouter.use("/mdes", mdesModelsRouter);
+apiRouter.use("/thai", thaiNLPRouter);
 apiRouter.use("/workspace/files", workspaceFileRouter);
 
 // Provider discovery — lists available providers and which are configured
