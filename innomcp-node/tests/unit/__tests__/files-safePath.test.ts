@@ -16,7 +16,9 @@ import path from "node:path";
 const WORKSPACE_ROOT = path.resolve(__dirname, "../../../../../workspace");
 
 function safePath(userPath: string): string | null {
-  const cleaned = userPath.replace(/^[/\\]+/, "");
+  // Normalize Windows backslashes to forward slashes (on Linux, \ is literal)
+  const normalized = userPath.replace(/\\/g, "/");
+  const cleaned = normalized.replace(/^\/+/, "");
   const resolved = path.resolve(WORKSPACE_ROOT, cleaned);
   if (
     resolved !== WORKSPACE_ROOT &&
