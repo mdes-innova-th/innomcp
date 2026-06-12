@@ -17,8 +17,8 @@ try {
 
   const hookPath = path.join(hooksDir, 'pre-commit');
   const linesToAdd = [
-    'bash scripts/pre-commit-fence-check.sh',
-    'bash scripts/pre-commit-tsc-gate.sh',
+    'bash innomcp-node/scripts/pre-commit-fence-check.sh',
+    'bash innomcp-node/scripts/pre-commit-tsc-gate.sh',
   ];
 
   let newContent;
