@@ -1,106 +1,159 @@
-# INNOMCP Recovery Plan & New Spec — 2026-06-12
+# INNOMCP Recovery Plan & New Spec — 2026-06-12 (v2, prism-revised)
 
 **Planned by**: jit (Fable 5) | **Approved by**: innova (mom)
 **Execution**: cc-team (CommandCode provider ONLY — zero Claude tokens on work tasks)
 **Mechanical steps**: plain scripts (zero LLM tokens — cheapest possible)
+**v2 changes**: revised by /oracle-prism (design lenses) after Phase 1 execution exposed wrong
+assumptions. See "v1→v2 Corrections" at bottom.
 
 ---
 
-## Diagnosis Summary (evidence-based, 2026-06-12)
+## NEW SUCCESS DEFINITION (the v1 weakness prism caught)
+
+> v1 measured success as "tsc compiles + WS returns non-empty". That is a FALSE GREEN.
+> A real user (mom) measures: **panels render with live data, and chat gives a sensible answer.**
+
+Every phase exit criterion below is now **user-observable**, verified in a real browser /
+real WS round-trip — not just a compile.
+
+---
+
+## Diagnosis Summary (evidence-based, corrected 2026-06-12)
 
 | Component | Status | Evidence |
 |---|---|---|
-| innomcp-next (frontend) | ✅ builds clean | `npm run build` passes, all panels exist & wired |
-| innomcp-node (backend) | ❌ 70+ tsc errors | 4 services corrupted by MEGA-100 (be7dea7) |
-| WebSocket :3011/chat | ❌ never starts | backend can't compile |
-| Chat "hello" | ❌ dead | frontend hangs waiting for WS that never listens |
+| innomcp-next (frontend) | ⚠️ compiles, runtime UNVERIFIED | `npm run build` passes BUT mom reports panels fail at runtime — must browser-test |
+| innomcp-node (backend) | ✅ FIXED (Phase 1) | was 70+ tsc errors; now tsc EXIT 0, WS hello round-trips |
+| WebSocket /chat | ✅ listens (on test :3012) | old daemon PID 16432 holds :3011 (unkillable) |
+| Chat answer quality | ⚠️ SUSPECT | "hello" → "ห้ามเดาโว้ย" — non-sensible; provider/system-prompt issue, NOT just connectivity |
 
-**Root cause**: commit `be7dea7` (MEGA-100 wave, 62 bulk-generated tasks) overwrote 4 core
-services with truncated files containing markdown fence markers (```ts) at line 1:
+**Root cause (unchanged)**: commit `be7dea7` (MEGA-100 wave) committed raw CODECOMMAND output
+with markdown fence markers + truncation, no build gate.
 
-| File | HEAD (broken) | 3007ba2 (clean) | Used by |
-|---|---|---|---|
-| services/responseFormatter.ts | 65 lines, fence | 171 lines ✅ | chat response pipeline |
-| services/toolExecutor.ts | 196 lines, fence | 168 lines ✅ | tool execution |
-| services/healthAggregator.ts | 191 lines, fence | 247 lines ✅ | provider health probe |
-| services/cacheManager.ts | 98 lines, fence | 165 lines ✅ | session/message cache |
-
-**How it happened**: CODECOMMAND swarm output was committed raw (markdown block copy-paste)
-without a build gate. Commit 3007ba2 had already cleaned this once; MEGA-100 re-broke it.
+**Corrected blast radius — 9 files, not 4**:
+| File | Type | Disposition |
+|---|---|---|
+| services/responseFormatter.ts | core | restored from 3007ba2 ✅ |
+| services/toolExecutor.ts | core | restored ✅ |
+| services/healthAggregator.ts | core | restored ✅ |
+| services/cacheManager.ts | core | restored ✅ |
+| services/thaiNLPEnhancer.ts | orphan, fence | quarantined → .mega100-corrupt |
+| routes/api/analytics.ts | orphan, hallucinated methods | quarantined → cc-team rebuilt (Phase 2) |
+| routes/api/mdesModels.ts | orphan, hallucinated | quarantined → cc-team rebuilt (Phase 2) |
+| routes/api/thaiNLP.ts | orphan, hallucinated | quarantined → cc-team rebuilt (Phase 2) |
+| scripts/cleanupWorkspace.ts | orphan, signature drift | quarantined → .mega100-orphan |
 
 ---
 
-## Phase 1 — Backend Resurrection (P0, mechanical + cc-team)
+## Phase 1 — Backend Resurrection — ✅ DONE (2026-06-12)
 
-**Goal**: `hello` round-trips through chat again.
+**Goal**: `hello` round-trips through chat again. **Status: COMPLETE & committed.**
+
+What was actually done (vs v1's naive 5 steps):
+1. Restored 4 core services from `3007ba2` ✅
+2. Fixed **14 residual tsc errors** v1 didn't anticipate: rateLimiter aliases
+   (generalRateLimit/authRateLimit), import-path depth (`../`→`../../`), default→named imports,
+   req.session typing, workspace `uploadFile`→`writeFile` ✅
+3. Quarantined 5 orphan/corrupt files (3 hallucinated routes + thaiNLPEnhancer + cleanupWorkspace) ✅
+4. **dist/ rebuilt** (pre-commit hook requires dist/app.js to resolve) ✅
+5. Verified on **:3012** (NOT :3011 — daemon PID 16432 holds it, unkillable), via WS hello test ✅
+
+**Carry-forward defects (feed Phase 3)**: hello answer quality bad; frontend runtime unverified.
+
+## Phase 2 — Rebuild Quarantined Routes + De-quarantine — cc-team (RUNNING/DONE)
+
+**Goal**: the 3 hallucinated routes work against REAL service APIs; no @ts-nocheck in services.
+**Scope narrowed** (prism Simplifier): audit only build-breaking / wired files, NOT all 180.
+
+| # | Task | Executor | Verify (user-observable) |
+|---|---|---|---|
+| 2.1 | Rebuild analytics/mdesModels/thaiNLP routes against real service methods (method lists embedded in prompts) | cc-team ✅ done | tsc EXIT 0 after re-wire |
+| 2.2 | SA (Sonnet, 1 batch): validate no hallucinated methods, write files, re-wire index.ts, tsc, rebuild dist | Sonnet | `curl /api/mdes/models` returns JSON 200 |
+| 2.3 | @ts-nocheck removal playbook → apply to 6 services incrementally | cc-team + script | `grep -r @ts-nocheck src/services` = 0 |
+| 2.4 | Smoke test: all route modules resolve (node:test) | cc-team ✅ done | `node --test` green |
+
+**Exit**: tsc 0 + 3 routes return real data via curl + 0 @ts-nocheck + smoke green.
+
+## Phase 3 — Chat Quality + Never-Silent-Hang — cc-team (P0.5, promoted)
+
+**Goal**: chat gives sensible answers AND never hangs silently. (Promoted from P1 — prism User
+lens: this is what mom actually experiences as "broken".)
 
 | # | Task | Executor | Verify |
 |---|---|---|---|
-| 1.1 | `git checkout 3007ba2 -- innomcp-node/src/services/{responseFormatter,toolExecutor,healthAggregator,cacheManager}.ts` | script (0 tokens) | files start with valid TS |
-| 1.2 | `npx tsc --noEmit` in innomcp-node | script | capture remaining errors |
-| 1.3 | If residual errors: dispatch each error cluster to cc-team (deepseek-v4-pro) for patch | cc-team | tsc 0 errors |
-| 1.4 | Start backend, confirm WS listens on :3011 | script | `Test-NetConnection -Port 3011` |
-| 1.5 | E2E smoke: send "hello" via WS, expect non-empty reply | script (node ws client) | reply received |
+| 3.1 | Diagnose "hello"→"ห้ามเดาโว้ย": trace system prompt + provider selection for trivial greetings | cc-team + 1 Claude read | hello → polite greeting |
+| 3.2 | Frontend WS-state UI: "backend reconnecting" banner + retry, no infinite spinner (ChatPage ~L600) | cc-team | kill backend → banner ≤5s |
+| 3.3 | Backend /health returns provider+build status for frontend probe | cc-team | `curl /health` shows providers |
+| 3.4 | Smoke suite: hello, provider-select, tool-call, WS-reconnect (node:test) | cc-team | suite green |
 
-**Exit criteria**: tsc 0 errors + backend starts + hello answered.
+**Exit**: real browser — type hello, get sensible reply; kill backend, see banner not hang.
 
-## Phase 2 — De-quarantine & Wave Triage (P1, cc-team)
+## Phase 4 — Frontend Runtime + Manus.im UX — cc-team (P1)
 
-**Goal**: remove tech debt left by waves; know what the 180 generated files actually do.
+**Goal**: panels actually render (prism Breaker: "compiles" ≠ "renders"). Browser-verified.
 
-| # | Task | Executor |
-|---|---|---|
-| 2.1 | Remove `@ts-nocheck` from 6 files (providerManager, thaiGovtTools, thaiIntentRouter, workspaceService, wsEnhancer, warmup) — proper types, one cc-team dev task per file | cc-team |
-| 2.2 | Orphan audit: list all Wave 7–10 + MEGA-100 files, classify wired/orphaned/duplicate | cc-team (flash) |
-| 2.3 | Produce delete-list of orphans + duplicate hero/panels for mom's approval (NO auto-delete — Nothing is Deleted rule: propose only) | cc-team |
+| # | Task | Executor | Verify |
+|---|---|---|---|
+| 4.1 | **Browser runtime audit**: load app, capture console errors, screenshot each panel (Playwright) | cc-team/script | screenshots + 0 console errors |
+| 4.2 | Error boundaries on ManusWorkspacePanel + MultiAgentPanel (panel fail ≠ page blank) | cc-team | force panel error → boundary shows |
+| 4.3 | Wire AgentStepsView to real dispatch events (manus "Hands On" visibility) | cc-team | steps stream during chat |
+| 4.4 | Layout QA vs manus.im (3-column, header, responsive) | cc-team | checklist pass |
 
-**Exit criteria**: 0 @ts-nocheck in services; audit report in docs/.
+**Exit**: Playwright loads app, all 3 columns render with data, console clean.
 
-## Phase 3 — Chat E2E Hardening (P1, cc-team)
+## Phase 5 — Regression Guards — mechanical (P1, promoted)
 
-**Goal**: chat never silently hangs again.
-
-| # | Task | Executor |
-|---|---|---|
-| 3.1 | Frontend: WS connection state UI — "backend down" banner + retry button instead of infinite hang (ChatPage.tsx line ~600) | cc-team |
-| 3.2 | Backend: /health endpoint returns build/provider status for frontend probe | cc-team |
-| 3.3 | Smoke test suite: hello round-trip, provider select, tool call, WS reconnect (node:test, no deps) | cc-team |
-
-**Exit criteria**: kill backend → UI shows banner within 5s; smoke suite green.
-
-## Phase 4 — Manus.im UX Completion (P2, cc-team)
-
-**Goal**: the 3-column manus-style workspace actually works like manus.im.
+**Goal**: bulk-generation can NEVER silently break main again. (Promoted — this is the actual
+systemic root cause; without it, MEGA-101 repeats the disaster.)
 
 | # | Task | Executor |
 |---|---|---|
-| 4.1 | Error boundaries on ManusWorkspacePanel + MultiAgentPanel (panel fail ≠ page fail) | cc-team |
-| 4.2 | Wire AgentStepsView to real dispatch events (manus "Hands On" visibility) | cc-team |
-| 4.3 | Apply request_id pattern from Jit `limbs/manus-wrapper.js` to chat dispatch (traceability) | cc-team |
-| 4.4 | Layout QA checklist vs manus.im reference (3-column, header, responsive) | cc-team |
+| 5.1 | Pre-commit hook: reject staged .ts/.tsx whose first non-blank line is a ``` fence | script ✅ pattern known |
+| 5.2 | Pre-commit hook: `tsc --noEmit` both packages before any commit touching src/ | script |
+| 5.3 | Wave policy doc: bulk-gen → feature branch → build gate → SA review → merge. Never direct-to-main | doc |
 
-## Phase 5 — Regression Guards (P2, mechanical)
+**Exit**: a deliberately fence-corrupted file is REJECTED by the hook in a test commit.
 
-**Goal**: bulk-generation can never break main again.
+## Backlog (de-scoped by prism Simplifier — not "chat is broken")
 
-| # | Task | Executor |
-|---|---|---|
-| 5.1 | Pre-commit hook: reject any staged .ts/.tsx starting with ``` fence | script |
-| 5.2 | CI gate script: `tsc --noEmit` both packages before any wave-commit | script |
-| 5.3 | Wave policy doc: bulk-generated code goes to branch + build gate + review, never direct to main | doc |
+- request_id traceability pattern (was 4.3) — nice-to-have, after chat works
+- full 180-file orphan census — only audit build-breakers now; full census later
 
 ---
 
 ## Execution Rules (save แบบขั้นสุด)
 
-1. **Mechanical first**: git restore, tsc, hooks = scripts, 0 LLM tokens
-2. **cc-team for all generation**: deepseek-v4-pro (dev), deepseek-v4-flash (test/audit), Qwen3.7-Max (architecture) via `scripts/cc-team-run.js` pattern — CommandCode only
-3. **Claude usage**: orchestration + final verification reading only (this session)
-4. **SA review**: batch once per phase, not per task
-5. **Commit per phase** with phase tag; never bulk-commit unverified generation (Phase 5 enforces)
+1. **Mechanical first**: git restore, tsc, hooks, dist rebuild = scripts, 0 LLM tokens
+2. **cc-team for all generation**: deepseek-v4-pro (dev), deepseek-v4-flash (test), Qwen3.7-Max
+   (architecture) via `scripts/cc-team-run.cjs` (.cjs — innomcp/scripts is type:module). CommandCode only
+3. **Embed real API context in every cc-team prompt** — list the actual methods/signatures so
+   workers cannot hallucinate (the exact MEGA-100 failure mode)
+4. **Claude**: orchestration + final verify-read + 1 batched SA review per phase. Never per-task
+5. **Commit per phase**, phase-tagged, revertable. Never bulk-commit unverified generation
+6. **Verify like a user**: browser/WS round-trip, not just tsc
+
+## Environment gotchas (hard-won, Phase 1)
+
+- Port :3011 held by **unkillable** daemon PID 16432 (jarvis, 2026-06-10, elevated) → test on :3012
+- `innomcp-node/.env` dotenv **OVERRIDES** shell env → set SERVER_PORT in .env, not shell
+- pre-commit hook requires **dist/app.js rebuilt** (`npx tsc`) or it blocks the commit
+- `innomcp/scripts` is `type:module` → runner must be `.cjs`
+- CommandCode 403s default Python/Node UA → set custom User-Agent header
 
 ## Rollback Safety
 
 - Last known good: `7fb8f68` (2026-06-11 09:05)
-- Phase 1 only restores 4 files from `3007ba2` — no deletion, full git history preserved
+- Every restore preserves git history; quarantined files kept as `*.mega100-*` (Nothing is Deleted)
 - Every phase = separate commit → independently revertable
+
+---
+
+## v1 → v2 Corrections (what prism caught)
+
+| Lens | v1 flaw | v2 fix |
+|---|---|---|
+| User | success = "compiles + non-empty reply" | success = browser renders + sensible answer; hello-quality is now Phase 3.1 |
+| Maintainer | "4 corrupted" (wrong); Phase 1 shown pending though done | corrected to 9 files; Phase 1 marked DONE with real steps |
+| Breaker | assumed :3011 free, no dist step, shell-env port | documented daemon/3012, dist rebuild, .env override |
+| Simplifier | "audit 180 files", request_id in critical path | de-scoped to backlog |
+| Integrator | rebuilt-routes work absent (emerged in P1) | Phase 2 now centers on it |
