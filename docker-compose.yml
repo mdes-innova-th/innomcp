@@ -63,12 +63,19 @@ services:
         condition: service_healthy
 
   web:
-    build: ./innomcp-next
+    build:
+      context: ./innomcp-next
+      args:
+        # browser-reachable URLs (api publishes 3015->3011); http://api:3011
+        # only resolves inside the docker network, never from the user's browser
+        - NEXT_PUBLIC_BACKEND_URL=http://localhost:3015
+        - NEXT_PUBLIC_WS_URL=ws://localhost:3015
     restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_BACKEND_URL=http://api:3011
+      - NODE_BACKEND_HOST=http://api:3011
+      - NODE_WS_BACKEND_HOST=ws://api:3011
     depends_on:
       - api
 
