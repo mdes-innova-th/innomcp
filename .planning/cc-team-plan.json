@@ -1001,10 +1001,10 @@
           "id": "INT-30",
           "role": "doc",
           "model": "zai-org/GLM-5.1",
-          "status": "pending",
+          "status": "done",
           "task": "Write RECOVERY-COMPLETE.md completion announcement document (400-500 words Thai and English) declaring that all 5 recovery phases are complete. Include: count of files fixed and created, current tsc status (exit 0), new capabilities enabled (analytics/mdes/thai APIs, WS banner, error boundaries, pre-commit hooks), next steps for the system. Factual and professional tone. Output only markdown text.",
-          "output": "innomcp-node/docs/RECOVERY-COMPLETE.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-30-doc.md",
+          "finished_at": "2026-06-12T03:56:54.800Z"
         }
       ],
       "id": "INT",
