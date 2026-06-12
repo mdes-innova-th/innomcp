@@ -1,3 +1,8 @@
+<!-- cc-team deliverable
+ group: VQA (Visual QA + frontend completion tasks)
+ member: VQA-26 role=dev model=deepseek/deepseek-v4-pro
+ finish_reason: stop | tokens: {"prompt_tokens":92,"completion_tokens":1552,"total_tokens":1644,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":1354,"image_tokens":0},"cache_creation_input_tokens":0} | 23s
+ generated: 2026-06-12T04:22:16.167Z -->
 import { useState, useCallback } from 'react';
 
 export default function useChatState() {
