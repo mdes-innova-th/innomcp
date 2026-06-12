@@ -67,10 +67,10 @@
           "id": "P3A-7",
           "role": "doc",
           "model": "zai-org/GLM-5.1",
-          "status": "pending",
+          "status": "done",
           "task": "Write markdown doc (200-300 words Thai+English) explaining the fast path handler greeting fix: what was wrong (hello→ห้ามเดาโว้ย), what was fixed (GREETING_TOKENS check added), how to add more greetings. Output only markdown.",
-          "output": "innomcp-node/docs/GREETING-FIX.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P3A-P3A-7-doc.md",
+          "finished_at": "2026-06-12T03:43:23.609Z"
         }
       ]
     },
@@ -109,19 +109,19 @@
           "id": "P3B-4",
           "role": "doc",
           "model": "moonshotai/Kimi-K2.6",
-          "status": "pending",
+          "status": "done",
           "task": "Write a VERIFY.md checklist (Thai+English) for Phase 3.2 WS reconnection banner. Sections: manual test steps (kill backend, observe banner â‰¤5s), expected banner colors and text, automated test command, pass criteria. Output only markdown.",
-          "output": "innomcp-node/tests/recovery/P3B-VERIFY.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P3B-P3B-4-doc.md",
+          "finished_at": "2026-06-12T03:42:48.128Z"
         },
         {
           "id": "P3B-5",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write a React hook (innomcp-next/src/app/hooks/useWSStatus.ts). Returns { status: 'connected'|'connecting'|'disconnected', retryCount: number }. Takes { socket: WebSocket|null }. Polls socket.readyState every 1s via setInterval. Export default useWSStatus. Output ONLY the TypeScript hook, no fences.",
-          "output": "innomcp-next/src/app/hooks/useWSStatus.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P3B-P3B-5-dev.md",
+          "finished_at": "2026-06-12T03:47:36.117Z"
         },
         {
           "id": "P3B-6",
@@ -160,37 +160,37 @@
           "id": "P3C-2",
           "role": "test",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write a smoke test (innomcp-node/tests/recovery/P3C-health-providers.test.js) using node:test and node:assert/strict. Test: require the built dist/routes/api/health.js and assert it exports a Router (function); separately assert that a mock response to GET /health would include fields: status, providers, build â€” use simple object-shape checks (no live HTTP calls). Output ONLY the .js test code, no markdown fences.",
-          "output": "innomcp-node/tests/recovery/P3C-health-providers.test.js",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P3C-P3C-2-test.md",
+          "finished_at": "2026-06-12T03:42:35.628Z"
         },
         {
           "id": "P3C-3",
           "role": "doc",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write a markdown VERIFY.md (Thai+English) for Phase 3.3 health endpoint. Include: curl /api/health expected JSON shape with providers and build fields, pass criteria, regression note (existing fields must not break). Output only markdown.",
-          "output": "innomcp-node/tests/recovery/P3C-VERIFY.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P3C-P3C-3-doc.md",
+          "finished_at": "2026-06-12T03:42:35.271Z"
         },
         {
           "id": "P3C-4",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write TypeScript utility (innomcp-node/src/utils/providerStatus.ts): function getProviderStatus() returning { configured: {mdesOllama:bool,openai:bool,copilot:bool,thaiLlm:bool}, primary:string }. Uses process.env. Export the interface ProviderStatus and the function. Output ONLY .ts code, no fences.",
-          "output": "innomcp-node/src/utils/providerStatus.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P3C-P3C-4-dev.md",
+          "finished_at": "2026-06-12T03:42:46.622Z"
         },
         {
           "id": "P3C-5",
           "role": "test",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write node:test unit test for getProviderStatus. Tests: no env → all false; OPENAI_API_KEY set → openai=true; primary always string. Mock process.env with temp override. Output ONLY JS test code, no fences.",
-          "output": "innomcp-node/tests/recovery/P3C-provider-status.test.js",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P3C-P3C-5-test.md",
+          "finished_at": "2026-06-12T03:42:53.606Z"
         }
       ]
     },
@@ -202,10 +202,10 @@
           "id": "P3D-1",
           "role": "test",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write a comprehensive Node.js smoke test suite (innomcp-node/tests/recovery/P3D-smoke-suite.test.js) using node:test and node:assert/strict. Tests (all using mock/stub, no live HTTP): (1) 'hello greeting fast path': given input 'hello', fastPathHandler should NOT return category='unknown' with text='à¸«à¹‰à¸²à¸¡à¹€à¸”à¸²à¹‚à¸§à¹‰à¸¢'; (2) 'gibberish rejection': 'xkjhq2' should return handled=true with category='unknown'; (3) 'health response shape': createHealthResponse mock returns object with status, providers, build fields; (4) 'WS status transitions': wsStatus starts 'connecting', transitions to 'connected' on open, to 'disconnected' on close. Use stubs/mocks inline. Output ONLY .js test code, no markdown fences.",
-          "output": "innomcp-node/tests/recovery/P3D-smoke-suite.test.js",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P3D-P3D-1-test.md",
+          "finished_at": "2026-06-12T03:43:30.115Z"
         },
         {
           "id": "P3D-2",
@@ -220,28 +220,28 @@
           "id": "P3D-3",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write a bash script (innomcp-node/scripts/phase3-smoke.sh) that performs Phase 3 smoke tests against a running backend on port 3012. Tests: (1) curl -s -X POST http://localhost:3012/api/chat -H 'Content-Type: application/json' -d '{\"message\":\"hello\"}' and assert response does NOT contain 'à¸«à¹‰à¸²à¸¡à¹€à¸”à¸²à¹‚à¸§à¹‰à¸¢'; (2) curl /api/health and assert JSON contains 'providers'; (3) curl /api/analytics/stats returns 200. Print PASS/FAIL per test. Exit 0 if all pass, 1 if any fail. Output ONLY the bash script, no markdown fences.",
-          "output": "innomcp-node/scripts/phase3-smoke.sh",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P3D-P3D-3-dev.md",
+          "finished_at": "2026-06-12T03:42:46.689Z"
         },
         {
           "id": "P3D-4",
           "role": "dev",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write a TypeScript integration test plan doc for Phase 3 (innomcp-node/tests/recovery/P3-INTEGRATION-PLAN.md). 5 test scenarios with steps: hello chat, backend kill+banner, health check, provider display, gibberish rejection. Each scenario: pre-conditions, steps, expected result. Output only markdown.",
-          "output": "innomcp-node/tests/recovery/P3-INTEGRATION-PLAN.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P3D-P3D-4-dev.md",
+          "finished_at": "2026-06-12T03:43:32.024Z"
         },
         {
           "id": "P3D-5",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write a Phase 3 smoke test runner (innomcp-node/tests/recovery/run-p3-smoke.sh) bash script. Runs all P3 test files and reports PASS/FAIL. Uses node --test for .js files. Prints summary. Output ONLY bash script, no fences.",
-          "output": "innomcp-node/tests/recovery/run-p3-smoke.sh",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P3D-P3D-5-dev.md",
+          "finished_at": "2026-06-12T03:43:03.262Z"
         }
       ]
     },
@@ -253,55 +253,55 @@
           "id": "P4A-1",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write a Playwright audit script (innomcp-next/scripts/playwright-audit.ts) that: (1) launches Chromium headless; (2) navigates to http://localhost:3000; (3) captures all console errors and warnings (page.on('console')); (4) waits 5s for panels to load; (5) screenshots the full page to innomcp-next/qa/screenshots/audit-full.png; (6) crops/screenshots each panel area: left column (0,0,400,800), center column (400,0,800,800), right column (800,0,1200,800) to audit-left.png, audit-center.png, audit-right.png; (7) checks for 3 required elements by selector: [data-testid='mdes-brand-header'], .chat-panel or [data-testid='chat-panel'], .manus-workspace or [data-testid='workspace-panel']; (8) outputs a JSON summary { consoleErrors, missingElements, screenshots } to innomcp-next/qa/audit-report.json. Use @playwright/test or playwright directly. Output ONLY the TypeScript code, no markdown fences.",
-          "output": "innomcp-next/scripts/playwright-audit.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4A-P4A-1-dev.md",
+          "finished_at": "2026-06-12T03:43:20.344Z"
         },
         {
           "id": "P4A-2",
           "role": "dev",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write a shell script (innomcp-next/scripts/run-audit.sh) that: (1) ensures qa/screenshots directory exists (mkdir -p); (2) runs npx tsx scripts/playwright-audit.ts; (3) if it fails, prints the error and exits 1; (4) reads qa/audit-report.json and prints a summary: number of console errors, missing elements, screenshot paths. Output ONLY the bash script, no markdown fences.",
-          "output": "innomcp-next/scripts/run-audit.sh",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4A-P4A-2-dev.md",
+          "finished_at": "2026-06-12T03:43:50.660Z"
         },
         {
           "id": "P4A-3",
           "role": "doc",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write a markdown VERIFY.md (Thai+English) for Phase 4.1 browser runtime audit. Include: how to run the audit script, expected output (0 console errors, all 3 columns visible), how to interpret the JSON report, pass criteria. Output only markdown.",
-          "output": "innomcp-next/docs/P4A-VERIFY.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4A-P4A-3-doc.md",
+          "finished_at": "2026-06-12T03:43:24.351Z"
         },
         {
           "id": "P4A-4",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write a Playwright E2E test spec (innomcp-next/tests/e2e/browser-audit.spec.ts) using @playwright/test. Tests: page loads, MDESBrandHeader visible, chat input focusable, workspace panel present, 0 console errors. Use page.on('console') to collect errors. Output ONLY the .ts spec, no fences.",
-          "output": "innomcp-next/tests/e2e/browser-audit.spec.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4A-P4A-4-dev.md",
+          "finished_at": "2026-06-12T03:43:38.396Z"
         },
         {
           "id": "P4A-5",
           "role": "dev",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write a responsive Playwright test (innomcp-next/tests/e2e/responsive.spec.ts). Tests app at viewports: 1440x900, 768x1024, 375x812. For each: page loads, header visible, no horizontal overflow. Output ONLY .ts spec, no fences.",
-          "output": "innomcp-next/tests/e2e/responsive.spec.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4A-P4A-5-dev.md",
+          "finished_at": "2026-06-12T03:44:01.743Z"
         },
         {
           "id": "P4A-6",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write playwright.config.ts for innomcp-next: baseURL=http://localhost:3000, chromium only, timeout=30000, screenshot on failure, video on first retry. Output ONLY the TypeScript config, no fences.",
-          "output": "innomcp-next/playwright.config.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4A-P4A-6-dev.md",
+          "finished_at": "2026-06-12T03:43:29.451Z"
         }
       ]
     },
@@ -313,91 +313,91 @@
           "id": "P4B-1",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write a React error boundary component (innomcp-next/src/app/components/chat/PanelErrorBoundary.tsx). It's a class component (ErrorBoundary pattern â€” must be class, not hooks). Props: { children: React.ReactNode, panelName: string }. State: { hasError: boolean, error: Error|null }. In componentDidCatch: log to console.error with panelName prefix. In render: if hasError show a fallback UI: a card with red border, title 'à¹à¸œà¸‡ {panelName} à¹€à¸à¸´à¸”à¸‚à¹‰à¸­à¸œà¸´à¸”à¸žà¸¥à¸²à¸”', error message preview (first 100 chars), and a 'à¸£à¸µà¹€à¸‹à¹‡à¸•' button that calls this.setState({hasError:false, error:null}). Otherwise render children. Export default PanelErrorBoundary. Use Tailwind CSS only. Output ONLY the .tsx code, no markdown fences.",
-          "output": "innomcp-next/src/app/components/chat/PanelErrorBoundary.tsx",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4B-P4B-1-dev.md",
+          "finished_at": "2026-06-12T03:45:46.639Z"
         },
         {
           "id": "P4B-2",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write the wrapping patch for innomcp-next/src/app/components/chat/ManusWorkspacePanel.tsx to add error boundary. The export default of this file should wrap its return JSX with <PanelErrorBoundary panelName='ManusWorkspace'>...</PanelErrorBoundary>. Output ONLY: (1) the import line to add at top: import PanelErrorBoundary from './PanelErrorBoundary'; (2) the 2-line wrapping change showing the outer return statement wrapped. No markdown fences, no other code.",
-          "output": "innomcp-next/src/app/components/chat/ManusWorkspacePanel.boundary.tsx",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4B-P4B-2-dev.md",
+          "finished_at": "2026-06-12T03:43:38.870Z"
         },
         {
           "id": "P4B-3",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Find the MultiAgentPanel component file path in innomcp-next/src. It may be named MultiAgentPanel.tsx or AgentPanel.tsx or similar. Write the wrapping patch to add error boundary: import PanelErrorBoundary and wrap the return JSX. Output ONLY: (1) the target filename comment; (2) the import line; (3) the wrapping change showing the outer return wrapped with <PanelErrorBoundary panelName='MultiAgent'>. No markdown fences.",
-          "output": "innomcp-next/src/app/components/chat/MultiAgentPanel.boundary.tsx",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4B-P4B-3-dev.md",
+          "finished_at": "2026-06-12T03:43:44.807Z"
         },
         {
           "id": "P4B-4",
           "role": "test",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write a React Testing Library test file (innomcp-next/src/app/components/chat/PanelErrorBoundary.test.tsx) for PanelErrorBoundary. Tests: (1) renders children normally when no error; (2) renders fallback UI when a child throws; (3) fallback contains panelName; (4) reset button clears the error state (click â†’ children re-render). Use vitest and @testing-library/react. A ChildThatThrows component helper: renders null but throws on first render. Output ONLY the .tsx test code, no markdown fences.",
-          "output": "innomcp-next/src/app/components/chat/PanelErrorBoundary.test.tsx",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4B-P4B-4-test.md",
+          "finished_at": "2026-06-12T03:44:02.047Z"
         },
         {
           "id": "P4B-5",
           "role": "doc",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write VERIFY.md (Thai+English) for Phase 4.2 error boundaries. Include: how to trigger a panel error in dev mode (add throw new Error('test') temporarily), expected boundary UI, pass criteria: panel error does NOT blank the whole page. Output only markdown.",
-          "output": "innomcp-next/docs/P4B-VERIFY.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4B-P4B-5-doc.md",
+          "finished_at": "2026-06-12T03:43:49.804Z"
         },
         {
           "id": "P4B-6",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write boundary wrapping patch for ActivityPanel. Output: (1) import PanelErrorBoundary line; (2) wrap export default return with panelName='Activity'. Only 2 lines, no fences.",
-          "output": "innomcp-next/src/app/components/chat/ActivityPanel.boundary.tsx",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4B-P4B-6-dev.md",
+          "finished_at": "2026-06-12T03:43:50.572Z"
         },
         {
           "id": "P4B-7",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write boundary wrapping patch for ArtifactPanel. Output: (1) import line; (2) wrap return with panelName='Artifact'. Only 2 lines, no fences.",
-          "output": "innomcp-next/src/app/components/chat/ArtifactPanel.boundary.tsx",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4B-P4B-7-dev.md",
+          "finished_at": "2026-06-12T03:44:06.045Z"
         },
         {
           "id": "P4B-8",
           "role": "dev",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write a React hook (innomcp-next/src/app/hooks/usePanelError.ts). Returns { error, clearError, wrapAsync }. wrapAsync wraps async handlers in try-catch setting error state. Output ONLY .ts hook code, no fences.",
-          "output": "innomcp-next/src/app/hooks/usePanelError.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4B-P4B-8-dev.md",
+          "finished_at": "2026-06-12T03:44:24.231Z"
         },
         {
           "id": "P4B-9",
           "role": "test",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write vitest test for usePanelError hook. Tests: initial null, wrapAsync catches error, clearError resets. Output ONLY .ts test, no fences.",
-          "output": "innomcp-next/src/app/hooks/usePanelError.test.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4B-P4B-9-test.md",
+          "finished_at": "2026-06-12T03:43:58.017Z"
         },
         {
           "id": "P4B-10",
           "role": "dev",
           "model": "moonshotai/Kimi-K2.6",
-          "status": "pending",
+          "status": "done",
           "task": "Write boundary wrapping patch for AgentWorkspacePanel with panelName='AgentWorkspace'. Import + wrap, 2 lines, no fences.",
-          "output": "innomcp-next/src/app/components/chat/AgentWorkspacePanel.boundary.tsx",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4B-P4B-10-dev.md",
+          "finished_at": "2026-06-12T03:44:22.689Z"
         }
       ]
     },
@@ -409,55 +409,55 @@
           "id": "P4C-1",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Update innomcp-next/src/app/components/chat/AgentStepsView.tsx to subscribe to real WebSocket dispatch events. Context: the app uses a WebSocket on ws://localhost:3011 (or NEXT_PUBLIC_NODE_WS_HOST). Agent step events have type 'agent_step' with fields { stepId, agentName, status: 'running'|'done'|'error', output?: string }. Modify AgentStepsView to: (1) accept props: { socket: WebSocket | null } or use a context; (2) on mount, listen for message events where JSON.parse(e.data).type === 'agent_step'; (3) accumulate steps in useState<AgentStep[]>; (4) render each step as a row: agentName, status badge (color-coded), output preview. If no props socket, use window.__chatSocket if defined. Output ONLY the updated full component code, no markdown fences.",
-          "output": "innomcp-next/src/app/components/chat/AgentStepsView.tsx",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4C-P4C-1-dev.md",
+          "finished_at": "2026-06-12T03:44:30.654Z"
         },
         {
           "id": "P4C-2",
           "role": "test",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write a test file (innomcp-next/src/app/components/chat/AgentStepsView.test.tsx) for the updated AgentStepsView. Tests: (1) renders empty state when no steps; (2) shows a step row after receiving agent_step WebSocket message (simulate by calling the onmessage handler directly with a mock event); (3) step with status='running' shows a spinner or 'à¸à¸³à¸¥à¸±à¸‡à¸—à¸³à¸‡à¸²à¸™' text; (4) step with status='done' shows completion indicator. Use vitest + @testing-library/react + a mock WebSocket (jest.fn() or vi.fn()). Output ONLY the .tsx test code, no markdown fences.",
-          "output": "innomcp-next/src/app/components/chat/AgentStepsView.test.tsx",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4C-P4C-2-test.md",
+          "finished_at": "2026-06-12T03:44:20.270Z"
         },
         {
           "id": "P4C-3",
           "role": "doc",
           "model": "zai-org/GLM-5.1",
-          "status": "pending",
+          "status": "done",
           "task": "Write VERIFY.md (Thai+English) for Phase 4.3 AgentStepsView. Include: how to test (send a manual WS message from browser console), expected UI behavior (steps stream in real-time), pass criteria: steps visible during active chat. Output only markdown.",
-          "output": "innomcp-next/docs/P4C-VERIFY.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4C-P4C-3-doc.md",
+          "finished_at": "2026-06-12T03:45:33.261Z"
         },
         {
           "id": "P4C-4",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write TypeScript interfaces file (innomcp-next/src/types/agentEvents.ts): AgentStepEvent, AgentStartEvent, AgentCompleteEvent, union AgentWSEvent. All exported. Output ONLY .ts code, no fences.",
-          "output": "innomcp-next/src/types/agentEvents.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4C-P4C-4-dev.md",
+          "finished_at": "2026-06-12T03:44:28.970Z"
         },
         {
           "id": "P4C-5",
           "role": "dev",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write custom hook useAgentSteps (innomcp-next/src/app/hooks/useAgentSteps.ts). Props: socket. Returns: { steps, clearSteps, isActive }. Subscribes to agent_step WS messages, accumulates, cleans up. Output ONLY .ts hook, no fences.",
-          "output": "innomcp-next/src/app/hooks/useAgentSteps.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4C-P4C-5-dev.md",
+          "finished_at": "2026-06-12T03:45:22.398Z"
         },
         {
           "id": "P4C-6",
           "role": "test",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write vitest test for useAgentSteps. Tests: empty init, adds step on message, clearSteps, isActive when running. Mock WebSocket. Output ONLY .ts test, no fences.",
-          "output": "innomcp-next/src/app/hooks/useAgentSteps.test.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4C-P4C-6-test.md",
+          "finished_at": "2026-06-12T03:44:44.611Z"
         }
       ]
     },
@@ -469,64 +469,64 @@
           "id": "P4D-1",
           "role": "dev",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write a Playwright layout QA script (innomcp-next/scripts/playwright-layout-qa.ts) that checks: (1) page loads at 1440px width; (2) header element [data-testid='mdes-brand-header'] OR element with text 'MDES INNOMCP' is at top (getBoundingClientRect().top < 100); (3) page has 3 main columns visible: left sidebar (width 200-450px), center chat (width > 500px), right workspace panel (width > 200px) â€” detected by checking computed widths of the 3 column divs; (4) screenshots at 1440px, 768px, 375px widths; (5) outputs layout-qa-report.json with column widths and header position; (6) exits 1 if header missing or fewer than 3 columns. Output ONLY TypeScript code, no markdown fences.",
-          "output": "innomcp-next/scripts/playwright-layout-qa.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4D-P4D-1-dev.md",
+          "finished_at": "2026-06-12T03:45:25.564Z"
         },
         {
           "id": "P4D-2",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write a CSS/Tailwind layout checklist component (innomcp-next/src/app/components/debug/LayoutDebugOverlay.tsx) that only renders in development mode (process.env.NODE_ENV === 'development'). It shows a floating overlay (bottom-right, z-50) with colored borders on the 3 columns: left=blue, center=green, right=purple. Toggle visibility with a keyboard shortcut Alt+L. Export default LayoutDebugOverlay. Use Tailwind CSS only. Output ONLY the .tsx code, no markdown fences.",
-          "output": "innomcp-next/src/app/components/debug/LayoutDebugOverlay.tsx",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4D-P4D-2-dev.md",
+          "finished_at": "2026-06-12T03:44:48.929Z"
         },
         {
           "id": "P4D-3",
           "role": "doc",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write VERIFY.md (Thai+English) for Phase 4.4 Layout QA. Include: run command for playwright-layout-qa.ts, expected column widths at 1440px, checklist for manus.im parity (3 columns, sticky header, responsive breakpoints), pass criteria. Output only markdown.",
-          "output": "innomcp-next/docs/P4D-VERIFY.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4D-P4D-3-doc.md",
+          "finished_at": "2026-06-12T03:45:01.305Z"
         },
         {
           "id": "P4D-4",
           "role": "dev",
           "model": "moonshotai/Kimi-K2.6",
-          "status": "pending",
+          "status": "done",
           "task": "Write a complete Phase 4 exit criteria verification checklist (innomcp-next/docs/PHASE4-EXIT-CRITERIA.md) covering: (1) Playwright audit: 0 console errors, 3 columns detected; (2) error boundaries: force panel error â†’ boundary shows, not blank page; (3) AgentStepsView: steps stream during chat; (4) Layout at 1440px/768px/375px: header visible, columns present. For each: test command and expected result. Output only markdown.",
-          "output": "innomcp-next/docs/PHASE4-EXIT-CRITERIA.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4D-P4D-4-dev.md",
+          "finished_at": "2026-06-12T03:45:23.637Z"
         },
         {
           "id": "P4D-5",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write CSS module (innomcp-next/src/app/styles/layout.module.css) for 3-column Manus layout: pageContainer (flex), leftSidebar (280px), centerChat (flex-1), rightPanel (360px). Media queries at 768px and 1200px. Output ONLY CSS, no fences.",
-          "output": "innomcp-next/src/app/styles/layout.module.css",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4D-P4D-5-dev.md",
+          "finished_at": "2026-06-12T03:45:36.173Z"
         },
         {
           "id": "P4D-6",
           "role": "dev",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write ThreeColumnLayout.tsx (innomcp-next/src/app/components/layout/ThreeColumnLayout.tsx). Props: left, center, right, showRight. Tailwind 3-column layout, sticky header, full viewport. Output ONLY .tsx, no fences.",
-          "output": "innomcp-next/src/app/components/layout/ThreeColumnLayout.tsx",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4D-P4D-6-dev.md",
+          "finished_at": "2026-06-12T03:46:19.807Z"
         },
         {
           "id": "P4D-7",
           "role": "doc",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write PHASE4-RETRO.md (300-400 words Thai+English) covering: what was built, key decisions, lessons about frontend QA, future recommendations. Output only markdown.",
-          "output": "innomcp-next/docs/PHASE4-RETRO.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P4D-P4D-7-doc.md",
+          "finished_at": "2026-06-12T03:45:36.762Z"
         }
       ]
     },
@@ -538,37 +538,37 @@
           "id": "P5A-1",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write a bash pre-commit hook script (innomcp-node/scripts/pre-commit-fence-check.sh) that: (1) gets all staged .ts and .tsx files: STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.(ts|tsx)$'); (2) for each file, checks if the first non-blank non-comment line starts with ``` (triple backtick): FIRST_CODE=$(grep -m1 -v '^\\s*$\\|^\\s*//' \"$f\"); if [[ \"$FIRST_CODE\" =~ ^\\`\\`\\` ]]; (3) if fence found: echo 'ERROR: $f starts with a markdown fence â€” likely CODECOMMAND raw output. Remove the fence before committing.' and exit 1; (4) also check for ``` anywhere in .ts files as a warning: grep -n '```' \"$f\" and warn but don't block; (5) exit 0 if no fences found in first lines. Output ONLY the bash script, no markdown fences.",
-          "output": "innomcp-node/scripts/pre-commit-fence-check.sh",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5A-P5A-1-dev.md",
+          "finished_at": "2026-06-12T03:46:55.170Z"
         },
         {
           "id": "P5A-2",
           "role": "dev",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write a bash pre-commit hook script (innomcp-node/scripts/pre-commit-tsc-gate.sh) that: (1) checks if any staged files match src/**/*.ts or src/**/*.tsx: STAGED=$(git diff --cached --name-only | grep -E '^innomcp-node/src/.*\\.(ts|tsx)$'); (2) if none staged, exit 0 (skip); (3) if any staged: cd to innomcp-node/, run npx tsc --noEmit 2>&1; (4) if tsc exit code != 0: print 'TSC GATE FAILED â€” fix TypeScript errors before committing' and the first 20 lines of output, exit 1; (5) exit 0 on success, print 'âœ“ tsc gate passed'. Output ONLY the bash script, no markdown fences.",
-          "output": "innomcp-node/scripts/pre-commit-tsc-gate.sh",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5A-P5A-2-dev.md",
+          "finished_at": "2026-06-12T03:46:29.243Z"
         },
         {
           "id": "P5A-3",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write a Node.js script (innomcp-node/scripts/install-hooks.js) that installs both pre-commit hooks into .git/hooks/pre-commit. It: (1) finds git root: execSync('git rev-parse --show-toplevel'); (2) creates .git/hooks/pre-commit if not exists, or appends to it; (3) adds invocation of both scripts: bash scripts/pre-commit-fence-check.sh and bash scripts/pre-commit-tsc-gate.sh; (4) sets chmod +x on the hook file; (5) prints confirmation. Use Node.js stdlib only (fs, path, child_process). Output ONLY the .js script, no markdown fences.",
-          "output": "innomcp-node/scripts/install-hooks.js",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5A-P5A-3-dev.md",
+          "finished_at": "2026-06-12T03:46:08.733Z"
         },
         {
           "id": "P5A-4",
           "role": "test",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write a bash test script (innomcp-node/tests/recovery/P5A-hook-test.sh) that tests the fence detection hook. It: (1) creates a temp dir; (2) writes a .ts file with first line being ```typescript (simulating CODECOMMAND output); (3) runs the fence check script against this file (STAGED=path/to/test.ts bash scripts/pre-commit-fence-check.sh); (4) asserts exit code is 1 (fence detected); (5) writes a clean .ts file with no fences; (6) asserts exit code is 0 (clean pass); (7) cleans up temp dir; (8) prints PASS or FAIL. Output ONLY the bash script, no markdown fences.",
-          "output": "innomcp-node/tests/recovery/P5A-hook-test.sh",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5A-P5A-4-test.md",
+          "finished_at": "2026-06-12T03:45:58.385Z"
         },
         {
           "id": "P5A-5",
@@ -583,28 +583,28 @@
           "id": "P5A-6",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write a Windows-compatible Node.js pre-commit hook runner (innomcp-node/scripts/git-hooks-runner.js): (1) fence check on staged .ts files; (2) spawns tsc --noEmit. Exit 1 if either fails. Output ONLY .js script, no fences.",
-          "output": "innomcp-node/scripts/git-hooks-runner.js",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5A-P5A-6-dev.md",
+          "finished_at": "2026-06-12T03:46:46.453Z"
         },
         {
           "id": "P5A-7",
           "role": "dev",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write JSON schema (innomcp-node/.planning/cc-team-task-schema.json) for cc-team task objects. Properties: id, role (enum), model, status (enum), task (minLength 100), output, finished_at. Output ONLY valid JSON, no fences.",
-          "output": "innomcp-node/.planning/cc-team-task-schema.json",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5A-P5A-7-dev.md",
+          "finished_at": "2026-06-12T03:46:43.609Z"
         },
         {
           "id": "P5A-8",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write validate-cc-plan.js (Node.js): reads plan JSON from argv[2], validates each task has id/task>100chars/output/valid-status. Print PASS/FAIL per task. Exit 1 on failure. Output ONLY .js script, no fences.",
-          "output": "innomcp-node/scripts/validate-cc-plan.js",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5A-P5A-8-dev.md",
+          "finished_at": "2026-06-12T03:46:30.192Z"
         },
         {
           "id": "P5A-9",
@@ -619,10 +619,10 @@
           "id": "P5A-10",
           "role": "dev",
           "model": "moonshotai/Kimi-K2.6",
-          "status": "pending",
+          "status": "done",
           "task": "Write GitHub Actions workflow (.github/workflows/tsc-gate.yml) for innomcp-node: push+PR to main, npm ci, npx tsc --noEmit. Ubuntu-latest, Node 20. Output ONLY the YAML, no fences.",
-          "output": "innomcp-node/.github/workflows/tsc-gate.yml",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5A-P5A-10-dev.md",
+          "finished_at": "2026-06-12T03:46:41.953Z"
         }
       ]
     },
@@ -634,10 +634,10 @@
           "id": "P5B-1",
           "role": "doc",
           "model": "moonshotai/Kimi-K2.6",
-          "status": "pending",
+          "status": "done",
           "task": "Write a markdown policy document (innomcp-node/docs/WAVE-POLICY.md) defining the safe bulk-generation workflow. Sections: (1) The MEGA-100 incident: what went wrong (bulk LLM output committed without build gate â†’ fence markers in prod, 9 files corrupted); (2) Mandatory workflow: bulk-gen â†’ feature branch â†’ build gate (tsc --noEmit) â†’ SA review (1 batched read) â†’ merge to main; (3) Pre-commit hooks: fence detection + tsc gate (installed via scripts/install-hooks.js); (4) CommandCode workers: use cc-team-run.cjs, always embed real service API context in prompts, never invent method names; (5) Never commit LLM output directly to main without human review. Professional Thai+English, 400-600 words. Output only markdown.",
-          "output": "innomcp-node/docs/WAVE-POLICY.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5B-P5B-1-doc.md",
+          "finished_at": "2026-06-12T03:47:32.332Z"
         },
         {
           "id": "P5B-2",
@@ -652,19 +652,19 @@
           "id": "P5B-3",
           "role": "doc",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write a complete Phase 5 exit criteria VERIFY.md. Include: (1) test fence hook: create a file with ``` first line, run git commit, verify rejection; (2) test tsc gate: introduce a type error in src/, run git commit, verify rejection; (3) verify WAVE-POLICY.md exists and has 5+ sections; (4) run bash tests/recovery/P5A-hook-test.sh and verify PASS. Output only markdown.",
-          "output": "innomcp-node/tests/recovery/PHASE5-EXIT-CRITERIA.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5B-P5B-3-doc.md",
+          "finished_at": "2026-06-12T03:47:01.433Z"
         },
         {
           "id": "P5B-4",
           "role": "doc",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write CHANGELOG.md entry for innomcp version 0.2.0 recovery release. Keep a Changelog format. Sections: Fixed (P1-P5), Added (routes/hooks/components), Removed (quarantined). 300-400 words. Output only markdown.",
-          "output": "innomcp-node/CHANGELOG.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5B-P5B-4-doc.md",
+          "finished_at": "2026-06-12T03:47:51.454Z"
         },
         {
           "id": "P5B-5",
@@ -679,10 +679,10 @@
           "id": "P5B-6",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write verify-recovery.js (Node.js): checks tsc EXIT 0, 0 @ts-nocheck, routes exist, hooks installed, policy docs exist. Print PASS/FAIL per check. Exit 0 if all pass. Output ONLY .js script, no fences.",
-          "output": "innomcp-node/scripts/verify-recovery.js",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5B-P5B-6-dev.md",
+          "finished_at": "2026-06-12T03:47:56.160Z"
         }
       ]
     },
@@ -694,37 +694,41 @@
           "id": "OPUS-P3",
           "role": "sa",
           "model": "claude-opus-4-8",
-          "status": "pending",
+          "status": "failed",
           "task": "You are Senior Architect reviewing Phase 3 of the innomcp recovery. Review these 3 changes: (1) fastPathHandler greeting fix: greetings list added before gibberish check â€” verify 'hello' will NOT return à¸«à¹‰à¸²à¸¡à¹€à¸”à¸²à¹‚à¸§à¹‰à¸¢; (2) WSStatusBanner component: props, states, and rendering logic; (3) health.ts: providers + build fields added. For each: does it achieve the phase goal? Any hallucinated APIs or wrong signatures? Any security or type issues? Return a JSON array: [{file, verdict:'PASS'|'FAIL', issues:[...], recommendation}]. ONLY return valid JSON, no prose.",
           "output": "innomcp-node/docs/OPUS-REVIEW-P3.json",
-          "finished_at": null
+          "finished_at": null,
+          "error": "HTTP 400: {\"error\":{\"message\":\"Model \\\"claude-opus-4-8\\\" must be called via /provider/v1/messages (Anthropic Messages shape).\",\"type\":\"invalid_request_error\",\"param\":\"model\",\"code\":\"unsupported_model\"}}"
         },
         {
           "id": "OPUS-P4",
           "role": "sa",
           "model": "claude-opus-4-8",
-          "status": "pending",
+          "status": "failed",
           "task": "You are Senior Architect reviewing Phase 4 of the innomcp recovery. Review: (1) PanelErrorBoundary.tsx â€” is it a proper class-based React error boundary? Does it handle componentDidCatch correctly? (2) AgentStepsView.tsx â€” does it subscribe to WS events correctly? Any missing cleanup (removeEventListener)? (3) playwright-audit.ts â€” are the selectors realistic? Any missing error handling? For each: verdict PASS/FAIL, issues list, recommendation. Return ONLY a valid JSON array, no prose.",
           "output": "innomcp-node/docs/OPUS-REVIEW-P4.json",
-          "finished_at": null
+          "finished_at": null,
+          "error": "HTTP 400: {\"error\":{\"message\":\"Model \\\"claude-opus-4-8\\\" must be called via /provider/v1/messages (Anthropic Messages shape).\",\"type\":\"invalid_request_error\",\"param\":\"model\",\"code\":\"unsupported_model\"}}"
         },
         {
           "id": "OPUS-P5",
           "role": "sa",
           "model": "claude-opus-4-8",
-          "status": "pending",
+          "status": "failed",
           "task": "You are Senior Architect reviewing Phase 5 of the innomcp recovery. Review: (1) pre-commit-fence-check.sh â€” does the regex correctly detect ``` at file start? Will it pass false positives? (2) pre-commit-tsc-gate.sh â€” does the staged file check work correctly for monorepo paths (innomcp-node/src/...)? (3) install-hooks.js â€” does appending to .git/hooks work idempotently? For each: verdict PASS/FAIL, issues, recommendation. Return ONLY a valid JSON array, no prose.",
           "output": "innomcp-node/docs/OPUS-REVIEW-P5.json",
-          "finished_at": null
+          "finished_at": null,
+          "error": "HTTP 400: {\"error\":{\"message\":\"Model \\\"claude-opus-4-8\\\" must be called via /provider/v1/messages (Anthropic Messages shape).\",\"type\":\"invalid_request_error\",\"param\":\"model\",\"code\":\"unsupported_model\"}}"
         },
         {
           "id": "OPUS-ALL",
           "role": "sa",
           "model": "claude-opus-4-8",
-          "status": "pending",
+          "status": "failed",
           "task": "You are Senior Architect doing final validation of the entire innomcp Phase 3-5 recovery. Review: (1) Was the greeting fast-path fix minimal and correct? (2) Is WSStatusBanner complete? (3) Are pre-commit hooks correct for Windows+POSIX? (4) Does the wave policy address the root cause? Rate each PASS/FAIL with specific issues. Return JSON array [{component, verdict, issues, recommendation}], no prose.",
           "output": "innomcp-node/docs/OPUS-FINAL-REVIEW.json",
-          "finished_at": null
+          "finished_at": null,
+          "error": "HTTP 400: {\"error\":{\"message\":\"Model \\\"claude-opus-4-8\\\" must be called via /provider/v1/messages (Anthropic Messages shape).\",\"type\":\"invalid_request_error\",\"param\":\"model\",\"code\":\"unsupported_model\"}}"
         }
       ]
     },
@@ -743,10 +747,10 @@
           "id": "INT-2",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write env.ts typed config module (innomcp-node/src/config/env.ts): export typed constants PORT number, NODE_ENV string, OLLAMA_BASE_URL string, SERVER_HOST string with sensible defaults from process.env. Export default envConfig object. Output ONLY TypeScript code, no markdown fences.",
-          "output": "innomcp-node/src/config/env.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-2-dev.md",
+          "finished_at": "2026-06-12T03:48:18.133Z"
         },
         {
           "id": "INT-3",
