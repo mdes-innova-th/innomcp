@@ -71,12 +71,18 @@ function createRateLimiter(options: RateLimitOptions): Middleware {
     // Remove timestamps outside the window
     timestamps = timestamps.filter((t) => now - t < windowMs);
 
+    const remaining = Math.max(0, maxRequests - timestamps.length - 1);
+    const resetTime = timestamps.length > 0
+      ? Math.ceil((timestamps[0] + windowMs) / 1000)
+      : Math.ceil((now + windowMs) / 1000);
+
+    res.setHeader('X-RateLimit-Limit', String(maxRequests));
+    res.setHeader('X-RateLimit-Remaining', String(remaining));
+    res.setHeader('X-RateLimit-Reset', String(resetTime));
+
     if (timestamps.length >= maxRequests) {
-      // Rate limit exceeded
-      res.statusCode = 429;
-      res.setHeader('Retry-After', Math.ceil(windowMs / 1000));
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8'); // or application/json
-      res.end(message);
+      res.setHeader('Retry-After', String(Math.ceil(windowMs / 1000)));
+      res.status(429).json({ error: message });
       return;
     }
 
