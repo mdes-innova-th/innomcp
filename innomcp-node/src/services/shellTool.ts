@@ -12,6 +12,7 @@
 
 import { exec, spawn, ExecException } from "node:child_process";
 import * as path from "node:path";
+import * as fs from "node:fs";
 import { assessRisk } from "./riskDetector";
 import { withDbConnection } from "../utils/db";
 
@@ -117,7 +118,9 @@ export async function executeShell(
   // ── 4. Workspace containment check ───────────────────────────────────────
   const normRoot = normalisePath(opts.workspaceRoot);
   const rawWd = opts.workingDir
-    ? path.resolve(opts.workspaceRoot, opts.workingDir.replace(/^[/\\]+/, ""))
+    ? (path.isAbsolute(opts.workingDir)
+        ? opts.workingDir
+        : path.resolve(opts.workspaceRoot, opts.workingDir))
     : opts.workspaceRoot;
   const normWd = normalisePath(rawWd);
 
@@ -164,6 +167,8 @@ function runCommand(
   start: number
 ): Promise<ShellResult> {
   return new Promise((resolve) => {
+    // Ensure cwd exists before exec; create it if missing (avoids ENOENT on fresh dirs)
+    try { if (!fs.existsSync(cwd)) fs.mkdirSync(cwd, { recursive: true }); } catch { /* ignore */ }
     const child = exec(
       command,
       {
@@ -181,8 +186,8 @@ function runCommand(
             : 0;
         resolve({
           exitCode,
-          stdout: stdout.slice(0, 10_000),
-          stderr: stderr.slice(0, 2_000),
+          stdout: stdout.trim().slice(0, 10_000),
+          stderr: stderr.trim().slice(0, 2_000),
           durationMs: Date.now() - start,
           command,
           riskLevel,
@@ -259,7 +264,9 @@ export async function streamShell(
   // ── 4. Workspace containment ──────────────────────────────────────────────
   const normRoot = normalisePath(opts.workspaceRoot);
   const rawWd = opts.workingDir
-    ? path.resolve(opts.workspaceRoot, opts.workingDir.replace(/^[/\\]+/, ""))
+    ? (path.isAbsolute(opts.workingDir)
+        ? opts.workingDir
+        : path.resolve(opts.workspaceRoot, opts.workingDir))
     : opts.workspaceRoot;
   const normWd = normalisePath(rawWd);
   if (!normWd.startsWith(normRoot)) {

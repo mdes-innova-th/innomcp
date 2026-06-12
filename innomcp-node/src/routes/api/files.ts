@@ -42,8 +42,10 @@ const PINNED_ARTIFACTS_PATH = path.join(
  * Returns null if the resolved path escapes the sandbox (path traversal).
  */
 export function safePath(userPath: string): string | null {
+  // Normalize Windows backslashes to forward slashes first (Linux treats \ as literal)
+  const normalized = userPath.replace(/\\/g, "/");
   // Strip leading slashes so path.resolve doesn't treat it as absolute
-  const cleaned = userPath.replace(/^[/\\]+/, "");
+  const cleaned = normalized.replace(/^[/]+/, "");
   const resolved = path.resolve(WORKSPACE_ROOT, cleaned);
   // Must start with WORKSPACE_ROOT + sep, or equal WORKSPACE_ROOT itself
   if (
