@@ -105,5 +105,10 @@ function providerRateLimit(): Middleware {
 const generalRateLimit = apiRateLimit();
 const authRateLimit = chatRateLimit();
 
-export { createRateLimiter, chatRateLimit, apiRateLimit, providerRateLimit, generalRateLimit, authRateLimit };
+// Test helper — clears the internal store so tests start fresh
+function _resetRateLimiterForTests(): void {
+  store.clear();
+}
+
+export { createRateLimiter, chatRateLimit, apiRateLimit, providerRateLimit, generalRateLimit, authRateLimit, _resetRateLimiterForTests };
 export type { RateLimitOptions, Middleware };
