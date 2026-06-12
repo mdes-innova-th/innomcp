@@ -110,7 +110,7 @@ function providerRateLimit(): Middleware {
 
 // Aliases used by app.ts route wiring
 const generalRateLimit = apiRateLimit();
-const authRateLimit = chatRateLimit();
+const authRateLimit = createRateLimiter({ windowMs: 60_000, maxRequests: 10 });
 
 // Test helper — clears the internal store so tests start fresh
 function _resetRateLimiterForTests(): void {

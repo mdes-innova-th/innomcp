@@ -12,6 +12,7 @@
 
 import { exec, spawn, ExecException } from "node:child_process";
 import * as path from "node:path";
+import * as fs from "node:fs";
 import { assessRisk } from "./riskDetector";
 import { withDbConnection } from "../utils/db";
 
@@ -166,6 +167,8 @@ function runCommand(
   start: number
 ): Promise<ShellResult> {
   return new Promise((resolve) => {
+    // Ensure cwd exists before exec; create it if missing (avoids ENOENT on fresh dirs)
+    try { if (!fs.existsSync(cwd)) fs.mkdirSync(cwd, { recursive: true }); } catch { /* ignore */ }
     const child = exec(
       command,
       {
