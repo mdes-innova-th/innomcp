@@ -222,11 +222,11 @@
         },
         {
           "id": "VQA-25",
-          "output": "innomcp-next/docs/DEPLOYMENT-CHECKLIST.md",
-          "finished_at": null,
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-25-doc.md",
+          "finished_at": "2026-06-12T04:28:11.369Z",
           "model": "zai-org/GLM-5.1",
           "role": "doc",
-          "status": "pending",
+          "status": "done",
           "task": "Write innomcp-next/docs/DEPLOYMENT-CHECKLIST.md (Thai+English): pre-deployment checklist for innomcp. Sections: backend checks (tsc 0, verify-recovery 8/8, backend starts on 3012, WS connects), frontend checks (pnpm build passes, no console errors, 3-column layout visible), integration checks (hello→greeting, panels render, health shows providers), go/no-go decision criteria. Output only markdown."
         },
         {
