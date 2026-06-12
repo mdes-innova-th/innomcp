@@ -1,4 +1,5 @@
-import { mcpClient } from './mcp-client'; // Pre-configured MCP client (McpClient instance)
+import { getDefaultMcpClient } from './mcpClient';
+const mcpClient = getDefaultMcpClient();
 
 // ---------------------------------------------------------------------------
 // Type definitions

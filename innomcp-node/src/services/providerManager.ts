@@ -1,5 +1,5 @@
 // providerManager.ts
-import { fetch } from 'undici'; // or global fetch in Node 18+
+// Node 18+ has global fetch — no undici import needed
 
 export interface ProviderConfig {
   id: string;
@@ -45,11 +45,11 @@ export class ProviderManager {
       });
     } else {
       this.providers.set(config.id, {
-        healthStatus: 'unknown',
-        capabilities: [],
-        enabled: true,
-        priority: 0,
         ...config,
+        healthStatus: config.healthStatus ?? 'unknown',
+        capabilities: config.capabilities ?? [],
+        enabled: config.enabled ?? true,
+        priority: config.priority ?? 0,
       });
     }
   }
