@@ -5,10 +5,11 @@ services:
     image: mariadb:11
     restart: unless-stopped
     environment:
-      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:-innomcp_root}
+      # secrets must come from .env — no weak dev-default fallbacks that ship to anyone
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?set MARIADB_ROOT_PASSWORD in .env}
       MARIADB_DATABASE: ${DB_NAME:-innomcp-db}
       MARIADB_USER: ${DB_USER:-jlapps}
-      MARIADB_PASSWORD: ${MARIADB_PASSWORD:-innomcp_pass}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:?set MARIADB_PASSWORD in .env}
     volumes:
       - mariadb_data:/var/lib/mysql
     ports:
@@ -42,7 +43,7 @@ services:
       - DB_PORT=3306
       - DB_NAME=${DB_NAME:-innomcp-db}
       - DB_USER=${DB_USER:-jlapps}
-      - DB_PASSWORD=${MARIADB_PASSWORD:-innomcp_pass}
+      - DB_PASSWORD=${MARIADB_PASSWORD:?set MARIADB_PASSWORD in .env}
       - WORKSPACE_ROOT=/workspace
       - OLLAMA_URL=${OLLAMA_URL:-https://ollama.mdes-innova.online}
       - OLLAMA_API_KEY=${OLLAMA_API_KEY:-}
@@ -53,7 +54,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CODEX_API_KEY=${CODEX_API_KEY:-}
       - COMMANDCODE_API_KEY=${COMMANDCODE_API_KEY:-}
-      - JWT_SECRET=${JWT_SECRET:-}
+      - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET in .env (min 32 random chars)}
     volumes:
       - workspace:/workspace
     depends_on:
