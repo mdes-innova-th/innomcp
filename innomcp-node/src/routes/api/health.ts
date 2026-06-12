@@ -16,6 +16,24 @@ const startTime = Date.now();
 
 const healthRouter = Router();
 
+function hasConfiguredEnv(...names: string[]): boolean {
+  return names.some((name) => String(process.env[name] || "").trim().length > 0);
+}
+
+function getProviderHealthSummary() {
+  const commandcode = hasConfiguredEnv("CODEX_API_KEY", "COMMANDCODE_API_KEY");
+  return {
+    configured: {
+      commandcode,
+      mdesOllama: hasConfiguredEnv("REMOTE_OLLAMA_BASE_URL", "OLLAMA_REMOTE_URL", "OLLAMA_URL", "OLLAMA_BASE_URL", "OLLAMA_HOST"),
+      openai: hasConfiguredEnv("OPENAI_API_KEY", "GPT_API_KEY", "CODEX_API_KEY"),
+      copilot: hasConfiguredEnv("GITHUB_COPILOT_TOKEN", "COPILOT_API_KEY"),
+      thaiLlm: hasConfiguredEnv("THAI_LLM_MODEL", "THAI_LLM_API_KEY", "THAILLM_API_KEY"),
+    },
+    primary: commandcode ? "commandcode" : "mdes-ollama",
+  };
+}
+
 function getMcpInventory(chatModule: any) {
   const inventory = chatModule?.mcpClient?.getToolInventory?.();
   if (inventory) {
@@ -125,15 +143,7 @@ healthRouter.get('/', async (req: Request, res: Response) => {
       uptime: Math.floor((Date.now() - startTime) / 1000),
       memory: process.memoryUsage(),
       version: process.env.npm_package_version || '1.0.0',
-      providers: {
-        configured: {
-          mdesOllama: !!process.env.OLLAMA_BASE_URL,
-          openai: !!(process.env.OPENAI_API_KEY || process.env.GPT_API_KEY),
-          copilot: !!(process.env.GITHUB_COPILOT_TOKEN || process.env.COPILOT_API_KEY),
-          thaiLlm: !!process.env.THAI_LLM_MODEL,
-        },
-        primary: 'mdes-ollama',
-      },
+      providers: getProviderHealthSummary(),
       build: {
         version: process.env.npm_package_version || '1.0.0',
         nodeVersion: process.version,

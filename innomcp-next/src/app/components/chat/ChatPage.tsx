@@ -324,6 +324,8 @@ const ChatPage: React.FC = () => {
 
   const activeAgentStreamRequestRef = useRef<string | null>(null);
   const [isSocketReady, setIsSocketReady] = useState(false);
+  const [wsReconnectAttempt, setWsReconnectAttempt] = useState(0);
+  const wsReconnectNowRef = useRef<(() => void) | null>(null);
   const [isStopped, setIsStopped] = useState(false);
   const isStoppedRef = useRef(false);
   // Phase 10.27 � wall-clock timestamp captured when the user hits send.
@@ -609,6 +611,7 @@ const ChatPage: React.FC = () => {
         console.error("Failed to create WebSocket:", err);
         // schedule reconnect
         reconnectAttemptsRef.current++;
+        setWsReconnectAttempt(reconnectAttemptsRef.current);
         const baseDelay =
           1000 * Math.min(30, Math.pow(2, reconnectAttemptsRef.current));
         const jitter = Math.floor(Math.random() * 300);
@@ -629,6 +632,7 @@ const ChatPage: React.FC = () => {
       ws.onopen = () => {
         console.log("WebSocket open", ws.url);
         reconnectAttemptsRef.current = 0;
+        setWsReconnectAttempt(0);
         setIsSocketReady(true);
       };
 
@@ -866,6 +870,7 @@ const ChatPage: React.FC = () => {
 
         // schedule reconnect with exponential backoff + jitter
         reconnectAttemptsRef.current++;
+        setWsReconnectAttempt(reconnectAttemptsRef.current);
         const baseDelay =
           1000 * Math.min(30, Math.pow(2, reconnectAttemptsRef.current));
         const jitter = Math.floor(Math.random() * 300);
@@ -882,10 +887,21 @@ const ChatPage: React.FC = () => {
       return ws;
     };
 
+    wsReconnectNowRef.current = () => {
+      if (reconnectTimer) {
+        window.clearTimeout(reconnectTimer);
+        reconnectTimer = null;
+      }
+      reconnectAttemptsRef.current = 0;
+      setWsReconnectAttempt(0);
+      createWebSocket();
+    };
+
     // start initial connection
     createWebSocket();
 
     return () => {
+      wsReconnectNowRef.current = null;
       if (reconnectTimer) window.clearTimeout(reconnectTimer);
       if (wsRef.current) {
         try {
@@ -2169,7 +2185,17 @@ const ChatPage: React.FC = () => {
                     <span className="absolute inline-flex h-2.5 w-2.5 animate-radar-ping rounded-full bg-amber-500/70" />
                     <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-500" />
                   </span>
-                  <span>?????????????????? � ???????????????????????</span>
+                  <span>
+                    กำลังเชื่อมต่อ backend ใหม่
+                    {wsReconnectAttempt > 0 ? ` (ครั้งที่ ${wsReconnectAttempt})` : ""}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => wsReconnectNowRef.current?.()}
+                    className="rounded border border-amber-500/30 px-2 py-0.5 text-[11px] font-medium text-amber-900 hover:bg-amber-500/15 dark:text-amber-100"
+                  >
+                    ลองใหม่
+                  </button>
                 </div>
               )}
 

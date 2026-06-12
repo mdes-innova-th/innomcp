@@ -140,6 +140,16 @@ systemic root cause; without it, MEGA-101 repeats the disaster.)
 - `innomcp/scripts` is `type:module` → runner must be `.cjs`
 - CommandCode 403s default Python/Node UA → set custom User-Agent header
 
+## Phase 3 evidence update (2026-06-12 13:43 BKK)
+
+- CommandCode proxy proof: `claude --model cc/claude-sonnet-4-6 --print` returned the requested sentinel through `http://127.0.0.1:4322`; proxy health stayed on `current_backend=commandcode`, requests advanced to 40, errors=0, rotations=0.
+- CommandCode innomcp registry proof: `POST http://localhost:3012/api/providers/health-check` reported CommandCode Sonnet/Haiku/Opus/DeepSeek/Qwen/GPT/Gemini seeds `healthy` (~113-136 ms). OpenAI seeds remained `down`, expected under current limits.
+- Backend health fixed: root `/health` and `/api/health` both expose `providers` + `build`; both now report `providers.primary=commandcode` when `CODEX_API_KEY`/CommandCode config is present.
+- Dotenv gotcha mitigation: `SERVER_PORT_OVERRIDE=3012 node dist/index.js` now wins over `.env` `SERVER_PORT`, so smoke runs no longer need temporary `.env` edits.
+- Frontend WS-state UI improved: `ChatPage` reconnect banner now has readable Thai copy, reconnect attempt count, and a manual `ลองใหม่` retry button; `onerror`/`onclose` already clear waiting state.
+- Durable smoke runner added: `innomcp-node/scripts/phase3-chat-smoke.cjs` (allowlisted in `innomcp-node/.gitignore`) verifies root health, API health, WS hello quality, deterministic `2+2`, invalid JSON `error+done`, and reconnect hello.
+- Latest smoke evidence on backend :3012: `node scripts\phase3-chat-smoke.cjs` => 6/6 PASS, exit 0. `/api/health` remains `degraded` only because Database is unhealthy and remote MCP is unavailable; chat path is local-tool usable (`mcp_status=local-only`, `total_tools=4`).
+
 ## Rollback Safety
 
 - Last known good: `7fb8f68` (2026-06-11 09:05)

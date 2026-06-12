@@ -169,9 +169,37 @@ app.get("/", (req, res) => {
   res.send("webddsb API Server is running");
 });
 
+function hasConfiguredEnv(...names: string[]): boolean {
+  return names.some((name) => String(process.env[name] || "").trim().length > 0);
+}
+
+function buildDockerHealthPayload() {
+  const commandcodeConfigured = hasConfiguredEnv("CODEX_API_KEY", "COMMANDCODE_API_KEY");
+  return {
+    status: "ok",
+    mode: "online",
+    ai_mode: process.env.AI_MODE || "remote",
+    providers: {
+      configured: {
+        commandcode: commandcodeConfigured,
+        mdesOllama: hasConfiguredEnv("REMOTE_OLLAMA_BASE_URL", "OLLAMA_REMOTE_URL", "OLLAMA_URL", "OLLAMA_HOST"),
+        openai: hasConfiguredEnv("OPENAI_API_KEY", "CODEX_API_KEY"),
+        copilot: hasConfiguredEnv("COPILOT_API_KEY"),
+        thaiLlm: hasConfiguredEnv("THAILLM_API_KEY", "THAI_LLM_API_KEY"),
+      },
+      primary: commandcodeConfigured ? "commandcode" : "mdes-ollama",
+    },
+    build: {
+      version: process.env.npm_package_version || "1.0.0",
+      nodeVersion: process.version,
+      env: process.env.NODE_ENV || "development",
+    },
+  };
+}
+
 // Health check endpoint for Docker
 app.get("/health", (req, res) => {
-  res.status(200).json({ status: "ok" });
+  res.status(200).json(buildDockerHealthPayload());
 });
 
 // Router à¸ªà¸³à¸«à¸£à¸±à¸š CSRF (à¹„à¸¡à¹ˆà¸•à¹‰à¸­à¸‡ auth à¹€à¸žà¸·à¸­ testsuit)

@@ -50,7 +50,7 @@ process.on("unhandledRejection", (reason: any, promise: any) => {
 assertProductionJwtSecret(process.env.NODE_ENV, process.env.JWT_SECRET);
 
 const host = process.env.SERVER_HOST || "0.0.0.0";
-const port = parseInt(process.env.SERVER_PORT || "3011", 10);
+const port = parseInt(process.env.SERVER_PORT_OVERRIDE || process.env.SERVER_PORT || "3011", 10);
 
 const server = http.createServer(app);
 
