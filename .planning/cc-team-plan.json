@@ -211,10 +211,11 @@
           "id": "P3D-2",
           "role": "doc",
           "model": "zai-org/GLM-5.1",
-          "status": "pending",
+          "status": "failed",
           "task": "Write Phase 3 Exit Criteria VERIFY.md (Thai+English). Include all 4 exit criteria from the recovery plan: (1) type 'hello' in browser â†’ polite greeting response; (2) kill backend â†’ banner appears â‰¤5s; (3) curl /health returns providers+build; (4) smoke suite passes. For each: test command, expected result, pass/fail indicators. Output only markdown.",
           "output": "innomcp-node/tests/recovery/PHASE3-EXIT-CRITERIA.md",
-          "finished_at": null
+          "finished_at": null,
+          "error": "HTTP 503: error code: 1102"
         },
         {
           "id": "P3D-3",
@@ -574,10 +575,10 @@
           "id": "P5A-5",
           "role": "doc",
           "model": "zai-org/GLM-5.1",
-          "status": "pending",
+          "status": "done",
           "task": "Write VERIFY.md (Thai+English) for Phase 5.1+5.2 pre-commit hooks. Include: how to install hooks (node scripts/install-hooks.js), how to test fence detection (create a fence file, try to commit), how to test tsc gate (introduce a type error, try to commit), pass criteria: fence file is REJECTED by hook. Output only markdown.",
-          "output": "innomcp-node/tests/recovery/P5A-VERIFY.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5A-P5A-5-doc.md",
+          "finished_at": "2026-06-12T03:52:52.603Z"
         },
         {
           "id": "P5A-6",
@@ -610,10 +611,10 @@
           "id": "P5A-9",
           "role": "doc",
           "model": "zai-org/GLM-5.1",
-          "status": "pending",
+          "status": "done",
           "task": "Write CONTRIBUTING.md for innomcp-node (400-500 words English). Sections: setup, pre-commit hooks, bulk gen policy, TypeScript rules, test requirements. Output only markdown.",
-          "output": "innomcp-node/CONTRIBUTING.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5A-P5A-9-doc.md",
+          "finished_at": "2026-06-12T03:48:23.600Z"
         },
         {
           "id": "P5A-10",
@@ -643,10 +644,10 @@
           "id": "P5B-2",
           "role": "doc",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write a final recovery summary document (innomcp-node/docs/RECOVERY-SUMMARY.md). Sections: (1) Incident summary: what MEGA-100 broke and why; (2) Phase 1 fixes: 4 core services restored, 14 residual tsc errors fixed, 5 files quarantined; (3) Phase 2 fixes: 3 routes rebuilt against real APIs, @ts-nocheck removed from 6 files, tsc EXIT 0; (4) Phase 3 fixes: greeting fast-path, WS reconnect banner, health providers; (5) Phase 4 fixes: browser audit, error boundaries, AgentStepsView, layout QA; (6) Phase 5: pre-commit hooks installed; (7) Lessons learned (5 bullet points about LLM code generation safety). Professional English+Thai, 600-800 words. Output only markdown.",
-          "output": "innomcp-node/docs/RECOVERY-SUMMARY.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5B-P5B-2-doc.md",
+          "finished_at": "2026-06-12T03:52:50.438Z"
         },
         {
           "id": "P5B-3",
@@ -670,10 +671,10 @@
           "id": "P5B-5",
           "role": "doc",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write POSTMORTEM-MEGA100.md (600-800 words English+Thai). Standard post-mortem: Summary, Impact, Timeline, Root Cause, Contributing Factors (5), Action Items, Lessons (5), Prevention. Output only markdown.",
-          "output": "innomcp-node/docs/POSTMORTEM-MEGA100.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\P5B-P5B-5-doc.md",
+          "finished_at": "2026-06-12T03:48:44.355Z"
         },
         {
           "id": "P5B-6",
@@ -738,10 +739,10 @@
           "id": "INT-1",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write serviceStatusAggregator.ts: function checkAllServices() returns object with analytics, mdesModels, thaiNlp booleans by calling minimal methods on each service singleton. Export the function. Output ONLY TypeScript code, no markdown fences.",
-          "output": "innomcp-node/src/services/serviceStatusAggregator.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-1-dev.md",
+          "finished_at": "2026-06-12T03:48:27.800Z"
         },
         {
           "id": "INT-2",
@@ -756,244 +757,245 @@
           "id": "INT-3",
           "role": "dev",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write errorHandler.ts 4-param Express middleware for innomcp-node/src/middleware/. Handles ValidationError 400, AuthError 401, generic Error 500. Returns JSON with error and code fields. Export errorHandler function. Output ONLY TypeScript, no markdown fences.",
-          "output": "innomcp-node/src/middleware/errorHandler.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-3-dev.md",
+          "finished_at": "2026-06-12T03:48:59.969Z"
         },
         {
           "id": "INT-4",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write requestLogger.ts Express middleware (innomcp-node/src/middleware/): logs METHOD path STATUS latencyMs on response finish event. Skips logging when LOG_LEVEL env equals silent. Export requestLogger. Output ONLY TypeScript, no markdown fences.",
-          "output": "innomcp-node/src/middleware/requestLogger.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-4-dev.md",
+          "finished_at": "2026-06-12T03:48:27.424Z"
         },
         {
           "id": "INT-5",
           "role": "dev",
           "model": "moonshotai/Kimi-K2.6",
-          "status": "pending",
+          "status": "done",
           "task": "Write validateBody.ts Express middleware: function validateBody(schema) where schema maps field names to type strings. Checks req.body for required fields with correct types. Returns 400 JSON with missing array on failure. Export. Output ONLY TypeScript, no markdown fences.",
-          "output": "innomcp-node/src/middleware/validateBody.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-5-dev.md",
+          "finished_at": "2026-06-12T03:51:27.952Z"
         },
         {
           "id": "INT-6",
           "role": "dev",
           "model": "zai-org/GLM-5.1",
-          "status": "pending",
+          "status": "done",
           "task": "Write SimpleCache generic TypeScript class in innomcp-node/src/utils/simpleCache.ts. Methods: get(key), set(key, value, ttlMs), invalidate(key), size(). Uses Map and Date.now for TTL expiry. Export the class. Output ONLY TypeScript, no markdown fences.",
-          "output": "innomcp-node/src/utils/simpleCache.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-6-dev.md",
+          "finished_at": "2026-06-12T03:49:03.721Z"
         },
         {
           "id": "INT-7",
           "role": "test",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write node:test unit tests for SimpleCache class. Tests: set and get returns value, entry with 10ms TTL returns undefined after 15ms sleep, invalidate removes entry, size() is accurate. Import SimpleCache from the dist file. Output ONLY JavaScript test code, no fences.",
-          "output": "innomcp-node/tests/recovery/INT-7-cache.test.js",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-7-test.md",
+          "finished_at": "2026-06-12T03:48:42.561Z"
         },
         {
           "id": "INT-8",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write api.ts interfaces file (innomcp-node/src/types/api.ts): TypeScript interfaces AnalyticsStatsResponse, MdesModelsResponse, MdesModelResponse, ThaiDetectRequest, ThaiDetectResponse, ThaiTokenizeResponse, ThaiEntitiesResponse. Export all interfaces. Output ONLY TypeScript, no markdown fences.",
-          "output": "innomcp-node/src/types/api.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-8-dev.md",
+          "finished_at": "2026-06-12T03:48:49.635Z"
         },
         {
           "id": "INT-9",
           "role": "doc",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write API.md documentation (400-500 words English and Thai) for innomcp-node backend API. Cover all new endpoints: /api/analytics/stats, /api/mdes/models, /api/mdes/best/:task, /api/thai/detect, /api/thai/tokenize, /api/health. For each endpoint: HTTP method, path, request body or params, response shape, one example curl command. Output only markdown text.",
-          "output": "innomcp-node/docs/API.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-9-doc.md",
+          "finished_at": "2026-06-12T03:49:06.552Z"
         },
         {
           "id": "INT-10",
           "role": "doc",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write ARCHITECTURE.md (300-400 words) for innomcp-node backend: describe the layered architecture (routes -> services -> providers), list key services (fastPathHandler, providerManager, healthAggregator), describe the chat message flow from request to response. Include a simple ASCII diagram of the layers. Output only markdown text.",
-          "output": "innomcp-node/docs/ARCHITECTURE.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-10-doc.md",
+          "finished_at": "2026-06-12T03:49:50.974Z"
         },
         {
           "id": "INT-11",
           "role": "doc",
           "model": "zai-org/GLM-5.1",
-          "status": "pending",
+          "status": "done",
           "task": "Write SETUP.md local development guide (300 words English): prerequisites including Node 20 and npm, installation steps, build command, how to run on port 3012, test commands, list of required environment variables. Output only markdown text.",
-          "output": "innomcp-node/docs/SETUP.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-11-doc.md",
+          "finished_at": "2026-06-12T03:50:24.244Z"
         },
         {
           "id": "INT-12",
           "role": "doc",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write SECURITY.md security guide (250-300 words English): API key management using env vars only, CORS configuration, rate limiting setup, prohibition on hardcoded secrets, session security guidelines. Output only markdown text.",
-          "output": "innomcp-node/docs/SECURITY.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-12-doc.md",
+          "finished_at": "2026-06-12T03:49:12.832Z"
         },
         {
           "id": "INT-13",
           "role": "doc",
           "model": "moonshotai/Kimi-K2.6",
-          "status": "pending",
+          "status": "done",
           "task": "Write DEPLOYMENT.md production deployment guide (300-400 words English): production build steps, required environment variables, health check endpoint usage, graceful shutdown implementation, example PM2 ecosystem config. Output only markdown text.",
-          "output": "innomcp-node/docs/DEPLOYMENT.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-13-doc.md",
+          "finished_at": "2026-06-12T03:49:30.137Z"
         },
         {
           "id": "INT-14",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write envValidator.ts utility (innomcp-node/src/utils/envValidator.ts): export function validateEnv(required: string[]): void. Checks each name in required against process.env. Throws a single Error listing all missing variable names. Export the function. Output ONLY TypeScript, no markdown fences.",
-          "output": "innomcp-node/src/utils/envValidator.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-14-dev.md",
+          "finished_at": "2026-06-12T03:49:18.746Z"
         },
         {
           "id": "INT-15",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write AsyncQueue generic TypeScript class (innomcp-node/src/utils/asyncQueue.ts). Constructor takes maxConcurrent number. Methods: enqueue(item: T), dequeue(): T or undefined, size(): number, drain(): Promise<void>. Export the class. Output ONLY TypeScript, no markdown fences.",
-          "output": "innomcp-node/src/utils/asyncQueue.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-15-dev.md",
+          "finished_at": "2026-06-12T03:52:01.355Z"
         },
         {
           "id": "INT-16",
           "role": "test",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write node:test unit tests for envValidator function. Tests: calling with empty array does not throw, calling with a name not in process.env throws an Error that includes that variable name in its message, calling with an existing env var name does not throw. Mock process.env inline. Output ONLY JavaScript test code, no fences.",
-          "output": "innomcp-node/tests/recovery/INT-16-envValidator.test.js",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-16-test.md",
+          "finished_at": "2026-06-12T03:50:24.541Z"
         },
         {
           "id": "INT-17",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write full-smoke-test.js script (innomcp-node/scripts/): discovers all .test.js files in tests/recovery/, runs each with node:test child_process spawn, collects PASS or FAIL results, prints a results table, exits 0 only if all pass. Output ONLY JavaScript code, no markdown fences.",
-          "output": "innomcp-node/scripts/full-smoke-test.js",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-17-dev.md",
+          "finished_at": "2026-06-12T03:50:07.444Z"
         },
         {
           "id": "INT-18",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write curl-smoke.sh bash script: sequentially tests 5 new API endpoints with curl (GET /api/analytics/stats, GET /api/mdes/models, GET /api/mdes/best/thai, POST /api/thai/detect with Thai text body, GET /api/health), prints PASS when HTTP 200 and FAIL otherwise, exits 1 if any fail. Output ONLY bash script, no markdown fences.",
-          "output": "innomcp-node/scripts/curl-smoke.sh",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-18-dev.md",
+          "finished_at": "2026-06-12T03:50:37.107Z"
         },
         {
           "id": "INT-19",
           "role": "dev",
           "model": "moonshotai/Kimi-K2.6",
-          "status": "pending",
+          "status": "failed",
           "task": "Write verify-recovery.js Node.js script: checks that tsc exits 0, zero files contain @ts-nocheck in src/, three route files exist (analytics.ts, mdesModels.ts, thaiNLP.ts), .git/hooks/pre-commit exists, WAVE-POLICY.md exists. Prints checkmark or X per check. Exits 0 if all pass. Output ONLY JavaScript, no markdown fences.",
           "output": "innomcp-node/scripts/verify-recovery.js",
-          "finished_at": null
+          "finished_at": null,
+          "error": "empty content (finish_reason=length)"
         },
         {
           "id": "INT-20",
           "role": "dev",
           "model": "zai-org/GLM-5.1",
-          "status": "pending",
+          "status": "done",
           "task": "Write check-health.js Node.js script: fetches http://localhost:3012/api/health using node:http, parses JSON response, prints status, providers configured map, and build version. Exits 1 if status is neither healthy nor degraded. Output ONLY JavaScript, no markdown fences.",
-          "output": "innomcp-node/scripts/check-health.js",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-20-dev.md",
+          "finished_at": "2026-06-12T03:50:39.277Z"
         },
         {
           "id": "INT-21",
           "role": "doc",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write TESTING.md testing guide (300-400 words English) for innomcp-node: how to run unit tests with node:test, integration tests, E2E Playwright tests, the run command for each category, coverage goals, and CI pipeline integration description. Output only markdown text.",
-          "output": "innomcp-node/docs/TESTING.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-21-doc.md",
+          "finished_at": "2026-06-12T03:50:50.343Z"
         },
         {
           "id": "INT-22",
           "role": "dev",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write a Makefile for innomcp-node with targets: build (runs npx tsc), test (runs node tests with node:test), smoke (runs full-smoke-test.js), hooks (runs scripts/install-hooks.js), health (runs scripts/check-health.js), clean (removes dist directory). Output ONLY the Makefile content, no markdown fences.",
-          "output": "innomcp-node/Makefile",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-22-dev.md",
+          "finished_at": "2026-06-12T03:50:51.613Z"
         },
         {
           "id": "INT-23",
           "role": "dev",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write a Next.js App Router API route (innomcp-next/src/app/api/health/route.ts) that proxies the GET request to the backend health endpoint at NEXT_PUBLIC_BACKEND_URL plus /api/health. Returns the JSON response from the backend. Adds a 5 second timeout with AbortController. Returns 500 JSON with error field on failure. Output ONLY TypeScript Next.js route handler, no markdown fences.",
-          "output": "innomcp-next/src/app/api/health/route.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-23-dev.md",
+          "finished_at": "2026-06-12T03:51:23.877Z"
         },
         {
           "id": "INT-24",
           "role": "dev",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write ReconnectManager TypeScript class (innomcp-next/src/app/utils/reconnectManager.ts). Constructor takes createWS function returning WebSocket, maxRetries default 10, backoffMs default 1000. Methods: start() creates WS and wires onclose to schedule reconnect with exponential backoff, stop() cancels reconnect timer, onStatusChange(cb) registers callback. Export the class. Output ONLY TypeScript, no markdown fences.",
-          "output": "innomcp-next/src/app/utils/reconnectManager.ts",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-24-dev.md",
+          "finished_at": "2026-06-12T03:51:10.528Z"
         },
         {
           "id": "INT-25",
           "role": "dev",
           "model": "zai-org/GLM-5.1",
-          "status": "pending",
+          "status": "done",
           "task": "Write LayoutDebugOverlay.tsx React component (innomcp-next/src/app/components/debug/): renders only in development mode. Shows colored border overlays on 3 columns (left blue, center green, right purple) as fixed-position elements. Toggle visibility with Alt+L keyboard shortcut using useEffect. Use Tailwind CSS classes only. Export default LayoutDebugOverlay. Output ONLY TSX component code, no markdown fences.",
-          "output": "innomcp-next/src/app/components/debug/LayoutDebugOverlay.tsx",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-25-dev.md",
+          "finished_at": "2026-06-12T03:51:31.035Z"
         },
         {
           "id": "INT-26",
           "role": "doc",
           "model": "moonshotai/Kimi-K2.6",
-          "status": "pending",
+          "status": "done",
           "task": "Write WS-RECONNECT-DESIGN.md architecture document (250-350 words) explaining the WebSocket reconnection design. Describe how ReconnectManager, useWSStatus hook, and WSStatusBanner compose together. Include a Mermaid sequence diagram showing the reconnect flow from disconnect detection to banner display to successful reconnection. Output only markdown text.",
-          "output": "innomcp-next/docs/WS-RECONNECT-DESIGN.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-26-doc.md",
+          "finished_at": "2026-06-12T03:51:39.267Z"
         },
         {
           "id": "INT-27",
           "role": "doc",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write POSTMORTEM-MEGA100.md post-mortem document (600-800 words English and Thai). Standard engineering post-mortem format with sections: Incident Summary, Business Impact, Detailed Timeline, Root Cause Analysis (bulk LLM generation without build gate committed to main), 5 Contributing Factors, 5 Action Items mapped to Phase 1-5, 5 Lessons Learned, Future Prevention measures. Output only markdown text.",
-          "output": "innomcp-node/docs/POSTMORTEM-MEGA100.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-27-doc.md",
+          "finished_at": "2026-06-12T03:52:45.239Z"
         },
         {
           "id": "INT-28",
           "role": "doc",
           "model": "Qwen/Qwen3.7-Max",
-          "status": "pending",
+          "status": "done",
           "task": "Write CONTRIBUTING.md developer guide (400-500 words English) for innomcp-node contributors. Sections: environment setup, running pre-commit hooks (node scripts/install-hooks.js), bulk code generation policy (always use cc-team-run.cjs with real API context), TypeScript strictness rules (no @ts-nocheck, no fence markers), testing requirements before submitting a PR. Output only markdown text.",
-          "output": "innomcp-node/CONTRIBUTING.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-28-doc.md",
+          "finished_at": "2026-06-12T03:52:44.128Z"
         },
         {
           "id": "INT-29",
           "role": "doc",
           "model": "deepseek/deepseek-v4-flash",
-          "status": "pending",
+          "status": "done",
           "task": "Write a CHANGELOG.md entry for innomcp-node version 0.2.0 recovery release using Keep a Changelog format. Sections: Fixed (list the Phase 1-5 recovery items), Added (new routes, hooks, components, scripts, docs), Removed (quarantined corrupt files). 300-400 words total. Output only markdown text.",
-          "output": "innomcp-node/CHANGELOG.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\INT-INT-29-doc.md",
+          "finished_at": "2026-06-12T03:51:54.083Z"
         },
         {
           "id": "INT-30",
