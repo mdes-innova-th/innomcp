@@ -1,0 +1,54 @@
+.pageContainer {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.leftSidebar {
+  width: 280px;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+.centerChat {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.rightPanel {
+  width: 360px;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+/* Tablet landscape / small desktop */
+@media (max-width: 1200px) {
+  .leftSidebar {
+    width: 240px;
+  }
+
+  .rightPanel {
+    width: 300px;
+  }
+}
+
+/* Tablet portrait / mobile */
+@media (max-width: 768px) {
+  .pageContainer {
+    flex-direction: column;
+  }
+
+  .leftSidebar {
+    display: none;
+  }
+
+  .centerChat {
+    flex: 1;
+  }
+
+  .rightPanel {
+    width: 100%;
+    max-height: 50vh;
+  }
+}

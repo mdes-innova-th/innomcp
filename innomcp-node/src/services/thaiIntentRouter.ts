@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { ThaiNLPService } from './thaiNLPService';
 
 export interface RoutingDecision {
@@ -57,9 +56,9 @@ export class ThaiIntentRouter {
       };
     }
 
-    const intent = await this.nlpService.detectIntent(text);
+    const intent = this.nlpService.detectIntent(text);
     const domain = intent.domain || 'general';
-    const nluConfidence = intent.confidence ?? 0.5;
+    const nluConfidence = 0.7; // detectIntent is rule-based (no confidence score)
 
     const chosenModel = this.selectModelForDomain(domain, availableModels);
 

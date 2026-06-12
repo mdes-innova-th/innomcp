@@ -1,0 +1,284 @@
+{
+  "plan_id": "INNOMCP-VISUAL-QA-2026-06-12",
+  "planned_by": "jit",
+  "groups": [
+    {
+      "members": [
+        {
+          "id": "VQA-1",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-1-dev.md",
+          "finished_at": "2026-06-12T04:20:45.197Z",
+          "model": "deepseek/deepseek-v4-pro",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a Next.js server component file (innomcp-next/src/app/components/chat/ChatConnectionStatus.tsx) that shows the WS status at top of chat. It imports WSStatusBanner and useWSStatus hook. Props: { socket: WebSocket | null }. Renders WSStatusBanner with status from useWSStatus(socket). Export default ChatConnectionStatus. Output ONLY the .tsx code, no fences."
+        },
+        {
+          "id": "VQA-2",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-2-dev.md",
+          "finished_at": "2026-06-12T04:21:53.427Z",
+          "model": "Qwen/Qwen3.7-Max",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a Next.js page layout update suggestion (innomcp-next/docs/LAYOUT-UPDATE-GUIDE.md): how to integrate WSStatusBanner at top of ChatPage layout (above chat messages, below header), how to add PanelErrorBoundary around ManusWorkspacePanel, how to test the 3-column layout passes the Playwright audit. Step-by-step with code snippets. Output only markdown."
+        },
+        {
+          "id": "VQA-3",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-3-dev.md",
+          "finished_at": "2026-06-12T04:20:43.661Z",
+          "model": "deepseek/deepseek-v4-flash",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a shell script (innomcp-next/scripts/start-and-audit.sh) that: (1) starts innomcp-next dev server on port 3001 in background (pnpm dev --port 3001 &); (2) waits 15s for server to be ready (until curl -s http://localhost:3001 > /dev/null 2>&1); (3) runs npx tsx scripts/playwright-audit.ts; (4) kills the dev server (kill %1); (5) prints audit results from qa/audit-report.json if it exists. Output ONLY the bash script, no fences."
+        },
+        {
+          "id": "VQA-4",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-4-dev.md",
+          "finished_at": "2026-06-12T04:21:10.369Z",
+          "model": "deepseek/deepseek-v4-pro",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a Playwright test (innomcp-next/tests/e2e/mdes-header.spec.ts) that specifically verifies the MDESBrandHeader: (1) navigates to localhost:3001; (2) finds element with text containing 'MDES INNOMCP' or 'ศูนย์ MCP'; (3) checks getBoundingClientRect().top === 0 after scrolling (header is sticky); (4) checks element is visible. Use @playwright/test. Output ONLY the .ts spec, no fences."
+        },
+        {
+          "id": "VQA-5",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-5-dev.md",
+          "finished_at": "2026-06-12T04:21:15.739Z",
+          "model": "Qwen/Qwen3.7-Max",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a CSS fix (innomcp-next/src/app/globals.css addition) that ensures position:sticky works for MDESBrandHeader: add rule '.mdes-brand-header { position: sticky; top: 0; z-index: 50; }' and remove any ancestor overflow:hidden that might break sticky positioning. Output ONLY the CSS rules to ADD (not the full file), no fences."
+        },
+        {
+          "id": "VQA-6",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-6-test.md",
+          "finished_at": "2026-06-12T04:20:58.631Z",
+          "model": "deepseek/deepseek-v4-flash",
+          "role": "test",
+          "status": "done",
+          "task": "Write a visual regression checklist (innomcp-next/docs/VISUAL-QA-CHECKLIST.md) for the innomcp Manus.im-style UI. Sections: (1) header checks (MDES brand visible, sticky, correct text); (2) 3-column layout (left sidebar 250-300px, center flex-1, right panel 320-400px); (3) chat area (input visible, send button, messages area scrollable); (4) workspace panel (ManusWorkspacePanel renders, no blank); (5) responsive (768px: sidebar hidden, 375px: single column). Each check: what to look for, how to test, pass criteria. Output only markdown."
+        },
+        {
+          "id": "VQA-7",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-7-dev.md",
+          "finished_at": "2026-06-12T04:20:53.205Z",
+          "model": "moonshotai/Kimi-K2.6",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a TypeScript utility (innomcp-next/src/app/utils/healthCheck.ts) that pings the backend health endpoint and returns status. Function checkBackendHealth(backendUrl: string): Promise<{healthy:boolean, providers?:object, build?:object, error?:string}>. Uses fetch with 3s timeout AbortController. Export the function. Output ONLY the .ts code, no fences."
+        },
+        {
+          "id": "VQA-8",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-8-dev.md",
+          "finished_at": "2026-06-12T04:21:24.182Z",
+          "model": "zai-org/GLM-5.1",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a React hook (innomcp-next/src/app/hooks/useBackendHealth.ts): useBackendHealth(backendUrl: string). Polls checkBackendHealth every 30s. Returns {healthy: boolean, providers: object|null, lastChecked: Date|null}. Uses useEffect + setInterval. Export default. Output ONLY the .ts hook code, no fences."
+        },
+        {
+          "id": "VQA-9",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-9-doc.md",
+          "finished_at": "2026-06-12T04:20:58.784Z",
+          "model": "deepseek/deepseek-v4-flash",
+          "role": "doc",
+          "status": "done",
+          "task": "Write a RELEASE-NOTES.md (300-400 words English+Thai) for innomcp v0.2.0-recovery. Sections: What changed (P1-P5), How to verify (run verify-recovery.js), Known issues (7 remaining tasks failed in cc-team), Next steps (visual QA, release gate). Output only markdown."
+        },
+        {
+          "id": "VQA-10",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-10-dev.md",
+          "finished_at": "2026-06-12T04:20:56.711Z",
+          "model": "deepseek/deepseek-v4-pro",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a TypeScript component (innomcp-next/src/app/components/common/HealthIndicator.tsx) that shows a small dot indicator for backend health status. Props: {healthy: boolean, size?: 'sm'|'md', className?: string}. Green dot when healthy, red when not. Pulsing animation when healthy. Uses Tailwind CSS. Export default HealthIndicator. Output ONLY the .tsx code, no fences."
+        },
+        {
+          "id": "VQA-11",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-11-dev.md",
+          "finished_at": "2026-06-12T04:21:09.578Z",
+          "model": "Qwen/Qwen3.7-Max",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a Next.js API route (innomcp-next/src/app/api/ws-health/route.ts) that checks if the WebSocket server is reachable by doing a TCP check to NEXT_PUBLIC_NODE_WS_HOST (default ws://localhost:3011). Returns {reachable: boolean, host: string, latencyMs: number}. Use net.createConnection in Node.js. Output ONLY the .ts Next.js route handler, no fences."
+        },
+        {
+          "id": "VQA-12",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-12-dev.md",
+          "finished_at": "2026-06-12T04:21:19.083Z",
+          "model": "deepseek/deepseek-v4-flash",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a Playwright test (innomcp-next/tests/e2e/panel-errors.spec.ts) that verifies error boundaries work: (1) page loads without crashing even if ManusWorkspacePanel fails; (2) no full-page blank screen — some content always visible; (3) console errors logged but not fatal. Use page.on('pageerror') to detect JS exceptions. Output ONLY the .ts spec, no fences."
+        },
+        {
+          "id": "VQA-13",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-13-doc.md",
+          "finished_at": "2026-06-12T04:22:03.889Z",
+          "model": "moonshotai/Kimi-K2.6",
+          "role": "doc",
+          "status": "done",
+          "task": "Write a QA-SIGN-OFF.md (Thai+English) for the innomcp recovery. Format: table of all 5 phases with Date, Tester (cc-team + Opus SA), Verdict (PASS/FAIL), Evidence (commit hash). Include final summary: system is ready for visual QA round 2 and release gate. Output only markdown."
+        },
+        {
+          "id": "VQA-14",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-14-dev.md",
+          "finished_at": "2026-06-12T04:21:19.029Z",
+          "model": "zai-org/GLM-5.1",
+          "role": "dev",
+          "status": "done",
+          "task": "Write an automated test runner script (innomcp-node/scripts/run-all-recovery-tests.sh) that runs all recovery test files: (1) node --test tests/recovery/P3A-greeting-fastpath.test.js; (2) node --test tests/recovery/P3D-smoke-suite.test.js; (3) node scripts/verify-recovery.js; (4) reports PASS/FAIL per test, total summary. Exit 0 if all pass. Output ONLY bash script, no fences."
+        },
+        {
+          "id": "VQA-15",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-15-dev.md",
+          "finished_at": "2026-06-12T04:21:17.227Z",
+          "model": "deepseek/deepseek-v4-pro",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a GitHub Actions workflow (innomcp-node/.github/workflows/recovery-verify.yml) that on push to pending-commits or main: (1) checkout; (2) npm ci in innomcp-node/; (3) npx tsc --noEmit; (4) node scripts/verify-recovery.js; (5) fails if any step fails. Ubuntu-latest, Node 20. Output ONLY the YAML, no fences."
+        },
+        {
+          "id": "VQA-16",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-16-dev.md",
+          "finished_at": "2026-06-12T04:21:55.538Z",
+          "model": "Qwen/Qwen3.7-Max",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a TypeScript component (innomcp-next/src/app/components/common/LoadingSpinner.tsx): a simple loading spinner. Props: {size?: 'sm'|'md'|'lg', label?: string}. SVG circle spinner with Tailwind animate-spin. Export default LoadingSpinner. Output ONLY .tsx code, no fences."
+        },
+        {
+          "id": "VQA-17",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-17-dev.md",
+          "finished_at": "2026-06-12T04:21:21.125Z",
+          "model": "deepseek/deepseek-v4-flash",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a TypeScript component (innomcp-next/src/app/components/common/ErrorMessage.tsx): a generic error message card. Props: {title: string, message: string, onRetry?: ()=>void}. Red border card, title in bold, message text, optional retry button. Tailwind CSS. Export default ErrorMessage. Output ONLY .tsx code, no fences."
+        },
+        {
+          "id": "VQA-18",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-18-dev.md",
+          "finished_at": "2026-06-12T04:21:47.964Z",
+          "model": "moonshotai/Kimi-K2.6",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a TypeScript component (innomcp-next/src/app/components/common/StatusBadge.tsx): status badge with color. Props: {status: 'online'|'offline'|'degraded'|'unknown', label?: string}. online=green, offline=red, degraded=yellow, unknown=gray. Small pill shape with dot. Tailwind. Export default StatusBadge. Output ONLY .tsx code, no fences."
+        },
+        {
+          "id": "VQA-19",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-19-dev.md",
+          "finished_at": "2026-06-12T04:21:53.310Z",
+          "model": "zai-org/GLM-5.1",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a TypeScript utility (innomcp-next/src/app/utils/formatters.ts) with helper functions: formatBytes(bytes: number): string (e.g. '1.2 MB'), formatDuration(ms: number): string (e.g. '2m 30s'), formatRelativeTime(date: Date): string (e.g. '5 minutes ago'), truncate(text: string, maxLength: number): string. Export all. Output ONLY .ts code, no fences."
+        },
+        {
+          "id": "VQA-20",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-20-dev.md",
+          "finished_at": "2026-06-12T04:21:47.194Z",
+          "model": "deepseek/deepseek-v4-pro",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a Playwright test (innomcp-next/tests/e2e/chat-flow.spec.ts) for the basic chat flow: (1) page loads; (2) find chat input (textarea or input with placeholder containing 'chat' or 'message' or 'พิมพ์'); (3) type 'hello'; (4) press Enter or click send button; (5) wait 3s; (6) assert no error toast appears; (7) assert some response appears in the messages area. Use @playwright/test. Output ONLY the .ts spec, no fences."
+        },
+        {
+          "id": "VQA-21",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-21-doc.md",
+          "finished_at": "2026-06-12T04:21:50.138Z",
+          "model": "deepseek/deepseek-v4-flash",
+          "role": "doc",
+          "status": "done",
+          "task": "Write the final PHASE4-EXIT-CRITERIA.md (Thai+English) for innomcp Phase 4. Exit criteria: (1) Playwright loads app, 0 console errors; (2) 3 columns visible at 1440px; (3) MDESBrandHeader at top=0 after scroll; (4) PanelErrorBoundary: force error in ManusWorkspacePanel → boundary shows, page doesn't blank; (5) AgentStepsView: WS agent_step event → step row appears. For each: command + expected result. Output only markdown."
+        },
+        {
+          "id": "VQA-22",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-22-dev.md",
+          "finished_at": "2026-06-12T04:23:08.257Z",
+          "model": "Qwen/Qwen3.7-Max",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a TypeScript component (innomcp-next/src/app/components/debug/DevToolsPanel.tsx): floating dev panel for development only. Shows: backend health status (calls /api/health), WS connection status, current model, timestamp. Fixed position bottom-right, z-50, collapsible with Alt+D shortcut. Only renders in development. Uses Tailwind. Export default DevToolsPanel. Output ONLY .tsx code, no fences."
+        },
+        {
+          "id": "VQA-23",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-23-dev.md",
+          "finished_at": "2026-06-12T04:21:54.114Z",
+          "model": "deepseek/deepseek-v4-flash",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a TypeScript type file (innomcp-next/src/types/health.ts): interfaces for health check responses. ProviderStatus, BuildInfo, HealthResponse (with status, providers, build, mcp_status, uptime, version). WSHealthResponse (reachable, host, latencyMs). Export all. Output ONLY .ts code, no fences."
+        },
+        {
+          "id": "VQA-24",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-24-dev.md",
+          "finished_at": "2026-06-12T04:23:43.477Z",
+          "model": "moonshotai/Kimi-K2.6",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a Next.js provider component (innomcp-next/src/app/providers/HealthProvider.tsx): React context that fetches /api/health on mount and every 60s. Context value: {health: HealthResponse|null, wsHealth: WSHealthResponse|null, loading: boolean}. Export HealthProvider (component) and useHealth (hook). Output ONLY the .tsx code, no fences."
+        },
+        {
+          "id": "VQA-25",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-25-doc.md",
+          "finished_at": "2026-06-12T04:28:11.369Z",
+          "model": "zai-org/GLM-5.1",
+          "role": "doc",
+          "status": "done",
+          "task": "Write innomcp-next/docs/DEPLOYMENT-CHECKLIST.md (Thai+English): pre-deployment checklist for innomcp. Sections: backend checks (tsc 0, verify-recovery 8/8, backend starts on 3012, WS connects), frontend checks (pnpm build passes, no console errors, 3-column layout visible), integration checks (hello→greeting, panels render, health shows providers), go/no-go decision criteria. Output only markdown."
+        },
+        {
+          "id": "VQA-26",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-26-dev.md",
+          "finished_at": "2026-06-12T04:22:16.168Z",
+          "model": "deepseek/deepseek-v4-pro",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a TypeScript hook (innomcp-next/src/app/hooks/useChatState.ts): manages chat connection state. Returns {isConnected: boolean, isConnecting: boolean, error: string|null, retryCount: number, connect: ()=>void, disconnect: ()=>void}. Uses useState. No WebSocket logic — just state management. Export default useChatState. Output ONLY .ts hook, no fences."
+        },
+        {
+          "id": "VQA-27",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-27-test.md",
+          "finished_at": "2026-06-12T04:22:52.940Z",
+          "model": "Qwen/Qwen3.7-Max",
+          "role": "test",
+          "status": "done",
+          "task": "Write vitest unit tests for useChatState hook (innomcp-next/src/app/hooks/useChatState.test.ts). Tests: initial state (not connected, no error), connect() sets isConnecting=true, disconnect() sets isConnected=false, error state sets error field. Use renderHook + act from @testing-library/react. Output ONLY .ts test, no fences."
+        },
+        {
+          "id": "VQA-28",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-28-dev.md",
+          "finished_at": "2026-06-12T04:22:07.862Z",
+          "model": "deepseek/deepseek-v4-flash",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a TypeScript component (innomcp-next/src/app/components/common/Tooltip.tsx): hover tooltip. Props: {children: React.ReactNode, content: string, position?: 'top'|'bottom'|'left'|'right'}. Shows tooltip on hover with Tailwind. Default position: top. Export default Tooltip. Output ONLY .tsx code, no fences."
+        },
+        {
+          "id": "VQA-29",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-29-doc.md",
+          "finished_at": "2026-06-12T04:22:20.834Z",
+          "model": "moonshotai/Kimi-K2.6",
+          "role": "doc",
+          "status": "done",
+          "task": "Write innomcp-next/docs/COMPONENT-REGISTRY.md: a registry of all new components added in this recovery. Sections: Chat components (WSStatusBanner, PanelErrorBoundary, AgentStepsView, ChatConnectionStatus), Layout (ThreeColumnLayout, LayoutDebugOverlay), Debug (DevToolsPanel), Common (HealthIndicator, StatusBadge, LoadingSpinner, ErrorMessage, Tooltip). For each: file path, props, purpose. Output only markdown."
+        },
+        {
+          "id": "VQA-30",
+          "output": "ψ\\outbox\\cc-team\\VQA-VQA-30-dev.md",
+          "finished_at": "2026-06-12T04:23:34.708Z",
+          "model": "zai-org/GLM-5.1",
+          "role": "dev",
+          "status": "done",
+          "task": "Write a simple npm script helper (innomcp-next/scripts/check-build.sh) that: (1) runs pnpm build 2>&1; (2) if exit 0 prints BUILD OK; (3) if exit 1 prints BUILD FAILED with first 30 lines of error; (4) exits with same code as build. Output ONLY bash script, no fences."
+        }
+      ],
+      "id": "VQA",
+      "mission": "Visual QA + frontend completion tasks"
+    }
+  ],
+  "provider": "commandcode",
+  "rules": "Output ONLY the requested artifact. No markdown fences. Code = raw code. Docs = raw markdown."
+}

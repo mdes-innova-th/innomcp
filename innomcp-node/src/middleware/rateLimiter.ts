@@ -101,5 +101,9 @@ function providerRateLimit(): Middleware {
   return createRateLimiter({ windowMs: 60_000, maxRequests: 10 });
 }
 
-export { createRateLimiter, chatRateLimit, apiRateLimit, providerRateLimit };
+// Aliases used by app.ts route wiring
+const generalRateLimit = apiRateLimit();
+const authRateLimit = chatRateLimit();
+
+export { createRateLimiter, chatRateLimit, apiRateLimit, providerRateLimit, generalRateLimit, authRateLimit };
 export type { RateLimitOptions, Middleware };

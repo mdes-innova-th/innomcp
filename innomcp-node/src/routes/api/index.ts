@@ -16,7 +16,6 @@ const apiCsrfRouter = Router();
 apiCsrfRouter.use("/csrf", csrfRouter);
 
 // Health is mounted publicly in app.ts (before apiKeyMiddleware)
-// URL Stats API routes (middleware applied at app level in src/app.ts)
 apiRouter.use("/chat", chatRouter);
 apiRouter.use("/orchestrate", orchestratorRouter);
 apiRouter.use("/mother/scorecard", motherScorecardRouter);

@@ -1,218 +1,281 @@
-```ts
-import { Pool } from 'pg';
-import { WebSocket } from 'ws';
-import { promises as fs } from 'fs';
-import { resolve } from 'path';
+/**
+ * healthAggregator.ts
+ * Aggregates health checks from all innomcp-node services into a single response.
+ * Provides a singleton HealthAggregator that can register custom health checkers.
+ * Includes built-in checkers for memory, event loop lag, and process uptime.
+ * Results are cached for 10 seconds to prevent excessive load.
+ */
 
-type HealthStatus = 'healthy' | 'degraded' | 'down' | 'unknown';
+/** Health status values */
+export type HealthStatusValue = 'healthy' | 'degraded' | 'unhealthy';
 
-interface ServiceHealth {
-  name: string;
-  status: HealthStatus;
-  latencyMs?: number;
+/** Result of a single health checker */
+export interface HealthStatus {
+  status: HealthStatusValue;
   message?: string;
+  details?: Record<string, unknown>;
+  latencyMs?: number;
 }
 
-type HealthResult = {
-  overall: HealthStatus;
-  services: ServiceHealth[];
-  timestamp: number;
-};
+/** Signature of a health checker function */
+export type HealthChecker = () => Promise<HealthStatus>;
 
-class HealthAggregator {
-  private lastResult: HealthResult | null = null;
-  private timer: NodeJS.Timeout | null = null;
-  private readonly defaultIntervalMs = 30_000;
-  private isRunning = false;
+/** Aggregated health from all checkers */
+export interface AggregatedHealth {
+  status: HealthStatusValue;
+  timestamp: string;
+  uptime: number;
+  checks: Record<string, HealthStatus & { durationMs: number }>;
+  summary: {
+    total: number;
+    healthy: number;
+    degraded: number;
+    unhealthy: number;
+  };
+}
 
-  // Instantiate the dependency pools once and reuse
-  private readonly dbPool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    max: 1,
-    idleTimeoutMillis: 5_000,
-    connectionTimeoutMillis: 5_000,
-  });
+interface RegisteredChecker {
+  checker: HealthChecker;
+  timeoutMs: number;
+}
 
-  private readonly wsPort = parseInt(process.env.WS_PORT ?? '3001', 10);
-  private readonly ollamaUrl = process.env.OLLAMA_URL ?? 'http://localhost:11434';
-  private readonly workspacePath = resolve(process.env.WORKSPACE_STORAGE_PATH ?? './workspace');
+const DEFAULT_TIMEOUT_MS = 5000;
+const CACHE_TTL_MS = 10000;
 
-  // --------------------------------------------------------------------------
-  // Internal helpers
-  // --------------------------------------------------------------------------
-  private async measureLatency<T>(fn: () => Promise<T>): Promise<{ result: T; latencyMs: number }> {
-    const start = Date.now();
-    const result = await fn();
-    return { result, latencyMs: Date.now() - start };
+/**
+ * Singleton health aggregator for the innomcp-node backend.
+ * Use `HealthAggregator.getInstance()` to access the instance.
+ */
+export default class HealthAggregator {
+  private static instance: HealthAggregator;
+  private checkers: Map<string, RegisteredChecker> = new Map();
+  private cache: { result: AggregatedHealth; timestamp: number } | null = null;
+
+  private constructor() {
+    // Register built-in checkers
+    this.registerChecker('memory', this.memoryCheck.bind(this));
+    this.registerChecker('eventLoop', this.eventLoopCheck.bind(this));
+    this.registerChecker('uptime', this.uptimeCheck.bind(this));
   }
 
-  private computeOverall(services: ServiceHealth[]): HealthStatus {
-    const statuses = services.map((s) => s.status);
-    if (statuses.some((s) => s === 'down')) return 'down';
-    if (statuses.some((s) => s === 'degraded')) return 'degraded';
-    if (statuses.every((s) => s === 'unknown')) return 'unknown';
-    return 'healthy';
-  }
-
-  // --------------------------------------------------------------------------
-  // Check methods
-  // --------------------------------------------------------------------------
-
-  async checkMDESOllama(): Promise<ServiceHealth> {
-    const name = 'MDES Ollama';
-    try {
-      const { result, latencyMs } = await this.measureLatency(async () => {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5_000);
-        try {
-          const response = await fetch(`${this.ollamaUrl}/api/tags`, {
-            signal: controller.signal,
-          });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          // We don't need the body – a successful response means the service is reachable
-        } finally {
-          clearTimeout(timeout);
-        }
-      });
-
-      return {
-        name,
-        status: 'healthy',
-        latencyMs,
-      };
-    } catch (err: any) {
-      const message = err.message?.includes('aborted') ? 'Request timed out' : err.message;
-      return {
-        name,
-        status: 'down',
-        message: `Ollama unreachable: ${message}`,
-      };
+  /**
+   * Returns the singleton instance of HealthAggregator.
+   */
+  public static getInstance(): HealthAggregator {
+    if (!HealthAggregator.instance) {
+      HealthAggregator.instance = new HealthAggregator();
     }
+    return HealthAggregator.instance;
   }
 
-  async checkDatabase(): Promise<ServiceHealth> {
-    const name = 'Database';
-    try {
-      const { result, latencyMs } = await this.measureLatency(async () => {
-        const client = await this.dbPool.connect();
-        try {
-          await client.query('SELECT 1');
-        } finally {
-          client.release();
-        }
-      });
+  /**
+   * Registers a health checker under a given name.
+   * @param name - Unique name for the checker (e.g., "database")
+   * @param checker - Async function that returns a HealthStatus
+   * @param timeoutMs - Maximum time (ms) to wait before marking as unhealthy (default: 5000)
+   */
+  public registerChecker(
+    name: string,
+    checker: HealthChecker,
+    timeoutMs: number = DEFAULT_TIMEOUT_MS,
+  ): void {
+    this.checkers.set(name, { checker, timeoutMs });
+    // Clear cache so that the next check uses updated checkers
+    this.cache = null;
+  }
 
-      return {
-        name,
-        status: 'healthy',
-        latencyMs,
-      };
-    } catch (err: any) {
-      return {
-        name,
-        status: 'down',
-        message: `Database error: ${err.message}`,
-      };
+  /**
+   * Executes all registered health checkers in parallel and returns aggregated health.
+   * Uses a 10-second in-memory cache to avoid excessive checks on repeated calls.
+   */
+  public async check(): Promise<AggregatedHealth> {
+    const now = Date.now();
+
+    // Return cached result if still fresh
+    if (this.cache && now - this.cache.timestamp < CACHE_TTL_MS) {
+      return this.cache.result;
     }
-  }
 
-  async checkWebSocket(): Promise<ServiceHealth> {
-    const name = 'WebSocket';
-    try {
-      const { result, latencyMs } = await this.measureLatency(async () => {
-        return new Promise<void>((resolve, reject) => {
-          const wsUrl = `ws://localhost:${this.wsPort}`;
-          const ws = new WebSocket(wsUrl);
+    const results: Record<string, HealthStatus & { durationMs: number }> = {};
+    const summary = { total: 0, healthy: 0, degraded: 0, unhealthy: 0 };
 
-          const timeout = setTimeout(() => {
-            ws.close();
-            reject(new Error('WebSocket connection timed out'));
-          }, 5_000);
+    const checkPromises: Promise<{
+      name: string;
+      result: HealthStatus & { durationMs: number };
+    }>[] = [];
 
-          ws.on('open', () => {
-            clearTimeout(timeout);
-            ws.close();
-            resolve();
-          });
-
-          ws.on('error', (err) => {
-            clearTimeout(timeout);
-            reject(err);
-          });
-        });
-      });
-
-      return {
-        name,
-        status: 'healthy',
-        latencyMs,
-      };
-    } catch (err: any) {
-      return {
-        name,
-        status: 'down',
-        message: `WebSocket error: ${err.message}`,
-      };
-    }
-  }
-
-  async checkDisk(): Promise<ServiceHealth> {
-    const name = 'Disk';
-    try {
-      const { result, latencyMs } = await this.measureLatency(async () => {
-        try {
-          await fs.access(this.workspacePath);
-        } catch {
-          // Create the directory if it does not exist
-          await fs.mkdir(this.workspacePath, { recursive: true });
-        }
-
-        const stats = await fs.statfs(this.workspacePath);
-        const freeBytes = stats.bfree * stats.bsize;
-        return freeBytes;
-      });
-
-      const freeMB = result / (1024 * 1024);
-      let status: HealthStatus = 'healthy';
-      let message: string | undefined;
-
-      if (freeMB < 100) {
-        status = 'down';
-        message = `Critical: only ${freeMB.toFixed(1)} MB free`;
-      } else if (freeMB < 500) {
-        status = 'degraded';
-        message = `Low space: ${freeMB.toFixed(1)} MB free`;
-      }
-
-      return {
-        name,
-        status,
-        latencyMs,
-        message,
-      };
-    } catch (err: any) {
-      return {
-        name,
-        status: 'down',
-        message: `Disk check failed: ${err.message}`,
-      };
-    }
-  }
-
-  async checkMemory(): Promise<ServiceHealth> {
-    const name = 'Memory';
-    try {
-      const { result: mem, latencyMs } = await this.measureLatency(() =>
-        Promise.resolve(process.memoryUsage()),
+    for (const [name, { checker, timeoutMs }] of this.checkers.entries()) {
+      summary.total++;
+      checkPromises.push(
+        this.runCheckerWithTimeout(name, checker, timeoutMs),
       );
+    }
 
-      const usedMB = mem.heapUsed / (1024 * 1024);
-      const totalMB = mem.heapTotal / (1024 * 1024);
-      const ratio = totalMB > 0 ? usedMB / totalMB : 0;
+    const outcomes = await Promise.all(checkPromises);
 
-      let status: HealthStatus = 'healthy';
-      let message: string | undefined;
+    for (const { name, result } of outcomes) {
+      results[name] = result;
+      switch (result.status) {
+        case 'healthy':
+          summary.healthy++;
+          break;
+        case 'degraded':
+          summary.degraded++;
+          break;
+        case 'unhealthy':
+          summary.unhealthy++;
+          break;
+      }
+    }
 
-      if (ratio > 0.95 || usedMB > 1800) {
-        status = 'down';
-        message = `Heap usage critical: ${usedMB.toFixed(1)} / ${totalMB.toFixed(
+    // Determine overall status
+    let overall: HealthStatusValue = 'healthy';
+    if (summary.unhealthy > 0) {
+      overall = 'unhealthy';
+    } else if (summary.degraded > 0) {
+      overall = 'degraded';
+    }
+
+    const aggregated: AggregatedHealth = {
+      status: overall,
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      checks: results,
+      summary,
+    };
+
+    // Cache the result
+    this.cache = { result: aggregated, timestamp: now };
+    return aggregated;
+  }
+
+  /**
+   * Runs a checker with a timeout. If the checker throws or times out,
+   * it returns an unhealthy status with a Thai error message.
+   */
+  private async runCheckerWithTimeout(
+    name: string,
+    checker: HealthChecker,
+    timeoutMs: number,
+  ): Promise<{ name: string; result: HealthStatus & { durationMs: number } }> {
+    const start = process.hrtime.bigint();
+
+    try {
+      const result = await Promise.race([
+        checker(),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`หมดเวลา (${timeoutMs}ms)`)),
+            timeoutMs,
+          ),
+        ),
+      ]);
+
+      const end = process.hrtime.bigint();
+      const durationMs = Number(end - start) / 1e6;
+
+      return {
+        name,
+        result: {
+          status: result.status,
+          message: result.message,
+          details: result.details,
+          latencyMs: durationMs,
+          durationMs,
+        },
+      };
+    } catch (error: unknown) {
+      const end = process.hrtime.bigint();
+      const durationMs = Number(end - start) / 1e6;
+      const errorMessage =
+        error instanceof Error ? error.message : 'เกิดข้อผิดพลาดที่ไม่รู้จัก';
+
+      return {
+        name,
+        result: {
+          status: 'unhealthy',
+          message: `การตรวจสอบล้มเหลว: ${errorMessage}`,
+          latencyMs: durationMs,
+          durationMs,
+        },
+      };
+    }
+  }
+
+  /* Built-in checkers */
+
+  /**
+   * Memory health: reports based on heap usage ratio.
+   * Healthy: < 80%, Degraded: 80-95%, Unhealthy: > 95%
+   */
+  private async memoryCheck(): Promise<HealthStatus> {
+    const memory = process.memoryUsage();
+    const heapUsed = memory.heapUsed;
+    const heapTotal = memory.heapTotal;
+    const ratio = heapUsed / heapTotal;
+    let status: HealthStatusValue = 'healthy';
+    let message = 'หน่วยความจำปกติ';
+
+    if (ratio >= 0.95) {
+      status = 'unhealthy';
+      message = 'หน่วยความจำใกล้เต็ม (มากกว่า 95%)';
+    } else if (ratio >= 0.8) {
+      status = 'degraded';
+      message = 'หน่วยความจำใช้งานสูง (มากกว่า 80%)';
+    }
+
+    return {
+      status,
+      message,
+      details: {
+        heapUsed: Math.round(heapUsed / 1024 / 1024) + 'MB',
+        heapTotal: Math.round(heapTotal / 1024 / 1024) + 'MB',
+        ratio: Math.round(ratio * 100) + '%',
+      },
+    };
+  }
+
+  /**
+   * Event loop lag: measures the time between scheduling a setImmediate and its execution.
+   * Healthy: < 50ms, Degraded: 50-200ms, Unhealthy: > 200ms
+   */
+  private async eventLoopCheck(): Promise<HealthStatus> {
+    const start = process.hrtime.bigint();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    const end = process.hrtime.bigint();
+    const lagMs = Number(end - start) / 1e6;
+
+    let status: HealthStatusValue = 'healthy';
+    let message = 'Event loop ทำงานปกติ';
+
+    if (lagMs > 200) {
+      status = 'unhealthy';
+      message = `Event loop ล่าช้ามาก (${lagMs.toFixed(2)}ms)`;
+    } else if (lagMs > 50) {
+      status = 'degraded';
+      message = `Event loop หน่วงเวลา (${lagMs.toFixed(2)}ms)`;
+    }
+
+    return {
+      status,
+      message,
+      details: {
+        lagMs: Math.round(lagMs * 100) / 100,
+      },
+    };
+  }
+
+  /**
+   * Uptime check: simply reports the process uptime. Always healthy.
+   */
+  private async uptimeCheck(): Promise<HealthStatus> {
+    const uptime = process.uptime();
+    return {
+      status: 'healthy',
+      message: `ระบบทำงานมาแล้ว ${Math.floor(uptime)} วินาที`,
+      details: {
+        uptimeSeconds: uptime,
+      },
+    };
+  }
+}

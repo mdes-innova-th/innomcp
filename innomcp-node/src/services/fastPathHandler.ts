@@ -801,6 +801,15 @@ export async function tryFastPathWebSocket(
     return sendAiText("history", "รัชกาลที่ 3 คือ พระบาทสมเด็จพระนั่งเกล้าเจ้าอยู่หัว");
   }
 
+  // ===== GREETINGS — pass to polite response, never reject =====
+  const GREETING_TOKENS = new Set([
+    'hi','hello','hey','yo','sup','howdy','greetings','test','ping','hola',
+    'bonjour','สวัสดี','สวัสดีครับ','สวัสดีค่ะ','ดี','เฮ้','หวัดดี','ป่ะ','เป็นยังไง','ว่าไง',
+  ]);
+  if (GREETING_TOKENS.has(text.toLowerCase().trim())) {
+    return sendAiText("greeting", "สวัสดีครับ! มีอะไรให้ช่วยไหมครับ? 😊");
+  }
+
   // ===== UNKNOWN / GIBBERISH (deterministic fallback; avoids LLM hangs in E2E) =====
   // Very narrow: only simple alphanumeric tokens without spaces and without Thai characters.
   const hasThaiChars = /[ก-๙]/.test(text);

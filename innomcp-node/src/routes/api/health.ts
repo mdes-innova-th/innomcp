@@ -125,6 +125,20 @@ healthRouter.get('/', async (req: Request, res: Response) => {
       uptime: Math.floor((Date.now() - startTime) / 1000),
       memory: process.memoryUsage(),
       version: process.env.npm_package_version || '1.0.0',
+      providers: {
+        configured: {
+          mdesOllama: !!process.env.OLLAMA_BASE_URL,
+          openai: !!(process.env.OPENAI_API_KEY || process.env.GPT_API_KEY),
+          copilot: !!(process.env.GITHUB_COPILOT_TOKEN || process.env.COPILOT_API_KEY),
+          thaiLlm: !!process.env.THAI_LLM_MODEL,
+        },
+        primary: 'mdes-ollama',
+      },
+      build: {
+        version: process.env.npm_package_version || '1.0.0',
+        nodeVersion: process.version,
+        env: process.env.NODE_ENV || 'development',
+      },
     });
   } catch (error) {
     console.error('[Health] Error checking health:', error);

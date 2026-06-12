@@ -1,109 +1,198 @@
-```ts
-// cacheManager.ts — In-memory LRU cache with TTL for innomcp-node
-// TypeScript เข้มงวด ห้ามใช้ any โดยไม่จำเป็น ใช้ unknown สำหรับค่าที่ไม่รู้จัก
-
-interface CacheOptions {
-  /** ค่า TTL เริ่มต้นในหน่วยมิลลิวินาที (default: 0 = ไม่มีวันหมดอายุ) */
-  ttl?: number;
-  /** จำนวนรายการสูงสุดที่เก็บได้ (default: Infinity) */
-  maxSize?: number;
-}
-
-interface CacheNode {
+interface LinkedNode<T = unknown> {
   key: string;
-  value: unknown;
-  expiry: number; // timestamp milliseconds (0 = never expires)
-  prev: CacheNode | null;
-  next: CacheNode | null;
+  value: T;
+  expiry: number;
+  prev: LinkedNode<T> | null;
+  next: LinkedNode<T> | null;
 }
 
-class CacheManager {
-  private map = new Map<string, CacheNode>();
-  private head: CacheNode | null = null;
-  private tail: CacheNode | null = null;
-  private maxSize: number;
-  private defaultTTL: number;
+export interface CacheStats {
+  hits: number;
+  misses: number;
+  evictions: number;
+  size: number;
+  hitRate: number;
+}
+
+const DEFAULT_MAX_SIZE = 1_000;
+const DEFAULT_TTL_MS = 5 * 60 * 1_000;
+const CLEANUP_INTERVAL_MS = 60 * 1_000;
+
+export class CacheManager {
+  private static instance: CacheManager;
+  private readonly entries = new Map<string, LinkedNode>();
+  private maxSize = DEFAULT_MAX_SIZE;
+  private head: LinkedNode | null = null;
+  private tail: LinkedNode | null = null;
   private hits = 0;
   private misses = 0;
+  private evictions = 0;
+  private readonly cleanupTimer: ReturnType<typeof setInterval>;
 
-  constructor(options: CacheOptions = {}) {
-    this.maxSize = options.maxSize && options.maxSize > 0 ? options.maxSize : Infinity;
-    this.defaultTTL = options.ttl && options.ttl > 0 ? options.ttl : 0;
+  private constructor() {
+    this.cleanupTimer = setInterval(() => this.cleanupExpired(), CLEANUP_INTERVAL_MS);
+    this.cleanupTimer.unref?.();
   }
 
-  /**
-   * เพิ่มหรืออัปเดตข้อมูลในแคช
-   * @param key key ที่ต้องการเก็บ
-   * @param value ค่าที่ต้องการเก็บ (generic)
-   * @param ttl ระยะเวลาหมดอายุในหน่วย ms (ถ้าไม่ระบุจะใช้ defaultTTL จาก constructor)
-   */
-  set<T>(key: string, value: T, ttl?: number): void {
-    const expiry =
-      ttl !== undefined && ttl > 0
-        ? Date.now() + ttl
-        : this.defaultTTL > 0
-          ? Date.now() + this.defaultTTL
-          : 0;
-
-    const existingNode = this.map.get(key);
-    if (existingNode) {
-      // อัปเดตโหนดเดิม
-      existingNode.value = value;
-      existingNode.expiry = expiry;
-      this.moveToFront(existingNode);
-    } else {
-      // ถ้าเต็มความจุ ให้ลบรายการที่ใช้น้อยที่สุด (tail)
-      if (this.maxSize !== Infinity && this.map.size >= this.maxSize && this.tail) {
-        this.removeNode(this.tail);
-      }
-      const node: CacheNode = {
-        key,
-        value,
-        expiry,
-        prev: null,
-        next: null,
-      };
-      this.addToFront(node);
-      this.map.set(key, node);
+  static getInstance(): CacheManager {
+    if (!CacheManager.instance) {
+      CacheManager.instance = new CacheManager();
     }
+    return CacheManager.instance;
   }
 
-  /**
-   * ดึงข้อมูลจากแคช
-   * @returns ค่าที่เก็บไว้ (generic) หรือ undefined ถ้าไม่มีหรือหมดอายุ
-   */
-  get<T>(key: string): T | undefined {
-    const node = this.map.get(key);
+  get<T>(key: string): T | null {
+    const node = this.entries.get(key) as LinkedNode<T> | undefined;
     if (!node) {
-      this.misses++;
-      return undefined;
+      this.misses += 1;
+      return null;
     }
 
-    if (node.expiry > 0 && Date.now() > node.expiry) {
-      // หมดอายุ -> ลบแล้ว return miss
-      this.removeNode(node);
-      this.misses++;
-      return undefined;
+    if (this.isExpired(node)) {
+      this.delete(key);
+      this.misses += 1;
+      return null;
     }
 
-    // ย้ายไปหน้า list (ใช้งานล่าสุด)
-    this.moveToFront(node);
-    this.hits++;
-    return node.value as T;
+    this.hits += 1;
+    this.moveToHead(node);
+    return node.value;
   }
 
-  /** ตรวจสอบว่ามี key ที่ยังไม่หมดอายุหรือไม่ */
+  set<T>(key: string, value: T, ttlMs: number = DEFAULT_TTL_MS): void {
+    const existing = this.entries.get(key) as LinkedNode<T> | undefined;
+    const expiry = Date.now() + ttlMs;
+
+    if (existing) {
+      existing.value = value;
+      existing.expiry = expiry;
+      this.moveToHead(existing);
+      return;
+    }
+
+    const node: LinkedNode<T> = {
+      key,
+      value,
+      expiry,
+      prev: null,
+      next: null,
+    };
+
+    this.entries.set(key, node);
+    this.addToHead(node);
+
+    while (this.entries.size > this.maxSize && this.tail) {
+      this.delete(this.tail.key);
+      this.evictions += 1;
+    }
+  }
+
+  delete(key: string): void {
+    const node = this.entries.get(key);
+    if (!node) {
+      return;
+    }
+
+    this.removeNode(node);
+    this.entries.delete(key);
+  }
+
   has(key: string): boolean {
-    const node = this.map.get(key);
-    if (!node) return false;
-    if (node.expiry > 0 && Date.now() > node.expiry) {
-      this.removeNode(node);
+    const node = this.entries.get(key);
+    if (!node) {
       return false;
     }
+
+    if (this.isExpired(node)) {
+      this.delete(key);
+      return false;
+    }
+
     return true;
   }
 
-  /** ลบ key ออกจากแคช */
-  delete(key: string): void {
-    const node = this.map.get(key);
-    if
+  clear(): void {
+    this.entries.clear();
+    this.head = null;
+    this.tail = null;
+  }
+
+  size(): number {
+    this.cleanupExpired();
+    return this.entries.size;
+  }
+
+  stats(): CacheStats {
+    const total = this.hits + this.misses;
+    return {
+      hits: this.hits,
+      misses: this.misses,
+      evictions: this.evictions,
+      size: this.size(),
+      hitRate: total === 0 ? 0 : this.hits / total,
+    };
+  }
+
+  configure(maxSize: number): void {
+    this.maxSize = Math.max(1, Math.floor(maxSize));
+    while (this.entries.size > this.maxSize && this.tail) {
+      this.delete(this.tail.key);
+      this.evictions += 1;
+    }
+  }
+
+  private cleanupExpired(): void {
+    const now = Date.now();
+    for (const [key, node] of this.entries) {
+      if (node.expiry <= now) {
+        this.delete(key);
+      }
+    }
+  }
+
+  private isExpired(node: LinkedNode): boolean {
+    return node.expiry <= Date.now();
+  }
+
+  private addToHead(node: LinkedNode): void {
+    node.prev = null;
+    node.next = this.head;
+
+    if (this.head) {
+      this.head.prev = node;
+    }
+
+    this.head = node;
+    if (!this.tail) {
+      this.tail = node;
+    }
+  }
+
+  private moveToHead(node: LinkedNode): void {
+    if (node === this.head) {
+      return;
+    }
+
+    this.removeNode(node);
+    this.addToHead(node);
+  }
+
+  private removeNode(node: LinkedNode): void {
+    if (node.prev) {
+      node.prev.next = node.next;
+    } else {
+      this.head = node.next;
+    }
+
+    if (node.next) {
+      node.next.prev = node.prev;
+    } else {
+      this.tail = node.prev;
+    }
+
+    node.prev = null;
+    node.next = null;
+  }
+}
+
+export default CacheManager;
