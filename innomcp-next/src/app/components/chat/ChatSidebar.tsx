@@ -40,6 +40,7 @@ import ComparePanel from "./ComparePanel";
 import EvolutionPanel from "./EvolutionPanel";
 import ForumPanel from "./ForumPanel";
 import ActivityPanel from "./ActivityPanel";
+import { BACKEND } from "../../lib/backendUrl";
 
 
 // ─── Interfaces ─────────────────────────────────────────────────────────────
@@ -338,7 +339,7 @@ const ChatSidebar: React.FC<Props> = ({
     if (!trimmed) return;
 
     if (isLoggedIn) {
-      const response = await fetch("/api/projects", {
+      const response = await fetch(`${BACKEND}/api/projects`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -401,7 +402,7 @@ const ChatSidebar: React.FC<Props> = ({
       return;
     }
 
-    fetch("/api/projects", { credentials: "include" })
+    fetch(`${BACKEND}/api/projects`, { credentials: "include" })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         const fetchedProjects = Array.isArray(data?.projects) ? data.projects : [];
@@ -445,7 +446,7 @@ const ChatSidebar: React.FC<Props> = ({
 
   // Fetch recent tasks from DB — falls back to localStorage summaries if request fails or user is guest
   useEffect(() => {
-    fetch("/api/tasks?limit=8", { credentials: "include" })
+    fetch(`${BACKEND}/api/tasks?limit=8`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => { if (data?.tasks?.length) setDbTasks(data.tasks); })
       .catch(() => {}); // silently fall back to summaries

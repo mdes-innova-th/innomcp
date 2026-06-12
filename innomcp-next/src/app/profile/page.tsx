@@ -62,7 +62,7 @@ export default function ProfilePage() {
 
   const loadProfileData = async () => {
     try {
-      const response = await fetch('http://localhost:3011/api/user/profile', {
+      const response = await fetch('http://localhost:3015/api/user/profile', {
         credentials: 'include'
       });
 
@@ -133,7 +133,7 @@ export default function ProfilePage() {
         formDataToSend.append('profileImage', imageFile);
       }
 
-      const response = await fetch('http://localhost:3011/api/user/update-profile', {
+      const response = await fetch('http://localhost:3015/api/user/update-profile', {
         method: 'PUT',
         body: formDataToSend,
         credentials: 'include'

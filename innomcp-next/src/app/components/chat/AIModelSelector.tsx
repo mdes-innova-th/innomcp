@@ -95,7 +95,7 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({ theme: _theme, onMode
 
   const fetchCurrentMode = async () => {
     try {
-      const backendHost = process.env.NEXT_PUBLIC_NODE_HOST || "http://localhost:3011";
+      const backendHost = process.env.NEXT_PUBLIC_NODE_HOST || "http://localhost:3015";
       const response = await fetch(`${backendHost}/api/ai-mode`);
       if (response.ok) {
         const data = await response.json();
@@ -111,7 +111,7 @@ const AIModelSelector: React.FC<AIModelSelectorProps> = ({ theme: _theme, onMode
 
   const handleModeChange = async (mode: AIMode) => {
     try {
-      const backendHost = process.env.NEXT_PUBLIC_NODE_HOST || "http://localhost:3011";
+      const backendHost = process.env.NEXT_PUBLIC_NODE_HOST || "http://localhost:3015";
       const response = await fetch(`${backendHost}/api/ai-mode`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

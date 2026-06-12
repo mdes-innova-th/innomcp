@@ -140,7 +140,7 @@ function extractDataLine(blob: string): string | null {
  *   1. explicit `endpoint` argument
  *   2. NEXT_PUBLIC_BACKEND_URL env var (compiled in)
  *   3. window.location origin if same-port deployment
- *   4. localhost:3011 fallback for dev
+ *   4. localhost:3015 fallback for dev
  */
 function resolveStreamUrl(explicit: string): string {
   if (explicit && /^https?:\/\//.test(explicit)) return explicit;
@@ -150,11 +150,11 @@ function resolveStreamUrl(explicit: string): string {
     const { protocol, hostname, port } = window.location;
     // Dev convention: Next.js on 3000, Express on 3011.
     if (hostname === "localhost" && port === "3000") {
-      return `${protocol}//${hostname}:3011${explicit}`;
+      return `${protocol}//${hostname}:3015${explicit}`;
     }
     return `${protocol}//${window.location.host}${explicit}`;
   }
-  return `http://localhost:3011${explicit}`;
+  return `http://localhost:3015${explicit}`;
 }
 
 export function useAgentEventStream(endpoint: string = "/api/chat/stream") {

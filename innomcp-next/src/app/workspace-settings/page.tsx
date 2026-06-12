@@ -75,7 +75,7 @@ export default function WorkspaceSettingsPage() {
 
   const fetchWorkspaces = async () => {
     try {
-      const response = await fetch('http://localhost:3011/api/workspace', {
+      const response = await fetch('http://localhost:3015/api/workspace', {
         credentials: 'include'
       });
 
@@ -104,7 +104,7 @@ export default function WorkspaceSettingsPage() {
 
     // Fetch instructions
     try {
-      const response = await fetch(`http://localhost:3011/api/workspace/${workspace.workspace_id}/instructions`, {
+      const response = await fetch(`http://localhost:3015/api/workspace/${workspace.workspace_id}/instructions`, {
         credentials: 'include'
       });
 
@@ -124,7 +124,7 @@ export default function WorkspaceSettingsPage() {
     setError('');
 
     try {
-      const response = await fetch(`http://localhost:3011/api/workspace/${selectedWorkspace.workspace_id}`, {
+      const response = await fetch(`http://localhost:3015/api/workspace/${selectedWorkspace.workspace_id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -151,7 +151,7 @@ export default function WorkspaceSettingsPage() {
     if (!selectedWorkspace || !newInstruction.text.trim()) return;
 
     try {
-      const response = await fetch(`http://localhost:3011/api/workspace/${selectedWorkspace.workspace_id}/instructions`, {
+      const response = await fetch(`http://localhost:3015/api/workspace/${selectedWorkspace.workspace_id}/instructions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,7 +177,7 @@ export default function WorkspaceSettingsPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:3011/api/workspace/${selectedWorkspace.workspace_id}/instructions/${instructionId}`,
+        `http://localhost:3015/api/workspace/${selectedWorkspace.workspace_id}/instructions/${instructionId}`,
         {
           method: 'DELETE',
           credentials: 'include'

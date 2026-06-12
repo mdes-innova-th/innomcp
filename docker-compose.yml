@@ -76,6 +76,10 @@ services:
     environment:
       - NODE_BACKEND_HOST=http://api:3011
       - NODE_WS_BACKEND_HOST=ws://api:3011
+      # server-side Next API routes read these at runtime (client bundles bake
+      # the build args above instead) — must be the in-network api hostname
+      - NEXT_PUBLIC_NODE_HOST=http://api:3011
+      - NEXT_PUBLIC_NODE_WS_HOST=ws://api:3011
     depends_on:
       - api
 

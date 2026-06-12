@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const BACKEND =
     typeof window !== "undefined" && window.location.port === "3000"
-      ? "http://localhost:3011"
+      ? "http://localhost:3015"
       : "";
   
   // Guest mode: users can use chat without login (50% capability by default)

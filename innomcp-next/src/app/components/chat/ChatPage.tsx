@@ -458,7 +458,7 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     const BACKEND =
       typeof window !== 'undefined' && window.location.port === '3000'
-        ? 'http://localhost:3011'
+        ? 'http://localhost:3015'
         : '';
     fetch(BACKEND + '/api/auth/ws-token', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
@@ -599,7 +599,7 @@ const ChatPage: React.FC = () => {
 
     const createWebSocket = () => {
       const url =
-        (process.env.NEXT_PUBLIC_NODE_WS_HOST || "ws://localhost:3011") +
+        (process.env.NEXT_PUBLIC_NODE_WS_HOST || "ws://localhost:3015") +
         "/chat";
       console.log("Attempting to connect to WebSocket at:", url);
       let ws: WebSocket;

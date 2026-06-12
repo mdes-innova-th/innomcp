@@ -58,7 +58,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const backendHost = process.env.NEXT_PUBLIC_NODE_HOST || 'http://localhost:3011';
+      const backendHost = process.env.NEXT_PUBLIC_NODE_HOST || 'http://localhost:3015';
       const response = await fetch(`${backendHost}/api/auth/login`, {
         method: 'POST',
         headers: {
@@ -120,17 +120,19 @@ export default function LoginPage() {
               </div>
             )}
 
-            {/* Test Credentials Hint */}
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-              <p className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-2">
-                🔑 Test Credentials
-              </p>
-              <div className="space-y-1 text-xs text-blue-700 dark:text-blue-400 font-mono">
-                <p><strong>Admin:</strong> admin@example.local / &lt;REDACTED_PASSWORD&gt;</p>
-                <p><strong>User:</strong> user@example.local / &lt;REDACTED_PASSWORD&gt;</p>
-                <p><strong>Officer:</strong> officer@example.local / &lt;REDACTED_PASSWORD&gt;</p>
+            {/* Test Credentials Hint — dev/test only, never render in production */}
+            {process.env.NODE_ENV !== "production" && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <p className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-2">
+                  🔑 Test Credentials
+                </p>
+                <div className="space-y-1 text-xs text-blue-700 dark:text-blue-400 font-mono">
+                  <p><strong>Admin:</strong> admin@example.local / &lt;REDACTED_PASSWORD&gt;</p>
+                  <p><strong>User:</strong> user@example.local / &lt;REDACTED_PASSWORD&gt;</p>
+                  <p><strong>Officer:</strong> officer@example.local / &lt;REDACTED_PASSWORD&gt;</p>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Email Input */}
             <div>

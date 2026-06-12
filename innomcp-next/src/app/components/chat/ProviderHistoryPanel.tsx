@@ -22,8 +22,8 @@ function resolveBackendUrl(path: string): string {
     ? String(process.env.NEXT_PUBLIC_BACKEND_URL).replace(/\/$/, "") : "";
   if (envUrl) return `${envUrl}${path}`;
   if (typeof window !== "undefined" && window.location.hostname === "localhost" && window.location.port === "3000")
-    return `${window.location.protocol}//${window.location.hostname}:3011${path}`;
-  return `http://localhost:3011${path}`;
+    return `${window.location.protocol}//${window.location.hostname}:3015${path}`;
+  return `http://localhost:3015${path}`;
 }
 
 export default function ProviderHistoryPanel({ providerId, providerLabel, onClose }: Props) {

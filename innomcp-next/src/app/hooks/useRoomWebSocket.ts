@@ -41,7 +41,7 @@ function buildRoomWsUrl(projectId: number, token: string): string {
   // In dev (port 3000) point directly at the backend; in prod use same host
   const wsHost =
     process.env.NEXT_PUBLIC_NODE_WS_HOST ||
-    (window.location.port === "3000" ? "ws://localhost:3011" : `ws://${window.location.host}`);
+    (window.location.port === "3000" ? "ws://localhost:3015" : `ws://${window.location.host}`);
 
   return `${wsHost}/room?projectId=${projectId}&token=${encodeURIComponent(token)}`;
 }

@@ -32,11 +32,11 @@ function resolveBackendUrl(path: string): string {
   if (typeof window !== "undefined" && window.location) {
     const { protocol, hostname, port } = window.location;
     if (hostname === "localhost" && port === "3000") {
-      return `${protocol}//${hostname}:3011${path}`;
+      return `${protocol}//${hostname}:3015${path}`;
     }
     return `${protocol}//${window.location.host}${path}`;
   }
-  return `http://localhost:3011${path}`;
+  return `http://localhost:3015${path}`;
 }
 
 // ─── Status config ────────────────────────────────────────────────────────────
