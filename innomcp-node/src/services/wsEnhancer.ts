@@ -1,4 +1,5 @@
 import { WebSocketServer, WebSocket } from "ws";
+import jwt from 'jsonwebtoken';
 
 interface HeartbeatInfo {
   lastPong: number;
@@ -12,6 +13,7 @@ export class WSEnhancer {
 
   // Client identification and connection tracking
   private clientIds = new WeakMap<WebSocket, string>();
+  private roomAccessList = new Map<string, Set<string>>();
   private connectedClients = new Map<string, WebSocket>();
 
   // Message queue for disconnected clients
