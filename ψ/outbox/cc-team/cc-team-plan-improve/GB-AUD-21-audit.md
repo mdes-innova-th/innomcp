@@ -1,0 +1,14 @@
+<!-- cc-team deliverable
+ group: GB (Bug/edge-case audit of critical chat-path modules)
+ member: AUD-21 role=audit model=deepseek/deepseek-v4-pro
+ finish_reason: stop | tokens: {"prompt_tokens":1994,"completion_tokens":3603,"total_tokens":5597,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":3020,"image_tokens":0},"cache_creation_input_tokens":0} | 51s
+ generated: 2026-06-13T11:16:09.733Z -->
+| severity | location | issue | proposed fix |
+|----------|----------|-------|-------------|
+| HIGH | `selectProvider` → `rank` closure (approx L102) | `rank(p)` uses `p.priority` directly. If a `ProviderRecord` has `priority` set to `undefined` (e.g. malformed registry entry), the addition yields `NaN`, which breaks `sort` order and can silently return an unintended top provider. | Guard with `(p.priority ?? 0)` or validate `priority` when providers are loaded. |
+| MEDIUM | `resolveProviderEndpoint` (L134) | Calls `resolveApiKey(providerId)` synchronously. If `resolveApiKey` is asynchronous (returns a `Promise<string>`), `key` will be a Promise object, not the resolved string. Downstream consumers will receive a non-string key. | If `resolveApiKey` can be async, `resolveProviderEndpoint` must be async and `await` the call, or the API surface should enforce synchronous resolution. |
+| MEDIUM | `resolveProviderEndpoint` (L138‑142) | Returns an object with `provider.baseUrl` and `provider.model` without checking whether they are defined. Incomplete registry entries could produce `{ url: undefined, key: …, model: undefined }`, which may cause silent failures or crashes later. | Validate that `baseUrl` and `model` are non-empty strings; return `null` or log a warning if they are missing. |
+| MEDIUM | `matchesPrivacy` used by `selectProvider` (L49‑54) | Compares `p.privacyLevel` against string literals, but if `privacyLevel` is optional on `ProviderRecord` and is `undefined`, the condition `wanted === "internal"` would incorrectly pass (because `undefined !== "public"`), leaking providers that should be blocked. | If `privacyLevel` can be absent, treat missing as `"public"` or add an explicit `if (p.privacyLevel == null)` guard. |
+| LOW | `previewSelection` / `selectProvider` (general) | None of the registry accessors (`listProviders`, `getProvider`, `resolveApiKey`) are wrapped in try/catch. Any internal error thrown by the registry module will propagate unhandled to the caller, which may crash the request if callers don’t expect exceptions. | Wrap registry calls in try/catch and return a safe fallback (e.g., `null` result with an error reason) to prevent unexpected crashes. |
+
+**Overall risk verdict:** Module contains a concrete sorting bug (NaN) and several unvalidated assumptions (async key, missing fields, privacy guard) that can cause silent misbehaviour or runtime failures.
