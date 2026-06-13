@@ -219,7 +219,7 @@ export async function handleFastPathMessage(
   }
 
   // 🛡️ Rate Limiting
-  if (clientIp) {
+  if (clientIp != null && clientIp !== "") {
     const rateLimitKey = buildRateLimitKey(clientIp, userId, 'fastpath');
     const rateLimit = await checkRateLimit(rateLimitKey, 5, 8);
     
