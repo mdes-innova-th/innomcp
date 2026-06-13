@@ -283,16 +283,26 @@ function buildSeed(): ProviderRecord[] {
 
   // ── CommandCode AI — multi-model gateway (always seeded if base URL resolves) ──
   const ccBaseUrl = (process.env.COMMANDCODE_BASE_URL || "https://api.commandcode.ai/provider/v1").replace(/\/$/, "");
+  const ccApiKeyRef = process.env.COMMANDCODE_API_KEY
+    ? "COMMANDCODE_API_KEY"
+    : process.env.CODEX_API_KEY
+    ? "CODEX_API_KEY"
+    : "";
+  const ccUsesOpenAiProxyShape = /(^|\/)v1$/.test(ccBaseUrl) || /(^https?:\/\/)?(127\.0\.0\.1|localhost|host\.docker\.internal):4322\b/.test(ccBaseUrl);
+  const ccClaudeType = ccUsesOpenAiProxyShape ? "openai-compatible" : "anthropic-compatible";
+  const ccSonnetModel = ccUsesOpenAiProxyShape ? "cc/claude-sonnet-4-6" : "claude-sonnet-4-6";
+  const ccHaikuModel = ccUsesOpenAiProxyShape ? "cc/claude-haiku-4-5-20251001" : "claude-haiku-4-5-20251001";
+  const ccOpusModel = ccUsesOpenAiProxyShape ? "cc/claude-opus-4-8" : "claude-opus-4-8";
   // CommandCode offers both OpenAI-compat chat and Anthropic-compat messages endpoints
-  // Seed primary models if CODEX_API_KEY is present
-  if (process.env.CODEX_API_KEY) {
+  // Seed primary models when either the dedicated CommandCode key or legacy CODEX key is present.
+  if (ccApiKeyRef) {
     seeds.push({
       id: "seed-cc-claude-sonnet",
       displayName: "CommandCode → Claude Sonnet 4.6",
-      type: "anthropic-compatible",
+      type: ccClaudeType,
       baseUrl: ccBaseUrl,
-      apiKeyRef: "CODEX_API_KEY",
-      model: "claude-sonnet-4-6",
+      apiKeyRef: ccApiKeyRef,
+      model: ccSonnetModel,
       capabilities: ["hard-reasoning", "code", "tool-use", "long-context"],
       priority: 88,
       enabled: true,
@@ -304,10 +314,10 @@ function buildSeed(): ProviderRecord[] {
     seeds.push({
       id: "seed-cc-claude-haiku",
       displayName: "CommandCode → Claude Haiku 4.5",
-      type: "anthropic-compatible",
+      type: ccClaudeType,
       baseUrl: ccBaseUrl,
-      apiKeyRef: "CODEX_API_KEY",
-      model: "claude-haiku-4-5-20251001",
+      apiKeyRef: ccApiKeyRef,
+      model: ccHaikuModel,
       capabilities: ["thai-naturalness", "fast-cheap", "tool-use"],
       priority: 82,
       enabled: true,
@@ -319,10 +329,10 @@ function buildSeed(): ProviderRecord[] {
     seeds.push({
       id: "seed-cc-claude-opus",
       displayName: "CommandCode → Claude Opus 4.8",
-      type: "anthropic-compatible",
+      type: ccClaudeType,
       baseUrl: ccBaseUrl,
-      apiKeyRef: "CODEX_API_KEY",
-      model: "claude-opus-4-8",
+      apiKeyRef: ccApiKeyRef,
+      model: ccOpusModel,
       capabilities: ["ultra-reasoning", "complex-architecture", "code-review"],
       priority: 100,
       enabled: true,
@@ -336,8 +346,8 @@ function buildSeed(): ProviderRecord[] {
       displayName: "CommandCode → GPT-5.4",
       type: "openai-compatible",
       baseUrl: ccBaseUrl,
-      apiKeyRef: "CODEX_API_KEY",
-      model: "gpt-5.4",
+      apiKeyRef: ccApiKeyRef,
+      model: ccUsesOpenAiProxyShape ? "cc/gpt-5.4" : "gpt-5.4",
       capabilities: ["code", "tool-use", "general-purpose", "long-context"],
       priority: 78,
       enabled: true,
@@ -351,8 +361,8 @@ function buildSeed(): ProviderRecord[] {
       displayName: "CommandCode → DeepSeek V4 Pro",
       type: "openai-compatible",
       baseUrl: ccBaseUrl,
-      apiKeyRef: "CODEX_API_KEY",
-      model: "deepseek/deepseek-v4-pro",
+      apiKeyRef: ccApiKeyRef,
+      model: ccUsesOpenAiProxyShape ? "cc/deepseek/deepseek-v4-pro" : "deepseek/deepseek-v4-pro",
       capabilities: ["hard-reasoning", "code", "math", "long-context"],
       priority: 85,
       enabled: true,
@@ -366,8 +376,8 @@ function buildSeed(): ProviderRecord[] {
       displayName: "CommandCode → Qwen 3.7 Max",
       type: "openai-compatible",
       baseUrl: ccBaseUrl,
-      apiKeyRef: "CODEX_API_KEY",
-      model: "Qwen/Qwen3.7-Max",
+      apiKeyRef: ccApiKeyRef,
+      model: ccUsesOpenAiProxyShape ? "cc/qwen/qwen3.7-max" : "Qwen/Qwen3.7-Max",
       capabilities: ["thai-naturalness", "long-context", "hard-reasoning"],
       priority: 84,
       enabled: true,
@@ -381,8 +391,8 @@ function buildSeed(): ProviderRecord[] {
       displayName: "CommandCode → Gemini 3.5 Flash",
       type: "openai-compatible",
       baseUrl: ccBaseUrl,
-      apiKeyRef: "CODEX_API_KEY",
-      model: "google/gemini-3.5-flash",
+      apiKeyRef: ccApiKeyRef,
+      model: ccUsesOpenAiProxyShape ? "cc/google/gemini-3.5-flash" : "google/gemini-3.5-flash",
       capabilities: ["multimodal", "fast-cheap", "long-context"],
       priority: 76,
       enabled: true,

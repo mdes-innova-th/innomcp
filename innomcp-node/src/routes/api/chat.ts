@@ -3210,6 +3210,7 @@ function chatTraceOut(params: {
     | "rss"
     | "doc_writer"
     | "audio_hint"
+    | "system_inventory"
     | "multi_intent";
   tool?: string;
   code: number;
@@ -6123,6 +6124,43 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
     // Add user message to history
     sessionHistory.push({ sender: "user", text: messageWithFile });
     logBoth("info", `[Chat API] POST: Session history: ${sessionHistory.length} messages (before AI)`);
+
+    if (looksLikeSystemInventoryQuestion(routingMessage)) {
+      logBoth("info", "[SystemInventory] deterministic=true transport=http");
+      const textOut = await buildSystemInventoryAnswer({ mcpClient });
+      const structuredContent = {
+        route: "system_inventory",
+        generatedAt: new Date().toISOString(),
+        mcpStatus: mcpClient ? "available" : "unavailable",
+      };
+      sessionHistory.push({
+        sender: "ai",
+        text: textOut,
+        structuredContent,
+        toolsUsed: ["systemInventory"],
+      } as any);
+      chatTraceOut({
+        transport: "http",
+        sid: httpSessionId,
+        cid: httpCid,
+        uiMode,
+        route: "system_inventory",
+        tool: "systemInventory",
+        code: 200,
+        durMs: Date.now() - traceStartMs,
+        q: messageWithFile,
+        ans: textOut,
+      });
+      return res.json({
+        text: textOut,
+        structuredContent,
+        messages: sessionHistory,
+        mcpUsed: false,
+        mcpResults: null,
+        toolsUsed: ["systemInventory"],
+        route: "system_inventory",
+      });
+    }
 
     if (historyAwareDirectAnswer) {
       const textOut = historyAwareDirectAnswer.text;

@@ -195,40 +195,38 @@ interface SlideOverProps {
   sidebarRight?: number;
 }
 
-const SlideOver: React.FC<SlideOverProps> = ({ open, title, onClose, children, sidebarRight }) => (
-  <>
-    {/* Backdrop */}
-    {open && (
+const SlideOver: React.FC<SlideOverProps> = ({ open, title, onClose, children, sidebarRight }) => {
+  if (!open) return null;
+
+  return (
+    <>
       <div
         className="fixed inset-0 z-50 bg-black/20 dark:bg-black/40"
         onClick={onClose}
         aria-hidden="true"
       />
-    )}
-    {/* Panel — slides in from left, positioned next to the sidebar */}
-    <div
-      className={`fixed top-0 z-[60] flex h-full w-72 flex-col border-r border-border/50 bg-background shadow-xl transition-transform duration-300 ${
-        open ? "translate-x-0" : "-translate-x-full"
-      }`}
-      style={{ left: sidebarRight !== undefined ? `${sidebarRight}px` : "240px" }}
-      aria-modal="true"
-      role="dialog"
-      aria-label={title}
-    >
-      <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
-        <span className="text-sm font-semibold text-foreground">{title}</span>
-        <button
-          onClick={onClose}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-          aria-label="Close panel"
-        >
-          ✕
-        </button>
+      <div
+        className="fixed top-0 z-[60] flex h-full w-72 flex-col border-r border-border/50 bg-background shadow-xl"
+        style={{ left: sidebarRight !== undefined ? `${sidebarRight}px` : "240px" }}
+        aria-modal="true"
+        role="dialog"
+        aria-label={title}
+      >
+        <div className="flex items-center justify-between border-b border-border/50 px-4 py-3">
+          <span className="text-sm font-semibold text-foreground">{title}</span>
+          <button
+            onClick={onClose}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+            aria-label="Close panel"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3">{children}</div>
       </div>
-      <div className="flex-1 overflow-y-auto p-3">{children}</div>
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 // ─── Nav Button ──────────────────────────────────────────────────────────────
 

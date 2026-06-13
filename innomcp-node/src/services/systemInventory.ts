@@ -136,8 +136,9 @@ async function fetchMcpServerTools(mcpServerUrl: string | undefined, timeoutMs: 
 
 async function fetchCommandCodeModels(baseUrl: string | undefined, timeoutMs: number) {
   const endpoint = (baseUrl || "http://127.0.0.1:4322").replace(/\/$/, "");
+  const modelsUrl = endpoint.endsWith("/v1") ? `${endpoint}/models` : `${endpoint}/v1/models`;
   try {
-    const json = await fetchJson(`${endpoint}/v1/models`, { method: "GET" }, timeoutMs);
+    const json = await fetchJson(modelsUrl, { method: "GET" }, timeoutMs);
     const models = Array.isArray(json?.data)
       ? json.data.map((m: any) => String(m.id)).filter(Boolean)
       : [];

@@ -54,6 +54,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - CODEX_API_KEY=${CODEX_API_KEY:-}
       - COMMANDCODE_API_KEY=${COMMANDCODE_API_KEY:-}
+      - COMMANDCODE_BASE_URL=${COMMANDCODE_BASE_URL:-http://host.docker.internal:4322/v1}
       - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET in .env (min 32 random chars)}
     volumes:
       - workspace:/workspace
