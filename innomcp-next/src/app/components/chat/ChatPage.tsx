@@ -103,6 +103,23 @@ const CHAT_HISTORY_STORAGE_PLANS = [
   { maxMessages: 5, stripStructuredContent: true },
 ] as const;
 
+// P1-3: localStorage history versioning + corruption guard
+const CHAT_HISTORY_VERSION = 2;
+const MOJIBAKE_RE = /�|(?:\?{3,})/;
+
+function migrateChatHistory(raw: unknown): ChatMessage[] | null {
+  if (!Array.isArray(raw)) return null;
+  const filtered = (raw as unknown[]).filter((m): m is ChatMessage => {
+    if (!m || typeof m !== "object") return false;
+    const msg = m as Record<string, unknown>;
+    if (msg.sender !== "user" && msg.sender !== "ai") return false;
+    if (typeof msg.text !== "string") return false;
+    if (MOJIBAKE_RE.test(msg.text)) return false;
+    return true;
+  });
+  return filtered;
+}
+
 const CHAT_SUMMARY_STORAGE_PLANS = [
   { maxSummaries: 10, maxMessages: 12, stripStructuredContent: false },
   { maxSummaries: 8, maxMessages: 8, stripStructuredContent: true },
@@ -213,7 +230,7 @@ function persistMessagesToLocalStorage(messages: ChatMessage[]): void {
       const compacted = compactChatMessagesForStorage(messages as unknown as Array<Record<string, unknown>>, plan.maxMessages, {
         stripStructuredContent: plan.stripStructuredContent,
       });
-      localStorage.setItem("chatMessages", JSON.stringify(compacted));
+      localStorage.setItem("chatMessages", JSON.stringify({ v: CHAT_HISTORY_VERSION, messages: compacted }));
       return;
     } catch (error) {
       if (!isQuotaExceededError(error)) {
@@ -425,10 +442,26 @@ const ChatPage: React.FC = () => {
     const savedMessages = localStorage.getItem("chatMessages");
     if (savedMessages) {
       try {
-        const parsedMessages = JSON.parse(savedMessages);
-        setMessages(parsedMessages);
+        const parsed = JSON.parse(savedMessages);
+        // P1-3: versioned envelope or legacy bare array
+        const storedVersion = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>).v : undefined;
+        const rawArray = parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? (parsed as Record<string, unknown>).messages
+          : parsed;
+        const migrated = migrateChatHistory(rawArray);
+        if (migrated === null) {
+          // hopelessly corrupt — start fresh
+          localStorage.removeItem("chatMessages");
+        } else {
+          if (storedVersion !== CHAT_HISTORY_VERSION) {
+            // re-save with current version
+            localStorage.setItem("chatMessages", JSON.stringify({ v: CHAT_HISTORY_VERSION, messages: migrated }));
+          }
+          setMessages(migrated);
+        }
       } catch (error) {
         console.error("Error loading messages from localStorage:", error);
+        localStorage.removeItem("chatMessages");
       }
     }
     // load summaries
