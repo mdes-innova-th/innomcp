@@ -180,6 +180,12 @@ export async function buildSystemInventorySnapshot(
   ]);
 
   const tools = uniqueByName([...runtimeTools, ...mcpServerTools]).sort((a, b) => a.name.localeCompare(b.name));
+  const reportedLocalTools = Number(inventory.localTools ?? 0);
+  const reportedRemoteTools = Number(inventory.remoteTools ?? 0);
+  const runtimeLocalTools = runtimeTools.filter((t) => t.name.startsWith("local-tools:")).length;
+  const localTools = Math.max(reportedLocalTools, runtimeLocalTools);
+  const remoteTools = Math.max(reportedRemoteTools, mcpServerTools.length, tools.length - runtimeTools.length, 0);
+  const totalTools = Math.max(Number(inventory.totalTools ?? 0), tools.length, localTools + remoteTools);
   const providers = listProviders().map((provider) => ({
     id: provider.id,
     name: provider.displayName,
@@ -191,9 +197,9 @@ export async function buildSystemInventorySnapshot(
   return {
     generatedAt: new Date().toISOString(),
     mcp: {
-      totalTools: Number(inventory.totalTools ?? tools.length),
-      localTools: Number(inventory.localTools ?? runtimeTools.filter((t) => t.name.startsWith("local-tools:")).length),
-      remoteTools: Number(inventory.remoteTools ?? Math.max(0, tools.length - runtimeTools.length)),
+      totalTools,
+      localTools,
+      remoteTools,
       connectedClients,
       remoteReady: Boolean(inventory.remoteReady ?? connectedClients.length > 0),
       tools,

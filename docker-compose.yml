@@ -55,9 +55,40 @@ services:
       - CODEX_API_KEY=${CODEX_API_KEY:-}
       - COMMANDCODE_API_KEY=${COMMANDCODE_API_KEY:-}
       - COMMANDCODE_BASE_URL=${COMMANDCODE_BASE_URL:-http://host.docker.internal:4322/v1}
+      - MCPSERVER_URL=http://mcpserver:3012/mcp
       - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET in .env (min 32 random chars)}
     volumes:
       - workspace:/workspace
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mcpserver:
+        condition: service_started
+
+  mcpserver:
+    build: ./innomcp-server-node
+    restart: unless-stopped
+    expose:
+      - "3012"
+    environment:
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=3012
+      - DB_HOST=mariadb
+      - DB_PORT=3306
+      - DB_NAME=${DB_NAME:-innomcp-db}
+      - DB_USER=${DB_USER:-jlapps}
+      - DB_PASSWORD=${MARIADB_PASSWORD:?set MARIADB_PASSWORD in .env}
+      - INNOMCP_MODE=${INNOMCP_MODE:-online}
+      - OLLAMA_URL=${OLLAMA_URL:-https://ollama.mdes-innova.online}
+      - OLLAMA_API_KEY=${OLLAMA_API_KEY:-}
+      - DETECT_API_HOST=api
+      - DETECT_API_PORT=3011
+      - WEBD_API_HOST=api
+      - WEBD_API_PORT=3011
+      - WEBDDSB_HOST=api
+      - WEBDDSB_PORT=3011
     depends_on:
       mariadb:
         condition: service_healthy
