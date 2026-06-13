@@ -351,6 +351,8 @@ function containsAny(text: string, list: string[]): string | null {
   return null;
 }
 
+const OFFICER_SIGNAL_RE = /หลักฐาน|คดี|พยาน|forensic|evidence|detect|nip|isp|offline|threat|sigint|scan|สแกน/i;
+
 function evidenceMatch(message: string): string | null {
   const hit = containsAny(message, EVIDENCE_KEYWORDS);
   if (!hit) return null;
