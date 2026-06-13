@@ -93,7 +93,10 @@ process.on("unhandledRejection", (err) => {
 
 logger.info('ðŸš€ Backend application starting...');
 hydrateStore();
-const allowedOrigin = process.env.ALLOWED_ORIGIN?.split(",") || [];
+const DEFAULT_LOOPBACK_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"];
+const allowedOrigin = (process.env.ALLOWED_ORIGIN?.split(",") || DEFAULT_LOOPBACK_ORIGINS)
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 // CORS origin function - allow all in development, restricted in production
 const corsOriginFn = (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -107,8 +110,20 @@ const corsOriginFn = (origin: string | undefined, callback: (err: Error | null, 
     return callback(null, true);
   }
   
-  // Production mode: check against whitelist
-  if (allowedOrigin.includes(origin)) {
+  const isLoopbackLocalhost = (() => {
+    try {
+      const parsed = new URL(origin);
+      return (
+        ["localhost", "127.0.0.1"].includes(parsed.hostname) &&
+        ["3000", "3001", "3010"].includes(parsed.port || "")
+      );
+    } catch {
+      return false;
+    }
+  })();
+
+  // Production mode: check against whitelist plus local Docker/browser loopback.
+  if (allowedOrigin.includes(origin) || isLoopbackLocalhost) {
     callback(null, true);
   } else {
     callback(new Error('Not allowed by CORS'));

@@ -66,16 +66,20 @@ const API_SURFACES: SystemInventorySnapshot["apiSurfaces"] = [
 export function looksLikeSystemInventoryQuestion(message: string): boolean {
   const text = String(message || "").toLowerCase();
   if (!text.trim()) return false;
+  const thaiInventoryTerms =
+    /(?:\u0e2d\u0e30\u0e44\u0e23|\u0e44\u0e2b\u0e19|\u0e1a\u0e49\u0e32\u0e07|\u0e21\u0e35|\u0e17\u0e31\u0e49\u0e07\u0e2b\u0e21\u0e14|\u0e23\u0e27\u0e21|\u0e41\u0e2a\u0e14\u0e07|\u0e2a\u0e23\u0e38\u0e1b|\u0e15\u0e23\u0e27\u0e08|\u0e40\u0e04\u0e22\u0e43\u0e0a\u0e49)/;
+  const systemSubjectMatches =
+    text.match(/\b(tools?|apis?|endpoints?|providers?|models?|mcp|registry|inventory|capabilit(?:y|ies)|commandcode|maw|innova-bot)\b/gi) ?? [];
 
   const hasSystemSubject =
-    /\b(tools?|apis?|endpoints?|providers?|models?|mcp|registry|inventory|capabilit(?:y|ies)|commandcode|maw|innova-bot)\b/i.test(text) ||
+    systemSubjectMatches.length > 0 ||
     /เครื่องมือ|เอพีไอ|ระบบมี|ระบบใช้|ความสามารถ|รายการ|ทั้งหมด|เคยใช้|โมเดล|ผู้ให้บริการ|พร็อกซี|พร็อกซี่/.test(text);
 
   const asksInventory =
     /\b(list|show|what|which|available|used|inventory|ทั้งหมด|all)\b/i.test(text) ||
     /อะไร|ไหน|บ้าง|มี|ใช้งานได้|เคยใช้|แสดง|สรุป|ตรวจ/.test(text);
 
-  return hasSystemSubject && asksInventory;
+  return hasSystemSubject && (asksInventory || thaiInventoryTerms.test(text) || systemSubjectMatches.length >= 2);
 }
 
 function uniqueByName<T extends { name: string }>(items: T[]): T[] {
@@ -212,6 +216,37 @@ export async function buildSystemInventorySnapshot(
 }
 
 export function renderSystemInventoryAnswer(snapshot: SystemInventorySnapshot): string {
+  const asciiEnabledProviders = snapshot.providers.filter((p) => p.enabled);
+  const asciiProviderLines = asciiEnabledProviders.length
+    ? asciiEnabledProviders.map((p) => `- ${p.id}${p.model ? ` (${p.model})` : ""}`).join("\n")
+    : "- no enabled provider in registry";
+
+  const asciiToolLines = snapshot.mcp.tools.length
+    ? snapshot.mcp.tools.map((tool) => `- ${tool.name}${tool.description ? ` - ${tool.description}` : ""}`).join("\n")
+    : "- runtime did not return tool names yet";
+
+  const asciiApiLines = snapshot.apiSurfaces.map((api) => `- ${api.method} ${api.path} - ${api.purpose}`).join("\n");
+  const asciiCommandCodeLine = snapshot.commandCode.reachable
+    ? `ready, ${snapshot.commandCode.modelCount} models visible, examples: ${snapshot.commandCode.models.slice(0, 8).join(", ")}`
+    : `not reachable in this check (${snapshot.commandCode.error ?? "unreachable"})`;
+
+  return [
+    "INNOMCP runtime inventory visible right now",
+    "",
+    `MCP tools: ${snapshot.mcp.totalTools} total (local ${snapshot.mcp.localTools}, remote ${snapshot.mcp.remoteTools})`,
+    `MCP clients: ${snapshot.mcp.connectedClients.length ? snapshot.mcp.connectedClients.join(", ") : "no remote client connected"}`,
+    `CommandCode proxy: ${asciiCommandCodeLine}`,
+    "",
+    "Enabled providers:",
+    asciiProviderLines,
+    "",
+    "Important API surfaces:",
+    asciiApiLines,
+    "",
+    "Runtime tools:",
+    asciiToolLines,
+  ].join("\n");
+
   const enabledProviders = snapshot.providers.filter((p) => p.enabled);
   const providerLines = enabledProviders.length
     ? enabledProviders.map((p) => `- ${p.id}${p.model ? ` (${p.model})` : ""}`).join("\n")

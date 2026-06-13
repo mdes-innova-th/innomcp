@@ -51,6 +51,7 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY:-}
       - INNOMCP_MODE=${INNOMCP_MODE:-online}
       - PARALLEL_AGENTS=1
+      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-http://localhost:3000,http://127.0.0.1:3000}
       - REDIS_URL=redis://redis:6379/0
       - CODEX_API_KEY=${CODEX_API_KEY:-}
       - COMMANDCODE_API_KEY=${COMMANDCODE_API_KEY:-}
