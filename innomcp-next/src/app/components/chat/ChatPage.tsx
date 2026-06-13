@@ -1404,6 +1404,11 @@ const ChatPage: React.FC = () => {
   };
 
   const handleStop = () => {
+    // P1-1: emit cancel frame to backend before clearing local state
+    const cancelId = activeAgentStreamRequestRef.current;
+    if (socket && socket.readyState === WebSocket.OPEN && cancelId) {
+      socket.send(JSON.stringify({ type: "cancel", messageId: cancelId }));
+    }
     activeAgentStreamRequestRef.current = null;
     resetAgentStream();
     setIsWaitingForResponse(false);
@@ -1494,6 +1499,8 @@ const ChatPage: React.FC = () => {
       text: userMessage.text,
       messages: transportHistory.slice(0, Math.max(0, transportHistory.length - 1)),
       messageId,
+      // P1-2: carry file/attachment from original user message (matches send path)
+      file: (userMessage as any).fileInfo ?? null,
       preferredMode: retryDerivedMode,
       toolHint: selectedToolType,
       reasoningMode: chatMode === "multiagent" ? "thinking" : "normal",
@@ -1790,9 +1797,9 @@ const ChatPage: React.FC = () => {
                   title={workspaceState.detail}
                 >
                   <span>{activeToolMeta.label}</span>
-                  <span aria-hidden="true">�</span>
+                  <span aria-hidden="true">·</span>
                   <span>{chatSummaries.length} บทสนทนา</span>
-                  <span aria-hidden="true">�</span>
+                  <span aria-hidden="true">·</span>
                   <span>{workspaceState.title}</span>
                 </span>
                 {/* Phase 6 � Model Router status: active provider + last response latency */}
@@ -1803,7 +1810,7 @@ const ChatPage: React.FC = () => {
                     className="ml-1 shrink-0 inline-flex items-center gap-1 rounded-md border border-border/50 bg-background/80 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
                     title="เปิด/ปิด Artifact Panel"
                   >
-                    <span>??</span>
+                    <span>📄</span>
                     <span>Artifacts ({artifacts.length})</span>
                   </button>
                 )}
@@ -1813,7 +1820,7 @@ const ChatPage: React.FC = () => {
                     className="ml-1 shrink-0 inline-flex items-center gap-1 rounded-md border border-border/50 bg-background/80 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:border-primary/30 transition-colors"
                     title="เปิด/ปิด Plan Viewer"
                   >
-                    <span>??</span>
+                    <span>📋</span>
                     <span>Plan</span>
                   </button>
                 )}
