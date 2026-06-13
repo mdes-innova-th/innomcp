@@ -87,7 +87,7 @@ async function callGateway(
     });
 
     if (!res.ok) {
-      throw new Error(`Gateway HTTP ${res.status}: ${await res.text().catch(() => "")}`);
+      throw new Error(`Gateway HTTP ${res.status}`);
     }
 
     const contentType = res.headers.get("content-type") || "";
