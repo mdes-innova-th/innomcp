@@ -11,6 +11,11 @@ interface Notification {
   data?: unknown;
 }
 
+interface SessionNotificationSubscription {
+  subscribe(callback: (n: Notification) => void): () => void;
+  getRecentNotifications(limit?: number): Notification[];
+}
+
 class NotificationService {
   private static readonly MAX_HISTORY = 1000;
   private listeners = new Map<string, (n: Notification) => void>();
