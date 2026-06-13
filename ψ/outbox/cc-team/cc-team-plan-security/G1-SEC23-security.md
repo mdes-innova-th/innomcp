@@ -1,0 +1,12 @@
+<!-- cc-team deliverable
+ group: G1 (Security audit)
+ member: SEC23 role=security model=deepseek/deepseek-v4-pro
+ finish_reason: stop | tokens: {"prompt_tokens":2228,"completion_tokens":3189,"total_tokens":5417,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":2720,"image_tokens":0},"cache_creation_input_tokens":0} | 48s
+ generated: 2026-06-13T11:23:50.079Z -->
+| Severity | Location | Vulnerability | Exploit Scenario | Fix |
+|----------|----------|---------------|------------------|-----|
+| HIGH | All public methods (`recordTurn`, `getSnapshot`, `getEntitiesByDomain`, `getLastEntity`, `getActiveDomain`, `hasMemory`, `clear`) | Missing Authorization / IDOR | The store has no session ownership checks; any caller can read/write any session if the session ID is known or guessable. An attacker enumerates or brute‑forces `sessionId` values and calls `getSnapshot` to extract another user’s sensitive entities (locations, ISPs, person names), violating data isolation. | Bind each session to an authenticated user principal at the API layer or inside the store; verify that the current caller is authorized for the requested `sessionId` before any read/write. |
+| MEDIUM | `recordTurn` parameters `query` and `entities` | Missing Input Validation – DoS / Memory Exhaustion | No size limits are applied to `query`, `entity.name`, or `entity.value`. An attacker sends extremely large strings (multi‑megabyte) in many requests, flooding the in‑memory store and causing the process to run out of memory. | Add explicit maximum lengths (e.g., `query` ≤ 10 KB, entity name/value ≤ 1 KB) and reject oversize input early. |
+| MEDIUM | `recordTurn` / `getSnapshot` (data flow) | Potential Prompt Injection via Stored Unsanitized Data | Entities’ `name` and `value` fields are stored verbatim and later returned via `getSnapshot`. If the consumer embeds these fields directly into an LLM prompt, an attacker can inject adversarial instructions (e.g., `name: "system: forget everything"`) and hijack the conversation. | Sanitize entity strings for prompt context before storage (strip known instruction delimiters, escape special tokens) or provide a dedicated sanitisation utility that consumers must use. Alternatively, enforce a strict allow‑list of characters. |
+
+**Verdict:** The module lacks authorization checks exposing IDOR, missing input size limits enabling DoS, and stores unsanitized data ripe for prompt injection; critical hardening required.

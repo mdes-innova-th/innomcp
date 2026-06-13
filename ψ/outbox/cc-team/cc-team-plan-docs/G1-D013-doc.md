@@ -1,0 +1,9 @@
+<!-- cc-team deliverable
+ group: G1 (Doc generation)
+ member: D013 role=doc model=moonshotai/Kimi-K2.6
+ finish_reason: stop | tokens: {"prompt_tokens":2106,"completion_tokens":2548,"total_tokens":4654,"prompt_tokens_details":{"cached_tokens":82,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":2328,"reasoning_tokens_estimated":true,"image_tokens":0},"cache_creation_input_tokens":0} | 23s
+ generated: 2026-06-13T11:21:07.985Z -->
+- **`initMemoryRag()`** — Initialize the cold RAG corpus by loading documents from the on-disk knowledge base (`../../data/knowledge-base`). `@returns` `Promise<{ docCount: number; chunkCount: number }>`. **Caveat:** Idempotent; guarded by an internal `initialized` flag so the corpus is only loaded on the first call.
+- **`MemoryRagMeta`** — Metadata shape summarizing a single turn’s session memory usage, extracted entities, RAG retrieval mode/reason, cold document hits, and active domain.
+- **`recordTurnAndGetMeta(sessionId, query, route, toolsUsed, toolResult?)`** — Persist a turn to session memory, extract entities from the query, plan RAG retrieval, and execute cold retrieval if the plan requires it. `@returns` `MemoryRagMeta`. **Caveat:** An empty/whitespace `sessionId` short-circuits to a fallback result (`retrievalReason: "no-session-id"`) to avoid polluting the shared memory store under key `""`. Must be called after the response is composed but before sending to the client.
+- **`enrichGroundedContract(structuredContent, ragMeta)`** — Mutates `structuredContent.__groundedContract` in-place to attach RAG metadata. `@param structuredContent` Any object expected to contain a `__groundedContract` field. `@param ragMeta` The metadata to attach. **Caveat:** No-op if the input is not an object or lacks a `__groundedContract` property.

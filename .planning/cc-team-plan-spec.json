@@ -1,0 +1,933 @@
+{
+  "plan_id": "spec",
+  "goal": "Contract/spec-based jest tests (provider=0) — meaningful, implementation-hidden. Fixes tautology trap.",
+  "created": "2026-06-13",
+  "advisor": "Opus 4.8 (Jit)",
+  "mother_model": "deepseek/deepseek-v4-pro",
+  "groups": [
+    {
+      "id": "G1",
+      "mission": "Spec/contract-based tests",
+      "members": [
+        {
+          "id": "S001",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/services/agentLoop.ts",
+          "test_path": "innomcp-node/tests/agentLoop.spec.test.ts",
+          "import_spec": "../src/services/agentLoop",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/agentLoop';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: agentLoop — public API surface:\n```typescript\nexport type AgentEvent =\nexport async function* runAgentLoop(opts: {\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S001-spec-test.md",
+          "finished_at": "2026-06-13T11:19:40.363Z"
+        },
+        {
+          "id": "S002",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/services/answerContract.ts",
+          "test_path": "innomcp-node/tests/answerContract.spec.test.ts",
+          "import_spec": "../src/services/answerContract",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/answerContract';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: answerContract — public API surface:\n```typescript\nexport type AnswerMode = \"deterministic\" | \"llm-rewrite\" | \"hybrid\" | \"llm-only\";\nexport type RetrievalMode = \"hot\" | \"cold\" | \"both\" | \"none\";\nexport interface RetrievalSource {\nexport interface AnswerContract {\nexport function buildAnswerContract(params: {\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S002-spec-test.md",
+          "finished_at": "2026-06-13T11:20:16.958Z"
+        },
+        {
+          "id": "S003",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/services/artifactService.ts",
+          "test_path": "innomcp-node/tests/artifactService.spec.test.ts",
+          "import_spec": "../src/services/artifactService",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/artifactService';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: artifactService — public API surface:\n```typescript\nexport const artifactService = {\n  async listArtifacts(taskId: string): Promise<string[]> {\n  async getArtifact(taskId: string, name: string) {\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S003-spec-test.md",
+          "finished_at": "2026-06-13T11:20:11.946Z"
+        },
+        {
+          "id": "S004",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/services/auditLogger.ts",
+          "test_path": "innomcp-node/tests/auditLogger.spec.test.ts",
+          "import_spec": "../src/services/auditLogger",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/auditLogger';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: auditLogger — public API surface:\n```typescript\ntype AuditAction = 'login' | 'logout' | 'message_sent' | 'file_access' | 'provider_change' | 'admin_action' | 'data_export';\ninterface AuditEntry {\ntype AuditEntryInput = Omit<AuditEntry, 'id' | 'timestamp'>;\ninterface AuditFilter {\n  exportCSV(): string {\n  exportJSON(): string {\nexport const auditLogger = new AuditLogger();\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S004-spec-test.md",
+          "finished_at": "2026-06-13T11:20:50.467Z"
+        },
+        {
+          "id": "S005",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/services/backpressureHandler.ts",
+          "test_path": "innomcp-node/tests/backpressureHandler.spec.test.ts",
+          "import_spec": "../src/services/backpressureHandler",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/backpressureHandler';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: backpressureHandler — public API surface:\n```typescript\ninterface QueueItem {\nexport const backpressureHandler = new BackpressureHandler();\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S005-spec-test.md",
+          "finished_at": "2026-06-13T11:20:35.289Z"
+        },
+        {
+          "id": "S006",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/services/coldRetriever.ts",
+          "test_path": "innomcp-node/tests/coldRetriever.spec.test.ts",
+          "import_spec": "../src/services/coldRetriever",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/coldRetriever';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: coldRetriever — public API surface:\n```typescript\nexport interface ColdDocument {\nexport interface ColdChunk {\nexport interface ColdRetrievalResult {\nexport class ColdRetriever {\n  async loadCorpus(corpusDir: string): Promise<{ docCount: number; chunkCount: number }> {\nexport const coldRetriever = new ColdRetriever();\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S006-spec-test.md",
+          "finished_at": "2026-06-13T11:21:10.020Z"
+        },
+        {
+          "id": "S007",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/services/dataAnalysisTool.ts",
+          "test_path": "innomcp-node/tests/dataAnalysisTool.spec.test.ts",
+          "import_spec": "../src/services/dataAnalysisTool",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/dataAnalysisTool';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: dataAnalysisTool — public API surface:\n```typescript\nexport interface ColumnStats {\nexport interface AnalysisResult {\nexport async function analyzeData(\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S007-spec-test.md",
+          "finished_at": "2026-06-13T11:21:41.835Z"
+        },
+        {
+          "id": "S008",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/services/fastPathHandler.ts",
+          "test_path": "innomcp-node/tests/fastPathHandler.spec.test.ts",
+          "import_spec": "../src/services/fastPathHandler",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/fastPathHandler';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: fastPathHandler — public API surface:\n```typescript\nexport function trigToDeg(expr: string): string {\nexport function cleanFloat(val: number): string {\nexport type FastPathMode = \"off\" | \"on\";\nexport interface FastPathHandlerOptions {\nexport interface FastPathDecision {\nexport type Responder = (payload: any) => Promise<void> | void;\ntype ExtraPhrases = {\nasync function tryReadExtraFromFile(filePath: string): Promise<ExtraPhrases> {\nasync function tryReadExtraFromUrl(url: string): Promise<ExtraPhrases> {\nasync function getExtraPhrases(opts: FastPathHandlerOptions): Promise<ExtraPhrases> {\nexport async function handleFastPathMessage(\nexport function createFastPathExpressMiddleware(opts: FastPathHandlerOptions = {}) {\nexport async function tryFastPathWebSocket(\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S008-spec-test.md",
+          "finished_at": "2026-06-13T11:22:19.423Z"
+        },
+        {
+          "id": "S009",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/services/generalGate.ts",
+          "test_path": "innomcp-node/tests/generalGate.spec.test.ts",
+          "import_spec": "../src/services/generalGate",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/generalGate';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: generalGate — public API surface:\n```typescript\nexport const LOW_CONFIDENCE_FALLBACK_TEXT = \"ขอข้อมูลเพิ่มอีกนิดเพื่อให้ตอบได้แม่นยำขึ้น เช่น ระบุจังหวัดหรือหัวข้อที่ต้องการ\";\nexport function renderGeneralFallbackMessage(): string {\nexport function renderThaiNumberText(value: number): string {\nexport function countDaysUntilEndOfYear(baseDate: Date): number {\nexport function renderGeneralSmokeAnswer(userText: string): string {\nexport function isGarbage(t: string): boolean {\nexport async function answerGeneralWithFastModel(\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S009-spec-test.md",
+          "finished_at": "2026-06-13T11:21:51.531Z"
+        },
+        {
+          "id": "S010",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/services/healthAggregator.ts",
+          "test_path": "innomcp-node/tests/healthAggregator.spec.test.ts",
+          "import_spec": "../src/services/healthAggregator",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/healthAggregator';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: healthAggregator — public API surface:\n```typescript\nexport type HealthStatusValue = 'healthy' | 'degraded' | 'unhealthy';\nexport interface HealthStatus {\nexport type HealthChecker = () => Promise<HealthStatus>;\nexport interface AggregatedHealth {\ninterface RegisteredChecker {\nexport default class HealthAggregator {\n  public static getInstance(): HealthAggregator {\n  public registerChecker(\n  public async check(): Promise<AggregatedHealth> {\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S010-spec-test.md",
+          "finished_at": "2026-06-13T11:21:59.521Z"
+        },
+        {
+          "id": "S011",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/services/hotRetriever.ts",
+          "test_path": "innomcp-node/tests/hotRetriever.spec.test.ts",
+          "import_spec": "../src/services/hotRetriever",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/hotRetriever';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: hotRetriever — public API surface:\n```typescript\nexport interface RetrievalFact {\nexport function normalizeWeatherFacts(\nexport function normalizeEvidenceFacts(\nexport function normalizeDeterministicFact(\nexport function mergeRetrievalFacts(factSets: RetrievalFact[][]): RetrievalFact[] {\nexport function composeFactSummary(facts: RetrievalFact[]): string {\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S011-spec-test.md",
+          "finished_at": "2026-06-13T11:22:28.341Z"
+        },
+        {
+          "id": "S012",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/services/imageGenService.ts",
+          "test_path": "innomcp-node/tests/imageGenService.spec.test.ts",
+          "import_spec": "../src/services/imageGenService",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/imageGenService';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: imageGenService — public API surface:\n```typescript\nexport interface ImageGenResult {\nexport interface ImageGenError {\nexport type ImageGenResponse = ({ ok: true } & ImageGenResult) | ImageGenError;\nasync function callGateway(\nasync function callPollinations(prompt: string): Promise<ImageGenResult> {\nexport interface CallImageGenOptions {\nexport async function callImageGen(\nexport function buildImageGenText(result: ImageGenResult): string {\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S012-spec-test.md",
+          "finished_at": "2026-06-13T11:22:56.690Z"
+        },
+        {
+          "id": "S013",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/services/memoryRagHook.ts",
+          "test_path": "innomcp-node/tests/memoryRagHook.spec.test.ts",
+          "import_spec": "../src/services/memoryRagHook",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/memoryRagHook';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: memoryRagHook — public API surface:\n```typescript\nexport async function initMemoryRag(): Promise<{ docCount: number; chunkCount: number }> {\nexport interface MemoryRagMeta {\nexport function recordTurnAndGetMeta(\nexport function enrichGroundedContract(structuredContent: any, ragMeta: MemoryRagMeta): void {\nexport function queryColdRag(query: string, domain?: string): { context: string; docCount: number; sources: string[] } {\nexport function getMemoryDebugData(sessionId: string) {\nexport function disambiguateWithSessionMemory(\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S013-spec-test.md",
+          "finished_at": "2026-06-13T11:23:55.795Z"
+        },
+        {
+          "id": "S014",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/services/modelLoadBalancer.ts",
+          "test_path": "innomcp-node/tests/modelLoadBalancer.spec.test.ts",
+          "import_spec": "../src/services/modelLoadBalancer",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/modelLoadBalancer';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: modelLoadBalancer — public API surface:\n```typescript\nexport interface ModelConfig {\nexport interface ModelStats {\nexport type Strategy = 'round-robin' | 'least-latency' | 'weighted' | 'random';\ninterface ModelState {\nexport default class ModelLoadBalancer {\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S014-spec-test.md",
+          "finished_at": "2026-06-13T11:22:58.812Z"
+        },
+        {
+          "id": "S015",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/services/motherExportService.ts",
+          "test_path": "innomcp-node/tests/motherExportService.spec.test.ts",
+          "import_spec": "../src/services/motherExportService",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/motherExportService';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: motherExportService — public API surface:\n```typescript\nexport interface ExportOptions {\nexport function exportToJSON(options: ExportOptions = {}): string {\nexport function exportToCSV(options: ExportOptions = {}): string {\nexport const motherExportService = {\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S015-spec-test.md",
+          "finished_at": "2026-06-13T11:23:08.739Z"
+        },
+        {
+          "id": "S016",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/services/notificationService.ts",
+          "test_path": "innomcp-node/tests/notificationService.spec.test.ts",
+          "import_spec": "../src/services/notificationService",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/notificationService';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: notificationService — public API surface:\n```typescript\ntype NotificationType = 'task_complete' | 'agent_done' | 'error' | 'system' | 'mdes_alert';\ninterface Notification {\nexport const notificationService = new NotificationService();\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S016-spec-test.md",
+          "finished_at": "2026-06-13T11:23:27.130Z"
+        },
+        {
+          "id": "S017",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/services/providerAdapter.ts",
+          "test_path": "innomcp-node/tests/providerAdapter.spec.test.ts",
+          "import_spec": "../src/services/providerAdapter",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/providerAdapter';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: providerAdapter — public API surface:\n```typescript\nexport interface ChatMessage {\nexport interface AdapterRequest {\nexport interface AdapterChunk {\nasync function callOpenAI(\nasync function streamOpenAI(\nasync function callAnthropic(\nasync function streamAnthropic(\nasync function callOllama(\nasync function streamOllama(\nexport async function callProvider(\nexport async function streamProvider(\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S017-spec-test.md",
+          "finished_at": "2026-06-13T11:24:48.024Z"
+        },
+        {
+          "id": "S018",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/services/providerFailover.ts",
+          "test_path": "innomcp-node/tests/providerFailover.spec.test.ts",
+          "import_spec": "../src/services/providerFailover",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/providerFailover';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: providerFailover — public API surface:\n```typescript\nexport interface ProviderStatus {\ninterface ProviderConfig {\nexport type HealthCheckFn = (providerId: string) => Promise<{ healthy: boolean; latencyMs: number }>;\nexport class ProviderFailover {\n  constructor(\n  public setHealthChecker(fn: HealthCheckFn): void {\n  public async selectProvider(_task?: string): Promise<string> {\n  public async markFailed(providerId: string): Promise<void> {\n  public async markHealthy(providerId: string, latencyMs: number): Promise<void> {\n  public async checkProvider(providerId: string): Promise<boolean> {\n  public getStats(): {\n  public resetAll(): void {\nexport const providerFailover = new ProviderFailover();\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S018-spec-test.md",
+          "finished_at": "2026-06-13T11:24:37.127Z"
+        },
+        {
+          "id": "S019",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/services/providerHealthProbe.ts",
+          "test_path": "innomcp-node/tests/providerHealthProbe.spec.test.ts",
+          "import_spec": "../src/services/providerHealthProbe",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/providerHealthProbe';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: providerHealthProbe — public API surface:\n```typescript\nexport type ProbeStatus = \"online\" | \"offline\" | \"configured\" | \"checking\";\nexport interface ProviderProbeResult {\ninterface ProbeTarget {\nexport const probeStatus: Map<string, ProviderProbeResult> = new Map();\nasync function probeOllama(\nasync function probeOpenAI(\nasync function probeAnthropic(\nasync function runSingleProbe(target: ProbeTarget): Promise<ProviderProbeResult> {\nexport async function runProbe(): Promise<void> {\nexport function getProbeStatus(providerId: string): ProbeStatus {\nexport function getAll(): ProviderProbeResult[] {\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S019-spec-test.md",
+          "finished_at": "2026-06-13T11:24:45.919Z"
+        },
+        {
+          "id": "S020",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/services/providerManager.ts",
+          "test_path": "innomcp-node/tests/providerManager.spec.test.ts",
+          "import_spec": "../src/services/providerManager",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/providerManager';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: providerManager — public API surface:\n```typescript\nexport interface ProviderConfig {\nexport class ProviderManager {\n  constructor() {\n  async register(config: ProviderConfig): Promise<void> {\n  async unregister(id: string): Promise<void> {\n  async getAll(): Promise<ProviderConfig[]> {\n  async getBest(capability?: string): Promise<ProviderConfig | undefined> {\n  async checkHealth(id: string): Promise<{ healthy: boolean; latencyMs: number }> {\n  async checkAllHealth(): Promise<ProviderConfig[]> {\n  async selectForTask(task: 'thai' | 'code' | 'reasoning' | 'fast' | 'general'): Promise<ProviderConfig> {\nexport const providerManager = new ProviderManager();\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S020-spec-test.md",
+          "finished_at": "2026-06-13T11:25:04.551Z"
+        },
+        {
+          "id": "S021",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/services/retrievalOrchestrator.ts",
+          "test_path": "innomcp-node/tests/retrievalOrchestrator.spec.test.ts",
+          "import_spec": "../src/services/retrievalOrchestrator",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/retrievalOrchestrator';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: retrievalOrchestrator — public API surface:\n```typescript\nexport type RetrievalDecision = \"hot\" | \"cold\" | \"hot+cold\" | \"none\";\nexport interface RetrievalPlan {\nexport interface RetrievalResult {\nexport function planRetrieval(\nexport function executeColdRetrieval(plan: RetrievalPlan): ColdRetrievalResult[] {\nexport function buildRetrievalResult(\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S021-spec-test.md",
+          "finished_at": "2026-06-13T11:25:21.282Z"
+        },
+        {
+          "id": "S022",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/services/serviceStatusAggregator.ts",
+          "test_path": "innomcp-node/tests/serviceStatusAggregator.spec.test.ts",
+          "import_spec": "../src/services/serviceStatusAggregator",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/serviceStatusAggregator';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: serviceStatusAggregator — public API surface:\n```typescript\nexport async function checkAllServices(): Promise<{\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S022-spec-test.md",
+          "finished_at": "2026-06-13T11:25:47.285Z"
+        },
+        {
+          "id": "S023",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/services/sessionMemory.ts",
+          "test_path": "innomcp-node/tests/sessionMemory.spec.test.ts",
+          "import_spec": "../src/services/sessionMemory",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/sessionMemory';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: sessionMemory — public API surface:\n```typescript\nexport interface MemoryEntity {\nexport type MemoryDomain = \"weather\" | \"evidence\" | \"geo\" | \"knowledge\" | \"calculator\" | \"datetime\" | \"general\" | \"mixed\";\nexport interface MemorySlot {\nexport interface SessionMemorySnapshot {\nexport class SessionMemoryStore {\nexport const sessionMemory = new SessionMemoryStore();\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S023-spec-test.md",
+          "finished_at": "2026-06-13T11:26:13.370Z"
+        },
+        {
+          "id": "S024",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/services/sessionStore.ts",
+          "test_path": "innomcp-node/tests/sessionStore.spec.test.ts",
+          "import_spec": "../src/services/sessionStore",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/sessionStore';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: sessionStore — public API surface:\n```typescript\nexport interface PersistedSession {\nasync function ensureDirectory(): Promise<void> {\n  async save(session: PersistedSession): Promise<void> {\n  async load(sessionId: string): Promise<PersistedSession | null> {\n  async loadAll(): Promise<PersistedSession[]> {\n  async delete(sessionId: string): Promise<void> {\n  async cleanup(maxAgeDays = 30): Promise<number> {\n  async stats(): Promise<{ total: number; active24h: number; totalMessages: number }> {\nexport const sessionStore = new SessionStore();\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S024-spec-test.md",
+          "finished_at": "2026-06-13T11:27:34.315Z"
+        },
+        {
+          "id": "S025",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/services/systemInventory.ts",
+          "test_path": "innomcp-node/tests/systemInventory.spec.test.ts",
+          "import_spec": "../src/services/systemInventory",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/systemInventory';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: systemInventory — public API surface:\n```typescript\ntype RuntimeMcpClient = {\nexport interface SystemInventorySnapshot {\nexport interface InventoryBuildOptions {\nexport function looksLikeSystemInventoryQuestion(message: string): boolean {\nasync function fetchJson(url: string, init: RequestInit, timeoutMs: number): Promise<any> {\nasync function fetchMcpServerTools(mcpServerUrl: string | undefined, timeoutMs: number) {\nasync function fetchCommandCodeModels(baseUrl: string | undefined, timeoutMs: number) {\nexport async function buildSystemInventorySnapshot(\nexport function renderSystemInventoryAnswer(snapshot: SystemInventorySnapshot): string {\nexport async function buildSystemInventoryAnswer(options: InventoryBuildOptions = {}): Promise<string> {\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S025-spec-test.md",
+          "finished_at": "2026-06-13T11:26:38.494Z"
+        }
+      ]
+    },
+    {
+      "id": "G2",
+      "mission": "Spec/contract-based tests",
+      "members": [
+        {
+          "id": "S026",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/services/thaiGovtTools.ts",
+          "test_path": "innomcp-node/tests/thaiGovtTools.spec.test.ts",
+          "import_spec": "../src/services/thaiGovtTools",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/thaiGovtTools';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: thaiGovtTools — public API surface:\n```typescript\nexport interface WeatherReport {\nexport interface DisasterAlert {\nexport interface ForecastDay {\nexport interface ProvinceInfo {\nexport interface GeoPoint {\nexport interface Evidence {\nexport interface DataStats {\nexport interface KnowledgeItem {\nexport interface GovInfo {\ninterface IMcpClient {\n  constructor(private client: IMcpClient = mcpClient) {}\n  async getWeatherReport(province?: string): Promise<WeatherReport> {\n  async getDisasterAlerts(): Promise<DisasterAlert[]> {\n  async getWeatherForecast(\n  async getProvinceInfo(name: string): Promise<ProvinceInfo> {\n  async findNearest(\n  async searchLocation(query: string): Promise<GeoPoint[]> {\n  async searchEvidence(query: string, limit: number = 10): Promise<Evidence[]> {\n  async getDataStats(category: string): Promise<DataStats> {\n  async searchKnowledge(\n  async getGovInfo(topic: string): Promise<GovInfo> {\nexport const thaiGovtTools = new ThaiGovtTools();\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S026-spec-test.md",
+          "finished_at": "2026-06-13T11:26:50.223Z"
+        },
+        {
+          "id": "S027",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/services/thaiIntentRouter.ts",
+          "test_path": "innomcp-node/tests/thaiIntentRouter.spec.test.ts",
+          "import_spec": "../src/services/thaiIntentRouter",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/thaiIntentRouter';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: thaiIntentRouter — public API surface:\n```typescript\nexport interface RoutingDecision {\nexport class ThaiIntentRouter {\n  constructor() {\n  async route(text: string, availableModels: string[]): Promise<RoutingDecision> {\n  async routeToMDES(text: string): Promise<RoutingDecision> {\nexport const thaiIntentRouter = new ThaiIntentRouter();\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S027-spec-test.md",
+          "finished_at": "2026-06-13T11:27:48.223Z"
+        },
+        {
+          "id": "S028",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/services/toolExecutor.ts",
+          "test_path": "innomcp-node/tests/toolExecutor.spec.test.ts",
+          "import_spec": "../src/services/toolExecutor",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/toolExecutor';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: toolExecutor — public API surface:\n```typescript\nexport class ToolTimeoutError extends Error {\n  constructor() {\nexport class ToolParamError extends Error {\n  constructor() {\nexport interface ToolDefinition {\nexport interface ExecOptions {\nexport interface ToolResult {\nexport interface ToolDefinitionPublic {\nexport class ToolExecutor extends EventEmitter {\n  async execute(\nexport default ToolExecutor;\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S028-spec-test.md",
+          "finished_at": "2026-06-13T11:27:45.621Z"
+        },
+        {
+          "id": "S029",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/services/webhookService.ts",
+          "test_path": "innomcp-node/tests/webhookService.spec.test.ts",
+          "import_spec": "../src/services/webhookService",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/webhookService';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: webhookService — public API surface:\n```typescript\nexport type WebhookEvent =\nexport interface Webhook {\nexport function listWebhooks(userId?: string): Webhook[] {\nexport function getWebhook(id: string): Webhook | undefined {\nexport function createWebhook(\nexport function deleteWebhook(id: string): boolean {\nexport function toggleWebhook(id: string, enabled: boolean): Webhook | null {\nexport async function fireWebhookById(\nexport async function fireWebhook(\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S029-spec-test.md",
+          "finished_at": "2026-06-13T11:28:21.161Z"
+        },
+        {
+          "id": "S030",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/services/wsEnhancer.ts",
+          "test_path": "innomcp-node/tests/wsEnhancer.spec.test.ts",
+          "import_spec": "../src/services/wsEnhancer",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/wsEnhancer';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: wsEnhancer — public API surface:\n```typescript\ninterface HeartbeatInfo {\nexport class WSEnhancer {\nexport const wsEnhancer = new WSEnhancer();\n```",
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S030-spec-test.md",
+          "finished_at": "2026-06-13T11:27:55.697Z"
+        },
+        {
+          "id": "S031",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-pro",
+          "src": "innomcp-node/src/agents/eventGuard.ts",
+          "test_path": "innomcp-node/tests/eventGuard.spec.test.ts",
+          "import_spec": "../src/agents/eventGuard",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/agents/eventGuard';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: eventGuard — public API surface:\n```typescript\nexport interface GuardResult {\nexport function checkAgentEventSafe(\nexport function checkVisibleTextSafe(\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S032",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-pro",
+          "src": "innomcp-node/src/agents/events.ts",
+          "test_path": "innomcp-node/tests/events.spec.test.ts",
+          "import_spec": "../src/agents/events",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/agents/events';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: events — public API surface:\n```typescript\nexport type AgentEventType =\nexport type AgentId =\nexport const AGENT_ROLE_LABEL_TH: Record<AgentId, string> = {\nexport interface AgentEvent {\nexport const SCHEMA_VERSION = \"1.0.0\";\nexport function validateAgentEvent(ev: unknown): string | null {\nexport function newEnvelope(opts: {\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S033",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-pro",
+          "src": "innomcp-node/src/agents/orchestrator.ts",
+          "test_path": "innomcp-node/tests/orchestrator.spec.test.ts",
+          "import_spec": "../src/agents/orchestrator",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/agents/orchestrator';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: orchestrator — public API surface:\n```typescript\nexport type BrainRole = \"coordinator\" | \"brain-1\" | \"brain-2\";\nexport interface OrchestratorConfig {\nexport interface AgentTask {\nexport interface TaskCycle {\nexport class MultiAgentOrchestrator {\n  constructor(config: Partial<OrchestratorConfig> = {}) {\n  async createTask(description: string, priority: \"low\" | \"medium\" | \"high\" | \"urgent\" = \"medium\"): Promise<AgentTask> {\n  async executeCycle(taskId: string): Promise<AgentTask> {\n  async syncTmux(): Promise<void> {\n  async syncRemote(): Promise<void> {\nexport function createOrchestrator(config?: Partial<OrchestratorConfig>): MultiAgentOrchestrator {\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S034",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-pro",
+          "src": "innomcp-node/src/agents/toolDispatch.ts",
+          "test_path": "innomcp-node/tests/toolDispatch.spec.test.ts",
+          "import_spec": "../src/agents/toolDispatch",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/agents/toolDispatch';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: toolDispatch — public API surface:\n```typescript\nexport interface ToolPlan {\nexport function planToolCall(intent: ChatIntent, query: string): ToolPlan | null {\nasync function callMcpTool(\nexport async function dispatchTool(\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S035",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/geo/geo-aggregator.ts",
+          "test_path": "innomcp-node/tests/geo-aggregator.spec.test.ts",
+          "import_spec": "../src/geo/geo-aggregator",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/geo/geo-aggregator';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: geo-aggregator — public API surface:\n```typescript\nexport class GeoAggregator {\n\tpublic format(packet: WeatherPacket): WeatherPacket {\n\tpublic merge(packets: WeatherPacket[]): WeatherPacket {\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S036",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/geo/geo-guard.ts",
+          "test_path": "innomcp-node/tests/geo-guard.spec.test.ts",
+          "import_spec": "../src/geo/geo-guard",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/geo/geo-guard';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: geo-guard — public API surface:\n```typescript\nexport class GeoGuard {\n\tconstructor(timeoutMs: number = DEFAULT_TIMEOUT_MS) {\n\tpublic async executeWithGuard(\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S037",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/geo/geo-intent.ts",
+          "test_path": "innomcp-node/tests/geo-intent.spec.test.ts",
+          "import_spec": "../src/geo/geo-intent",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/geo/geo-intent';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: geo-intent — public API surface:\n```typescript\nexport class GeoIntent {\n\tpublic analyze(msg: string): GeoIntentResult {\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S038",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/geo/geo-service.ts",
+          "test_path": "innomcp-node/tests/geo-service.spec.test.ts",
+          "import_spec": "../src/geo/geo-service",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/geo/geo-service';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: geo-service — public API surface:\n```typescript\nexport type ToolDispatcher = (toolName: string, params: Record<string, unknown>) => Promise<unknown>;\nexport class GeoService {\n  constructor(private readonly dispatch: ToolDispatcher) {}\n  public async handleRequest(userMessage: string): Promise<WeatherPacket> {\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S039",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/geo/geo-tool-router.ts",
+          "test_path": "innomcp-node/tests/geo-tool-router.spec.test.ts",
+          "import_spec": "../src/geo/geo-tool-router",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/geo/geo-tool-router';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: geo-tool-router — public API surface:\n```typescript\nexport class GeoRouter {\n\tpublic route(intent: GeoIntentResult): ToolPlan | null {\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S040",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-pro",
+          "src": "innomcp-node/src/providers/registry.ts",
+          "test_path": "innomcp-node/tests/registry.spec.test.ts",
+          "import_spec": "../src/providers/registry",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/providers/registry';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: registry — public API surface:\n```typescript\nexport function ensureSeeded(): void {\nexport function hydrateStore(): void {\nexport function listProviders(): ProviderRecord[] {\nexport function getProvider(id: string): ProviderRecord | undefined {\nexport function createProvider(input: ProviderUpsertInput): ProviderRecord {\nexport function updateProvider(\nexport function deleteProvider(id: string): boolean {\nexport function setHealth(\nexport function resolveApiKey(id: string): string | undefined {\nexport function _resetForTests(): void {\nexport type { ProviderType };\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S041",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-pro",
+          "src": "innomcp-node/src/providers/router.ts",
+          "test_path": "innomcp-node/tests/router.spec.test.ts",
+          "import_spec": "../src/providers/router",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/providers/router';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: router — public API surface:\n```typescript\nexport type ChatMode = \"local\" | \"remote\" | \"hybrid\";\nexport interface SelectOptions {\nexport interface SelectionResult {\nexport function selectProvider(opts: SelectOptions): SelectionResult {\nexport function getAvailableProviders(): string[] {\nexport function resolveProviderEndpoint(\nexport function previewSelection(opts: SelectOptions): {\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S042",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/routes/api/activity.ts",
+          "test_path": "innomcp-node/tests/activity.spec.test.ts",
+          "import_spec": "../src/routes/api/activity",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/activity';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: activity — public API surface:\n```typescript\ninterface ActivityItem {\nasync function ensureProjectsTable(\nasync function ensureTaskProjectColumn(\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S043",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/routes/api/admin/sessions.ts",
+          "test_path": "innomcp-node/tests/sessions.spec.test.ts",
+          "import_spec": "../src/routes/api/admin/sessions",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/admin/sessions';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: sessions — public API surface:\n```typescript\nexport default sessionsRouter;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S044",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/routes/api/agentLeaderboard.ts",
+          "test_path": "innomcp-node/tests/agentLeaderboard.spec.test.ts",
+          "import_spec": "../src/routes/api/agentLeaderboard",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/agentLeaderboard';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: agentLeaderboard — public API surface:\n```typescript\nexport interface AgentEntry {\nasync function fetchLiveStats(): Promise<\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S045",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/routes/api/agentStream.ts",
+          "test_path": "innomcp-node/tests/agentStream.spec.test.ts",
+          "import_spec": "../src/routes/api/agentStream",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/agentStream';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: agentStream — public API surface:\n```typescript\ninterface StreamRequestBody {\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S046",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/routes/api/aiMode.ts",
+          "test_path": "innomcp-node/tests/aiMode.spec.test.ts",
+          "import_spec": "../src/routes/api/aiMode",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/aiMode';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: aiMode — public API surface:\n```typescript\nexport function getCurrentAIMode(): 'local' | 'remote' | 'hybrid' {\nexport default aiModeRouter;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S047",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/routes/api/analytics.ts",
+          "test_path": "innomcp-node/tests/analytics.spec.test.ts",
+          "import_spec": "../src/routes/api/analytics",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/analytics';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: analytics — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S048",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/routes/api/analyze.ts",
+          "test_path": "innomcp-node/tests/analyze.spec.test.ts",
+          "import_spec": "../src/routes/api/analyze",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/analyze';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: analyze — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S049",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/routes/api/chat/report.ts",
+          "test_path": "innomcp-node/tests/report.spec.test.ts",
+          "import_spec": "../src/routes/api/chat/report",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/chat/report';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: report — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S050",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/routes/api/chat.ts",
+          "test_path": "innomcp-node/tests/chat.spec.test.ts",
+          "import_spec": "../src/routes/api/chat",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/chat';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: chat — public API surface:\n```typescript\n(no exports detected)\n```",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "G3",
+      "mission": "Spec/contract-based tests",
+      "members": [
+        {
+          "id": "S051",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/routes/api/chatStream.ts",
+          "test_path": "innomcp-node/tests/chatStream.spec.test.ts",
+          "import_spec": "../src/routes/api/chatStream",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/chatStream';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: chatStream — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S052",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/routes/api/csrf.ts",
+          "test_path": "innomcp-node/tests/csrf.spec.test.ts",
+          "import_spec": "../src/routes/api/csrf",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/csrf';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: csrf — public API surface:\n```typescript\nexport default csrfRouter;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S053",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/routes/api/dashboard.ts",
+          "test_path": "innomcp-node/tests/dashboard.spec.test.ts",
+          "import_spec": "../src/routes/api/dashboard",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/dashboard';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: dashboard — public API surface:\n```typescript\n  type AuthRequest,\nasync function ensureTasksProjectColumn(): Promise<void> {\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S054",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/routes/api/debug.ts",
+          "test_path": "innomcp-node/tests/debug.spec.test.ts",
+          "import_spec": "../src/routes/api/debug",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/debug';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: debug — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S055",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/routes/api/feedback.ts",
+          "test_path": "innomcp-node/tests/feedback.spec.test.ts",
+          "import_spec": "../src/routes/api/feedback",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/feedback';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: feedback — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S056",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/routes/api/files.ts",
+          "test_path": "innomcp-node/tests/files.spec.test.ts",
+          "import_spec": "../src/routes/api/files",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/files';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: files — public API surface:\n```typescript\ntype PinnedArtifactRecord = {\nexport const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT\nexport function safePath(userPath: string): string | null {\nasync function readPinnedStore(): Promise<PinnedArtifactRecord[]> {\nasync function writePinnedStore(records: PinnedArtifactRecord[]): Promise<void> {\nasync function listDirectoryEntries(userPath: string) {\nasync function collectPinnedArtifacts(limit?: number) {\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S057",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/routes/api/mdesModels.ts",
+          "test_path": "innomcp-node/tests/mdesModels.spec.test.ts",
+          "import_spec": "../src/routes/api/mdesModels",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/mdesModels';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: mdesModels — public API surface:\n```typescript\n  type Task = typeof validTasks[number];\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S058",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/routes/api/memories.ts",
+          "test_path": "innomcp-node/tests/memories.spec.test.ts",
+          "import_spec": "../src/routes/api/memories",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/memories';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: memories — public API surface:\n```typescript\nasync function ensureProjectAccess(projectId: string | undefined, userId: number | null): Promise<boolean> {\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S059",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/routes/api/metrics.ts",
+          "test_path": "innomcp-node/tests/metrics.spec.test.ts",
+          "import_spec": "../src/routes/api/metrics",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/metrics';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: metrics — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S060",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/routes/api/modelSettings.ts",
+          "test_path": "innomcp-node/tests/modelSettings.spec.test.ts",
+          "import_spec": "../src/routes/api/modelSettings",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/modelSettings';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: modelSettings — public API surface:\n```typescript\ninterface TestBody {\ninterface TestResult {\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S061",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/routes/api/motherConfig.ts",
+          "test_path": "innomcp-node/tests/motherConfig.spec.test.ts",
+          "import_spec": "../src/routes/api/motherConfig",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/motherConfig';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: motherConfig — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S062",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/routes/api/motherHandoff.ts",
+          "test_path": "innomcp-node/tests/motherHandoff.spec.test.ts",
+          "import_spec": "../src/routes/api/motherHandoff",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/motherHandoff';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: motherHandoff — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S063",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/routes/api/motherInbox.ts",
+          "test_path": "innomcp-node/tests/motherInbox.spec.test.ts",
+          "import_spec": "../src/routes/api/motherInbox",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/motherInbox';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: motherInbox — public API surface:\n```typescript\ninterface InboxMessage {\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S064",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/routes/api/motherProviders.ts",
+          "test_path": "innomcp-node/tests/motherProviders.spec.test.ts",
+          "import_spec": "../src/routes/api/motherProviders",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/motherProviders';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: motherProviders — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S065",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/routes/api/motherScorecard.ts",
+          "test_path": "innomcp-node/tests/motherScorecard.spec.test.ts",
+          "import_spec": "../src/routes/api/motherScorecard",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/motherScorecard';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: motherScorecard — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S066",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/routes/api/motherStats.ts",
+          "test_path": "innomcp-node/tests/motherStats.spec.test.ts",
+          "import_spec": "../src/routes/api/motherStats",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/motherStats';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: motherStats — public API surface:\n```typescript\ninterface ProviderAccumulator {\ninterface ProviderBreakdownEntry {\ninterface MotherStatsResponse {\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S067",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/routes/api/orchestrator.ts",
+          "test_path": "innomcp-node/tests/orchestrator.spec.test.ts",
+          "import_spec": "../src/routes/api/orchestrator",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/orchestrator';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: orchestrator — public API surface:\n```typescript\nexport default orchestratorRouter;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S068",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/routes/api/plugins.ts",
+          "test_path": "innomcp-node/tests/plugins.spec.test.ts",
+          "import_spec": "../src/routes/api/plugins",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/plugins';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: plugins — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S069",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/routes/api/preferences.ts",
+          "test_path": "innomcp-node/tests/preferences.spec.test.ts",
+          "import_spec": "../src/routes/api/preferences",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/preferences';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: preferences — public API surface:\n```typescript\ninterface UserPreferences {\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S070",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/routes/api/presence.ts",
+          "test_path": "innomcp-node/tests/presence.spec.test.ts",
+          "import_spec": "../src/routes/api/presence",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/presence';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: presence — public API surface:\n```typescript\n  type PresenceEntry,\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S071",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/routes/api/projects.ts",
+          "test_path": "innomcp-node/tests/projects.spec.test.ts",
+          "import_spec": "../src/routes/api/projects",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/projects';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: projects — public API surface:\n```typescript\n  type AuthRequest,\nasync function ensureTable(): Promise<void> {\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S072",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/routes/api/providerHealth.ts",
+          "test_path": "innomcp-node/tests/providerHealth.spec.test.ts",
+          "import_spec": "../src/routes/api/providerHealth",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/providerHealth';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: providerHealth — public API surface:\n```typescript\ntype HealthStatus = \"healthy\" | \"degraded\" | \"down\" | \"unknown\";\ninterface HealthResult {\nasync function probeProvider(\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S073",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-pro",
+          "src": "innomcp-node/src/routes/api/providers.ts",
+          "test_path": "innomcp-node/tests/providers.spec.test.ts",
+          "import_spec": "../src/routes/api/providers",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/providers';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: providers — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S074",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/routes/api/providerTest.ts",
+          "test_path": "innomcp-node/tests/providerTest.spec.test.ts",
+          "import_spec": "../src/routes/api/providerTest",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/providerTest';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: providerTest — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S075",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/routes/api/roomWss.ts",
+          "test_path": "innomcp-node/tests/roomWss.spec.test.ts",
+          "import_spec": "../src/routes/api/roomWss",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/roomWss';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: roomWss — public API surface:\n```typescript\nexport const roomWSS = new WebSocketServer({ noServer: true });\n```",
+          "status": "pending"
+        }
+      ]
+    },
+    {
+      "id": "G4",
+      "mission": "Spec/contract-based tests",
+      "members": [
+        {
+          "id": "S076",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/routes/api/shell.ts",
+          "test_path": "innomcp-node/tests/shell.spec.test.ts",
+          "import_spec": "../src/routes/api/shell",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/shell';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: shell — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S077",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/routes/api/stats.ts",
+          "test_path": "innomcp-node/tests/stats.spec.test.ts",
+          "import_spec": "../src/routes/api/stats",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/stats';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: stats — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S078",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/routes/api/tasks.ts",
+          "test_path": "innomcp-node/tests/tasks.spec.test.ts",
+          "import_spec": "../src/routes/api/tasks",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/tasks';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: tasks — public API surface:\n```typescript\nasync function ensureTasksProjectColumn(): Promise<void> {\ntype ContinuationTaskRow = {\ntype ContinuationStepRow = {\ntype ContinuationArtifact = {\nasync function loadRelevantArtifacts(\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S079",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/routes/api/templates.ts",
+          "test_path": "innomcp-node/tests/templates.spec.test.ts",
+          "import_spec": "../src/routes/api/templates",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/templates';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: templates — public API surface:\n```typescript\ntype TemplateCategory = \"research\" | \"code\" | \"data\" | \"write\" | \"custom\";\ninterface PromptTemplate {\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S080",
+          "role": "spec-test",
+          "model": "MiniMaxAI/MiniMax-M3",
+          "src": "innomcp-node/src/routes/api/user/profile.ts",
+          "test_path": "innomcp-node/tests/profile.spec.test.ts",
+          "import_spec": "../src/routes/api/user/profile",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/user/profile';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: profile — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S081",
+          "role": "spec-test",
+          "model": "deepseek/deepseek-v4-flash",
+          "src": "innomcp-node/src/routes/api/webFetch.ts",
+          "test_path": "innomcp-node/tests/webFetch.spec.test.ts",
+          "import_spec": "../src/routes/api/webFetch",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/webFetch';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: webFetch — public API surface:\n```typescript\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S082",
+          "role": "spec-test",
+          "model": "Qwen/Qwen3.7-Max",
+          "src": "innomcp-node/src/routes/api/webhooks.ts",
+          "test_path": "innomcp-node/tests/webhooks.spec.test.ts",
+          "import_spec": "../src/routes/api/webhooks",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/webhooks';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: webhooks — public API surface:\n```typescript\n  type Webhook,\n  type WebhookEvent,\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S083",
+          "role": "spec-test",
+          "model": "moonshotai/Kimi-K2.6",
+          "src": "innomcp-node/src/routes/api/workspace.ts",
+          "test_path": "innomcp-node/tests/workspace.spec.test.ts",
+          "import_spec": "../src/routes/api/workspace",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/workspace';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: workspace — public API surface:\n```typescript\ninterface WriteFileRequestBody {\ninterface DeleteFileRequestBody {\ninterface FilesQueryParams {\nexport default router;\n```",
+          "status": "pending"
+        },
+        {
+          "id": "S084",
+          "role": "spec-test",
+          "model": "zai-org/GLM-5.1",
+          "src": "innomcp-node/src/routes/artifacts.ts",
+          "test_path": "innomcp-node/tests/artifacts.spec.test.ts",
+          "import_spec": "../src/routes/artifacts",
+          "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/artifacts';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: artifacts — public API surface:\n```typescript\nexport { router };\n```",
+          "status": "pending"
+        }
+      ]
+    }
+  ]
+}
