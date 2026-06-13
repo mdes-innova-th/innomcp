@@ -91,7 +91,7 @@ process.on("unhandledRejection", (err) => {
   console.error("Unhandled rejection:", err);
 });
 
-logger.info('ðŸš€ Backend application starting...');
+logger.info('🚀 Backend application starting...');
 hydrateStore();
 const DEFAULT_LOOPBACK_ORIGINS = ["http://localhost:3000", "http://127.0.0.1:3000"];
 const allowedOrigin = (process.env.ALLOWED_ORIGIN?.split(",") || DEFAULT_LOOPBACK_ORIGINS)
