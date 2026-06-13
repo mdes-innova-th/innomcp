@@ -130,7 +130,7 @@ export class ProviderManager {
       clearTimeout(timeout);
       const latency = Date.now() - start;
 
-      if (response.ok || response.status < 500) {
+      if (response.ok) {
         // Update provider
         provider.healthStatus = 'healthy';
         provider.latencyMs = latency;
