@@ -138,7 +138,7 @@ export async function* runAgentLoop(opts: {
 
         let output: unknown;
         try {
-          output = await tools.execute(name, input);
+          output = await tools.execute(name, input, { signal });
         } catch (err: unknown) {
           const errMsg =
             err instanceof Error ? err.message : 'Tool execution failed';

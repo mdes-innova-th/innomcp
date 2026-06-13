@@ -59,13 +59,13 @@ export class ToolRegistry {
    * Execute a tool by name with the given input.
    * Returns the result of the tool's run method.
    */
-  async execute(name: string, input: unknown): Promise<any> {
+  async execute(name: string, input: unknown, context: any = {}): Promise<any> {
     const tool = this.get(name);
     if (!tool) {
       console.warn(`Tool ${name} not implemented yet`);
       return { ok: false, error: 'Tool not implemented' };
     }
-    return await tool.run(input, {});
+    return await tool.run(input, context);
   }
 
   /**

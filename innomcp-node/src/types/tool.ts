@@ -8,7 +8,7 @@ export interface Tool {
   inputSchema: object;
   run(
     input: any,
-    ctx: { signal?: AbortSignal },
+    ctx: any,
   ): Promise<{
     ok: boolean;
     output?: any;
