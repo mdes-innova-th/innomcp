@@ -960,10 +960,10 @@
           "id": "DOC-3",
           "role": "doc",
           "model": "deepseek/deepseek-v4-pro",
-          "status": "pending",
+          "status": "done",
           "task": "Write CONTRIBUTING-FRONTEND.md (250 words): how to add new React components to innomcp-next — file naming, export patterns, Tailwind usage, testing. Output only markdown.",
-          "output": "innomcp-next/docs/CONTRIBUTING-FRONTEND.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\SMOKE-AND-UTIL-DOC-3-doc.md",
+          "finished_at": "2026-06-13T05:34:04.706Z"
         },
         {
           "id": "DOC-4",
@@ -1095,10 +1095,10 @@
           "id": "FINAL-3",
           "role": "doc",
           "model": "MiniMaxAI/MiniMax-M3",
-          "status": "pending",
+          "status": "done",
           "task": "Write innomcp-node/docs/LESSONS-LEARNED-MEGA100.md (500 words): engineering lessons from the MEGA-100 incident for any team doing LLM-powered bulk code generation. 5 specific lessons with before/after examples. Output only markdown.",
-          "output": "innomcp-node/docs/LESSONS-LEARNED-MEGA100.md",
-          "finished_at": null
+          "output": "ψ\\outbox\\cc-team\\SMOKE-AND-UTIL-FINAL-3-doc.md",
+          "finished_at": "2026-06-13T05:32:44.677Z"
         }
       ]
     }

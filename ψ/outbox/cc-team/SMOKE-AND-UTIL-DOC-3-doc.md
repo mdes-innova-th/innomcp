@@ -1,64 +1,46 @@
 <!-- cc-team deliverable
  group: SMOKE-AND-UTIL (Smoke tests, utilities, components, CI — 44 additional tasks)
  member: DOC-3 role=doc model=deepseek/deepseek-v4-pro
- finish_reason: stop | tokens: {"prompt_tokens":47,"completion_tokens":991,"total_tokens":1038,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":378,"image_tokens":0},"cache_creation_input_tokens":0} | 14s
- generated: 2026-06-13T05:28:19.337Z -->
+ finish_reason: stop | tokens: {"prompt_tokens":47,"completion_tokens":1679,"total_tokens":1726,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":1215,"image_tokens":0},"cache_creation_input_tokens":0} | 22s
+ generated: 2026-06-13T05:34:04.705Z -->
 ```markdown
-# Contributing Frontend — Adding React Components
+# Contributing Frontend
 
-This guide covers how to add new React components to `innomcp-next`. Follow these conventions to keep the codebase consistent.
+This guide outlines conventions for adding new React components to innomcp-next.
 
 ## File Naming
-- Use **PascalCase** for component files and their directories (e.g., `Button/Button.tsx`).
-- Always use the `.tsx` extension.
-- Keep each component in its own folder, co-locating related files:
-  ```
-  Button/
-    Button.tsx
-    Button.test.tsx
-    index.ts
-  ```
-- The `index.ts` file should re-export the component (see export patterns).
+- Use **PascalCase** for component files and their folders: `components/Button/Button.tsx`.
+- Co-locate related files (tests, sub‑components, utility hooks) inside the component directory.
+- Always use the `.tsx` extension for files that contain JSX.
 
 ## Export Patterns
-- **Prefer named exports** for all components. This avoids accidental renaming during imports and makes refactoring safer.
-- Export the component interface/types separately (e.g., `export interface ButtonProps { … }`).
-- Use a barrel `index.ts` in each folder:
+- Prefer **named exports** for all components to keep imports consistent and aid tree‑shaking.
+- Export the component function directly: `export function Button() { … }`.
+- For compound components, attach sub‑components to the main component:
   ```ts
-  export { Button, type ButtonProps } from './Button';
+  Button.Icon = Icon;
+  export { Button };
   ```
-- Do not use default exports for components.
+- Avoid default exports—they can cause unintentional renaming during imports.
 
 ## Tailwind Usage
-- Style components exclusively with Tailwind utility classes via the `className` prop.
-- Use the `cn()` utility (from `@/lib/utils`) to conditionally merge classes:
+- Style components exclusively with Tailwind utility classes via `className`.
+- Use the `cn()` helper from `@/lib/utils` to merge conditional classes cleanly.
   ```tsx
-  <button className={cn('px-4 py-2 rounded', variant === 'primary' && 'bg-blue-600')} />
+  import { cn } from "@/lib/utils";
+  <button className={cn("base", variant === "primary" && "bg-blue-500")}>…
   ```
-- Avoid inline styles and CSS modules unless absolutely necessary. If you need reusable patterns, extract them with `@apply` in a shared layer.
-- Follow the design system tokens (spacing, colors, typography) already defined in the Tailwind config.
-- Use responsive prefixes (`sm:`, `md:`, etc.) and dark mode classes (`dark:`) as needed.
+- Stick to design tokens from `tailwind.config.ts` (colors, spacing, fonts) and avoid hard‑coded values.
+- Build with a **mobile‑first** mindset; add responsive modifiers (`sm:`, `md:`, etc.) when scaling up.
+- Do not introduce inline styles or separate CSS files unless absolutely necessary.
 
 ## Testing
-- Use **Vitest** and **React Testing Library**.
-- Place the test file next to the component with the suffix `.test.tsx` (e.g., `Button.test.tsx`).
-- Write tests that focus on **user-visible behavior**: rendering, interactions, accessibility.
-- Example minimal test:
-  ```tsx
-  import { render, screen } from '@testing-library/react';
-  import userEvent from '@testing-library/user-event';
-  import { Button } from './Button';
-
-  test('renders children and responds to click', async () => {
-    const handleClick = vi.fn();
-    render(<Button onClick={handleClick}>Click me</Button>);
-    await userEvent.click(screen.getByRole('button', { name: /click me/i }));
-    expect(handleClick).toHaveBeenCalledTimes(1);
-  });
-  ```
-- Mock external dependencies (APIs, hooks) with `vi.mock` when needed, but keep mocks minimal to avoid testing implementation details.
-
----
-
-Follow these patterns to ensure every component is predictable, maintainable, and easy to review.
+- Write tests with **Vitest** and **React Testing Library**.
+- Place test files next to the component with a `.test.tsx` extension: `Button.test.tsx`.
+- Verify correct rendering, prop variations, and user interactions.
+- Use `render` and `screen`; query elements by accessible roles (e.g., `getByRole`) whenever possible.
+- Simulate real user events with `@testing-library/user-event`.
+- Mock external dependencies using `vi.mock` from Vitest.
+- Focus tests on observable behavior, not internal implementation.
+- Ensure all tests pass by running `pnpm test` before submitting a pull request.
 ```
