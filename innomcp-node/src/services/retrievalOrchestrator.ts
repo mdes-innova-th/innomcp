@@ -58,7 +58,7 @@ export function planRetrieval(
   route?: string,
   memory?: SessionMemorySnapshot | null
 ): RetrievalPlan {
-  const q = query.trim();
+  const q = query.trim().slice(0, 500);
 
   // 1. If route is already deterministic (calculator, datetime), no retrieval needed
   if (route && ["calculator", "datetime"].includes(route)) {
