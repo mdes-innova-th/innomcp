@@ -113,7 +113,20 @@ export async function* runAgentLoop(opts: {
         arguments: string;
       }[]) {
         const { id, name } = toolCall;
-        const input = JSON.parse(toolCall.arguments) as unknown;
+        let input;
+        try {
+          input = JSON.parse(toolCall.arguments) as unknown;
+        } catch (err: unknown) {
+          const parseErr = `Failed to parse tool arguments: ${err instanceof Error ? err.message : String(err)}`;
+          yield { type: 'error', error: parseErr };
+          messages.push({
+            role: 'tool',
+            tool_call_id: id,
+            name,
+            content: parseErr,
+          });
+          continue;
+        }
 
         yield { type: 'tool_call', id, name, input };
 
@@ -129,8 +142,15 @@ export async function* runAgentLoop(opts: {
         } catch (err: unknown) {
           const errMsg =
             err instanceof Error ? err.message : 'Tool execution failed';
-          yield { type: 'error', error: `Tool ${name} error: ${errMsg}` };
-          return;
+          yield { type: 'tool_result', id, name, output: errMsg };
+
+          messages.push({
+            role: 'tool',
+            tool_call_id: id,
+            name,
+            content: errMsg,
+          });
+          continue;
         }
 
         yield { type: 'tool_result', id, name, output };
