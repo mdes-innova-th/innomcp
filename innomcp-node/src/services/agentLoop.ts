@@ -88,8 +88,8 @@ export async function* runAgentLoop(opts: {
     try {
       llmResponse = await llm(messages, toolSpecs);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'LLM call failed';
-      yield { type: 'error', error: `LLM error: ${message}` };
+      // Sanitize: do not expose raw error message to consumers.
+      yield { type: 'error', error: 'LLM call failed' };
       return;
     }
 
@@ -117,13 +117,13 @@ export async function* runAgentLoop(opts: {
         try {
           input = JSON.parse(toolCall.arguments) as unknown;
         } catch (err: unknown) {
-          const parseErr = `Failed to parse tool arguments: ${err instanceof Error ? err.message : String(err)}`;
-          yield { type: 'error', error: parseErr };
+          // Sanitize: avoid leaking raw arguments or error details.
+          yield { type: 'error', error: 'Failed to parse tool arguments' };
           messages.push({
             role: 'tool',
             tool_call_id: id,
             name,
-            content: parseErr,
+            content: 'Failed to parse tool arguments',
           });
           continue;
         }
@@ -140,15 +140,14 @@ export async function* runAgentLoop(opts: {
         try {
           output = await tools.execute(name, input, { signal });
         } catch (err: unknown) {
-          const errMsg =
-            err instanceof Error ? err.message : 'Tool execution failed';
-          yield { type: 'tool_result', id, name, output: errMsg };
+          // Sanitize: do not expose raw error details.
+          yield { type: 'tool_result', id, name, output: 'Tool execution failed' };
 
           messages.push({
             role: 'tool',
             tool_call_id: id,
             name,
-            content: errMsg,
+            content: 'Tool execution failed',
           });
           continue;
         }
