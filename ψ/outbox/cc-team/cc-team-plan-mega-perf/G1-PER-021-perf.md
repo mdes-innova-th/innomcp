@@ -1,0 +1,12 @@
+<!-- cc-team deliverable
+ group: G1 (perf division)
+ member: PER-021 role=perf model=deepseek/deepseek-v4-pro
+ finish_reason: stop | tokens: {"prompt_tokens":2706,"completion_tokens":2662,"total_tokens":5368,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":2188,"image_tokens":0},"cache_creation_input_tokens":0} | 36s
+ generated: 2026-06-13T12:03:08.350Z -->
+| severity | location | issue | fix |
+|-----------|-----------|--------|------|
+| HIGH | `recordTurnAndGetMeta` / `sessionMemory` | No mechanism to expire or clean up old sessions. `sessionMemory.recordTurn` accumulates data indefinitely, leading to unbounded memory growth (memory leak). | Implement TTL or periodic cleanup in `sessionMemory` (e.g., auto‑evict sessions after inactivity). Alternatively, add an explicit `sessionMemory.purge(sessionId)` that consumers call when a session ends. |
+| HIGH | `recordTurnAndGetMeta` return value (`MemoryRagMeta.coldContext`) | `coldContext` contains the full concatenated text of all retrieved chunks, which can be very large. If this metadata is later sent to the client (or stored in diagnostics), it causes large response payloads and memory pressure. | Truncate `coldContext` to a safe maximum (e.g., 4000 characters) or replace it with a flag (`coldContextInjected`) and store the full context only where needed (e.g., in a separate cache). |
+| MEDIUM | `queryColdRag` (exported function) | No caching of cold‑RAG search results. Identical queries inside the same session re‑execute the full retrieval pipeline, wasting CPU and possibly I/O. | Add a short‑lived LRU cache keyed by `(query, domain)` so repeated calls return the same result immediately. |
+| MEDIUM | `recordTurnAndGetMeta` → `executeColdRetrieval` | `executeColdRetrieval(plan)` may return an unbounded number of results. The subsequent `map`/`join` creates a potentially huge `coldContext` string without any limit. | Enforce a maximum result count (e.g., `maxResults: 3`) inside `executeColdRetrieval` or limit the array before building the string. Additionally, cap the final string length. |
+| LOW | `extractEntities` | Regex patterns (`provincePattern`, `regionPattern`, etc.) are defined inside the function body and re‑compiled on every call, which creates minor GC pressure. | Move all regex definitions to module‑scope constants so they are compiled once. |

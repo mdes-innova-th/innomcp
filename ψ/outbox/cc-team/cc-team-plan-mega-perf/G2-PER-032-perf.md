@@ -1,0 +1,11 @@
+<!-- cc-team deliverable
+ group: G2 (perf division)
+ member: PER-032 role=perf model=Qwen/Qwen3.7-Max
+ finish_reason: stop | tokens: {"prompt_tokens":2075,"completion_tokens":3591,"total_tokens":5666,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":3164,"image_tokens":0},"cache_creation_input_tokens":0} | 67s
+ generated: 2026-06-13T12:05:55.146Z -->
+| severity | location | issue | fix |
+|---|---|---|---|
+| High | `checkProvider` | **Cooldown bypass**: When a provider is unhealthy but the cooldown hasn't elapsed, `!shouldAttemptCheck && status.healthy` evaluates to `false`, causing the method to fall through and execute the health check anyway. This defeats the circuit breaker cooldown, leading to unbounded/excessive network calls. | Simplify logic: `if (status.healthy) return true; if (now - status.lastCheck < this.cooldownMs) return false;` before attempting the active check. |
+| High | `selectProvider`, `getStats` | **Hardcoded constants over instance state**: Methods use module-level `DEFAULT_PRIMARY_ID` and `DEFAULT_BACKUP_IDS` instead of the instance's configured IDs. If custom IDs are passed to the constructor, `this.statuses.get()` returns `undefined`, causing a `TypeError` crash on the hot path. | Store `primaryId` and `backupIds` as private instance properties during construction and reference them instead of the global constants. |
+| Medium | `markFailed`, `markHealthy`, `selectProvider` | **Redundant `async`/`await`**: These methods are marked `async` but perform no asynchronous operations. This forces the JS engine to wrap return values in Promises and schedule microtasks, adding unnecessary overhead on every request success/failure. | Remove the `async` keyword, change return types to synchronous (`void` or `string`), and remove `await` at call sites (e.g., inside `checkProvider`). |
+| Low | `getStats` | **Unnecessary object allocation**: Creates shallow copies of all status objects (`{ ...s }`) and allocates new arrays on every invocation. If polled frequently for metrics/monitoring, this creates avoidable GC pressure. | Return direct references to the internal state if external mutation isn't a risk, or maintain a cached stats object that is only updated when provider statuses change. |

@@ -1,0 +1,17 @@
+<!-- cc-team deliverable
+ group: G1 (errlog division)
+ member: ERR-024 role=errlog model=zai-org/GLM-5.1
+ finish_reason: stop | tokens: {"prompt_tokens":477,"completion_tokens":1531,"total_tokens":2008,"prompt_tokens_details":{"cached_tokens":32,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":857,"reasoning_tokens_estimated":true,"image_tokens":0},"cache_creation_input_tokens":0} | 15s
+ generated: 2026-06-13T12:03:36.774Z -->
+| severity | location | issue | fix |
+|---|---|---|---|
+| **High** | `exportToJSON` | Unhandled exception — no try/catch; if `motherHistory.get()` or `JSON.stringify` throws, the rejection propagates with no context or logging. | Wrap body in try/catch; log the error with context; re-throw a domain-specific error or return a safe fallback. |
+| **High** | `exportToCSV` | Unhandled exception — same as above; any failure in `motherHistory.get()` or the flatMap pipeline is unhandled. | Wrap body in try/catch; log with context; re-throw a domain-specific error. |
+| **High** | `exportToCSV` — `run.query.replace(…)` / `p.preview.replace(…)` | Null/undefined property access — if `query` or `preview` is null/undefined, `.replace()` throws a `TypeError` with no indication of which record caused it. | Guard with null coalescing: `(run.query ?? "").replace(…)` and `(p.preview ?? "").replace(…)`. |
+| **Medium** | `exportToJSON`, `exportToCSV` | PII / secrets in exported data — `query` and `preview` fields may contain user prompts, tokens, or credentials exported verbatim with no redaction. | Introduce a `redact(str)` utility (regex-based masking for emails, keys, tokens); apply before serialization; document retention policy. |
+| **Medium** | `exportToJSON`, `exportToCSV` | No logging — zero observability; no audit trail of who exported what, when, or whether it succeeded/failed. | Add structured log calls (`logger.info("motherExportService.toJSON", { limit, recordCount })`) at entry and on error. |
+| **Medium** | `exportToJSON`, `exportToCSV` | Missing timeout — if `motherHistory.get()` blocks or the dataset is very large, the call hangs indefinitely with no timeout. | Wrap in a `Promise.race` with a configurable timeout (e.g., `withTimeout(exportToJSON(...), 30_000)`); reject on expiry. |
+| **Medium** | `exportToCSV` — flatMap | Missing error context — if one row fails, the thrown error gives no clue which `runId` / `providerId` caused it. | Wrap per-row mapping in try/catch; on failure, log `{ runId, providerId, error }` and either skip the row or re-throw with context. |
+| **Low** | `exportToJSON`, `exportToCSV` — `options.limit` | No input validation — negative, zero, or non-integer `limit` values are silently accepted, producing unexpected results. | Validate: `if (limit !== undefined && (!Number.isInteger(limit) \|\| limit <= 0)) throw new Error("limit must be a positive integer")`. |
+| **Low** | `exportToCSV` — query/preview fields | CSV injection — unsanitized fields starting with `=`, `+`, `-`, `@` are interpreted as formulas by spreadsheet software. | Prefix dangerous cells with a single quote or tab character; or strip leading formula characters before quoting. |
+| **Low** | `exportToCSV` — return type | Ambiguous success/error signal — returns the string `"No history available to export."` on empty data, which a consumer could mistake for valid CSV. | Return an empty CSV (headers only) or throw a typed `NoDataError` so callers distinguish "empty" from "error". |

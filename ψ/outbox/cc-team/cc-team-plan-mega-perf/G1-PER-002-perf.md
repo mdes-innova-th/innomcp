@@ -1,0 +1,12 @@
+<!-- cc-team deliverable
+ group: G1 (perf division)
+ member: PER-002 role=perf model=Qwen/Qwen3.7-Max
+ finish_reason: stop | tokens: {"prompt_tokens":1559,"completion_tokens":2349,"total_tokens":3908,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":1893,"image_tokens":0},"cache_creation_input_tokens":0} | 45s
+ generated: 2026-06-13T11:58:42.698Z -->
+| severity | location | issue | fix |
+|---|---|---|---|
+| High | `activeSessions` | **Memory Leak**: The `Map` grows indefinitely if `endSession` is not reliably called (e.g., abrupt client disconnects), causing unbounded memory retention. | Implement a TTL/timeout cleanup mechanism (e.g., a periodic sweep to purge stale sessions) or replace the `Map` with an LRU cache with a strict maximum size. |
+| Medium | `modelCounts`, `toolCounts` | **Unbounded Allocation**: These `Record` objects grow without limit. If `model` or `toolName` values are highly dynamic or user-controlled, this causes memory bloat and degrades serialization performance. | Enforce a strict whitelist of expected models/tools, cap the number of tracked keys, or bucket unrecognized/dynamic values into a generic `"other"` key. |
+| Medium | `loadSnapshot`, `saveSnapshot` | **Large Payload / Event Loop Blocking**: `fs.readFile`/`writeFile` combined with `JSON.parse`/`stringify` buffer the entire file in memory and block the event loop during parsing/serialization of large snapshots. | Use `fs.createReadStream`/`createWriteStream` paired with a streaming JSON parser/stringifier (e.g., `stream-json`), or offload the parsing/serialization to a Worker Thread. |
+| Low | `getStats` | **Missing Caching / Redundant Allocation**: Recalculates aggregates and creates shallow copies of records (`{ ... }`) on every invocation. If polled frequently, this creates unnecessary garbage collection pressure. | Cache the computed stats object and invalidate it only when `track()` mutates the state, or return direct references to the records if the caller guarantees read-only access. |
+| Low | `saveSnapshot` | **Redundant Allocation**: `Array.from(this.metrics.activeSessions.entries())` allocates a full intermediate array in memory just to serialize the `Map`. | Iterate over the `Map` and write entries directly to a stream, or use a custom JSON replacer to serialize the `Map` without creating an intermediate array. |

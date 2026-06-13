@@ -1,0 +1,16 @@
+<!-- cc-team deliverable
+ group: G1 (perf division)
+ member: PER-022 role=perf model=Qwen/Qwen3.7-Max
+ finish_reason: stop | tokens: {"prompt_tokens":2265,"completion_tokens":2788,"total_tokens":5053,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":2121,"image_tokens":0},"cache_creation_input_tokens":0} | 53s
+ generated: 2026-06-13T12:03:26.356Z -->
+| severity | location | issue | fix |
+|---|---|---|---|
+| High | `Metric.labelMap` | **Memory Leak / Unbounded Growth**: `labelMap` grows indefinitely with high-cardinality labels (e.g., user IDs, request IDs), leading to eventual OOM. | Implement a max cardinality limit (e.g., LRU eviction) or reject/warn on label combinations exceeding a safe threshold. |
+| High | `Counter.inc`, `Gauge.inc` | **Redundant Computation**: `this.key(labels)` is computed twice per update (once inside `getOrCreate`, once explicitly), wasting CPU on hot paths. | Refactor to compute the key once, or modify `getOrCreate` to return a mutable reference/update the value directly without re-hashing. |
+| Medium | `exportLines` (all classes) | **Unbounded Allocations**: String concatenation (`out += ...`) inside loops creates excessive intermediate string allocations and GC pressure. | Push lines to an array and use `Array.join('\n')` at the end, or use a `StringBuilder` equivalent. |
+| Medium | `Metric.key`, `exportLines` | **Inefficient Serialization**: Using `JSON.stringify` for map keys and `JSON.parse` for reconstruction is slow and allocates heavily. | Use a delimiter-based string join (e.g., `sorted.join('\x00')`) and `split` for reconstruction, or store label objects directly in a Trie/nested Map. |
+| Medium | `Histogram.exportLines` | **Excessive Object Allocation**: `{ ...labelObj, le: ... }` creates a new object and re-runs `formatLabels` for every bucket on every export. | Pre-format the base label string and manually append `,le="..."` (handling empty base labels) to avoid object spread and redundant formatting. |
+| Medium | `MetricsCollector.export` | **Large Payload Memory Spike**: Building the entire export payload as a single string/array in memory can cause OOM or event loop blocking for large metric sets. | Implement a streaming approach (e.g., returning an `Iterable`/`Generator` of strings) or chunked processing to flatten memory usage. |
+| Low | `Histogram.observe` | **Suboptimal Search**: `findIndex` performs a linear O(N) search over buckets to find the correct index. | Use a binary search algorithm for O(log N) lookup, especially if custom bucket arrays are large. |
+| Low | `Metric.key` | **Inefficient Validation**: `this.labelNames.includes(k)` performs an O(N) array search inside a loop for every metric update. | Convert `labelNames` to a `Set` during construction for O(1) lookups, or rely on strict key count and sorted comparison. |
+| Low | `inc`, `set`, `observe`, `get` | **Default Parameter Allocation**: `labels: LabelValues = {}` allocates a new empty object on every call when labels are omitted. | Define a module-level frozen empty object (e.g., `const EMPTY_LABELS = Object.freeze({})`) and use it as the default parameter. |

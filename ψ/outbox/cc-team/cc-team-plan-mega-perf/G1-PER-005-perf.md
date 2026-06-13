@@ -1,0 +1,13 @@
+<!-- cc-team deliverable
+ group: G1 (perf division)
+ member: PER-005 role=perf model=deepseek/deepseek-v4-pro
+ finish_reason: stop | tokens: {"prompt_tokens":2142,"completion_tokens":3248,"total_tokens":5390,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":2736,"image_tokens":0},"cache_creation_input_tokens":0} | 43s
+ generated: 2026-06-13T11:59:25.654Z -->
+| severity | location | issue | fix |
+|----------|----------|-------|-----|
+| High | `log()`, `ensureLogDir()`, `rotateIfNeeded()` | All I/O calls (`existsSync`, `mkdirSync`, `statSync`, `renameSync`, `appendFileSync`) are synchronous, blocking the event loop on every audit write. Under load this degrades throughput and increases latency. | Replace with `fs.promises` or callback‑based async equivalents. Ensure the log directory once at startup. Perform rotation checks asynchronously. Use async `appendFile` or a buffered write stream. |
+| High | `getEntries()` | Loads *all* log files entirely into memory via `readFileSync`, parses every line, and builds an unbounded in‑memory array before applying a `limit`. O(total log size) memory and event‑loop blockage on each call. | Stream files line‑by‑line with `readline` and `fs.createReadStream`. Stop processing once the requested `limit` is reached. Return results incrementally or paginate via an async generator. |
+| High | `exportCSV()`, `exportJSON()` | Calls `getEntries()` without a limit, loads the complete audit history into memory, then constructs one giant string. Risks OOM crashes for large datasets and blocks the process. | Enforce a maximum export size or implement streaming serialisation (e.g., `Transform` stream that emits CSV/NDJSON rows). Never accumulate the full dataset. |
+| Medium | `clear()` | Reads whole files synchronously, filters lines in memory, and rewrites them with `writeFileSync`. Both memory pressure and blocking I/O during the cleanup window. | Process files asynchronously in chunks. Use a temporary file and atomic rename to avoid data loss on errors. |
+| Medium | `readLines()` | Reads the entire file content via `readFileSync` and splits into an array, duplicating the data in memory (raw string + line array). | Use a streaming line reader (`fs.createReadStream` + `readline` interface) to yield lines one at a time. |
+| Low | `rotateIfNeeded()` | `renameSync` discards any error (e.g., destination already exists on Windows) when rotating, silently losing old audit logs. | Use a collision‑resistant name (append time or UUID). Switch to async `rename` with proper error handling. |

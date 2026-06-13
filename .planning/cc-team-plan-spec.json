@@ -19,7 +19,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/agentLoop';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: agentLoop — public API surface:\n```typescript\nexport type AgentEvent =\nexport async function* runAgentLoop(opts: {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S001-spec-test.md",
-          "finished_at": "2026-06-13T11:19:40.363Z"
+          "finished_at": "2026-06-13T11:19:40.363Z",
+          "apply": "quarantined",
+          "apply_err": "ng the following properties from type '{ task: string; tools: ToolRegistry; llm: (messages: Record<string, unknown>[], toolSpecs: ToolSpec[]) => Promise<{ content?: string | undefined; toolCalls?: { name: string; input: unknown; }[] | undefined; }>; maxSteps?: number | undefined; signal?: AbortSignal | undefined; }': task, tools, llm\n\n    \u001b[7m247\u001b[0m       const events = await collectGenerator(runAgentLoop(opts));\n    \u001b[7m   \u001b[0m \u001b[91m                                                         ~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.976 s\n"
         },
         {
           "id": "S002",
@@ -31,7 +33,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/answerContract';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: answerContract — public API surface:\n```typescript\nexport type AnswerMode = \"deterministic\" | \"llm-rewrite\" | \"hybrid\" | \"llm-only\";\nexport type RetrievalMode = \"hot\" | \"cold\" | \"both\" | \"none\";\nexport interface RetrievalSource {\nexport interface AnswerContract {\nexport function buildAnswerContract(params: {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S002-spec-test.md",
-          "finished_at": "2026-06-13T11:20:16.958Z"
+          "finished_at": "2026-06-13T11:20:16.958Z",
+          "apply": "quarantined",
+          "apply_err": "   \u001b[7m119\u001b[0m       expect(buildAnswerContract(coldParams).retrievalMode).toBe('cold');\n    \u001b[7m   \u001b[0m \u001b[91m                                 ~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/answerContract.spec.test.ts\u001b[0m:\u001b[93m119\u001b[0m:\u001b[93m46\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2339: \u001b[0mProperty 'retrievalMode' does not exist on type 'AnswerContract'.\n\n    \u001b[7m119\u001b[0m       expect(buildAnswerContract(coldParams).retrievalMode).toBe('cold');\n    \u001b[7m   \u001b[0m \u001b[91m                                             ~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.827 s\n"
         },
         {
           "id": "S003",
@@ -43,7 +47,8 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/artifactService';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: artifactService — public API surface:\n```typescript\nexport const artifactService = {\n  async listArtifacts(taskId: string): Promise<string[]> {\n  async getArtifact(taskId: string, name: string) {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S003-spec-test.md",
-          "finished_at": "2026-06-13T11:20:11.946Z"
+          "finished_at": "2026-06-13T11:20:11.946Z",
+          "apply": "no-code"
         },
         {
           "id": "S004",
@@ -55,7 +60,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/auditLogger';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: auditLogger — public API surface:\n```typescript\ntype AuditAction = 'login' | 'logout' | 'message_sent' | 'file_access' | 'provider_change' | 'admin_action' | 'data_export';\ninterface AuditEntry {\ntype AuditEntryInput = Omit<AuditEntry, 'id' | 'timestamp'>;\ninterface AuditFilter {\n  exportCSV(): string {\n  exportJSON(): string {\nexport const auditLogger = new AuditLogger();\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S004-spec-test.md",
-          "finished_at": "2026-06-13T11:20:50.467Z"
+          "finished_at": "2026-06-13T11:20:50.467Z",
+          "apply": "quarantined",
+          "apply_err": "tryInput': details, success\n\n    \u001b[7m118\u001b[0m       auditLogger.log({ action: 'provider_change', userId: 'admin-user' });\n    \u001b[7m   \u001b[0m \u001b[91m                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/auditLogger.spec.test.ts\u001b[0m:\u001b[93m133\u001b[0m:\u001b[93m47\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2554: \u001b[0mExpected 0 arguments, but got 1.\n\n    \u001b[7m133\u001b[0m       const csvString = auditLogger.exportCSV(filter);\n    \u001b[7m   \u001b[0m \u001b[91m                                              ~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.94 s\n"
         },
         {
           "id": "S005",
@@ -67,7 +74,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/backpressureHandler';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: backpressureHandler — public API surface:\n```typescript\ninterface QueueItem {\nexport const backpressureHandler = new BackpressureHandler();\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S005-spec-test.md",
-          "finished_at": "2026-06-13T11:20:35.289Z"
+          "finished_at": "2026-06-13T11:20:35.289Z",
+          "apply": "quarantined",
+          "apply_err": " required in type 'EnqueueResult'.\n\n    \u001b[7m166\u001b[0m       const second = backpressureHandler.enqueue(makeItem('dup-1')) as EnqueueResult;\n    \u001b[7m   \u001b[0m \u001b[91m                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\n      \u001b[96mtests/backpressureHandler.spec.test.ts\u001b[0m:\u001b[93m3\u001b[0m:\u001b[93m24\u001b[0m\n        \u001b[7m3\u001b[0m type EnqueueResult = { accepted: boolean; retryAfterMs?: number };\n        \u001b[7m \u001b[0m \u001b[96m                       ~~~~~~~~\u001b[0m\n        'accepted' is declared here.\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.8 s\n"
         },
         {
           "id": "S006",
@@ -79,7 +88,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/coldRetriever';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: coldRetriever — public API surface:\n```typescript\nexport interface ColdDocument {\nexport interface ColdChunk {\nexport interface ColdRetrievalResult {\nexport class ColdRetriever {\n  async loadCorpus(corpusDir: string): Promise<{ docCount: number; chunkCount: number }> {\nexport const coldRetriever = new ColdRetriever();\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S006-spec-test.md",
-          "finished_at": "2026-06-13T11:21:10.020Z"
+          "finished_at": "2026-06-13T11:21:10.020Z",
+          "apply": "quarantined",
+          "apply_err": "    }\u001b[0m\n\n      at ColdRetriever.<anonymous> (src/services/coldRetriever.ts:166:13)\n      at src/services/coldRetriever.ts:46:71\n      at __awaiter (src/services/coldRetriever.ts:42:12)\n      at ColdRetriever.loadCorpus (src/services/coldRetriever.ts:172:16)\n      at tests/coldRetriever.spec.test.ts:146:42\n      at tests/coldRetriever.spec.test.ts:8:71\n      at __awaiter (tests/coldRetriever.spec.test.ts:4:12)\n      at Object.<anonymous> (tests/coldRetriever.spec.test.ts:139:88)\n\nTest Suites: 1 failed, 1 total\nTests:       4 failed, 2 passed, 6 total\nSnapshots:   0 total\nTime:        2.799 s\n"
         },
         {
           "id": "S007",
@@ -91,7 +102,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/dataAnalysisTool';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: dataAnalysisTool — public API surface:\n```typescript\nexport interface ColumnStats {\nexport interface AnalysisResult {\nexport async function analyzeData(\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S007-spec-test.md",
-          "finished_at": "2026-06-13T11:21:41.835Z"
+          "finished_at": "2026-06-13T11:21:41.835Z",
+          "apply": "quarantined",
+          "apply_err": "96mtests/dataAnalysisTool.spec.test.ts\u001b[0m:\u001b[93m342\u001b[0m:\u001b[93m21\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2551: \u001b[0mProperty 'columnCount' does not exist on type 'AnalysisResult'. Did you mean 'colCount'?\n\n    \u001b[7m342\u001b[0m       expect(result.columnCount).toBe(3); // x, y, z\n    \u001b[7m   \u001b[0m \u001b[91m                    ~~~~~~~~~~~\u001b[0m\n\n      \u001b[96msrc/services/dataAnalysisTool.ts\u001b[0m:\u001b[93m16\u001b[0m:\u001b[93m3\u001b[0m\n        \u001b[7m16\u001b[0m   colCount: number;\n        \u001b[7m  \u001b[0m \u001b[96m  ~~~~~~~~\u001b[0m\n        'colCount' is declared here.\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.913 s\n"
         },
         {
           "id": "S008",
@@ -103,7 +116,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/fastPathHandler';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: fastPathHandler — public API surface:\n```typescript\nexport function trigToDeg(expr: string): string {\nexport function cleanFloat(val: number): string {\nexport type FastPathMode = \"off\" | \"on\";\nexport interface FastPathHandlerOptions {\nexport interface FastPathDecision {\nexport type Responder = (payload: any) => Promise<void> | void;\ntype ExtraPhrases = {\nasync function tryReadExtraFromFile(filePath: string): Promise<ExtraPhrases> {\nasync function tryReadExtraFromUrl(url: string): Promise<ExtraPhrases> {\nasync function getExtraPhrases(opts: FastPathHandlerOptions): Promise<ExtraPhrases> {\nexport async function handleFastPathMessage(\nexport function createFastPathExpressMiddleware(opts: FastPathHandlerOptions = {}) {\nexport async function tryFastPathWebSocket(\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S008-spec-test.md",
-          "finished_at": "2026-06-13T11:22:19.423Z"
+          "finished_at": "2026-06-13T11:22:19.423Z",
+          "apply": "low-value",
+          "quality": "only 0 expect()"
         },
         {
           "id": "S009",
@@ -115,7 +130,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/generalGate';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: generalGate — public API surface:\n```typescript\nexport const LOW_CONFIDENCE_FALLBACK_TEXT = \"ขอข้อมูลเพิ่มอีกนิดเพื่อให้ตอบได้แม่นยำขึ้น เช่น ระบุจังหวัดหรือหัวข้อที่ต้องการ\";\nexport function renderGeneralFallbackMessage(): string {\nexport function renderThaiNumberText(value: number): string {\nexport function countDaysUntilEndOfYear(baseDate: Date): number {\nexport function renderGeneralSmokeAnswer(userText: string): string {\nexport function isGarbage(t: string): boolean {\nexport async function answerGeneralWithFastModel(\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S009-spec-test.md",
-          "finished_at": "2026-06-13T11:21:51.531Z"
+          "finished_at": "2026-06-13T11:21:51.531Z",
+          "apply": "quarantined",
+          "apply_err": "ests/generalGate.spec.test.ts\u001b[0m:\u001b[93m157\u001b[0m:\u001b[93m20\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2554: \u001b[0mExpected 4-5 arguments, but got 1.\n\n    \u001b[7m157\u001b[0m       await expect(answerGeneralWithFastModel('Hello')).rejects.toThrow('Network error');\n    \u001b[7m   \u001b[0m \u001b[91m                   ~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\n      \u001b[96msrc/services/generalGate.ts\u001b[0m:\u001b[93m206\u001b[0m:\u001b[93m3\u001b[0m\n        \u001b[7m206\u001b[0m   model: string,\n        \u001b[7m   \u001b[0m \u001b[96m  ~~~~~~~~~~~~~\u001b[0m\n        An argument for 'model' was not provided.\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.83 s\n"
         },
         {
           "id": "S010",
@@ -127,7 +144,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/healthAggregator';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: healthAggregator — public API surface:\n```typescript\nexport type HealthStatusValue = 'healthy' | 'degraded' | 'unhealthy';\nexport interface HealthStatus {\nexport type HealthChecker = () => Promise<HealthStatus>;\nexport interface AggregatedHealth {\ninterface RegisteredChecker {\nexport default class HealthAggregator {\n  public static getInstance(): HealthAggregator {\n  public registerChecker(\n  public async check(): Promise<AggregatedHealth> {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S010-spec-test.md",
-          "finished_at": "2026-06-13T11:21:59.521Z"
+          "finished_at": "2026-06-13T11:21:59.521Z",
+          "apply": "quarantined",
+          "apply_err": "0m\u001b[90m TS7006: \u001b[0mParameter 's' implicitly has an 'any' type.\n\n    \u001b[7m151\u001b[0m       const weird = result.services.find((s) => s.name === 'weird')!;\n    \u001b[7m   \u001b[0m \u001b[91m                                          ~\u001b[0m\n    \u001b[96mtests/healthAggregator.spec.test.ts\u001b[0m:\u001b[93m158\u001b[0m:\u001b[93m21\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2339: \u001b[0mProperty 'services' does not exist on type 'AggregatedHealth'.\n\n    \u001b[7m158\u001b[0m       expect(result.services).toEqual([]);\n    \u001b[7m   \u001b[0m \u001b[91m                    ~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.647 s\n"
         },
         {
           "id": "S011",
@@ -139,7 +158,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/hotRetriever';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: hotRetriever — public API surface:\n```typescript\nexport interface RetrievalFact {\nexport function normalizeWeatherFacts(\nexport function normalizeEvidenceFacts(\nexport function normalizeDeterministicFact(\nexport function mergeRetrievalFacts(factSets: RetrievalFact[][]): RetrievalFact[] {\nexport function composeFactSummary(facts: RetrievalFact[]): string {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S011-spec-test.md",
-          "finished_at": "2026-06-13T11:22:28.341Z"
+          "finished_at": "2026-06-13T11:22:28.341Z",
+          "apply": "quarantined",
+          "apply_err": "[0m\u001b[90m TS2345: \u001b[0mArgument of type 'RetrievalFact[]' is not assignable to parameter of type 'import(\"C:/Users/USER-NT/DEV/innomcp/innomcp-node/src/services/hotRetriever\").RetrievalFact[]'.\n      Type 'RetrievalFact' is missing the following properties from type 'RetrievalFact': domain, entities, timestamp\n\n    \u001b[7m151\u001b[0m       expect(() => composeFactSummary(invalidFacts as RetrievalFact[])).toThrow();\n    \u001b[7m   \u001b[0m \u001b[91m                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.777 s\n"
         },
         {
           "id": "S012",
@@ -151,7 +172,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/imageGenService';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: imageGenService — public API surface:\n```typescript\nexport interface ImageGenResult {\nexport interface ImageGenError {\nexport type ImageGenResponse = ({ ok: true } & ImageGenResult) | ImageGenError;\nasync function callGateway(\nasync function callPollinations(prompt: string): Promise<ImageGenResult> {\nexport interface CallImageGenOptions {\nexport async function callImageGen(\nexport function buildImageGenText(result: ImageGenResult): string {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S012-spec-test.md",
-          "finished_at": "2026-06-13T11:22:56.690Z"
+          "finished_at": "2026-06-13T11:22:56.690Z",
+          "apply": "quarantined",
+          "apply_err": " model, prompt, durationMs, source\n\n    \u001b[7m206\u001b[0m     const result: ImageGenResult = {\n    \u001b[7m   \u001b[0m \u001b[91m                                   ~\u001b[0m\n    \u001b[7m207\u001b[0m       url: 'https://example.com/img.png',\n    \u001b[7m   \u001b[0m \u001b[91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n    \u001b[7m208\u001b[0m       revisedPrompt: 'a highly detailed sunset',\n    \u001b[7m   \u001b[0m \u001b[91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n    \u001b[7m209\u001b[0m     } as ImageGenResult;\n    \u001b[7m   \u001b[0m \u001b[91m~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.739 s\n"
         },
         {
           "id": "S013",
@@ -163,7 +186,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/memoryRagHook';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: memoryRagHook — public API surface:\n```typescript\nexport async function initMemoryRag(): Promise<{ docCount: number; chunkCount: number }> {\nexport interface MemoryRagMeta {\nexport function recordTurnAndGetMeta(\nexport function enrichGroundedContract(structuredContent: any, ragMeta: MemoryRagMeta): void {\nexport function queryColdRag(query: string, domain?: string): { context: string; docCount: number; sources: string[] } {\nexport function getMemoryDebugData(sessionId: string) {\nexport function disambiguateWithSessionMemory(\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S013-spec-test.md",
-          "finished_at": "2026-06-13T11:23:55.795Z"
+          "finished_at": "2026-06-13T11:23:55.795Z",
+          "apply": "low-value",
+          "quality": "only 0 expect()"
         },
         {
           "id": "S014",
@@ -175,7 +200,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/modelLoadBalancer';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: modelLoadBalancer — public API surface:\n```typescript\nexport interface ModelConfig {\nexport interface ModelStats {\nexport type Strategy = 'round-robin' | 'least-latency' | 'weighted' | 'random';\ninterface ModelState {\nexport default class ModelLoadBalancer {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S014-spec-test.md",
-          "finished_at": "2026-06-13T11:22:58.812Z"
+          "finished_at": "2026-06-13T11:22:58.812Z",
+          "apply": "quarantined",
+          "apply_err": "dBalancer(configs, 'weighted');\n    \u001b[7m   \u001b[0m \u001b[91m               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/modelLoadBalancer.spec.test.ts\u001b[0m:\u001b[93m372\u001b[0m:\u001b[93m16\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2673: \u001b[0mConstructor of class 'ModelLoadBalancer' is private and only accessible within the class declaration.\n\n    \u001b[7m372\u001b[0m     const lb = new ModelLoadBalancer(makeConfigs(2), 'round-robin');\n    \u001b[7m   \u001b[0m \u001b[91m               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.711 s\n"
         },
         {
           "id": "S015",
@@ -187,7 +214,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/motherExportService';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: motherExportService — public API surface:\n```typescript\nexport interface ExportOptions {\nexport function exportToJSON(options: ExportOptions = {}): string {\nexport function exportToCSV(options: ExportOptions = {}): string {\nexport const motherExportService = {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S015-spec-test.md",
-          "finished_at": "2026-06-13T11:23:08.739Z"
+          "finished_at": "2026-06-13T11:23:08.739Z",
+          "apply": "quarantined",
+          "apply_err": "exportToJSON();\n    \u001b[7m  \u001b[0m \u001b[91m                                             ~~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/motherExportService.spec.test.ts\u001b[0m:\u001b[93m88\u001b[0m:\u001b[93m45\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2339: \u001b[0mProperty 'exportToCSV' does not exist on type '{ toJSON: (options?: ExportOptions) => string; toCSV: (options?: ExportOptions) => string; }'.\n\n    \u001b[7m88\u001b[0m       const methodCsv = motherExportService.exportToCSV();\n    \u001b[7m  \u001b[0m \u001b[91m                                            ~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.715 s\n"
         },
         {
           "id": "S016",
@@ -199,7 +228,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/notificationService';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: notificationService — public API surface:\n```typescript\ntype NotificationType = 'task_complete' | 'agent_done' | 'error' | 'system' | 'mdes_alert';\ninterface Notification {\nexport const notificationService = new NotificationService();\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S016-spec-test.md",
-          "finished_at": "2026-06-13T11:23:27.130Z"
+          "finished_at": "2026-06-13T11:23:27.130Z",
+          "apply": "quarantined",
+          "apply_err": "93m27\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2339: \u001b[0mProperty 'send' does not exist on type 'NotificationService'.\n\n    \u001b[7m111\u001b[0m       notificationService.send(notif1);\n    \u001b[7m   \u001b[0m \u001b[91m                          ~~~~\u001b[0m\n    \u001b[96mtests/notificationService.spec.test.ts\u001b[0m:\u001b[93m112\u001b[0m:\u001b[93m27\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2339: \u001b[0mProperty 'send' does not exist on type 'NotificationService'.\n\n    \u001b[7m112\u001b[0m       notificationService.send(notif2);\n    \u001b[7m   \u001b[0m \u001b[91m                          ~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.703 s\n"
         },
         {
           "id": "S017",
@@ -211,7 +242,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/providerAdapter';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: providerAdapter — public API surface:\n```typescript\nexport interface ChatMessage {\nexport interface AdapterRequest {\nexport interface AdapterChunk {\nasync function callOpenAI(\nasync function streamOpenAI(\nasync function callAnthropic(\nasync function streamAnthropic(\nasync function callOllama(\nasync function streamOllama(\nexport async function callProvider(\nexport async function streamProvider(\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S017-spec-test.md",
-          "finished_at": "2026-06-13T11:24:48.024Z"
+          "finished_at": "2026-06-13T11:24:48.024Z",
+          "apply": "quarantined",
+          "apply_err": "\u001b[7m135\u001b[0m       await expect(consumeStream(stream)).resolves.toBeDefined();\n    \u001b[7m   \u001b[0m \u001b[91m                                 ~~~~~~\u001b[0m\n\n      \u001b[96m../node_modules/.pnpm/typescript@5.9.3/node_modules/typescript/lib/lib.es2018.asynciterable.d.ts\u001b[0m:\u001b[93m38\u001b[0m:\u001b[93m5\u001b[0m\n        \u001b[7m38\u001b[0m     [Symbol.asyncIterator](): AsyncIterator<T, TReturn, TNext>;\n        \u001b[7m  \u001b[0m \u001b[96m    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n        '[Symbol.asyncIterator]' is declared here.\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.813 s\n"
         },
         {
           "id": "S018",
@@ -223,7 +256,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/providerFailover';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: providerFailover — public API surface:\n```typescript\nexport interface ProviderStatus {\ninterface ProviderConfig {\nexport type HealthCheckFn = (providerId: string) => Promise<{ healthy: boolean; latencyMs: number }>;\nexport class ProviderFailover {\n  constructor(\n  public setHealthChecker(fn: HealthCheckFn): void {\n  public async selectProvider(_task?: string): Promise<string> {\n  public async markFailed(providerId: string): Promise<void> {\n  public async markHealthy(providerId: string, latencyMs: number): Promise<void> {\n  public async checkProvider(providerId: string): Promise<boolean> {\n  public getStats(): {\n  public resetAll(): void {\nexport const providerFailover = new ProviderFailover();\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S018-spec-test.md",
-          "finished_at": "2026-06-13T11:24:37.127Z"
+          "finished_at": "2026-06-13T11:24:37.127Z",
+          "apply": "quarantined",
+          "apply_err": "ovider: string; }'.\n\n    \u001b[7m47\u001b[0m       expect(stats.providers['p1'].healthy).toBe(true);\n    \u001b[7m  \u001b[0m \u001b[91m                   ~~~~~~~~~\u001b[0m\n    \u001b[96mtests/providerFailover.spec.test.ts\u001b[0m:\u001b[93m48\u001b[0m:\u001b[93m20\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2339: \u001b[0mProperty 'providers' does not exist on type '{ primary: ProviderStatus; backups: ProviderStatus[]; activeProvider: string; }'.\n\n    \u001b[7m48\u001b[0m       expect(stats.providers['p1'].latencyMs).toBe(150);\n    \u001b[7m  \u001b[0m \u001b[91m                   ~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.745 s\n"
         },
         {
           "id": "S019",
@@ -235,7 +270,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/providerHealthProbe';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: providerHealthProbe — public API surface:\n```typescript\nexport type ProbeStatus = \"online\" | \"offline\" | \"configured\" | \"checking\";\nexport interface ProviderProbeResult {\ninterface ProbeTarget {\nexport const probeStatus: Map<string, ProviderProbeResult> = new Map();\nasync function probeOllama(\nasync function probeOpenAI(\nasync function probeAnthropic(\nasync function runSingleProbe(target: ProbeTarget): Promise<ProviderProbeResult> {\nexport async function runProbe(): Promise<void> {\nexport function getProbeStatus(providerId: string): ProbeStatus {\nexport function getAll(): ProviderProbeResult[] {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S019-spec-test.md",
-          "finished_at": "2026-06-13T11:24:45.919Z"
+          "finished_at": "2026-06-13T11:24:45.919Z",
+          "apply": "quarantined",
+          "apply_err": "[93m3\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2459: \u001b[0mModule '\"../src/services/providerHealthProbe\"' declares 'runSingleProbe' locally, but it is not exported.\n\n    \u001b[7m5\u001b[0m   runSingleProbe,\n    \u001b[7m \u001b[0m \u001b[91m  ~~~~~~~~~~~~~~\u001b[0m\n\n      \u001b[96msrc/services/providerHealthProbe.ts\u001b[0m:\u001b[93m307\u001b[0m:\u001b[93m16\u001b[0m\n        \u001b[7m307\u001b[0m async function runSingleProbe(target: ProbeTarget): Promise<ProviderProbeResult> {\n        \u001b[7m   \u001b[0m \u001b[96m               ~~~~~~~~~~~~~~\u001b[0m\n        'runSingleProbe' is declared here.\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.855 s\n"
         },
         {
           "id": "S020",
@@ -247,7 +284,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/providerManager';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: providerManager — public API surface:\n```typescript\nexport interface ProviderConfig {\nexport class ProviderManager {\n  constructor() {\n  async register(config: ProviderConfig): Promise<void> {\n  async unregister(id: string): Promise<void> {\n  async getAll(): Promise<ProviderConfig[]> {\n  async getBest(capability?: string): Promise<ProviderConfig | undefined> {\n  async checkHealth(id: string): Promise<{ healthy: boolean; latencyMs: number }> {\n  async checkAllHealth(): Promise<ProviderConfig[]> {\n  async selectForTask(task: 'thai' | 'code' | 'reasoning' | 'fast' | 'general'): Promise<ProviderConfig> {\nexport const providerManager = new ProviderManager();\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S020-spec-test.md",
-          "finished_at": "2026-06-13T11:25:04.551Z"
+          "finished_at": "2026-06-13T11:25:04.551Z",
+          "apply": "quarantined",
+          "apply_err": "defined' is not assignable to type '\"mdes-ollama\" | \"openai-compat\" | \"anthropic\" | \"custom\"'.\n\n    \u001b[7m  3\u001b[0m const baseConfig = (overrides: Partial<ProviderConfig> = {}): ProviderConfig => ({\n    \u001b[7m   \u001b[0m \u001b[91m                                                                                 ~\u001b[0m\n    \u001b[7m  4\u001b[0m   id: 'p1',\n    \u001b[7m   \u001b[0m \u001b[91m~~~~~~~~~~~\u001b[0m\n    \u001b[7m...\u001b[0m \n    \u001b[7m 11\u001b[0m   ...overrides,\n    \u001b[7m   \u001b[0m \u001b[91m~~~~~~~~~~~~~~~\u001b[0m\n    \u001b[7m 12\u001b[0m });\n    \u001b[7m   \u001b[0m \u001b[91m~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.723 s\n"
         },
         {
           "id": "S021",
@@ -259,7 +298,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/retrievalOrchestrator';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: retrievalOrchestrator — public API surface:\n```typescript\nexport type RetrievalDecision = \"hot\" | \"cold\" | \"hot+cold\" | \"none\";\nexport interface RetrievalPlan {\nexport interface RetrievalResult {\nexport function planRetrieval(\nexport function executeColdRetrieval(plan: RetrievalPlan): ColdRetrievalResult[] {\nexport function buildRetrievalResult(\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S021-spec-test.md",
-          "finished_at": "2026-06-13T11:25:21.282Z"
+          "finished_at": "2026-06-13T11:25:21.282Z",
+          "apply": "quarantined",
+          "apply_err": "rror\u001b[0m\u001b[90m TS2554: \u001b[0mExpected 4 arguments, but got 2.\n\n    \u001b[7m189\u001b[0m       expect(() => buildRetrievalResult(plan, 'notArray' as unknown as ColdRetrievalResult[])).toThrow();\n    \u001b[7m   \u001b[0m \u001b[91m                   ~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\n      \u001b[96msrc/services/retrievalOrchestrator.ts\u001b[0m:\u001b[93m154\u001b[0m:\u001b[93m3\u001b[0m\n        \u001b[7m154\u001b[0m   coldResults: ColdRetrievalResult[],\n        \u001b[7m   \u001b[0m \u001b[96m  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n        An argument for 'coldResults' was not provided.\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.684 s\n"
         },
         {
           "id": "S022",
@@ -271,7 +312,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/serviceStatusAggregator';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: serviceStatusAggregator — public API surface:\n```typescript\nexport async function checkAllServices(): Promise<{\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S022-spec-test.md",
-          "finished_at": "2026-06-13T11:25:47.285Z"
+          "finished_at": "2026-06-13T11:25:47.285Z",
+          "apply": "quarantined",
+          "apply_err": "thaiNlp: boolean; }'.\n\n    \u001b[7m214\u001b[0m       expect(result.overallStatus).toBe('degraded');\n    \u001b[7m   \u001b[0m \u001b[91m                    ~~~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/serviceStatusAggregator.spec.test.ts\u001b[0m:\u001b[93m228\u001b[0m:\u001b[93m21\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2339: \u001b[0mProperty 'overallStatus' does not exist on type '{ analytics: boolean; mdesModels: boolean; thaiNlp: boolean; }'.\n\n    \u001b[7m228\u001b[0m       expect(result.overallStatus).toBe('down');\n    \u001b[7m   \u001b[0m \u001b[91m                    ~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.839 s\n"
         },
         {
           "id": "S023",
@@ -283,7 +326,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/sessionMemory';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: sessionMemory — public API surface:\n```typescript\nexport interface MemoryEntity {\nexport type MemoryDomain = \"weather\" | \"evidence\" | \"geo\" | \"knowledge\" | \"calculator\" | \"datetime\" | \"general\" | \"mixed\";\nexport interface MemorySlot {\nexport interface SessionMemorySnapshot {\nexport class SessionMemoryStore {\nexport const sessionMemory = new SessionMemoryStore();\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S023-spec-test.md",
-          "finished_at": "2026-06-13T11:26:13.370Z"
+          "finished_at": "2026-06-13T11:26:13.370Z",
+          "apply": "low-value",
+          "quality": "only 0 expect()"
         },
         {
           "id": "S024",
@@ -295,7 +340,8 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/sessionStore';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: sessionStore — public API surface:\n```typescript\nexport interface PersistedSession {\nasync function ensureDirectory(): Promise<void> {\n  async save(session: PersistedSession): Promise<void> {\n  async load(sessionId: string): Promise<PersistedSession | null> {\n  async loadAll(): Promise<PersistedSession[]> {\n  async delete(sessionId: string): Promise<void> {\n  async cleanup(maxAgeDays = 30): Promise<number> {\n  async stats(): Promise<{ total: number; active24h: number; totalMessages: number }> {\nexport const sessionStore = new SessionStore();\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S024-spec-test.md",
-          "finished_at": "2026-06-13T11:27:34.315Z"
+          "finished_at": "2026-06-13T11:27:34.315Z",
+          "apply": "no-code"
         },
         {
           "id": "S025",
@@ -307,7 +353,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/systemInventory';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: systemInventory — public API surface:\n```typescript\ntype RuntimeMcpClient = {\nexport interface SystemInventorySnapshot {\nexport interface InventoryBuildOptions {\nexport function looksLikeSystemInventoryQuestion(message: string): boolean {\nasync function fetchJson(url: string, init: RequestInit, timeoutMs: number): Promise<any> {\nasync function fetchMcpServerTools(mcpServerUrl: string | undefined, timeoutMs: number) {\nasync function fetchCommandCodeModels(baseUrl: string | undefined, timeoutMs: number) {\nexport async function buildSystemInventorySnapshot(\nexport function renderSystemInventoryAnswer(snapshot: SystemInventorySnapshot): string {\nexport async function buildSystemInventoryAnswer(options: InventoryBuildOptions = {}): Promise<string> {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G1-S025-spec-test.md",
-          "finished_at": "2026-06-13T11:26:38.494Z"
+          "finished_at": "2026-06-13T11:26:38.494Z",
+          "apply": "quarantined",
+          "apply_err": "em inventory' });\n    \u001b[7m   \u001b[0m \u001b[91m                                                   ~~~~~~~~\u001b[0m\n    \u001b[96mtests/systemInventory.spec.test.ts\u001b[0m:\u001b[93m245\u001b[0m:\u001b[93m50\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2353: \u001b[0mObject literal may only specify known properties, and 'question' does not exist in type 'InventoryBuildOptions'.\n\n    \u001b[7m245\u001b[0m     const a = await buildSystemInventoryAnswer({ question: 'system inventory' });\n    \u001b[7m   \u001b[0m \u001b[91m                                                 ~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        3.008 s\n"
         }
       ]
     },
@@ -325,7 +373,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/thaiGovtTools';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: thaiGovtTools — public API surface:\n```typescript\nexport interface WeatherReport {\nexport interface DisasterAlert {\nexport interface ForecastDay {\nexport interface ProvinceInfo {\nexport interface GeoPoint {\nexport interface Evidence {\nexport interface DataStats {\nexport interface KnowledgeItem {\nexport interface GovInfo {\ninterface IMcpClient {\n  constructor(private client: IMcpClient = mcpClient) {}\n  async getWeatherReport(province?: string): Promise<WeatherReport> {\n  async getDisasterAlerts(): Promise<DisasterAlert[]> {\n  async getWeatherForecast(\n  async getProvinceInfo(name: string): Promise<ProvinceInfo> {\n  async findNearest(\n  async searchLocation(query: string): Promise<GeoPoint[]> {\n  async searchEvidence(query: string, limit: number = 10): Promise<Evidence[]> {\n  async getDataStats(category: string): Promise<DataStats> {\n  async searchKnowledge(\n  async getGovInfo(topic: string): Promise<GovInfo> {\nexport const thaiGovtTools = new ThaiGovtTools();\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S026-spec-test.md",
-          "finished_at": "2026-06-13T11:26:50.223Z"
+          "finished_at": "2026-06-13T11:26:50.223Z",
+          "apply": "quarantined",
+          "apply_err": "\u001b[91m      ~~~~~~~~~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/thaiGovtTools.spec.test.ts\u001b[0m:\u001b[93m303\u001b[0m:\u001b[93m7\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2578: \u001b[0mUnused '@ts-expect-error' directive.\n\n    \u001b[7m303\u001b[0m       // @ts-expect-error\n    \u001b[7m   \u001b[0m \u001b[91m      ~~~~~~~~~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/thaiGovtTools.spec.test.ts\u001b[0m:\u001b[93m323\u001b[0m:\u001b[93m7\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2578: \u001b[0mUnused '@ts-expect-error' directive.\n\n    \u001b[7m323\u001b[0m       // @ts-expect-error\n    \u001b[7m   \u001b[0m \u001b[91m      ~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.744 s\n"
         },
         {
           "id": "S027",
@@ -337,7 +387,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/thaiIntentRouter';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: thaiIntentRouter — public API surface:\n```typescript\nexport interface RoutingDecision {\nexport class ThaiIntentRouter {\n  constructor() {\n  async route(text: string, availableModels: string[]): Promise<RoutingDecision> {\n  async routeToMDES(text: string): Promise<RoutingDecision> {\nexport const thaiIntentRouter = new ThaiIntentRouter();\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S027-spec-test.md",
-          "finished_at": "2026-06-13T11:27:48.223Z"
+          "finished_at": "2026-06-13T11:27:48.223Z",
+          "apply": "quarantined",
+          "apply_err": "9m\u001b[90m  8 |\u001b[39m jest\u001b[33m.\u001b[39mmock(\u001b[32m'../src/services/languageDetector'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m ({\n     \u001b[90m    |\u001b[39m      \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n     \u001b[90m  9 |\u001b[39m   detectLanguage\u001b[33m:\u001b[39m jest\u001b[33m.\u001b[39mfn()\u001b[33m,\u001b[39m\n     \u001b[90m 10 |\u001b[39m }))\u001b[33m;\u001b[39m\n     \u001b[90m 11 |\u001b[39m\u001b[0m\n\n      at Resolver._throwModNotFoundError (../node_modules/.pnpm/jest-resolve@30.4.1/node_modules/jest-resolve/build/index.js:895:11)\n      at Object.<anonymous> (tests/thaiIntentRouter.spec.test.ts:8:6)\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.829 s\n"
         },
         {
           "id": "S028",
@@ -349,7 +401,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/toolExecutor';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: toolExecutor — public API surface:\n```typescript\nexport class ToolTimeoutError extends Error {\n  constructor() {\nexport class ToolParamError extends Error {\n  constructor() {\nexport interface ToolDefinition {\nexport interface ExecOptions {\nexport interface ToolResult {\nexport interface ToolDefinitionPublic {\nexport class ToolExecutor extends EventEmitter {\n  async execute(\nexport default ToolExecutor;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S028-spec-test.md",
-          "finished_at": "2026-06-13T11:27:45.621Z"
+          "finished_at": "2026-06-13T11:27:45.621Z",
+          "apply": "low-value",
+          "quality": "only 0 expect()"
         },
         {
           "id": "S029",
@@ -361,7 +415,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/webhookService';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: webhookService — public API surface:\n```typescript\nexport type WebhookEvent =\nexport interface Webhook {\nexport function listWebhooks(userId?: string): Webhook[] {\nexport function getWebhook(id: string): Webhook | undefined {\nexport function createWebhook(\nexport function deleteWebhook(id: string): boolean {\nexport function toggleWebhook(id: string, enabled: boolean): Webhook | null {\nexport async function fireWebhookById(\nexport async function fireWebhook(\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S029-spec-test.md",
-          "finished_at": "2026-06-13T11:28:21.161Z"
+          "finished_at": "2026-06-13T11:28:21.161Z",
+          "apply": "quarantined",
+          "apply_err": "j-fail.com', ['message.created'], 'user1');\n    \u001b[7m   \u001b[0m \u001b[91m                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/webhookService.spec.test.ts\u001b[0m:\u001b[93m179\u001b[0m:\u001b[93m32\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2345: \u001b[0mArgument of type 'Webhook' is not assignable to parameter of type 'WebhookEvent'.\n\n    \u001b[7m179\u001b[0m       await expect(fireWebhook(created, {})).rejects.toThrow('Timeout');\n    \u001b[7m   \u001b[0m \u001b[91m                               ~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.724 s\n"
         },
         {
           "id": "S030",
@@ -373,7 +429,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/services/wsEnhancer';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: wsEnhancer — public API surface:\n```typescript\ninterface HeartbeatInfo {\nexport class WSEnhancer {\nexport const wsEnhancer = new WSEnhancer();\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S030-spec-test.md",
-          "finished_at": "2026-06-13T11:27:55.697Z"
+          "finished_at": "2026-06-13T11:27:55.697Z",
+          "apply": "low-value",
+          "quality": "only 0 expect()"
         },
         {
           "id": "S031",
@@ -385,7 +443,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/agents/eventGuard';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: eventGuard — public API surface:\n```typescript\nexport interface GuardResult {\nexport function checkAgentEventSafe(\nexport function checkVisibleTextSafe(\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S031-spec-test.md",
-          "finished_at": "2026-06-13T11:28:45.583Z"
+          "finished_at": "2026-06-13T11:28:45.583Z",
+          "apply": "quarantined",
+          "apply_err": "llowing properties from type 'AgentEvent': type, runId, messageId, publicSummary, isSafeForUser\n\n    \u001b[7m126\u001b[0m     const result = await checkAgentEventSafe(event);\n    \u001b[7m   \u001b[0m \u001b[91m                                             ~~~~~\u001b[0m\n    \u001b[96mtests/eventGuard.spec.test.ts\u001b[0m:\u001b[93m127\u001b[0m:\u001b[93m19\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2339: \u001b[0mProperty 'isSafe' does not exist on type 'GuardResult'.\n\n    \u001b[7m127\u001b[0m     expect(result.isSafe).toBe(true);\n    \u001b[7m   \u001b[0m \u001b[91m                  ~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.688 s\n"
         },
         {
           "id": "S032",
@@ -397,7 +457,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/agents/events';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: events — public API surface:\n```typescript\nexport type AgentEventType =\nexport type AgentId =\nexport const AGENT_ROLE_LABEL_TH: Record<AgentId, string> = {\nexport interface AgentEvent {\nexport const SCHEMA_VERSION = \"1.0.0\";\nexport function validateAgentEvent(ev: unknown): string | null {\nexport function newEnvelope(opts: {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S032-spec-test.md",
-          "finished_at": "2026-06-13T11:29:02.159Z"
+          "finished_at": "2026-06-13T11:29:02.159Z",
+          "apply": "quarantined",
+          "apply_err": "agentId?: AgentId | undefined; }'.\n\n    \u001b[7m128\u001b[0m       const envelope = newEnvelope({ event: validEvent });\n    \u001b[7m   \u001b[0m \u001b[91m                                     ~~~~~\u001b[0m\n    \u001b[96mtests/events.spec.test.ts\u001b[0m:\u001b[93m129\u001b[0m:\u001b[93m60\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2339: \u001b[0mProperty 'event' does not exist on type 'AgentEvent'.\n\n    \u001b[7m129\u001b[0m       const validationResult = validateAgentEvent(envelope.event);\n    \u001b[7m   \u001b[0m \u001b[91m                                                           ~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.695 s\n"
         },
         {
           "id": "S033",
@@ -409,7 +471,8 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/agents/orchestrator';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: orchestrator — public API surface:\n```typescript\nexport type BrainRole = \"coordinator\" | \"brain-1\" | \"brain-2\";\nexport interface OrchestratorConfig {\nexport interface AgentTask {\nexport interface TaskCycle {\nexport class MultiAgentOrchestrator {\n  constructor(config: Partial<OrchestratorConfig> = {}) {\n  async createTask(description: string, priority: \"low\" | \"medium\" | \"high\" | \"urgent\" = \"medium\"): Promise<AgentTask> {\n  async executeCycle(taskId: string): Promise<AgentTask> {\n  async syncTmux(): Promise<void> {\n  async syncRemote(): Promise<void> {\nexport function createOrchestrator(config?: Partial<OrchestratorConfig>): MultiAgentOrchestrator {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S033-spec-test.md",
-          "finished_at": "2026-06-13T11:29:41.364Z"
+          "finished_at": "2026-06-13T11:29:41.364Z",
+          "apply": "no-code"
         },
         {
           "id": "S034",
@@ -421,7 +484,8 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/agents/toolDispatch';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: toolDispatch — public API surface:\n```typescript\nexport interface ToolPlan {\nexport function planToolCall(intent: ChatIntent, query: string): ToolPlan | null {\nasync function callMcpTool(\nexport async function dispatchTool(\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S034-spec-test.md",
-          "finished_at": "2026-06-13T11:30:00.043Z"
+          "finished_at": "2026-06-13T11:30:00.043Z",
+          "apply": "no-code"
         },
         {
           "id": "S035",
@@ -433,7 +497,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/geo/geo-aggregator';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: geo-aggregator — public API surface:\n```typescript\nexport class GeoAggregator {\n\tpublic format(packet: WeatherPacket): WeatherPacket {\n\tpublic merge(packets: WeatherPacket[]): WeatherPacket {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S035-spec-test.md",
-          "finished_at": "2026-06-13T11:29:32.712Z"
+          "finished_at": "2026-06-13T11:29:32.712Z",
+          "apply": "quarantined",
+          "apply_err": "declarations.\n\n    \u001b[7m1\u001b[0m import { GeoAggregator } from '../src/geo/aggregator';\n    \u001b[7m \u001b[0m \u001b[91m                              ~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/geo-aggregator.spec.test.ts\u001b[0m:\u001b[93m2\u001b[0m:\u001b[93m36\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2307: \u001b[0mCannot find module '../src/geo/aggregator' or its corresponding type declarations.\n\n    \u001b[7m2\u001b[0m import type { WeatherPacket } from '../src/geo/aggregator';\n    \u001b[7m \u001b[0m \u001b[91m                                   ~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.712 s\n"
         },
         {
           "id": "S036",
@@ -445,7 +511,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/geo/geo-guard';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: geo-guard — public API surface:\n```typescript\nexport class GeoGuard {\n\tconstructor(timeoutMs: number = DEFAULT_TIMEOUT_MS) {\n\tpublic async executeWithGuard(\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S036-spec-test.md",
-          "finished_at": "2026-06-13T11:29:58.858Z"
+          "finished_at": "2026-06-13T11:29:58.858Z",
+          "apply": "quarantined",
+          "apply_err": "ame' was not provided.\n    \u001b[96mtests/geo-guard.spec.test.ts\u001b[0m:\u001b[93m112\u001b[0m:\u001b[93m35\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2554: \u001b[0mExpected 2 arguments, but got 1.\n\n    \u001b[7m112\u001b[0m             const promise = guard.executeWithGuard(fn);\n    \u001b[7m   \u001b[0m \u001b[91m                                  ~~~~~~~~~~~~~~~~\u001b[0m\n\n      \u001b[96msrc/geo/geo-guard.ts\u001b[0m:\u001b[93m20\u001b[0m:\u001b[93m3\u001b[0m\n        \u001b[7m20\u001b[0m   toolName: string,\n        \u001b[7m  \u001b[0m \u001b[96m  ~~~~~~~~~~~~~~~~\u001b[0m\n        An argument for 'toolName' was not provided.\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.767 s\n"
         },
         {
           "id": "S037",
@@ -457,7 +525,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/geo/geo-intent';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: geo-intent — public API surface:\n```typescript\nexport class GeoIntent {\n\tpublic analyze(msg: string): GeoIntentResult {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S037-spec-test.md",
-          "finished_at": "2026-06-13T11:30:16.298Z"
+          "finished_at": "2026-06-13T11:30:16.298Z",
+          "apply": "quarantined",
+          "apply_err": "t'.\n\n    \u001b[7m108\u001b[0m       expect(resultLower.hasGeoIntent).toBe(resultUpper.hasGeoIntent);\n    \u001b[7m   \u001b[0m \u001b[91m                         ~~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/geo-intent.spec.test.ts\u001b[0m:\u001b[93m108\u001b[0m:\u001b[93m57\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2339: \u001b[0mProperty 'hasGeoIntent' does not exist on type 'GeoIntentResult'.\n\n    \u001b[7m108\u001b[0m       expect(resultLower.hasGeoIntent).toBe(resultUpper.hasGeoIntent);\n    \u001b[7m   \u001b[0m \u001b[91m                                                        ~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.643 s\n"
         },
         {
           "id": "S038",
@@ -469,7 +539,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/geo/geo-service';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: geo-service — public API surface:\n```typescript\nexport type ToolDispatcher = (toolName: string, params: Record<string, unknown>) => Promise<unknown>;\nexport class GeoService {\n  constructor(private readonly dispatch: ToolDispatcher) {}\n  public async handleRequest(userMessage: string): Promise<WeatherPacket> {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S038-spec-test.md",
-          "finished_at": "2026-06-13T11:31:47.252Z"
+          "finished_at": "2026-06-13T11:31:47.252Z",
+          "apply": "low-value",
+          "quality": "only 0 expect()"
         },
         {
           "id": "S039",
@@ -481,7 +553,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/geo/geo-tool-router';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: geo-tool-router — public API surface:\n```typescript\nexport class GeoRouter {\n\tpublic route(intent: GeoIntentResult): ToolPlan | null {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S039-spec-test.md",
-          "finished_at": "2026-06-13T11:30:25.542Z"
+          "finished_at": "2026-06-13T11:30:25.542Z",
+          "apply": "quarantined",
+          "apply_err": "6mtests/geo-tool-router.spec.test.ts\u001b[0m:\u001b[93m101\u001b[0m:\u001b[93m20\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2345: \u001b[0mArgument of type 'GeoIntentResult' is not assignable to parameter of type 'import(\"C:/Users/USER-NT/DEV/innomcp/innomcp-node/src/geo/interfaces\").GeoIntentResult'.\n      Type 'GeoIntentResult' is missing the following properties from type 'GeoIntentResult': domain, subdomain, features, confidence, raw_input\n\n    \u001b[7m101\u001b[0m       router.route(intent);\n    \u001b[7m   \u001b[0m \u001b[91m                   ~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.792 s\n"
         },
         {
           "id": "S040",
@@ -493,7 +567,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/providers/registry';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: registry — public API surface:\n```typescript\nexport function ensureSeeded(): void {\nexport function hydrateStore(): void {\nexport function listProviders(): ProviderRecord[] {\nexport function getProvider(id: string): ProviderRecord | undefined {\nexport function createProvider(input: ProviderUpsertInput): ProviderRecord {\nexport function updateProvider(\nexport function deleteProvider(id: string): boolean {\nexport function setHealth(\nexport function resolveApiKey(id: string): string | undefined {\nexport function _resetForTests(): void {\nexport type { ProviderType };\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S040-spec-test.md",
-          "finished_at": "2026-06-13T11:31:23.018Z"
+          "finished_at": "2026-06-13T11:31:23.018Z",
+          "apply": "quarantined",
+          "apply_err": "- \u001b[91merror\u001b[0m\u001b[90m TS2353: \u001b[0mObject literal may only specify known properties, and 'name' does not exist in type 'ProviderUpsertInput'.\n\n    \u001b[7m221\u001b[0m         name: 'WithKey',\n    \u001b[7m   \u001b[0m \u001b[91m        ~~~~\u001b[0m\n    \u001b[96mtests/registry.spec.test.ts\u001b[0m:\u001b[93m230\u001b[0m:\u001b[93m9\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2353: \u001b[0mObject literal may only specify known properties, and 'name' does not exist in type 'ProviderUpsertInput'.\n\n    \u001b[7m230\u001b[0m         name: 'NoKey',\n    \u001b[7m   \u001b[0m \u001b[91m        ~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.743 s\n"
         },
         {
           "id": "S041",
@@ -505,7 +581,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/providers/router';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: router — public API surface:\n```typescript\nexport type ChatMode = \"local\" | \"remote\" | \"hybrid\";\nexport interface SelectOptions {\nexport interface SelectionResult {\nexport function selectProvider(opts: SelectOptions): SelectionResult {\nexport function getAvailableProviders(): string[] {\nexport function resolveProviderEndpoint(\nexport function previewSelection(opts: SelectOptions): {\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S041-spec-test.md",
-          "finished_at": "2026-06-13T11:31:31.778Z"
+          "finished_at": "2026-06-13T11:31:31.778Z",
+          "apply": "quarantined",
+          "apply_err": "ity[];\n        \u001b[7m  \u001b[0m \u001b[96m  ~~~~~~~~~~~~\u001b[0m\n        'capabilities' is declared here.\n    \u001b[96mtests/router.spec.test.ts\u001b[0m:\u001b[93m148\u001b[0m:\u001b[93m9\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2339: \u001b[0mProperty 'toThrowError' does not exist on type 'JestMatchers<() => { selected: { id: string; displayName: string; model: string; } | null; fallbackChain: { id: string; displayName: string; model: string; }[]; reason: string; }>'.\n\n    \u001b[7m148\u001b[0m       ).toThrowError();\n    \u001b[7m   \u001b[0m \u001b[91m        ~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.859 s\n"
         },
         {
           "id": "S042",
@@ -517,7 +595,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/activity';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: activity — public API surface:\n```typescript\ninterface ActivityItem {\nasync function ensureProjectsTable(\nasync function ensureTaskProjectColumn(\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S042-spec-test.md",
-          "finished_at": "2026-06-13T11:32:47.120Z"
+          "finished_at": "2026-06-13T11:32:47.120Z",
+          "apply": "quarantined",
+          "apply_err": "~~~~~~~~~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/activity.spec.test.ts\u001b[0m:\u001b[93m1\u001b[0m:\u001b[93m39\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2614: \u001b[0mModule '\"../src/routes/api/activity\"' has no exported member 'ensureTaskProjectColumn'. Did you mean to use 'import ensureTaskProjectColumn from \"../src/routes/api/activity\"' instead?\n\n    \u001b[7m1\u001b[0m import router, { ensureProjectsTable, ensureTaskProjectColumn } from '../src/routes/api/activity';\n    \u001b[7m \u001b[0m \u001b[91m                                      ~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.774 s\n"
         },
         {
           "id": "S043",
@@ -529,7 +609,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/admin/sessions';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: sessions — public API surface:\n```typescript\nexport default sessionsRouter;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S043-spec-test.md",
-          "finished_at": "2026-06-13T11:32:59.904Z"
+          "finished_at": "2026-06-13T11:32:59.904Z",
+          "apply": "low-value",
+          "quality": "only 0 expect()"
         },
         {
           "id": "S044",
@@ -541,7 +623,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/agentLeaderboard';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: agentLeaderboard — public API surface:\n```typescript\nexport interface AgentEntry {\nasync function fetchLiveStats(): Promise<\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S044-spec-test.md",
-          "finished_at": "2026-06-13T11:32:32.695Z"
+          "finished_at": "2026-06-13T11:32:32.695Z",
+          "apply": "quarantined",
+          "apply_err": "m       { id: 'agent-1', name: 'Alpha', score: 1500, rank: 1 },\n    \u001b[7m  \u001b[0m \u001b[91m                                                   ~~~~\u001b[0m\n    \u001b[96mtests/agentLeaderboard.spec.test.ts\u001b[0m:\u001b[93m22\u001b[0m:\u001b[93m51\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2353: \u001b[0mObject literal may only specify known properties, and 'rank' does not exist in type 'AgentEntry'.\n\n    \u001b[7m22\u001b[0m       { id: 'agent-2', name: 'Beta', score: 1400, rank: 2 },\n    \u001b[7m  \u001b[0m \u001b[91m                                                  ~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.742 s\n"
         },
         {
           "id": "S045",
@@ -553,7 +637,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/agentStream';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: agentStream — public API surface:\n```typescript\ninterface StreamRequestBody {\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S045-spec-test.md",
-          "finished_at": "2026-06-13T11:33:21.603Z"
+          "finished_at": "2026-06-13T11:33:21.603Z",
+          "apply": "quarantined",
+          "apply_err": " \u001b[7m174\u001b[0m       mockStreamAgent.mockImplementation(async (req) => {\n        \u001b[7m   \u001b[0m \u001b[96m                                         ~~~~~~~~~~~~~~~~\u001b[0m\n        Did you mean to call this expression?\n    \u001b[96mtests/agentStream.spec.test.ts\u001b[0m:\u001b[93m174\u001b[0m:\u001b[93m49\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS7006: \u001b[0mParameter 'req' implicitly has an 'any' type.\n\n    \u001b[7m174\u001b[0m       mockStreamAgent.mockImplementation(async (req) => {\n    \u001b[7m   \u001b[0m \u001b[91m                                                ~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.809 s\n"
         },
         {
           "id": "S046",
@@ -565,7 +651,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/aiMode';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: aiMode — public API surface:\n```typescript\nexport function getCurrentAIMode(): 'local' | 'remote' | 'hybrid' {\nexport default aiModeRouter;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S046-spec-test.md",
-          "finished_at": "2026-06-13T11:33:23.687Z"
+          "finished_at": "2026-06-13T11:33:23.687Z",
+          "apply": "quarantined",
+          "apply_err": "FAIL tests/aiMode.spec.test.ts\n  ● Test suite failed to run\n\n    \u001b[96mtests/aiMode.spec.test.ts\u001b[0m:\u001b[93m2\u001b[0m:\u001b[93m25\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2307: \u001b[0mCannot find module '../config' or its corresponding type declarations.\n\n    \u001b[7m2\u001b[0m import * as config from '../config';\n    \u001b[7m \u001b[0m \u001b[91m                        ~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.855 s\n"
         },
         {
           "id": "S047",
@@ -577,7 +665,8 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/analytics';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: analytics — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S047-spec-test.md",
-          "finished_at": "2026-06-13T11:34:13.488Z"
+          "finished_at": "2026-06-13T11:34:13.488Z",
+          "apply": "green"
         },
         {
           "id": "S048",
@@ -589,7 +678,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/analyze';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: analyze — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S048-spec-test.md",
-          "finished_at": "2026-06-13T11:34:32.466Z"
+          "finished_at": "2026-06-13T11:34:32.466Z",
+          "apply": "quarantined",
+          "apply_err": "FAIL tests/analyze.spec.test.ts\n  ● Test suite failed to run\n\n    \u001b[96mtests/analyze.spec.test.ts\u001b[0m:\u001b[93m19\u001b[0m:\u001b[93m38\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2307: \u001b[0mCannot find module '../src/services/analyzeEngine' or its corresponding type declarations.\n\n    \u001b[7m19\u001b[0m import { analyze, getAnalysis } from '../src/services/analyzeEngine';\n    \u001b[7m  \u001b[0m \u001b[91m                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.867 s\n"
         },
         {
           "id": "S049",
@@ -612,7 +703,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/chat';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: chat — public API surface:\n```typescript\n(no exports detected)\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G2-S050-spec-test.md",
-          "finished_at": "2026-06-13T11:34:25.064Z"
+          "finished_at": "2026-06-13T11:34:25.064Z",
+          "apply": "quarantined",
+          "apply_err": " |\u001b[39m \u001b[36mimport\u001b[39m remarkRehype \u001b[36mfrom\u001b[39m \u001b[32m\"remark-rehype\"\u001b[39m\u001b[33m;\u001b[39m\n     \u001b[90m 12 |\u001b[39m \u001b[36mimport\u001b[39m rehypeStringify \u001b[36mfrom\u001b[39m \u001b[32m\"rehype-stringify\"\u001b[39m\u001b[33m;\u001b[39m\u001b[0m\n\n      at ModuleExecutor.compile (../node_modules/.pnpm/jest-runtime@30.4.2/node_modules/jest-runtime/build/index.js:2104:44)\n      at Object.<anonymous> (src/utils/mcp/mcpclient.ts:9:1)\n      at Object.<anonymous> (src/routes/api/chat.ts:6:1)\n      at Object.<anonymous> (tests/chat.spec.test.ts:5:1)\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        4.737 s\n"
         }
       ]
     },
@@ -630,7 +723,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/chatStream';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: chatStream — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S051-spec-test.md",
-          "finished_at": "2026-06-13T11:35:09.736Z"
+          "finished_at": "2026-06-13T11:35:09.736Z",
+          "apply": "quarantined",
+          "apply_err": "enai'\u001b[39m\u001b[33m,\u001b[39m () \u001b[33m=>\u001b[39m ({\n     \u001b[90m    |\u001b[39m      \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n     \u001b[90m 11 |\u001b[39m   \u001b[33mOpenAI\u001b[39m\u001b[33m:\u001b[39m jest\u001b[33m.\u001b[39mfn()\u001b[33m.\u001b[39mmockImplementation(() \u001b[33m=>\u001b[39m ({\n     \u001b[90m 12 |\u001b[39m     chat\u001b[33m:\u001b[39m {\n     \u001b[90m 13 |\u001b[39m       completions\u001b[33m:\u001b[39m {\u001b[0m\n\n      at Resolver._throwModNotFoundError (../node_modules/.pnpm/jest-resolve@30.4.1/node_modules/jest-resolve/build/index.js:895:11)\n      at Object.<anonymous> (tests/chatStream.spec.test.ts:10:6)\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        3.017 s\n"
         },
         {
           "id": "S052",
@@ -642,7 +737,8 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/csrf';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: csrf — public API surface:\n```typescript\nexport default csrfRouter;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S052-spec-test.md",
-          "finished_at": "2026-06-13T11:35:14.101Z"
+          "finished_at": "2026-06-13T11:35:14.101Z",
+          "apply": "green"
         },
         {
           "id": "S053",
@@ -654,7 +750,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/dashboard';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: dashboard — public API surface:\n```typescript\n  type AuthRequest,\nasync function ensureTasksProjectColumn(): Promise<void> {\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S053-spec-test.md",
-          "finished_at": "2026-06-13T11:36:02.822Z"
+          "finished_at": "2026-06-13T11:36:02.822Z",
+          "apply": "low-value",
+          "quality": "only 0 expect()"
         },
         {
           "id": "S054",
@@ -666,7 +764,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/debug';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: debug — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S054-spec-test.md",
-          "finished_at": "2026-06-13T11:36:42.932Z"
+          "finished_at": "2026-06-13T11:36:42.932Z",
+          "apply": "quarantined",
+          "apply_err": "\n      at Object.<anonymous> (../node_modules/.pnpm/formidable@3.5.4/node_modules/formidable/dist/index.cjs:1002:57)\n      at Object.require (../node_modules/.pnpm/superagent@10.3.0/node_modules/superagent/src/node/index.js:16:20)\n      at Object.<anonymous> (../node_modules/.pnpm/supertest@7.2.2/node_modules/supertest/lib/test.js:12:21)\n      at Object.<anonymous> (../node_modules/.pnpm/supertest@7.2.2/node_modules/supertest/index.js:13:14)\n      at Object.<anonymous> (tests/debug.spec.test.ts:2:1)\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.999 s\n"
         },
         {
           "id": "S055",
@@ -678,7 +778,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/feedback';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: feedback — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S055-spec-test.md",
-          "finished_at": "2026-06-13T11:36:18.200Z"
+          "finished_at": "2026-06-13T11:36:18.200Z",
+          "apply": "quarantined",
+          "apply_err": "c/db' or its corresponding type declarations.\n\n    \u001b[7m23\u001b[0m import { pool } from '../src/db';\n    \u001b[7m  \u001b[0m \u001b[91m                     ~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/feedback.spec.test.ts\u001b[0m:\u001b[93m24\u001b[0m:\u001b[93m42\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2307: \u001b[0mCannot find module '../src/services/email' or its corresponding type declarations.\n\n    \u001b[7m24\u001b[0m import { sendFeedbackNotification } from '../src/services/email';\n    \u001b[7m  \u001b[0m \u001b[91m                                         ~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.89 s\n"
         },
         {
           "id": "S056",
@@ -690,7 +792,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/files';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: files — public API surface:\n```typescript\ntype PinnedArtifactRecord = {\nexport const WORKSPACE_ROOT = process.env.WORKSPACE_ROOT\nexport function safePath(userPath: string): string | null {\nasync function readPinnedStore(): Promise<PinnedArtifactRecord[]> {\nasync function writePinnedStore(records: PinnedArtifactRecord[]): Promise<void> {\nasync function listDirectoryEntries(userPath: string) {\nasync function collectPinnedArtifacts(limit?: number) {\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S056-spec-test.md",
-          "finished_at": "2026-06-13T11:36:39.088Z"
+          "finished_at": "2026-06-13T11:36:39.088Z",
+          "apply": "quarantined",
+          "apply_err": "error\u001b[0m\u001b[90m TS2614: \u001b[0mModule '\"../src/routes/api/files\"' has no exported member 'collectPinnedArtifacts'. Did you mean to use 'import collectPinnedArtifacts from \"../src/routes/api/files\"' instead?\n\n    \u001b[7m1\u001b[0m import { WORKSPACE_ROOT, safePath, readPinnedStore, writePinnedStore, listDirectoryEntries, collectPinnedArtifacts } from '../src/routes/api/files';\n    \u001b[7m \u001b[0m \u001b[91m                                                                                            ~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.687 s\n"
         },
         {
           "id": "S057",
@@ -702,7 +806,8 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/mdesModels';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: mdesModels — public API surface:\n```typescript\n  type Task = typeof validTasks[number];\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S057-spec-test.md",
-          "finished_at": "2026-06-13T11:37:36.188Z"
+          "finished_at": "2026-06-13T11:37:36.188Z",
+          "apply": "green"
         },
         {
           "id": "S058",
@@ -714,7 +819,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/memories';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: memories — public API surface:\n```typescript\nasync function ensureProjectAccess(projectId: string | undefined, userId: number | null): Promise<boolean> {\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S058-spec-test.md",
-          "finished_at": "2026-06-13T11:37:46.866Z"
+          "finished_at": "2026-06-13T11:37:46.866Z",
+          "apply": "low-value",
+          "quality": "only 0 expect()"
         },
         {
           "id": "S059",
@@ -726,7 +833,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/metrics';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: metrics — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S059-spec-test.md",
-          "finished_at": "2026-06-13T11:38:42.482Z"
+          "finished_at": "2026-06-13T11:38:42.482Z",
+          "apply": "quarantined",
+          "apply_err": "FAIL tests/metrics.spec.test.ts\n  ● Test suite failed to run\n\n    \u001b[96mtests/metrics.spec.test.ts\u001b[0m:\u001b[93m4\u001b[0m:\u001b[93m29\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2307: \u001b[0mCannot find module 'prom-client' or its corresponding type declarations.\n\n    \u001b[7m4\u001b[0m import * as promClient from 'prom-client';\n    \u001b[7m \u001b[0m \u001b[91m                            ~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.914 s\n"
         },
         {
           "id": "S060",
@@ -738,7 +847,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/modelSettings';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: modelSettings — public API surface:\n```typescript\ninterface TestBody {\ninterface TestResult {\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S060-spec-test.md",
-          "finished_at": "2026-06-13T11:38:11.917Z"
+          "finished_at": "2026-06-13T11:38:11.917Z",
+          "apply": "quarantined",
+          "apply_err": "C:\\Users\\USER-NT\\DEV\\innomcp\\innomcp-node\\src\\routes\\api\\modelSettings.ts:27\r\n    const { baseUrl, apiKey, modelName, provider } = req.body;\r\n            ^\r\n\r\n[TypeError: Cannot destructure property 'baseUrl' of 'req.body' as it is undefined.]\r\n\r\nNode.js v25.2.1\r\n"
         },
         {
           "id": "S061",
@@ -750,7 +861,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/motherConfig';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: motherConfig — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S061-spec-test.md",
-          "finished_at": "2026-06-13T11:38:27.454Z"
+          "finished_at": "2026-06-13T11:38:27.454Z",
+          "apply": "quarantined",
+          "apply_err": "FAIL tests/motherConfig.spec.test.ts\n  ● Test suite failed to run\n\n    \u001b[96mtests/motherConfig.spec.test.ts\u001b[0m:\u001b[93m82\u001b[0m:\u001b[93m43\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2345: \u001b[0mArgument of type 'undefined' is not assignable to parameter of type 'NextFunction'.\n\n    \u001b[7m82\u001b[0m       expect(() => motherRouter(req, res, undefined)).not.toThrow();\n    \u001b[7m  \u001b[0m \u001b[91m                                          ~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.77 s\n"
         },
         {
           "id": "S062",
@@ -762,7 +875,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/motherHandoff';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: motherHandoff — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S062-spec-test.md",
-          "finished_at": "2026-06-13T11:39:01.318Z"
+          "finished_at": "2026-06-13T11:39:01.318Z",
+          "apply": "quarantined",
+          "apply_err": "[39m ({\n     \u001b[90m   |\u001b[39m      \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n     \u001b[90m 7 |\u001b[39m   executeHandoff\u001b[33m:\u001b[39m jest\u001b[33m.\u001b[39mfn()\u001b[33m,\u001b[39m\n     \u001b[90m 8 |\u001b[39m   validateHandoffPayload\u001b[33m:\u001b[39m jest\u001b[33m.\u001b[39mfn()\u001b[33m,\u001b[39m\n     \u001b[90m 9 |\u001b[39m   getHandoffStatus\u001b[33m:\u001b[39m jest\u001b[33m.\u001b[39mfn()\u001b[33m,\u001b[39m\u001b[0m\n\n      at Resolver._throwModNotFoundError (../node_modules/.pnpm/jest-resolve@30.4.1/node_modules/jest-resolve/build/index.js:895:11)\n      at Object.<anonymous> (tests/motherHandoff.spec.test.ts:6:6)\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.76 s\n"
         },
         {
           "id": "S063",
@@ -774,7 +889,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/motherInbox';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: motherInbox — public API surface:\n```typescript\ninterface InboxMessage {\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S063-spec-test.md",
-          "finished_at": "2026-06-13T11:39:22.504Z"
+          "finished_at": "2026-06-13T11:39:22.504Z",
+          "apply": "low-value",
+          "quality": "only 0 expect()"
         },
         {
           "id": "S064",
@@ -797,7 +914,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/motherScorecard';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: motherScorecard — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S065-spec-test.md",
-          "finished_at": "2026-06-13T11:39:31.789Z"
+          "finished_at": "2026-06-13T11:39:31.789Z",
+          "apply": "quarantined",
+          "apply_err": "ng type declarations.\n\n    \u001b[7m24\u001b[0m import { query, getClient } from '../src/db';\n    \u001b[7m  \u001b[0m \u001b[91m                                 ~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/motherScorecard.spec.test.ts\u001b[0m:\u001b[93m199\u001b[0m:\u001b[93m44\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2345: \u001b[0mArgument of type 'Error' is not assignable to parameter of type 'never'.\n\n    \u001b[7m199\u001b[0m         query: jest.fn().mockRejectedValue(new Error('tx fail')),\n    \u001b[7m   \u001b[0m \u001b[91m                                           ~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.937 s\n"
         },
         {
           "id": "S066",
@@ -809,7 +928,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/motherStats';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: motherStats — public API surface:\n```typescript\ninterface ProviderAccumulator {\ninterface ProviderBreakdownEntry {\ninterface MotherStatsResponse {\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S066-spec-test.md",
-          "finished_at": "2026-06-13T11:39:55.219Z"
+          "finished_at": "2026-06-13T11:39:55.219Z",
+          "apply": "quarantined",
+          "apply_err": "FAIL tests/motherStats.spec.test.ts\n  ● Test suite failed to run\n\n    \u001b[96mtests/motherStats.spec.test.ts\u001b[0m:\u001b[93m16\u001b[0m:\u001b[93m32\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2307: \u001b[0mCannot find module '../src/services/motherStatsService' or its corresponding type declarations.\n\n    \u001b[7m16\u001b[0m import { getMotherStats } from '../src/services/motherStatsService';\n    \u001b[7m  \u001b[0m \u001b[91m                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.827 s\n"
         },
         {
           "id": "S067",
@@ -821,7 +942,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/orchestrator';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: orchestrator — public API surface:\n```typescript\nexport default orchestratorRouter;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S067-spec-test.md",
-          "finished_at": "2026-06-13T11:40:22.547Z"
+          "finished_at": "2026-06-13T11:40:22.547Z",
+          "apply": "quarantined",
+          "apply_err": "\n     \u001b[90m   |\u001b[39m      \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n     \u001b[90m 5 |\u001b[39m   startOrchestration\u001b[33m:\u001b[39m jest\u001b[33m.\u001b[39mfn()\u001b[33m,\u001b[39m\n     \u001b[90m 6 |\u001b[39m   getOrchestrationStatus\u001b[33m:\u001b[39m jest\u001b[33m.\u001b[39mfn()\u001b[33m,\u001b[39m\n     \u001b[90m 7 |\u001b[39m   cancelOrchestration\u001b[33m:\u001b[39m jest\u001b[33m.\u001b[39mfn()\u001b[33m,\u001b[39m\u001b[0m\n\n      at Resolver._throwModNotFoundError (../node_modules/.pnpm/jest-resolve@30.4.1/node_modules/jest-resolve/build/index.js:895:11)\n      at Object.<anonymous> (tests/orchestrator.spec.test.ts:4:6)\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.689 s\n"
         },
         {
           "id": "S068",
@@ -833,7 +956,8 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/plugins';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: plugins — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S068-spec-test.md",
-          "finished_at": "2026-06-13T11:40:49.154Z"
+          "finished_at": "2026-06-13T11:40:49.154Z",
+          "apply": "no-code"
         },
         {
           "id": "S069",
@@ -845,7 +969,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/preferences';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: preferences — public API surface:\n```typescript\ninterface UserPreferences {\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S069-spec-test.md",
-          "finished_at": "2026-06-13T11:41:10.031Z"
+          "finished_at": "2026-06-13T11:41:10.031Z",
+          "apply": "quarantined",
+          "apply_err": "FAIL tests/preferences.spec.test.ts\n  ● Test suite failed to run\n\n    \u001b[96mtests/preferences.spec.test.ts\u001b[0m:\u001b[93m12\u001b[0m:\u001b[93m37\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2307: \u001b[0mCannot find module '../src/services/preferencesService' or its corresponding type declarations.\n\n    \u001b[7m12\u001b[0m import * as preferencesService from '../src/services/preferencesService';\n    \u001b[7m  \u001b[0m \u001b[91m                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.848 s\n"
         },
         {
           "id": "S070",
@@ -857,7 +983,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/presence';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: presence — public API surface:\n```typescript\n  type PresenceEntry,\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S070-spec-test.md",
-          "finished_at": "2026-06-13T11:41:03.421Z"
+          "finished_at": "2026-06-13T11:41:03.421Z",
+          "apply": "quarantined",
+          "apply_err": "FAIL tests/presence.spec.test.ts\n  ● Test suite failed to run\n\n    \u001b[96mtests/presence.spec.test.ts\u001b[0m:\u001b[93m4\u001b[0m:\u001b[93m18\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2614: \u001b[0mModule '\"../src/routes/api/presence\"' has no exported member 'PresenceEntry'. Did you mean to use 'import PresenceEntry from \"../src/routes/api/presence\"' instead?\n\n    \u001b[7m4\u001b[0m import router, { PresenceEntry } from '../src/routes/api/presence';\n    \u001b[7m \u001b[0m \u001b[91m                 ~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.791 s\n"
         },
         {
           "id": "S071",
@@ -869,7 +997,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/projects';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: projects — public API surface:\n```typescript\n  type AuthRequest,\nasync function ensureTable(): Promise<void> {\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S071-spec-test.md",
-          "finished_at": "2026-06-13T11:41:44.911Z"
+          "finished_at": "2026-06-13T11:41:44.911Z",
+          "apply": "quarantined",
+          "apply_err": "ter } from '../src/routes/api/projects';\n    \u001b[7m \u001b[0m \u001b[91m         ~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/projects.spec.test.ts\u001b[0m:\u001b[93m3\u001b[0m:\u001b[93m23\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2614: \u001b[0mModule '\"../src/routes/api/projects\"' has no exported member 'ensureTable'. Did you mean to use 'import ensureTable from \"../src/routes/api/projects\"' instead?\n\n    \u001b[7m3\u001b[0m import { AuthRequest, ensureTable, default as router } from '../src/routes/api/projects';\n    \u001b[7m \u001b[0m \u001b[91m                      ~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.794 s\n"
         },
         {
           "id": "S072",
@@ -881,7 +1011,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/providerHealth';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: providerHealth — public API surface:\n```typescript\ntype HealthStatus = \"healthy\" | \"degraded\" | \"down\" | \"unknown\";\ninterface HealthResult {\nasync function probeProvider(\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S072-spec-test.md",
-          "finished_at": "2026-06-13T11:44:04.757Z"
+          "finished_at": "2026-06-13T11:44:04.757Z",
+          "apply": "quarantined",
+          "apply_err": "id you mean to use 'import HealthResult from \"../src/routes/api/providerHealth\"' instead?\n\n    \u001b[7m6\u001b[0m   HealthResult,\n    \u001b[7m \u001b[0m \u001b[91m  ~~~~~~~~~~~~\u001b[0m\n    \u001b[96mtests/providerHealth.spec.test.ts\u001b[0m:\u001b[93m7\u001b[0m:\u001b[93m3\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2614: \u001b[0mModule '\"../src/routes/api/providerHealth\"' has no exported member 'HealthStatus'. Did you mean to use 'import HealthStatus from \"../src/routes/api/providerHealth\"' instead?\n\n    \u001b[7m7\u001b[0m   HealthStatus,\n    \u001b[7m \u001b[0m \u001b[91m  ~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.768 s\n"
         },
         {
           "id": "S073",
@@ -893,7 +1025,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/providers';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: providers — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S073-spec-test.md",
-          "finished_at": "2026-06-13T11:42:43.868Z"
+          "finished_at": "2026-06-13T11:42:43.868Z",
+          "apply": "quarantined",
+          "apply_err": "FAIL tests/providers.spec.test.ts\n  ● Test suite failed to run\n\n    \u001b[96mtests/providers.spec.test.ts\u001b[0m:\u001b[93m17\u001b[0m:\u001b[93m34\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2307: \u001b[0mCannot find module '../src/services/providerService' or its corresponding type declarations.\n\n    \u001b[7m17\u001b[0m import * as providerService from '../src/services/providerService';\n    \u001b[7m  \u001b[0m \u001b[91m                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.823 s\n"
         },
         {
           "id": "S074",
@@ -916,7 +1050,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/roomWss';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: roomWss — public API surface:\n```typescript\nexport const roomWSS = new WebSocketServer({ noServer: true });\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S075-spec-test.md",
-          "finished_at": "2026-06-13T11:43:21.234Z"
+          "finished_at": "2026-06-13T11:43:21.234Z",
+          "apply": "quarantined",
+          "apply_err": "m\u001b[39m\n     \u001b[90m 221 |\u001b[39m     expect(constructed\u001b[33m.\u001b[39mhandleUpgradeCalls[\u001b[35m0\u001b[39m]\u001b[33m.\u001b[39mreq)\u001b[33m.\u001b[39mtoBe(req)\u001b[33m;\u001b[39m\n     \u001b[90m 222 |\u001b[39m     expect(constructed\u001b[33m.\u001b[39mhandleUpgradeCalls[\u001b[35m0\u001b[39m]\u001b[33m.\u001b[39msocket)\u001b[33m.\u001b[39mtoBe(socket)\u001b[33m;\u001b[39m\n     \u001b[90m 223 |\u001b[39m     expect(constructed\u001b[33m.\u001b[39mhandleUpgradeCalls[\u001b[35m0\u001b[39m]\u001b[33m.\u001b[39mhead)\u001b[33m.\u001b[39mtoBe(head)\u001b[33m;\u001b[39m\u001b[0m\n\n      at Object.<anonymous> (tests/roomWss.spec.test.ts:220:24)\n\nTest Suites: 1 failed, 1 total\nTests:       11 failed, 3 passed, 14 total\nSnapshots:   0 total\nTime:        3.115 s\n"
         }
       ]
     },
@@ -934,7 +1070,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/shell';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: shell — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G4-S076-spec-test.md",
-          "finished_at": "2026-06-13T11:44:01.810Z"
+          "finished_at": "2026-06-13T11:44:01.810Z",
+          "apply": "quarantined",
+          "apply_err": "[0m:\u001b[93m25\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2555: \u001b[0mExpected at least 1 arguments, but got 0.\n\n    \u001b[7m92\u001b[0m     expect(() => router.post()).not.toThrow();\n    \u001b[7m  \u001b[0m \u001b[91m                        ~~~~\u001b[0m\n\n      \u001b[96m../node_modules/.pnpm/@types+express-serve-static-core@5.1.0/node_modules/@types/express-serve-static-core/index.d.ts\u001b[0m:\u001b[93m129\u001b[0m:\u001b[93m9\u001b[0m\n        \u001b[7m129\u001b[0m         path: Route,\n        \u001b[7m   \u001b[0m \u001b[96m        ~~~~~~~~~~~\u001b[0m\n        An argument for 'path' was not provided.\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.613 s\n"
         },
         {
           "id": "S077",
@@ -946,7 +1084,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/stats';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: stats — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G4-S077-spec-test.md",
-          "finished_at": "2026-06-13T11:44:42.901Z"
+          "finished_at": "2026-06-13T11:44:42.901Z",
+          "apply": "quarantined",
+          "apply_err": "PoolStats\u001b[33m:\u001b[39m jest\u001b[33m.\u001b[39mfn()\u001b[33m.\u001b[39mmockResolvedValue({ total\u001b[33m:\u001b[39m \u001b[35m10\u001b[39m\u001b[33m,\u001b[39m active\u001b[33m:\u001b[39m \u001b[35m3\u001b[39m\u001b[33m,\u001b[39m idle\u001b[33m:\u001b[39m \u001b[35m7\u001b[39m })\u001b[33m,\u001b[39m\n     \u001b[90m 8 |\u001b[39m   getConnection\u001b[33m:\u001b[39m jest\u001b[33m.\u001b[39mfn()\u001b[33m,\u001b[39m\n     \u001b[90m 9 |\u001b[39m }))\u001b[33m;\u001b[39m\u001b[0m\n\n      at Resolver._throwModNotFoundError (../node_modules/.pnpm/jest-resolve@30.4.1/node_modules/jest-resolve/build/index.js:895:11)\n      at Object.<anonymous> (tests/stats.spec.test.ts:6:6)\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.817 s\n"
         },
         {
           "id": "S078",
@@ -958,7 +1098,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/tasks';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: tasks — public API surface:\n```typescript\nasync function ensureTasksProjectColumn(): Promise<void> {\ntype ContinuationTaskRow = {\ntype ContinuationStepRow = {\ntype ContinuationArtifact = {\nasync function loadRelevantArtifacts(\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G4-S078-spec-test.md",
-          "finished_at": "2026-06-13T11:45:35.688Z"
+          "finished_at": "2026-06-13T11:45:35.688Z",
+          "apply": "low-value",
+          "quality": "only 0 expect()"
         },
         {
           "id": "S079",
@@ -981,7 +1123,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/user/profile';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: profile — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G4-S080-spec-test.md",
-          "finished_at": "2026-06-13T11:46:05.724Z"
+          "finished_at": "2026-06-13T11:46:05.724Z",
+          "apply": "quarantined",
+          "apply_err": "FAIL tests/profile.spec.test.ts\n  ● Test suite failed to run\n\n    \u001b[96mtests/profile.spec.test.ts\u001b[0m:\u001b[93m31\u001b[0m:\u001b[93m25\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2307: \u001b[0mCannot find module '../src/services/userService' or its corresponding type declarations.\n\n    \u001b[7m31\u001b[0m import userService from '../src/services/userService';\n    \u001b[7m  \u001b[0m \u001b[91m                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.877 s\n"
         },
         {
           "id": "S081",
@@ -993,7 +1137,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/webFetch';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: webFetch — public API surface:\n```typescript\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G4-S081-spec-test.md",
-          "finished_at": "2026-06-13T11:46:47.984Z"
+          "finished_at": "2026-06-13T11:46:47.984Z",
+          "apply": "quarantined",
+          "apply_err": "m200\u001b[39m)\u001b[33m;\u001b[39m\n     \u001b[90m     |\u001b[39m                          \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n     \u001b[90m 171 |\u001b[39m       \u001b[90m// The router should pass the decoded URL as-is to fetch\u001b[39m\n     \u001b[90m 172 |\u001b[39m       expect(global\u001b[33m.\u001b[39mfetch)\u001b[33m.\u001b[39mtoHaveBeenCalledWith(url\u001b[33m,\u001b[39m expect\u001b[33m.\u001b[39many(\u001b[33mObject\u001b[39m))\u001b[33m;\u001b[39m\n     \u001b[90m 173 |\u001b[39m     })\u001b[33m;\u001b[39m\u001b[0m\n\n      at tests/webFetch.spec.test.ts:170:26\n      at fulfilled (tests/webFetch.spec.test.ts:9:58)\n\nTest Suites: 1 failed, 1 total\nTests:       9 failed, 2 passed, 11 total\nSnapshots:   0 total\nTime:        3.304 s\n"
         },
         {
           "id": "S082",
@@ -1003,7 +1149,11 @@
           "test_path": "innomcp-node/tests/webhooks.spec.test.ts",
           "import_spec": "../src/routes/api/webhooks",
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/webhooks';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: webhooks — public API surface:\n```typescript\n  type Webhook,\n  type WebhookEvent,\nexport default router;\n```",
-          "status": "pending"
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G4-S082-spec-test.md",
+          "finished_at": "2026-06-13T11:52:51.654Z",
+          "apply": "quarantined",
+          "apply_err": " () \u001b[33m=>\u001b[39m ({\n     \u001b[90m   |\u001b[39m      \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n     \u001b[90m 6 |\u001b[39m   processWebhookEvent\u001b[33m:\u001b[39m jest\u001b[33m.\u001b[39mfn()\u001b[33m,\u001b[39m\n     \u001b[90m 7 |\u001b[39m   listWebhooks\u001b[33m:\u001b[39m jest\u001b[33m.\u001b[39mfn()\u001b[33m,\u001b[39m\n     \u001b[90m 8 |\u001b[39m   createWebhook\u001b[33m:\u001b[39m jest\u001b[33m.\u001b[39mfn()\u001b[33m,\u001b[39m\u001b[0m\n\n      at Resolver._throwModNotFoundError (../node_modules/.pnpm/jest-resolve@30.4.1/node_modules/jest-resolve/build/index.js:895:11)\n      at Object.<anonymous> (tests/webhooks.spec.test.ts:5:6)\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        3.029 s\n"
         },
         {
           "id": "S083",
@@ -1015,7 +1165,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/workspace';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: workspace — public API surface:\n```typescript\ninterface WriteFileRequestBody {\ninterface DeleteFileRequestBody {\ninterface FilesQueryParams {\nexport default router;\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G4-S083-spec-test.md",
-          "finished_at": "2026-06-13T11:47:58.860Z"
+          "finished_at": "2026-06-13T11:47:58.860Z",
+          "apply": "quarantined",
+          "apply_err": "kspace.spec.test.ts\u001b[0m:\u001b[93m3\u001b[0m:\u001b[93m72\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2614: \u001b[0mModule '\"../src/routes/api/workspace\"' has no exported member 'FilesQueryParams'. Did you mean to use 'import FilesQueryParams from \"../src/routes/api/workspace\"' instead?\n\n    \u001b[7m3\u001b[0m import workspaceRouter, { WriteFileRequestBody, DeleteFileRequestBody, FilesQueryParams } from '../src/routes/api/workspace';\n    \u001b[7m \u001b[0m \u001b[91m                                                                       ~~~~~~~~~~~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.747 s\n"
         },
         {
           "id": "S084",
@@ -1027,7 +1179,9 @@
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/artifacts';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: artifacts — public API surface:\n```typescript\nexport { router };\n```",
           "status": "done",
           "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G4-S084-spec-test.md",
-          "finished_at": "2026-06-13T11:49:00.148Z"
+          "finished_at": "2026-06-13T11:49:00.148Z",
+          "apply": "quarantined",
+          "apply_err": "                                   ~~~~~~~\u001b[0m\n    \u001b[96mtests/artifacts.spec.test.ts\u001b[0m:\u001b[93m10\u001b[0m:\u001b[93m38\u001b[0m - \u001b[91merror\u001b[0m\u001b[90m TS2339: \u001b[0mProperty 'create' does not exist on type '{ listArtifacts(taskId: string): Promise<string[]>; getArtifact(taskId: string, name: string): Promise<{ name: string; mimeType: string; buffer: Buffer<ArrayBuffer>; }>; }'.\n\n    \u001b[7m10\u001b[0m const mockedCreate = artifactService.create as jest.Mock;\n    \u001b[7m  \u001b[0m \u001b[91m                                     ~~~~~~\u001b[0m\n\nTest Suites: 1 failed, 1 total\nTests:       0 total\nSnapshots:   0 total\nTime:        2.834 s\n"
         }
       ]
     }

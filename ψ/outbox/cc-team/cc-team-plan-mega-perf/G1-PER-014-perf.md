@@ -1,0 +1,12 @@
+<!-- cc-team deliverable
+ group: G1 (perf division)
+ member: PER-014 role=perf model=zai-org/GLM-5.1
+ finish_reason: stop | tokens: {"prompt_tokens":2036,"completion_tokens":2261,"total_tokens":4297,"prompt_tokens_details":{"cached_tokens":32,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":1925,"reasoning_tokens_estimated":true,"image_tokens":0},"cache_creation_input_tokens":0} | 24s
+ generated: 2026-06-13T12:01:09.750Z -->
+| severity | location | issue | fix |
+|---|---|---|---|
+| High | `runCheckerWithTimeout` | Memory retention / leak: `setTimeout` is never cleared if `checker()` resolves/rejects before the timeout. The timer and its closure remain in memory until `timeoutMs` elapses. | Store the timer ID (`const timer = setTimeout(...)`), and call `clearTimeout(timer)` immediately after `checker()` settles (in a `.finally()` block or after `await`). |
+| Medium | `check` | Cache stampede: Concurrent calls when the cache is expired bypass the stale check and execute all health checkers simultaneously, causing duplicate redundant I/O and CPU spikes. | Deduplicate in-flight requests by storing the Promise (e.g., `this.inFlightPromise`). If a check is already running, return the existing Promise instead of spawning new checks. |
+| Medium | `HealthStatus.details` | Large payload handling: The `details` property is `Record<string, unknown>` with no size limits. A custom checker can attach massive objects (e.g., large arrays, DB dumps) that are retained in `this.cache` for 10 seconds, causing memory spikes and slow JSON serialization. | Enforce a maximum byte/size limit on the `details` payload before caching, or deeply clone and truncate/stringify large properties. |
+| Low | `checkers` Map | Unbounded allocation: `registerChecker` allows indefinite additions to the `Map` without a `removeChecker` method. If checkers are registered dynamically (e.g., per route), this grows indefinitely. | Add a `removeChecker(name: string)` method to delete entries from the `Map` and clear the cache. |
+| Low | `memoryCheck`, `uptimeCheck` | Redundant async: Synchronous operations (`process.memoryUsage()`, `process.uptime()`) are marked `async`, creating unnecessary microtasks and Promise allocations. | Remove the `async` keyword and return `Promise.resolve(result)`, or update the `HealthChecker` type to `() => Promise<HealthStatus> \| HealthStatus` to allow synchronous returns. |
