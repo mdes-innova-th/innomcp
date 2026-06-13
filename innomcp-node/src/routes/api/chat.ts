@@ -3051,7 +3051,7 @@ function sendSafe(ws: any, payload: any) {
   const safePayload = {
     id: payload.id || `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
     type: payload.type || "message",
-    sender: payload.sender || "assistant", // "ai" is now allowed if passed
+    sender: payload.sender || "ai", // P0-5: never emit "assistant" to the frontend (contract: sender is "ai" | "user" only)
     text: payload.text || payload.message || "", // FIX: Frontend expects "text", not "message"
     timestamp: payload.timestamp || Date.now(),
     ...payload // Merge other fields (like structuredContent)
@@ -3725,7 +3725,9 @@ wss.on("connection", (ws, req) => {
                 ? `✅ URL นี้มีคำสั่งศาลครอบคลุมแล้ว (${parsed.orderNo || ""})`
                 : `❌ URL นี้ยังไม่มีคำสั่งศาลครอบคลุม`;
             } else {
-              textOut = `📋 ผลลัพธ์จาก webd-api:\n\`\`\`json\n${JSON.stringify(parsed, null, 2)}\n\`\`\``;
+              // P0-11: never leak raw JSON / internal tool name to the user — log server-side only
+              console.warn("[webd] unrecognized result shape (raw logged server-side only):", JSON.stringify(parsed)?.slice(0, 500));
+              textOut = "ได้รับข้อมูลจากระบบคำสั่งศาลแล้ว แต่ยังจัดรูปแบบแสดงผลไม่ได้ในขณะนี้ ลองถามใหม่หรือระบุรายละเอียดเพิ่มอีกนิดครับ";
             }
             const scOut = withRenderMeta(
               parsed || {},
@@ -4748,7 +4750,9 @@ wss.on("connection", (ws, req) => {
                       }).join("\n");
                       textOut = `ผลการค้นหาจาก Internet Archive:\n${items}`;
                     } else {
-                      textOut = `ได้รับข้อมูลจาก Archive แล้วครับ: ${JSON.stringify(raw).slice(0, 300)}`;
+                      // P0-11: don't leak raw JSON to the user — log server-side only
+                      console.warn("[archive] no docs in result (raw logged server-side only):", JSON.stringify(raw)?.slice(0, 500));
+                      textOut = "ค้นหาใน Internet Archive แล้ว แต่ยังไม่พบรายการที่ตรงกับคำค้นครับ ลองใช้คำค้นอื่นดูไหมครับ";
                     }
                   }
                 } catch {
@@ -5030,7 +5034,9 @@ wss.on("connection", (ws, req) => {
                   }).join("\n");
                   rawText = `ผลการค้นหาจาก Internet Archive:\n${items}`;
                 } else {
-                  rawText = `ได้รับข้อมูลจาก Archive: ${JSON.stringify(resultObj).slice(0, 300)}`;
+                  // P0-11: don't leak raw JSON to the user — log server-side only
+                  console.warn("[archive-ws] no docs in result (raw logged server-side only):", JSON.stringify(resultObj)?.slice(0, 500));
+                  rawText = "ค้นหาใน Internet Archive แล้ว แต่ยังไม่พบรายการที่ตรงกับคำค้นครับ ลองใช้คำค้นอื่นดูไหมครับ";
                 }
               } catch {
                 rawText = String(first.result || "").slice(0, 300);

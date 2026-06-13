@@ -824,7 +824,7 @@ export async function tryFastPathWebSocket(
   ) {
     return sendAiText(
       "unknown",
-      "ห้ามเดาโว้ย"
+      "ข้อมูลยังไม่พอให้ตอบอย่างมั่นใจ ขอรายละเอียดเพิ่มอีกนิดครับ"
     );
   }
 
