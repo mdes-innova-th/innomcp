@@ -97,7 +97,7 @@ export function buildAnswerContract(params: {
     answerMode: params.answerMode,
     fallbackReason: params.fallbackReason,
     freshness,
-    confidence: params.confidence,
+    confidence: Math.max(0, Math.min(1, params.confidence)),
     memoryUsed: params.memoryUsed,
     memoryEntities: params.memoryEntities,
     retrievalUsed: params.retrievalUsed,
