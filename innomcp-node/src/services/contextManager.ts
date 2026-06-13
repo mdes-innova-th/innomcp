@@ -12,6 +12,9 @@ class ContextManager {
 
   // จำนวนโทเค็นสูงสุดที่อนุญาตให้ส่งไปยัง API (สามารถปรับแต่งได้)
   public maxTokens: number = 8000;
+  public readonly maxMessagesPerSession: number = 100;
+  public readonly maxContentLength: number = 10000;
+  public readonly summaryMaxTokens: number = 500;
 
   /**
    * เพิ่มข้อความเข้าไปในบริบทของเซสชัน
