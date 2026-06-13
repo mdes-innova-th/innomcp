@@ -31,6 +31,12 @@ interface AuditFilter {
 class AuditLogger {
   private lastDate: string | null = null;
 
+  private authorizer?: () => boolean;
+
+  setAuthorizer(auth: () => boolean): void {
+    this.authorizer = auth;
+  }
+
   private ensureLogDir(): void {
     if (!fs.existsSync(LOG_DIR)) {
       fs.mkdirSync(LOG_DIR, { recursive: true });
