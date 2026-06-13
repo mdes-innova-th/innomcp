@@ -80,7 +80,7 @@ export function composeThaiAnswer(input: ResponseComposerInput): ResponseCompose
   }
 
   // Confidence filter — keep all if every fact is below threshold.
-  const highConf = usable.filter((f) => (f.confidence ?? 1) >= 0.3);
+  const highConf = usable.filter((f) => Number(f.confidence ?? 1) >= 0.3);
   const rendered = highConf.length > 0 ? highConf : usable;
   if (rendered.length < usable.length) {
     reasons.push(`dropped-low-conf:${usable.length - rendered.length}`);

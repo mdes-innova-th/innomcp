@@ -842,7 +842,9 @@
           "test_path": "innomcp-node/tests/preferences.spec.test.ts",
           "import_spec": "../src/routes/api/preferences",
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/preferences';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: preferences — public API surface:\n```typescript\ninterface UserPreferences {\nexport default router;\n```",
-          "status": "pending"
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S069-spec-test.md",
+          "finished_at": "2026-06-13T11:41:10.031Z"
         },
         {
           "id": "S070",
@@ -852,7 +854,9 @@
           "test_path": "innomcp-node/tests/presence.spec.test.ts",
           "import_spec": "../src/routes/api/presence",
           "task": "Write a Jest CONTRACT/BEHAVIOR test for an innomcp-node module. You are given ONLY its public API surface (signatures), NOT the implementation — so you must test the CONTRACT (intended behavior), not echo code.\nSTRICT RULES:\n1. Import EXACTLY: import ... from '../src/routes/api/presence';\n2. Test observable behavior/contracts implied by the names+signatures: correct outputs for valid inputs, error/throw on invalid inputs, boundary conditions. Assert VALUES/STATE (toBe/toEqual/toThrow), not just that mocks were called.\n3. Mock external deps (db/network/fs/other services) deterministically. Offline. Strict TS.\n4. OUTPUT CONTRACT: ONE \\`\\`\\`typescript block, complete test file, nothing else.\n\nModule: presence — public API surface:\n```typescript\n  type PresenceEntry,\nexport default router;\n```",
-          "status": "pending"
+          "status": "done",
+          "output": "ψ\\outbox\\cc-team\\cc-team-plan-spec\\G3-S070-spec-test.md",
+          "finished_at": "2026-06-13T11:41:03.421Z"
         },
         {
           "id": "S071",
