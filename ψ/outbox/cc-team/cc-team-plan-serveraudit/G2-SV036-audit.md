@@ -1,0 +1,14 @@
+<!-- cc-team deliverable
+ group: G2 (Server-node module audit)
+ member: SV036 role=audit model=deepseek/deepseek-v4-pro
+ finish_reason: stop | tokens: {"prompt_tokens":2759,"completion_tokens":4332,"total_tokens":7091,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":3771,"image_tokens":0},"cache_creation_input_tokens":0} | 56s
+ generated: 2026-06-13T11:33:12.028Z -->
+| Severity | Location | Issue | Proposed Fix |
+|----------|----------|-------|---------------|
+| HIGH | `webdTool_group` lines ~68-82 and `webdTool_platforms` equivalent cookie extraction | Only the first `Set-Cookie` header is captured because `headers.get()` returns a single value. Multiple cookies required for CSRF sessions are lost, causing subsequent POST requests to fail with CSRF mismatch (403). | Use `Headers.getSetCookie()` (Node 18+) or iterate `response.headers.entries()` to collect all `set-cookie` headers. Example: `const setCookies = (csrfRes.headers as any).getSetCookie?.() ?? [];` |
+| HIGH | Both tools: lines ~72 (csrf error) and ~105 (post error) where `throw` happens before consuming the response body | When `csrfRes.ok` or `postRes.ok` is false, the code throws without reading the response body. This leaves the TCP connection unconsumed, causing socket and memory leaks that can exhaust resources over time. | Always consume the response body even on error – call `await res.text()` or `res.body?.cancel()` before throwing, or use a wrapper that drains the response. |
+| MEDIUM | Both tools: whole handler block | No timeout or abort signal is attached to `fetch` calls. A stalled backend can hang the tool indefinitely, blocking the MCP server’s event loop and causing client timeouts or resource starvation. | Create an `AbortController` with a sensible timeout (e.g., 10 s) and pass `signal` to all fetch calls; catch `AbortError` and return a graceful error message. |
+| LOW | Both tools: error message formatting (e.g., lines ~126-128) | Error responses returned to the client expose internal host and port (`http://${webddsbHost}:${webddsbPort}`), which leaks infrastructure details to end users. | Replace the host/port with a generic label like “backend service” and log the actual details securely on the server side. |
+| LOW | Both tools: tool registration omits `parameters` Zod schema | The handler casts arguments via `as WebdInput` but no input validation schema is provided to the MCP server, so malformed or unexpected arguments are not rejected, leading to potential runtime errors. | Add a Zod schema (e.g., `parameters: z.object({ query: z.string().optional() })`) to the tool settings so input is validated automatically. |
+
+1-line risk verdict: **Critical cookie loss and resource leaks make the tools unreliable and unsafe for production; deploy only after fixing high-severity items.**

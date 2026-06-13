@@ -98,7 +98,12 @@ async function callInnovaOracle(cfg: ProviderConfig, prompt: string, signal: Abo
     body: JSON.stringify({ query: prompt.slice(0, 500), max_chars: 1500 }),
     signal,
   });
-  if (!res.ok) throw new Error(`innova-oracle: HTTP ${res.status}`);
+  if (!res.ok) {
+    if (res.status === 401 || res.status === 403) {
+      _oracleToken = null;
+    }
+    throw new Error(`innova-oracle: HTTP ${res.status}`);
+  }
 
   const data = await res.json() as Record<string, unknown>;
   const text = (data.context ?? data.result ?? data.text ?? "") as string;
