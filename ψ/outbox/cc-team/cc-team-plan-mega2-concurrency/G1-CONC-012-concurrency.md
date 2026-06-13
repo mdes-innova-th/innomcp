@@ -1,0 +1,11 @@
+<!-- cc-team deliverable
+ group: G1 (concurrency division)
+ member: CONC-012 role=concurrency model=Qwen/Qwen3.7-Max
+ finish_reason: stop | tokens: {"prompt_tokens":2346,"completion_tokens":3376,"total_tokens":5722,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":2967,"image_tokens":0},"cache_creation_input_tokens":0} | 79s
+ generated: 2026-06-13T12:10:50.818Z -->
+| severity | location | race/issue | fix |
+|---|---|---|---|
+| High | `getExtraPhrases` | **Cache Stampede / Check-Then-Act Race**: Multiple concurrent requests can evaluate `extraCache` as stale simultaneously, bypassing the cache and triggering parallel file reads and HTTP fetches (thundering herd). | Deduplicate concurrent refreshes by storing the in-flight promise (e.g., `let refreshPromise: Promise<ExtraPhrases> \| null = null`) and returning it for concurrent callers, or use an async mutex. |
+| High | `tryReadExtraFromFile` | **Event Loop Blocking (Sync I/O)**: Uses synchronous `fs.existsSync` and `fs.readFileSync` inside an `async` function. This blocks the Node.js main thread, stalling all concurrent requests and violating the strict latency guard (`maxWorkMs`). | Replace with `fs.promises.readFile` and catch `ENOENT` errors, or use `fs.promises.access` to check file existence asynchronously. |
+| Medium | `tryReadExtraFromUrl` | **Timer/Resource Leak**: `clearTimeout(t)` is only executed on the success path of `fetch`. If `fetch` rejects (e.g., network error, DNS failure), the timeout is never cleared, leaking the timer handle and keeping the event loop alive. | Move `clearTimeout(t)` into a `finally` block to ensure it runs regardless of whether `fetch` resolves or rejects. |
+| Low | `getExtraPhrases` | **Sequential Async I/O**: File and URL fetches are awaited sequentially, artificially inflating latency and holding up the request pipeline when they are independent and could run concurrently. | Use `Promise.all` to execute them concurrently. Ensure individual promises handle their own errors (as they currently do via internal `try/catch`) to prevent `Promise.all` from short-circuiting and swallowing the other result. |

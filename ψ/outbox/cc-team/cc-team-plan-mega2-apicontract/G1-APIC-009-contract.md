@@ -1,0 +1,13 @@
+<!-- cc-team deliverable
+ group: G1 (apicontract division)
+ member: APIC-009 role=contract model=deepseek/deepseek-v4-pro
+ finish_reason: stop | tokens: {"prompt_tokens":2434,"completion_tokens":4762,"total_tokens":7196,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":4294,"image_tokens":0},"cache_creation_input_tokens":0} | 63s
+ generated: 2026-06-13T12:09:57.004Z -->
+| severity | endpoint | issue | fix |
+|----------|----------|-------|-----|
+| High | POST /api/auth/register | Auto-generated username from email prefix may collide with existing usernames, causing a 500 Internal Server Error when inserting the user. Duplicate username errors are not handled gracefully. | Check username uniqueness before insertion (e.g., query existing username, append random digits on collision) and return a 409 Conflict or 422 Unprocessable Entity with a descriptive error message instead of a 500. |
+| Medium | POST /api/auth/register | Error response structure is inconsistent: validation errors return `{ success, error }`, password strength validation adds `details`, and the catch-all returns both `error` and `message`. Clients must parse different shapes. | Adopt a uniform error envelope (e.g., always include `success`, `error`, and optional `details`) for all error responses across the endpoint. |
+| Medium | POST /api/auth/register | Request body parameters are not documented (only a minimal JSDoc). No information on required vs optional fields, types, or constraints. | Add detailed documentation (JSDoc/OpenAPI) describing the request body schema, including field types, required/optional status, and validation rules. |
+| Low | POST /api/auth/register | `displayName` is not sanitized; it accepts any string, including whitespace-only or extremely long values, which may cause display issues or abuse. | Trim and validate `displayName`: reject empty/whitespace-only strings, enforce a maximum length (e.g., 100 characters), and escape when output. |
+| Low | POST /api/auth/register | The `nickname` field is extracted from the request but never stored or used, making it an undocumented dead parameter that may confuse API consumers. | Either implement nickname storage and document it, or remove the unused field from the handler. |
+| Low | POST /api/auth/login | Email format is not validated; the route only checks for presence. While a non-existent email will be caught by the lookup, validating format early provides better feedback and consistency with the registration endpoint. | Add the same email format validation regex used in the registration endpoint to return a 400 error for invalid formats. |

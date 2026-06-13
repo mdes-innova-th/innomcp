@@ -1,0 +1,15 @@
+<!-- cc-team deliverable
+ group: G1 (apicontract division)
+ member: APIC-019 role=contract model=zai-org/GLM-5.1
+ finish_reason: stop | tokens: {"prompt_tokens":427,"completion_tokens":2138,"total_tokens":2565,"prompt_tokens_details":{"cached_tokens":32,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":1539,"reasoning_tokens_estimated":true,"image_tokens":0},"cache_creation_input_tokens":0} | 29s
+ generated: 2026-06-13T12:12:19.121Z -->
+| severity | endpoint | issue | fix |
+| :--- | :--- | :--- | :--- |
+| **High** | `/*` (All) | **Breaking-change risk: No API versioning.** Mounting routes directly off `/api` (e.g., `/api/chat`) means any future breaking changes will break existing clients. | Mount routes under a version prefix: `apiRouter.use("/v1/chat", chatRouter)`. |
+| **High** | `GET /providers` | **Missing error response: Unhandled exception.** If `getAvailableProviders()` throws, Express defaults to a 500 HTML error, crashing the JSON contract. | Wrap the handler in a `try/catch` block. Return `res.status(500).json({ error: "Failed to fetch providers" })` on failure. |
+| **High** | `N/A` | **Security / Breaking-change risk: Unused `apiCsrfRouter`.** It is defined and populated but never exported or mounted. If CSRF protection is missing, the API is vulnerable; if it's handled elsewhere, this is dead code. | Export `apiCsrfRouter` and mount it in `app.ts`, or remove it if CSRF is handled via middleware globally. |
+| **Medium** | `GET /providers` | **Breaking-change risk: Hardcoded default provider.** `default: "mdes-ollama"` is a magic string. If the default changes, it requires a code change and redeploy. | Move to an environment variable: `default: process.env.DEFAULT_PROVIDER || "mdes-ollama"`. |
+| **Medium** | `GET /providers` | **Inconsistent response shape: No standard envelope.** Returns a flat object, whereas other endpoints (or future errors) might return `{ success, data }` or `{ error }`. | Standardize API responses using an envelope pattern: `res.json({ success: true, data: { available: [...], default: "...", configured: {...} } })`. |
+| **Medium** | `/*` (All) | **Missing error responses: No global error handler.** Sub-routers are mounted, but there is no centralized error-handling middleware at this root level to catch unhandled errors uniformly. | Add an Express error middleware `(err, req, res, next) => ...` at the end of the chain to ensure all errors return consistent JSON instead of HTML. |
+| **Low** | `GET /providers` | **Status-code correctness: Implicit 200.** Relies on Express defaulting to 200. While not a bug, explicit status codes make the contract clearer and prevent accidental 200s on error branches. | Change `res.json(...)` to `return res.status(200).json(...)`. |
+| **Low** | `GET /providers` | **Missing input validation: Query params ignored.** If clients pass filtering params (e.g., `?configured=true`), they are silently ignored, which can cause confusion. | Define expected query parameters. Use `req.query` to filter the response, or explicitly validate/reject unknown parameters. |

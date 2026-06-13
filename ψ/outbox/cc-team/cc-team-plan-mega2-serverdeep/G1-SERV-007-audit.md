@@ -1,0 +1,16 @@
+<!-- cc-team deliverable
+ group: G1 (serverdeep division)
+ member: SERV-007 role=audit model=Qwen/Qwen3.7-Max
+ finish_reason: stop | tokens: {"prompt_tokens":1190,"completion_tokens":2828,"total_tokens":4018,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":2180,"image_tokens":0},"cache_creation_input_tokens":0} | 54s
+ generated: 2026-06-13T12:08:55.138Z -->
+This module is a **pure static data definition file**. It does not contain any asynchronous operations, I/O, network calls, or MCP protocol handlers. Therefore, it is inherently immune to unhandled rejections, missing timeouts, race conditions, resource leaks, and error envelope issues. 
+
+However, there are semantic, state-management, and data-integrity issues that can negatively impact the MCP server's behavior (especially regarding caching and resource versioning).
+
+| severity | location | issue | fix |
+|---|---|---|---|
+| **Medium** | `const now = ...` | **Dynamic Timestamp in Static Data:** `new Date().toISOString()` evaluates at module load time. The `updated_at` field will change on every server restart. If MCP clients use this field for ETags, caching, or resource diffing, they will unnecessarily invalidate caches and re-fetch unchanged data on every reboot. | Replace with a hardcoded ISO 8601 string representing the actual date the dataset was last curated/updated (e.g., `"2023-10-27T00:00:00.000Z"`). |
+| **Low** | `RTGG_SOURCE` | **Shared Mutable Object Reference:** `RTGG_SOURCE` is a single object reference shared across all entities. If any downstream MCP tool or mapper accidentally mutates `entity.source` (e.g., adding a `url` property), it will silently corrupt the source data for *all* eras in the array. | Apply `Object.freeze(RTGG_SOURCE)` or define it with `as const` to enforce immutability at runtime, or define the object inline within each entity. |
+| **Low** | `history:rattanakosin` | **Missing `year_end` Property:** The `year_end` attribute is omitted for the current era. While logically correct, if downstream consumers (e.g., duration calculators or timeline visualizers) assume `year_end` is always a number, it will result in `NaN` or runtime crashes. | Ensure the `EraEntity` TypeScript interface explicitly marks `year_end?: number` as optional. Add defensive checks in any consumer code performing arithmetic on these years. |
+| **Info** | Module-level | **Lack of Runtime Schema Validation:** The data relies entirely on compile-time TypeScript checking. If this data is ever migrated to a JSON file, database, or external CMS, type safety is lost, potentially causing MCP protocol serialization errors. | Wrap the exported array in a runtime schema validator (e.g., `z.array(EraEntitySchema).parse(HISTORY_ERAS)`) to guarantee data integrity and fail fast on startup if the schema is violated. |
+| **Info** | Module-level | **No Async/Protocol Logic Present:** As a static data file, there are no promises, streams, or MCP handlers to audit for timeouts, race conditions, or error envelopes. | No fix required here. Ensure the **MCP tools/resources that consume this data** implement proper execution timeouts, try/catch error envelopes, and Zod validation on inputs. |

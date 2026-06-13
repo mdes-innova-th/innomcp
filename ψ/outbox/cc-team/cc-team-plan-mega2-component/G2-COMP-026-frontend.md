@@ -1,0 +1,19 @@
+<!-- cc-team deliverable
+ group: G2 (component division)
+ member: COMP-026 role=frontend model=deepseek/deepseek-v4-flash
+ finish_reason: stop | tokens: {"prompt_tokens":2557,"completion_tokens":2235,"total_tokens":4792,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":1416,"image_tokens":0},"cache_creation_input_tokens":0} | 26s
+ generated: 2026-06-13T12:11:15.369Z -->
+| Severity | Location | Issue | Fix |
+|----------|----------|-------|-----|
+| **High** | `POST` function (truncated) | Incomplete code – `POST` handler ends abruptly (`if ("decoded`) causing syntax error. | Complete the implementation or remove the incomplete POST handler if not needed. Also ensure parity with GET logic. |
+| **High** | `forwardHeaders` list (line ~85) | Forwarding all cookies from the incoming request to the backend (including HttpOnly JWT cookie) may leak sensitive tokens or expose internal session data. | Only forward required headers; strip `cookie` or use a whitelist of safe headers. Alternatively, forward only the JWT token specifically. |
+| **High** | `isUrlAllowed` function (line ~47) | Allowing `localhost` in development (`process.env.NODE_ENV === "development"`) can be exploited if the environment variable is accidentally set to `development` in production. | Remove environment-dependant logic; always enforce the allowlist. Use an explicit allowlist with `NODE_BACKEND_HOST` and `innomcp.dataxo.info` regardless of environment. |
+| **Medium** | `request.headers.set("x-client-ip", ip)` (line ~63, ~118) | Mutating `request.headers` may not affect the actual HTTP request; the IP is not forwarded in `forwardHeaders` to the backend. | Add `x-client-ip` to the `forwardHeaders` object instead of mutating the request headers. |
+| **Medium** | `forwardQueryParams(searchParams, targetUrl.searchParams)` (line ~81) | Forwarding all query parameters from the incoming request to the target URL may leak internal or sensitive parameters (e.g., API keys or session tokens). | Only forward expected parameters; define a whitelist or use explicit parameter mapping. |
+| **Medium** | Code duplication between `GET` and `POST` | Both handlers contain identical logic (JWT extraction, SSRF check, header forwarding, response parsing). | Extract common logic into a shared helper (e.g., `handleProxy(request, method)`) to reduce duplication and maintenance risk. |
+| **Medium** | `jwtMiddleware` call (line ~68, ~127) | If `jwtMiddleware` throws an exception (e.g., malformed token), the route will return a generic 500 error without handling. | Wrap `jwtMiddleware` in a try/catch and return a clear error response (e.g., 401 Unauthorized). |
+| **Low** | `console.log` statements (multiple) | Debug logs left in the code may clutter production logs and expose internal details. | Remove or replace with a proper logging library, or gate them behind `process.env.NODE_ENV !== 'production'`. |
+| **Low** | `Access-Control-Allow-Methods: "GET"` (line ~107) | The CORS header only allows `GET`, but the route also handles `POST`. | Update to `"GET, POST"` to match actual supported methods. |
+| **Low** | Response parsing fallback (line ~93–96) | Trying to parse non‑JSON responses as JSON may produce misleading errors; it's better to reject non‑JSON early. | Check `content-type` strictly; if not `application/json`, return an error immediately instead of attempting `JSON.parse`. |
+| **Info** | `forwardHeaders` list includes `cookie` | Even if intentional, forwarding the `cookie` header is a security risk (see High above). | – |
+| **Info** | `isUrlAllowed` allows subdomains of allowed hosts (e.g., `evil.innomcp.dataxo.info`) | This may be desired, but could increase attack surface if a subdomain is compromised. | Review whether subdomain allowance is necessary; consider using exact host matching. |

@@ -1,0 +1,12 @@
+<!-- cc-team deliverable
+ group: G1 (serverdeep division)
+ member: SERV-017 role=audit model=deepseek/deepseek-v4-pro
+ finish_reason: stop | tokens: {"prompt_tokens":1480,"completion_tokens":2964,"total_tokens":4444,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":2456,"image_tokens":0},"cache_creation_input_tokens":0} | 39s
+ generated: 2026-06-13T12:13:35.277Z -->
+| severity | location | issue | fix |
+|---|---|---|---|
+| High | `execute()` — amount validation (after `try` block) | `amount <= 0` is the only check; `NaN` and `Infinity` are not caught (both return `false` for `<= 0`). This causes `convertedAmount` to become `NaN` or `Infinity`, then JSON.stringify produces `null` (silent data corruption in financial output). | Add `!Number.isFinite(amount)` before the positivity check to reject non‑finite amounts early. |
+| Low | `execute()` — validation failure return (first `if (!parsed.success)`) | The error result only contains `{ success: false, error, details }`; it lacks `amount`, `fromCurrency`, `toCurrency`, `convertedAmount`, `exchangeRate`, `timestamp`. The catch‑block error always includes these fields, making the error envelope inconsistent for MCP consumers. | Extend the validation error object to include at least the (possibly invalid) `amount`/`fromCurrency`/`toCurrency` from the raw input, with safe defaults for numeric fields, so all error responses share the same shape. |
+| Medium | `execute()` — currency code validation | Only checks `from.length === 3`. The API call will later fail for invalid codes (e.g., 404/network error) and be caught, but an earlier, explicit check against the supported list (or a regex) would provide a faster, clearer error message without an HTTP round‑trip. | Add optional whitelist/regex validation after length check (e.g., `/^[A-Z]{3}$/`) to fail fast with a helpful message. |
+| Low | `execute()` — `parseFloat(…toFixed(…))` round‑trips | `toFixed` returns a string; `parseFloat` converts it back. While harmless in simple cases, for very large numbers `toFixed` can return exponential notation, causing `parseFloat` to lose precision unexpectedly. | Use a dedicated rounding helper (e.g., `Math.round(n * 100) / 100`) or the `decimal.js` library to avoid string round‑trips and ensure exact decimal rounding for currency. |
+| Info | General — timeout handling | `axios.get` already has `timeout: 5000`. No missing timeout. — | — |

@@ -1,11 +1,10 @@
 <!-- cc-team deliverable
  group: G2 (SEARCH/REPLACE fixes from serveraudit)
  member: FX-029 role=fix2 model=deepseek/deepseek-v4-pro
- finish_reason: length | tokens: {"prompt_tokens":2198,"completion_tokens":7000,"total_tokens":9198,"prompt_tokens_details":{"cached_tokens":2176,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":6189,"image_tokens":0},"cache_creation_input_tokens":0} | 68s
- generated: 2026-06-13T12:06:03.018Z -->
+ finish_reason: length | tokens: {"prompt_tokens":2198,"completion_tokens":7000,"total_tokens":9198,"prompt_tokens_details":{"cached_tokens":2176,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":6201,"image_tokens":0},"cache_creation_input_tokens":0} | 75s
+ generated: 2026-06-13T12:08:31.499Z -->
 FILE: innomcp-server-node/src/mcp/tools/thaiReligionTool.ts
 <<<<<<< SEARCH
-    execute: async (args: z.infer<typeof ThaiReligionToolInputSchema>) => {
         const query = args.query.toLowerCase();
         const results: any[] = [];
 
@@ -42,7 +41,7 @@ FILE: innomcp-server-node/src/mcp/tools/thaiReligionTool.ts
              return {
                 content: [{
                     type: "text" as const,
-                    text: `ไม่พบข้อมูลทางศาสนาหรือวัฒนธรรมที่ตรงกับ "${args.query}"`
+                    text: `ไม่พบข้อมู���ทางศาสนาหรือวัฒนธรรมที่ตรงกับ "${args.query}"`
                 }]
             };
         }
@@ -68,15 +67,13 @@ FILE: innomcp-server-node/src/mcp/tools/thaiReligionTool.ts
                  text: formattedText
             }]
         };
-    }
 =======
-    execute: async (args: z.infer<typeof ThaiReligionToolInputSchema>) => {
         try {
             if (!args.query || !args.query.trim()) {
                 return {
                     content: [{
                         type: "text" as const,
-                        text: "กรุณาระบุคำค้นหา (Query is empty)"
+                        text: "กรุณาระบุคำค้นหา"
                     }]
                 };
             }
@@ -95,4 +92,9 @@ FILE: innomcp-server-node/src/mcp/tools/thaiReligionTool.ts
                          "place": ReligionType.TEMPLE,
                          "person": ReligionType.MONK,
                          "concept": ReligionType.TRADITION,
-                         "calendar": Religion
+                         "calendar": ReligionType.TRADITION
+                     };
+                     if (item.type !== typeMap[args.type]) continue;
+                 }
+                 
+                 // Filter by Province (for Tem

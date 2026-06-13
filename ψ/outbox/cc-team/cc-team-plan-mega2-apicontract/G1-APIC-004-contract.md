@@ -1,0 +1,14 @@
+<!-- cc-team deliverable
+ group: G1 (apicontract division)
+ member: APIC-004 role=contract model=zai-org/GLM-5.1
+ finish_reason: length | tokens: {"prompt_tokens":2437,"completion_tokens":5000,"total_tokens":7437,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":4168,"reasoning_tokens_estimated":true,"image_tokens":0},"cache_creation_input_tokens":0} | 40s
+ generated: 2026-06-13T12:07:52.556Z -->
+| severity | endpoint | issue | fix |
+|---|---|---|---|
+| **High** | GET /api/agent-leaderboard | **Breaking-change risk / Score calculation bug**: `successRate` scale is ambiguous. Static defaults use `100` (percentage), but DB aggregates likely return `0-1` (ratio). If `successRate` is `0.95`, the score becomes `0.475 + 30 + 20 = 50.475` instead of `~100`, completely breaking the ranking. | Normalize `successRate` to a consistent scale (0-1 or 0-100) before passing it to `computeScore`. Update `computeScore` to expect a 0-1 ratio and multiply by 50, or keep 0-100 and multiply by 0.5. |
+| **Medium** | GET /api/agent-leaderboard | **Inconsistent response shapes**: `AgentEntry` has 11 optional fields (`p95Latency`, `wins`, `sparkline`, etc.). Depending on DB availability, fields may be entirely absent, breaking strict API clients. | Define a strict response DTO. Always return the keys, using `null`, `0`, or `[]` for missing data instead of omitting the keys entirely. |
+| **Medium** | GET /api/agent-leaderboard | **Status-code correctness / Missing error responses**: `fetchLiveStats` catches DB errors and falls back to static defaults, returning `200 OK`. Clients cannot distinguish live data from stale/fallback data. | Return `200 OK` but include a top-level `status: "degraded"` or `warnings` array, or return `503 Service Unavailable` if live data is critical to the client. |
+| **Medium** | GET /api/agent-leaderboard | **Undocumented/broken contract**: `status` is typed as `string` but documented as a specific enum (`"online" \| "configured" \| "checking" \| "offline"`). This allows invalid states. | Change the `status` type in `AgentEntry` from `string` to `"online" \| "configured" \| "checking" \| "offline"` to enforce the contract. |
+| **Medium** | GET /api/agent-leaderboard | **Breaking-change risk**: `AGENT_CATALOGUE` is hardcoded. Adding/removing agents requires a code change and deployment, risking breaking clients relying on specific IDs. | Move the agent catalogue to a database table or external configuration file to decouple data from deployments. |
+| **Low** | GET /api/agent-leaderboard | **Data inconsistency**: Duplicate `name` values in `AGENT_CATALOGUE` (e.g., "Mistral Large" for both `mistral` and `mistral-large`, "DeepSeek R1" for `deepseek` and `deepseek-r1`). | Assign unique, descriptive names to each agent entry to avoid client/UI confusion. |
+| **Low** | GET

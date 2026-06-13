@@ -1,0 +1,10 @@
+<!-- cc-team deliverable
+ group: G1 (concurrency division)
+ member: CONC-002 role=concurrency model=Qwen/Qwen3.7-Max
+ finish_reason: stop | tokens: {"prompt_tokens":1565,"completion_tokens":2903,"total_tokens":4468,"prompt_tokens_details":{"cached_tokens":0,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":2519,"image_tokens":0},"cache_creation_input_tokens":0} | 56s
+ generated: 2026-06-13T12:07:30.960Z -->
+| severity | location | race/issue | fix |
+| :--- | :--- | :--- | :--- |
+| Medium | `saveSnapshot` | **Inconsistent Snapshot (Shared Reference across `await`)**: `state.modelCounts` and `state.toolCounts` are assigned by reference to the live `this.metrics` objects. If `track()` executes while the function is yielded at `await fs.mkdir` or `await fs.writeFile`, the underlying objects are mutated. `JSON.stringify` will then serialize a hybrid state (old scalar counters, new object maps), causing data inconsistency. | Shallow copy the objects when constructing `state`: `modelCounts: { ...this.metrics.modelCounts }` and `toolCounts: { ...this.metrics.toolCounts }`. |
+| Medium | `loadSnapshot` | **Lost Updates (State Overwrite across `await`)**: The method yields at `await fs.readFile`. Any `track()` calls during this I/O window will update the current `this.metrics`. When the read completes, `this.metrics` is entirely overwritten by the parsed file data, silently dropping all events tracked during the load operation. | Merge the loaded data into the current `this.metrics` rather than overwriting it, or ensure `loadSnapshot` is only called at startup before the service begins accepting traffic. |
+| Low | `saveSnapshot` / `loadSnapshot` | **Concurrent File I/O Race**: If multiple calls to `saveSnapshot` or `loadSnapshot` occur concurrently for the same `filePath`, the asynchronous read/write operations can interleave. This can result in truncated files, corrupted JSON, or reading partially written data. | Serialize file operations using an async mutex (e.g., `async-mutex`) or a file locking library (e.g., `proper-lockfile`) scoped to the `filePath`. |

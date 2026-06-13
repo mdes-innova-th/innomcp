@@ -1,0 +1,23 @@
+<!-- cc-team deliverable
+ group: G2 (apicontract division)
+ member: APIC-034 role=contract model=zai-org/GLM-5.1
+ finish_reason: stop | tokens: {"prompt_tokens":1256,"completion_tokens":2396,"total_tokens":3652,"prompt_tokens_details":{"cached_tokens":32,"audio_tokens":0,"video_tokens":0},"completion_tokens_details":{"reasoning_tokens":1400,"reasoning_tokens_estimated":true,"image_tokens":0},"cache_creation_input_tokens":0} | 195s
+ generated: 2026-06-13T12:19:04.248Z -->
+| severity | endpoint | issue | fix |
+|---|---|---|---|
+| 🔴 High | `POST …/:providerId/enable` `disable` `toggle` | **No auth/authorization** — any anonymous caller can flip runtime provider state | Add auth middleware (e.g. `requireAdmin`) to all mutating routes |
+| 🔴 High | `GET …/:providerId/stats` `/:providerId/history` | **`require()` inside handler** — module load failure surfaces as unhandled 500 at request time, not startup | Move imports to module top-level; wrap in try/catch if truly dynamic |
+| 🔴 High | `GET …/:providerId/history` | **Non-null assertion on `.find()`** — if the provider entry is missing from a run (data race/corruption), `p!` throws an unhandled TypeError | Guard: `const p = run.providers.find(…); if (!p) return null;` then filter out nulls |
+| 🔴 High | `GET …/:providerId/history` | **`isFastest` and `isWinner` are identical** — both compute `run.fastestProvider === providerId`, so `isWinner` never reflects an actual "quality winner" | Fix `isWinner` to compare against the correct field (e.g. `run.winner === providerId` or `run.bestProvider`) |
+| 🟠 Medium | All endpoints | **Inconsistent response shapes** — GET `/` returns `{providers, enabledCount, totalProviders}` (no `ok`); POSTs return `{ok, providerId, enabled}`; GET stats returns `{providerId, enabled, stats, …}`; GET history returns `{providerId, runs, total, …}`; errors return `{ok:false, error}` | Adopt a uniform envelope: `{ ok: boolean, data?: T, error?: string }` across all endpoints |
+| 🟠 Medium | All endpoints | **No 500 error path** — if `isProviderEnabled`, `enableProvider`, `getProviderStats`, or `getHistory` throw, Express returns a default HTML 500 | Wrap handlers in try/catch; return `res.status(500).json({ ok: false, error: "Internal server error" })` |
+| 🟠 Medium | `POST …/:providerId/enable` `disable` | **Idempotency lie** — `enableProvider` is called unconditionally; response claims `enabled: true/false` without verifying the toggle service actually changed state | Read state after mutation (`isProviderEnabled(providerId)`) and return the real value, or return 204 No Content |
+| 🟠 Medium | Top comment | **Param name mismatch** — comment says `:id`, code uses `:providerId` | Update comment to `:providerId` |
+| 🟠 Medium | Top comment | **Undocumented endpoints** — `GET …/stats` and `GET …/history` are not listed in the file header | Add both routes to the header doc block |
+| 🟡 Low | `GET …/:providerId/history` | **Undocumented `limit` query param** — exists, validated (1–50, default 10), but not mentioned in comments or OpenAPI | Document `?limit=<1-50>` in route comment and API spec |
+| 🟡 Low | `GET …/:providerId/history` | **Arbitrary `query.slice(0, 60)` truncation** — silently drops data; no indication to client that text was cut | Return full `query` or add a `queryTruncated: boolean` flag; make the limit configurable |
+| 🟡 Low | `GET …/:providerId/stats` | **`stats: null` when no data** — inconsistent with error pattern (`{ok:false, error}`) used for unknown providers | Return `{ ok: true, stats: null }` or an empty stats object with zeroed fields so clients don't need null guards |
+| ���� Low | All | **`ALL_PROVIDER_IDS` is hardcoded** — adding/removing a provider requires a code deploy; also drifts from any canonical registry | Source the list from a config or the toggle service itself so it stays in sync |
+| 🟡 Low | `GET /` | **No pagination** — fine at 14 items, but becomes a breaking change if the list grows | Add `?offset=&limit=` early, or at minimum document that the list is bounded |
+| ⚪ Info | `POST …/:providerId/enable` `disable` `toggle` | **No request body validation / content-type check** — currently harmless (no body used), but future schema changes could introduce accepted body fields with no validation | Add `express.json()` + schema validation (zod/joi) even if body is empty, to future-proof |
+| ⚪ Info | `GET …/:providerId/stats` | **`timestamp` field present** in stats & history but **absent** from GET `/` and POST responses | Decide on a policy: either include `timestamp` on every response or omit it everywhere for consistency |
