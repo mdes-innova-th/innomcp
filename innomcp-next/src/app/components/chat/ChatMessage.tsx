@@ -615,6 +615,7 @@ export type Message = {
   isComplete?: boolean;
   elapsedMs?: number;
   followUpSuggestions?: string[];
+  fileInfo?: { name: string; type: string; url: string };
 };
 
 type EnhancedProps = {
@@ -783,7 +784,7 @@ export function MessageView({
       setIsReading(false);
     } else {
       // Start reading
-      const utterance = new SpeechSynthesisUtterance(message.text);
+      const utterance = new SpeechSynthesisUtterance(message.fullText || message.text);
       utterance.lang = "th-TH"; // Thai language
       utterance.rate = 0.9;
       utterance.onend = () => setIsReading(false);
@@ -1021,7 +1022,7 @@ export function MessageView({
               className={`rounded-full p-1.5 transition-colors ${actionButtonClass}`}
               onClick={(e) => {
                 e.stopPropagation();
-                void doCopy(message.text);
+                void doCopy(message.fullText || message.text);
               }}
             >
               <svg
@@ -1473,7 +1474,28 @@ export function MessageView({
                     isAnimating={message.isAnimating}
                   />
                 ) : (
-                  message.text
+                  <>
+                    {message.text}
+                    {message.fileInfo && (
+                      <div className="mt-2 flex flex-col gap-1.5">
+                        {message.fileInfo.type.startsWith("image/") && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={message.fileInfo.url}
+                            alt={message.fileInfo.name}
+                            className="max-h-40 max-w-[16rem] rounded-lg object-cover"
+                          />
+                        )}
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[12px] font-medium text-white/90">
+                          <svg className="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+                            <polyline points="13 2 13 9 20 9" />
+                          </svg>
+                          <span className="max-w-[14rem] truncate">{message.fileInfo.name}</span>
+                        </span>
+                      </div>
+                    )}
+                  </>
                 )}
                 {message.sender === "ai" && message.isAnimating && (
                   <span
