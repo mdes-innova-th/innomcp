@@ -1,0 +1,13 @@
+{
+  "validated_by": "claude-opus-4-8",
+  "date": "2026-06-13",
+  "phases": {
+    "P1": {"verdict": "PASS", "evidence": "responseFormatter.ts (194 ln) exports default class ResponseFormatter; cacheManager.ts (198 ln) exports class CacheManager; both non-empty, no leading markdown fences."},
+    "P2": {"verdict": "PASS", "evidence": "analytics.ts calls analyticsService.getStats() at L9 (no getOverallStats); mdesModels.ts calls mdesModelCache.getModels() at L9."},
+    "P3": {"verdict": "PASS", "evidence": "GREETING_TOKENS Set at L805 precedes gibberish block (L813-829), includes 'hello' at L806, returns polite 'สวัสดีครับ! มีอะไรให้ช่วยไหมครับ?' not ห้ามเดาโว้ย."},
+    "P4": {"verdict": "PASS", "evidence": "PanelErrorBoundary is a React class component with static getDerivedStateFromError (L21), componentDidCatch (L25), and reset button onClick setState (L39-44)."},
+    "P5": {"verdict": "PASS", "evidence": "pre-commit-tsc-gate.sh greps BOTH ^innomcp-node/src/ (L5) AND ^innomcp-next/src/ (L6), running tsc --noEmit on each package independently."}
+  },
+  "all_pass": true,
+  "summary": "All 5 phases PASS formal Opus gate validation; innomcp Phase 1-5 recovery verified intact."
+}

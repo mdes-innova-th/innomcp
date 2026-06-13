@@ -506,6 +506,486 @@
                                    ],
                        "id":  "EXTENDED",
                        "mission":  "120+ quality/utility/component tasks"
+                   },
+                   {
+                       "id":  "OPUS-FORMAL-GATES",
+                       "mission":  "Opus formal gate validation — one per phase, evidence-based",
+                       "members":  [
+                                       {
+                                           "id":  "GATE-VERIFY-1",
+                                           "role":  "sa",
+                                           "model":  "claude-opus-4-8",
+                                           "status":  "pending",
+                                           "task":  "FORMAL GATE — Phase 1 completion. Read innomcp-node/src/services/cacheManager.ts and confirm it was restored from commit 3007ba2 (not MEGA-100). Check the file is NOT empty, NOT starting with markdown fences, and exports CacheManager class. Also confirm src/services/responseFormatter.ts exports ResponseFormatter. Return JSON: {phase:\u0027P1-RESTORE-CHECK\u0027, files_ok:bool, evidence:string, verdict:\u0027PASS\u0027|\u0027FAIL\u0027}. ONLY valid JSON.",
+                                           "output":  "innomcp-node/docs/opus-gates/P1-RESTORE-VERIFY.json",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "GATE-VERIFY-2",
+                                           "role":  "sa",
+                                           "model":  "claude-opus-4-8",
+                                           "status":  "pending",
+                                           "task":  "FORMAL GATE — Phase 2 route correctness. Read innomcp-node/src/routes/api/analytics.ts and confirm: (1) it imports analyticsService (not analyticsService.getOverallStats which never existed); (2) it calls analyticsService.getStats(); (3) it does NOT call any hallucinated methods. Also read mdesModels.ts and confirm it calls mdesModelCache.getModels(). Return JSON: {phase:\u0027P2-ROUTE-METHODS\u0027, analyticsOk:bool, mdesOk:bool, verdict:\u0027PASS\u0027|\u0027FAIL\u0027, evidence:string}. ONLY valid JSON.",
+                                           "output":  "innomcp-node/docs/opus-gates/P2-ROUTE-VERIFY.json",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "GATE-VERIFY-3",
+                                           "role":  "sa",
+                                           "model":  "claude-opus-4-8",
+                                           "status":  "pending",
+                                           "task":  "FORMAL GATE — Phase 3 greeting fix. Read the file innomcp-node/src/services/fastPathHandler.ts and: (1) find GREETING_TOKENS (must exist as a Set or array); (2) confirm it includes \u0027hello\u0027 and \u0027สวัสดี\u0027; (3) confirm the check runs BEFORE the gibberish check; (4) confirm the greeting response is NOT \u0027ห้ามเดาโว้ย\u0027. Return JSON: {phase:\u0027P3-GREETING\u0027, found_tokens:bool, greeting_before_gibberish:bool, correct_response:bool, verdict:\u0027PASS\u0027|\u0027FAIL\u0027}. ONLY valid JSON.",
+                                           "output":  "innomcp-node/docs/opus-gates/P3-GREETING-VERIFY.json",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "GATE-VERIFY-4",
+                                           "role":  "sa",
+                                           "model":  "claude-opus-4-8",
+                                           "status":  "pending",
+                                           "task":  "FORMAL GATE — Phase 4 error boundary. Read innomcp-next/src/app/components/chat/PanelErrorBoundary.tsx. Verify: (1) it is a CLASS component extending React.Component (not function component); (2) has static getDerivedStateFromError(error); (3) has componentDidCatch(error, info); (4) render() returns fallback UI when hasError=true; (5) has a reset button calling setState. Return JSON: {phase:\u0027P4-ERROR-BOUNDARY\u0027, is_class:bool, has_getDerived:bool, has_didCatch:bool, has_reset:bool, verdict:\u0027PASS\u0027|\u0027FAIL\u0027}. ONLY valid JSON.",
+                                           "output":  "innomcp-node/docs/opus-gates/P4-BOUNDARY-VERIFY.json",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "GATE-VERIFY-5",
+                                           "role":  "sa",
+                                           "model":  "claude-opus-4-8",
+                                           "status":  "pending",
+                                           "task":  "FORMAL GATE — Phase 5 pre-commit hooks. Read .git/hooks/pre-commit (or the file path innomcp-node/scripts/pre-commit-fence-check.sh). Verify: (1) fence-check script exists at innomcp-node/scripts/pre-commit-fence-check.sh; (2) tsc-gate script exists at innomcp-node/scripts/pre-commit-tsc-gate.sh; (3) tsc-gate covers BOTH innomcp-node/src AND innomcp-next/src in its grep pattern. Return JSON: {phase:\u0027P5-HOOKS\u0027, fence_exists:bool, tsc_exists:bool, tsc_covers_next:bool, verdict:\u0027PASS\u0027|\u0027FAIL\u0027}. ONLY valid JSON.",
+                                           "output":  "innomcp-node/docs/opus-gates/P5-HOOKS-VERIFY.json",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "OPUS-SUMMARY",
+                                           "role":  "sa",
+                                           "model":  "claude-opus-4-8",
+                                           "status":  "pending",
+                                           "task":  "OPUS FINAL SUMMARY — Read all gate files in innomcp-node/docs/opus-gates/. Aggregate the verdicts. Return JSON: {p1:string, p2:string, p3:string, p4:string, p5:string, all_pass:bool, summary:string, timestamp:\u00272026-06-13\u0027}. If any gate file is missing, mark that phase as \u0027NOT-VERIFIED\u0027. ONLY valid JSON.",
+                                           "output":  "innomcp-node/docs/opus-gates/FINAL-SUMMARY.json",
+                                           "finished_at":  null
+                                       }
+                                   ]
+                   },
+                   {
+                       "id":  "SMOKE-AND-UTIL",
+                       "mission":  "Smoke tests, utilities, components, CI — 44 additional tasks",
+                       "members":  [
+                                       {
+                                           "id":  "SMOKE-1",
+                                           "role":  "dev",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "status":  "pending",
+                                           "task":  "Write a simple Node.js health check script (innomcp-node/scripts/quick-health-check.js) that GETs http://localhost:3012/api/health and prints status in one line. Exit 0 if healthy. Output ONLY .js, no fences.",
+                                           "output":  "innomcp-node/scripts/quick-health-check.js",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "SMOKE-2",
+                                           "role":  "test",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "status":  "pending",
+                                           "task":  "Write a bash smoke test (innomcp-node/scripts/smoke-all-routes.sh) testing GET /api/analytics/stats, GET /api/mdes/models, GET /api/thai/check?text=hello, GET /api/health — each prints PASS/FAIL. Output ONLY bash, no fences.",
+                                           "output":  "innomcp-node/scripts/smoke-all-routes.sh",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "SMOKE-3",
+                                           "role":  "doc",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "status":  "pending",
+                                           "task":  "Write SMOKE-TESTS.md (200 words): how to run smoke tests, expected outputs, what each test verifies. Output only markdown.",
+                                           "output":  "innomcp-node/docs/SMOKE-TESTS.md",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "SMOKE-4",
+                                           "role":  "dev",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "status":  "pending",
+                                           "task":  "Write innomcp-node/scripts/check-ts-clean.sh: runs npx tsc --noEmit, prints PASS or FAIL with error count. Output ONLY bash, no fences.",
+                                           "output":  "innomcp-node/scripts/check-ts-clean.sh",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "SMOKE-5",
+                                           "role":  "dev",
+                                           "model":  "zai-org/GLM-5.1",
+                                           "status":  "pending",
+                                           "task":  "Write innomcp-node/scripts/check-recovery-complete.sh: runs node scripts/verify-recovery.js and prints summary. Output ONLY bash, no fences.",
+                                           "output":  "innomcp-node/scripts/check-recovery-complete.sh",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "UTIL-1",
+                                           "role":  "dev",
+                                           "model":  "MiniMaxAI/MiniMax-M3",
+                                           "status":  "pending",
+                                           "task":  "Write TypeScript utility innomcp-node/src/utils/httpClient.ts: async get(url,headers?), post(url,body,headers?) using node:https. Returns {status:number,data:unknown}. Export both. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-node/src/utils/httpClient.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "UTIL-2",
+                                           "role":  "dev",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "status":  "pending",
+                                           "task":  "Write TypeScript utility innomcp-node/src/utils/fileUtils.ts: readJson\u003cT\u003e(path), writeJson(path,data), ensureDir(path), fileExists(path), listFiles(dir,ext?). All async. Export all. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-node/src/utils/fileUtils.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "UTIL-3",
+                                           "role":  "test",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "status":  "pending",
+                                           "task":  "Write node:test for fileUtils: writeJson + readJson roundtrip, ensureDir creates dir. Output ONLY .js, no fences.",
+                                           "output":  "innomcp-node/tests/unit/fileUtils.test.js",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "UTIL-4",
+                                           "role":  "dev",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "status":  "pending",
+                                           "task":  "Write TypeScript utility innomcp-node/src/utils/hashUtils.ts: md5(s), sha256(s), randomHex(n), uuid(). Uses node:crypto. Export all. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-node/src/utils/hashUtils.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "UTIL-5",
+                                           "role":  "dev",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "status":  "pending",
+                                           "task":  "Write TypeScript class innomcp-node/src/utils/LRUCache.ts: LRUCache\u003cK,V\u003e(maxSize). Methods: get, set, has, delete, clear, size. Evicts least-recently-used on overflow. Export. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-node/src/utils/LRUCache.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "UTIL-6",
+                                           "role":  "test",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "status":  "pending",
+                                           "task":  "Write node:test for LRUCache: set+get works, evicts oldest when full, size() correct. Output ONLY .js, no fences.",
+                                           "output":  "innomcp-node/tests/unit/LRUCache.test.js",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "UTIL-7",
+                                           "role":  "dev",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "status":  "pending",
+                                           "task":  "Write TypeScript utility innomcp-node/src/utils/throttle.ts: throttle\u003cT extends unknown[]\u003e(fn,ms): (...args:T)=\u003evoid. Calls fn at most once per ms. Export. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-node/src/utils/throttle.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "UTIL-8",
+                                           "role":  "dev",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "status":  "pending",
+                                           "task":  "Write TypeScript class innomcp-node/src/utils/EventQueue.ts: EventQueue\u003cT\u003e. Enqueue, dequeue, peek, size, isEmpty. Array-backed FIFO. Export. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-node/src/utils/EventQueue.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "COMP-1",
+                                           "role":  "dev",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "status":  "pending",
+                                           "task":  "Write React component innomcp-next/src/app/components/common/Checkbox.tsx: controlled checkbox. Props: {checked:boolean, onChange:(v:boolean)=\u003evoid, label?:string, disabled?:boolean}. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "output":  "innomcp-next/src/app/components/common/Checkbox.tsx",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "COMP-2",
+                                           "role":  "dev",
+                                           "model":  "zai-org/GLM-5.1",
+                                           "status":  "pending",
+                                           "task":  "Write React component innomcp-next/src/app/components/common/RadioGroup.tsx: radio button group. Props: {options:{label:string,value:string}[], value:string, onChange:(v:string)=\u003evoid, name:string}. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "output":  "innomcp-next/src/app/components/common/RadioGroup.tsx",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "COMP-3",
+                                           "role":  "dev",
+                                           "model":  "MiniMaxAI/MiniMax-M3",
+                                           "status":  "pending",
+                                           "task":  "Write React component innomcp-next/src/app/components/common/Select.tsx: native select dropdown. Props: {options:{label:string,value:string}[], value:string, onChange:(v:string)=\u003evoid, placeholder?:string, disabled?:boolean}. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "output":  "innomcp-next/src/app/components/common/Select.tsx",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "COMP-4",
+                                           "role":  "dev",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "status":  "pending",
+                                           "task":  "Write React component innomcp-next/src/app/components/common/TextArea.tsx: auto-resizing textarea. Props: {value:string, onChange:(v:string)=\u003evoid, placeholder?:string, rows?:number, maxRows?:number, disabled?:boolean}. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "output":  "innomcp-next/src/app/components/common/TextArea.tsx",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "COMP-5",
+                                           "role":  "dev",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "status":  "pending",
+                                           "task":  "Write React component innomcp-next/src/app/components/common/Input.tsx: text input with label and error state. Props: {value:string, onChange:(v:string)=\u003evoid, label?:string, error?:string, placeholder?:string, type?:string, disabled?:boolean}. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "output":  "innomcp-next/src/app/components/common/Input.tsx",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "COMP-6",
+                                           "role":  "dev",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "status":  "pending",
+                                           "task":  "Write React component innomcp-next/src/app/components/common/Modal.tsx: modal dialog with backdrop. Props: {open:boolean, onClose:()=\u003evoid, title?:string, children:ReactNode, size?:\u0027sm\u0027|\u0027md\u0027|\u0027lg\u0027}. Closes on backdrop click. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "output":  "innomcp-next/src/app/components/common/Modal.tsx",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "COMP-7",
+                                           "role":  "dev",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "status":  "pending",
+                                           "task":  "Write React component innomcp-next/src/app/components/common/Tabs.tsx: tabbed interface. Props: {tabs:{id:string,label:string,content:ReactNode}[], defaultTab?:string}. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "output":  "innomcp-next/src/app/components/common/Tabs.tsx",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "COMP-8",
+                                           "role":  "dev",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "status":  "pending",
+                                           "task":  "Write React component innomcp-next/src/app/components/common/Card.tsx: generic card container. Props: {title?:string, subtitle?:string, children:ReactNode, footer?:ReactNode, className?:string, onClick?:()=\u003evoid}. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "output":  "innomcp-next/src/app/components/common/Card.tsx",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "COMP-9",
+                                           "role":  "dev",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "status":  "pending",
+                                           "task":  "Write React component innomcp-next/src/app/components/common/Table.tsx: data table. Props: {columns:{key:string,label:string,width?:string}[], rows:Record\u003cstring,unknown\u003e[], onRowClick?:(row)=\u003evoid}. Tailwind striped rows. Export default. Output ONLY .tsx, no fences.",
+                                           "output":  "innomcp-next/src/app/components/common/Table.tsx",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "COMP-10",
+                                           "role":  "dev",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "status":  "pending",
+                                           "task":  "Write React component innomcp-next/src/app/components/common/Pagination.tsx: page navigation. Props: {page:number, totalPages:number, onPageChange:(p:number)=\u003evoid, showFirst?:boolean, showLast?:boolean}. Tailwind. Export default. Output ONLY .tsx, no fences.",
+                                           "output":  "innomcp-next/src/app/components/common/Pagination.tsx",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "HOOK-1",
+                                           "role":  "dev",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "status":  "pending",
+                                           "task":  "Write React hook innomcp-next/src/app/hooks/usePagination.ts: usePagination(total,pageSize): {page, totalPages, next, prev, goTo, pageItems\u003cT\u003e(items:T[])}. Export. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-next/src/app/hooks/usePagination.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "HOOK-2",
+                                           "role":  "dev",
+                                           "model":  "zai-org/GLM-5.1",
+                                           "status":  "pending",
+                                           "task":  "Write React hook innomcp-next/src/app/hooks/useFilter.ts: useFilter\u003cT\u003e(items:T[], filterFn:(item:T,query:string)=\u003eboolean): {query, setQuery, filtered:T[]}. Export. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-next/src/app/hooks/useFilter.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "HOOK-3",
+                                           "role":  "dev",
+                                           "model":  "MiniMaxAI/MiniMax-M3",
+                                           "status":  "pending",
+                                           "task":  "Write React hook innomcp-next/src/app/hooks/useSort.ts: useSort\u003cT\u003e(items:T[]): {sorted:T[], sortBy:(key:keyof T)=\u003evoid, sortKey, sortDir:\u0027asc\u0027|\u0027desc\u0027}. Export. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-next/src/app/hooks/useSort.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "HOOK-4",
+                                           "role":  "dev",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "status":  "pending",
+                                           "task":  "Write React hook innomcp-next/src/app/hooks/useToggle.ts: useToggle(initial=false): [boolean, ()=\u003evoid, (v:boolean)=\u003evoid]. Export. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-next/src/app/hooks/useToggle.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "HOOK-5",
+                                           "role":  "dev",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "status":  "pending",
+                                           "task":  "Write React hook innomcp-next/src/app/hooks/useCounter.ts: useCounter(init=0, step=1): {count, increment, decrement, reset, set:(n:number)=\u003evoid}. Export. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-next/src/app/hooks/useCounter.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "DOC-1",
+                                           "role":  "doc",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "status":  "pending",
+                                           "task":  "Write COMPONENT-DESIGN-SYSTEM.md (300 words): design principles for innomcp-next components — Tailwind conventions, prop naming, accessibility requirements, when to create vs reuse. Output only markdown.",
+                                           "output":  "innomcp-next/docs/COMPONENT-DESIGN-SYSTEM.md",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "DOC-2",
+                                           "role":  "doc",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "status":  "pending",
+                                           "task":  "Write API-ROUTES-QUICK-REF.md (300 words): quick reference card for all innomcp backend routes with HTTP method, path, and one-line description. Output only markdown.",
+                                           "output":  "innomcp-node/docs/API-ROUTES-QUICK-REF.md",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "DOC-3",
+                                           "role":  "doc",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "status":  "pending",
+                                           "task":  "Write CONTRIBUTING-FRONTEND.md (250 words): how to add new React components to innomcp-next — file naming, export patterns, Tailwind usage, testing. Output only markdown.",
+                                           "output":  "innomcp-next/docs/CONTRIBUTING-FRONTEND.md",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "DOC-4",
+                                           "role":  "doc",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "status":  "pending",
+                                           "task":  "Write ENVIRONMENT-VARS.md (300 words): all environment variables used by innomcp-node and innomcp-next, their defaults, and what breaks if missing. Output only markdown.",
+                                           "output":  "innomcp-node/docs/ENVIRONMENT-VARS.md",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "DOC-5",
+                                           "role":  "doc",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "status":  "pending",
+                                           "task":  "Write PHASE-COMPLETION-CHECKLIST.md (250 words): checklist to verify before declaring any innomcp development phase complete — tsc clean, tests pass, browser verified, docs updated, commit message format. Output only markdown.",
+                                           "output":  "innomcp-node/docs/PHASE-COMPLETION-CHECKLIST.md",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "TEST-1",
+                                           "role":  "test",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "status":  "pending",
+                                           "task":  "Write node:test for httpClient.ts (innomcp-node/src/utils/httpClient.ts): get() returns {status,data}, handles 404 with status 404, post() sends body. Mock https with nock or inline mock. Output ONLY .js, no fences.",
+                                           "output":  "innomcp-node/tests/unit/httpClient.test.js",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "TEST-2",
+                                           "role":  "test",
+                                           "model":  "zai-org/GLM-5.1",
+                                           "status":  "pending",
+                                           "task":  "Write node:test for throttle.ts: function called once not twice within window, called again after window expires. Use fake timers. Output ONLY .js, no fences.",
+                                           "output":  "innomcp-node/tests/unit/throttle.test.js",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "TEST-3",
+                                           "role":  "test",
+                                           "model":  "MiniMaxAI/MiniMax-M3",
+                                           "status":  "pending",
+                                           "task":  "Write node:test for EventQueue.ts: enqueue+dequeue FIFO order, peek doesn\u0027t remove, isEmpty true when empty. Output ONLY .js, no fences.",
+                                           "output":  "innomcp-node/tests/unit/EventQueue.test.js",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "TEST-4",
+                                           "role":  "test",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "status":  "pending",
+                                           "task":  "Write node:test for hashUtils.ts: md5(\u0027hello\u0027) is a 32-char hex string, sha256(\u0027hello\u0027) is 64-char hex, uuid() is uuid format. Output ONLY .js, no fences.",
+                                           "output":  "innomcp-node/tests/unit/hashUtils.test.js",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "TEST-5",
+                                           "role":  "test",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "status":  "pending",
+                                           "task":  "Write node:test for pagination utility (innomcp-next/src/app/hooks/usePagination.ts if compiled to js): pageItems slices correctly, totalPages is ceil(total/pageSize), next increments page. Output ONLY .js, no fences.",
+                                           "output":  "innomcp-node/tests/unit/pagination.test.js",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "MW-1",
+                                           "role":  "dev",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "status":  "pending",
+                                           "task":  "Write Express middleware innomcp-node/src/middleware/apiVersion.ts: adds X-API-Version header from package.json version to every response. Export. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-node/src/middleware/apiVersion.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "MW-2",
+                                           "role":  "dev",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "status":  "pending",
+                                           "task":  "Write Express middleware innomcp-node/src/middleware/noCache.ts: sets Cache-Control: no-store, no-cache, Pragma: no-cache on all non-GET responses. Export noCacheMiddleware. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-node/src/middleware/noCache.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "MW-3",
+                                           "role":  "dev",
+                                           "model":  "deepseek/deepseek-v4-pro",
+                                           "status":  "pending",
+                                           "task":  "Write Express middleware innomcp-node/src/middleware/ipWhitelist.ts: allowlist of IPs from IP_WHITELIST env (comma-separated). If set, rejects non-whitelisted IPs with 403. If env not set, allows all. Export ipWhitelistMiddleware. Output ONLY .ts, no fences.",
+                                           "output":  "innomcp-node/src/middleware/ipWhitelist.ts",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "CI-1",
+                                           "role":  "dev",
+                                           "model":  "deepseek/deepseek-v4-flash",
+                                           "status":  "pending",
+                                           "task":  "Write GitHub Actions workflow innomcp-node/.github/workflows/smoke-test.yml: on push to main, runs node scripts/quick-health-check.js if HEALTH_CHECK_URL secret is set. Node 22. Output ONLY YAML, no fences.",
+                                           "output":  "innomcp-node/.github/workflows/smoke-test.yml",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "CI-2",
+                                           "role":  "doc",
+                                           "model":  "Qwen/Qwen3.7-Max",
+                                           "status":  "pending",
+                                           "task":  "Write CICD-PIPELINE.md (250 words): describes innomcp CI pipeline — what runs on PR vs push to main, required checks, how to fix failing tests, escalation for pre-existing failures (motherPipeline). Output only markdown.",
+                                           "output":  "innomcp-node/docs/CICD-PIPELINE.md",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "FINAL-1",
+                                           "role":  "dev",
+                                           "model":  "moonshotai/Kimi-K2.6",
+                                           "status":  "pending",
+                                           "task":  "Write innomcp-node/scripts/run-opus-gates.sh: bash script that checks all files in innomcp-node/docs/opus-gates/ exist and print their verdict fields. Prints overall PASS if all verdicts are PASS. Output ONLY bash, no fences.",
+                                           "output":  "innomcp-node/scripts/run-opus-gates.sh",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "FINAL-2",
+                                           "role":  "doc",
+                                           "model":  "zai-org/GLM-5.1",
+                                           "status":  "pending",
+                                           "task":  "Write innomcp-node/docs/RECOVERY-COMPLETE-VERIFIED.md (400 words English+Thai): final declaration that innomcp recovery is complete. Include: Phase 1-5 summary, Opus gate verdicts, CommandCode army stats (103+55 tasks), CI status, pre-commit hooks active, browser verification plan. Output only markdown.",
+                                           "output":  "innomcp-node/docs/RECOVERY-COMPLETE-VERIFIED.md",
+                                           "finished_at":  null
+                                       },
+                                       {
+                                           "id":  "FINAL-3",
+                                           "role":  "doc",
+                                           "model":  "MiniMaxAI/MiniMax-M3",
+                                           "status":  "pending",
+                                           "task":  "Write innomcp-node/docs/LESSONS-LEARNED-MEGA100.md (500 words): engineering lessons from the MEGA-100 incident for any team doing LLM-powered bulk code generation. 5 specific lessons with before/after examples. Output only markdown.",
+                                           "output":  "innomcp-node/docs/LESSONS-LEARNED-MEGA100.md",
+                                           "finished_at":  null
+                                       }
+                                   ]
                    }
                ]
 }

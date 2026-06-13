@@ -24,6 +24,7 @@ import {
 } from "../../../utils/chatStorage";
 import dynamic from "next/dynamic";
 import MultiAgentPanel from "@/app/components/chat/MultiAgentPanel";
+import PlanViewer from "@/app/components/chat/PlanViewer";
 import StarterPromptsGrid from "@/app/components/chat/StarterPromptsGrid";
 import AgentWorkspacePanel from "@/app/components/chat/AgentWorkspacePanel";
 import OfficeTeamPanel from "@/app/components/chat/OfficeTeamPanel";
@@ -58,10 +59,6 @@ const ThinkingModal = dynamic(() => import("@/app/components/chat/ThinkingModal"
   loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">?????????...</div>,
 });
 const ArtifactPanel = dynamic(() => import("@/app/components/chat/ArtifactPanel"), {
-  ssr: false,
-  loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">?????????...</div>,
-});
-const PlanViewer = dynamic(() => import("@/app/components/chat/PlanViewer"), {
   ssr: false,
   loading: () => <div className="flex items-center justify-center p-4 text-muted-foreground text-[12px] animate-pulse">?????????...</div>,
 });
@@ -996,7 +993,6 @@ const ChatPage: React.FC = () => {
           const deduplicated = newArts.filter(a => !existingIds.has(a.id));
           return deduplicated.length > 0 ? [...prev, ...deduplicated] : prev;
         });
-        setArtifactPanelOpen(true);
       }
     }
   }, [agentStreamState.activeMessageId, agentStreamState.finalText, agentStreamState.status]);
@@ -1169,8 +1165,11 @@ const ChatPage: React.FC = () => {
       setStickyWorkingTick((t) => t + 1);
       setTimeout(() => setStickyWorkingTick((t) => t + 1), 1500);
       setIsWaitingForResponse(true);
-      setWorkspaceOpen(true);
-      setPlanViewerOpen(true);
+      setWorkspaceOpen(false);
+      setPlanViewerOpen(false);
+      setArtifactPanelOpen(false);
+      setModelSettingsOpen(false);
+      window.dispatchEvent(new CustomEvent("innomcp-close-transient-panels"));
     } else if (socket && !isSocketReady) {
       console.error(
         "WebSocket is not ready. Please wait for the connection to be established."
@@ -1881,7 +1880,7 @@ const ChatPage: React.FC = () => {
                     layoutMode="empty"
                     onFocus={() => setIsChatActive(true)}
                     onBlur={() => setIsChatActive(false)}
-                    onAddArtifact={(a) => { setArtifacts(prev => [...prev, a]); setArtifactPanelOpen(true); }}
+                    onAddArtifact={(a) => { setArtifacts(prev => [...prev, a]); }}
                     setCsvPrefix={(s) => { csvPrefixRef.current = s; }}
                   />
 
@@ -2206,7 +2205,7 @@ const ChatPage: React.FC = () => {
                 layoutMode="conversation"
                 onFocus={() => setIsChatActive(true)}
                 onBlur={() => setIsChatActive(false)}
-                onAddArtifact={(a) => { setArtifacts(prev => [...prev, a]); setArtifactPanelOpen(true); }}
+                onAddArtifact={(a) => { setArtifacts(prev => [...prev, a]); }}
                 setCsvPrefix={(s) => { csvPrefixRef.current = s; }}
               />
             </div>

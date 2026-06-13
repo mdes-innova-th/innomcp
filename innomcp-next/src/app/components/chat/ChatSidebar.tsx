@@ -513,6 +513,12 @@ const ChatSidebar: React.FC<Props> = ({
     return () => window.removeEventListener("innomcp-open-panel", handler);
   }, []);
 
+  useEffect(() => {
+    const closePanels = () => setActivePanel(null);
+    window.addEventListener("innomcp-close-transient-panels", closePanels);
+    return () => window.removeEventListener("innomcp-close-transient-panels", closePanels);
+  }, []);
+
   const safeTheme = mounted ? theme : "light";
 
   // Derive numeric project id for UserPresence — null for guest/non-numeric ids

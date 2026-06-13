@@ -37,6 +37,10 @@ import { dispatchMother } from "./motherDispatch";
 import type { GuestLimits } from "../middleware/guestLimiter";
 import { sessionMemory, type MemoryDomain } from "../services/sessionMemory";
 import { disambiguateWithSessionMemory } from "../services/memoryRagHook";
+import {
+  buildSystemInventoryAnswer,
+  looksLikeSystemInventoryQuestion,
+} from "../services/systemInventory";
 
 export interface ConductorOptions {
   message: string;
@@ -75,6 +79,8 @@ function composeAnswer(ctx: ComposeContext): string {
   switch (ctx.intent) {
     case "greeting":
       return composeGreetingAnswer();
+    case "system-inventory":
+      return "";
     case "planning-broad":
       return composePlanningBroadAnswer(ctx.query, ctx.facts);
     case "weather":
@@ -101,6 +107,15 @@ function composeAnswer(ctx: ComposeContext): string {
 function normalizeResponseMode(opts: ConductorOptions): AgentRunMode {
   if (opts.thinkingMode === true) return "thinking";
   return opts.responseMode === "thinking" ? "thinking" : "normal";
+}
+
+function getRuntimeMcpClient(): any | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    return require("../routes/api/chat")?.mcpClient ?? null;
+  } catch {
+    return null;
+  }
 }
 
 function composeDateTimeAnswer(): string {
@@ -267,6 +282,49 @@ export async function runConductor(
       : "";
   const messageId = requestedMessageId || randomUUID();
   let cls = classifyIntent(opts.message, opts.toolHint);
+
+  if (looksLikeSystemInventoryQuestion(opts.message)) {
+    cls = { intent: "system-inventory", expectedToolUsage: false, reasons: ["system-inventory: direct runtime inventory"] };
+    const startedEv = newEnvelope({
+      runId,
+      messageId,
+      type: "agent_started",
+      publicSummary: "ตรวจ inventory ของ Tools/API จาก runtime",
+      agentId: "conductor",
+    });
+    safeEmit(emit, startedEv, false);
+
+    const routeEv = newEnvelope({
+      runId,
+      messageId,
+      type: "route_selected",
+      publicSummary: routeSummaryFor(cls.intent),
+      agentId: "conductor",
+    });
+    safeEmit(emit, routeEv, false);
+
+    const inventoryText = await buildSystemInventoryAnswer({ mcpClient: getRuntimeMcpClient() });
+    const finalEv = newEnvelope({
+      runId,
+      messageId,
+      type: "final_answer",
+      publicSummary: "ส่ง inventory ของระบบ",
+      agentId: "concierge",
+    });
+    finalEv.finalText = inventoryText;
+    finalEv.confidence = 0.9;
+    safeEmit(emit, finalEv, false);
+
+    return {
+      runId,
+      messageId,
+      finalText: inventoryText,
+      intent: cls.intent,
+      providerId: null,
+      model: null,
+      events: 3,
+    };
+  }
 
   // Session-memory disambiguation: override a low-confidence / follow-up
   // classification when session context makes the domain clear.

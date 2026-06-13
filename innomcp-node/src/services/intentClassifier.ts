@@ -8,8 +8,11 @@
  * detect "Used tools: none" leaks.
  */
 
+import { looksLikeSystemInventoryQuestion } from "./systemInventory";
+
 export type ChatIntent =
   | "greeting"
+  | "system-inventory"
   | "planning-broad"
   | "weather"
   | "datetime"
@@ -388,6 +391,11 @@ export function classifyIntent(message: string, toolHint?: string): ClassifyResu
   const shell = containsAny(message, SHELL_KEYWORDS);
   const write = containsAny(message, WRITE_KEYWORDS);
   const hint = String(toolHint || "auto").toLowerCase();
+
+  if (looksLikeSystemInventoryQuestion(message)) {
+    reasons.push("system-inventory: tools/apis/providers inventory question");
+    return { intent: "system-inventory", expectedToolUsage: false, reasons };
+  }
 
   if (hint && hint !== "auto") {
     if (hint === "weather") return { intent: "weather", expectedToolUsage: true, reasons: ["tool-hint:weather"] };

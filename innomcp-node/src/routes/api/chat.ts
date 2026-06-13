@@ -33,6 +33,11 @@ import { retrieveRecordsPayload } from "../../utils/chat/recordsRetrieval";
 import { quickNormalize } from "../../utils/thaiQueryNormalizer";
 import { hasTemporalIndicators } from "../../utils/thaiTemporalParser";
 import { resolveProvinces } from "../../utils/locationResolver";
+import {
+  buildSystemInventoryAnswer,
+  buildSystemInventorySnapshot,
+  looksLikeSystemInventoryQuestion,
+} from "../../services/systemInventory";
 import { recordTurnAndGetMeta, enrichGroundedContract, getMemoryDebugData, queryColdRag, disambiguateWithSessionMemory } from "../../services/memoryRagHook";
 import { callImageGen, buildImageGenText } from "../../services/imageGenService";
 import { adaptImagePrompt } from "../../services/promptAdapter";
@@ -3465,6 +3470,34 @@ wss.on("connection", (ws, req) => {
         const cid = (ws as any).correlationId as string | undefined;
 
         chatTraceIn({ transport: "ws", sid: currentSessionId, cid, uiMode, msg: messageWithFile });
+
+        if (looksLikeSystemInventoryQuestion(routingMessage)) {
+          logBoth("info", "[SystemInventory] deterministic=true transport=ws");
+
+          sessionHistory.push({ sender: "user", text: messageWithFile });
+          sessionManager.addMessage(currentSessionId, "user", messageWithFile);
+          sessionManager.startResponse(currentSessionId);
+
+          const textOut = await buildSystemInventoryAnswer({ mcpClient });
+          const structuredContent = {
+            route: "system_inventory",
+            generatedAt: new Date().toISOString(),
+            mcpStatus: mcpClient ? "available" : "unavailable",
+          };
+          const aiMessage: any = {
+            sender: "ai",
+            text: textOut,
+            structuredContent,
+            toolsUsed: ["systemInventory"],
+          };
+          sessionHistory.push(aiMessage);
+          sessionManager.addMessage(currentSessionId, "assistant", textOut, ["systemInventory"]);
+          sessionManager.completeResponse(currentSessionId);
+          sendSafe(ws, { type: "message", sender: "ai", text: textOut, structuredContent, toolsUsed: ["systemInventory"] });
+          sendSafe(ws, { type: "history-update", messages: sessionHistory, toolsUsed: ["systemInventory"] });
+          sendDoneOnce();
+          return;
+        }
 
         // =====================================
         // Phase 7.2.5: Deterministic Evidence Fastpath (NO LLM classify/tool-select)
@@ -8044,6 +8077,18 @@ chatRouter.post("/", optionalAuth, guestLimiterMiddleware, fastPathChatMiddlewar
 // --- 8. Utility Endpoints ---
 chatRouter.get("/ws", (req, res) => {
   res.status(400).send("WebSocket endpoint. Please connect via WebSocket.");
+});
+
+chatRouter.get("/system/inventory", async (req, res) => {
+  try {
+    const snapshot = await buildSystemInventorySnapshot({ mcpClient });
+    res.json(snapshot);
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to build system inventory",
+      message: error instanceof Error ? error.message : "unknown error",
+    });
+  }
 });
 
 chatRouter.get("/mcp/tools", (req, res) => {
