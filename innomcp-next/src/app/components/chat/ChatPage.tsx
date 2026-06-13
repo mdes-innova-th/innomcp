@@ -1113,7 +1113,7 @@ const ChatPage: React.FC = () => {
         preferredMode: derivedMode,
         toolHint: selectedToolType,
         reasoningMode: derivedReasoning,
-        uiMode: selectedToolType === "officer" ? "officer" : undefined
+        uiMode: selectedToolType // P0-9: send the selected mode for ALL modes (was officer-only)
       };
 
       // Phase C.06: stamp send time BEFORE socket.send so that if the first
@@ -1148,8 +1148,8 @@ const ChatPage: React.FC = () => {
           } 
         })
       };
-      setMessages([...messages, userMessage]);
-      
+      setMessages(prev => [...prev, userMessage]); // P0-2: functional update avoids stale-state race if backend responds before this commits
+
       // Jump to bottom when user sends message
       setTimeout(() => scrollToBottom(), 150);
       
@@ -1464,7 +1464,7 @@ const ChatPage: React.FC = () => {
       preferredMode: retryDerivedMode,
       toolHint: selectedToolType,
       reasoningMode: chatMode === "multiagent" ? "thinking" : "normal",
-      uiMode: selectedToolType === "officer" ? "officer" : undefined
+      uiMode: selectedToolType // P0-9: send the selected mode for ALL modes (retry path)
     };
 
     socket.send(JSON.stringify(message));
